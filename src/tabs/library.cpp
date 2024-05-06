@@ -59,6 +59,7 @@
 #include <utility/updater.h>
 #include <stores/Steam/steam_library.h>
 
+constexpr char spaces[]                  = { "\u0020\u0020\u0020\u0020" };
 const int              SKIF_STEAM_APPID  = 1157970;
 bool                   SKIF_STEAM_OWNER  = false;
 bool                   steamRunning      = false;
@@ -210,6 +211,31 @@ GetEffectiveCategory (app_record_s* app)
          : (! app->skif.category.empty())
          ?    app->skif.category
          :   "Games";
+}
+
+// This is shared between the Icon menu and the Filter menu
+static void
+ShowLargeIconToggle (void)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  bool* pActiveBool = (_registry._TouchDevice) ? &_registry._TouchDevice : &_registry.bUILargeIcons;
+
+  if (_registry._TouchDevice)
+  {
+    ImGui::BeginGroup           ( ); // Needed for the hover tip to appear
+    SKIF_ImGui_PushDisableState ( );
+  }
+
+  if (SKIF_ImGui_MenuItemEx2 ("Large icons", ICON_FA_ICONS, ImColor(255, 207, 72), spaces, pActiveBool))
+    _registry.regKVUILargeIcons.putData (_registry.bUILargeIcons);
+
+  if (_registry._TouchDevice)
+  {
+    SKIF_ImGui_PopDisableState  ( );
+    ImGui::EndGroup             ( );
+    SKIF_ImGui_SetHoverTip      ("Currently enforced by touch input mode.");
+  }
 }
 
 #pragma region Trie Keyboard Hint Search
@@ -6738,8 +6764,10 @@ SKIF_UI_Tab_DrawLibrary (void)
 #pragma region SpecialKPatreon
 
   // Special handling at the bottom of the cover for Special K
-  if (uiCoverVisible                      && // Only when the cover is visible, and
-      ! _registry._TinyCovers             && //      when not using tiny covers, and
+  if (_registry.bPatreon                  && // Only if the Patreon stuff is enabled
+      uiCoverVisible                      && // Only when the cover is visible, and
+    //! _registry._TinyCovers             && //      when not using tiny covers, and
+    (ImGui::GetContentRegionAvail().x > 150.0f * SKIF_ImGui_GlobalDPIScale) &&
     ((! isSpecialK && fAlphaSK > 0.0f)    || // either while Special K logo is fading out,
        (pApp        != nullptr            && // or its selected in the list
         pApp->id    == SKIF_STEAM_APPID   &&
@@ -6796,45 +6824,48 @@ SKIF_UI_Tab_DrawLibrary (void)
           L"https://www.patreon.com/Kaldaien"
         );
 
-      ImGui::SetCursorPos  (ImVec2 (ImGui::GetContentRegionAvail().x - (230.0f * SKIF_ImGui_GlobalDPIScale), 0.0f));
+      if (ImGui::GetContentRegionAvail().x > (150.0f + 230.0f) * SKIF_ImGui_GlobalDPIScale)
+      {
+        ImGui::SetCursorPos  (ImVec2 (ImGui::GetContentRegionAvail().x - (230.0f * SKIF_ImGui_GlobalDPIScale), 0.0f));
 
-      ImGui::PushStyleColor     (ImGuiCol_ChildBg,        hoveredPatCredits ? ImGui::GetStyleColorVec4(ImGuiCol_WindowBg)
-                                                                            : ImGui::GetStyleColorVec4(ImGuiCol_WindowBg) * ImVec4(.8f, .8f, .8f, .66f));
-      ImGui::BeginChild         ("###PatronsChild", ImVec2 (230.0f * SKIF_ImGui_GlobalDPIScale,
-                                                            200.0f * SKIF_ImGui_GlobalDPIScale),
-                                                        ImGuiChildFlags_AlwaysUseWindowPadding, // Never use a border
-                                                        ImGuiWindowFlags_NoScrollbar); // ((pApp->tex_cover.isCustom) ? ImGuiWindowFlags_None : ImGuiWindowFlags_NoBackground))
+        ImGui::PushStyleColor     (ImGuiCol_ChildBg,        hoveredPatCredits ? ImGui::GetStyleColorVec4(ImGuiCol_WindowBg)
+                                                                              : ImGui::GetStyleColorVec4(ImGuiCol_WindowBg) * ImVec4(.8f, .8f, .8f, .66f));
+        ImGui::BeginChild         ("###PatronsChild", ImVec2 (230.0f * SKIF_ImGui_GlobalDPIScale,
+                                                              200.0f * SKIF_ImGui_GlobalDPIScale),
+                                                          ImGuiChildFlags_AlwaysUseWindowPadding, // Never use a border
+                                                          ImGuiWindowFlags_NoScrollbar); // ((pApp->tex_cover.isCustom) ? ImGuiWindowFlags_None : ImGuiWindowFlags_NoBackground))
 
-      ImGui::TextColored        (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption) * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f), "Special Kudos to our Patrons:");
+        ImGui::TextColored        (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption) * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f), "Special Kudos to our Patrons:");
 
-      std::string patrons_ = SKIF_Updater::GetInstance ( ).GetPatrons ( );
+        std::string patrons_ = SKIF_Updater::GetInstance ( ).GetPatrons ( );
 
-      ImGui::Spacing            ( );
-      ImGui::SameLine           ( );
-      ImGui::Spacing            ( );
-      ImGui::SameLine           ( );
+        ImGui::Spacing            ( );
+        ImGui::SameLine           ( );
+        ImGui::Spacing            ( );
+        ImGui::SameLine           ( );
     
-      ImGui::PushStyleVar       (ImGuiStyleVar_FrameBorderSize, 0.0f);
-      ImGui::PushStyleColor     (ImGuiCol_Text,           ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4  (0.6f, 0.6f, 0.6f, 1.0f));
-      ImGui::PushStyleColor     (ImGuiCol_FrameBg,        ImColor (0, 0, 0, 0).Value);
-      ImGui::PushStyleColor     (ImGuiCol_ScrollbarBg,    ImColor (0, 0, 0, 0).Value);
-      ImGui::PushStyleColor     (ImGuiCol_TextSelectedBg, ImColor (0, 0, 0, 0).Value);
-      ImGui::InputTextMultiline ("###Patrons", patrons_.data (), patrons_.length (),
-                      ImVec2 (205.0f * SKIF_ImGui_GlobalDPIScale,
-                              160.0f * SKIF_ImGui_GlobalDPIScale),
-                                      ImGuiInputTextFlags_ReadOnly );
-      ImGui::PopStyleColor      (4);
-      ImGui::PopStyleVar        (2);
+        ImGui::PushStyleVar       (ImGuiStyleVar_FrameBorderSize, 0.0f);
+        ImGui::PushStyleColor     (ImGuiCol_Text,           ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4  (0.6f, 0.6f, 0.6f, 1.0f));
+        ImGui::PushStyleColor     (ImGuiCol_FrameBg,        ImColor (0, 0, 0, 0).Value);
+        ImGui::PushStyleColor     (ImGuiCol_ScrollbarBg,    ImColor (0, 0, 0, 0).Value);
+        ImGui::PushStyleColor     (ImGuiCol_TextSelectedBg, ImColor (0, 0, 0, 0).Value);
+        ImGui::InputTextMultiline ("###Patrons", patrons_.data (), patrons_.length (),
+                        ImVec2 (205.0f * SKIF_ImGui_GlobalDPIScale,
+                                160.0f * SKIF_ImGui_GlobalDPIScale),
+                                        ImGuiInputTextFlags_ReadOnly );
+        ImGui::PopStyleColor      (4);
+        ImGui::PopStyleVar        (2);
 
-      hoveredPatCredits =
-      ImGui::IsItemActive       ( ) ||
-      ImGui::IsItemHovered      ( );
+        hoveredPatCredits =
+        ImGui::IsItemActive       ( ) ||
+        ImGui::IsItemHovered      ( );
 
-      ImGui::EndChild           ( );
-      ImGui::PopStyleColor      ( );
+        ImGui::EndChild           ( );
+        ImGui::PopStyleColor      ( );
 
-      hoveredPatCredits = hoveredPatCredits ||
-      ImGui::IsItemHovered      ( );
+        hoveredPatCredits = hoveredPatCredits ||
+        ImGui::IsItemHovered      ( );
+      }
 
       if (_registry.bFadeCovers)
         ImGui::PopStyleVar ( );
@@ -6862,43 +6893,22 @@ SKIF_UI_Tab_DrawLibrary (void)
     ImGui::OpenPopup    ("CoverMenu");
     CoverMenu = PopupState_Closed;
   }
+  
 
-  if (ImGui::BeginPopup ("CoverMenu", ImGuiWindowFlags_NoMove))
+  if (pApp != nullptr)
   {
-    ImGui::PushStyleColor  (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
-
-    if (pApp != nullptr)
+    if (ImGui::BeginPopup   ("CoverMenu", ImGuiWindowFlags_NoMove))
     {
+      ImGui::PushStyleColor (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
+
       // Preparations
 
-      bool resetVisible = ((pApp->id    != SKIF_STEAM_APPID            && // Ugly check to exclude the "Special K" entry from being set to true
+      bool resetVisible = ((pApp->id    != SKIF_STEAM_APPID             && // Ugly check to exclude the "Special K" entry from being set to true
                             pApp->store != app_record_s::Store::Custom) ||
-                            pApp->tex_cover.isCustom                   ||
+                            pApp->tex_cover.isCustom                    ||
                             pApp->tex_cover.isManaged);
-      // Column 1: Icons
-
-      ImGui::BeginGroup  ( );
-      ImVec2 iconPos = ImGui::GetCursorPos();
-
-      ImGui::ItemSize (  ImVec2 (ImGui::CalcTextSize (ICON_FA_FILE_IMAGE          ).x, ImGui::GetTextLineHeight()));
-      if (pApp->tex_cover.isCustom)
-        ImGui::ItemSize (ImVec2 (ImGui::CalcTextSize (ICON_FA_ROTATE_LEFT         ).x, ImGui::GetTextLineHeight()));
-      else if (pApp->tex_cover.isManaged)
-        ImGui::ItemSize (ImVec2 (ImGui::CalcTextSize (ICON_FA_ROTATE              ).x, ImGui::GetTextLineHeight()));
-      else if (resetVisible) // If texture is neither custom nor managed
-        ImGui::ItemSize (ImVec2 (ImGui::CalcTextSize (ICON_FA_ROTATE              ).x, ImGui::GetTextLineHeight()));
-      ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
-      ImGui::Separator  (  );
-      ImGui::PopStyleColor (  );
-      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_UP_RIGHT_FROM_SQUARE).x, ImGui::GetTextLineHeight()));
-
-      ImGui::EndGroup   (  );
-
-      ImGui::SameLine   (  );
-
-      // Column 2: Items
-      ImGui::BeginGroup (  );
-      if (ImGui::Selectable ("Change", false, ImGuiSelectableFlags_SpanAllColumns))
+      
+      if (SKIF_ImGui_MenuItemEx2 ("Change", ICON_FA_FILE_IMAGE, (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255)))
       {
         LPWSTR pwszFilePath = NULL;
         HRESULT hr          =
@@ -6929,14 +6939,51 @@ SKIF_UI_Tab_DrawLibrary (void)
           }
         }
       }
+
       else
-      {
         SKIF_ImGui_SetMouseCursorHand ( );
-      }
 
       if (resetVisible)
       {
-        if (ImGui::Selectable ((pApp->tex_cover.isCustom) ? ((pApp->store == app_record_s::Store::Custom) ? "Clear" : "Reset") : "Refresh", false, ImGuiSelectableFlags_SpanAllColumns | ((pApp->tex_cover.isCustom || pApp->tex_cover.isManaged) ? 0x0 : ImGuiSelectableFlags_Disabled)))
+        constexpr char* textCustom1 = "Clear";
+        constexpr char* textCustom2 = "Reset";
+        constexpr char* textDefault = "Refresh";
+        char*           textPtr     = textDefault;
+        constexpr char* iconCustom  = ICON_FA_ROTATE_LEFT;
+        constexpr char* iconDefault = ICON_FA_ROTATE;
+        char*           iconPtr     = iconDefault;
+        ImColor         iconColor   = (_registry._StyleLightMode) ? ImColor (128, 128, 128) : ImColor (128, 128, 128); // If neither custom nor managed (aka disabled)
+
+        if (pApp->tex_cover.isCustom)
+        {
+          iconColor = (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255);
+          iconPtr   = iconCustom;
+          textPtr   = ((pApp->store == app_record_s::Store::Custom) ? textCustom1 : textCustom2);
+        }
+
+        else if (pApp->tex_cover.isManaged)
+        {
+          iconColor = (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255);
+        }
+
+        bool enabled = (pApp->tex_cover.isCustom || pApp->tex_cover.isManaged);
+
+        // We use a group otherwise SKIF_ImGui_SetHoverTip() would not appear when disabled
+        if (! enabled)
+          ImGui::BeginGroup ( );
+
+        bool doReset = SKIF_ImGui_MenuItemEx2 (textPtr, iconPtr, iconColor, 0, nullptr, enabled);
+
+        if (! enabled)
+        {
+          ImGui::EndGroup ( );
+          SKIF_ImGui_SetHoverTip ("Managed by the platform client.");
+        }
+
+        else
+          SKIF_ImGui_SetMouseCursorHand ( );
+
+        if (doReset)
         {
           std::wstring targetPath = L"";
 
@@ -6959,9 +7006,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
             // Will fail on read-only marked files
             bool d1 = DeleteFile ((targetPath + fileName + L".png").c_str()),
-                 d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
-                 d3 = false,
-                 d4 = false;
+                  d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
+                  d3 = false,
+                  d4 = false;
 
             // For Xbox titles we also store a fallback cover that we must reset
             if (! pApp->tex_cover.isCustom && pApp->store == app_record_s::Store::Xbox)
@@ -6979,61 +7026,29 @@ SKIF_UI_Tab_DrawLibrary (void)
             }
           }
         }
-        else
-        {
-          if (pApp->tex_cover.isCustom || pApp->tex_cover.isManaged)
-            SKIF_ImGui_SetMouseCursorHand ( );
-          else
-            SKIF_ImGui_SetHoverTip        ("Managed by the platform client.");
-        }
       }
 
-      ImGui::Separator  (  );
+      ImGui::Separator ( );
 
-      if (ImGui::Selectable ("Open SteamGridDB", false, ImGuiSelectableFlags_SpanAllColumns))
-        SKIF_Util_OpenURI   (SK_UTF8ToWideChar(pApp->ui.sgdbGrids).c_str());
+      if (SKIF_ImGui_MenuItemEx2 ("Open SteamGridDB", ICON_FA_UP_RIGHT_FROM_SQUARE, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)))
+        SKIF_Util_OpenURI (SK_UTF8ToWideChar (pApp->ui.sgdbGrids).c_str());
       else
       {
         SKIF_ImGui_SetMouseCursorHand ( );
         SKIF_ImGui_SetHoverText       (pApp->ui.sgdbGrids);
       }
 
-      ImGui::EndGroup   (  );
+      if (isSpecialK)
+      {
+        ImGui::Separator ( );
 
-      ImGui::SetCursorPos (iconPos);
+        if (SKIF_ImGui_MenuItemEx2 ("Patreon", ICON_FA_PATREON, ImColor (249, 104, 84), spaces, &_registry.bPatreon))
+          _registry.regKVPatreon.putData (_registry.bPatreon);
+      }
 
-      ImGui::TextColored (
-          (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
-                ICON_FA_FILE_IMAGE
-                            );
-
-      if (pApp->tex_cover.isCustom)
-        ImGui::TextColored (
-          (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
-                  ICON_FA_ROTATE_LEFT
-                              );
-      else if (pApp->tex_cover.isManaged)
-        ImGui::TextColored (
-          (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
-                  ICON_FA_ROTATE
-                              );
-      else if (resetVisible) // If texture is neither custom nor managed
-        ImGui::TextColored (
-          (_registry._StyleLightMode) ? ImColor (128, 128, 128) : ImColor (128, 128, 128),
-                  ICON_FA_ROTATE
-                              );
-
-      ImGui::Separator  (  );
-
-      ImGui::TextColored (
-          ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-                ICON_FA_UP_RIGHT_FROM_SQUARE
-                            );
-
+      ImGui::PopStyleColor ( );
+      ImGui::EndPopup      ( );
     }
-
-    ImGui::PopStyleColor   ( );
-    ImGui::EndPopup   (  );
   }
 
 #pragma endregion
@@ -7082,44 +7097,21 @@ SKIF_UI_Tab_DrawLibrary (void)
     IconMenu = PopupState_Closed;
   }
 
-  if (ImGui::BeginPopup ("IconMenu", ImGuiWindowFlags_NoMove))
+  if (pApp != nullptr)
   {
-    ImGui::PushStyleColor  (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
-
-    if (pApp != nullptr)
+    if (ImGui::BeginPopup   ("IconMenu", ImGuiWindowFlags_NoMove))
     {
+      ImGui::PushStyleColor (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
+
       // Preparations
 
-      bool resetVisible = (pApp->id    != SKIF_STEAM_APPID            ||
-                          (pApp->id    != SKIF_STEAM_APPID            && // Ugly check to exclude the "Special K" entry from being set to true
+      bool resetVisible = (pApp->id    != SKIF_STEAM_APPID             ||
+                          (pApp->id    != SKIF_STEAM_APPID             && // Ugly check to exclude the "Special K" entry from being set to true
                            pApp->store != app_record_s::Store::Custom) ||
-                           pApp->tex_icon.isCustom                    ||
+                           pApp->tex_icon.isCustom                     ||
                            pApp->tex_icon.isManaged);
-
-      // Column 1: Icons
-
-      ImGui::BeginGroup  ( );
-      ImVec2 iconPos = ImGui::GetCursorPos();
-
-      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_FILE_IMAGE          ).x, ImGui::GetTextLineHeight()));
-      if (pApp->tex_icon.isCustom)
-        ImGui::ItemSize (ImVec2 (ImGui::CalcTextSize (ICON_FA_ROTATE_LEFT         ).x, ImGui::GetTextLineHeight()));
-      else if (pApp->tex_icon.isManaged)
-        ImGui::ItemSize (ImVec2 (ImGui::CalcTextSize (ICON_FA_ROTATE              ).x, ImGui::GetTextLineHeight()));
-      else if (resetVisible) // If texture is neither custom nor managed
-        ImGui::ItemSize (ImVec2 (ImGui::CalcTextSize (ICON_FA_ROTATE              ).x, ImGui::GetTextLineHeight()));
-      ImGui::PushStyleColor (ImGuiCol_Separator, ImVec4(0, 0, 0, 0));
-      ImGui::Separator  (  );
-      ImGui::PopStyleColor (  );
-      ImGui::ItemSize   (ImVec2 (ImGui::CalcTextSize (ICON_FA_UP_RIGHT_FROM_SQUARE).x, ImGui::GetTextLineHeight()));
-
-      ImGui::EndGroup   (  );
-
-      ImGui::SameLine   (  );
-
-      // Column 2: Items
-      ImGui::BeginGroup (  );
-      if (ImGui::Selectable ("Change", false, ImGuiSelectableFlags_SpanAllColumns))
+      
+      if (SKIF_ImGui_MenuItemEx2 ("Change", ICON_FA_FILE_IMAGE, (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255)))
       {
         LPWSTR pwszFilePath = NULL;
         HRESULT hr          =
@@ -7170,7 +7162,7 @@ SKIF_UI_Tab_DrawLibrary (void)
               CopyFile (pwszFilePath, (targetPath + ext).c_str(), false);
 
             SetFileAttributes ((targetPath + ext).c_str(),
-                   GetFileAttributes ((targetPath + ext).c_str()) & ~FILE_ATTRIBUTE_READONLY);
+                    GetFileAttributes ((targetPath + ext).c_str()) & ~FILE_ATTRIBUTE_READONLY);
             
             ImVec2 dontCare1, dontCare2;
 
@@ -7187,14 +7179,50 @@ SKIF_UI_Tab_DrawLibrary (void)
           }
         }
       }
+
       else
-      {
         SKIF_ImGui_SetMouseCursorHand ( );
-      }
       
       if (resetVisible)
       {
-        if (ImGui::Selectable ((pApp->tex_icon.isCustom) ? "Reset" : "Refresh", false, ImGuiSelectableFlags_SpanAllColumns | ((pApp->tex_icon.isCustom || pApp->tex_icon.isManaged) ? 0x0 : ImGuiSelectableFlags_Disabled)))
+        constexpr char* textCustom  = "Reset";
+        constexpr char* textDefault = "Refresh";
+        char*           textPtr     = textDefault;
+        constexpr char* iconCustom  = ICON_FA_ROTATE_LEFT;
+        constexpr char* iconDefault = ICON_FA_ROTATE;
+        char*           iconPtr     = iconDefault;
+        ImColor         iconColor   = (_registry._StyleLightMode) ? ImColor (128, 128, 128) : ImColor (128, 128, 128); // If neither custom nor managed (aka disabled)
+
+        if (pApp->tex_icon.isCustom)
+        {
+          iconColor = (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255);
+          iconPtr   = iconCustom;
+          textPtr   = textCustom;
+        }
+
+        else if (pApp->tex_icon.isManaged)
+        {
+          iconColor = (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255);
+        }
+
+        bool enabled = (pApp->tex_icon.isCustom || pApp->tex_icon.isManaged);
+
+        // We use a group otherwise SKIF_ImGui_SetHoverTip() would not appear when disabled
+        if (! enabled)
+          ImGui::BeginGroup ( );
+
+        bool doReset = SKIF_ImGui_MenuItemEx2 (textPtr, iconPtr, iconColor, 0, nullptr, enabled);
+
+        if (! enabled)
+        {
+          ImGui::EndGroup ( );
+          SKIF_ImGui_SetHoverTip ("Managed by the platform client.");
+        }
+
+        else
+          SKIF_ImGui_SetMouseCursorHand ( );
+
+        if (doReset)
         {
           std::wstring targetPath = L"";
 
@@ -7217,8 +7245,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
             // Will fail on read-only marked files
             bool d1 = DeleteFile ((targetPath + fileName + L".png").c_str()),
-                 d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
-                 d3 = DeleteFile ((targetPath + fileName + L".ico").c_str());
+                  d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
+                  d3 = DeleteFile ((targetPath + fileName + L".ico").c_str());
 
             // If any file was removed
             if (d1 || d2 || d3)
@@ -7238,61 +7266,25 @@ SKIF_UI_Tab_DrawLibrary (void)
             }
           }
         }
-        else
-        {
-          if (pApp->tex_icon.isCustom || pApp->tex_icon.isManaged)
-            SKIF_ImGui_SetMouseCursorHand ( );
-          else
-            SKIF_ImGui_SetHoverTip        ("Managed by the platform client.");
-        }
       }
 
-      ImGui::Separator();
+      ImGui::Separator ( );
 
-      if (ImGui::Selectable ("Open SteamGridDB", false, ImGuiSelectableFlags_SpanAllColumns))
-        SKIF_Util_OpenURI   (SK_UTF8ToWideChar(pApp->ui.sgdbIcons).c_str());
+      if (SKIF_ImGui_MenuItemEx2 ("Open SteamGridDB", ICON_FA_UP_RIGHT_FROM_SQUARE, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)))
+        SKIF_Util_OpenURI (SK_UTF8ToWideChar (pApp->ui.sgdbIcons).c_str());
       else
       {
         SKIF_ImGui_SetMouseCursorHand ( );
         SKIF_ImGui_SetHoverText       (pApp->ui.sgdbIcons);
       }
 
-      ImGui::EndGroup   (  );
+      ImGui::Separator      ( );
 
-      ImGui::SetCursorPos (iconPos);
+      ShowLargeIconToggle   ( );
 
-      ImGui::TextColored (
-          (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
-                ICON_FA_FILE_IMAGE
-                            );
-
-      if (pApp->tex_icon.isCustom)
-        ImGui::TextColored (
-          (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
-                  ICON_FA_ROTATE_LEFT
-                              );
-
-      else if (pApp->tex_icon.isManaged)
-        ImGui::TextColored (
-          (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255),
-                  ICON_FA_ROTATE
-                              );
-      else if (resetVisible) // If texture is neither custom nor managed
-        ImGui::TextColored (
-          (_registry._StyleLightMode) ? ImColor (128, 128, 128) : ImColor (128, 128, 128),
-                  ICON_FA_ROTATE
-                              );
-
-      ImGui::Separator   ( );
-
-      ImGui::TextColored (
-              ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-                ICON_FA_UP_RIGHT_FROM_SQUARE
-                            );
+      ImGui::PopStyleColor ( );
+      ImGui::EndPopup      ( );
     }
-
-    ImGui::PopStyleColor   ( );
-    ImGui::EndPopup      ( );
   }
 
 #pragma endregion
@@ -7306,7 +7298,6 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (ImGui::BeginPopup   ("GameListEmptySpaceMenu", ImGuiWindowFlags_NoMove))
   {
     EmptySpaceMenu = PopupState_Opened;
-    constexpr char spaces[] = { "\u0020\u0020\u0020\u0020" };
 
     ImGui::PushStyleColor (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
 
@@ -7432,23 +7423,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     ImGui::Separator      ( );
 
-    bool* pActiveBool = (_registry._TouchDevice) ? &_registry._TouchDevice : &_registry.bUILargeIcons;
-
-    if (_registry._TouchDevice)
-    {
-      ImGui::BeginGroup           ( ); // Needed for the hover tip to appear
-      SKIF_ImGui_PushDisableState ( );
-    }
-
-    if (SKIF_ImGui_MenuItemEx2 ("Large icons", ICON_FA_ICONS, ImColor(255, 207, 72), spaces, pActiveBool))
-      _registry.regKVUILargeIcons.putData (_registry.bUILargeIcons);
-
-    if (_registry._TouchDevice)
-    {
-      SKIF_ImGui_PopDisableState  ( );
-      ImGui::EndGroup             ( );
-      SKIF_ImGui_SetHoverTip      ("Currently enforced by touch input mode.");
-    }
+    ShowLargeIconToggle   ( );
 
     if (SKIF_ImGui_MenuItemEx2 ("Refresh", ICON_FA_ROTATE_RIGHT, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)))
       RepopulateGames = true;
@@ -7625,8 +7600,8 @@ SKIF_UI_Tab_DrawLibrary (void)
           std::to_wstring (_pApp->id)                +
                                   L"_library_600x900.jpg";
 
-        // If horizon mode is being used, we prefer to load the 300x450 image!
-        if (! _registry.bHorizonMode)
+        // If tinyCovers mode is being used, we prefer to load the 300x450 image!
+        if (! _registry._TinyCovers)
         {
           std::wstring load_str_final = load_str;
 
