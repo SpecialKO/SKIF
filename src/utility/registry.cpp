@@ -346,8 +346,10 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 //bHorizonMode             =   regKVHorizonMode            .getData (&hKey);
   bHorizonMode = false;
 
+#if 0
   if (regKVHorizonModeAuto.hasData (&hKey))
     bHorizonModeAuto       =   regKVHorizonModeAuto        .getData (&hKey);
+#endif
 
   bServiceMode = bOpenInServiceMode = regKVOpenInServiceMode.getData(&hKey);
   bFirstLaunch             =   regKVFirstLaunch            .getData (&hKey);

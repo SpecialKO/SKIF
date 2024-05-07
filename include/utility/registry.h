@@ -549,7 +549,7 @@ struct SKIF_RegistrySettings {
 
   bool bServiceMode             = false;
   bool bHorizonMode             = false; // 1038 x 325 -- covers are 186.67 x 280
-  bool bHorizonModeAuto         =  true;
+//bool bHorizonModeAuto         =  true;
 
   bool bFirstLaunch             = false;
   bool bAllowMultipleInstances  = false;

@@ -1122,10 +1122,12 @@ SKIF_UI_Tab_DrawSettings (void)
 
     SKIF_ImGui_SetHoverTip ("Disabling HiDPI scaling will make the application appear smaller on HiDPI displays.");
 
+#if 0
     if ( ImGui::Checkbox ( "Auto-horizon mode", &_registry.bHorizonModeAuto) )
       _registry.regKVHorizonModeAuto.putData (   _registry.bHorizonModeAuto);
 
     SKIF_ImGui_SetHoverTip ("Switch to the horizontal mode on smaller displays automatically.");
+#endif
 
     ImGui::EndGroup ( );
 
