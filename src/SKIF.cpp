@@ -2060,6 +2060,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       SKIF_ImGui_AdjustAppModeSize (NULL);
     }
 
+#if 0
     // Apply new horizon mode state
     else if (false && newHorizonMode != _registry.bHorizonMode)
     {
@@ -2090,6 +2091,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       _registry.bHorizonMode = newHorizonMode = true;
       SKIF_ImGui_AdjustAppModeSize (NULL);
     }
+#endif
 
     // Apply any changes to the ImGui style
     // Do it at the beginning of frames to prevent ImGui::Push... from affecting the styling
@@ -2808,7 +2810,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         if (showBtnHorizon)
         {
-          if (ImGui::Button ((_registry.bHorizonMode ? ICON_FA_EXPAND : ICON_FA_COMPRESS), ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale, 0.0f )))
+          if (ImGui::Button ((_registry.bHorizonMode ? ICON_FA_CHEVRON_DOWN : ICON_FA_CHEVRON_UP), ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale, 0.0f ))) //
           {
             newHorizonMode = ! _registry.bHorizonMode;
 
@@ -2816,13 +2818,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
             SKIF_vecCurrentModeNext = (newHorizonMode) ? SKIF_vecHorizonMode : SKIF_vecRegularMode;
           }
 
+          SKIF_ImGui_SetHoverTip ("Toggle horizontal mode");
+
           ImGui::SameLine ();
         }
 
         if (showBtnService)
         {
-          if (ImGui::Button ((_registry.bServiceMode) ? ICON_FA_MAXIMIZE : ICON_FA_MINIMIZE, ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale, 0.0f )))
+          if (ImGui::Button ((_registry.bServiceMode) ? ICON_FA_EXPAND : ICON_FA_COMPRESS, ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale, 0.0f ))) // ICON_FA_MAXIMIZE : ICON_FA_MINIMIZE
             hotkeyCtrlT = true;
+
+          SKIF_ImGui_SetHoverTip ("Toggle mini mode");
 
           ImGui::SameLine ();
         }
