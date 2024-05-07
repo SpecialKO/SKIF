@@ -129,6 +129,7 @@ ImVec2 SKIF_vecHorizonMode          = ImVec2 (0.0f, 0.0f);        // DPI-aware
 ImVec2 SKIF_vecHorizonModeDefault   = ImVec2 (1000.0f, 375.0f);   // Does not include the status bar (2024-01-20: 325 -> 375)
 ImVec2 SKIF_vecHorizonModeAdjusted  = SKIF_vecHorizonModeDefault; // Adjusted for status bar and tooltips (NO DPI scaling!)
 // --- Variables
+ImVec2 SKIF_vecCurrentPosition      = ImVec2 (0.0f, 0.0f); // Gets updated after ImGui::EndFrame()
 ImVec2 SKIF_vecCurrentMode          = ImVec2 (0.0f, 0.0f); // Gets updated after ImGui::EndFrame()
 ImVec2 SKIF_vecCurrentModeNext      = ImVec2 (0.0f, 0.0f); // Holds the new expected size
 ImVec2 SKIF_vecAlteredSize          = ImVec2 (0.0f, 0.0f);
@@ -1975,6 +1976,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
         RespectMonBoundaries = true;
     }
 
+    // Restore the last remembered window size on launch,
+    //   but only if we are not running in service mode!
     static bool
         applySizeOnLaunch = true;
     if (applySizeOnLaunch)
@@ -2215,6 +2218,19 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::SetNextWindowSizeConstraints (SKIF_vecServiceMode, ImVec2 (FLT_MAX, FLT_MAX));
 
       ImGui::SetNextWindowClass (&SKIF_AppWindow);
+
+      // Restore the last remembered window position on launch
+      static bool
+          applyPositionOnLaunch = true;
+      if (applyPositionOnLaunch)
+      {   applyPositionOnLaunch = false;
+
+        if (_registry.iUIPositionX != -1 &&
+            _registry.iUIPositionY != -1)
+          ImGui::SetNextWindowPos (
+                       ImVec2 (static_cast<float> (_registry.iUIPositionX),
+                               static_cast<float> (_registry.iUIPositionY)));
+      }
 
       // RepositionSKIF -- Step 2: Repositon the window
       // Repositions the window in the center of the monitor the cursor is currently on
@@ -3505,7 +3521,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       //OutputDebugString((L"Hidden frames: " + std::to_wstring(ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems) + L"\n").c_str());
 
-      SKIF_vecCurrentMode = ImGui::GetWindowSize ( );
+      SKIF_vecCurrentMode     = ImGui::GetWindowSize ( );
+      SKIF_vecCurrentPosition = ImGui::GetWindowPos  ( );
 
       // End the main ImGui window
       ImGui::End ( );
@@ -3874,18 +3891,35 @@ wWinMain ( _In_     HINSTANCE hInstance,
   _registry.regKVCategoriesState.putDataMultiSZ (_inBools);
   PLOG_INFO << "Wrote the collapsible category state to the registry.";
 
-  if (! _registry.bServiceMode    &&
-        SKIF_vecCurrentMode.x > 0 &&
-        SKIF_vecCurrentMode.y > 0 &&
-      ! IsZoomed (SKIF_ImGui_hWnd))
+  // Only store window size and position to the registry if we are not in a maximized state
+  if (! IsZoomed (SKIF_ImGui_hWnd))
   {
-    _registry.iUIWidth  = static_cast<int> (SKIF_vecCurrentMode.x);
-    _registry.iUIHeight = static_cast<int> (SKIF_vecCurrentMode.y);
+    // Only store the window size if we are not in service mode
+    if (! _registry.bServiceMode  &&
+        SKIF_vecCurrentMode.x > 0 &&
+        SKIF_vecCurrentMode.y > 0)
+    {
+      _registry.iUIWidth  = static_cast<int> (SKIF_vecCurrentMode.x);
+      _registry.iUIHeight = static_cast<int> (SKIF_vecCurrentMode.y);
     
-    _registry.regKVUIWidth .putData (_registry.iUIWidth);
-    _registry.regKVUIHeight.putData (_registry.iUIHeight);
+      _registry.regKVUIWidth .putData (_registry.iUIWidth);
+      _registry.regKVUIHeight.putData (_registry.iUIHeight);
 
-    PLOG_INFO << "Wrote the window size to the registry.";
+      PLOG_INFO << "Wrote the window size to the registry: " << _registry.iUIWidth << "x" << _registry.iUIHeight;
+    }
+
+    // Note that negative window positions are valid!
+    if (SKIF_vecCurrentPosition.x != -1.0f &&
+        SKIF_vecCurrentPosition.y != -1.0f)
+    {
+      _registry.iUIPositionX = static_cast<int> (SKIF_vecCurrentPosition.x);
+      _registry.iUIPositionY = static_cast<int> (SKIF_vecCurrentPosition.y);
+    
+      _registry.regKVUIPositionX.putData (_registry.iUIPositionX);
+      _registry.regKVUIPositionY.putData (_registry.iUIPositionY);
+
+      PLOG_INFO << "Wrote the window position to the registry: " << _registry.iUIPositionX << ", " << _registry.iUIPositionY;
+    }
   }
 
   SKIF_Util_UnregisterHotKeyHDRToggle ( );
