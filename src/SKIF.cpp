@@ -1997,7 +1997,29 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     // SKIF_vecCurrentModeNext 1/2
     if (SKIF_vecCurrentModeNext.x != 0.0f)
+    {
+      // Shrink the window on low-res displays (will be applied on the next frame)
+      // Emulates auto-horizon mode
+      if (SKIF_vecCurrentModeNext.x < monitor_extent.GetWidth () ||
+          SKIF_vecCurrentModeNext.y < monitor_extent.GetHeight())
+      {
+        float arWindow = SKIF_vecCurrentModeNext.x / SKIF_vecCurrentModeNext.y;
+
+        if (monitor_extent.GetWidth() < SKIF_vecCurrentModeNext.x)
+        {
+          SKIF_vecCurrentModeNext.x = monitor_extent.GetWidth();
+          SKIF_vecCurrentModeNext.y = SKIF_vecCurrentModeNext.x / arWindow;
+        }
+
+        if (monitor_extent.GetHeight() < SKIF_vecCurrentModeNext.y)
+        {
+          SKIF_vecCurrentModeNext.y = monitor_extent.GetHeight();
+          SKIF_vecCurrentModeNext.x = SKIF_vecCurrentModeNext.y * arWindow;
+        }
+      }
+
       SKIF_vecCurrentMode       = SKIF_vecCurrentModeNext;
+    }
 
     static bool newHorizonMode = _registry.bHorizonMode;
     static bool newServiceMode = _registry.bServiceMode;
@@ -2758,7 +2780,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
 
       // Regular mode: One less button
-      else if (ImGui::GetWindowSize ().x < 550.0f * SKIF_ImGui_GlobalDPIScale)
+      else if (ImGui::GetWindowSize ().x < 550.0f * SKIF_ImGui_GlobalDPIScale ||
+               monitor_extent.GetWidth () < SKIF_vecRegularMode.x || // Hide the Horizon button if the display is only large enough to fit it
+               monitor_extent.GetHeight() < SKIF_vecRegularMode.y)
       {
         showBtnHorizon = false;
         window_btn_size.x -= 48.0f;
@@ -2874,7 +2898,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         else {
           // Changes the app window to the proper size
-          SKIF_vecCurrentModeNext = SKIF_vecRegularMode;
+          SKIF_vecCurrentModeNext = (_registry.bHorizonMode) ? SKIF_vecHorizonMode : SKIF_vecRegularMode;
 
           // If we switch back to large mode, re-open a few specific ones
           if (AddGamePopup == PopupState_Opened)
@@ -3499,9 +3523,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::GetPopupAllowedExtentRect ( // ImGui::GetWindowAllowedExtentRect
           ImGui::GetCurrentWindowRead   ()
         );
-      windowPos      = ImGui::GetWindowPos ();
-      windowRect.Min = ImGui::GetWindowPos ();
-      windowRect.Max = ImGui::GetWindowPos () + ImGui::GetWindowSize ();
+      windowPos      = ImGui::GetWindowPos ( );
+      windowRect.Min = ImGui::GetWindowPos ( );
+      windowRect.Max = ImGui::GetWindowPos ( ) + ImGui::GetWindowSize ( );
 
       if (! HoverTipActive)
         HoverTipDuration = 0;
