@@ -1687,6 +1687,8 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
       switch (msg)
       {
 
+//#define SKIF_Win32_GetDPIScaledSize
+#ifdef SKIF_Win32_GetDPIScaledSize
       // Calculate the new suggested size of the viewport on DPI changes
       case WM_GETDPISCALEDSIZE:
       {
@@ -1705,6 +1707,7 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
         // Apply the default linear DPI scaling to the window
         return 0;
       }
+#endif
 
 //#define SKIF_Win32_Snapping
 #ifdef SKIF_Win32_Snapping
