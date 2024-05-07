@@ -2018,7 +2018,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
       }
 
-      SKIF_vecCurrentMode       = SKIF_vecCurrentModeNext;
+      SKIF_vecCurrentMode = SKIF_vecCurrentModeNext;
     }
 
     static bool newHorizonMode = _registry.bHorizonMode;
@@ -2030,24 +2030,28 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if (last_size != SKIF_vecCurrentMode)
     {   last_size  = SKIF_vecCurrentMode;
 
-      // Reset modes
-      newServiceMode = false;
-      newHorizonMode = false;
-
       // Regular mode
       if (     SKIF_vecCurrentMode.x >= SKIF_vecRegularMode.x &&
                SKIF_vecCurrentMode.y >= SKIF_vecRegularMode.y)
-      { }
-
-      // Enable horizon mode
-      //else if (SKIF_vecCurrentMode.x >= SKIF_vecHorizonMode.x * 0.8f &&
-      //         SKIF_vecCurrentMode.y >= SKIF_vecHorizonMode.y * 0.8f)
-      //  newHorizonMode = true;
+      {
+        newServiceMode = false;
+        newHorizonMode = false;
+      }
 
       // Enable service mode
       else if (SKIF_vecCurrentMode.x <= SKIF_vecServiceMode.x * 1.2f &&
                SKIF_vecCurrentMode.y <= SKIF_vecServiceMode.y * 1.2f)
+      {
         newServiceMode = true;
+      }
+
+      // Enable horizon mode (when above a certain width *and* below a certain height)
+      else //if (SKIF_vecCurrentMode.x >= SKIF_vecHorizonMode.x * 0.6f &&
+           //    SKIF_vecCurrentMode.y <= SKIF_vecHorizonMode.y * 1.2f)
+      {
+        newServiceMode = false;
+        newHorizonMode = true;
+      }
     }
 
     // Apply new service mode state
@@ -2060,9 +2064,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
       SKIF_ImGui_AdjustAppModeSize (NULL);
     }
 
-#if 0
     // Apply new horizon mode state
-    else if (false && newHorizonMode != _registry.bHorizonMode)
+    // Should auto-engage at a window size of 625x820px or above
+    else if (newHorizonMode != _registry.bHorizonMode)
     {
       _registry.bHorizonMode  =                   newHorizonMode;
       _registry.regKVHorizonMode.putData (_registry.bHorizonMode);
@@ -2075,13 +2079,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
         repositionToCenter   = true;
       else
         RespectMonBoundaries = true;
-
-      // Hide the window for the 4 following frames as ImGui determines the sizes of items etc.
-      //   This prevent flashing and elements appearing too large during those frames.
-      //ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems += 4;
-      // This destroys and recreates the ImGui windows
     }
 
+#if 0
     // Automatically engage Horizon mode on smaller displays
     static bool autoHorizonFallback = (! _registry.bHorizonMode && _registry.bHorizonModeAuto);
     if (false && autoHorizonFallback && ! _registry.bServiceMode && SKIF_vecAlteredSize.y > 50.0f)

@@ -5356,7 +5356,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         PLOG_VERBOSE << "Selected app ID " << app.second.id << " from platform ID " << (int)app.second.store << ".";
         selection.appid        =    app.second.id;
         selection.store        =    app.second.store;
-        selection.category     =   (app.second.skif.pinned > 50 && ! _registry.bHorizonMode) // Only when not using horizon mode
+        selection.category     =   (app.second.skif.pinned > 50 && ! _registry._LibHorizonMode) // Only when not using horizon mode
                                ?   "Favorites (pinned)" // Workaround to not expand Favorites tab on launch
                                :    GetEffectiveCategory (&app.second);
         search_selection.id    =    selection.appid;
@@ -5691,9 +5691,12 @@ SKIF_UI_Tab_DrawLibrary (void)
   *
   */
   
-  _registry.bHorizonMode = (ImGui::GetContentRegionAvail().x > 600.0f * SKIF_ImGui_GlobalDPIScale &&
+  //_registry.bHorizonMode = (ImGui::GetContentRegionAvail().x > 600.0f * SKIF_ImGui_GlobalDPIScale &&
+  //                          ImGui::GetContentRegionAvail().y < 750.0f * SKIF_ImGui_GlobalDPIScale);
+  _registry._LibHorizonMode =
+                           (ImGui::GetContentRegionAvail().x > 600.0f * SKIF_ImGui_GlobalDPIScale &&
                             ImGui::GetContentRegionAvail().y < 750.0f * SKIF_ImGui_GlobalDPIScale);
-  _registry._UseLowResCovers = (_registry.bHorizonMode &&
+  _registry._UseLowResCovers = (_registry._LibHorizonMode &&
                             ImGui::GetContentRegionAvail().y <= SKIF_vecHorizonMode.y);
 
   // Future plans? :)
@@ -5704,31 +5707,31 @@ SKIF_UI_Tab_DrawLibrary (void)
   // DPI-aware, calculate once per frame
   ImVec2 tab_ContentRegionAvail = ImGui::GetContentRegionAvail();
   tab_scrollbar_width    = ImGui::GetCurrentWindowRead()->ScrollbarY ? ImGui::GetStyle().ScrollbarSize : 0.0f;
-  lib_column2_width      = ((_registry.bHorizonMode) ? SKIF_ImGui_GlobalDPIScale * 376.0f : (SKIF_vecServiceMode.x)); // tab_scrollbar_width
+  lib_column2_width      = ((_registry._LibHorizonMode) ? SKIF_ImGui_GlobalDPIScale * 376.0f : (SKIF_vecServiceMode.x)); // tab_scrollbar_width
 
   // All of these are DPI-aware
   ImVec2 sizeImage   = ImFloor ((_registry._UseLowResCovers) ? ImVec2 (220.0f - tab_scrollbar_width, 330.0f - tab_scrollbar_width)     * SKIF_ImGui_GlobalDPIScale
                                                              : ImVec2 (600.0f, 900.0f)     * SKIF_ImGui_GlobalDPIScale);
-  ImVec2 sizeList        = ImFloor ((_registry.bHorizonMode) ? (_registry.bUIBorders)
+  ImVec2 sizeList        = ImFloor ((_registry._LibHorizonMode) ? (_registry.bUIBorders)
                                                              ? ImVec2 (lib_column2_width, 334.0f * SKIF_ImGui_GlobalDPIScale)  // Horizon + Borders
                                                              : ImVec2 (lib_column2_width, 332.0f * SKIF_ImGui_GlobalDPIScale)  // Horizon
                                                              : ImVec2 (lib_column2_width, 620.0f * SKIF_ImGui_GlobalDPIScale)); // Regular
-  ImVec2 sizeDetails     = ImFloor ((_registry.bHorizonMode) ? (_registry.bUIBorders)
+  ImVec2 sizeDetails     = ImFloor ((_registry._LibHorizonMode) ? (_registry.bUIBorders)
                                                              ? ImVec2 (lib_column2_width + 2.0f  * SKIF_ImGui_GlobalDPIScale, 332.0f * SKIF_ImGui_GlobalDPIScale)  // Horizon + Borders
                                                              : ImVec2 (lib_column2_width, 330.0f * SKIF_ImGui_GlobalDPIScale)  // Horizon
                                                              : ImVec2 (lib_column2_width, 280.0f * SKIF_ImGui_GlobalDPIScale)); // Regular
 
   // DPI-aware
-  bool uiCoverVisible    = (_registry.bHorizonMode)
+  bool uiCoverVisible    = (_registry._LibHorizonMode)
                                      ? (ImGui::GetContentRegionAvail().x > (sizeList.x + sizeDetails.x))
                                      : (ImGui::GetContentRegionAvail().x >  sizeImage.x); // When in regular mode
-  bool uiDetailsVisible  = (_registry.bHorizonMode)
+  bool uiDetailsVisible  = (_registry._LibHorizonMode)
                                      ? true
                                      : ImGui::GetContentRegionAvail().y >= 750.0f * SKIF_ImGui_GlobalDPIScale; // When in regular mode
 
   if (! uiCoverVisible)
   {
-    float newMaxWidth = ImGui::GetContentRegionAvail().x / ((_registry.bHorizonMode && uiDetailsVisible) ? 2.0f : 1.0f);
+    float newMaxWidth = ImGui::GetContentRegionAvail().x / ((_registry._LibHorizonMode && uiDetailsVisible) ? 2.0f : 1.0f);
     lib_column2_width = newMaxWidth;
     sizeList.x        = newMaxWidth;
     sizeDetails.x     = newMaxWidth;
@@ -5739,7 +5742,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   // DPI-aware
   ImVec2 sizeCover    = ImGui::GetContentRegionAvail();
          sizeCover.x -= sizeList.x;
-         sizeCover.x -= (_registry.bHorizonMode) ? sizeDetails.x : 0.0f;
+         sizeCover.x -= (_registry._LibHorizonMode) ? sizeDetails.x : 0.0f;
 
   if (sizeCover.y < sizeImage.y)
   {
@@ -5749,8 +5752,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // DPI-aware
   sizeList.y = ImGui::GetContentRegionAvail().y;
-  sizeList.y -= (_registry.bHorizonMode || ! uiDetailsVisible) ? 0.0f                             : sizeDetails.y;
-  sizeList.y -= (_registry.bUIBorders                        ) ? 2.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
+  sizeList.y -= (_registry._LibHorizonMode || ! uiDetailsVisible) ? 0.0f                          : sizeDetails.y;
+  sizeList.y -= (_registry.bUIBorders                           ) ? 2.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
 
   // From now on ImGui UI calls starts being made...
 
@@ -6142,7 +6145,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   ImGuiChildFlags  flags_cld = ImGuiChildFlags_AlwaysUseWindowPadding;
   ImGuiWindowFlags flags_wnd = ImGuiWindowFlags_None;
 
-  if (! _registry.bHorizonMode)
+  if (! _registry._LibHorizonMode)
     flags_wnd |= ImGuiWindowFlags_NavFlattened;
 
   ImGui::PushStyleColor      (ImGuiCol_ScrollbarBg, ImVec4(0,0,0,0));
@@ -6160,11 +6163,11 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   ImGui::BeginChild          ( "###GameListOnTop",
                                 ImVec2 ( (sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
-                                  (! _registry.bHorizonMode && numPinnedOnTop > 0 && numRegular > 0)
+                                  (! _registry._LibHorizonMode && numPinnedOnTop > 0 && numRegular > 0)
                                   ? numPinnedOnTop * _ICON_HEIGHT_OnTop + ImGui::GetStyle().WindowPadding.y
                                   : sizeList.y - (ImGui::GetStyle().FramePadding.x - 2.0f * SKIF_ImGui_GlobalDPIScale) - (fTop3.y - fTop1.y)),
                                   flags_cld | (_registry.bUIBorders ? ImGuiChildFlags_Border : ImGuiChildFlags_None),
-                                  flags_wnd | ((! _registry.bHorizonMode && numPinnedOnTop > 0 && numRegular > 0) ? (ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse) : ImGuiWindowFlags_None));
+                                  flags_wnd | ((! _registry._LibHorizonMode && numPinnedOnTop > 0 && numRegular > 0) ? (ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse) : ImGuiWindowFlags_None));
 
   // Start populating the list
 
@@ -6210,7 +6213,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       continue;
 
     // Separate always on top (>50) from regular pinned (1-50), but only in regular mode
-    if (! _registry.bHorizonMode && app.second.skif.pinned > 50)
+    if (! _registry._LibHorizonMode && app.second.skif.pinned > 50)
       pinned_top++;
     else if (pinned_top > 0)
     {
@@ -6532,14 +6535,14 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     if (selected)
     {
-      static bool _horizon = _registry.bHorizonMode;
+      static bool _horizon = _registry._LibHorizonMode;
 
       // This allows the scroll to reset on DPI changes, to keep the selected item on-screen
       if (SKIF_ImGui_GlobalDPIScale != SKIF_ImGui_GlobalDPIScale_Last ||
-             _registry.bHorizonMode != _horizon)
+          _registry._LibHorizonMode != _horizon)
       {
         ImGui::SetScrollHereY (0.5f);
-        _horizon = _registry.bHorizonMode;
+        _horizon = _registry._LibHorizonMode;
       }
     }
 
@@ -6693,7 +6696,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   
 #pragma endregion
 
-  if (_registry.bHorizonMode)
+  if (_registry._LibHorizonMode)
   {
     //ImGui::SameLine ( );
     //ImGui::SetCursorPosX (ImGui::GetCursorPosX() - ((_registry.bUIBorders) ? 4.0f : 7.0f) * SKIF_ImGui_GlobalDPIScale);
