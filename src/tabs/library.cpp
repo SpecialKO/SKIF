@@ -5693,7 +5693,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   
   _registry.bHorizonMode = (ImGui::GetContentRegionAvail().x > 600.0f * SKIF_ImGui_GlobalDPIScale &&
                             ImGui::GetContentRegionAvail().y < 750.0f * SKIF_ImGui_GlobalDPIScale);
-  _registry._TinyCovers  = (_registry.bHorizonMode &&
+  _registry._UseLowResCovers = (_registry.bHorizonMode &&
                             ImGui::GetContentRegionAvail().y <= SKIF_vecHorizonMode.y);
 
   // Future plans? :)
@@ -5707,7 +5707,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   lib_column2_width      = ((_registry.bHorizonMode) ? SKIF_ImGui_GlobalDPIScale * 376.0f : (SKIF_vecServiceMode.x)); // tab_scrollbar_width
 
   // All of these are DPI-aware
-  ImVec2 sizeImage       = ImFloor ((_registry._TinyCovers)  ? ImVec2 (220.0f - tab_scrollbar_width, 330.0f - tab_scrollbar_width)     * SKIF_ImGui_GlobalDPIScale
+  ImVec2 sizeImage   = ImFloor ((_registry._UseLowResCovers) ? ImVec2 (220.0f - tab_scrollbar_width, 330.0f - tab_scrollbar_width)     * SKIF_ImGui_GlobalDPIScale
                                                              : ImVec2 (600.0f, 900.0f)     * SKIF_ImGui_GlobalDPIScale);
   ImVec2 sizeList        = ImFloor ((_registry.bHorizonMode) ? (_registry.bUIBorders)
                                                              ? ImVec2 (lib_column2_width, 334.0f * SKIF_ImGui_GlobalDPIScale)  // Horizon + Borders
@@ -5863,7 +5863,7 @@ SKIF_UI_Tab_DrawLibrary (void)
              (vecContentRegionAvail.x - sizeImage.x) / 2,
              (vecContentRegionAvail.y - sizeImage.y) / 2)));
 
-          ImGui::Image (((! _registry._TinyCovers) ?   pSKLogoTexSRV.p : pSKLogoTexSRV_small.p),
+          ImGui::Image (((! _registry._UseLowResCovers) ?   pSKLogoTexSRV.p : pSKLogoTexSRV_small.p),
                                                           sizeCoverFloored,
                                                           ImVec2 (0.0f, 0.0f),                  // Top Left coordinates
                                                           ImVec2 (1.0f, 1.0f),                  // Bottom Right coordinates
@@ -7613,8 +7613,8 @@ SKIF_UI_Tab_DrawLibrary (void)
           std::to_wstring (_pApp->id)                +
                                   L"_library_600x900.jpg";
 
-        // If tinyCovers mode is being used, we prefer to load the 300x450 image!
-        if (! _registry._TinyCovers)
+        // If low-res covers are being used, we prefer to load the original 300x450 image!
+        if (! _registry._UseLowResCovers)
         {
           std::wstring load_str_final = load_str;
 
@@ -8974,9 +8974,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // If we have changed mode, we need to reload the cover to ensure the proper resolution of it
   static bool
-      lastImageSize  = _registry._TinyCovers;
-  if (lastImageSize != _registry._TinyCovers && uiCoverVisible && ! ImGui::IsAnyMouseDown ( ))
-  {   lastImageSize  = _registry._TinyCovers;
+      lastImageSize  = _registry._UseLowResCovers;
+  if (lastImageSize != _registry._UseLowResCovers && uiCoverVisible && ! ImGui::IsAnyMouseDown ( ))
+  {   lastImageSize  = _registry._UseLowResCovers;
 
     update    = true;
     lastCover.reset(); // Needed as otherwise SKIF would not reload the cover
