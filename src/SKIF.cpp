@@ -79,6 +79,7 @@
 #include <knownfolders.h>
 #include <shlobj.h>
 #include <netlistmgr.h>
+#include <dwmapi.h>
 
 const int SKIF_STEAM_APPID      = 1157970;
 bool  RecreateSwapChains        = false;
@@ -3900,16 +3901,20 @@ wWinMain ( _In_     HINSTANCE hInstance,
   //         e.g. when size / DPI <= regular size * 1.5x or something like that!!!
   // 
   // Only store window size and position to the registry if we are not in a maximized state
-  if (! IsZoomed (SKIF_ImGui_hWnd))
+  ImVec2 vecCurrentModeDPIUnaware = ImFloor (SKIF_vecCurrentMode / SKIF_ImGui_GlobalDPIScale);
+
+  if (! IsZoomed (SKIF_ImGui_hWnd) ||
+     (vecCurrentModeDPIUnaware.x <= SKIF_vecRegularModeDefault.x * 1.5f &&
+      vecCurrentModeDPIUnaware.y <= SKIF_vecRegularModeDefault.y * 1.5f))
   {
     // Only store the window size if we are not in service mode
     if (! _registry.bServiceMode  &&
-        SKIF_vecCurrentMode.x > 0 &&
-        SKIF_vecCurrentMode.y > 0)
+        vecCurrentModeDPIUnaware.x > 0 &&
+        vecCurrentModeDPIUnaware.y > 0)
     {
       // Store a DPI-unaware size, so SKIF can automatically adjust it to the proper DPI on launch
-      _registry.iUIWidth  = static_cast<int> (SKIF_vecCurrentMode.x / SKIF_ImGui_GlobalDPIScale);
-      _registry.iUIHeight = static_cast<int> (SKIF_vecCurrentMode.y / SKIF_ImGui_GlobalDPIScale);
+      _registry.iUIWidth  = static_cast<int> (vecCurrentModeDPIUnaware.x);
+      _registry.iUIHeight = static_cast<int> (vecCurrentModeDPIUnaware.y);
     
       _registry.regKVUIWidth .putData (_registry.iUIWidth);
       _registry.regKVUIHeight.putData (_registry.iUIHeight);
@@ -3921,6 +3926,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if (SKIF_vecCurrentPosition.x != -1.0f &&
         SKIF_vecCurrentPosition.y != -1.0f)
     {
+      // Doesn't seem to be needed
+      //RECT dwmBorder = { };
+      //if (S_OK == DwmGetWindowAttribute (SKIF_ImGui_hWnd, DWMWA_EXTENDED_FRAME_BOUNDS, &dwmBorder, sizeof(dwmBorder)))
+      //{ }
+
       _registry.iUIPositionX = static_cast<int> (SKIF_vecCurrentPosition.x);
       _registry.iUIPositionY = static_cast<int> (SKIF_vecCurrentPosition.y);
     
