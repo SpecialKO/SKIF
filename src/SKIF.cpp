@@ -3896,6 +3896,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
   _registry.regKVCategoriesState.putDataMultiSZ (_inBools);
   PLOG_INFO << "Wrote the collapsible category state to the registry.";
 
+  // TODO: Make an exception for scenarios where remembering the size and pos makes sense,
+  //         e.g. when size / DPI <= regular size * 1.5x or something like that!!!
+  // 
   // Only store window size and position to the registry if we are not in a maximized state
   if (! IsZoomed (SKIF_ImGui_hWnd))
   {
@@ -3904,8 +3907,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
         SKIF_vecCurrentMode.x > 0 &&
         SKIF_vecCurrentMode.y > 0)
     {
-      _registry.iUIWidth  = static_cast<int> (SKIF_vecCurrentMode.x);
-      _registry.iUIHeight = static_cast<int> (SKIF_vecCurrentMode.y);
+      // Store a DPI-unaware size, so SKIF can automatically adjust it to the proper DPI on launch
+      _registry.iUIWidth  = static_cast<int> (SKIF_vecCurrentMode.x / SKIF_ImGui_GlobalDPIScale);
+      _registry.iUIHeight = static_cast<int> (SKIF_vecCurrentMode.y / SKIF_ImGui_GlobalDPIScale);
     
       _registry.regKVUIWidth .putData (_registry.iUIWidth);
       _registry.regKVUIHeight.putData (_registry.iUIHeight);
