@@ -5826,10 +5826,12 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     static float arCover = 600.0f / 900.0f;
 
-    _registry._LibPinnedVisible = tab_ContentRegionAvail.y >= 750.0f * SKIF_ImGui_GlobalDPIScale;
+    float horizon_cutoff_height = 550.0f * SKIF_ImGui_GlobalDPIScale; // 750.0f // 650.0f
+
+    _registry._LibPinnedVisible = tab_ContentRegionAvail.y >= horizon_cutoff_height;
 
     _registry._LibHorizonMode  = (tab_ContentRegionAvail.x > 600.0f * SKIF_ImGui_GlobalDPIScale &&
-                                  tab_ContentRegionAvail.y < 750.0f * SKIF_ImGui_GlobalDPIScale);
+                                  tab_ContentRegionAvail.y < horizon_cutoff_height);
     _registry._UseLowResCovers = (_registry._LibHorizonMode &&
                                   tab_ContentRegionAvail.y <= SKIF_vecHorizonMode.y);
     _registry._UseLowResCoversHiDPIBypass = ! (tab_ContentRegionAvail.y <= (SKIF_vecHorizonMode.y / SKIF_ImGui_GlobalDPIScale)); // Allow high-res images in HiDPI scenarios (true = use high-res; false = use low-res)
@@ -5860,7 +5862,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     uiDetailsVisible  = (_registry._LibHorizonMode)
                                   ? (tab_ContentRegionAvail.x > ImFloor ((sizeList.x + sizeDetails.x) * 0.5f))
-                                  : (tab_ContentRegionAvail.y >= 750.0f * SKIF_ImGui_GlobalDPIScale); // When in regular mode
+                                  : (tab_ContentRegionAvail.y >= horizon_cutoff_height); // When in regular mode
 
     uiCoverVisible    = (_registry._LibHorizonMode)
                                   ? (tab_ContentRegionAvail.x > (sizeList.x + sizeDetails.x + 220.f * 0.75f * SKIF_ImGui_GlobalDPIScale)) // Large enough to allow 75% of the tiny cover to appear
@@ -5874,10 +5876,18 @@ SKIF_UI_Tab_DrawLibrary (void)
       sizeDetails.x     = newMaxWidth;
     }
 
+    float shrinkDetailsAt = horizon_cutoff_height * 1.5f;
+
     if (_registry._LibHorizonMode)
     {
       sizeDetails.y  = tab_ContentRegionAvail.y;
     //sizeDetails.y -= (_registry.bUIBorders) ? 2.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
+    }
+
+    else if (tab_ContentRegionAvail.y <= shrinkDetailsAt)
+    {
+      float shrinkPercentage = tab_ContentRegionAvail.y / shrinkDetailsAt;
+      sizeDetails.y          = shrinkPercentage * sizeDetails.y;
     }
 
     // DPI-aware
