@@ -618,6 +618,7 @@ struct SKIF_RegistrySettings {
   bool _RendererHDREnabled          = false; // HDR Enabled
   bool _TouchDevice                 = false;
   bool _LibHorizonMode              = false; // Whether to use the horizontal layout
+  bool _LibPinnedVisible            = false; // Whether to show pinned apps separately or not
   bool _UseLowResCovers             = false; // Whether to use low-res covers
 
   // Functions

@@ -5472,7 +5472,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         PLOG_VERBOSE << "Selected app ID " << app.second.id << " from platform ID " << (int)app.second.store << ".";
         selection.appid        =    app.second.id;
         selection.store        =    app.second.store;
-        selection.category     =   (app.second.skif.pinned > 50 && ! _registry._LibHorizonMode) // Only when not using horizon mode
+        selection.category     =   (app.second.skif.pinned > 50 && ! _registry._LibHorizonMode && _registry._LibPinnedVisible) // Only when not using horizon mode
                                ?   "Favorites (pinned)" // Workaround to not expand Favorites tab on launch
                                :    GetEffectiveCategory (&app.second);
         search_selection.id    =    selection.appid;
@@ -5811,70 +5811,82 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // DPI-aware, calculate once per frame
   ImVec2 tab_ContentRegionAvail = ImGui::GetContentRegionAvail();
+  static ImVec2 tab_ContentRegionAvail_last;
 
-  _registry._LibHorizonMode =
-                           (tab_ContentRegionAvail.x > 600.0f * SKIF_ImGui_GlobalDPIScale &&
-                            tab_ContentRegionAvail.y < 750.0f * SKIF_ImGui_GlobalDPIScale);
-  _registry._UseLowResCovers = (_registry._LibHorizonMode &&
-                            tab_ContentRegionAvail.y <= SKIF_vecHorizonMode.y);
+  // These gets calculated anew every time the tab content area changes
+  static ImVec2 sizeList, sizeDetails, sizeCover;
+  static bool uiDetailsVisible, uiCoverVisible;
+  static ImVec2 sizeSK       = ImVec2 (600.0f, 900.0f) * SKIF_ImGui_GlobalDPIScale,
+                sizeSK_small = ImVec2 (220.0f, 330.0f) * SKIF_ImGui_GlobalDPIScale;
 
-  tab_scrollbar_width    = ImGui::GetCurrentWindowRead()->ScrollbarY ? ImGui::GetStyle().ScrollbarSize : 0.0f;
-  lib_column2_width      = ((_registry._LibHorizonMode) ? 376.0f : 376.0f) * SKIF_ImGui_GlobalDPIScale; // tab_scrollbar_width // SKIF_vecServiceMode (not ready yet)
-
-
-  // Derp 2
-
-  static float arCover = 600.0f / 900.0f;
-
-
-  // All of these are DPI-aware
-  ImVec2 sizeList        = ImFloor ((_registry._LibHorizonMode)  ? (_registry.bUIBorders)
-                                                                 ? ImVec2 (lib_column2_width, 334.0f * SKIF_ImGui_GlobalDPIScale)   // Horizon + Borders
-                                                                 : ImVec2 (lib_column2_width, 332.0f * SKIF_ImGui_GlobalDPIScale)   // Horizon
-                                                                 : ImVec2 (lib_column2_width, 620.0f * SKIF_ImGui_GlobalDPIScale)); // Regular
-  ImVec2 sizeDetails     = ImFloor ((_registry._LibHorizonMode)  ? (_registry.bUIBorders)
-                                                                 ? ImVec2 (lib_column2_width + 2.0f  * SKIF_ImGui_GlobalDPIScale, 332.0f * SKIF_ImGui_GlobalDPIScale)  // Horizon + Borders
-                                                                 : ImVec2 (lib_column2_width, 330.0f * SKIF_ImGui_GlobalDPIScale)   // Horizon
-                                                                 : ImVec2 (lib_column2_width, 280.0f * SKIF_ImGui_GlobalDPIScale)); // Regular
-  ImVec2 sizeCover    = tab_ContentRegionAvail;
-         sizeCover.x -= sizeList.x;
-         sizeCover.x -= (_registry._LibHorizonMode) ? sizeDetails.x : 0.0f;
-
-  ImVec2 sizeImage       = ImFloor ((_registry._UseLowResCovers) ? ImVec2 (220.0f - tab_scrollbar_width, 330.0f - tab_scrollbar_width)     * SKIF_ImGui_GlobalDPIScale // Wrong math with tab_scrollbar_width on the X axis
-                                                                 : ImVec2 (600.0f, 900.0f)     * SKIF_ImGui_GlobalDPIScale);
-
-  if (sizeCover.y < sizeImage.y)
+  // Only calculate new values when the content region has changed
+  // All of these calculations are DPI aware
+  if (tab_ContentRegionAvail    != tab_ContentRegionAvail_last ||
+      SKIF_ImGui_GlobalDPIScale != SKIF_ImGui_GlobalDPIScale_Last)
   {
-    sizeImage.y = sizeCover.y;
-    sizeImage.x = sizeImage.y * arCover;
+    tab_ContentRegionAvail_last = tab_ContentRegionAvail;
+
+    static float arCover = 600.0f / 900.0f;
+
+    _registry._LibPinnedVisible = tab_ContentRegionAvail.y >= 750.0f * SKIF_ImGui_GlobalDPIScale;
+
+    _registry._LibHorizonMode =
+                             (tab_ContentRegionAvail.x > 600.0f * SKIF_ImGui_GlobalDPIScale &&
+                              tab_ContentRegionAvail.y < 750.0f * SKIF_ImGui_GlobalDPIScale);
+    _registry._UseLowResCovers = (_registry._LibHorizonMode &&
+                              tab_ContentRegionAvail.y <= SKIF_vecHorizonMode.y);
+
+    tab_scrollbar_width    = ImGui::GetCurrentWindowRead()->ScrollbarY ? ImGui::GetStyle().ScrollbarSize : 0.0f;
+    lib_column2_width      = ((_registry._LibHorizonMode) ? 376.0f : 376.0f) * SKIF_ImGui_GlobalDPIScale; // tab_scrollbar_width // SKIF_vecServiceMode (not ready yet) // ((_registry._LibHorizonMode) ? 376.0f : 376.0f) * SKIF_ImGui_GlobalDPIScale
+
+    sizeList        = ImFloor ((_registry._LibHorizonMode || ! _registry._LibPinnedVisible)  ? (_registry.bUIBorders)
+                                                                   ? ImVec2 (lib_column2_width, 334.0f * SKIF_ImGui_GlobalDPIScale)   // Horizon + Borders
+                                                                   : ImVec2 (lib_column2_width, 332.0f * SKIF_ImGui_GlobalDPIScale)   // Horizon
+                                                                   : ImVec2 (lib_column2_width, 620.0f * SKIF_ImGui_GlobalDPIScale)); // Regular
+    sizeDetails     = ImFloor ((_registry._LibHorizonMode)  ? (_registry.bUIBorders)
+                                                                   ? ImVec2 (lib_column2_width + 2.0f  * SKIF_ImGui_GlobalDPIScale, 332.0f * SKIF_ImGui_GlobalDPIScale)  // Horizon + Borders
+                                                                   : ImVec2 (lib_column2_width, 330.0f * SKIF_ImGui_GlobalDPIScale)   // Horizon
+                                                                   : ImVec2 (lib_column2_width, 280.0f * SKIF_ImGui_GlobalDPIScale)); // Regular
+    sizeCover    = tab_ContentRegionAvail;
+           sizeCover.x -= sizeList.x;
+           sizeCover.x -= (_registry._LibHorizonMode) ? sizeDetails.x : 0.0f;
+
+    ImVec2 sizeImage       = ImFloor ((_registry._UseLowResCovers) ? sizeSK_small // Wrong math with tab_scrollbar_width on the X axis
+                                                                   : sizeSK);
+
+    if (sizeCover.y < sizeImage.y)
+    {
+      sizeImage.y = sizeCover.y;
+      sizeImage.x = sizeImage.y * arCover;
+    }
+
+    uiDetailsVisible  = (_registry._LibHorizonMode)
+                                  ? (tab_ContentRegionAvail.x > ImFloor ((sizeList.x + sizeDetails.x) * 0.5f))
+                                  : (tab_ContentRegionAvail.y >= 750.0f * SKIF_ImGui_GlobalDPIScale); // When in regular mode
+
+    uiCoverVisible    = (_registry._LibHorizonMode)
+                                  ? (tab_ContentRegionAvail.x > (sizeList.x + sizeDetails.x + 220.f * 0.75f * SKIF_ImGui_GlobalDPIScale)) // Large enough to allow 75% of the tiny cover to appear
+                                  : (uiDetailsVisible) ? (tab_ContentRegionAvail.x > sizeImage.x) : false; // When in regular mode
+
+    if (! uiCoverVisible)
+    {
+      float newMaxWidth = tab_ContentRegionAvail.x / ((_registry._LibHorizonMode && uiDetailsVisible) ? 2.0f : 1.0f);
+      lib_column2_width = newMaxWidth;
+      sizeList.x        = newMaxWidth;
+      sizeDetails.x     = newMaxWidth;
+    }
+
+    if (_registry._LibHorizonMode)
+    {
+      sizeDetails.y  = tab_ContentRegionAvail.y;
+      sizeDetails.y -= (_registry.bUIBorders) ? 2.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
+    }
+
+    // DPI-aware
+    sizeList.y = tab_ContentRegionAvail.y;
+    sizeList.y -= (  _registry._LibHorizonMode || ! uiDetailsVisible)   ? 0.0f                             : sizeDetails.y;
+    sizeList.y -= (! _registry._LibHorizonMode && _registry.bUIBorders) ? 2.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
   }
-
-  bool uiDetailsVisible  = (_registry._LibHorizonMode)
-                                     ? (tab_ContentRegionAvail.x > ImFloor ((sizeList.x + sizeDetails.x) * 0.5f))
-                                     : (tab_ContentRegionAvail.y >= 750.0f * SKIF_ImGui_GlobalDPIScale); // When in regular mode
-
-  bool uiCoverVisible    = (_registry._LibHorizonMode)
-                                     ? (tab_ContentRegionAvail.x > (sizeList.x + sizeDetails.x + 220.f * 0.75f * SKIF_ImGui_GlobalDPIScale)) // Large enough to allow 75% of the tiny cover to appear
-                                     : (uiDetailsVisible) ? (tab_ContentRegionAvail.x > sizeImage.x) : false; // When in regular mode
-
-  if (! uiCoverVisible)
-  {
-    float newMaxWidth = tab_ContentRegionAvail.x / ((_registry._LibHorizonMode && uiDetailsVisible) ? 2.0f : 1.0f);
-    lib_column2_width = newMaxWidth;
-    sizeList.x        = newMaxWidth;
-    sizeDetails.x     = newMaxWidth;
-  }
-
-  if (_registry._LibHorizonMode)
-  {
-    sizeDetails.y  = tab_ContentRegionAvail.y;
-    sizeDetails.y -= (_registry.bUIBorders) ? 2.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
-  }
-
-  // DPI-aware
-  sizeList.y = tab_ContentRegionAvail.y;
-  sizeList.y -= (  _registry._LibHorizonMode || ! uiDetailsVisible)   ? 0.0f                             : sizeDetails.y;
-  sizeList.y -= (! _registry._LibHorizonMode && _registry.bUIBorders) ? 2.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
 
   // From now on ImGui UI calls starts being made...
 
@@ -5950,6 +5962,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         // Display previous fading out cover
         if (pTexSRV_old.p != nullptr && fAlphaPrev > 0.0f)
         {
+          /*
           ImVec2 sizeImage_old        = vecCoverRes_old * SKIF_ImGui_GlobalDPIScale;
 
           ImVec2 vecPosImage_old      = ImFloor (ImVec2 (
@@ -5959,6 +5972,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           ImVec2 sizeCoverFloored_old = ImFloor (ImVec2 (
                  sizeImage_old.x,
                  sizeImage_old.y));
+          */
 
           CalculateImageSizing (cover_old, vecContentRegionAvail, vecCoverRes_old);
 
@@ -5974,9 +5988,8 @@ SKIF_UI_Tab_DrawLibrary (void)
           ImGui::SetCursorPos (vecPosCoverInner);
         }
 
-        // Derp
-
         // Display game cover image
+        /*
         ImVec2 sizeImage        = vecCoverRes * SKIF_ImGui_GlobalDPIScale;
 
         ImVec2 vecPosImage      = ImFloor (ImVec2 (
@@ -5986,6 +5999,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         ImVec2 sizeCoverFloored = ImFloor (ImVec2 (
                 sizeImage.x,
                 sizeImage.y));
+        */
 
         CalculateImageSizing (cover, vecContentRegionAvail, vecCoverRes);
 
@@ -6003,12 +6017,14 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (isSpecialK ||
          (! isSpecialK && fAlphaSK > 0.0f))
         {
+          ImVec2 sizeCurrent = (_registry._UseLowResCovers) ? sizeSK_small : sizeSK;
+
           ImGui::SetCursorPos (ImFloor (ImVec2 (
-             (vecContentRegionAvail.x - 600.0f * SKIF_ImGui_GlobalDPIScale) / 2,
-             (vecContentRegionAvail.y - 900.0f * SKIF_ImGui_GlobalDPIScale) / 2)));
+             (vecContentRegionAvail.x - sizeCurrent.x) / 2,
+             (vecContentRegionAvail.y - sizeCurrent.y) / 2)));
 
           ImGui::Image (((! _registry._UseLowResCovers) ?   pSKLogoTexSRV.p : pSKLogoTexSRV_small.p),
-                                                          ImVec2 (600.0f, 900.0f),
+                                                          sizeCurrent,
                                                           ImVec2 (0.0f, 0.0f),                  // Top Left coordinates
                                                           ImVec2 (1.0f, 1.0f),                  // Bottom Right coordinates
                                                           ImVec4 (1.0f, 1.0f, 1.0f, fAlphaSK),  // Tint for Special K's logo
@@ -6304,11 +6320,11 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   ImGui::BeginChild          ( "###GameListOnTop",
                                 ImVec2 ((sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
-                                  (! _registry._LibHorizonMode && numPinnedOnTop > 0 && numRegular > 0)
+                                  (! _registry._LibHorizonMode && _registry._LibPinnedVisible && numPinnedOnTop > 0 && numRegular > 0)
                                   ? numPinnedOnTop * _ICON_HEIGHT_OnTop + ImGui::GetStyle().WindowPadding.y
                                   : sizeList.y - (ImGui::GetStyle().FramePadding.x - 2.0f * SKIF_ImGui_GlobalDPIScale) - (fTop3.y - fTop1.y)),
                                   flags_cld | (_registry.bUIBorders ? ImGuiChildFlags_Border : ImGuiChildFlags_None),
-                                  flags_wnd | ((! _registry._LibHorizonMode && numPinnedOnTop > 0 && numRegular > 0) ? (ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse) : ImGuiWindowFlags_None));
+                                  flags_wnd | ((! _registry._LibHorizonMode && _registry._LibPinnedVisible && numPinnedOnTop > 0 && numRegular > 0) ? (ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse) : ImGuiWindowFlags_None));
 
   // Start populating the list
 
@@ -6354,7 +6370,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       continue;
 
     // Separate always on top (>50) from regular pinned (1-50), but only in regular mode
-    if (! _registry._LibHorizonMode && app.second.skif.pinned > 50)
+    if (app.second.skif.pinned > 50 && ! _registry._LibHorizonMode && _registry._LibPinnedVisible) //  // ! _registry._LibHorizonMode
       pinned_top++;
     else if (pinned_top > 0)
     {
@@ -6929,7 +6945,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         pApp->id    == SKIF_STEAM_APPID   &&
         pApp->store == app_record_s::Store::Steam)))
   {
-    ImGui::SetCursorPos  (ImVec2 (vecPosCover.x, ImFloor (sizeCover.y - 198.0f * SKIF_ImGui_GlobalDPIScale))); // 198.0f _for some reasom_?!
+    ImGui::SetCursorPos  (ImVec2 (vecPosCover.x, ImFloor (sizeCover.y - 197.0f * SKIF_ImGui_GlobalDPIScale))); // 197.0f _for some reasom_?!
                           //fY - (204.0f * SKIF_ImGui_GlobalDPIScale) ));
 
     if (ImGui::BeginChild ("###SKIF_PATREON", ImVec2 (sizeCover.x, ImFloor (200.0f * SKIF_ImGui_GlobalDPIScale)), ImGuiChildFlags_None, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
@@ -6982,7 +6998,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       if (ImGui::GetContentRegionAvail().x > (150.0f + 230.0f) * SKIF_ImGui_GlobalDPIScale)
       {
-        ImGui::SetCursorPos  (ImVec2 (ImGui::GetContentRegionAvail().x - (230.0f * SKIF_ImGui_GlobalDPIScale), 0.0f));
+        ImGui::SetCursorPos  (ImVec2 (ImFloor (ImGui::GetContentRegionAvail().x - (230.0f * SKIF_ImGui_GlobalDPIScale)), 0.0f));
 
         ImGui::PushStyleColor     (ImGuiCol_ChildBg,        hoveredPatCredits ? ImGui::GetStyleColorVec4(ImGuiCol_WindowBg)
                                                                               : ImGui::GetStyleColorVec4(ImGuiCol_WindowBg) * ImVec4(.8f, .8f, .8f, .66f));
@@ -7271,6 +7287,12 @@ SKIF_UI_Tab_DrawLibrary (void)
         ImGui::EndMenu ( );
       }
 
+      if (isSpecialK)
+      {
+        if (SKIF_ImGui_MenuItemEx2 ("Patreon", ICON_FA_PATREON, ImColor (249, 104, 84), spaces, &_registry.bPatreon))
+          _registry.regKVPatreon.putData (_registry.bPatreon);
+      }
+
       ImGui::PopID ( );
 
       ImGui::Separator ( );
@@ -7281,14 +7303,6 @@ SKIF_UI_Tab_DrawLibrary (void)
       {
         SKIF_ImGui_SetMouseCursorHand ( );
         SKIF_ImGui_SetHoverText       (pApp->ui.sgdbGrids);
-      }
-
-      if (isSpecialK)
-      {
-        ImGui::Separator ( );
-
-        if (SKIF_ImGui_MenuItemEx2 ("Patreon", ICON_FA_PATREON, ImColor (249, 104, 84), spaces, &_registry.bPatreon))
-          _registry.regKVPatreon.putData (_registry.bPatreon);
       }
 
       ImGui::PopStyleColor ( );
