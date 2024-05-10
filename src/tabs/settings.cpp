@@ -442,7 +442,8 @@ SKIF_UI_Tab_DrawSettings (void)
   static const std::wstring valvePlugPath = SK_FormatStringW (LR"(%ws\XInput1_4.dll)", _path_cache.steam_install);
   static       bool         valvePlug     = false;
 
-  float columnWidth = 0.5f * ImGui::GetContentRegionAvail().x;
+  float columnWidth = 0.5f * ImGui::GetContentRegionAvail().x; // Needs to be before the SKIF_ImGui_Columns() call
+  bool enableColums = (ImGui::GetContentRegionAvail().x / SKIF_ImGui_GlobalDPIScale >= 750.f);
 
   // Driver is supposedly getting a new state -- check if its time for an
   //  update on each frame until driverStatus matches driverStatusPending
@@ -488,11 +489,16 @@ SKIF_UI_Tab_DrawSettings (void)
 
   SKIF_ImGui_Spacing      ( );
 
-  SKIF_ImGui_Columns      (2, "SKIF_COLUMN_SETTINGS_GENERAL", true);
-
-  //SK_RunOnce(
-  ImGui::SetColumnWidth (0, columnWidth); //SKIF_vecCurrentMode.x / 2.0f) // 480.0f * SKIF_ImGui_GlobalDPIScale
-  //);
+  if (enableColums)
+  {
+    SKIF_ImGui_Columns    (2, "SKIF_COLUMN_SETTINGS_GENERAL", true);
+    ImGui::SetColumnWidth (0, columnWidth); //SKIF_vecCurrentMode.x / 2.0f) // 480.0f * SKIF_ImGui_GlobalDPIScale
+  }
+  else {
+    // This is needed to reproduce the same padding on the left side as when using columns
+    ImGui::SetCursorPosX (ImGui::GetCursorPosX ( ) + ImGui::GetStyle().FramePadding.x);
+    ImGui::BeginGroup    ( );
+  }
 
   if ( ImGui::Checkbox ( "Low bandwidth mode",                          &_registry.bLowBandwidthMode ) )
     _registry.regKVLowBandwidthMode.putData (                            _registry.bLowBandwidthMode );
@@ -535,9 +541,15 @@ SKIF_UI_Tab_DrawSettings (void)
 
   _inject._StartAtLogonCtrl ( );
 
-  ImGui::NextColumn    ( );
-
-  ImGui::TreePush      ("RightColumnSectionTop");
+  if (enableColums)
+  {
+    ImGui::NextColumn    ( );
+    ImGui::TreePush        ("RightColumnSectionTop");
+  }
+  else {
+    ImGui::Spacing       ( );
+    ImGui::Spacing       ( );
+  }
 
   // New column
 
@@ -717,9 +729,13 @@ SKIF_UI_Tab_DrawSettings (void)
     _registry.regKVNotifications.putData (             _registry.iNotifications);
   ImGui::TreePop         ( );
 
-  ImGui::TreePop    ( );
-
-  ImGui::Columns    (1);
+  if (enableColums)
+  {
+    ImGui::TreePop       ( );
+    ImGui::Columns       (1);
+  }
+  else
+    ImGui::EndGroup      ( );
 
   ImGui::PopStyleColor();
 
@@ -736,11 +752,16 @@ SKIF_UI_Tab_DrawSettings (void)
 
     SKIF_ImGui_Spacing      ( );
 
-    SKIF_ImGui_Columns      (2, "SKIF_COLUMN_SETTINGS_LIBRARY", true);
-
-    //SK_RunOnce(
-    ImGui::SetColumnWidth (0, columnWidth); //SKIF_vecCurrentMode.x / 2.0f) // 480.0f * SKIF_ImGui_GlobalDPIScale
-    //);
+    if (enableColums)
+    {
+      SKIF_ImGui_Columns    (2, "SKIF_COLUMN_SETTINGS_LIBRARY", true);
+      ImGui::SetColumnWidth (0, columnWidth); //SKIF_vecCurrentMode.x / 2.0f) // 480.0f * SKIF_ImGui_GlobalDPIScale
+    }
+    else {
+      // This is needed to reproduce the same padding on the left side as when using columns
+      ImGui::SetCursorPosX (ImGui::GetCursorPosX ( ) + ImGui::GetStyle().FramePadding.x);
+      ImGui::BeginGroup    ( );
+    }
   
     if ( ImGui::Checkbox ( "Ignore articles when sorting",                &_registry.bLibraryIgnoreArticles) )
     {
@@ -801,10 +822,16 @@ SKIF_UI_Tab_DrawSettings (void)
       }
     }
 
-    ImGui::NextColumn       ( );
+    if (enableColums)
+    {
+      ImGui::NextColumn    ( );
+      ImGui::TreePush         ("RightColumnSectionLibrary");
+    }
+    else {
+      ImGui::Spacing       ( );
+      ImGui::Spacing       ( );
+    }
 
-    ImGui::TreePush         ("RightColumnSectionLibrary");
-            
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
         "Include games from these platforms:"
@@ -892,9 +919,13 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::TreePop          ( );
 
     // Column end
-    ImGui::TreePop          ( );
-
-    ImGui::Columns          (1);
+    if (enableColums)
+    {
+      ImGui::TreePop          ( );
+      ImGui::Columns          (1);
+    }
+    else
+      ImGui::EndGroup      ( );
 
     ImGui::PopStyleColor    ( );
   }
@@ -921,11 +952,16 @@ SKIF_UI_Tab_DrawSettings (void)
 
     SKIF_ImGui_Spacing      ( );
 
-    SKIF_ImGui_Columns      (2, "SKIF_COLUMN_SETTINGS_APPEARANCES", true);
-
-    //SK_RunOnce(
-    ImGui::SetColumnWidth (0, columnWidth); //SKIF_vecCurrentMode.x / 2.0f) // 480.0f * SKIF_ImGui_GlobalDPIScale
-    //);
+    if (enableColums)
+    {
+      SKIF_ImGui_Columns    (2, "SKIF_COLUMN_SETTINGS_APPEARANCES", true);
+      ImGui::SetColumnWidth (0, columnWidth); //SKIF_vecCurrentMode.x / 2.0f) // 480.0f * SKIF_ImGui_GlobalDPIScale
+    }
+    else {
+      // This is needed to reproduce the same padding on the left side as when using columns
+      ImGui::SetCursorPosX (ImGui::GetCursorPosX ( ) + ImGui::GetStyle().FramePadding.x);
+      ImGui::BeginGroup    ( );
+    }
 
     constexpr char* StyleItems[UIStyle_COUNT] =
     { "Dynamic",
@@ -1145,9 +1181,15 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::TreePop       ( );
 
-    ImGui::NextColumn    ( );
-
-    ImGui::TreePush      ("RightColumnSectionAppearance");
+    if (enableColums)
+    {
+      ImGui::NextColumn    ( );
+      ImGui::TreePush      ("RightColumnSectionAppearance");
+    }
+    else {
+      ImGui::Spacing       ( );
+      ImGui::Spacing       ( );
+    }
 
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
     SKIF_ImGui_SetHoverTip ("Move the mouse over each option to get more information");
@@ -1345,9 +1387,13 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::ColorPicker3 ("Colors", col3);
 #endif
 
-    ImGui::TreePop       ( );
-
-    ImGui::Columns       (1);
+    if (enableColums)
+    {
+      ImGui::TreePop     ( );
+      ImGui::Columns     (1);
+    }
+    else
+      ImGui::EndGroup    ( );
 
     ImGui::PopStyleColor ( );
   }
@@ -1365,11 +1411,16 @@ SKIF_UI_Tab_DrawSettings (void)
 
     SKIF_ImGui_Spacing      ( );
 
-    SKIF_ImGui_Columns      (2, "SKIF_COLUMN_SETTINGS_ADVANCED", true);
-
-    //SK_RunOnce(
-    ImGui::SetColumnWidth (0, columnWidth); //SKIF_vecCurrentMode.x / 2.0f) // 480.0f * SKIF_ImGui_GlobalDPIScale
-    //);
+    if (enableColums)
+    {
+      SKIF_ImGui_Columns    (2, "SKIF_COLUMN_SETTINGS_ADVANCED", true);
+      ImGui::SetColumnWidth (0, columnWidth); //SKIF_vecCurrentMode.x / 2.0f) // 480.0f * SKIF_ImGui_GlobalDPIScale
+    }
+    else {
+      // This is needed to reproduce the same padding on the left side as when using columns
+      ImGui::SetCursorPosX (ImGui::GetCursorPosX ( ) + ImGui::GetStyle().FramePadding.x);
+      ImGui::BeginGroup    ( );
+    }
 
     if ( ImGui::Checkbox ( "Controller support",                                    &_registry.bControllers ) )
     {
@@ -1471,9 +1522,15 @@ SKIF_UI_Tab_DrawSettings (void)
     SKIF_ImGui_SetHoverTip  ("Allow using a controller to navigate the UI of this app.");
     */
 
-    ImGui::NextColumn       ( );
-
-    ImGui::TreePush         ("RightColumnSectionAdvanced");
+    if (enableColums)
+    {
+      ImGui::NextColumn    ( );
+      ImGui::TreePush      ("RightColumnSectionAdvanced");
+    }
+    else {
+      ImGui::Spacing       ( );
+      ImGui::Spacing       ( );
+    }
     
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -1647,9 +1704,13 @@ SKIF_UI_Tab_DrawSettings (void)
     SKIF_ImGui_SetHoverTip  ("This only needs to be used if GeForce Experience notifications\n"
                              "appear on the screen whenever this app is being used.");
 
-    ImGui::TreePop          ( );
-
-    ImGui::Columns          (1);
+    if (enableColums)
+    {
+      ImGui::TreePop        ( );
+      ImGui::Columns        (1);
+    }
+    else
+      ImGui::EndGroup       ( );
 
     ImGui::PopStyleColor    ( );
   }
@@ -2173,7 +2234,16 @@ SKIF_UI_Tab_DrawSettings (void)
     // PresentMon prerequisites
     ImGui::BeginGroup  ();
 
-    SKIF_ImGui_Columns      (2, "SKIF_COLUMN_SETTINGS_SWAPCHAIN", true);
+    if (enableColums)
+    {
+      SKIF_ImGui_Columns    (2, "SKIF_COLUMN_SETTINGS_SWAPCHAIN", true);
+      //ImGui::SetColumnWidth (0, columnWidth); //SKIF_vecCurrentMode.x / 2.0f) // 480.0f * SKIF_ImGui_GlobalDPIScale
+    }
+    else {
+      // This is needed to reproduce the same padding on the left side as when using columns
+      ImGui::SetCursorPosX (ImGui::GetCursorPosX ( ) + ImGui::GetStyle().FramePadding.x);
+      ImGui::BeginGroup    ( );
+    }
 
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -2324,9 +2394,15 @@ SKIF_UI_Tab_DrawSettings (void)
       SKIF_ImGui_SetHoverTip ("Administrative privileges are required on the system to toggle this.");
     }
 
-    ImGui::NextColumn  ();
-
-    ImGui::TreePush    ("RightColumnSectionSwapChain");
+    if (enableColums)
+    {
+      ImGui::NextColumn ( );
+      ImGui::TreePush   ("RightColumnSectionSwapChain");
+    }
+    else {
+      ImGui::Spacing    ( );
+      ImGui::Spacing    ( );
+    }
 
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), ICON_FA_THUMBS_UP);
     ImGui::SameLine    ( );
@@ -2381,10 +2457,14 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::SameLine    ();
     ImGui::Text        ("Composed: Copy with CPU GDI");
     ImGui::TreePop     ();
-
-    ImGui::TreePop     ();
-
-    ImGui::Columns     (1);
+    
+    if (enableColums)
+    {
+      ImGui::TreePop   ( );
+      ImGui::Columns   (1);
+    }
+    else
+      ImGui::EndGroup  ( );
     
     ImGui::Spacing     ();
     ImGui::Spacing     ();
@@ -2407,12 +2487,17 @@ SKIF_UI_Tab_DrawSettings (void)
     );
 
     SKIF_ImGui_Spacing ();
-    
-    SKIF_ImGui_Columns (2, "SKIF_COLUMN_SETTINGS_MPO", true);
 
-    //SK_RunOnce(
-    ImGui::SetColumnWidth (0, columnWidth); //SKIF_vecCurrentMode.x / 2.0f) // 480.0f * SKIF_ImGui_GlobalDPIScale
-    //);
+    if (enableColums)
+    {
+      SKIF_ImGui_Columns    (2, "SKIF_COLUMN_SETTINGS_MPO", true);
+      //ImGui::SetColumnWidth (0, columnWidth); //SKIF_vecCurrentMode.x / 2.0f) // 480.0f * SKIF_ImGui_GlobalDPIScale
+    }
+    else {
+      // This is needed to reproduce the same padding on the left side as when using columns
+      ImGui::SetCursorPosX (ImGui::GetCursorPosX ( ) + ImGui::GetStyle().FramePadding.x);
+      ImGui::BeginGroup    ( );
+    }
 
     ImGui::BeginGroup  ();
 
@@ -2558,9 +2643,15 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::EndGroup    ();
 
-    ImGui::NextColumn  ();
-
-    ImGui::TreePush    ("MinimumRequirements");
+    if (enableColums)
+    {
+      ImGui::NextColumn ( );
+      ImGui::TreePush   ("MinimumRequirements");
+    }
+    else {
+      ImGui::Spacing    ( );
+      ImGui::Spacing    ( );
+    }
 
     ImGui::PushStyleColor (ImGuiCol_Text,
       ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
@@ -2607,9 +2698,16 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::PopStyleColor ();
 
-    ImGui::TreePop     ();
-
-    ImGui::Columns     (1);
+    if (enableColums)
+    {
+      ImGui::TreePop   ( );
+      ImGui::Columns   (1);
+    }
+    else
+    {
+      ImGui::NewLine   ( );
+      ImGui::EndGroup  ( );
+    }
 
     ImGui::Spacing     ();
     ImGui::Spacing     ();
