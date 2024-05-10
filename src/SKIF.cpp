@@ -1478,6 +1478,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
   else if (nCmdShow == SW_HIDE)
     startedMinimized = SKIF_isTrayed = true;
 
+  // We do not support SW_SHOWMAXIMIZED atm (misaligned and incorrectly sized window)
+  if (nCmdShow == SW_SHOWMAXIMIZED)
+  {
+    PLOG_ERROR << "Ignoring SW_SHOWMAXIMIZED (\"Run: Maximized\") as it is not supported!";
+
+    // No idea how to solve this one. Right now SKIF opens maximized,
+    //   then gets restored straight after since we set *out_style |= WS_MAXIMIZE;
+  }
+
   SKIF_nCmdShow = nCmdShow;
 
   // Check if Controlled Folder Access is enabled

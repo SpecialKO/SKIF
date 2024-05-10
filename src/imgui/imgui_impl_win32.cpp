@@ -1135,6 +1135,9 @@ static void ImGui_ImplWin32_GetWin32StyleFromViewportFlags(ImGuiViewportFlags fl
   extern int SKIF_nCmdShow;
   if (owner == nullptr && SKIF_nCmdShow != -1)
   {
+    if (SKIF_nCmdShow == SW_SHOWMAXIMIZED)
+      *out_style |= WS_MAXIMIZE;
+
     if (SKIF_nCmdShow == SW_SHOWMINIMIZED   ||
         SKIF_nCmdShow == SW_SHOWMINNOACTIVE ||
         SKIF_nCmdShow == SW_SHOWNOACTIVATE  ||
