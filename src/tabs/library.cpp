@@ -6958,17 +6958,20 @@ SKIF_UI_Tab_DrawLibrary (void)
         ImGui::PushStyleColor     (ImGuiCol_Text,           ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4  (0.6f, 0.6f, 0.6f, 1.0f));
         ImGui::PushStyleColor     (ImGuiCol_FrameBg,        ImColor (0, 0, 0, 0).Value);
         ImGui::PushStyleColor     (ImGuiCol_ScrollbarBg,    ImColor (0, 0, 0, 0).Value);
-        ImGui::PushStyleColor     (ImGuiCol_TextSelectedBg, ImColor (0, 0, 0, 0).Value);
+      //ImGui::PushStyleColor     (ImGuiCol_TextSelectedBg, ImColor (0, 0, 0, 0).Value);
         ImGui::InputTextMultiline ("###Patrons", patrons_.data (), patrons_.length (),
                         ImVec2 (205.0f * SKIF_ImGui_GlobalDPIScale,
                                 160.0f * SKIF_ImGui_GlobalDPIScale),
-                                        ImGuiInputTextFlags_ReadOnly );
-        ImGui::PopStyleColor      (4);
-        ImGui::PopStyleVar        (2);
+                                        ImGuiInputTextFlags_ReadOnly);
+        ImGui::PopStyleColor      (3);
+        ImGui::PopStyleVar        ( );
 
         hoveredPatCredits =
         ImGui::IsItemActive       ( ) ||
         ImGui::IsItemHovered      ( );
+    
+        if (ImGui::IsItemActive   ( ))
+          allowShortcutCtrlA = false;
 
         ImGui::EndChild           ( );
         ImGui::PopStyleColor      ( );
