@@ -737,10 +737,9 @@ void SKIF_ImGui_BeginTabChildFrame (void)
 
   SKIF_ImGui_BeginChildFrame (
     frame_content_area_id,
-      ImVec2 (   0.0f,
-               maxContentHeight ), // 900.0f
-        ImGuiChildFlags_None, // ImGuiChildFlags_FrameStyle
-        ImGuiWindowFlags_NavFlattened
+    ImVec2 (0.0f, maxContentHeight), // 900.0f
+    ImGuiChildFlags_None, // ImGuiChildFlags_FrameStyle
+    ImGuiWindowFlags_NavFlattened
   );
 }
 

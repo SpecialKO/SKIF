@@ -691,14 +691,14 @@ SKIF_UI_Tab_DrawMonitor (void)
 
   auto&      processes = snapshot.Processes;
 
-  float maxWidth = ImGui::GetContentRegionAvail().x; // Needs to be before the SKIF_ImGui_Columns() call
+  float maxWidth = 0.56f * ImGui::GetContentRegionAvail().x; // Needs to be before the SKIF_ImGui_Columns() call
 
   SKIF_ImGui_Spacing      ( );
 
   SKIF_ImGui_Columns      (2, "SKIF_COLUMN_MONITOR", true);
 
   //SK_RunOnce (
-  ImGui::SetColumnWidth (0, 0.56f * maxWidth); // 560.0f * SKIF_ImGui_GlobalDPIScale
+  ImGui::SetColumnWidth (0, maxWidth); // 560.0f * SKIF_ImGui_GlobalDPIScale
   //);
 
   ImGui::PushStyleColor   (
@@ -1607,8 +1607,8 @@ SKIF_UI_Tab_DrawMonitor (void)
 
   ImGui::Separator   ( );
 
-  SKIF_ImGui_BeginChildFrame (0x68992, ImVec2 (ImGui::GetContentRegionAvail ().x,
-           (_registry.bHorizonMode) ? 250.0f : ImGui::GetContentRegionAvail ().y /* / 1.3f */),
+  SKIF_ImGui_BeginChildFrame (0x68992, ImVec2 (ImGui::GetContentRegionAvail().x,
+                            (std::max (250.0f, ImGui::GetContentRegionAvail().y))),
             ImGuiChildFlags_None,
             ImGuiWindowFlags_NoBackground); // | ImGuiWindowFlags_AlwaysVerticalScrollbar
       

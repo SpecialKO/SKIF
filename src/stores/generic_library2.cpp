@@ -69,7 +69,7 @@ FastTextureLoading (const std::wstring& path, DirectX::TexMetadata& meta, Direct
 
       if (SUCCEEDED (img.Initialize2D (meta.format, width, height, 1, 1)))
       {
-        size_t   imageSize = width * height * desired_channels * sizeof(uint8_t);
+        size_t   imageSize = static_cast<size_t> (width * height * desired_channels * sizeof(uint8_t));
         uint8_t* pDest     = img.GetImage(0, 0, 0)->pixels;
         memcpy(pDest, pixels, imageSize);
 
