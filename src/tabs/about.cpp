@@ -34,15 +34,19 @@ SKIF_UI_Tab_DrawAbout (void)
 
   SKIF_ImGui_Spacing      ( );
 
+  ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase));
+
   if (enableColums)
   {
-    SKIF_ImGui_Columns      (2, "SKIF_COLUMN_ABOUT", true);
+    SKIF_ImGui_Columns    (2, "SKIF_COLUMN_ABOUT", true);
     ImGui::SetColumnWidth (0, maxWidth); // 560.0f * SKIF_ImGui_GlobalDPIScale
   }
 
-  ImGui::PushStyleColor   (
-    ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
-                            );
+  else {
+    // This is needed to reproduce the same padding on the left side as when using columns
+    ImGui::SetCursorPosX  (ImGui::GetCursorPosX ( ) + ImGui::GetStyle().FramePadding.x);
+    ImGui::BeginGroup     ( );
+  }
 
   // ImColor::HSV (0.11F, 1.F, 1.F)   // Orange
   // ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info) // Blue Bullets
@@ -492,10 +496,11 @@ SKIF_UI_Tab_DrawAbout (void)
 
   if (enableColums)
   {
-    ImGui::Columns          (1);
+    ImGui::Columns        (1);
   }
   else {
-    ImGui::NewLine          ( );
+    ImGui::NewLine        ( );
+    ImGui::EndGroup       ( );
   }
 
   ImGui::PopStyleColor    ( );
