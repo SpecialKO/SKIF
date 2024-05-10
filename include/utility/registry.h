@@ -620,6 +620,7 @@ struct SKIF_RegistrySettings {
   bool _LibHorizonMode              = false; // Whether to use the horizontal layout
   bool _LibPinnedVisible            = false; // Whether to show pinned apps separately or not
   bool _UseLowResCovers             = false; // Whether to use low-res covers
+  bool _UseLowResCoversHiDPIBypass  = false; // Bypass for HiDPI scenarios
 
   // Functions
   bool isDevLogging (void) const;

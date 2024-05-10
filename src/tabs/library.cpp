@@ -5807,10 +5807,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   static ImVec2 tab_ContentRegionAvail_last;
 
   // These gets calculated anew every time the tab content area changes
-  static ImVec2 sizeList, sizeDetails, sizeCover;
+  static ImVec2 sizeList, sizeDetails, sizeCover, sizeSK, sizeSK_small;
   static bool uiDetailsVisible, uiCoverVisible;
-  static ImVec2 sizeSK       = ImVec2 (600.0f, 900.0f) * SKIF_ImGui_GlobalDPIScale,
-                sizeSK_small = ImVec2 (220.0f, 330.0f) * SKIF_ImGui_GlobalDPIScale;
 
   // Only calculate new values when the content region has changed
   // All of these calculations are DPI aware
@@ -5819,15 +5817,18 @@ SKIF_UI_Tab_DrawLibrary (void)
   {
     tab_ContentRegionAvail_last = tab_ContentRegionAvail;
 
+    sizeSK       = ImVec2 (600.0f, 900.0f) * SKIF_ImGui_GlobalDPIScale;
+    sizeSK_small = ImVec2 (220.0f, 330.0f) * SKIF_ImGui_GlobalDPIScale;
+
     static float arCover = 600.0f / 900.0f;
 
     _registry._LibPinnedVisible = tab_ContentRegionAvail.y >= 750.0f * SKIF_ImGui_GlobalDPIScale;
 
-    _registry._LibHorizonMode =
-                             (tab_ContentRegionAvail.x > 600.0f * SKIF_ImGui_GlobalDPIScale &&
-                              tab_ContentRegionAvail.y < 750.0f * SKIF_ImGui_GlobalDPIScale);
+    _registry._LibHorizonMode  = (tab_ContentRegionAvail.x > 600.0f * SKIF_ImGui_GlobalDPIScale &&
+                                  tab_ContentRegionAvail.y < 750.0f * SKIF_ImGui_GlobalDPIScale);
     _registry._UseLowResCovers = (_registry._LibHorizonMode &&
-                              tab_ContentRegionAvail.y <= SKIF_vecHorizonMode.y);
+                                  tab_ContentRegionAvail.y <= SKIF_vecHorizonMode.y);
+    _registry._UseLowResCoversHiDPIBypass = ! (tab_ContentRegionAvail.y <= (SKIF_vecHorizonMode.y / SKIF_ImGui_GlobalDPIScale)); // Allow high-res images in HiDPI scenarios (true = use high-res; false = use low-res)
 
     tab_scrollbar_width    = ImGui::GetCurrentWindowRead()->ScrollbarY ? ImGui::GetStyle().ScrollbarSize : 0.0f;
     lib_column2_width      = ((_registry._LibHorizonMode) ? 376.0f : 376.0f) * SKIF_ImGui_GlobalDPIScale; // tab_scrollbar_width // SKIF_vecServiceMode (not ready yet) // ((_registry._LibHorizonMode) ? 376.0f : 376.0f) * SKIF_ImGui_GlobalDPIScale
@@ -5844,7 +5845,7 @@ SKIF_UI_Tab_DrawLibrary (void)
            sizeCover.x -= sizeList.x;
            sizeCover.x -= (_registry._LibHorizonMode) ? sizeDetails.x : 0.0f;
 
-    ImVec2 sizeImage       = ImFloor ((_registry._UseLowResCovers) ? sizeSK_small // Wrong math with tab_scrollbar_width on the X axis
+    ImVec2 sizeImage       = ImFloor ((_registry._UseLowResCovers) ? sizeSK_small
                                                                    : sizeSK);
 
     if (sizeCover.y < sizeImage.y)
@@ -6931,7 +6932,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   // Special handling at the bottom of the cover for Special K
   if (_registry.bPatreon                  && // Only if the Patreon stuff is enabled
       uiCoverVisible                      && // Only when the cover is visible, and
-    //! _registry._TinyCovers             && //      when not using tiny covers, and
+    //! _registry._UseLowResCovers        && //      when not using low-res covers, and
     (ImGui::GetContentRegionAvail().x > 150.0f * SKIF_ImGui_GlobalDPIScale) &&
     ((! isSpecialK && fAlphaSK > 0.0f)    || // either while Special K logo is fading out,
        (pApp        != nullptr            && // or its selected in the list
@@ -7798,8 +7799,9 @@ SKIF_UI_Tab_DrawLibrary (void)
           std::to_wstring (_pApp->id)                +
                                   L"_library_600x900.jpg";
 
-        // If low-res covers are being used, we prefer to load the original 300x450 image!
-        if (! _registry._UseLowResCovers)
+        // Do not load a high-res copy if low-res covers are being used,
+        //   as in those scenarios we prefer to load the original 300x450 cover
+        if (! _registry._UseLowResCovers || _registry._UseLowResCoversHiDPIBypass)
         {
           std::wstring load_str_final = load_str;
 
@@ -9159,9 +9161,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // If we have changed mode, we need to reload the cover to ensure the proper resolution of it
   static bool
-      lastImageSize  = _registry._UseLowResCovers;
-  if (lastImageSize != _registry._UseLowResCovers && uiCoverVisible && ! ImGui::IsAnyMouseDown ( ))
-  {   lastImageSize  = _registry._UseLowResCovers;
+      lastLowResState  = (_registry._UseLowResCovers && ! _registry._UseLowResCoversHiDPIBypass);
+  if (lastLowResState != (_registry._UseLowResCovers && ! _registry._UseLowResCoversHiDPIBypass) && uiCoverVisible && ! ImGui::IsAnyMouseDown ( ))
+  {   lastLowResState  = (_registry._UseLowResCovers && ! _registry._UseLowResCoversHiDPIBypass);
 
     update    = true;
     lastCover.reset(); // Needed as otherwise SKIF would not reload the cover
