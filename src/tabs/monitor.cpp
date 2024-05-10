@@ -691,15 +691,21 @@ SKIF_UI_Tab_DrawMonitor (void)
 
   auto&      processes = snapshot.Processes;
 
+  bool enableColums = (ImGui::GetContentRegionAvail().x / SKIF_ImGui_GlobalDPIScale >= 750.f);
   float maxWidth = 0.56f * ImGui::GetContentRegionAvail().x; // Needs to be before the SKIF_ImGui_Columns() call
 
   SKIF_ImGui_Spacing      ( );
 
-  SKIF_ImGui_Columns      (2, "SKIF_COLUMN_MONITOR", true);
-
-  //SK_RunOnce (
-  ImGui::SetColumnWidth (0, maxWidth); // 560.0f * SKIF_ImGui_GlobalDPIScale
-  //);
+  if (enableColums)
+  {
+    SKIF_ImGui_Columns    (2, "SKIF_COLUMN_MONITOR", true);
+    ImGui::SetColumnWidth (0, maxWidth); //SKIF_vecCurrentMode.x / 2.0f) // 480.0f * SKIF_ImGui_GlobalDPIScale
+  }
+  else {
+    // This is needed to reproduce the same padding on the left side as when using columns
+    ImGui::SetCursorPosX (ImGui::GetCursorPosX ( ) + ImGui::GetStyle().FramePadding.x);
+    ImGui::BeginGroup    ( );
+  }
 
   ImGui::PushStyleColor   (
     ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
@@ -863,7 +869,14 @@ SKIF_UI_Tab_DrawMonitor (void)
 
   ImGui::PopStyleColor    ( );
 
-  ImGui::NextColumn       ( ); // Next Column
+  if (enableColums)
+  {
+    ImGui::NextColumn    ( );
+  }
+  else {
+    ImGui::Spacing       ( );
+    ImGui::Spacing       ( );
+  }
 
   ImGui::TextColored (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -891,7 +904,10 @@ SKIF_UI_Tab_DrawMonitor (void)
 
   ImGui::PopStyleColor    ( );
 
-  ImGui::Columns          (1);
+  if (enableColums)
+    ImGui::Columns       (1);
+  else
+    ImGui::EndGroup      ( );
 
   ImGui::Spacing          ( );
   ImGui::Spacing          ( );
@@ -1610,7 +1626,7 @@ SKIF_UI_Tab_DrawMonitor (void)
   SKIF_ImGui_BeginChildFrame (0x68992, ImVec2 (ImGui::GetContentRegionAvail().x,
                             (std::max (250.0f, ImGui::GetContentRegionAvail().y))),
             ImGuiChildFlags_None,
-            ImGuiWindowFlags_NoBackground); // | ImGuiWindowFlags_AlwaysVerticalScrollbar
+            ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_HorizontalScrollbar); // | ImGuiWindowFlags_AlwaysVerticalScrollbar
       
   ImGui::PushStyleColor (
     ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase)
