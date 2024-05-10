@@ -6927,7 +6927,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       SKIF_ImGui_SetMouseCursorHand ();
       SKIF_ImGui_SetHoverText ("https://www.patreon.com/Kaldaien");
-      //SKIF_ImGui_SetHoverTip  ("Click to help support the project");
 
       if (clicked)
         SKIF_Util_OpenURI (

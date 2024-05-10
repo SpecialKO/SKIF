@@ -661,8 +661,8 @@ void SKIF_UI_TipsAndTricks (void)
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
     "Ctrl + Shift");
   ImGui::SameLine         ( );
-  ImGui::Text             ("when starting a game to access compatibility options");
+  ImGui::Text             ("when starting a game for compatibility options");
   ImGui::SetCursorPosX    (fX1);
-  ImGui::Text             ("or quickly perform a local install of the appropriate wrapper DLL for the game.");
+  ImGui::Text             ("or perform a local install of the appropriate wrapper DLL for the game.");
   ImGui::EndGroup         ( );
 }

@@ -17,14 +17,28 @@ SKIF_UI_Tab_DrawAbout (void)
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
   float maxWidth = 0.56f * ImGui::GetContentRegionAvail().x; // Needs to be before the SKIF_ImGui_Columns() call
+  bool enableColums = (ImGui::GetContentRegionAvail().x / SKIF_ImGui_GlobalDPIScale >= 750.f);
+
+  auto _PrintSKIFintro = [](void)
+  {
+    ImGui::TextColored      (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+        "About the Injection Frontend (SKIF):"    );
+
+    SKIF_ImGui_Spacing      ( );
+
+    ImGui::TextWrapped      ("You are looking at the Special K Injection Frontend app, commonly referred to as \"SKIF\". "
+                             "This app is used to inject Special K into launched games, or even into games that are already running!\n\n"
+                             "The frontend also provides convenient alternative launch options, shortcuts to various useful resources, and a few other useful things.");
+  };
 
   SKIF_ImGui_Spacing      ( );
 
-  SKIF_ImGui_Columns      (2, "SKIF_COLUMN_ABOUT", true);
-
-  //SK_RunOnce (
-  ImGui::SetColumnWidth (0, maxWidth); // 560.0f * SKIF_ImGui_GlobalDPIScale
-  //);
+  if (enableColums)
+  {
+    SKIF_ImGui_Columns      (2, "SKIF_COLUMN_ABOUT", true);
+    ImGui::SetColumnWidth (0, maxWidth); // 560.0f * SKIF_ImGui_GlobalDPIScale
+  }
 
   ImGui::PushStyleColor   (
     ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
@@ -55,7 +69,13 @@ SKIF_UI_Tab_DrawAbout (void)
   );
   ImGui::NewLine          ( );
 
-  ImGui::Text             ("Just hop on over to the");
+  if (! enableColums)
+  {
+    _PrintSKIFintro       ( );
+    ImGui::NewLine        ( );
+  }
+
+  ImGui::Text             ("Just hop over to the");
   ImGui::SameLine         ( );
   ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption));
   if (SKIF_ImGui_Selectable (ICON_FA_GAMEPAD " Library###About-Lib1"))
@@ -69,7 +89,8 @@ SKIF_UI_Tab_DrawAbout (void)
 
   ImGui::NewLine          ( );
   ImGui::NewLine          ( );
-  ImGui::NewLine          ( );
+  if (enableColums) 
+    ImGui::NewLine        ( );
 
   float fY1 = ImGui::GetCursorPosY();
 
@@ -120,11 +141,12 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::PopStyleColor    ( );
   SKIF_ImGui_SetMouseCursorHand ( );
   ImGui::SameLine         ( );
-  ImGui::Text             ("to add it to the list.");
+  ImGui::Text             ("to add it.");
 
   ImGui::NewLine          ( );
   ImGui::NewLine          ( );
-  ImGui::NewLine          ( );
+  if (enableColums) 
+    ImGui::NewLine        ( );
 
   float fY2 = ImGui::GetCursorPosY();
           
@@ -132,7 +154,7 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::SameLine         ( );
   ImGui::TextColored      (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-      "Quick launch Special K for select games through Steam:"
+      "Launch Special K for select games through Steam:"
   );
 
   SKIF_ImGui_Spacing      ( );
@@ -197,7 +219,7 @@ SKIF_UI_Tab_DrawAbout (void)
       ImColor::HSV (0.11F,   1.F, 1.F),
         ICON_FA_TRIANGLE_EXCLAMATION " ");
     ImGui::SameLine         ( );
-    ImGui::TextWrapped      ("Your system is not set up to use this install of Special K to quickly launch injection through Steam.");
+    ImGui::TextWrapped      ("Your system is not set up to use this install of Special K to launch injection through Steam.");
 
     SKIF_ImGui_Spacing      ( );
     
@@ -215,7 +237,8 @@ SKIF_UI_Tab_DrawAbout (void)
 
   ImGui::NewLine          ( );
   ImGui::NewLine          ( );
-  ImGui::NewLine          ( );
+  if (enableColums) 
+    ImGui::NewLine        ( );
 
   float fY3 = ImGui::GetCursorPosY();
           
@@ -227,32 +250,36 @@ SKIF_UI_Tab_DrawAbout (void)
 
   SKIF_ImGui_Spacing      ( );
 
+  ImGui::BeginChild ("##TipsTricks", ImVec2 (0, (135.0f + ImGui::GetStyle().ScrollbarSize) * SKIF_ImGui_GlobalDPIScale), ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar);
+
   // Show a (currently not randomized) selection of tips and tricks
   SKIF_UI_TipsAndTricks   ( );
 
+  ImGui::EndChild ( );
+
 //float fY4 = ImGui::GetCursorPosY();
 
-  float pushColumnSeparator =
-    (900.0f * SKIF_ImGui_GlobalDPIScale) - ImGui::GetCursorPosY                () -
-                                          (ImGui::GetTextLineHeightWithSpacing () );
+  if (enableColums)
+  {
+    float pushColumnSeparator =
+      (900.0f * SKIF_ImGui_GlobalDPIScale) - ImGui::GetCursorPosY                () -
+                                            (ImGui::GetTextLineHeightWithSpacing () );
 
-  ImGui::ItemSize (
-    ImVec2 (0.0f, pushColumnSeparator)
-  );
+    ImGui::ItemSize (
+      ImVec2 (0.0f, pushColumnSeparator)
+    );
 
 
-  ImGui::NextColumn       ( ); // Next Column
-  ImGui::TextColored      (
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-      "About the Injection Frontend (SKIF):"    );
+    ImGui::NextColumn       ( ); // Next Column
 
-  SKIF_ImGui_Spacing      ( );
+    _PrintSKIFintro         ( );
 
-  ImGui::TextWrapped      ("You are looking at the Special K Injection Frontend app, commonly referred to as \"SKIF\". "
-                           "This app is used to inject Special K into launched games, or even into games that are already running!\n\n"
-                           "The frontend also provides convenient alternative launch options, shortcuts to various useful resources, and a few other useful things.");
-
-  ImGui::SetCursorPosY    (fY1);
+    ImGui::SetCursorPosY    (fY1);
+  }
+  else {
+    ImGui::NewLine          ( );
+    ImGui::NewLine          ( );
+  }
 
   ImGui::TextColored (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -306,8 +333,15 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::EndGroup         ( );
 
   SKIF_ImGui_SetHoverTip ("In particular games where anti-cheat\nprotection might be present.");
-
-  ImGui::SetCursorPosY    (fY2);
+  
+  if (enableColums)
+  {
+    ImGui::SetCursorPosY    (fY2);
+  }
+  else {
+    ImGui::NewLine          ( );
+    ImGui::NewLine          ( );
+  }
 
   ImGui::TextColored      (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -420,7 +454,14 @@ SKIF_UI_Tab_DrawAbout (void)
   SKIF_ImGui_SetHoverText ( "https://github.com/SpecialKO/SKIF/blob/master/LICENSE-3RD-PARTY");
   ImGui::EndGroup         ( );
   
-  ImGui::SetCursorPosY    (fY3);
+  if (enableColums)
+  {
+    ImGui::SetCursorPosY    (fY3);
+  }
+  else {
+    ImGui::NewLine          ( );
+    ImGui::NewLine          ( );
+  }
   
   ImGui::PushStyleColor   (
     ImGuiCol_SKIF_TextCaption, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) * ImVec4(0.5f, 0.5f, 0.5f, 1.0f)
@@ -449,7 +490,13 @@ SKIF_UI_Tab_DrawAbout (void)
 
   ImGui::PopStyleColor    (4);
 
-  ImGui::Columns          (1);
+  if (enableColums)
+  {
+    ImGui::Columns          (1);
+  }
+  else {
+    ImGui::NewLine          ( );
+  }
 
   ImGui::PopStyleColor    ( );
 }
