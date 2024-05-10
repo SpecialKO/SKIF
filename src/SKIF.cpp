@@ -120,7 +120,7 @@ UINT SHELL_TASKBAR_BUTTON_CREATED = 0; // TaskbarButtonCreated
 
 // --- App Mode (regular)
 ImVec2 SKIF_vecRegularMode          = ImVec2 (0.0f, 0.0f);        // DPI-aware
-ImVec2 SKIF_vecRegularModeDefault   = ImVec2 (1000.0f, 944.0f);   // Does not include the status bar
+ImVec2 SKIF_vecRegularModeDefault   = ImVec2 (1000.0f, 944.0f);   // Does not include the status bar // SKIF_fStatusBarHeight == 31.0f
 ImVec2 SKIF_vecRegularModeAdjusted  = SKIF_vecRegularModeDefault; // Adjusted for status bar and tooltips (NO DPI scaling!)
 // --- Service Mode
 ImVec2 SKIF_vecServiceMode          = ImVec2 (0.0f, 0.0f);        // DPI-aware
@@ -134,7 +134,7 @@ ImVec2 SKIF_vecCurrentPosition      = ImVec2 (0.0f, 0.0f); // Gets updated after
 ImVec2 SKIF_vecCurrentMode          = ImVec2 (0.0f, 0.0f); // Gets updated after ImGui::EndFrame()
 ImVec2 SKIF_vecCurrentModeNext      = ImVec2 (0.0f, 0.0f); // Holds the new expected size
 ImVec2 SKIF_vecAlteredSize          = ImVec2 (0.0f, 0.0f);
-float  SKIF_fStatusBarHeight        = 31.0f; // Status bar enabled
+float  SKIF_fStatusBarHeight        = 31.0f; // Status bar enabled // 33 ?
 float  SKIF_fStatusBarDisabled      = 8.0f;  // Status bar disabled
 float  SKIF_fStatusBarHeightTips    = 18.0f; // Disabled tooltips (two-line status bar)
 
@@ -1929,8 +1929,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_vecHorizonMode     = SKIF_vecHorizonModeAdjusted * SKIF_ImGui_GlobalDPIScale;
     SKIF_vecRegularMode     = SKIF_vecRegularModeAdjusted * SKIF_ImGui_GlobalDPIScale;
       
-    SKIF_vecHorizonMode.y  -= SKIF_vecAlteredSize.y;
-    SKIF_vecRegularMode.y  -= SKIF_vecAlteredSize.y;
+    //SKIF_vecHorizonMode.y  -= SKIF_vecAlteredSize.y;
+    //SKIF_vecRegularMode.y  -= SKIF_vecAlteredSize.y;
 
     SKIF_vecServiceMode     = ImFloor (SKIF_vecServiceMode);
     SKIF_vecHorizonMode     = ImFloor (SKIF_vecHorizonMode);

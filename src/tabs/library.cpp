@@ -340,17 +340,9 @@ CalculateImageSizing (image_s& image, ImVec2 contentRegionAvail, ImVec2 imageRes
   // Fill
   else if (_registry.iCoverScaling == 1)
   {
-    // Workaround to prevent content/frame fighting one another
-    if (ImGui::GetScrollMaxY() == 0.0f)
-      image.size.x -= ImGui::GetStyle().ScrollbarSize;
-
-    if (ImGui::GetScrollMaxX() == 0.0f)
-      image.size.y -= ImGui::GetStyle().ScrollbarSize;
-
-    // Fill the content area
     if (imageAspectRatio > regionAspectRatio)
       image.size.x = image.size.y * imageAspectRatio;
-    else // if (contentAspectRatio < frameAspectRatio)
+    else
       image.size.y = image.size.x / imageAspectRatio;
   }
 
@@ -379,16 +371,19 @@ CalculateImageSizing (image_s& image, ImVec2 contentRegionAvail, ImVec2 imageRes
               (contentRegionAvail.x - image.size.x) / 2,
               (contentRegionAvail.y - image.size.y) / 2));
 
+  /*
   PLOG_VERBOSE_IF(! ImGui::IsAnyMouseDown()) // Suppress logging while the mouse is down (e.g. window is being resized)
                << "\n"
-               << "Scaling mode  : " << _registry.iCoverScaling << "\n"
+               << "Scaling mode   : " << _registry.iCoverScaling << "\n"
+               << "Content region : " << contentRegionAvail.x << "x" << contentRegionAvail.y << "\n"
                << "Image\n"
-               << " > resolution : " << imageResolution.x << "x" << imageResolution.y << "\n"
-               << " > size       : " << image.size.x      << "x" << image.size.y      << "\n"
-               << " > position   : " << image.position.x  << "," << image.position.y  << "\n"
+               << " > resolution  : " << imageResolution.x << "x" << imageResolution.y << "\n"
+               << " > size        : " << image.size.x      << "x" << image.size.y      << "\n"
+               << " > position    : " << image.position.x  << "," << image.position.y  << "\n"
                << "Cache\n"
-               << " > region     : " << image.cache.contentRegionAvail.x << "x" << image.cache.contentRegionAvail.y << "\n"
-               << " > scaling    : " << image.cache.coverScaling << "\n";
+               << " > region      : " << image.cache.contentRegionAvail.x << "x" << image.cache.contentRegionAvail.y << "\n"
+               << " > scaling     : " << image.cache.coverScaling << "\n";
+  */
 
   return image.position;
 }
@@ -5745,6 +5740,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         // Set up the current one to be released
         vecCoverRes_old = vecCoverRes;
+        vecCoverRes     = ImVec2 (0, 0);
         vecCoverUv0_old = vecCoverUv0;
         vecCoverUv1_old = vecCoverUv1;
         pTexSRV_old.p   = pTexSRV.p;
@@ -5823,7 +5819,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                             tab_ContentRegionAvail.y <= SKIF_vecHorizonMode.y);
 
   tab_scrollbar_width    = ImGui::GetCurrentWindowRead()->ScrollbarY ? ImGui::GetStyle().ScrollbarSize : 0.0f;
-  lib_column2_width      = ((_registry._LibHorizonMode) ? SKIF_ImGui_GlobalDPIScale * 376.0f : (SKIF_vecServiceMode.x)); // tab_scrollbar_width
+  lib_column2_width      = ((_registry._LibHorizonMode) ? 376.0f : 376.0f) * SKIF_ImGui_GlobalDPIScale; // tab_scrollbar_width // SKIF_vecServiceMode (not ready yet)
 
 
   // Derp 2
@@ -5833,12 +5829,12 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // All of these are DPI-aware
   ImVec2 sizeList        = ImFloor ((_registry._LibHorizonMode)  ? (_registry.bUIBorders)
-                                                                 ? ImVec2 (lib_column2_width, 334.0f * SKIF_ImGui_GlobalDPIScale)  // Horizon + Borders
-                                                                 : ImVec2 (lib_column2_width, 332.0f * SKIF_ImGui_GlobalDPIScale)  // Horizon
+                                                                 ? ImVec2 (lib_column2_width, 334.0f * SKIF_ImGui_GlobalDPIScale)   // Horizon + Borders
+                                                                 : ImVec2 (lib_column2_width, 332.0f * SKIF_ImGui_GlobalDPIScale)   // Horizon
                                                                  : ImVec2 (lib_column2_width, 620.0f * SKIF_ImGui_GlobalDPIScale)); // Regular
   ImVec2 sizeDetails     = ImFloor ((_registry._LibHorizonMode)  ? (_registry.bUIBorders)
                                                                  ? ImVec2 (lib_column2_width + 2.0f  * SKIF_ImGui_GlobalDPIScale, 332.0f * SKIF_ImGui_GlobalDPIScale)  // Horizon + Borders
-                                                                 : ImVec2 (lib_column2_width, 330.0f * SKIF_ImGui_GlobalDPIScale)  // Horizon
+                                                                 : ImVec2 (lib_column2_width, 330.0f * SKIF_ImGui_GlobalDPIScale)   // Horizon
                                                                  : ImVec2 (lib_column2_width, 280.0f * SKIF_ImGui_GlobalDPIScale)); // Regular
   ImVec2 sizeCover    = tab_ContentRegionAvail;
          sizeCover.x -= sizeList.x;
@@ -5853,12 +5849,13 @@ SKIF_UI_Tab_DrawLibrary (void)
     sizeImage.x = sizeImage.y * arCover;
   }
 
-  bool uiCoverVisible    = (_registry._LibHorizonMode)
-                                     ? (tab_ContentRegionAvail.x > (sizeList.x + sizeDetails.x))
-                                     : (tab_ContentRegionAvail.x >  sizeImage.x); // When in regular mode
   bool uiDetailsVisible  = (_registry._LibHorizonMode)
-                                     ? true
-                                     : tab_ContentRegionAvail.y >= 750.0f * SKIF_ImGui_GlobalDPIScale; // When in regular mode
+                                     ? (tab_ContentRegionAvail.x > ImFloor ((sizeList.x + sizeDetails.x) * 0.5f))
+                                     : (tab_ContentRegionAvail.y >= 750.0f * SKIF_ImGui_GlobalDPIScale); // When in regular mode
+
+  bool uiCoverVisible    = (_registry._LibHorizonMode)
+                                     ? (tab_ContentRegionAvail.x > (sizeList.x + sizeDetails.x + 220.f * 0.75f * SKIF_ImGui_GlobalDPIScale)) // Large enough to allow 75% of the tiny cover to appear
+                                     : (uiDetailsVisible) ? (tab_ContentRegionAvail.x > sizeImage.x) : false; // When in regular mode
 
   if (! uiCoverVisible)
   {
@@ -5868,10 +5865,16 @@ SKIF_UI_Tab_DrawLibrary (void)
     sizeDetails.x     = newMaxWidth;
   }
 
+  if (_registry._LibHorizonMode)
+  {
+    sizeDetails.y  = tab_ContentRegionAvail.y;
+    sizeDetails.y -= (_registry.bUIBorders) ? 2.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
+  }
+
   // DPI-aware
   sizeList.y = tab_ContentRegionAvail.y;
-  sizeList.y -= (_registry._LibHorizonMode || ! uiDetailsVisible) ? 0.0f                          : sizeDetails.y;
-  sizeList.y -= (_registry.bUIBorders                           ) ? 2.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
+  sizeList.y -= (  _registry._LibHorizonMode || ! uiDetailsVisible)   ? 0.0f                             : sizeDetails.y;
+  sizeList.y -= (! _registry._LibHorizonMode && _registry.bUIBorders) ? 2.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
 
   // From now on ImGui UI calls starts being made...
 
@@ -6300,7 +6303,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   float _ICON_HEIGHT_OnTop = _ICON_HEIGHT + ImGui::GetStyle().ItemSpacing.y;
 
   ImGui::BeginChild          ( "###GameListOnTop",
-                                ImVec2 ( (sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
+                                ImVec2 ((sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
                                   (! _registry._LibHorizonMode && numPinnedOnTop > 0 && numRegular > 0)
                                   ? numPinnedOnTop * _ICON_HEIGHT_OnTop + ImGui::GetStyle().WindowPadding.y
                                   : sizeList.y - (ImGui::GetStyle().FramePadding.x - 2.0f * SKIF_ImGui_GlobalDPIScale) - (fTop3.y - fTop1.y)),
@@ -7084,6 +7087,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       
             // This sets up the current one to be released
             vecCoverRes_old = vecCoverRes;
+            vecCoverRes     = ImVec2 (0, 0);
             vecCoverUv0_old = vecCoverUv0;
             vecCoverUv1_old = vecCoverUv1;
             pTexSRV_old.p   = pTexSRV.p;
@@ -8990,6 +8994,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       
       // This sets up the current one to be released
       vecCoverRes_old = vecCoverRes;
+      vecCoverRes     = ImVec2 (0, 0);
       vecCoverUv0_old = vecCoverUv0;
       vecCoverUv1_old = vecCoverUv1;
       pTexSRV_old.p   = pTexSRV.p;
