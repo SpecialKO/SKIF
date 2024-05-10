@@ -5991,13 +5991,13 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (isSpecialK ||
          (! isSpecialK && fAlphaSK > 0.0f))
         {
-          ImVec2 sizeCurrent = (_registry._UseLowResCovers) ? sizeSK_small : sizeSK;
+          ImVec2 sizeCurrent = (_registry._UseLowResCovers && ! _registry._UseLowResCoversHiDPIBypass) ? sizeSK_small : sizeSK;
 
           // Display Special K logo
           CalculateImageSizing (coverSK, vecContentRegionAvail, sizeCurrent);
           ImGui::SetCursorPos  (coverSK.position);
 
-          ImGui::Image (((! _registry._UseLowResCovers) ? pSKLogoTexSRV.p : pSKLogoTexSRV_small.p),
+          ImGui::Image (((_registry._UseLowResCovers && ! _registry._UseLowResCoversHiDPIBypass) ? pSKLogoTexSRV_small.p : pSKLogoTexSRV.p),
                                                           coverSK.size,
                                                           ImVec2 (0, 0),                  // Top Left coordinates
                                                           ImVec2 (1, 1),                  // Bottom Right coordinates
