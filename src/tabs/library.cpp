@@ -6354,10 +6354,9 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (! _registry.bUIBorders)
       {
         ImGui::SetCursorPosY (
-          ImGui::GetCursorPosY ( )
-          // - (fOffset / 2.0f)
-           - 1.0f * SKIF_ImGui_GlobalDPIScale
-        );
+          ImFloor (ImGui::GetCursorPosY ( )
+           - 1.0f * SKIF_ImGui_GlobalDPIScale // ImGui::GetStyle().ItemInnerSpacing.y doesn't give us a pixel-perfect match with the UI borders... :(
+        ));
 
         ImGui::Separator ( );
       }
@@ -6837,6 +6836,16 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   if (uiDetailsVisible)
   {
+    if (! _registry.bUIBorders && ! _registry._LibHorizonMode)
+    {
+      ImGui::Separator ( );
+
+      ImGui::SetCursorPosY (
+        ImGui::GetCursorPosY ( )
+          - ImGui::GetStyle().ItemInnerSpacing.y
+      );
+    }
+
     ImGui::BeginChild (
       "###GameDetails",
         ImVec2 ((sizeDetails.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
@@ -6844,7 +6853,8 @@ SKIF_UI_Tab_DrawLibrary (void)
           ImGuiChildFlags_AlwaysUseWindowPadding | (_registry.bUIBorders ? ImGuiChildFlags_Border : ImGuiChildFlags_None),
           ImGuiWindowFlags_NoScrollbar       |
           ImGuiWindowFlags_NoScrollWithMouse |
-          ImGuiWindowFlags_NavFlattened
+          ImGuiWindowFlags_NavFlattened      |
+          (_registry.bUIBorders || _registry._LibHorizonMode ? ImGuiChildFlags_None : ImGuiWindowFlags_NoBackground) // ImGuiWindowFlags_NoBackground apparently disables the outside border
     );
     ImGui::BeginGroup ();
 
@@ -7145,10 +7155,10 @@ SKIF_UI_Tab_DrawLibrary (void)
           }
         }
       }
-      // Image scaling
 
       ImGui::Separator ( );
 
+      // Image scaling
       ImGui::PushID ("#ImageScaling");
 
       if (SKIF_ImGui_BeginMenuEx2 ("Scaling", ICON_FA_PANORAMA))
