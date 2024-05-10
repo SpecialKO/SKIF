@@ -37,6 +37,7 @@ LoadLibraryTexture (
         uint32_t                            appid,
         CComPtr <ID3D11ShaderResourceView>& pLibTexSRV,
         const std::wstring&                 name,
-        ImVec2&                             vCoverUv0,
-        ImVec2&                             vCoverUv1,
+        ImVec2&                             resolution,
+      //ImVec2&                             vCoverUv0,
+      //ImVec2&                             vCoverUv1,
         app_record_s*                       pApp = nullptr);

@@ -276,6 +276,126 @@ ShowLargeIconToggle (void)
   }
 }
 
+
+
+#pragma region ImagePosition
+
+struct image_s
+{
+  ImVec2       size;                      // Holds the calculated size
+  ImVec2       position;                  // Holds the calculated cursor position
+
+  // Holds cached values used to determine if stuff needs to be recalculated
+  struct
+  {
+    ImVec2       resolution         = ImVec2 (0, 0); // Holds the original resolution of the image (unaffected by DPI)
+    ImVec2       contentRegionAvail = ImVec2 (-1.0f, -1.0f);
+    int          coverScaling       = -1;
+  } cache;
+};
+
+// Returns the cursor position of where to place the image
+static ImVec2
+CalculateImageSizing (image_s& image, ImVec2 contentRegionAvail, ImVec2 imageResolution)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  contentRegionAvail /= SKIF_ImGui_GlobalDPIScale;
+
+  // If we have no image, return 0,0
+  if (imageResolution.x == 0.0f || imageResolution.y == 0.0f)
+    return ImVec2 (0, 0);
+
+  // Do not recalculate when dealing with an unchanged situation
+  if (     contentRegionAvail == image.cache.contentRegionAvail &&
+              imageResolution == image.cache.resolution         &&
+      _registry.iCoverScaling == image.cache.coverScaling)
+    return image.position;
+
+  // Reset values
+  image.cache.resolution         = imageResolution;
+  image.cache.contentRegionAvail = contentRegionAvail;
+  image.cache.coverScaling       = _registry.iCoverScaling;
+  image.size                     = contentRegionAvail;
+  image.position                 = ImVec2 (0, 0);
+
+
+  float regionAspectRatio = contentRegionAvail.x / contentRegionAvail.y;
+  float imageAspectRatio  =    imageResolution.x /    imageResolution.y;
+
+  // None (enforced unified sort-of 600x900 sizing)
+  if (_registry.iCoverScaling == 0)
+  {
+    ImVec2 defaultSize        = (_registry._UseLowResCovers) ? ImVec2 (220.0f, 330.0f) : ImVec2 (600.0f, 900.0f);
+    float  defaultAspectRatio = defaultSize.x / defaultSize.y;
+    image.size                = defaultSize;
+
+    // Fill into the default cover size area
+    if (imageAspectRatio > defaultAspectRatio)
+      image.size.x = image.size.y * imageAspectRatio;
+    else
+      image.size.y = image.size.x / imageAspectRatio;
+  }
+
+  // Fill
+  else if (_registry.iCoverScaling == 1)
+  {
+    // Workaround to prevent content/frame fighting one another
+    if (ImGui::GetScrollMaxY() == 0.0f)
+      image.size.x -= ImGui::GetStyle().ScrollbarSize;
+
+    if (ImGui::GetScrollMaxX() == 0.0f)
+      image.size.y -= ImGui::GetStyle().ScrollbarSize;
+
+    // Fill the content area
+    if (imageAspectRatio > regionAspectRatio)
+      image.size.x = image.size.y * imageAspectRatio;
+    else // if (contentAspectRatio < frameAspectRatio)
+      image.size.y = image.size.x / imageAspectRatio;
+  }
+
+  // Fit
+  else if (_registry.iCoverScaling == 2)
+  {
+    if (imageAspectRatio < regionAspectRatio)
+      image.size.x = image.size.y * imageAspectRatio;
+    else
+      image.size.y = image.size.x / imageAspectRatio;
+  }
+
+  // None
+  else if (_registry.iCoverScaling == 3)
+  {
+    image.size = imageResolution;
+  }
+
+  // Stretch (disabled)
+  else if (_registry.iCoverScaling == 4)
+  {
+    // Do nothing -- this cases the image to be stretched
+  }
+
+  image.position = ImFloor (ImVec2 (
+              (contentRegionAvail.x - image.size.x) / 2,
+              (contentRegionAvail.y - image.size.y) / 2));
+
+  PLOG_VERBOSE_IF(! ImGui::IsAnyMouseDown()) // Suppress logging while the mouse is down (e.g. window is being resized)
+               << "\n"
+               << "Scaling mode  : " << _registry.iCoverScaling << "\n"
+               << "Image\n"
+               << " > resolution : " << imageResolution.x << "x" << imageResolution.y << "\n"
+               << " > size       : " << image.size.x      << "x" << image.size.y      << "\n"
+               << " > position   : " << image.position.x  << "," << image.position.y  << "\n"
+               << "Cache\n"
+               << " > region     : " << image.cache.contentRegionAvail.x << "x" << image.cache.contentRegionAvail.y << "\n"
+               << " > scaling    : " << image.cache.coverScaling << "\n";
+
+  return image.position;
+}
+
+#pragma endregion
+
+
 #pragma region Trie Keyboard Hint Search
 
 struct {
@@ -4490,16 +4610,17 @@ SKIF_UI_Tab_DrawLibrary (void)
   
   static SKIF_DirectoryWatch     SKIF_Epic_ManifestWatch;
 
+  static image_s cover, cover_old;
+
   static CComPtr <ID3D11ShaderResourceView> pTexSRV;
   static CComPtr <ID3D11ShaderResourceView> pTexSRV_old;
 
-  static ImVec2 vecCoverUv0     = ImVec2 (0, 0),
-                vecCoverUv1     = ImVec2 (1, 1),
-                vecCoverUv0_old = ImVec2 (0, 0),
-                vecCoverUv1_old = ImVec2 (1, 1);
-
-  static DirectX::TexMetadata     meta = { };
-  static DirectX::ScratchImage    img  = { };
+  static ImVec2 vecCoverRes     = ImVec2 (0, 0), // New
+                vecCoverRes_old = ImVec2 (0, 0), // New
+                vecCoverUv0     = ImVec2 (0, 0), // Obsolete?
+                vecCoverUv1     = ImVec2 (1, 1), // Obsolete?
+                vecCoverUv0_old = ImVec2 (0, 0), // Obsolete?
+                vecCoverUv1_old = ImVec2 (1, 1); // Obsolete?
 
   // This keeps track of the amount of workers streaming icons that we have active in the background
   static int   activeIconWorkers     = 0; // max: 8
@@ -5222,13 +5343,13 @@ SKIF_UI_Tab_DrawLibrary (void)
       PLOG_INFO << "Finished populating the library list.";
 
       PLOG_INFO_IF(pPatTexSRV.p == nullptr) << "Loading the embedded Patreon texture...";
-      ImVec2 dontCare1, dontCare2;
+      ImVec2 dontCare;
       if (pPatTexSRV.p == nullptr)
-        LoadLibraryTexture (LibraryTexture::Patreon, SKIF_STEAM_APPID, pPatTexSRV,          L"patreon.png",         dontCare1, dontCare2);
+        LoadLibraryTexture (LibraryTexture::Patreon, SKIF_STEAM_APPID, pPatTexSRV,          L"patreon.png",         dontCare);
       if (pSKLogoTexSRV.p == nullptr)
-        LoadLibraryTexture (LibraryTexture::Logo,    SKIF_STEAM_APPID, pSKLogoTexSRV,       L"sk_boxart.png",       dontCare1, dontCare2);
+        LoadLibraryTexture (LibraryTexture::Logo,    SKIF_STEAM_APPID, pSKLogoTexSRV,       L"sk_boxart.png",       dontCare);
       if (pSKLogoTexSRV_small.p == nullptr)
-        LoadLibraryTexture (LibraryTexture::Logo,    SKIF_STEAM_APPID, pSKLogoTexSRV_small, L"sk_boxart_small.png", dontCare1, dontCare2);
+        LoadLibraryTexture (LibraryTexture::Logo,    SKIF_STEAM_APPID, pSKLogoTexSRV_small, L"sk_boxart_small.png", dontCare);
 
       // Force a refresh when the game icons have finished being streamed
       PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
@@ -5623,6 +5744,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         }
 
         // Set up the current one to be released
+        vecCoverRes_old = vecCoverRes;
         vecCoverUv0_old = vecCoverUv0;
         vecCoverUv1_old = vecCoverUv1;
         pTexSRV_old.p   = pTexSRV.p;
@@ -5690,59 +5812,40 @@ SKIF_UI_Tab_DrawLibrary (void)
   *   adjusted on the fly as the app window get resized by the user.
   *
   */
-  
-  //_registry.bHorizonMode = (ImGui::GetContentRegionAvail().x > 600.0f * SKIF_ImGui_GlobalDPIScale &&
-  //                          ImGui::GetContentRegionAvail().y < 750.0f * SKIF_ImGui_GlobalDPIScale);
-  _registry._LibHorizonMode =
-                           (ImGui::GetContentRegionAvail().x > 600.0f * SKIF_ImGui_GlobalDPIScale &&
-                            ImGui::GetContentRegionAvail().y < 750.0f * SKIF_ImGui_GlobalDPIScale);
-  _registry._UseLowResCovers = (_registry._LibHorizonMode &&
-                            ImGui::GetContentRegionAvail().y <= SKIF_vecHorizonMode.y);
-
-  // Future plans? :)
-  //bool horizon_two_columns = (_registry.bHorizonMode &&
-  //                          ImGui::GetContentRegionAvail().x > 600.0f * SKIF_ImGui_GlobalDPIScale &&
-  //                          ImGui::GetContentRegionAvail().y < 750.0f * SKIF_ImGui_GlobalDPIScale);
 
   // DPI-aware, calculate once per frame
   ImVec2 tab_ContentRegionAvail = ImGui::GetContentRegionAvail();
+
+  _registry._LibHorizonMode =
+                           (tab_ContentRegionAvail.x > 600.0f * SKIF_ImGui_GlobalDPIScale &&
+                            tab_ContentRegionAvail.y < 750.0f * SKIF_ImGui_GlobalDPIScale);
+  _registry._UseLowResCovers = (_registry._LibHorizonMode &&
+                            tab_ContentRegionAvail.y <= SKIF_vecHorizonMode.y);
+
   tab_scrollbar_width    = ImGui::GetCurrentWindowRead()->ScrollbarY ? ImGui::GetStyle().ScrollbarSize : 0.0f;
   lib_column2_width      = ((_registry._LibHorizonMode) ? SKIF_ImGui_GlobalDPIScale * 376.0f : (SKIF_vecServiceMode.x)); // tab_scrollbar_width
 
+
+  // Derp 2
+
+  static float arCover = 600.0f / 900.0f;
+
+
   // All of these are DPI-aware
-  ImVec2 sizeImage   = ImFloor ((_registry._UseLowResCovers) ? ImVec2 (220.0f - tab_scrollbar_width, 330.0f - tab_scrollbar_width)     * SKIF_ImGui_GlobalDPIScale
-                                                             : ImVec2 (600.0f, 900.0f)     * SKIF_ImGui_GlobalDPIScale);
-  ImVec2 sizeList        = ImFloor ((_registry._LibHorizonMode) ? (_registry.bUIBorders)
-                                                             ? ImVec2 (lib_column2_width, 334.0f * SKIF_ImGui_GlobalDPIScale)  // Horizon + Borders
-                                                             : ImVec2 (lib_column2_width, 332.0f * SKIF_ImGui_GlobalDPIScale)  // Horizon
-                                                             : ImVec2 (lib_column2_width, 620.0f * SKIF_ImGui_GlobalDPIScale)); // Regular
-  ImVec2 sizeDetails     = ImFloor ((_registry._LibHorizonMode) ? (_registry.bUIBorders)
-                                                             ? ImVec2 (lib_column2_width + 2.0f  * SKIF_ImGui_GlobalDPIScale, 332.0f * SKIF_ImGui_GlobalDPIScale)  // Horizon + Borders
-                                                             : ImVec2 (lib_column2_width, 330.0f * SKIF_ImGui_GlobalDPIScale)  // Horizon
-                                                             : ImVec2 (lib_column2_width, 280.0f * SKIF_ImGui_GlobalDPIScale)); // Regular
-
-  // DPI-aware
-  bool uiCoverVisible    = (_registry._LibHorizonMode)
-                                     ? (ImGui::GetContentRegionAvail().x > (sizeList.x + sizeDetails.x))
-                                     : (ImGui::GetContentRegionAvail().x >  sizeImage.x); // When in regular mode
-  bool uiDetailsVisible  = (_registry._LibHorizonMode)
-                                     ? true
-                                     : ImGui::GetContentRegionAvail().y >= 750.0f * SKIF_ImGui_GlobalDPIScale; // When in regular mode
-
-  if (! uiCoverVisible)
-  {
-    float newMaxWidth = ImGui::GetContentRegionAvail().x / ((_registry._LibHorizonMode && uiDetailsVisible) ? 2.0f : 1.0f);
-    lib_column2_width = newMaxWidth;
-    sizeList.x        = newMaxWidth;
-    sizeDetails.x     = newMaxWidth;
-  }
-
-  float arCover = sizeImage.x / sizeImage.y;
-
-  // DPI-aware
-  ImVec2 sizeCover    = ImGui::GetContentRegionAvail();
+  ImVec2 sizeList        = ImFloor ((_registry._LibHorizonMode)  ? (_registry.bUIBorders)
+                                                                 ? ImVec2 (lib_column2_width, 334.0f * SKIF_ImGui_GlobalDPIScale)  // Horizon + Borders
+                                                                 : ImVec2 (lib_column2_width, 332.0f * SKIF_ImGui_GlobalDPIScale)  // Horizon
+                                                                 : ImVec2 (lib_column2_width, 620.0f * SKIF_ImGui_GlobalDPIScale)); // Regular
+  ImVec2 sizeDetails     = ImFloor ((_registry._LibHorizonMode)  ? (_registry.bUIBorders)
+                                                                 ? ImVec2 (lib_column2_width + 2.0f  * SKIF_ImGui_GlobalDPIScale, 332.0f * SKIF_ImGui_GlobalDPIScale)  // Horizon + Borders
+                                                                 : ImVec2 (lib_column2_width, 330.0f * SKIF_ImGui_GlobalDPIScale)  // Horizon
+                                                                 : ImVec2 (lib_column2_width, 280.0f * SKIF_ImGui_GlobalDPIScale)); // Regular
+  ImVec2 sizeCover    = tab_ContentRegionAvail;
          sizeCover.x -= sizeList.x;
          sizeCover.x -= (_registry._LibHorizonMode) ? sizeDetails.x : 0.0f;
+
+  ImVec2 sizeImage       = ImFloor ((_registry._UseLowResCovers) ? ImVec2 (220.0f - tab_scrollbar_width, 330.0f - tab_scrollbar_width)     * SKIF_ImGui_GlobalDPIScale // Wrong math with tab_scrollbar_width on the X axis
+                                                                 : ImVec2 (600.0f, 900.0f)     * SKIF_ImGui_GlobalDPIScale);
 
   if (sizeCover.y < sizeImage.y)
   {
@@ -5750,8 +5853,23 @@ SKIF_UI_Tab_DrawLibrary (void)
     sizeImage.x = sizeImage.y * arCover;
   }
 
+  bool uiCoverVisible    = (_registry._LibHorizonMode)
+                                     ? (tab_ContentRegionAvail.x > (sizeList.x + sizeDetails.x))
+                                     : (tab_ContentRegionAvail.x >  sizeImage.x); // When in regular mode
+  bool uiDetailsVisible  = (_registry._LibHorizonMode)
+                                     ? true
+                                     : tab_ContentRegionAvail.y >= 750.0f * SKIF_ImGui_GlobalDPIScale; // When in regular mode
+
+  if (! uiCoverVisible)
+  {
+    float newMaxWidth = tab_ContentRegionAvail.x / ((_registry._LibHorizonMode && uiDetailsVisible) ? 2.0f : 1.0f);
+    lib_column2_width = newMaxWidth;
+    sizeList.x        = newMaxWidth;
+    sizeDetails.x     = newMaxWidth;
+  }
+
   // DPI-aware
-  sizeList.y = ImGui::GetContentRegionAvail().y;
+  sizeList.y = tab_ContentRegionAvail.y;
   sizeList.y -= (_registry._LibHorizonMode || ! uiDetailsVisible) ? 0.0f                          : sizeDetails.y;
   sizeList.y -= (_registry.bUIBorders                           ) ? 2.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
 
@@ -5814,13 +5932,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         ImVec2 vecPosCoverInner      = ImGui::GetCursorPos();
         ImVec2 vecContentRegionAvail = ImGui::GetContentRegionAvail();
 
-        ImVec2 vecPosImage      = ImFloor (ImVec2 (
-              (vecContentRegionAvail.x - sizeImage.x) / 2,
-              (vecContentRegionAvail.y - sizeImage.y) / 2));
-
-        ImVec2 sizeCoverFloored = ImFloor (ImVec2 (
-               sizeImage.x,
-               sizeImage.y));
+        // Hides previous declaration!
 
         if (pcstrLabel != nullptr)
         {
@@ -5835,9 +5947,21 @@ SKIF_UI_Tab_DrawLibrary (void)
         // Display previous fading out cover
         if (pTexSRV_old.p != nullptr && fAlphaPrev > 0.0f)
         {
-          ImGui::SetCursorPos  (vecPosImage);
+          ImVec2 sizeImage_old        = vecCoverRes_old * SKIF_ImGui_GlobalDPIScale;
+
+          ImVec2 vecPosImage_old      = ImFloor (ImVec2 (
+                (vecContentRegionAvail.x - sizeImage_old.x) / 2,
+                (vecContentRegionAvail.y - sizeImage_old.y) / 2));
+
+          ImVec2 sizeCoverFloored_old = ImFloor (ImVec2 (
+                 sizeImage_old.x,
+                 sizeImage_old.y));
+
+          CalculateImageSizing (cover_old, vecContentRegionAvail, vecCoverRes_old);
+
+          ImGui::SetCursorPos  (cover_old.position); //vecPosImage_old
           SKIF_ImGui_OptImage  (pTexSRV_old.p,
-                                                            sizeCoverFloored,
+                                                            cover_old.size, //sizeCoverFloored_old,
                                                             vecCoverUv0_old, // Top Left coordinates
                                                             vecCoverUv1_old, // Bottom Right coordinates
                                           (_registry._StyleLightMode) ? ImVec4 (1.0f, 1.0f, 1.0f, fGammaCorrectedTint * AdjustAlpha (fAlphaPrev))  : ImVec4 (fTint, fTint, fTint, fAlphaPrev), // Alpha transparency
@@ -5847,10 +5971,24 @@ SKIF_UI_Tab_DrawLibrary (void)
           ImGui::SetCursorPos (vecPosCoverInner);
         }
 
+        // Derp
+
         // Display game cover image
-        ImGui::SetCursorPos  (vecPosImage);
+        ImVec2 sizeImage        = vecCoverRes * SKIF_ImGui_GlobalDPIScale;
+
+        ImVec2 vecPosImage      = ImFloor (ImVec2 (
+              (vecContentRegionAvail.x - sizeImage.x) / 2,
+              (vecContentRegionAvail.y - sizeImage.y) / 2));
+
+        ImVec2 sizeCoverFloored = ImFloor (ImVec2 (
+                sizeImage.x,
+                sizeImage.y));
+
+        CalculateImageSizing (cover, vecContentRegionAvail, vecCoverRes);
+
+        ImGui::SetCursorPos  (cover.position); //vecPosImage
         SKIF_ImGui_OptImage  (pTexSRV.p,
-                                                          sizeCoverFloored,
+                                                          cover.size, //sizeCoverFloored,
                                                           vecCoverUv0, // Top Left coordinates
                                                           vecCoverUv1, // Bottom Right coordinates
                                         (_registry._StyleLightMode) ? ImVec4 (1.0f, 1.0f, 1.0f, fGammaCorrectedTint * AdjustAlpha (fAlpha))  : ImVec4 (fTint, fTint, fTint, fAlpha), // Alpha transparency (2024-01-01, removed fGammaCorrectedTint * fAlpha for the light style)
@@ -5863,11 +6001,11 @@ SKIF_UI_Tab_DrawLibrary (void)
          (! isSpecialK && fAlphaSK > 0.0f))
         {
           ImGui::SetCursorPos (ImFloor (ImVec2 (
-             (vecContentRegionAvail.x - sizeImage.x) / 2,
-             (vecContentRegionAvail.y - sizeImage.y) / 2)));
+             (vecContentRegionAvail.x - 600.0f * SKIF_ImGui_GlobalDPIScale) / 2,
+             (vecContentRegionAvail.y - 900.0f * SKIF_ImGui_GlobalDPIScale) / 2)));
 
           ImGui::Image (((! _registry._UseLowResCovers) ?   pSKLogoTexSRV.p : pSKLogoTexSRV_small.p),
-                                                          sizeCoverFloored,
+                                                          ImVec2 (600.0f, 900.0f),
                                                           ImVec2 (0.0f, 0.0f),                  // Top Left coordinates
                                                           ImVec2 (1.0f, 1.0f),                  // Bottom Right coordinates
                                                           ImVec4 (1.0f, 1.0f, 1.0f, fAlphaSK),  // Tint for Special K's logo
@@ -6589,15 +6727,14 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         thread_s* _data = static_cast<thread_s*>(var);
 
-        ImVec2 dontCare1, dontCare2;
+        ImVec2 dontCare;
 
         LoadLibraryTexture ( LibraryTexture::Icon,
                                 _data->appid,
                                   _data->texture->texture,
                                     _data->path,
-                                      dontCare1,
-                                        dontCare2,
-                                          _data->app );
+                                      dontCare,
+                                        _data->app );
           
         delete _data;
 
@@ -6946,6 +7083,7 @@ SKIF_UI_Tab_DrawLibrary (void)
             coverRefreshStore = (int)pApp->store;
       
             // This sets up the current one to be released
+            vecCoverRes_old = vecCoverRes;
             vecCoverUv0_old = vecCoverUv0;
             vecCoverUv1_old = vecCoverUv1;
             pTexSRV_old.p   = pTexSRV.p;
@@ -7043,6 +7181,93 @@ SKIF_UI_Tab_DrawLibrary (void)
           }
         }
       }
+      // Image scaling
+
+      ImGui::Separator ( );
+
+      ImGui::PushID ("#ImageScaling");
+
+      if (SKIF_ImGui_BeginMenuEx2 ("Scaling", ICON_FA_PANORAMA))
+      {
+        static bool bDefault = (_registry.iCoverScaling == 0) ? true : false;
+        static bool bFill    = (_registry.iCoverScaling == 1) ? true : false;
+        static bool bFit     = (_registry.iCoverScaling == 2) ? true : false;
+        static bool bNone    = (_registry.iCoverScaling == 3) ? true : false;
+        static bool bStretch = (_registry.iCoverScaling == 4) ? true : false;
+
+        if (ImGui::MenuItem ("Default", spaces,  &bDefault))
+        {
+          _registry.iCoverScaling = 0;
+
+        //bDefault = false;
+          bFill    = false;
+          bFit     = false;
+          bNone    = false;
+          bStretch = false;
+
+          _registry.regKVCoverScaling.putData (_registry.iCoverScaling);
+        }
+
+        SKIF_ImGui_SetHoverTip ("Scales the cover to fill into a 600x900 area");
+
+        if (ImGui::MenuItem ("Fill",  spaces, &bFill))
+        {
+          _registry.iCoverScaling = 1;
+
+          bDefault = false;
+        //bFill    = false;
+          bFit     = false;
+          bNone    = false;
+          bStretch = false;
+
+          _registry.regKVCoverScaling.putData (_registry.iCoverScaling);
+        }
+
+        if (ImGui::MenuItem ("Fit",  spaces, &bFit))
+        {
+          _registry.iCoverScaling = 2;
+
+          bDefault = false;
+          bFill    = false;
+        //bFit     = false;
+          bNone    = false;
+          bStretch = false;
+
+          _registry.regKVCoverScaling.putData (_registry.iCoverScaling);
+        }
+
+        if (ImGui::MenuItem ("None",  spaces, &bNone))
+        {
+          _registry.iCoverScaling = 3;
+
+          bDefault = false;
+          bFill    = false;
+          bFit     = false;
+        //bNone    = false;
+          bStretch = false;
+
+          _registry.regKVCoverScaling.putData (_registry.iCoverScaling);
+        }
+
+        /*
+        if (ImGui::MenuItem ("Stretch",  spaces, &bStretch))
+        {
+          _registry.iCoverScaling = 4;
+
+          bDefault = false;
+          bFill    = false;
+          bFit     = false;
+          bNone    = false;
+        //bStretch = false;
+
+          _registry.regKVCoverScaling.putData (_registry.iCoverScaling);
+        }
+        */
+
+        ImGui::EndMenu ( );
+      }
+
+      ImGui::PopID ( );
 
       ImGui::Separator ( );
 
@@ -7180,7 +7405,7 @@ SKIF_UI_Tab_DrawLibrary (void)
             SetFileAttributes ((targetPath + ext).c_str(),
                     GetFileAttributes ((targetPath + ext).c_str()) & ~FILE_ATTRIBUTE_READONLY);
             
-            ImVec2 dontCare1, dontCare2;
+            ImVec2 dontCare;
 
             // Reload the icon
             LoadLibraryTexture (LibraryTexture::Icon,
@@ -7189,9 +7414,8 @@ SKIF_UI_Tab_DrawLibrary (void)
                                       (pApp->store == app_record_s::Store::GOG)
                                       ? pApp->install_dir + L"\\goggame-" + std::to_wstring(pApp->id) + L".ico"
                                       : SK_FormatStringW (LR"(%ws\appcache\librarycache\%i_icon.jpg)", _path_cache.steam_install, pApp->id), //L"_icon.jpg",
-                                          dontCare1,
-                                            dontCare2,
-                                              pApp );
+                                          dontCare,
+                                            pApp );
           }
         }
       }
@@ -7267,7 +7491,7 @@ SKIF_UI_Tab_DrawLibrary (void)
             // If any file was removed
             if (d1 || d2 || d3)
             {
-              ImVec2 dontCare1, dontCare2;
+              ImVec2 dontCare;
 
               // Reload the icon
               LoadLibraryTexture (LibraryTexture::Icon,
@@ -7276,9 +7500,8 @@ SKIF_UI_Tab_DrawLibrary (void)
                                         (pApp->store == app_record_s::Store::GOG)
                                         ? pApp->install_dir + L"\\goggame-" + std::to_wstring(pApp->id) + L".ico"
                                         : SK_FormatStringW (LR"(%ws\appcache\librarycache\%i_icon.jpg)", _path_cache.steam_install, pApp->id), //L"_icon.jpg",
-                                            dontCare1,
-                                              dontCare2,
-                                                pApp );
+                                            dontCare,
+                                              pApp );
             }
           }
         }
@@ -7506,11 +7729,9 @@ SKIF_UI_Tab_DrawLibrary (void)
       int queuePos = getTextureLoadQueuePos();
       //PLOG_VERBOSE << "queuePos = " << queuePos;
 
-      static ImVec2 _vecCoverUv0(vecCoverUv0);
-      static ImVec2 _vecCoverUv1(vecCoverUv1);
-      static CComPtr <ID3D11ShaderResourceView> _pTexSRV (pTexSRV.p);
-
+      CComPtr <ID3D11ShaderResourceView> _pTexSRV (pTexSRV.p);
       std::wstring load_str;
+      ImVec2 _resolution = ImVec2 (0, 0);
 
       // SKIF
       if (_pApp->id == SKIF_STEAM_APPID)
@@ -7537,31 +7758,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\cover-original.jpg)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(_pApp->epic.name_app).c_str());
 
         if ( ! PathFileExistsW (load_str.   c_str ()) )
-        {
           SKIF_Epic_IdentifyAssetNew (_pApp->epic.catalog_namespace, _pApp->epic.catalog_item_id, _pApp->epic.name_app, _pApp->epic.name_display);
-        }
-        
-        else {
-          // If the file exist, load the metadata from the local image, but only if low bandwidth mode is not enabled
-          if ( ! _registry.bLowBandwidthMode &&
-                SUCCEEDED (
-                DirectX::GetMetadataFromWICFile (
-                  load_str.c_str (),
-                    DirectX::WIC_FLAGS_FILTER_POINT,
-                      meta
-                  )
-                )
-              )
-          {
-            // If the image is in reality 600 in width or 900 in height, which indicates a low-res cover,
-            //   download the full-size cover and replace the existing one.
-            if (meta.width  == 600 ||
-                meta.height == 900)
-            {
-              SKIF_Epic_IdentifyAssetNew (_pApp->epic.catalog_namespace, _pApp->epic.catalog_item_id, _pApp->epic.name_app, _pApp->epic.name_display);
-            }
-          }
-        }
       }
 
       // Xbox
@@ -7571,31 +7768,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\cover-original.png)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(_pApp->xbox.package_name).c_str());
 
         if ( ! PathFileExistsW (load_str.   c_str ()) )
-        {
           SKIF_Xbox_IdentifyAssetNew (_pApp->xbox.package_name, _pApp->xbox.store_id);
-        }
-        
-        else {
-          // If the file exist, load the metadata from the local image, but only if low bandwidth mode is not enabled
-          if ( ! _registry.bLowBandwidthMode &&
-                SUCCEEDED (
-                DirectX::GetMetadataFromWICFile (
-                  load_str.c_str (),
-                    DirectX::WIC_FLAGS_FILTER_POINT,
-                      meta
-                  )
-                )
-              )
-          {
-            // If the image is in reality 600 in width or 900 in height, which indicates a low-res cover,
-            //   download the full-size cover and replace the existing one.
-            if (meta.width  == 600 ||
-                meta.height == 900)
-            {
-              SKIF_Xbox_IdentifyAssetNew (_pApp->xbox.package_name, _pApp->xbox.store_id);
-            }
-          }
-        }
       }
 
       // Steam
@@ -7639,6 +7812,8 @@ SKIF_UI_Tab_DrawLibrary (void)
           if (  PathFileExistsW (load_str.   c_str ()) &&
               ! PathFileExistsW (load_str_2x.c_str ()) )
           {
+            DirectX::TexMetadata meta = { };
+
             // Load the metadata from 600x900, but only if low bandwidth mode is not enabled
             if ( ! _registry.bLowBandwidthMode &&
                   SUCCEEDED (
@@ -7696,9 +7871,8 @@ SKIF_UI_Tab_DrawLibrary (void)
                               _pApp->id,
                                 _pTexSRV,
                                   load_str,
-                                    _vecCoverUv0,
-                                      _vecCoverUv1,
-                                        _pApp);
+                                    _resolution,
+                                      _pApp);
 
       PLOG_VERBOSE << "_pTexSRV = " << _pTexSRV;
 
@@ -7707,8 +7881,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (currentQueueLength == queuePos)
       {
         PLOG_DEBUG << "Texture is live! Swapping it in.";
-        vecCoverUv0 = _vecCoverUv0;
-        vecCoverUv1 = _vecCoverUv1;
+        vecCoverRes = _resolution;
         pTexSRV     = _pTexSRV;
 
         // Indicate that we have stopped loading the cover
@@ -8816,6 +8989,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       coverRefreshStore = (int)pApp->store;
       
       // This sets up the current one to be released
+      vecCoverRes_old = vecCoverRes;
       vecCoverUv0_old = vecCoverUv0;
       vecCoverUv1_old = vecCoverUv1;
       pTexSRV_old.p   = pTexSRV.p;

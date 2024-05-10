@@ -444,6 +444,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(UI Position Y)" );
 
+  KeyValue <int> regKVCoverScaling =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Cover Scaling)" );
+
   KeyValue <int> regKVDiagnostics =
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Diagnostics)" );
@@ -528,6 +532,7 @@ struct SKIF_RegistrySettings {
   int iUIHeight                =   0; //  0 = None (default)
   int iUIPositionX             =  -1; // -1 = None (default)
   int iUIPositionY             =  -1; // -1 = None (default)
+  int iCoverScaling            =   0; //  0 = Default (600x900),           1 = Fill,                   2 = Fit,                         3 = None,                           4 = Stretch (disabled)
 
   // Default settings (booleans)
   bool bRememberLastSelected    =  true; // 2024-02-18: Enabled by default

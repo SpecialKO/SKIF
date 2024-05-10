@@ -107,8 +107,9 @@ LoadLibraryTexture (
         uint32_t                            appid,
         CComPtr <ID3D11ShaderResourceView>& pLibTexSRV,
         const std::wstring&                 name,
-        ImVec2&                             vCoverUv0,
-        ImVec2&                             vCoverUv1,
+        ImVec2&                             resolution,
+      //ImVec2&                             vCoverUv0,
+      //ImVec2&                             vCoverUv1,
         app_record_s*                       pApp)
 {
   // NOT REALLY THREAD-SAFE WHILE IT RELIES ON THESE STATIC GLOBAL OBJECTS!
@@ -393,13 +394,14 @@ LoadLibraryTexture (
     pLibTexSRV.p = nullptr;
   }
 
-  if (!succeeded)
+  if (! succeeded)
     return;
 
   DirectX::ScratchImage* pImg  =   &img;
   DirectX::ScratchImage   converted_img;
 
   // Start aspect ratio
+#if 0
   vCoverUv0 = ImVec2(0.f, 0.f); // Top left corner
   vCoverUv1 = ImVec2(1.f, 1.f); // Bottom right corner
   ImVec2 vecTex2D = ImVec2(600.f, 900.f);
@@ -432,6 +434,7 @@ LoadLibraryTexture (
     vCoverUv0.y = 0.f - diff.y;
     vCoverUv1.y = 1.f + diff.y;
   }
+#endif
   // End aspect ratio
 
   // We don't want single-channel icons, so convert to RGBA
@@ -458,14 +461,21 @@ LoadLibraryTexture (
   if ((_registry._UseLowResCovers && libTexToLoad == LibraryTexture::Cover) ||
       (libTexToLoad == LibraryTexture::Logo  && name == L"sk_boxart_small.png"))
   {
-    size_t width  = 220;
-    size_t height = 330;
+    float width  = 220.0f;
+    float height = 330.0f;
+    float imageAspectRatio   = static_cast<float> (meta.width) / static_cast<float> (meta.height);
+    float defaultAspectRatio = static_cast<float> (width) / static_cast<float> (height);
+
+    if (imageAspectRatio > defaultAspectRatio)
+      width = height * imageAspectRatio;
+    else
+      height = width / imageAspectRatio;
 
     if (
       SUCCEEDED (
         DirectX::Resize (
           pImg->GetImages   (), pImg->GetImageCount (),
-          pImg->GetMetadata (), width, height,
+          pImg->GetMetadata (), static_cast<size_t> (width), static_cast<size_t> (height),
           DirectX::TEX_FILTER_FANT,
               converted_img
         )
@@ -476,6 +486,10 @@ LoadLibraryTexture (
       pImg = &converted_img;
     }
   }
+
+  // Store the resolution of the loaded image
+  resolution.x = static_cast<float> (meta.width);
+  resolution.y = static_cast<float> (meta.height);
 
   auto pDevice =
     SKIF_D3D11_GetDevice ();
