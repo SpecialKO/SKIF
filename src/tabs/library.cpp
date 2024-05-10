@@ -296,7 +296,7 @@ struct image_s
 
 // Returns the cursor position of where to place the image
 static ImVec2
-CalculateImageSizing (image_s& image, ImVec2 contentRegionAvail, ImVec2 imageResolution)
+CalculateImageSizing (image_s& image, ImVec2 contentRegionAvail, ImVec2 imageResolution, bool forceDefaultSscaling = false)
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
@@ -322,7 +322,7 @@ CalculateImageSizing (image_s& image, ImVec2 contentRegionAvail, ImVec2 imageRes
   float imageAspectRatio  =    imageResolution.x /    imageResolution.y;
 
   // None (enforced unified sort-of 600x900 sizing)
-  if (_registry.iCoverScaling == 0)
+  if (_registry.iCoverScaling == 0 || forceDefaultSscaling)
   {
     ImVec2 defaultSize        = (_registry._UseLowResCovers) ? ImVec2 (220.0f, 330.0f) : ImVec2 (600.0f, 900.0f);
   //float  defaultAspectRatio = defaultSize.x / defaultSize.y;
@@ -5994,7 +5994,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           ImVec2 sizeCurrent = (_registry._UseLowResCovers && ! _registry._UseLowResCoversHiDPIBypass) ? sizeSK_small : sizeSK;
 
           // Display Special K logo
-          CalculateImageSizing (coverSK, vecContentRegionAvail, sizeCurrent);
+          CalculateImageSizing (coverSK, vecContentRegionAvail, sizeCurrent, true);
           ImGui::SetCursorPos  (coverSK.position);
 
           ImGui::Image (((_registry._UseLowResCovers && ! _registry._UseLowResCoversHiDPIBypass) ? pSKLogoTexSRV_small.p : pSKLogoTexSRV.p),
@@ -6982,6 +6982,12 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       ImGui::EndChild           ( );
     }
+
+    isCoverHovered = isCoverHovered ||
+    ImGui::IsItemHovered ( );
+
+    if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
+      CoverMenu = PopupState_Open;
   }
 
 #pragma endregion
@@ -7151,7 +7157,10 @@ SKIF_UI_Tab_DrawLibrary (void)
         static bool bNone    = (_registry.iCoverScaling == 3) ? true : false;
         static bool bStretch = (_registry.iCoverScaling == 4) ? true : false;
 
-        if (ImGui::MenuItem ("Default", spaces,  &bDefault))
+        // We use a group otherwise SKIF_ImGui_SetHoverTip() would not appear when disabled
+        ImGui::BeginGroup ( );
+
+        if (ImGui::MenuItem ("Default", spaces,  &bDefault, ! bDefault))
         {
           _registry.iCoverScaling = 0;
 
@@ -7164,9 +7173,11 @@ SKIF_UI_Tab_DrawLibrary (void)
           _registry.regKVCoverScaling.putData (_registry.iCoverScaling);
         }
 
-        SKIF_ImGui_SetHoverTip ("Scales the cover to fill into a 600x900 area");
+        ImGui::EndGroup ( );
 
-        if (ImGui::MenuItem ("Fill",  spaces, &bFill))
+        SKIF_ImGui_SetHoverTip ("Scales the cover to a maximum height of 600px");
+
+        if (ImGui::MenuItem ("Fill",  spaces, &bFill, ! bFill))
         {
           _registry.iCoverScaling = 1;
 
@@ -7179,7 +7190,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           _registry.regKVCoverScaling.putData (_registry.iCoverScaling);
         }
 
-        if (ImGui::MenuItem ("Fit",  spaces, &bFit))
+        if (ImGui::MenuItem ("Fit",  spaces, &bFit, ! bFit))
         {
           _registry.iCoverScaling = 2;
 
@@ -7192,7 +7203,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           _registry.regKVCoverScaling.putData (_registry.iCoverScaling);
         }
 
-        if (ImGui::MenuItem ("None",  spaces, &bNone))
+        if (ImGui::MenuItem ("None",  spaces, &bNone, ! bNone))
         {
           _registry.iCoverScaling = 3;
 
@@ -7206,7 +7217,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         }
 
         /*
-        if (ImGui::MenuItem ("Stretch",  spaces, &bStretch))
+        if (ImGui::MenuItem ("Stretch",  spaces, &bStretch, ! bStretch))
         {
           _registry.iCoverScaling = 4;
 
