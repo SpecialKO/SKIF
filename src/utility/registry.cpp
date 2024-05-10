@@ -290,6 +290,8 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   iUIWidth                 =   regKVUIWidth                .getData (&hKey);
   iUIHeight                =   regKVUIHeight               .getData (&hKey);
 
+  iCoverScaling            =   regKVCoverScaling           .getData (&hKey);
+
   iProcessSort             =   regKVProcessSort            .getData (&hKey);
   if (regKVProcessIncludeAll   .hasData(&hKey))
     bProcessIncludeAll     =   regKVProcessIncludeAll      .getData (&hKey);
