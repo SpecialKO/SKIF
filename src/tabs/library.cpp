@@ -300,8 +300,6 @@ CalculateImageSizing (image_s& image, ImVec2 contentRegionAvail, ImVec2 imageRes
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
-  contentRegionAvail /= SKIF_ImGui_GlobalDPIScale;
-
   // If we have no image, return 0,0
   if (imageResolution.x == 0.0f || imageResolution.y == 0.0f)
     return ImVec2 (0, 0);
@@ -328,7 +326,7 @@ CalculateImageSizing (image_s& image, ImVec2 contentRegionAvail, ImVec2 imageRes
   {
     ImVec2 defaultSize        = (_registry._UseLowResCovers) ? ImVec2 (220.0f, 330.0f) : ImVec2 (600.0f, 900.0f);
     float  defaultAspectRatio = defaultSize.x / defaultSize.y;
-    image.size                = defaultSize;
+    image.size                = defaultSize * SKIF_ImGui_GlobalDPIScale;
 
     // Fill into the default cover size area
     if (imageAspectRatio > defaultAspectRatio)
@@ -367,6 +365,7 @@ CalculateImageSizing (image_s& image, ImVec2 contentRegionAvail, ImVec2 imageRes
     // Do nothing -- this cases the image to be stretched
   }
 
+  image.size     = ImFloor (image.size);
   image.position = ImFloor (ImVec2 (
               (contentRegionAvail.x - image.size.x) / 2,
               (contentRegionAvail.y - image.size.y) / 2));
@@ -4610,12 +4609,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   static CComPtr <ID3D11ShaderResourceView> pTexSRV;
   static CComPtr <ID3D11ShaderResourceView> pTexSRV_old;
 
-  static ImVec2 vecCoverRes     = ImVec2 (0, 0), // New
-                vecCoverRes_old = ImVec2 (0, 0), // New
-                vecCoverUv0     = ImVec2 (0, 0), // Obsolete?
-                vecCoverUv1     = ImVec2 (1, 1), // Obsolete?
-                vecCoverUv0_old = ImVec2 (0, 0), // Obsolete?
-                vecCoverUv1_old = ImVec2 (1, 1); // Obsolete?
+  static ImVec2 vecCoverRes     = ImVec2 (0, 0),
+                vecCoverRes_old = ImVec2 (0, 0);
 
   // This keeps track of the amount of workers streaming icons that we have active in the background
   static int   activeIconWorkers     = 0; // max: 8
@@ -5741,8 +5736,6 @@ SKIF_UI_Tab_DrawLibrary (void)
         // Set up the current one to be released
         vecCoverRes_old = vecCoverRes;
         vecCoverRes     = ImVec2 (0, 0);
-        vecCoverUv0_old = vecCoverUv0;
-        vecCoverUv1_old = vecCoverUv1;
         pTexSRV_old.p   = pTexSRV.p;
         pTexSRV.p       = nullptr;
         fAlphaPrev      = (_registry.bFadeCovers) ? fAlpha   : 0.0f;
@@ -5979,10 +5972,10 @@ SKIF_UI_Tab_DrawLibrary (void)
           ImGui::SetCursorPos  (cover_old.position); //vecPosImage_old
           SKIF_ImGui_OptImage  (pTexSRV_old.p,
                                                             cover_old.size, //sizeCoverFloored_old,
-                                                            vecCoverUv0_old, // Top Left coordinates
-                                                            vecCoverUv1_old, // Bottom Right coordinates
+                                                            ImVec2 (0, 0),  // Top Left coordinates
+                                                            ImVec2 (1, 1),  // Bottom Right coordinates
                                           (_registry._StyleLightMode) ? ImVec4 (1.0f, 1.0f, 1.0f, fGammaCorrectedTint * AdjustAlpha (fAlphaPrev))  : ImVec4 (fTint, fTint, fTint, fAlphaPrev), // Alpha transparency
-                                             ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Never use a border
+                                            ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Never use a border
           );
 
           ImGui::SetCursorPos (vecPosCoverInner);
@@ -6005,11 +5998,11 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         ImGui::SetCursorPos  (cover.position); //vecPosImage
         SKIF_ImGui_OptImage  (pTexSRV.p,
-                                                          cover.size, //sizeCoverFloored,
-                                                          vecCoverUv0, // Top Left coordinates
-                                                          vecCoverUv1, // Bottom Right coordinates
+                                                          cover.size,     //sizeCoverFloored,
+                                                          ImVec2 (0, 0),  // Top Left coordinates
+                                                          ImVec2 (1, 1),  // Bottom Right coordinates
                                         (_registry._StyleLightMode) ? ImVec4 (1.0f, 1.0f, 1.0f, fGammaCorrectedTint * AdjustAlpha (fAlpha))  : ImVec4 (fTint, fTint, fTint, fAlpha), // Alpha transparency (2024-01-01, removed fGammaCorrectedTint * fAlpha for the light style)
-                                       ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Never use a border
+                                          ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Never use a border
         );
 
         ImGui::SetCursorPos (vecPosCoverInner);
@@ -7104,8 +7097,6 @@ SKIF_UI_Tab_DrawLibrary (void)
             // This sets up the current one to be released
             vecCoverRes_old = vecCoverRes;
             vecCoverRes     = ImVec2 (0, 0);
-            vecCoverUv0_old = vecCoverUv0;
-            vecCoverUv1_old = vecCoverUv1;
             pTexSRV_old.p   = pTexSRV.p;
             pTexSRV.p       = nullptr;
             fAlphaPrev      = (_registry.bFadeCovers) ? fAlpha   : 0.0f;
@@ -9009,8 +9000,6 @@ SKIF_UI_Tab_DrawLibrary (void)
       // This sets up the current one to be released
       vecCoverRes_old = vecCoverRes;
       vecCoverRes     = ImVec2 (0, 0);
-      vecCoverUv0_old = vecCoverUv0;
-      vecCoverUv1_old = vecCoverUv1;
       pTexSRV_old.p   = pTexSRV.p;
       pTexSRV.p       = nullptr;
       fAlphaPrev      = (_registry.bFadeCovers) ? fAlpha   : 0.0f;
