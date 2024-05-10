@@ -325,14 +325,18 @@ CalculateImageSizing (image_s& image, ImVec2 contentRegionAvail, ImVec2 imageRes
   if (_registry.iCoverScaling == 0)
   {
     ImVec2 defaultSize        = (_registry._UseLowResCovers) ? ImVec2 (220.0f, 330.0f) : ImVec2 (600.0f, 900.0f);
-    float  defaultAspectRatio = defaultSize.x / defaultSize.y;
+  //float  defaultAspectRatio = defaultSize.x / defaultSize.y;
     image.size                = defaultSize * SKIF_ImGui_GlobalDPIScale;
 
-    // Fill into the default cover size area
-    if (imageAspectRatio > defaultAspectRatio)
+    // Reapply the original aspect ratio on the cover (keep the height, but extend the width)
+    image.size.x              = image.size.y * imageAspectRatio;
+
+    // Fit on the height and crop width, but only below the default size
+    if (contentRegionAvail.y <= image.size.y)
+    {
+      image.size.y = contentRegionAvail.y;
       image.size.x = image.size.y * imageAspectRatio;
-    else
-      image.size.y = image.size.x / imageAspectRatio;
+    }
   }
 
   // Fill
@@ -4604,7 +4608,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   
   static SKIF_DirectoryWatch     SKIF_Epic_ManifestWatch;
 
-  static image_s cover, cover_old;
+  static image_s cover, cover_old, coverSK;
 
   static CComPtr <ID3D11ShaderResourceView> pTexSRV;
   static CComPtr <ID3D11ShaderResourceView> pTexSRV_old;
@@ -5842,8 +5846,8 @@ SKIF_UI_Tab_DrawLibrary (void)
                                                                    : ImVec2 (lib_column2_width, 330.0f * SKIF_ImGui_GlobalDPIScale)   // Horizon
                                                                    : ImVec2 (lib_column2_width, 280.0f * SKIF_ImGui_GlobalDPIScale)); // Regular
     sizeCover    = tab_ContentRegionAvail;
-           sizeCover.x -= sizeList.x;
-           sizeCover.x -= (_registry._LibHorizonMode) ? sizeDetails.x : 0.0f;
+    sizeCover.x -= sizeList.x;
+    sizeCover.x -= (_registry._LibHorizonMode) ? sizeDetails.x : 0.0f;
 
     ImVec2 sizeImage       = ImFloor ((_registry._UseLowResCovers) ? sizeSK_small
                                                                    : sizeSK);
@@ -5873,13 +5877,13 @@ SKIF_UI_Tab_DrawLibrary (void)
     if (_registry._LibHorizonMode)
     {
       sizeDetails.y  = tab_ContentRegionAvail.y;
-      sizeDetails.y -= (_registry.bUIBorders) ? 2.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
+    //sizeDetails.y -= (_registry.bUIBorders) ? 2.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
     }
 
     // DPI-aware
     sizeList.y = tab_ContentRegionAvail.y;
     sizeList.y -= (  _registry._LibHorizonMode || ! uiDetailsVisible)   ? 0.0f                             : sizeDetails.y;
-    sizeList.y -= (! _registry._LibHorizonMode && _registry.bUIBorders) ? 2.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
+  //sizeList.y -= (! _registry._LibHorizonMode && _registry.bUIBorders) ? 2.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
   }
 
   // From now on ImGui UI calls starts being made...
@@ -5956,18 +5960,6 @@ SKIF_UI_Tab_DrawLibrary (void)
         // Display previous fading out cover
         if (pTexSRV_old.p != nullptr && fAlphaPrev > 0.0f)
         {
-          /*
-          ImVec2 sizeImage_old        = vecCoverRes_old * SKIF_ImGui_GlobalDPIScale;
-
-          ImVec2 vecPosImage_old      = ImFloor (ImVec2 (
-                (vecContentRegionAvail.x - sizeImage_old.x) / 2,
-                (vecContentRegionAvail.y - sizeImage_old.y) / 2));
-
-          ImVec2 sizeCoverFloored_old = ImFloor (ImVec2 (
-                 sizeImage_old.x,
-                 sizeImage_old.y));
-          */
-
           CalculateImageSizing (cover_old, vecContentRegionAvail, vecCoverRes_old);
 
           ImGui::SetCursorPos  (cover_old.position); //vecPosImage_old
@@ -5983,18 +5975,6 @@ SKIF_UI_Tab_DrawLibrary (void)
         }
 
         // Display game cover image
-        /*
-        ImVec2 sizeImage        = vecCoverRes * SKIF_ImGui_GlobalDPIScale;
-
-        ImVec2 vecPosImage      = ImFloor (ImVec2 (
-              (vecContentRegionAvail.x - sizeImage.x) / 2,
-              (vecContentRegionAvail.y - sizeImage.y) / 2));
-
-        ImVec2 sizeCoverFloored = ImFloor (ImVec2 (
-                sizeImage.x,
-                sizeImage.y));
-        */
-
         CalculateImageSizing (cover, vecContentRegionAvail, vecCoverRes);
 
         ImGui::SetCursorPos  (cover.position); //vecPosImage
@@ -6013,16 +5993,16 @@ SKIF_UI_Tab_DrawLibrary (void)
         {
           ImVec2 sizeCurrent = (_registry._UseLowResCovers) ? sizeSK_small : sizeSK;
 
-          ImGui::SetCursorPos (ImFloor (ImVec2 (
-             (vecContentRegionAvail.x - sizeCurrent.x) / 2,
-             (vecContentRegionAvail.y - sizeCurrent.y) / 2)));
+          // Display Special K logo
+          CalculateImageSizing (coverSK, vecContentRegionAvail, sizeCurrent);
+          ImGui::SetCursorPos  (coverSK.position);
 
-          ImGui::Image (((! _registry._UseLowResCovers) ?   pSKLogoTexSRV.p : pSKLogoTexSRV_small.p),
-                                                          sizeCurrent,
-                                                          ImVec2 (0.0f, 0.0f),                  // Top Left coordinates
-                                                          ImVec2 (1.0f, 1.0f),                  // Bottom Right coordinates
+          ImGui::Image (((! _registry._UseLowResCovers) ? pSKLogoTexSRV.p : pSKLogoTexSRV_small.p),
+                                                          coverSK.size,
+                                                          ImVec2 (0, 0),                  // Top Left coordinates
+                                                          ImVec2 (1, 1),                  // Bottom Right coordinates
                                                           ImVec4 (1.0f, 1.0f, 1.0f, fAlphaSK),  // Tint for Special K's logo
-                                                          ImVec4 (0.0f, 0.0f, 0.0f, 0.0f)       // Border
+                                                          ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Never use a border
           );
         }
 
@@ -6056,24 +6036,22 @@ SKIF_UI_Tab_DrawLibrary (void)
   //float fZ =
   //ImGui::GetCursorPosX ( );
 
+  ImVec2 fTop1 = ImGui::GetCursorPos ( );
+
   // LIST + DETAILS START
   ImGui::BeginGroup   ( );
 
   // Top option: Filter icon + search field
 
-  ImVec2 fTop1 = ImGui::GetCursorPos ( );
-
   ImGui::PushStyleVar       (ImGuiStyleVar_FrameBorderSize, 0.0f);
   ImGui::PushStyleVar       (ImGuiStyleVar_ChildBorderSize, 0.0f);
 
   ImGui::SetCursorPosX   (
-    ImGui::GetCursorPosX ( )          +
-    7.0f * SKIF_ImGui_GlobalDPIScale
+    ImFloor (ImGui::GetCursorPosX ( ) + 7.0f * SKIF_ImGui_GlobalDPIScale)
   );
 
   ImGui::SetCursorPosY   (
-    ImGui::GetCursorPosY ( )          +
-    3.0f * SKIF_ImGui_GlobalDPIScale
+    ImFloor (ImGui::GetCursorPosY ( ) + 4.0f * SKIF_ImGui_GlobalDPIScale)
   );
   
 
@@ -6235,6 +6213,11 @@ SKIF_UI_Tab_DrawLibrary (void)
   ImGui::PopStyleVar ( ); // ImGuiStyleVar_ChildBorderSize
   ImGui::PopStyleVar ( ); // ImGuiStyleVar_FrameBorderSize
 
+  // Some additional padding between the filter field and the pinned apps
+  ImGui::SetCursorPosY   (
+    ImFloor (ImGui::GetCursorPosY ( ) + 3.0f * SKIF_ImGui_GlobalDPIScale)
+  );
+
   ImVec2 fTop2 = ImGui::GetCursorPos ( );
 
   // End top options
@@ -6313,10 +6296,10 @@ SKIF_UI_Tab_DrawLibrary (void)
   float _ICON_HEIGHT_OnTop = _ICON_HEIGHT + ImGui::GetStyle().ItemSpacing.y;
 
   ImGui::BeginChild          ( "###GameListOnTop",
-                                ImVec2 ((sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
-                                  (! _registry._LibHorizonMode && _registry._LibPinnedVisible && numPinnedOnTop > 0 && numRegular > 0)
-                                  ? numPinnedOnTop * _ICON_HEIGHT_OnTop + ImGui::GetStyle().WindowPadding.y
-                                  : sizeList.y - (ImGui::GetStyle().FramePadding.x - 2.0f * SKIF_ImGui_GlobalDPIScale) - (fTop3.y - fTop1.y)),
+                                ImFloor (ImVec2 ((sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
+                                        (! _registry._LibHorizonMode && _registry._LibPinnedVisible && numPinnedOnTop > 0 && numRegular > 0)
+                                          ? numPinnedOnTop * _ICON_HEIGHT_OnTop + ImGui::GetStyle().WindowPadding.y
+                                          : sizeList.y - (fTop3.y - fTop1.y))), //  - (ImGui::GetStyle().FramePadding.x - 2.0f * SKIF_ImGui_GlobalDPIScale)
                                   flags_cld | (_registry.bUIBorders ? ImGuiChildFlags_Border : ImGuiChildFlags_None),
                                   flags_wnd | ((! _registry._LibHorizonMode && _registry._LibPinnedVisible && numPinnedOnTop > 0 && numRegular > 0) ? (ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse) : ImGuiWindowFlags_None));
 
@@ -6384,8 +6367,8 @@ SKIF_UI_Tab_DrawLibrary (void)
       ImVec2 fTop4 = ImGui::GetCursorPos ( );
 
       ImGui::BeginChild           ( "###GameList",
-                                     ImVec2 ( (sizeList.x -  ImGui::GetStyle().WindowPadding.x / 2.0f),
-                                               sizeList.y - (ImGui::GetStyle().FramePadding.x - 2.0f * SKIF_ImGui_GlobalDPIScale) - (fTop4.y - fTop1.y)),
+                                     ImFloor (ImVec2 ((sizeList.x -  ImGui::GetStyle().WindowPadding.x / 2.0f),
+                                                       sizeList.y - (fTop4.y - fTop1.y))), // - (ImGui::GetStyle().FramePadding.x - 2.0f * SKIF_ImGui_GlobalDPIScale)
                                      flags_cld,
                                      flags_wnd );
 
@@ -6797,44 +6780,6 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (! categoryMenuOpened)
     CategoryMenu = PopupState_Closed;
 
-  // 'Add Game' to the bottom of the list if the status bar is disabled
-  /*
-  if (! _registry.bUIStatusBar)
-  {
-    float fOriginalY =
-      ImGui::GetCursorPosY ( );
-
-    ImGui::BeginGroup      ( );
-
-    static bool btnHovered = false;
-    ImGui::PushStyleColor (ImGuiCol_Header,        ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg));
-    ImGui::PushStyleColor (ImGuiCol_HeaderHovered, ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg)); //ImColor (64,  69,  82).Value);
-    ImGui::PushStyleColor (ImGuiCol_HeaderActive,  ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg)); //ImColor (56, 60, 74).Value);
-
-    if (btnHovered)
-      ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 1, 1, 1));
-    else
-      ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.f));
-
-    ImGui::SetCursorPosY   (fOriginalY + fOffset     + ( 1.0f * SKIF_ImGui_GlobalDPIScale));
-    ImGui::SetCursorPosX   (ImGui::GetCursorPosX ( ) + ( 3.0f * SKIF_ImGui_GlobalDPIScale));
-    ImGui::Text            (ICON_FA_SQUARE_PLUS);
-    ImGui::SetCursorPosY   (fOriginalY + fOffset);
-    ImGui::SetCursorPosX   (ImGui::GetCursorPosX ( ) + (30.0f * SKIF_ImGui_GlobalDPIScale));
-
-    if (ImGui::Selectable      ("Add Game"))
-      AddGamePopup = PopupState_Open;
-
-    btnHovered = ImGui::IsItemHovered() || ImGui::IsItemActive();
-
-    ImGui::PopStyleColor(4);
-
-    ImGui::SetCursorPosY   (fOriginalY - ImGui::GetStyle ().ItemSpacing.y);
-
-    ImGui::EndGroup        ();
-  }
-  */
-
   // Stop populating the list
 
   // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
@@ -6851,16 +6796,15 @@ SKIF_UI_Tab_DrawLibrary (void)
     //ImGui::SameLine ( );
     //ImGui::SetCursorPosX (ImGui::GetCursorPosX() - ((_registry.bUIBorders) ? 4.0f : 7.0f) * SKIF_ImGui_GlobalDPIScale);
 
-    ImGui::SetCursorPos (ImVec2 (fTop1.x + sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f +
-                                           3.0f * SKIF_ImGui_GlobalDPIScale,
-                                 fTop1.y));
+    ImGui::SetCursorPos (ImFloor (ImVec2 (fTop1.x + sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f + 3.0f * SKIF_ImGui_GlobalDPIScale,
+                                          fTop1.y)));
   }
 
   else {
-    ImGui::SetCursorPosY (fTop2.y + sizeList.y - (fTop3.y - fTop1.y) + ImGui::GetStyle().FrameBorderSize * 2.0f); // Technically 1 px off when not using borders
+    ImGui::SetCursorPosY (ImFloor (fTop2.y + sizeList.y - (fTop3.y - fTop1.y))); // + ImGui::GetStyle().FrameBorderSize * 2.0f // Technically 1 px off when not using borders
   }
 
-  ImRect gamesList = ImRect (fTop3ScreenPos, ImVec2(fTop3ScreenPos.x + sizeList.x, ImGui::GetCursorScreenPos().y));
+  ImRect gamesList = ImRect (fTop3ScreenPos, ImVec2 (fTop3ScreenPos.x + sizeList.x, ImGui::GetCursorScreenPos().y));
 
   // Open the Empty Space Menu
   //ImGuiContext& g = *ImGui::GetCurrentContext();
