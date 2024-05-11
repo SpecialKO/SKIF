@@ -2239,10 +2239,16 @@ SKIF_Util_GetMonitorHzPeriod (HWND hwnd, DWORD dwFlags, DWORD& dwPeriod)
   if (hMonitor != NULL)
     if (GetMonitorInfo (hMonitor, (LPMONITORINFOEX)&minfoex))
       if (EnumDisplaySettings (minfoex.szDevice, ENUM_CURRENT_SETTINGS, &dm))
-        dwPeriod = (1000 / dm.dmDisplayFrequency);
+        dwPeriod = dm.dmDisplayFrequency * 1000;
 
-  if (dwPeriod < 8)
-    dwPeriod = 16; // In case we go too low, use 16 ms (60 Hz) to prevent division by zero later
+  if (dwPeriod == 0)
+  {
+    PLOG_WARNING << "Monitor refresh rate period is zero?! Raising to 60 (16ms)";
+    dwPeriod = 62500; // In case we go too low, use 16 ms (60 Hz) to prevent division by zero later
+  }
+
+  else
+    PLOG_INFO << "Successfully retrieved the monitor refresh rate period (" << static_cast<float> (dwPeriod / 1000) << ") !";
 }
 
 bool

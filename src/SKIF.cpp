@@ -102,7 +102,7 @@ int   SKIF_ExitCode             = 0;
 int   SKIF_nCmdShow             = -1;
 std::atomic<int>  SKIF_FrameCount = 0;
 int   addAdditionalFrames       = 0;
-DWORD dwDwmPeriod               = 16; // Assume 60 Hz by default
+DWORD dwDwmPeriod               = 62500; // Assume 60 Hz (16 ms) by default
 bool  SteamOverlayDisabled      = false;
 bool  allowShortcutCtrlA        = true; // Used to disable the Ctrl+A when interacting with text input
 bool  SKIF_MouseDragMoveAllowed = true;
@@ -3795,6 +3795,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     do
     {
+      DWORD msSleep = 1000000 / dwDwmPeriod; // Assume 60 Hz (16 ms) by default
+
       // Pause rendering
       if (pause)
       {
@@ -3811,7 +3813,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         // Sleep until a message is in the queue or a change notification occurs
         DWORD res =
-          MsgWaitForMultipleObjects (static_cast<DWORD>(vWatchHandles[SKIF_Tab_Selected].size()), vWatchHandles[SKIF_Tab_Selected].data(), false, bWaitTimeoutMsgInputFallback ? dwDwmPeriod : INFINITE, QS_ALLINPUT);
+          MsgWaitForMultipleObjects (static_cast<DWORD>(vWatchHandles[SKIF_Tab_Selected].size()), vWatchHandles[SKIF_Tab_Selected].data(), false, bWaitTimeoutMsgInputFallback ? msSleep : INFINITE, QS_ALLINPUT);
 
         // The below is required as a fallback if V-Sync OFF is forced on SKIF and e.g. analog stick drift is causing constant input.
         // Throttle to monitors refresh rate unless a new event is triggered, or user input is posted, but only if the frame rate is detected as being unlocked
@@ -3820,7 +3822,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SK_RunOnce (
           {
             PLOG_ERROR << "Waiting on a new message or change notification failed with error message: " << SKIF_Util_GetErrorAsWStr ( );
-            PLOG_ERROR << "Timeout has permanently been set to the monitors refresh rate period (" << dwDwmPeriod << ") !";
+            PLOG_ERROR << "Timeout has permanently been set to the monitors refresh rate period (" << static_cast<float> (dwDwmPeriod / 1000) << ", " << msSleep << "ms) !";
             bWaitTimeoutMsgInputFallback = true;
           });
         }
@@ -3836,7 +3838,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         // If the frame rate was ever detected as being unlocked, use sleep as a limiter instead
         if (frameRateUnlocked)
-          Sleep (dwDwmPeriod);
+        {
+          timeBeginPeriod (1);
+          Sleep           (msSleep);
+          timeEndPeriod   (1);
+        }
 
         else
         {
@@ -3844,7 +3850,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           auto timePre = SKIF_Util_timeGetTime1 ( );
 
           DWORD res =
-            WaitForMultipleObjectsEx (static_cast<DWORD>(vSwapchainWaitHandles.size()), vSwapchainWaitHandles.data(), true, bWaitTimeoutSwapChainsFallback ? dwDwmPeriod : 1000, true);
+            WaitForMultipleObjectsEx (static_cast<DWORD>(vSwapchainWaitHandles.size()), vSwapchainWaitHandles.data(), true, bWaitTimeoutSwapChainsFallback ? msSleep : 1000, true);
 
           //OutputDebugString((L"[" + SKIF_Util_timeGetTimeAsWStr() + L"][#" + std::to_wstring(ImGui::GetFrameCount()) + L"] Maybe we'll be waiting? (handles: " + std::to_wstring(vSwapchainWaitHandles.size()) + L")\n").c_str());
           if (res == WAIT_TIMEOUT)
@@ -3861,7 +3867,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             SK_RunOnce (
             {
               PLOG_ERROR << "Waiting on the swapchain wait objects failed with error message: " << SKIF_Util_GetErrorAsWStr ( );
-              PLOG_ERROR << "Timeout has permanently been set to the monitors refresh rate period (" << dwDwmPeriod << ") !";
+              PLOG_ERROR << "Timeout has permanently been set to the monitors refresh rate period (" << static_cast<float> (dwDwmPeriod / 1000) << ", " << msSleep << "ms !";
               bWaitTimeoutSwapChainsFallback = true;
             });
           }
@@ -3874,17 +3880,26 @@ wWinMain ( _In_     HINSTANCE hInstance,
           if (SKIF_ImGui_IsAnyInputDown ( ))
             lastInput = timePost;
 
-          if (! frameRateUnlocked && timeDiff <= 4 && ImGui::GetFrameCount() > 240 && static_cast<DWORD> (ImGui::GetIO().Framerate) > (1000 / (dwDwmPeriod)))
+          if (! frameRateUnlocked && ! HiddenFramesContinueRendering && timeDiff <= 1 && ImGui::GetFrameCount() > 1000 && SKIF_ImGui_hWnd != NULL)
           {
-            // Only if we haven't received an input in the last 250ms
-            if (lastInput == 0 || timePost > (lastInput + 250))
-              unlockedCount++;
+            float maxFPS = static_cast<float> (dwDwmPeriod) / 1000;
+
+            // If ImGui's detected frame rate is above the max FPS...
+            PLOG_VERBOSE << "ImGui Frame Rate: " << ImGui::GetIO().Framerate;
+            PLOG_VERBOSE << "Max FPS: " << maxFPS;
+
+            if (ImGui::GetIO().Framerate > maxFPS)
+            {
+              // If we haven't received an input in the last 250ms...
+              if (lastInput == 0 || timePost > (lastInput + 250))
+                unlockedCount++;
+            }
           }
 
           if (unlockedCount > 10)
           {
             frameRateUnlocked = true;
-            PLOG_ERROR << "Framerate was detected as being unlocked, and an additional limiter has been enforced to the monitors refresh rate period (" << dwDwmPeriod << ") !";
+            PLOG_ERROR << "Framerate was detected as being unlocked, and an additional limiter has been enforced to the monitors refresh rate period (" << static_cast<float> (dwDwmPeriod / 1000) << ", " << msSleep << "ms) !";
           }
 
           //PLOG_VERBOSE << "Waited: " << timeDiff << " ms (handles : " << vSwapchainWaitHandles.size() << ")";
