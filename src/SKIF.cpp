@@ -1520,6 +1520,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_Util_RegisterApp ( );
   }
 
+  // Generate install GUID if relevant and one does not exist
+  SKIF_Util_GenerateInstallGUID ( );
+
   PLOG_INFO << "Creating notification icon...";
 
   // Create invisible notify window (for the traybar icon and notification toasts, and for doing D3D11 tests)

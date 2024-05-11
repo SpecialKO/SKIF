@@ -428,6 +428,8 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 
   if (regKVUpdateChannel.hasData(&hKey))
     wsUpdateChannel        =   regKVUpdateChannel          .getData (&hKey);
+
+  wsInstallGUID            =   regKVInstallGUID            .getData (&hKey);
   
   // Remember Last Selected Game
   const int STEAM_APPID    =   1157970;

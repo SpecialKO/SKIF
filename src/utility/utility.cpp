@@ -761,6 +761,33 @@ SKIF_Util_Debug_LogUserNames (void)
   PLOG_VERBOSE << names_utf8;
 }
 
+void
+SKIF_Util_GenerateInstallGUID (void)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  // Only generate an install GUID if diagnostics are enabled
+  if (0 < _registry.iDiagnostics && _registry.wsInstallGUID.empty())
+  {
+    GUID guid = { };
+
+    if (S_OK == CoCreateGuid (&guid))
+    {
+      constexpr int len = 39;
+      wchar_t szGUID[len] = { 0 };
+
+      if (0 < StringFromGUID2 (guid, szGUID, len)) // 39 characters (38 + null terminator)
+      {
+        _registry.wsInstallGUID = szGUID;
+        if (_registry.regKVInstallGUID.putData (_registry.wsInstallGUID))
+        {
+          PLOG_VERBOSE << "Successfully generated an install GUID !";
+        }
+      }
+    }
+  }
+}
+
 
 // ShellExecute
 

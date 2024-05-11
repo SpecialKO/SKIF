@@ -104,6 +104,7 @@ bool            SKIF_Util_HasFileSignature            (const std::vector<char>& 
 std:: string    SKIF_Util_StripPersonalData           (std:: string input);
 std::wstring    SKIF_Util_StripPersonalData           (std::wstring input);
 void            SKIF_Util_Debug_LogUserNames          (void);
+void            SKIF_Util_GenerateInstallGUID         (void);
 
 
 // ShellExecute
