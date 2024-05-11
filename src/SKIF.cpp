@@ -1931,7 +1931,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           if (t.Contains (os_pos))
           {
             rectCursorMonitor = t;
-            SKIF_ImGui_GlobalDPIScale = (_registry.bDPIScaling) ? tmpMonitor.DpiScale : 1.0f;
+            //SKIF_ImGui_GlobalDPIScale = (_registry.bDPIScaling) ? tmpMonitor.DpiScale : 1.0f;
           }
         }
       }
@@ -2272,7 +2272,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       // RepositionSKIF -- Step 2: Repositon the window
       // Repositions the window in the center of the monitor the cursor is currently on
       if (RepositionSKIF)
-        ImGui::SetNextWindowPos (ImVec2(rectCursorMonitor.GetCenter().x - (SKIF_vecCurrentMode.x / 2.0f), rectCursorMonitor.GetCenter().y - (SKIF_vecCurrentMode.y / 2.0f)));
+        ImGui::SetNextWindowPos (ImVec2 (rectCursorMonitor.GetCenter().x - (SKIF_vecCurrentMode.x / 2.0f), rectCursorMonitor.GetCenter().y - (SKIF_vecCurrentMode.y / 2.0f)));
 
       // Calculate new window boundaries and changes to fit within the workspace if it doesn't fit
       //   Delay running the code to on the third frame to allow other required parts to have already executed...
@@ -2383,7 +2383,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
 
       // RepositionSKIF -- Step 3: The Final Step -- Prevent the global DPI scale from potentially being set to outdated values
-      if (RepositionSKIF)
+      if (RepositionSKIF && ImGui::GetFrameCount() > 2)
         RepositionSKIF = false;
 
       if (hotkeyCtrlR || hotkeyF5)
