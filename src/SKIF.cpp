@@ -3888,7 +3888,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         else
         {
-          auto timePre = SKIF_Util_timeGetTime1 ( );
+          //auto timePre = SKIF_Util_timeGetTime1 ( );
 
           // Waitable Swapchains (used for Flip)
           if (! vSwapchainWaitHandles.empty())
@@ -3919,7 +3919,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             }
           }
 
-          // BitBlt only relies on the fallback ""framerate limiter""
+          // BitBlt relies on regular V-Sync (or the fallback ""framerate limiter"")
           else { }
 
 #if 0
