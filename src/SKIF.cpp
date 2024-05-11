@@ -3831,7 +3831,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         renderAdditionalFrames = ImGui::GetFrameCount() + 3;
       }
 
-      if (bRefresh && ! msgDontRedraw && SKIF_ImGui_hWnd != NULL && ! vSwapchainWaitHandles.empty())
+      if (bRefresh && ! msgDontRedraw && SKIF_ImGui_hWnd != NULL)
       {
         static bool frameRateUnlocked = false;
         static int  unlockedCount     = 0;
@@ -3846,41 +3846,51 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         else
         {
-          static bool bWaitTimeoutSwapChainsFallback = false;
           auto timePre = SKIF_Util_timeGetTime1 ( );
 
-          DWORD res =
-            WaitForMultipleObjectsEx (static_cast<DWORD>(vSwapchainWaitHandles.size()), vSwapchainWaitHandles.data(), true, bWaitTimeoutSwapChainsFallback ? msSleep : 1000, true);
-
-          //OutputDebugString((L"[" + SKIF_Util_timeGetTimeAsWStr() + L"][#" + std::to_wstring(ImGui::GetFrameCount()) + L"] Maybe we'll be waiting? (handles: " + std::to_wstring(vSwapchainWaitHandles.size()) + L")\n").c_str());
-          if (res == WAIT_TIMEOUT)
+          // Waitable Swapchains (used for Flip)
+          if (! vSwapchainWaitHandles.empty())
           {
-            // This is only expected to occur when an issue arises
-            // e.g. the display driver resets and invalidates the
-            // swapchain in the middle of a frame.
-            PLOG_ERROR << "Timed out while waiting on the swapchain wait objects!";
-          }
+            static bool bWaitTimeoutSwapChainsFallback = false;
 
-          // Only reason we use a timeout here is in case a swapchain gets destroyed on the same frame we try waiting on its handle
-          else if (res == WAIT_FAILED)
-          {
-            SK_RunOnce (
+            DWORD res =
+              WaitForMultipleObjectsEx (static_cast<DWORD>(vSwapchainWaitHandles.size()), vSwapchainWaitHandles.data(), true, bWaitTimeoutSwapChainsFallback ? msSleep : 1000, true);
+
+            //OutputDebugString((L"[" + SKIF_Util_timeGetTimeAsWStr() + L"][#" + std::to_wstring(ImGui::GetFrameCount()) + L"] Maybe we'll be waiting? (handles: " + std::to_wstring(vSwapchainWaitHandles.size()) + L")\n").c_str());
+            if (res == WAIT_TIMEOUT)
             {
-              PLOG_ERROR << "Waiting on the swapchain wait objects failed with error message: " << SKIF_Util_GetErrorAsWStr ( );
-              PLOG_ERROR << "Timeout has permanently been set to the monitors refresh rate period (" << static_cast<float> (dwDwmPeriod / 1000) << ", " << msSleep << "ms !";
-              bWaitTimeoutSwapChainsFallback = true;
-            });
+              // This is only expected to occur when an issue arises
+              // e.g. the display driver resets and invalidates the
+              // swapchain in the middle of a frame.
+              PLOG_ERROR << "Timed out while waiting on the swapchain wait objects!";
+            }
+
+            // Only reason we use a timeout here is in case a swapchain gets destroyed on the same frame we try waiting on its handle
+            else if (res == WAIT_FAILED)
+            {
+              SK_RunOnce (
+              {
+                PLOG_ERROR << "Waiting on the swapchain wait objects failed with error message: " << SKIF_Util_GetErrorAsWStr ( );
+                PLOG_ERROR << "Timeout has permanently been set to the monitors refresh rate period (" << static_cast<float> (dwDwmPeriod / 1000) << ", " << msSleep << "ms !";
+                bWaitTimeoutSwapChainsFallback = true;
+              });
+            }
           }
+
+          // BitBlt only relies on the fallback ""framerate limiter""
+          else { }
 
           auto timePost = SKIF_Util_timeGetTime1 ( );
           auto timeDiff = timePost - timePre;
+          //PLOG_VERBOSE << "Waited: " << timeDiff << " ms (handles : " << vSwapchainWaitHandles.size() << ")";
 
+          // Fallback ""framerate limiter""
           static DWORD lastInput;
 
           if (SKIF_ImGui_IsAnyInputDown ( ))
             lastInput = timePost;
 
-          if (! frameRateUnlocked && ! HiddenFramesContinueRendering && lastInput != timePost && timeDiff <= 1 && SKIF_ImGui_hWnd != NULL && ImGui::GetFrameCount() > 1000)
+          if (! frameRateUnlocked && ! HiddenFramesContinueRendering && lastInput != timePost && timeDiff <= 1 && ImGui::GetFrameCount() > 1000)
           {
             float maxFPS = static_cast<float> (dwDwmPeriod) / 1000;
 
@@ -3901,8 +3911,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
             frameRateUnlocked = true;
             PLOG_ERROR << "Framerate was detected as being unlocked, and an additional limiter has been enforced to the monitors refresh rate period (" << static_cast<float> (dwDwmPeriod / 1000) << ", " << msSleep << "ms) !";
           }
-
-          //PLOG_VERBOSE << "Waited: " << timeDiff << " ms (handles : " << vSwapchainWaitHandles.size() << ")";
         }
       }
       
