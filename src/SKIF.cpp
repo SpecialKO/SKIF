@@ -3880,19 +3880,19 @@ wWinMain ( _In_     HINSTANCE hInstance,
           if (SKIF_ImGui_IsAnyInputDown ( ))
             lastInput = timePost;
 
-          if (! frameRateUnlocked && ! HiddenFramesContinueRendering && timeDiff <= 1 && ImGui::GetFrameCount() > 1000 && SKIF_ImGui_hWnd != NULL)
+          if (! frameRateUnlocked && ! HiddenFramesContinueRendering && lastInput != timePost && timeDiff <= 1 && SKIF_ImGui_hWnd != NULL && ImGui::GetFrameCount() > 1000)
           {
             float maxFPS = static_cast<float> (dwDwmPeriod) / 1000;
 
             // If ImGui's detected frame rate is above the max FPS...
-            PLOG_VERBOSE << "ImGui Frame Rate: " << ImGui::GetIO().Framerate;
-            PLOG_VERBOSE << "Max FPS: " << maxFPS;
-
             if (ImGui::GetIO().Framerate > maxFPS)
             {
               // If we haven't received an input in the last 250ms...
               if (lastInput == 0 || timePost > (lastInput + 250))
+              {
+                PLOG_WARNING << "Detected an unexpectedly high frame rate! Expected max " << maxFPS << " FPS, received: " << ImGui::GetIO().Framerate << " FPS...";
                 unlockedCount++;
+              }
             }
           }
 
