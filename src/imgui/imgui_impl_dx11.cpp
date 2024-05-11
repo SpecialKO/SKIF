@@ -2136,3 +2136,11 @@ static FLOAT SKIF_ImplDX11_ViewPort_GetSDRWhiteLevel(ImGuiViewport* viewport)
 
     return 80.0f;
 }
+
+UINT SKIF_ImplDX11_ViewPort_GetPresentCount(ImGuiViewport* viewport)
+{
+    if (ImGui_ImplDX11_ViewportData* vd = (ImGui_ImplDX11_ViewportData*)viewport->RendererUserData)
+        return vd->PresentCount;
+
+    return 0;
+}
