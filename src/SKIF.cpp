@@ -3642,31 +3642,73 @@ wWinMain ( _In_     HINSTANCE hInstance,
       g.NavDisableHighlight = true;
     );
 
-    if ( bRefresh )
+
+    // From ImHex: https://github.com/WerWolv/ImHex/blob/09bffb674505fa2b09f0135a519d213f6fb6077e/main/gui/source/window/window.cpp#L631-L672
+    // GPL-2.0 license: https://github.com/WerWolv/ImHex/blob/master/LICENSE
+    if (bRefresh)
+    {
+      bRefresh = false;
+      static std::vector<uint8_t> previousVtxData;
+      static size_t previousVtxDataSize = 0;
+
+      size_t offset = 0;
+      size_t vtxDataSize = 0;
+
+      for (const auto viewPort : ImGui::GetPlatformIO().Viewports) {
+        auto drawData = viewPort->DrawData;
+        for (int n = 0; n < drawData->CmdListsCount; n++) {
+          vtxDataSize += drawData->CmdLists[n]->VtxBuffer.size() * sizeof(ImDrawVert);
+        }
+      }
+      for (const auto viewPort : ImGui::GetPlatformIO().Viewports) {
+        auto drawData = viewPort->DrawData;
+        for (int n = 0; n < drawData->CmdListsCount; n++) {
+          const ImDrawList *cmdList = drawData->CmdLists[n];
+
+          if (vtxDataSize == previousVtxDataSize) {
+            bRefresh = bRefresh || std::memcmp(previousVtxData.data() + offset, cmdList->VtxBuffer.Data, cmdList->VtxBuffer.size() * sizeof(ImDrawVert)) != 0;
+          } else {
+            bRefresh = true;
+          }
+
+          if (previousVtxData.size() < offset + cmdList->VtxBuffer.size() * sizeof(ImDrawVert)) {
+            previousVtxData.resize(offset + cmdList->VtxBuffer.size() * sizeof(ImDrawVert));
+          }
+
+          std::memcpy(previousVtxData.data() + offset, cmdList->VtxBuffer.Data, cmdList->VtxBuffer.size() * sizeof(ImDrawVert));
+          offset += cmdList->VtxBuffer.size() * sizeof(ImDrawVert);
+        }
+      }
+
+      previousVtxDataSize = vtxDataSize;
+    }
+
+    // Update, Render and Present the main and any additional Platform Windows
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+    {
+      // This recreates any additional viewports (index 1+)
+      if (RecreateWin32Windows)
+      {   RecreateWin32Windows = false;
+
+        // If the Win32 windows should be recreated, we set the LastFrameActive to 0 here to
+        //   force ImGui::UpdatePlatformWindows() below to recreate them.
+        for (int i = 1; i < ImGui::GetCurrentContext()->Viewports.Size; i++)
+        {
+          ImGuiViewportP* viewport = ImGui::GetCurrentContext()->Viewports[i];
+          viewport->LastFrameActive = 0;
+        }
+      }
+    }
+
+    ImGui::UpdatePlatformWindows ( ); // This creates all ImGui related windows, including the main application window, and also updates the window and swapchain sizes etc
+
+    if (bRefresh)
     {
       // This renders the main viewport (index 0)
       ImGui_ImplDX11_RenderDrawData (ImGui::GetDrawData ());
 
-      // Update, Render and Present the main and any additional Platform Windows
-      if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-      {
-        // This recreates any additional viewports (index 1+)
-        if (RecreateWin32Windows)
-        {   RecreateWin32Windows = false;
-
-          // If the Win32 windows should be recreated, we set the LastFrameActive to 0 here to
-          //   force ImGui::UpdatePlatformWindows() below to recreate them.
-          for (int i = 1; i < ImGui::GetCurrentContext()->Viewports.Size; i++)
-          {
-            ImGuiViewportP* viewport = ImGui::GetCurrentContext()->Viewports[i];
-            viewport->LastFrameActive = 0;
-          }
-        }
-
-        ImGui::UpdatePlatformWindows        (); // This creates all ImGui related windows, including the main application window, and also updates the window and swapchain sizes etc
-        // This renders any additional viewports (index 1+)
-        ImGui::RenderPlatformWindowsDefault (); // Also eventually calls ImGui_ImplDX11_SwapBuffers ( ) which Presents ( )
-      }
+      // This renders any additional viewports (index 1+)
+      ImGui::RenderPlatformWindowsDefault (); // Also eventually calls ImGui_ImplDX11_SwapBuffers ( ) which Presents ( )
 
       // This runs only once, after the ImGui window has been created
       static bool
