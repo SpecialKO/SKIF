@@ -1071,14 +1071,13 @@ bool ImGui_ImplDX11_CreateDeviceObjects (void)
       ImGui_ImplDX11_InvalidateDeviceObjects();
 
   // Create the vertex shader
-  ThrowIfFailed (
+  if (FAILED (
     bd->pd3dDevice->CreateVertexShader (
       (DWORD *)imgui_vs_bytecode,
        sizeof (imgui_vs_bytecode    ) /
        sizeof (imgui_vs_bytecode [0]),
-         nullptr,
-                    &bd->pVertexShader )
-     );
+         nullptr, &bd->pVertexShader )
+     )) return false;
 
   // Create the input layout
   D3D11_INPUT_ELEMENT_DESC
@@ -1105,14 +1104,14 @@ bool ImGui_ImplDX11_CreateDeviceObjects (void)
 #endif // SKIF_ImDrawVert
     };
   
-  ThrowIfFailed (
+  if (FAILED (
         bd->pd3dDevice->CreateInputLayout (
                            local_layout, 3,
               imgui_vs_bytecode,
       sizeof (imgui_vs_bytecode    ) /
       sizeof (imgui_vs_bytecode [0]),
                         &bd->pInputLayout )
-     );
+     )) return false;
 
   // Create the constant buffers
   D3D11_BUFFER_DESC
@@ -1123,10 +1122,10 @@ bool ImGui_ImplDX11_CreateDeviceObjects (void)
   buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
   buffer_desc.MiscFlags      = 0;
   
-  ThrowIfFailed (
+  if (FAILED (
   bd->pd3dDevice->CreateBuffer ( &buffer_desc, nullptr,
     &bd->pVertexConstantBuffer )
-     );
+     )) return false;
 
   //* Pixel / Font constant buffer
   buffer_desc                = { };
@@ -1136,15 +1135,15 @@ bool ImGui_ImplDX11_CreateDeviceObjects (void)
   buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
   buffer_desc.MiscFlags      = 0;
   
-  ThrowIfFailed (
+  if (FAILED (
   bd->pd3dDevice->CreateBuffer ( &buffer_desc, nullptr,
      &bd->pPixelConstantBuffer )
-     );
-
-  ThrowIfFailed (
+     )) return false;
+    
+  if (FAILED (
   bd->pd3dDevice->CreateBuffer ( &buffer_desc, nullptr,
       &bd->pFontConstantBuffer )
-     );
+     )) return false;
 
   buffer_desc                = { };
   buffer_desc.ByteWidth      = sizeof (float) * 4;
@@ -1155,13 +1154,13 @@ bool ImGui_ImplDX11_CreateDeviceObjects (void)
   //*/
 
   // Create the pixel shader
-  ThrowIfFailed (
+  if (FAILED (
          bd->pd3dDevice->CreatePixelShader (
            (DWORD *)imgui_ps_bytecode,
             sizeof (imgui_ps_bytecode    ) /
             sizeof (imgui_ps_bytecode [0]),
               nullptr,   &bd->pPixelShader )
-     );
+     )) return false;
 
   // Create the blending setup
   D3D11_BLEND_DESC
@@ -1176,10 +1175,10 @@ bool ImGui_ImplDX11_CreateDeviceObjects (void)
   blend_desc.RenderTarget [0].BlendOpAlpha          = D3D11_BLEND_OP_ADD;
   blend_desc.RenderTarget [0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
   
-  ThrowIfFailed (
+  if (FAILED (
   bd->pd3dDevice->CreateBlendState ( &blend_desc,
                   &bd->pBlendState )
-     );
+     )) return false;
 
   // Create the rasterizer state
   D3D11_RASTERIZER_DESC
@@ -1189,10 +1188,10 @@ bool ImGui_ImplDX11_CreateDeviceObjects (void)
   raster_desc.ScissorEnable   = true;
   raster_desc.DepthClipEnable = true;
   
-  ThrowIfFailed (
+  if (FAILED (
   bd->pd3dDevice->CreateRasterizerState ( &raster_desc,
                   &bd->pRasterizerState )
-     );
+     )) return false;
 
   // Create depth-stencil State
   D3D11_DEPTH_STENCIL_DESC
@@ -1207,11 +1206,11 @@ bool ImGui_ImplDX11_CreateDeviceObjects (void)
   depth_stencil_desc.FrontFace.StencilFunc        = D3D11_COMPARISON_ALWAYS;
   depth_stencil_desc.BackFace                     =
   depth_stencil_desc.FrontFace;
-  
-  ThrowIfFailed (
+
+  if (FAILED (
   bd->pd3dDevice->CreateDepthStencilState ( &depth_stencil_desc,
                   &bd->pDepthStencilState )
-     );
+     )) return false;
 
   ImGui_ImplDX11_CreateFontsTexture ();
 
@@ -1374,8 +1373,9 @@ void ImGui_ImplDX11_NewFrame()
         CleanupDeviceD3D                ( );
 
         // At this point all traces of the previous device should have been cleared
-        CreateDeviceD3D                 (SKIF_Notify_hWnd);
-        ImGui_ImplDX11_Init             (SKIF_pd3dDevice, SKIF_pd3dDeviceContext); // This creates a new factory
+
+        if (CreateDeviceD3D             (SKIF_Notify_hWnd))                        // This creates a new device and context
+          ImGui_ImplDX11_Init           (SKIF_pd3dDevice, SKIF_pd3dDeviceContext); // This creates a new factory
 
         // This is used to flag that rendering should not occur until
         // any loaded textures and such also have been unloaded
