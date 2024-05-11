@@ -1837,7 +1837,7 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
           // and find the output whose bounds have the greatest overlap with the
           // app window (i.e. the output for which the intersection area is the
           // greatest).
-          while (pAdapter->EnumOutputs(i, &currentOutput) != DXGI_ERROR_NOT_FOUND)
+          while (pAdapter->EnumOutputs (i, &currentOutput) != DXGI_ERROR_NOT_FOUND)
           {
             // Get the retangle bounds of the app window
             int ax1 = m_windowBounds.left;
