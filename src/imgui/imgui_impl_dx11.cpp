@@ -73,45 +73,6 @@ extern std::vector<HANDLE> vSwapchainWaitHandles;
 extern bool  RecreateSwapChains;
 extern bool  RecreateSwapChainsPending;
 
-
-// Error handling
-class SK_ComException : public
-       std::exception
-{
-public:
-  SK_ComException (
-    HRESULT hr
-  ) : __hr (hr) { }
-
-  const char*
-  what (void) const override
-  {
-    static char
-      s_str [64] = { };
-
-    sprintf_s (
-      s_str, "Failure with HRESULT of %08X",
-                    (int)__hr
-              );
-    return
-      s_str;
-  }
-
-private:
-  HRESULT
-    __hr;
-};
-
-inline void
-ThrowIfFailed (HRESULT hr)
-{
-  if (SUCCEEDED (hr))
-    return;
-
-  throw
-    SK_ComException (hr);
-}
-
 struct ImGui_ImplDX11_ViewportData;
 
 #endif // SKIF_D3D11
@@ -453,9 +414,8 @@ void ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
     buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
     buffer_desc.MiscFlags      = 0;
 
-    if ( FAILED ( bd->pd3dDevice->CreateBuffer ( &buffer_desc,
-                        nullptr, &bd->pVB      )
-       )        ) return;
+    if (FAILED (bd->pd3dDevice->CreateBuffer (&buffer_desc, nullptr, &bd->pVB)))
+      return;
   }
 
   if (! bd->pIB || bd->IndexBufferSize < draw_data->TotalIdxCount)
@@ -472,9 +432,8 @@ void ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
     buffer_desc.BindFlags      = D3D11_BIND_INDEX_BUFFER;
     buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-    if ( FAILED ( bd->pd3dDevice->CreateBuffer ( &buffer_desc,
-                        nullptr, &bd->pIB      )
-       )        ) return;
+    if (FAILED (bd->pd3dDevice->CreateBuffer (&buffer_desc, nullptr, &bd->pIB)))
+      return;
   }
 
   // Upload vertex/index data into a single contiguous GPU buffer
@@ -515,11 +474,8 @@ void ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
     D3D11_MAPPED_SUBRESOURCE
           mapped_resource = { };
 
-    if ( FAILED (ctx->Map (
-           bd->pVertexConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD,
-                                    0, &mapped_resource
-                    ))
-       ) return;
+    if (FAILED (ctx->Map (bd->pVertexConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource)))
+      return;
 
     VERTEX_CONSTANT_BUFFER_DX11 *constant_buffer =
         static_cast <VERTEX_CONSTANT_BUFFER_DX11 *> (
@@ -592,11 +548,8 @@ void ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
 
     ctx->Unmap ( bd->pVertexConstantBuffer, 0 );
 
-    if ( FAILED (ctx->Map (
-           bd->pFontConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD,
-                                   0, &mapped_resource
-                )         )
-       ) return;
+    if (FAILED (ctx->Map (bd->pFontConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource)))
+      return;
 
     PIXEL_CONSTANT_BUFFER_DX11 *pix_constant_buffer =
         static_cast <PIXEL_CONSTANT_BUFFER_DX11 *> (
@@ -611,11 +564,8 @@ void ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
 
     ctx->Unmap ( bd->pFontConstantBuffer, 0 );
 
-    if ( FAILED (ctx->Map (
-           bd->pPixelConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD,
-                                   0, &mapped_resource
-                )         )
-       ) return;
+    if (FAILED (ctx->Map (bd->pPixelConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource)))
+      return;
 
     pix_constant_buffer =
       static_cast <PIXEL_CONSTANT_BUFFER_DX11 *> (
@@ -831,13 +781,11 @@ static void ImGui_ImplDX11_CreateFontsTexture()
   //   on a VMware-based virtual Windows 7 machine.  VMware bug?
   DWORD temp_time = SKIF_Util_timeGetTime1();
 
-  ThrowIfFailed (
-    bd->pd3dDevice->CreateTexture2D ( &staging_desc, nullptr,
-                                    &pStagingTexture.p ));
+  if (FAILED (bd->pd3dDevice->CreateTexture2D (&staging_desc, nullptr, &pStagingTexture.p)))
+    PLOG_ERROR << "Failed creating staging texture!";
 
-  ThrowIfFailed (
-    bd->pd3dDevice->CreateTexture2D ( &tex_desc,     nullptr,
-                                    &pFontTexture.p ));
+  if (FAILED (bd->pd3dDevice->CreateTexture2D (&tex_desc, nullptr, &pFontTexture.p)))
+    PLOG_ERROR << "Failed creating font texture!";
 
   PLOG_DEBUG << "Operation [CreateTexture2D] took " << (SKIF_Util_timeGetTime1() - temp_time) << " ms.";
 
@@ -847,9 +795,8 @@ static void ImGui_ImplDX11_CreateFontsTexture()
   D3D11_MAPPED_SUBRESOURCE
         mapped_tex = { };
 
-  ThrowIfFailed (
-    pDevCtx->Map ( pStagingTexture.p, 0, D3D11_MAP_WRITE, 0,
-                    &mapped_tex ));
+  if (FAILED (pDevCtx->Map (pStagingTexture.p, 0, D3D11_MAP_WRITE, 0, &mapped_tex)))
+    PLOG_ERROR << "Failed mapping staging texture!";
 
   for (int y = 0; y < height; y++)
   {
@@ -877,9 +824,8 @@ static void ImGui_ImplDX11_CreateFontsTexture()
     srvDesc.Texture2D.MipLevels       = tex_desc.MipLevels;
     srvDesc.Texture2D.MostDetailedMip = 0;
 
-  ThrowIfFailed (
-    bd->pd3dDevice->CreateShaderResourceView ( pFontTexture, &srvDesc,
-                                  &bd->pFontTextureView ));
+  if (FAILED (bd->pd3dDevice->CreateShaderResourceView (pFontTexture, &srvDesc, &bd->pFontTextureView)))
+    PLOG_ERROR << "Failed creating SRV of the font texture!";
 
   // Store our identifier
   io.Fonts->TexID =
@@ -897,9 +843,8 @@ static void ImGui_ImplDX11_CreateFontsTexture()
     sampler_desc.MinLOD             = 0.f;
     sampler_desc.MaxLOD             = 0.f;
 
-  ThrowIfFailed (
-    bd->pd3dDevice->CreateSamplerState ( &sampler_desc,
-                        &bd->pFontSampler ));
+  if (FAILED (bd->pd3dDevice->CreateSamplerState (&sampler_desc, &bd->pFontSampler)))
+    PLOG_ERROR << "Failed creating sampler-state object of the font sampler!";
 
   io.Fonts->ClearTexData ();
 }
@@ -1104,14 +1049,8 @@ bool ImGui_ImplDX11_CreateDeviceObjects (void)
 #endif // SKIF_ImDrawVert
     };
   
-  if (FAILED (
-        bd->pd3dDevice->CreateInputLayout (
-                           local_layout, 3,
-              imgui_vs_bytecode,
-      sizeof (imgui_vs_bytecode    ) /
-      sizeof (imgui_vs_bytecode [0]),
-                        &bd->pInputLayout )
-     )) return false;
+  if (FAILED (bd->pd3dDevice->CreateInputLayout (local_layout, 3, imgui_vs_bytecode, sizeof (imgui_vs_bytecode) / sizeof (imgui_vs_bytecode[0]), &bd->pInputLayout)))
+    return false;
 
   // Create the constant buffers
   D3D11_BUFFER_DESC
@@ -1122,10 +1061,8 @@ bool ImGui_ImplDX11_CreateDeviceObjects (void)
   buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
   buffer_desc.MiscFlags      = 0;
   
-  if (FAILED (
-  bd->pd3dDevice->CreateBuffer ( &buffer_desc, nullptr,
-    &bd->pVertexConstantBuffer )
-     )) return false;
+  if (FAILED (bd->pd3dDevice->CreateBuffer (&buffer_desc, nullptr, &bd->pVertexConstantBuffer)))
+    return false;
 
   //* Pixel / Font constant buffer
   buffer_desc                = { };
@@ -1135,15 +1072,11 @@ bool ImGui_ImplDX11_CreateDeviceObjects (void)
   buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
   buffer_desc.MiscFlags      = 0;
   
-  if (FAILED (
-  bd->pd3dDevice->CreateBuffer ( &buffer_desc, nullptr,
-     &bd->pPixelConstantBuffer )
-     )) return false;
+  if (FAILED (bd->pd3dDevice->CreateBuffer (&buffer_desc, nullptr, &bd->pPixelConstantBuffer)))
+    return false;
     
-  if (FAILED (
-  bd->pd3dDevice->CreateBuffer ( &buffer_desc, nullptr,
-      &bd->pFontConstantBuffer )
-     )) return false;
+  if (FAILED (bd->pd3dDevice->CreateBuffer (&buffer_desc, nullptr, &bd->pFontConstantBuffer)))
+    return false;
 
   buffer_desc                = { };
   buffer_desc.ByteWidth      = sizeof (float) * 4;
@@ -1154,13 +1087,8 @@ bool ImGui_ImplDX11_CreateDeviceObjects (void)
   //*/
 
   // Create the pixel shader
-  if (FAILED (
-         bd->pd3dDevice->CreatePixelShader (
-           (DWORD *)imgui_ps_bytecode,
-            sizeof (imgui_ps_bytecode    ) /
-            sizeof (imgui_ps_bytecode [0]),
-              nullptr,   &bd->pPixelShader )
-     )) return false;
+  if (FAILED (bd->pd3dDevice->CreatePixelShader ((DWORD *)imgui_ps_bytecode, sizeof (imgui_ps_bytecode) / sizeof (imgui_ps_bytecode[0]), nullptr, &bd->pPixelShader)))
+    return false;
 
   // Create the blending setup
   D3D11_BLEND_DESC
@@ -1175,10 +1103,8 @@ bool ImGui_ImplDX11_CreateDeviceObjects (void)
   blend_desc.RenderTarget [0].BlendOpAlpha          = D3D11_BLEND_OP_ADD;
   blend_desc.RenderTarget [0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
   
-  if (FAILED (
-  bd->pd3dDevice->CreateBlendState ( &blend_desc,
-                  &bd->pBlendState )
-     )) return false;
+  if (FAILED (bd->pd3dDevice->CreateBlendState (&blend_desc, &bd->pBlendState)))
+    return false;
 
   // Create the rasterizer state
   D3D11_RASTERIZER_DESC
@@ -1188,10 +1114,8 @@ bool ImGui_ImplDX11_CreateDeviceObjects (void)
   raster_desc.ScissorEnable   = true;
   raster_desc.DepthClipEnable = true;
   
-  if (FAILED (
-  bd->pd3dDevice->CreateRasterizerState ( &raster_desc,
-                  &bd->pRasterizerState )
-     )) return false;
+  if (FAILED (bd->pd3dDevice->CreateRasterizerState (&raster_desc, &bd->pRasterizerState)))
+    return false;
 
   // Create depth-stencil State
   D3D11_DEPTH_STENCIL_DESC
@@ -1207,10 +1131,8 @@ bool ImGui_ImplDX11_CreateDeviceObjects (void)
   depth_stencil_desc.BackFace                     =
   depth_stencil_desc.FrontFace;
 
-  if (FAILED (
-  bd->pd3dDevice->CreateDepthStencilState ( &depth_stencil_desc,
-                  &bd->pDepthStencilState )
-     )) return false;
+  if (FAILED (bd->pd3dDevice->CreateDepthStencilState (&depth_stencil_desc, &bd->pDepthStencilState)))
+    return false;
 
   ImGui_ImplDX11_CreateFontsTexture ();
 
@@ -1856,11 +1778,10 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
         _registry.iUIMode         = 0;
       }
 
-      if (SUCCEEDED (  bd->pFactory->CreateSwapChainForHwnd (bd->pd3dDevice, hWnd, &swap_desc, NULL, NULL,
-                                &vd->SwapChain ))) break;
-      else if (FAILED (bd->pd3dDevice->GetDeviceRemovedReason ( )) ||
-                     ! bd->pFactory->IsCurrent ( ))
-          return;
+      if (SUCCEEDED (bd->pFactory->CreateSwapChainForHwnd (bd->pd3dDevice, hWnd, &swap_desc, NULL, NULL, &vd->SwapChain)))
+        break;
+      else if (FAILED (bd->pd3dDevice->GetDeviceRemovedReason ( )) || ! bd->pFactory->IsCurrent ( ))
+        return;
     }
   }
 
@@ -1895,52 +1816,56 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
         CComPtr   <IDXGIOutput>   pOutput;
         CComPtr   <IDXGIAdapter1> pAdapter;
         CComQIPtr <IDXGIFactory2> pFactory1 (bd->pFactory);
-        ThrowIfFailed (pFactory1->EnumAdapters1 (0, &pAdapter));
 
-        auto _ComputeIntersectionArea =
-              [&](long ax1, long ay1, long ax2, long ay2,
-                  long bx1, long by1, long bx2, long by2) -> int
+        if (SUCCEEDED (pFactory1->EnumAdapters1 (0, &pAdapter)))
         {
-          return std::max(0l, std::min(ax2, bx2) - std::max(ax1, bx1)) * std::max(0l, std::min(ay2, by2) - std::max(ay1, by1));
-        };
-
-        UINT i = 0;
-        IDXGIOutput* currentOutput;
-        float bestIntersectArea = -1;
-
-        RECT m_windowBounds;
-        GetWindowRect (hWnd, &m_windowBounds);
-    
-        // Iterate through the DXGI outputs associated with the DXGI adapter,
-        // and find the output whose bounds have the greatest overlap with the
-        // app window (i.e. the output for which the intersection area is the
-        // greatest).
-        while (pAdapter->EnumOutputs(i, &currentOutput) != DXGI_ERROR_NOT_FOUND)
-        {
-          // Get the retangle bounds of the app window
-          int ax1 = m_windowBounds.left;
-          int ay1 = m_windowBounds.top;
-          int ax2 = m_windowBounds.right;
-          int ay2 = m_windowBounds.bottom;
-
-          // Get the rectangle bounds of current output
-          DXGI_OUTPUT_DESC desc;
-          ThrowIfFailed(currentOutput->GetDesc(&desc));
-          RECT r  = desc.DesktopCoordinates;
-          int bx1 = r.left;
-          int by1 = r.top;
-          int bx2 = r.right;
-          int by2 = r.bottom;
-
-          // Compute the intersection
-          int intersectArea = _ComputeIntersectionArea (ax1, ay1, ax2, ay2, bx1, by1, bx2, by2);
-          if (intersectArea > bestIntersectArea)
+          auto _ComputeIntersectionArea =
+                [&](long ax1, long ay1, long ax2, long ay2,
+                    long bx1, long by1, long bx2, long by2) -> int
           {
-            pOutput = currentOutput;
-            bestIntersectArea = static_cast<float>(intersectArea);
-          }
+            return std::max(0l, std::min(ax2, bx2) - std::max(ax1, bx1)) * std::max(0l, std::min(ay2, by2) - std::max(ay1, by1));
+          };
 
-          i++;
+          UINT i = 0;
+          IDXGIOutput* currentOutput;
+          float bestIntersectArea = -1;
+
+          RECT m_windowBounds;
+          GetWindowRect (hWnd, &m_windowBounds);
+    
+          // Iterate through the DXGI outputs associated with the DXGI adapter,
+          // and find the output whose bounds have the greatest overlap with the
+          // app window (i.e. the output for which the intersection area is the
+          // greatest).
+          while (pAdapter->EnumOutputs(i, &currentOutput) != DXGI_ERROR_NOT_FOUND)
+          {
+            // Get the retangle bounds of the app window
+            int ax1 = m_windowBounds.left;
+            int ay1 = m_windowBounds.top;
+            int ax2 = m_windowBounds.right;
+            int ay2 = m_windowBounds.bottom;
+
+            // Get the rectangle bounds of current output
+            DXGI_OUTPUT_DESC desc;
+            if (FAILED (currentOutput->GetDesc (&desc)))
+              continue;
+
+            RECT r  = desc.DesktopCoordinates;
+            int bx1 = r.left;
+            int by1 = r.top;
+            int bx2 = r.right;
+            int by2 = r.bottom;
+
+            // Compute the intersection
+            int intersectArea = _ComputeIntersectionArea (ax1, ay1, ax2, ay2, bx1, by1, bx2, by2);
+            if (intersectArea > bestIntersectArea)
+            {
+              pOutput = currentOutput;
+              bestIntersectArea = static_cast<float>(intersectArea);
+            }
+
+            i++;
+          }
         }
 
         // Having determined the output (display) upon which the app is primarily being 
