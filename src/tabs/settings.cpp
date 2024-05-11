@@ -1024,17 +1024,15 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
         "Show Shelly the Ghost:"
     );
+    ImGui::SameLine        ( );
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_TRIANGLE_EXCLAMATION);
+    SKIF_ImGui_SetHoverTip ("A critical rendering optimization will not function properly when Shelly is visibly moving.\nIt is therefor recommended to leave Shelly hidden in favor of a reduced GPU usage.");
     ImGui::TreePush        ("Shelly");
     if (ImGui::RadioButton ("Never",                    &_registry.iGhostVisibility, 0))
       _registry.regKVGhostVisibility.putData (                     _registry.iGhostVisibility);
     ImGui::SameLine        ( );
-    ImGui::BeginGroup      ( );
     if (ImGui::RadioButton ("Always",                   &_registry.iGhostVisibility, 1))
       _registry.regKVGhostVisibility.putData (                     _registry.iGhostVisibility);
-    ImGui::SameLine        ( );
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_TRIANGLE_EXCLAMATION);
-    ImGui::EndGroup        ( );
-    SKIF_ImGui_SetHoverTip ("A critical rendering optimization will not function properly when Shelly is visibly moving.\nIt is therefor recommended to leave Shelly hidden in favor of a reduced GPU usage.");
     ImGui::SameLine        ( );
     if (ImGui::RadioButton ("While service is running", &_registry.iGhostVisibility, 2))
       _registry.regKVGhostVisibility.putData (                     _registry.iGhostVisibility);
