@@ -3869,11 +3869,23 @@ wWinMain ( _In_     HINSTANCE hInstance,
           auto timePost = SKIF_Util_timeGetTime1 ( );
           auto timeDiff = timePost - timePre;
 
-          if (! frameRateUnlocked && timeDiff <= 4 && ImGui::GetFrameCount ( ) > 240 && static_cast<DWORD>(ImGui::GetIO().Framerate) > (1000 / (dwDwmPeriod)))
-            unlockedCount++;
+          static DWORD lastInput;
+
+          if (SKIF_ImGui_IsAnyInputDown ( ))
+            lastInput = timePost;
+
+          if (! frameRateUnlocked && timeDiff <= 4 && ImGui::GetFrameCount() > 240 && static_cast<DWORD> (ImGui::GetIO().Framerate) > (1000 / (dwDwmPeriod)))
+          {
+            // Only if we haven't received an input in the last 250ms
+            if (lastInput == 0 || timePost > (lastInput + 250))
+              unlockedCount++;
+          }
 
           if (unlockedCount > 10)
+          {
             frameRateUnlocked = true;
+            PLOG_ERROR << "Framerate was detected as being unlocked, and an additional limiter has been enforced to the monitors refresh rate period (" << dwDwmPeriod << ") !";
+          }
 
           //PLOG_VERBOSE << "Waited: " << timeDiff << " ms (handles : " << vSwapchainWaitHandles.size() << ")";
         }
