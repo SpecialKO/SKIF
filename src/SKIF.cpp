@@ -782,7 +782,7 @@ SKIF_Startup_ProxyCommandLineArguments (void)
   {
     //PostMessage (_Signal._RunningInstance, WM_SKIF_MINIMIZE, 0x0, 0x0);
 
-    // Send WM_SKIF_MINIMIZE to all running instances (including ourselves)
+    // Send WM_SKIF_MINIMIZE to all running instances (including ourselves, though we won't act upon it if SKIF_ImGui_hWnd hasn't been created)
     EnumWindows ( []( HWND   hWnd,
                       LPARAM lParam ) -> BOOL
     {
@@ -1467,25 +1467,29 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   // First round
   if (_Signal.Minimize)
-    nCmdShow = SW_SHOWMINNOACTIVE;
+    nCmdShow = SW_MINIMIZE;
 
-  if (nCmdShow == SW_SHOWMINNOACTIVE && _registry.bCloseToTray)
+  if (nCmdShow == SW_MINIMIZE && _registry.bCloseToTray)
     nCmdShow = SW_HIDE;
 
-  // Second round
-  if (nCmdShow == SW_SHOWMINNOACTIVE)
-    startedMinimized = true;
-  else if (nCmdShow == SW_HIDE)
-    startedMinimized = SKIF_isTrayed = true;
+  // "Run: Minimized" uses SW_SHOWMINNOACTIVE but that causes an empty window on the desktop...? Weird...
+  else if (nCmdShow == SW_SHOWMINNOACTIVE)
+    nCmdShow = SW_MINIMIZE;
 
-  // We do not support SW_SHOWMAXIMIZED atm (misaligned and incorrectly sized window)
-  if (nCmdShow == SW_SHOWMAXIMIZED)
+  // "Run: Maximized" uses SW_SHOWMAXIMIZED but we do not actually support that specific flag... (misaligned and incorrectly sized window)
+  else if (nCmdShow == SW_SHOWMAXIMIZED)
   {
     PLOG_ERROR << "Ignoring SW_SHOWMAXIMIZED (\"Run: Maximized\") as it is not supported!";
 
     // No idea how to solve this one. Right now SKIF opens maximized,
     //   then gets restored straight after since we set *out_style |= WS_MAXIMIZE;
   }
+
+  // Second round
+  if (nCmdShow == SW_MINIMIZE)
+    startedMinimized = true;
+  else if (nCmdShow == SW_HIDE)
+    startedMinimized = SKIF_isTrayed = true;
 
   SKIF_nCmdShow = nCmdShow;
 
@@ -2012,8 +2016,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
     {
       // Shrink the window on low-res displays (will be applied on the next frame)
       // Emulates auto-horizon mode
-      if (SKIF_vecCurrentModeNext.x < monitor_extent.GetWidth () ||
-          SKIF_vecCurrentModeNext.y < monitor_extent.GetHeight())
+      if (ImGui::GetFrameCount() > 2 &&
+          (SKIF_vecCurrentModeNext.x > monitor_extent.GetWidth () ||
+           SKIF_vecCurrentModeNext.y > monitor_extent.GetHeight()))
       {
         float arWindow = SKIF_vecCurrentModeNext.x / SKIF_vecCurrentModeNext.y;
 
@@ -2264,15 +2269,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         if (_registry.iUIPositionX != -1 &&
             _registry.iUIPositionY != -1)
-          ImGui::SetNextWindowPos (
-                       ImVec2 (static_cast<float> (_registry.iUIPositionX),
-                               static_cast<float> (_registry.iUIPositionY)));
+          ImGui::SetNextWindowPos (ImVec2 (static_cast<float> (_registry.iUIPositionX),
+                                           static_cast<float> (_registry.iUIPositionY)));
       }
 
       // RepositionSKIF -- Step 2: Repositon the window
       // Repositions the window in the center of the monitor the cursor is currently on
       if (RepositionSKIF)
-        ImGui::SetNextWindowPos (ImVec2 (rectCursorMonitor.GetCenter().x - (SKIF_vecCurrentMode.x / 2.0f), rectCursorMonitor.GetCenter().y - (SKIF_vecCurrentMode.y / 2.0f)));
+        ImGui::SetNextWindowPos (ImVec2 (rectCursorMonitor.GetCenter().x - (SKIF_vecCurrentMode.x / 2.0f),
+                                         rectCursorMonitor.GetCenter().y - (SKIF_vecCurrentMode.y / 2.0f)));
 
       // Calculate new window boundaries and changes to fit within the workspace if it doesn't fit
       //   Delay running the code to on the third frame to allow other required parts to have already executed...
@@ -2311,7 +2316,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
                          ImGuiWindowFlags_NoCollapse        |
                          ImGuiWindowFlags_NoTitleBar        |
                          ImGuiWindowFlags_NoScrollbar       | // Hide the scrollbar for the main window
-                         ImGuiWindowFlags_NoScrollWithMouse   // Prevent scrolling with the mouse as well
+                         ImGuiWindowFlags_NoScrollWithMouse | // Prevent scrolling with the mouse as well
+                         ImGuiWindowFlags_NoSavedSettings     // We handle size/position persistently on our own
                       // ImGuiWindowFlags_NoMove              // This was added in #8bf06af, but I am unsure why.
                       // The only comment is that it was DPI related? This prevents Ctrl+Tab from moving the window so must not be used
       );

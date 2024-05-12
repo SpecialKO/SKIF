@@ -42,7 +42,8 @@
 #ifdef SKIF_Win32
 constexpr const wchar_t* SKIF_ImGui_WindowClass = L"SKIF_ImGuiWindow";
 constexpr const wchar_t* SKIF_ImGui_WindowTitle = L"Special K Popup"; // Default
-
+extern HWND SKIF_ImGui_hWnd;
+extern int  SKIF_nCmdShow;
 #endif // !SKIF_Win32
 
 // Configuration flags to add in your imconfig.h file:
@@ -1135,8 +1136,8 @@ static void ImGui_ImplWin32_GetWin32StyleFromViewportFlags(ImGuiViewportFlags fl
   extern int SKIF_nCmdShow;
   if (owner == nullptr && SKIF_nCmdShow != -1)
   {
-    if (SKIF_nCmdShow == SW_SHOWMAXIMIZED)
-      *out_style |= WS_MAXIMIZE;
+    //if (SKIF_nCmdShow == SW_SHOWMAXIMIZED)
+    //  *out_style |= WS_MAXIMIZE;
 
     if (SKIF_nCmdShow == SW_SHOWMINIMIZED   ||
         SKIF_nCmdShow == SW_SHOWMINNOACTIVE ||
@@ -1181,7 +1182,6 @@ static void ImGui_ImplWin32_CreateWindow(ImGuiViewport* viewport)
 static void ImGui_ImplWin32_CreateWindow(ImGuiViewport *viewport)
 {
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
-  extern HWND  SKIF_ImGui_hWnd;
   extern float SKIF_ImGui_GlobalDPIScale;
 
   ImGui_ImplWin32_ViewportData* vd = IM_NEW(ImGui_ImplWin32_ViewportData)();
@@ -1249,7 +1249,6 @@ static void ImGui_ImplWin32_DestroyWindow(ImGuiViewport* viewport)
 
 #ifdef SKIF_Win32
         // If this is the main platform window, reset the global handle for it
-        extern HWND SKIF_ImGui_hWnd;
         if (vd->Hwnd == SKIF_ImGui_hWnd)
         {
           SKIF_ImGui_hWnd = NULL;
@@ -1298,13 +1297,13 @@ static void ImGui_ImplWin32_ShowWindow(ImGuiViewport* viewport)
     if (vd->HwndParent != NULL)
         ::SetWindowLongPtr(vd->Hwnd, GWLP_HWNDPARENT, (LONG_PTR)nullptr);
 
-    static bool
-        runOnce = true;
-    if (runOnce)
-    {   runOnce = false;
-      // Main platform window must respect nCmdShow
-      //  in the first ShowWindow() call
-      extern int SKIF_nCmdShow;
+    PLOG_VERBOSE << "SKIF_nCmdShow is set to: " << SKIF_nCmdShow;
+
+    // Main platform window must respect nCmdShow
+    //  in the first ShowWindow() call
+    if (SKIF_nCmdShow   != -1   &&
+        SKIF_ImGui_hWnd == vd->Hwnd)
+    {
       ::ShowWindow (vd->Hwnd, SKIF_nCmdShow);
       SKIF_nCmdShow = -1; // SKIF_nCmdShow has served its purpose by now
     }
@@ -1408,7 +1407,7 @@ static void ImGui_ImplWin32_UpdateWindow (ImGuiViewport *viewport)
     vd->DwStyle   = new_style;
     vd->DwExStyle = new_ex_style;
 
-    ::SetWindowLongPtrW ( vd->Hwnd, GWL_STYLE, vd->DwStyle  );
+    ::SetWindowLongPtrW ( vd->Hwnd, GWL_STYLE,   vd->DwStyle  );
     ::SetWindowLongPtrW ( vd->Hwnd, GWL_EXSTYLE, vd->DwExStyle);
 
     // Force recreating the window if the NoRedirectionBitmap flag has changed
@@ -1425,6 +1424,13 @@ static void ImGui_ImplWin32_UpdateWindow (ImGuiViewport *viewport)
       //RecreateWin32Windows = true;
     }
 
+    // If we are being launched maximized, don't resize ourselves
+    if ((vd->DwStyle & WS_MAXIMIZE) != WS_MAXIMIZE)
+      swp_flag |= SWP_NOSIZE | SWP_NOMOVE;
+
+    // Respect the visiblity state
+    swp_flag |= ((GetWindowLongPtrW (vd->Hwnd, GWL_STYLE) & WS_VISIBLE) == WS_VISIBLE) ? SWP_SHOWWINDOW : SWP_HIDEWINDOW;
+
     RECT rect =
     { (LONG)  viewport->Pos.x,                      (LONG)  viewport->Pos.y,
       (LONG)( viewport->Pos.x + viewport->Size.x ), (LONG)( viewport->Pos.y + viewport->Size.y )
@@ -1434,13 +1440,14 @@ static void ImGui_ImplWin32_UpdateWindow (ImGuiViewport *viewport)
     //                       FALSE, data->DwExStyle ); // Client to Screen
 
     ::SetWindowPos       ( vd->Hwnd, insert_after,
-                                          rect.left,               rect.top,
-                             rect.right - rect.left, rect.bottom - rect.top,
+                                           rect.left,               rect.top,
+                              rect.right - rect.left, rect.bottom - rect.top,
                     swp_flag | SWP_NOZORDER     | SWP_NOACTIVATE |
                                SWP_FRAMECHANGED | SWP_ASYNCWINDOWPOS );
 
     // A ShowWindow() call is necessary when we alter the style
-    ::ShowWindow ( vd->Hwnd, SW_SHOWNA );
+    // Note that this cannot be called for hidden windows, as it would end up revealing them
+    //::ShowWindow ( vd->Hwnd, SW_SHOWNA );
 
     viewport->PlatformRequestMove =
       viewport->PlatformRequestResize = true;
@@ -1614,14 +1621,12 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
     extern ImVec2 SKIF_vecCurrentMode;
     extern ImVec2 SKIF_vecCurrentModeNext;
     extern ImVec2 SKIF_vecAlteredSize;
-    extern HWND   SKIF_ImGui_hWnd;
     extern HWND   SKIF_Notify_hWnd;
 
     extern bool msgDontRedraw;
 
     extern bool KeyWinKey;
     extern int  SnapKeys;
-    extern bool SKIF_isTrayed;
 
     PLOG_VERBOSE_IF(_registry.isDevLogging()) << std::format("[{:0>5d}] [0x{:<4x}] [{:5d}] [{:20s}]{:s}[0x{:x}, {:d}{:s}] [0x{:x}, {:d}]",
                       ImGui::GetFrameCount(),
@@ -2142,8 +2147,6 @@ SKIF_ImGui_ImplWin32_SetDWMBorders (void* hWnd)
                         (255 * imguiBorderColor.y),
                         (255 * imguiBorderColor.z));
   
-  extern HWND
-      SKIF_ImGui_hWnd;
   if (SKIF_ImGui_hWnd ==       NULL ||
       SKIF_ImGui_hWnd == (HWND)hWnd)
     dwmCornerPreference = DWMWCP_ROUND;      // Main window
