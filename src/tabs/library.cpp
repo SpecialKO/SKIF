@@ -5865,8 +5865,8 @@ SKIF_UI_Tab_DrawLibrary (void)
                                   : (tab_ContentRegionAvail.y >= horizon_cutoff_height); // When in regular mode
 
     uiCoverVisible    = (_registry._LibHorizonMode)
-                                  ? (tab_ContentRegionAvail.x > (sizeList.x + sizeDetails.x + 220.f * 0.75f * SKIF_ImGui_GlobalDPIScale)) // Large enough to allow 75% of the tiny cover to appear
-                                  : (uiDetailsVisible) ? (tab_ContentRegionAvail.x > sizeImage.x) : false; // When in regular mode
+                                  ?                      (tab_ContentRegionAvail.x > (sizeList.x    + sizeDetails.x + sizeSK_small.x * 0.75f))       // When in horizontal mode, large enough to allow 75% of the tiny cover to appear
+                                  : (uiDetailsVisible) ? (tab_ContentRegionAvail.x > (                sizeDetails.x + sizeSK.x       * 0.75f)) : false; // When in regular mode, large enough to allow 75% of the large cover to appear
 
     if (! uiCoverVisible)
     {
