@@ -2075,10 +2075,77 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if (newServiceMode != _registry.bServiceMode)
     {
       _registry.bServiceMode = newServiceMode;
+      _registry._ExitOnInjection = false;
 
       PLOG_DEBUG << "Switched to " << ((_registry.bServiceMode) ? "Service mode" : "App mode");
 
       SKIF_ImGui_AdjustAppModeSize (NULL);
+
+      if (IsZoomed (SKIF_ImGui_hWnd))
+        repositionToCenter   = true;
+      else
+        RespectMonBoundaries = true;
+
+      if (SteamOverlayDisabled)
+      {
+        PLOG_INFO << "Removing the SteamNoOverlayUIDrawing variable to prevent pollution...";
+        SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
+        SteamOverlayDisabled = false;
+      }
+
+      // If we switch to small mode, close all popups
+      if (newServiceMode)
+      {
+        ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead ( ), false);
+      }
+
+      // If we switch back to large mode, re-open a few specific ones
+      else {
+        if (AddGamePopup == PopupState_Opened)
+          AddGamePopup = PopupState_Open;
+
+        if (UpdatePromptPopup == PopupState_Opened)
+          UpdatePromptPopup = PopupState_Open;
+
+        if (HistoryPopup == PopupState_Opened)
+          HistoryPopup = PopupState_Open;
+
+        // If SKIF was used as a launcher, initialize stuff that we did not set up while in the small mode
+        if (_Signal.Launcher || _Signal.LauncherURI || _Signal.Quit || _Signal.ServiceMode)
+        {   _Signal.Launcher =  _Signal.LauncherURI =  _Signal.Quit =  _Signal.ServiceMode = false;
+
+          // Register HDR toggle hotkey (if applicable)
+          SKIF_Util_RegisterHotKeyHDRToggle ( );
+
+          // Register service (auto-stop) hotkey
+          SKIF_Util_RegisterHotKeySVCTemp   ( );
+            
+          /*
+          // Check for the presence of an internet connection
+          if (SUCCEEDED (hrNLM))
+          {
+            VARIANT_BOOL connStatus = 0;
+            dwNLM = SKIF_Util_timeGetTime ( );
+      
+            PLOG_DEBUG << "Checking for an online connection...";
+            if (SUCCEEDED (pNLM->get_IsConnectedToInternet (&connStatus)))
+              SKIF_NoInternet = (VARIANT_FALSE == connStatus);
+          }
+          */
+
+          static bool
+              runOnce = true;
+          if (runOnce)
+          {   runOnce = false;
+            
+            // Kickstart the update thread
+            _updater.CheckForUpdates ( );
+
+            // Spawn the gamepad input thread
+            _gamepad.SpawnChildThread ( );
+          }
+        }
+      }
     }
 
     // Apply new horizon mode state
@@ -2902,84 +2969,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if (hotkeyCtrlT || hotkeyF11)
       {
         newServiceMode = ! _registry.bServiceMode;
-        _registry._ExitOnInjection = false;
 
-        if (SteamOverlayDisabled)
-        {
-          PLOG_INFO << "Removing the SteamNoOverlayUIDrawing variable to prevent pollution...";
-          SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
-          SteamOverlayDisabled = false;
-        }
-
-        if (newServiceMode)
-        {
-          // If we switch to small mode, close all popups
-          ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead ( ), false);
-
-          // Changes the app window to the proper size
-          SKIF_vecCurrentModeNext = SKIF_vecServiceMode;
-        }
-
-        else {
-          // Changes the app window to the proper size
-          SKIF_vecCurrentModeNext = (_registry.bHorizonMode) ? SKIF_vecHorizonMode : SKIF_vecRegularMode;
-
-          // If we switch back to large mode, re-open a few specific ones
-          if (AddGamePopup == PopupState_Opened)
-            AddGamePopup = PopupState_Open;
-
-          if (UpdatePromptPopup == PopupState_Opened)
-            UpdatePromptPopup = PopupState_Open;
-
-          if (HistoryPopup == PopupState_Opened)
-            HistoryPopup = PopupState_Open;
-
-          // If SKIF was used as a launcher, initialize stuff that we did not set up while in the small mode
-          if (_Signal.Launcher || _Signal.LauncherURI || _Signal.Quit || _Signal.ServiceMode)
-          {   _Signal.Launcher =  _Signal.LauncherURI =  _Signal.Quit =  _Signal.ServiceMode = false;
-
-            // Register HDR toggle hotkey (if applicable)
-            SKIF_Util_RegisterHotKeyHDRToggle ( );
-
-            // Register service (auto-stop) hotkey
-            SKIF_Util_RegisterHotKeySVCTemp   ( );
-            
-            /*
-            // Check for the presence of an internet connection
-            if (SUCCEEDED (hrNLM))
-            {
-              VARIANT_BOOL connStatus = 0;
-              dwNLM = SKIF_Util_timeGetTime ( );
-      
-              PLOG_DEBUG << "Checking for an online connection...";
-              if (SUCCEEDED (pNLM->get_IsConnectedToInternet (&connStatus)))
-                SKIF_NoInternet = (VARIANT_FALSE == connStatus);
-            }
-            */
-
-            static bool
-                runOnce = true;
-            if (runOnce)
-            {   runOnce = false;
-            
-              // Kickstart the update thread
-              _updater.CheckForUpdates ( );
-
-              // Spawn the gamepad input thread
-              _gamepad.SpawnChildThread ( );
-            }
-          }
-        }
-
-        if (IsZoomed (SKIF_ImGui_hWnd))
-          repositionToCenter   = true;
-        else
-          RespectMonBoundaries = true;
-
-        // Hide the window for the 4 following frames as ImGui determines the sizes of items etc.
-        //   This prevent flashing and elements appearing too large during those frames.
-        //ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems += 4;
-        // This destroys and recreates the ImGui windows
+        // Changes the app window to the proper size
+        SKIF_vecCurrentModeNext = (newServiceMode) ? SKIF_vecServiceMode :
+                          (_registry.bHorizonMode) ? SKIF_vecHorizonMode :
+                                                     SKIF_vecRegularMode ;
       }
 
       if (hotkeyCtrlN)
@@ -4068,8 +4062,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
     }
   }
 
-  SKIF_Util_UnregisterHotKeyHDRToggle ( );
   SKIF_Util_UnregisterHotKeySVCTemp   ( );
+  SKIF_Util_UnregisterHotKeyHDRToggle ( );
   //SKIF_Util_SetEffectivePowerModeNotifications (false); // (this serves no purpose yet)
 
   PLOG_INFO << "Killing timers...";
