@@ -2916,7 +2916,10 @@ SKIF_Util_RegisterHotKeySVCTemp (void)
   */
 
   if (RegisterHotKey (SKIF_Notify_hWnd, SKIF_HotKey_SVC, MOD_WIN | MOD_SHIFT | MOD_NOREPEAT, VK_INSERT))
+  {
+    bHotKeySVC = true;
     PLOG_INFO << "Successfully registered hotkey (WinKey + Shift + Insert) for starting the service with auto-stop.";
+  }
   else
     PLOG_ERROR << "Failed to register hotkey for starting the service with auto-stop: " << SKIF_Util_GetErrorAsWStr ( );
 
