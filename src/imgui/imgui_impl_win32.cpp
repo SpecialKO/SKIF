@@ -17,44 +17,8 @@
 // - Documentation        https://dearimgui.com/docs (same as your local docs/ folder).
 // - Introduction, links and more at the top of imgui.cpp
 
-#include "imgui/imgui.h"
-#ifndef IMGUI_DISABLE
-#include "imgui/imgui_impl_win32.h"
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#include <windows.h>
-#include <windowsx.h> // GET_X_LPARAM(), GET_Y_LPARAM()
-#include <tchar.h>
-#include <dwmapi.h>
-
-#define SKIF_Win32
-
-#include "imgui/imgui_internal.h"
-#include "../resource.h"
-#include <utility/utility.h>
-#include <utility/registry.h>
-#include <utility/injection.h>
-#include <utility/gamepad.h>
-#include <utility/droptarget.hpp>
-#include <plog/Log.h>
-
-#ifdef SKIF_Win32
-constexpr const wchar_t* SKIF_ImGui_WindowClass = L"SKIF_ImGuiWindow";
-constexpr const wchar_t* SKIF_ImGui_WindowTitle = L"Special K Popup"; // Default
-extern HWND SKIF_ImGui_hWnd;
-extern int  SKIF_nCmdShow;
-#endif // !SKIF_Win32
-
-// Configuration flags to add in your imconfig.h file:
+// Configuration flags to add in your imconfig file:
 #define IMGUI_IMPL_WIN32_DISABLE_GAMEPAD              // Disable gamepad support. This was meaningful before <1.81 but we now load XInput dynamically so the option is now less relevant.
-
-// Using XInput for gamepad (will load DLL dynamically)
-#ifndef IMGUI_IMPL_WIN32_DISABLE_GAMEPAD
-#include <xinput.h>
-typedef DWORD (WINAPI *PFN_XInputGetCapabilities)(DWORD, DWORD, XINPUT_CAPABILITIES*);
-typedef DWORD (WINAPI *PFN_XInputGetState)(DWORD, XINPUT_STATE*);
-#endif
 
 // CHANGELOG
 // (minor and older changes stripped away, please see git history for details)
@@ -111,8 +75,54 @@ typedef DWORD (WINAPI *PFN_XInputGetState)(DWORD, XINPUT_STATE*);
 //  2017-10-23: Inputs: Using Win32 ::SetCapture/::GetCapture() to retrieve mouse positions outside the client area when dragging.
 //  2016-11-12: Inputs: Only call Win32 ::SetCursor(nullptr) when io.MouseDrawCursor is set.
 
+#include "imgui/imgui.h"
+#ifndef IMGUI_DISABLE
+#include "imgui/imgui_impl_win32.h"
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#include <windowsx.h> // GET_X_LPARAM(), GET_Y_LPARAM()
+#include <tchar.h>
+#include <dwmapi.h>
+
+#define SKIF_Win32
+
+#include "imgui/imgui_internal.h"
+#include "../resource.h"
+#include <utility/utility.h>
+#include <utility/registry.h>
+#include <utility/injection.h>
+#include <utility/gamepad.h>
+#include <utility/droptarget.hpp>
+#include <plog/Log.h>
+
+#ifdef SKIF_Win32
+constexpr const wchar_t* SKIF_ImGui_WindowClass = L"SKIF_ImGuiWindow";
+constexpr const wchar_t* SKIF_ImGui_WindowTitle = L"Special K Popup"; // Default
+extern HWND SKIF_ImGui_hWnd;
+extern int  SKIF_nCmdShow;
+#endif // !SKIF_Win32
+
+// Using XInput for gamepad (will load DLL dynamically)
+#ifndef IMGUI_IMPL_WIN32_DISABLE_GAMEPAD
+#include <xinput.h>
+typedef DWORD(WINAPI* PFN_XInputGetCapabilities)(DWORD, DWORD, XINPUT_CAPABILITIES*);
+typedef DWORD(WINAPI* PFN_XInputGetState)(DWORD, XINPUT_STATE*);
+#endif
+
+// Clang/GCC warnings with -Weverything
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wcast-function-type"     // warning: cast between incompatible function types (for loader)
+#endif
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-function-type"       // warning: cast between incompatible function types (for loader)
+#endif
+
 // Forward Declarations
-static void ImGui_ImplWin32_InitPlatformInterface(bool platformHasOwnDC);
+static void ImGui_ImplWin32_InitPlatformInterface(bool platform_has_own_dc);
 static void ImGui_ImplWin32_ShutdownPlatformInterface();
 static void ImGui_ImplWin32_UpdateMonitors();
 
@@ -328,7 +338,7 @@ static void ImGui_ImplWin32_UpdateMouseData()
 {
     ImGui_ImplWin32_Data* bd = ImGui_ImplWin32_GetBackendData();
     ImGuiIO& io = ImGui::GetIO();
-    if (bd->hWnd == 0) return;
+    if (bd->hWnd == 0) return; // SKIF CUSTOM
     IM_ASSERT(bd->hWnd != 0);
 
     POINT mouse_screen_pos;
@@ -447,6 +457,7 @@ static void ImGui_ImplWin32_UpdateGamepads()
     MAP_ANALOG(ImGuiKey_GamepadRStickDown,      gamepad.sThumbRY, -XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE, -32768);
     #undef MAP_BUTTON
     #undef MAP_ANALOG
+//#endif // #ifndef IMGUI_IMPL_WIN32_DISABLE_GAMEPAD
 }
 
 static BOOL CALLBACK ImGui_ImplWin32_UpdateMonitors_EnumFunc(HMONITOR monitor, HDC, LPRECT, LPARAM)
@@ -480,9 +491,9 @@ static void ImGui_ImplWin32_UpdateMonitors()
 
 void    ImGui_ImplWin32_NewFrame()
 {
-    ImGuiIO& io = ImGui::GetIO();
     ImGui_ImplWin32_Data* bd = ImGui_ImplWin32_GetBackendData();
-    IM_ASSERT(bd != nullptr && "Did you call ImGui_ImplWin32_Init()?");
+    IM_ASSERT(bd != nullptr && "Context or backend not initialized? Did you call ImGui_ImplWin32_Init()?");
+    ImGuiIO& io = ImGui::GetIO();
 
     // Setup display size (every frame to accommodate for window resizing)
     RECT rect = { 0, 0, 0, 0 };
@@ -687,11 +698,13 @@ static ImGuiMouseSource GetMouseSourceFromMessageExtraInfo()
 
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+    // Most backends don't have silent checks like this one, but we need it because WndProc are called early in CreateWindow().
     if (ImGui::GetCurrentContext() == nullptr)
         return 0;
 
-    ImGuiIO& io = ImGui::GetIO();
     ImGui_ImplWin32_Data* bd = ImGui_ImplWin32_GetBackendData();
+    IM_ASSERT(bd != nullptr && "Context or backend not initialized! Did you call ImGui_ImplWin32_Init()?");
+    ImGuiIO& io = ImGui::GetIO();
 
     switch (msg)
     {
@@ -1258,7 +1271,6 @@ static void ImGui_ImplWin32_DestroyWindow(ImGuiViewport* viewport)
 
         if (vd->Hwnd && vd->HwndOwned)
             ::DestroyWindow(vd->Hwnd);
-
         vd->Hwnd = nullptr;
         IM_DELETE(vd);
     }
@@ -1322,7 +1334,7 @@ static void ImGui_ImplWin32_ShowWindow(ImGuiViewport* viewport)
 static void ImGui_ImplWin32_UpdateWindow(ImGuiViewport* viewport)
 {
     ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData;
-    if (vd->Hwnd == 0) return;
+    if (vd->Hwnd == 0) return; // SKIF CUSTOM
     IM_ASSERT(vd->Hwnd != 0);
 
     // Update Win32 parent if it changed _after_ creation
@@ -1478,7 +1490,7 @@ static void ImGui_ImplWin32_UpdateWindow (ImGuiViewport *viewport)
 static ImVec2 ImGui_ImplWin32_GetWindowPos(ImGuiViewport* viewport)
 {
     ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData;
-    if (vd->Hwnd == 0) return ImVec2{ };
+    if (vd->Hwnd == 0) return ImVec2{ }; // SKIF CUSTOM
     IM_ASSERT(vd->Hwnd != 0);
     POINT pos = { 0, 0 };
     ::ClientToScreen(vd->Hwnd, &pos);
@@ -1488,7 +1500,7 @@ static ImVec2 ImGui_ImplWin32_GetWindowPos(ImGuiViewport* viewport)
 static void ImGui_ImplWin32_SetWindowPos(ImGuiViewport* viewport, ImVec2 pos)
 {
     ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData;
-    if (vd->Hwnd == 0) return;
+    if (vd->Hwnd == 0) return; // SKIF CUSTOM
     IM_ASSERT(vd->Hwnd != 0);
     RECT rect = { (LONG)pos.x, (LONG)pos.y, (LONG)pos.x, (LONG)pos.y };
   //::AdjustWindowRectEx(&rect, vd->DwStyle, FALSE, vd->DwExStyle);
@@ -1498,7 +1510,7 @@ static void ImGui_ImplWin32_SetWindowPos(ImGuiViewport* viewport, ImVec2 pos)
 static ImVec2 ImGui_ImplWin32_GetWindowSize(ImGuiViewport* viewport)
 {
     ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData;
-    if (vd->Hwnd == 0) return ImVec2{ };
+    if (vd->Hwnd == 0) return ImVec2{ }; // SKIF CUSTOM
     IM_ASSERT(vd->Hwnd != 0);
     RECT rect;
     ::GetClientRect(vd->Hwnd, &rect);
@@ -1508,21 +1520,23 @@ static ImVec2 ImGui_ImplWin32_GetWindowSize(ImGuiViewport* viewport)
 static void ImGui_ImplWin32_SetWindowSize(ImGuiViewport* viewport, ImVec2 size)
 {
     ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData;
-    if (vd->Hwnd == 0) return;
+    if (vd->Hwnd == 0) return; // SKIF CUSTOM
     IM_ASSERT(vd->Hwnd != 0);
     RECT rect = { 0, 0, (LONG)size.x, (LONG)size.y };
   //::AdjustWindowRectEx(&rect, vd->DwStyle, FALSE, vd->DwExStyle); // Client to Screen
     ::SetWindowPos(vd->Hwnd, nullptr, 0, 0, rect.right - rect.left, rect.bottom - rect.top, SWP_NOZORDER | SWP_NOMOVE | SWP_NOACTIVATE);
+#ifdef SKIF_Win32
     ImGuiViewportP* viewportP = (ImGuiViewportP*)viewport;
     PLOG_VERBOSE << "[" << ImGui::GetFrameCount() << "] Resized window to " << size.x << "x" << size.y;
     if (viewportP->LastPlatformSize != ImVec2(FLT_MAX, FLT_MAX))
       PLOG_VERBOSE << "Last platform window size: " << std::to_string(viewportP->LastPlatformSize.x) << "x" << std::to_string(viewportP->LastPlatformSize.y);
+#endif
 }
 
 static void ImGui_ImplWin32_SetWindowFocus(ImGuiViewport* viewport)
 {
     ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData;
-    if (vd->Hwnd == 0) return;
+    if (vd->Hwnd == 0) return; // SKIF CUSTOM
     IM_ASSERT(vd->Hwnd != 0);
     ::BringWindowToTop(vd->Hwnd);
     ::SetForegroundWindow(vd->Hwnd);
@@ -1532,7 +1546,7 @@ static void ImGui_ImplWin32_SetWindowFocus(ImGuiViewport* viewport)
 static bool ImGui_ImplWin32_GetWindowFocus(ImGuiViewport* viewport)
 {
     ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData;
-    if (vd->Hwnd == 0) return false;
+    if (vd->Hwnd == 0) return false; // SKIF CUSTOM
     IM_ASSERT(vd->Hwnd != 0);
     return ::GetForegroundWindow() == vd->Hwnd;
 }
@@ -1540,7 +1554,7 @@ static bool ImGui_ImplWin32_GetWindowFocus(ImGuiViewport* viewport)
 static bool ImGui_ImplWin32_GetWindowMinimized(ImGuiViewport* viewport)
 {
     ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData;
-    if (vd->Hwnd == 0) return false;
+    if (vd->Hwnd == 0) return false; // SKIF CUSTOM
     IM_ASSERT(vd->Hwnd != 0);
     return ::IsIconic(vd->Hwnd) != 0;
 }
@@ -1549,7 +1563,7 @@ static void ImGui_ImplWin32_SetWindowTitle(ImGuiViewport* viewport, const char* 
 {
     // ::SetWindowTextA() doesn't properly handle UTF-8 so we explicitely convert our string.
     ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData;
-    if (vd->Hwnd == 0) return;
+    if (vd->Hwnd == 0) return; // SKIF CUSTOM
     IM_ASSERT(vd->Hwnd != 0);
     int n = ::MultiByteToWideChar(CP_UTF8, 0, title, -1, nullptr, 0);
     ImVector<wchar_t> title_w;
@@ -2067,7 +2081,7 @@ static void ImGui_ImplWin32_InitPlatformInterface(bool platform_has_own_dc)
 #else
     wcex.hbrBackground = (HBRUSH)(COLOR_BACKGROUND + 1);
     wcex.lpszMenuName = nullptr;
-    wcex.lpszClassName = _T("ImGui Platform");;
+    wcex.lpszClassName = _T("ImGui Platform");
     wcex.hIconSm = nullptr;
 #endif // SKIF_Win32
     ::RegisterClassEx(&wcex);
@@ -2115,13 +2129,8 @@ static void ImGui_ImplWin32_ShutdownPlatformInterface()
 }
 
 //---------------------------------------------------------------------------------------------------------
-
-#endif // #ifndef IMGUI_DISABLE
-
-
-//--------------------------------------------------------------------------------------------------------
 // SKIF CUSTOM WIN32 IMPLEMENTATION
-//--------------------------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------------------------
 
 #include <imgui/imgui_internal.h>
 
@@ -2250,3 +2259,13 @@ SKIF_ImGui_ImplWin32_WantUpdateMonitors (void)
 {
   return ImGui_ImplWin32_GetBackendData()->WantUpdateMonitors;
 }
+
+//---------------------------------------------------------------------------------------------------------
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
+
+#endif // #ifndef IMGUI_DISABLE
