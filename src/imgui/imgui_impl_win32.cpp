@@ -2054,9 +2054,9 @@ static void ImGui_ImplWin32_InitPlatformInterface(bool platform_has_own_dc)
     wcex.hInstance = ::GetModuleHandle(nullptr);
     wcex.hIcon = nullptr;
     wcex.hCursor = nullptr;
-    wcex.hbrBackground = (HBRUSH)(COLOR_BACKGROUND + 1);
-    wcex.lpszMenuName = nullptr;
 #ifdef SKIF_Win32
+    wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1); // COLOR_BACKGROUND is unsupported on Win10+
+    wcex.lpszMenuName = nullptr;
     wcex.lpszClassName = SKIF_ImGui_WindowClass;
     HMODULE hModHost =
       ::GetModuleHandle (nullptr);
@@ -2065,6 +2065,8 @@ static void ImGui_ImplWin32_InitPlatformInterface(bool platform_has_own_dc)
      wcex.hIconSm       =
        LoadIcon (hModHost, MAKEINTRESOURCE (IDI_SKIF));
 #else
+    wcex.hbrBackground = (HBRUSH)(COLOR_BACKGROUND + 1);
+    wcex.lpszMenuName = nullptr;
     wcex.lpszClassName = _T("ImGui Platform");;
     wcex.hIconSm = nullptr;
 #endif // SKIF_Win32
