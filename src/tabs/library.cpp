@@ -5837,7 +5837,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     _registry._UseLowResCoversHiDPIBypass = ! (tab_ContentRegionAvail.y <= (SKIF_vecHorizonMode.y / SKIF_ImGui_GlobalDPIScale)); // Allow high-res images in HiDPI scenarios (true = use high-res; false = use low-res)
 
     tab_scrollbar_width    = ImGui::GetCurrentWindowRead()->ScrollbarY ? ImGui::GetStyle().ScrollbarSize : 0.0f;
-    lib_column2_width      = ((_registry._LibHorizonMode) ? 376.0f : 376.0f) * SKIF_ImGui_GlobalDPIScale; // tab_scrollbar_width // SKIF_vecServiceMode (not ready yet) // ((_registry._LibHorizonMode) ? 376.0f : 376.0f) * SKIF_ImGui_GlobalDPIScale
+    lib_column2_width      = 376.0f * SKIF_ImGui_GlobalDPIScale; // tab_scrollbar_width // SKIF_vecServiceMode (not ready yet) // ((_registry._LibHorizonMode) ? 376.0f : 376.0f) * SKIF_ImGui_GlobalDPIScale
 
     sizeList        = ImFloor ((_registry._LibHorizonMode || ! _registry._LibPinnedVisible)  ? (_registry.bUIBorders)
                                                                    ? ImVec2 (lib_column2_width, 334.0f * SKIF_ImGui_GlobalDPIScale)   // Horizon + Borders
@@ -6068,9 +6068,9 @@ SKIF_UI_Tab_DrawLibrary (void)
   bool showClearBtn      = (charFilter[0] != '\0');
   // Mirrors what ImGui::ButtonEx() does to calculate the height of buttons
   ImVec2 fTopFilterSize  =                           ImGui::CalcTextSize (ICON_FA_FILTER);
-  float fTopHeight       =                                                 fTopFilterSize.y           + ImGui::GetStyle().FramePadding.y * 2.0f;
-  float fTopClearX       = (! showClearBtn ? 0.0f :  ImGui::CalcTextSize (ICON_FA_XMARK ).x           + ImGui::GetStyle().FramePadding.x * 2.0f + ImGui::GetStyle().ItemSpacing.x * 2.0f);
   float fTopZoomX        =                           ImGui::CalcTextSize (ICON_FA_MAGNIFYING_GLASS).x + ImGui::GetStyle().FramePadding.x * 2.0f + ImGui::GetStyle().ItemSpacing.x * 2.0f;
+  float fTopClearX       = (! showClearBtn ? 0.0f :  ImGui::CalcTextSize (ICON_FA_XMARK ).x           + ImGui::GetStyle().FramePadding.x * 2.0f + ImGui::GetStyle().ItemSpacing.x);
+  float fTopHeight       =                                                 fTopFilterSize.y           + ImGui::GetStyle().FramePadding.y * 2.0f;
   float fTopFilterX      =                                                 fTopFilterSize.x           + ImGui::GetStyle().FramePadding.x * 2.0f + ImGui::GetStyle().ItemSpacing.x * 2.0f;
   float fTopFilterFieldX = lib_column2_width - fTopZoomX - fTopClearX - fTopFilterX;
   //static bool bFilterHovered = false;
