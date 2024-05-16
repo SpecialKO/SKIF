@@ -206,13 +206,6 @@ extern concurrency::concurrent_queue <IUnknown *> SKIF_ResourcesToFree;
 float tab_scrollbar_width; // Holds the width of the vertical (Y) tab scrollbar (if present)
 float lib_column2_width;   // Holds the width of column2 (list + details)
 
-//#define _WIDTH_SCROLLBAR (ImGui::GetCurrentWindowRead()->ScrollbarY ? ImGui::GetStyle().ScrollbarSize : 0.0f) // SKIF_vecAlteredSize.y
-//#define _WIDTH           ((_registry.bHorizonMode) ? SKIF_ImGui_GlobalDPIScale * 376.0f : (SKIF_vecServiceMode.x)) - tab_scrollbar_y // GameList, GameDetails, Injection_Summary_Frame (prev. 414.0f) // 378 // 376.0f
-// 1038px == 415px
-// 1000px == 377px (using 380px)
-//#define _HEIGHT  (620.0f * SKIF_ImGui_GlobalDPIScale) - (ImGui::GetStyle().FramePadding.x - 2.0f) // GameList
-//#define _HEIGHT2 (280.0f * SKIF_ImGui_GlobalDPIScale)                                             // GameDetails
-
 struct terminate_process_s {
   uint32_t      pid = 0;
   HANDLE     handle = INVALID_HANDLE_VALUE;

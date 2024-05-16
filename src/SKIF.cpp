@@ -1953,9 +1953,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       SKIF_vecRegularMode.y = 675.0f;
     }
 
-    //SKIF_vecHorizonMode.y  -= SKIF_vecAlteredSize.y;
-    //SKIF_vecRegularMode.y  -= SKIF_vecAlteredSize.y;
-
     SKIF_vecServiceMode     = ImFloor (SKIF_vecServiceMode);
     SKIF_vecHorizonMode     = ImFloor (SKIF_vecHorizonMode);
     SKIF_vecRegularMode     = ImFloor (SKIF_vecRegularMode);
