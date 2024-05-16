@@ -192,7 +192,6 @@ std::wstring dragDroppedFilePathGame = L"";
 extern bool            allowShortcutCtrlA;
 extern ImVec2          SKIF_vecServiceMode;
 extern ImVec2          SKIF_vecHorizonMode;
-extern ImVec2          SKIF_vecAlteredSize;
 extern float           SKIF_ImGui_GlobalDPIScale;
 extern float           SKIF_ImGui_GlobalDPIScale_Last;
 extern std::string     SKIF_StatusBarHelp;
@@ -5824,6 +5823,8 @@ SKIF_UI_Tab_DrawLibrary (void)
     sizeSK       = ImVec2 (600.0f, 900.0f) * SKIF_ImGui_GlobalDPIScale;
     sizeSK_small = ImVec2 (220.0f, 330.0f) * SKIF_ImGui_GlobalDPIScale;
 
+    extern ImVec2 SKIF_vecRegularMode;
+
     static float arCover = 600.0f / 900.0f;
 
     float horizon_cutoff_height = 550.0f * SKIF_ImGui_GlobalDPIScale; // 750.0f // 650.0f
@@ -5866,7 +5867,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     uiCoverVisible    = (_registry._LibHorizonMode)
                                   ?                      (tab_ContentRegionAvail.x > (sizeList.x    + sizeDetails.x + sizeSK_small.x * 0.75f))       // When in horizontal mode, large enough to allow 75% of the tiny cover to appear
-                                  : (uiDetailsVisible) ? (tab_ContentRegionAvail.x > (                sizeDetails.x + sizeSK.x       * 0.75f)) : false; // When in regular mode, large enough to allow 75% of the large cover to appear
+                                  : (uiDetailsVisible) ? (tab_ContentRegionAvail.x > (SKIF_vecRegularMode.x * 0.75f)) : false; // When in regular mode, large enough to allow 75% of the large cover to appear // sizeDetails.x + sizeSK.x       * 0.75f
 
     if (! uiCoverVisible)
     {
@@ -9203,6 +9204,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
     }
 
+    // TODO: Make away with RepopulateGames = true from here -- we shouldn't have to reload all games just to refresh textures
     // Trigger a refresh of the list of games, which will reload all icons and the Patreon texture
     RepopulateGames = true;
     // Trigger a refresh of the cover

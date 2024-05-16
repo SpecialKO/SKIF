@@ -133,7 +133,6 @@ ImVec2 SKIF_vecHorizonModeAdjusted  = SKIF_vecHorizonModeDefault; // Adjusted fo
 ImVec2 SKIF_vecCurrentPosition      = ImVec2 (0.0f, 0.0f); // Gets updated after ImGui::EndFrame()
 ImVec2 SKIF_vecCurrentMode          = ImVec2 (0.0f, 0.0f); // Gets updated after ImGui::EndFrame()
 ImVec2 SKIF_vecCurrentModeNext      = ImVec2 (0.0f, 0.0f); // Holds the new expected size
-ImVec2 SKIF_vecAlteredSize          = ImVec2 (0.0f, 0.0f);
 float  SKIF_fStatusBarHeight        = 31.0f; // Status bar enabled // 33 ?
 float  SKIF_fStatusBarDisabled      = 8.0f;  // Status bar disabled
 float  SKIF_fStatusBarHeightTips    = 18.0f; // Disabled tooltips (two-line status bar)
@@ -1940,11 +1939,20 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
       }
     }
-      
+
     SKIF_vecServiceMode     = SKIF_vecServiceModeDefault  * SKIF_ImGui_GlobalDPIScale;
     SKIF_vecHorizonMode     = SKIF_vecHorizonModeAdjusted * SKIF_ImGui_GlobalDPIScale;
     SKIF_vecRegularMode     = SKIF_vecRegularModeAdjusted * SKIF_ImGui_GlobalDPIScale;
-      
+
+    // Add support for an even smaller regular mode, at 800x675, but only if the regular size 1000x944 can't be used
+    if (//ImGui::GetFrameCount() > 2 &&
+        (SKIF_vecRegularMode.x > monitor_extent.GetWidth () ||
+         SKIF_vecRegularMode.y > monitor_extent.GetHeight()))
+    {
+      SKIF_vecRegularMode.x = 800.0f;
+      SKIF_vecRegularMode.y = 675.0f;
+    }
+
     //SKIF_vecHorizonMode.y  -= SKIF_vecAlteredSize.y;
     //SKIF_vecRegularMode.y  -= SKIF_vecAlteredSize.y;
 
@@ -1969,9 +1977,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       _registry.regKVDPIScaling.putData (_registry.bDPIScaling);
 
       changedHiDPIScaling = false;
-
-      // Reset reduced height
-      SKIF_vecAlteredSize.y = 0.0f;
 
       // Take the current display into account
       HMONITOR monitor =
@@ -2164,18 +2169,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       else
         RespectMonBoundaries = true;
     }
-
-#if 0
-    // Automatically engage Horizon mode on smaller displays
-    static bool autoHorizonFallback = (! _registry.bHorizonMode && _registry.bHorizonModeAuto);
-    if (false && autoHorizonFallback && ! _registry.bServiceMode && SKIF_vecAlteredSize.y > 50.0f)
-    {
-      autoHorizonFallback = false;
-
-      _registry.bHorizonMode = newHorizonMode = true;
-      SKIF_ImGui_AdjustAppModeSize (NULL);
-    }
-#endif
 
     // Apply any changes to the ImGui style
     // Do it at the beginning of frames to prevent ImGui::Push... from affecting the styling
@@ -2408,9 +2401,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
         // Only act once at launch or if we are, in fact, on a new display
         if (preMonitor != actMonitor || _WantUpdateMonitors)
         {
-          // Reset reduced height
-          SKIF_vecAlteredSize.y = 0.0f;
-
           // This is only necessary to run once on launch, to account for the startup display DPI
           SK_RunOnce (SKIF_ImGui_GlobalDPIScale = (_registry.bDPIScaling) ? ImGui::GetWindowViewport()->DpiScale : 1.0f);
 

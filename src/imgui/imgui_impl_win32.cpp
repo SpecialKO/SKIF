@@ -1634,7 +1634,6 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
     extern ImVec2 SKIF_vecServiceModeDefault;
     extern ImVec2 SKIF_vecCurrentMode;
     extern ImVec2 SKIF_vecCurrentModeNext;
-    extern ImVec2 SKIF_vecAlteredSize;
     extern HWND   SKIF_Notify_hWnd;
 
     extern bool msgDontRedraw;
@@ -1869,9 +1868,6 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
             invalidateFonts;
             invalidateFonts = true;
 
-          // Reset reduced height
-          SKIF_vecAlteredSize.y = 0.0f;
-
           POINT ptLeftTop = {
             prcNewWindow->left,
             prcNewWindow->top
@@ -1896,8 +1892,8 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
                                      (_registry.bHorizonMode) ? SKIF_vecHorizonModeAdjusted :
                                                                 SKIF_vecRegularModeAdjusted ;
 
-            if (tmpCurrentSize.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
-              SKIF_vecAlteredSize.y = (tmpCurrentSize.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y)); // (WorkSize.y - 50.0f);
+            //if (tmpCurrentSize.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
+            //  SKIF_vecAlteredSize.y = (tmpCurrentSize.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y)); // (WorkSize.y - 50.0f);
 
             // Divide the window size with its associated DPI scale to get the base size, then multiply with the new DPI scale
             SKIF_vecCurrentModeNext = (SKIF_vecCurrentMode / SKIF_ImGui_GlobalDPIScale_Last) * SKIF_ImGui_GlobalDPIScale;

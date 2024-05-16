@@ -312,13 +312,9 @@ SKIF_ImGui_AdjustAppModeSize (HMONITOR monitor)
   extern ImVec2 SKIF_vecHorizonModeDefault;
   extern ImVec2 SKIF_vecHorizonModeAdjusted;
   extern ImVec2 SKIF_vecServiceModeDefault;
-  extern ImVec2 SKIF_vecAlteredSize;
   extern float  SKIF_fStatusBarHeight;
   extern float  SKIF_fStatusBarDisabled;
   extern float  SKIF_fStatusBarHeightTips;
-
-  // Reset reduced height
-  SKIF_vecAlteredSize.y = 0.0f;
 
   // Adjust the large mode size
   SKIF_vecRegularModeAdjusted = SKIF_vecRegularModeDefault;
@@ -361,8 +357,8 @@ SKIF_ImGui_AdjustAppModeSize (HMONITOR monitor)
                              (_registry.bHorizonMode) ? SKIF_vecHorizonModeAdjusted :
                                                         SKIF_vecRegularModeAdjusted ;
 
-    if (tmpCurrentSize.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
-      SKIF_vecAlteredSize.y = (tmpCurrentSize.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y));
+    //if (tmpCurrentSize.y * SKIF_ImGui_GlobalDPIScale > (WorkSize.y))
+    //  SKIF_vecAlteredSize.y = (tmpCurrentSize.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y));
   }
 }
 
@@ -707,7 +703,6 @@ void SKIF_ImGui_BeginTabChildFrame (void)
 {
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
 
-//extern ImVec2 SKIF_vecAlteredSize;
   extern ImVec2 SKIF_vecRegularModeDefault;  // Does not include the status bar
   extern ImVec2 SKIF_vecRegularModeAdjusted; // Adjusted for status bar and tooltips
   extern ImVec2 SKIF_vecHorizonModeDefault;  // Does not include the status bar
@@ -720,11 +715,6 @@ void SKIF_ImGui_BeginTabChildFrame (void)
      (_registry.bHorizonMode)
       ? SKIF_vecHorizonModeAdjusted - SKIF_vecHorizonModeDefault
       : SKIF_vecRegularModeAdjusted - SKIF_vecRegularModeDefault;
-
-  /*
-  float maxContentHeight = (_registry.bHorizonMode) ? 336.0f + ImGui::GetStyle().WindowBorderSize * 2.0f : 908.0f; // Default height -- 908 is the absolute minimum height that the Library tab can fit into // 2024-01-20: 286 -> 336
-        maxContentHeight -= (SKIF_vecAlteredSize.y / SKIF_ImGui_GlobalDPIScale);
-  */
 
   // DPI-aware
   float maxContentHeight   = ImGui::GetWindowSize().y - ImGui::GetCursorPosY() - (statusbar_size.y * SKIF_ImGui_GlobalDPIScale);
