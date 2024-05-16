@@ -326,7 +326,7 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
       ICON_FA_UP_RIGHT_FROM_SQUARE " "      );
   ImGui::SameLine         ( );
-  if (ImGui::Selectable   ("Do not use Special K in multiplayer games!"))
+  if (ImGui::Selectable   ("Do not use in multiplayer games!"))
     SKIF_Util_OpenURI     (L"https://wiki.special-k.info/en/SpecialK/Global#multiplayer-games");
   SKIF_ImGui_SetMouseCursorHand ();
   SKIF_ImGui_SetHoverText ( "https://wiki.special-k.info/en/SpecialK/Global#multiplayer-games");

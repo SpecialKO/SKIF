@@ -716,7 +716,7 @@ SKIF_UI_Tab_DrawSettings (void)
   ImGui::SameLine        ( );
   ImGui::TextColored (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-      "Show desktop notifications for the injection service:"
+      "Show injection service desktop notifications:"
   );
   ImGui::TreePush        ("Notifications");
   if (ImGui::RadioButton ("Never",          &_registry.iNotifications, 0))
@@ -838,15 +838,13 @@ SKIF_UI_Tab_DrawSettings (void)
     );
     ImGui::TreePush      ("Libraries");
 
+    ImGui::BeginGroup ( );
+
     if (ImGui::Checkbox        ("Epic",   &_registry.bLibraryEpic))
     {
       _registry.regKVLibraryEpic.putData  (_registry.bLibraryEpic);
       RepopulateGames = true;
     }
-
-    ImGui::SameLine ( );
-    ImGui::Spacing  ( );
-    ImGui::SameLine ( );
 
     if (ImGui::Checkbox         ("GOG",   &_registry.bLibraryGOG))
     {
@@ -854,9 +852,13 @@ SKIF_UI_Tab_DrawSettings (void)
       RepopulateGames = true;
     }
 
+    ImGui::EndGroup ( );
+
     ImGui::SameLine ( );
     ImGui::Spacing  ( );
     ImGui::SameLine ( );
+
+    ImGui::BeginGroup ( );
 
     if (ImGui::Checkbox         ("Steam", &_registry.bLibrarySteam))
     {
@@ -864,25 +866,27 @@ SKIF_UI_Tab_DrawSettings (void)
       RepopulateGames = true;
     }
 
-    ImGui::SameLine ( );
-    ImGui::Spacing  ( );
-    ImGui::SameLine ( );
-
     if (ImGui::Checkbox        ("Xbox",   &_registry.bLibraryXbox))
     {
       _registry.regKVLibraryXbox.putData  (_registry.bLibraryXbox);
       RepopulateGames = true;
     }
 
+    ImGui::EndGroup ( );
+
     ImGui::SameLine ( );
     ImGui::Spacing  ( );
     ImGui::SameLine ( );
+
+    ImGui::BeginGroup ( );
     
     if (ImGui::Checkbox        ("Custom", &_registry.bLibraryCustom))
     {
       _registry.regKVLibraryCustom.putData(_registry.bLibraryCustom);
       RepopulateGames = true;
     }
+
+    ImGui::EndGroup ( );
 
     ImGui::TreePop          ( );
 
@@ -2511,7 +2515,8 @@ SKIF_UI_Tab_DrawSettings (void)
 
     if (SKIF_Util_IsWindows10OrGreater ( ))
     {
-      ImGui::BeginGroup  ();
+      ImGui::BeginChild  ("##MPOChild", ImVec2 (0, 0), ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar);
+      ImGui::BeginGroup  ( );
 
       ImGui::Text        ("Display");
       ImGui::SameLine    ( );
@@ -2566,7 +2571,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
       // This adds a couple of empty lines to expand the height of the clickable area
       // where the DisplayDriverMenu is accessible
-      static const int maxMon = 4;
+      constexpr int maxMon = 4;
       if (Monitors.size() < maxMon)
       {
         size_t rem = maxMon - Monitors.size();
@@ -2575,7 +2580,8 @@ SKIF_UI_Tab_DrawSettings (void)
           ImGui::NewLine ( );
       }
 
-      ImGui::EndGroup  ();
+      ImGui::EndGroup ( );
+      ImGui::EndChild ( );
 
       if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
         ImGui::OpenPopup ("DisplayDriverMenu");

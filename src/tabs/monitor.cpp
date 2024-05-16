@@ -721,7 +721,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
   ImGui::BeginGroup       ( );
 
-  if (ImGui::Checkbox ("Show remaining processes",  &_registry.bProcessIncludeAll))
+  if (ImGui::Checkbox ("Show misc processes",  &_registry.bProcessIncludeAll))
     _registry.regKVProcessIncludeAll.putData        (_registry.bProcessIncludeAll);
 
   SKIF_ImGui_SetHoverTip ("If this is enabled the below list will also include uninjected processes.\n"
@@ -748,7 +748,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
   ImGui::SameLine    ( );
 
-  ImGui::SetNextItemWidth (150.0f * SKIF_ImGui_GlobalDPIScale);
+  ImGui::SetNextItemWidth (100.0f * SKIF_ImGui_GlobalDPIScale);
 
   if (ImGui::BeginCombo ("###SKIF_iProcRefreshIntervalCombo", RefreshIntervalCurrent)) // The second parameter is the label previewed before opening the combo.
   {
