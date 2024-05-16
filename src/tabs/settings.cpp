@@ -1447,14 +1447,14 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::TextColored      (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
     SKIF_ImGui_SetHoverTip  ("This enables the use of Xbox controllers to navigate within this app.");
 
-    if ( ImGui::Checkbox ( "Automatically install new updates",                     &_registry.bAutoUpdate ) )
-      _registry.regKVAutoUpdate.putData (                                            _registry.bAutoUpdate);
+    if ( ImGui::Checkbox ( "Automatically install new updates",              &_registry.bAutoUpdate ) )
+      _registry.regKVAutoUpdate.putData (                                     _registry.bAutoUpdate);
 
-    if ( ImGui::Checkbox ( "Always open this app on the same monitor as the mouse", &_registry.bOpenAtCursorPosition ) )
-      _registry.regKVOpenAtCursorPosition.putData (                                  _registry.bOpenAtCursorPosition );
+    if ( ImGui::Checkbox ( "Open this app on the same monitor as the  " ICON_FA_ARROW_POINTER, &_registry.bOpenAtCursorPosition ) )
+      _registry.regKVOpenAtCursorPosition.putData (                           _registry.bOpenAtCursorPosition );
 
-    if ( ImGui::Checkbox ( "Always open this app in the smaller service mode view", &_registry.bOpenInServiceMode) )
-      _registry.regKVOpenInServiceMode.putData (                                     _registry.bOpenInServiceMode);
+    if ( ImGui::Checkbox ( "Open this app in the smaller service mode view", &_registry.bOpenInServiceMode) )
+      _registry.regKVOpenInServiceMode.putData (                              _registry.bOpenInServiceMode);
 
     /*
     if (! SKIF_Util_GetDragFromMaximized ( ))
@@ -1472,9 +1472,11 @@ SKIF_UI_Tab_DrawSettings (void)
     }
       */
 
-    if (ImGui::Checkbox  ("Do not stop the injection service when this app closes",
+    if (ImGui::Checkbox  ("Do not stop the injection service on exit",
                                                       &_registry.bAllowBackgroundService))
       _registry.regKVAllowBackgroundService.putData (  _registry.bAllowBackgroundService);
+
+    SKIF_ImGui_SetHoverTip ("This allows the injection service to remain running even after this app has been closed.");
 
     if (_registry.bCloseToTray)
     {

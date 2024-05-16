@@ -27,9 +27,9 @@ SKIF_UI_Tab_DrawAbout (void)
 
     SKIF_ImGui_Spacing      ( );
 
-    ImGui::TextWrapped      ("You are looking at the Special K Injection Frontend app, commonly referred to as \"SKIF\". "
-                             "This app is used to inject Special K into launched games, or even into games that are already running!\n\n"
-                             "The frontend also provides convenient alternative launch options, shortcuts to various useful resources, and a few other useful things.");
+    ImGui::TextWrapped      ("You are looking at the Special K Injection Frontend app, commonly shortened as 'SKIF'. "
+                             "This app injects Special K into any games launched from it, or even into games that are already running!\n\n"
+                             "The frontend also provides convenient alternative launch options, shortcuts to useful resources, and a few other helpful things.");
   };
 
   SKIF_ImGui_Spacing      ( );
