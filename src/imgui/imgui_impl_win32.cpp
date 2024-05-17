@@ -1632,6 +1632,7 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
     extern ImVec2 SKIF_vecHorizonModeDefault;  // Does not include the status bar
     extern ImVec2 SKIF_vecHorizonModeAdjusted; // Adjusted for status bar and tooltips
     extern ImVec2 SKIF_vecServiceModeDefault;
+    extern ImVec2 SKIF_vecServiceMode;
     extern ImVec2 SKIF_vecCurrentMode;
     extern ImVec2 SKIF_vecCurrentModeNext;
     extern HWND   SKIF_Notify_hWnd;
@@ -1809,14 +1810,19 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
 
 #endif
 
-//#define SKIF_Win32_CenterMaximize
-#ifdef SKIF_Win32_CenterMaximize
-
         // This is used to inform Windows of the min/max size of the viewport, so
         //   that features such as Aero Snap takes the enforced size into account
         case WM_GETMINMAXINFO:
         {
           MINMAXINFO* mmi = reinterpret_cast<MINMAXINFO*>(lParam);
+
+          // The minimum tracking size is the smallest window size that can be produced by using the borders to size the window.
+          // For SKIF that's the service/mini mode size.
+          mmi->ptMinTrackSize.x = static_cast<long> (SKIF_vecServiceMode.x);
+          mmi->ptMinTrackSize.y = static_cast<long> (SKIF_vecServiceMode.y);
+
+//#define SKIF_Win32_CenterMaximize
+#ifdef SKIF_Win32_CenterMaximize
           static POINT sizeMin, sizeMax, pos;
 
           // For systems with multiple monitors, the ptMaxSize and ptMaxPosition members describe the maximized size and position of the window on the primary monitor,
@@ -1845,11 +1851,10 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
           mmi->ptMinTrackSize = sizeMax; // Minimum tracking size
           mmi->ptMaxTrackSize = sizeMax; // Maximum tracking size
 
-          return 0;
+#endif
+          //return 0; // We don't return 0 to allow DefWindowProc() the opportunity to also process the message
           break;
         }
-
-#endif
 
         case WM_DPICHANGED:
         {
