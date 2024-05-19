@@ -1357,8 +1357,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   {
     if (::IsUserAnAdmin ( ))
     {
-      // HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers -> DisableOverlays
-      // HKLM\SOFTWARE\Microsoft\Windows\Dwm                   -> OverlayTestMode
+      // HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers\ -> DisableOverlays (DWORD; 1 = disabled)
+      // HKLM\SOFTWARE\Microsoft\Windows\Dwm\                   -> OverlayTestMode (DWORD; 5 = disabled)
 
       HKEY hKey;
 
@@ -1368,7 +1368,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         RegCloseKey     (hKey);
       }
 
-      if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(HKLM\SOFTWARE\Microsoft\Windows\Dwm\)", 0, KEY_READ | KEY_WRITE | KEY_WOW64_64KEY, &hKey))
+      if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\Windows\Dwm\)", 0, KEY_READ | KEY_WRITE | KEY_WOW64_64KEY, &hKey))
       {
         RegDeleteValueW (hKey, L"OverlayTestMode");
         RegCloseKey     (hKey);
