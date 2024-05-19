@@ -2482,6 +2482,8 @@ SKIF_UI_Tab_DrawSettings (void)
 
     // Multi-Plane Overlay (MPO) section
     ImGui::Spacing     ();
+
+    ImVec2 mpoTop = ImGui::GetCursorScreenPos ( );
             
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -2517,8 +2519,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     if (SKIF_Util_IsWindows10OrGreater ( ))
     {
-      ImGui::BeginChild  ("##MPOChild", ImVec2 (0, 0), ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar);
-      ImGui::BeginGroup  ( );
+      ImGui::BeginChild  ("##MPOChild", ImVec2 (0, (Monitors.size() + 1) * ImGui::GetTextLineHeightWithSpacing() + ImGui::GetStyle().ScrollbarSize), ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar); // (Monitors.size() + 1) * ImGui::GetTextLineHeightWithSpacing()
 
       ImGui::Text        ("Display");
       ImGui::SameLine    ( );
@@ -2571,38 +2572,7 @@ SKIF_UI_Tab_DrawSettings (void)
         ImGui::EndGroup      ( );
       }
 
-      // This adds a couple of empty lines to expand the height of the clickable area
-      // where the DisplayDriverMenu is accessible
-      constexpr int maxMon = 4;
-      if (Monitors.size() < maxMon)
-      {
-        size_t rem = maxMon - Monitors.size();
-
-        for (size_t i = 0; i < rem; i++)
-          ImGui::NewLine ( );
-      }
-
-      ImGui::EndGroup ( );
-      ImGui::EndChild ( );
-
-      if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
-        ImGui::OpenPopup ("DisplayDriverMenu");
-
-      if (ImGui::BeginPopup ("DisplayDriverMenu", ImGuiWindowFlags_NoMove))
-      {
-        if (ImGui::Selectable (ICON_FA_ROTATE " Refresh"))
-          RefreshSettingsTab = true;
-
-        ImGui::Separator ( );
-
-        if (ImGui::Selectable (ICON_FA_ROTATE_RIGHT " Restart display driver"))
-        {
-          PLOG_DEBUG << "Restarting the display driver...";
-          ShellExecuteW (nullptr, L"runas", _path_cache.skif_executable, L"RestartDisplDrv", nullptr, SW_SHOWNORMAL);
-        }
-
-        ImGui::EndPopup ( );
-      }
+      ImGui::EndChild ( ); // ##MPOChild
 
       if (SKIF_Util_IsMPOsDisabledInRegistry ( ))
       {
@@ -2718,6 +2688,32 @@ SKIF_UI_Tab_DrawSettings (void)
     {
       ImGui::NewLine   ( );
       ImGui::EndGroup  ( );
+    }
+
+    ImRect mpoRect = ImRect (mpoTop, mpoTop + ImGui::GetContentRegionMax ( ));
+
+    bool openMenu = false;
+
+    if (ImGui::IsMousePosValid ( ) && ImGui::IsMouseHoveringRect (mpoRect.Min, mpoRect.Max) && ImGui::IsMouseClicked(ImGuiMouseButton_Right, false))
+      openMenu = true;
+
+    if (openMenu)
+      ImGui::OpenPopup ("DisplayDriverMenu");
+
+    if (ImGui::BeginPopup ("DisplayDriverMenu", ImGuiWindowFlags_NoMove))
+    {
+      if (ImGui::Selectable (ICON_FA_ROTATE " Refresh"))
+        RefreshSettingsTab = true;
+
+      ImGui::Separator ( );
+
+      if (ImGui::Selectable (ICON_FA_ROTATE_RIGHT " Restart display driver"))
+      {
+        PLOG_DEBUG << "Restarting the display driver...";
+        ShellExecuteW (nullptr, L"runas", _path_cache.skif_executable, L"RestartDisplDrv", nullptr, SW_SHOWNORMAL);
+      }
+
+      ImGui::EndPopup ( );
     }
 
     ImGui::Spacing     ();
