@@ -127,7 +127,7 @@ ImVec2 SKIF_vecServiceMode          = ImVec2 (0.0f, 0.0f);        // DPI-aware
 ImVec2 SKIF_vecServiceModeDefault   = ImVec2 (415.0f, 305.0f);    // TODO 2024-05-05: 415px should probably be raised to 435px to allow smooth window resizing with a matched style between regular + service
 // --- Horizontal Mode (used when regular mode is not available)
 ImVec2 SKIF_vecHorizonMode          = ImVec2 (0.0f, 0.0f);        // DPI-aware
-ImVec2 SKIF_vecHorizonModeDefault   = ImVec2 (1000.0f, 375.0f);   // Does not include the status bar (2024-01-20: 325 -> 375)
+ImVec2 SKIF_vecHorizonModeDefault   = ImVec2 (1000.0f, 374.0f);   // Does not include the status bar (2024-01-20: 325 -> 375; 2024-05-19: 375 -> 374 to fix cover scaling at default size)
 ImVec2 SKIF_vecHorizonModeAdjusted  = SKIF_vecHorizonModeDefault; // Adjusted for status bar and tooltips (NO DPI scaling!)
 // --- Variables
 ImVec2 SKIF_vecCurrentPosition      = ImVec2 (0.0f, 0.0f); // Gets updated after ImGui::EndFrame()
@@ -209,7 +209,7 @@ CHandle hInjectExitAckEx (0); // Signalled when an injected game exits (restores
 // Holds current global DPI scaling, 1.0f == 100%, 1.5f == 150%.
 float SKIF_ImGui_GlobalDPIScale      = 1.0f;
 // Holds last frame's DPI scaling
-float SKIF_ImGui_GlobalDPIScale_Last = 1.0f;
+float SKIF_ImGui_GlobalDPIScale_Last = 1.0f; // Always identical to SKIF_ImGui_GlobalDPIScale within ImGui::NewFrame()
 //float SKIF_ImGui_GlobalDPIScale_New  = 1.0f;
 float SKIF_ImGui_FontSizeDefault     = 18.0f; // 18.0F
 
@@ -1945,12 +1945,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_vecRegularMode     = SKIF_vecRegularModeAdjusted * SKIF_ImGui_GlobalDPIScale;
 
     // Add support for an even smaller regular mode, at 800x675, but only if the regular size 1000x944 can't be used
-    if (//ImGui::GetFrameCount() > 2 &&
-        (SKIF_vecRegularMode.x > monitor_extent.GetWidth () ||
+    if ((SKIF_vecRegularMode.x > monitor_extent.GetWidth () ||
          SKIF_vecRegularMode.y > monitor_extent.GetHeight()))
     {
-      SKIF_vecRegularMode.x = 800.0f;
-      SKIF_vecRegularMode.y = 675.0f;
+      SKIF_vecRegularMode.x = 800.0f * SKIF_ImGui_GlobalDPIScale;
+      SKIF_vecRegularMode.y = 675.0f * SKIF_ImGui_GlobalDPIScale;
     }
 
     SKIF_vecServiceMode     = ImFloor (SKIF_vecServiceMode);
@@ -1991,8 +1990,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       if (IsZoomed (SKIF_ImGui_hWnd))
         repositionToCenter   = true;
-      else
-        RespectMonBoundaries = true;
     }
 
     // Restore the last remembered window size on launch,
@@ -2071,6 +2068,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
         newServiceMode = false;
         newHorizonMode = true;
       }
+
+      // Enforce monitor boundaries on resizes (once the mouse button is let go)
+      //RespectMonBoundaries = true;
     }
 
     // Apply new service mode state
@@ -2085,8 +2085,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       if (IsZoomed (SKIF_ImGui_hWnd))
         repositionToCenter   = true;
-      else
-        RespectMonBoundaries = true;
 
       if (SteamOverlayDisabled)
       {
@@ -2163,8 +2161,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       if (IsZoomed (SKIF_ImGui_hWnd))
         repositionToCenter   = true;
-      else
-        RespectMonBoundaries = true;
     }
 
     // Apply any changes to the ImGui style
@@ -2232,10 +2228,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     // Should we invalidate the fonts and/or recreate them?
 
-    if (SKIF_ImGui_GlobalDPIScale != SKIF_ImGui_GlobalDPIScale_Last)
+    if (SKIF_ImGui_GlobalDPIScale_Last != SKIF_ImGui_GlobalDPIScale)
+    {   SKIF_ImGui_GlobalDPIScale_Last  = SKIF_ImGui_GlobalDPIScale;
       invalidateFonts = true;
+    }
 
-    SKIF_ImGui_GlobalDPIScale_Last = SKIF_ImGui_GlobalDPIScale;
     float fontScale = 18.0F * SKIF_ImGui_GlobalDPIScale;
     if (fontScale < 15.0F)
       fontScale += 1.0F;
@@ -2339,7 +2336,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       // Calculate new window boundaries and changes to fit within the workspace if it doesn't fit
       //   Delay running the code to on the third frame to allow other required parts to have already executed...
       //     Otherwise window gets positioned wrong on smaller monitors !
-      if (RespectMonBoundaries && ImGui::GetFrameCount() > 2)
+      if (RespectMonBoundaries && ImGui::GetFrameCount() > 2 && ! ImGui::IsAnyMouseDown ( ))
       {   RespectMonBoundaries = false;
 
         ImVec2 topLeft      = windowPos,
@@ -2362,7 +2359,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
 
       // If toggling mode when maximized, we need to reposition the window
-      if (repositionToCenter)
+      if (repositionToCenter && ! ImGui::IsAnyMouseDown ( ))
       {   repositionToCenter = false;
         ImGui::SetNextWindowPos  (monitor_extent.GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
       }

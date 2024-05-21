@@ -313,7 +313,7 @@ CalculateImageSizing (image_s& image, ImVec2 contentRegionAvail, ImVec2 imageRes
   float regionAspectRatio = contentRegionAvail.x / contentRegionAvail.y;
   float imageAspectRatio  =    imageResolution.x /    imageResolution.y;
 
-  // None (enforced unified sort-of 600x900 sizing)
+  // Default (enforced unified sort-of 600x900 sizing)
   if (_registry.iCoverScaling == 0 || forceDefaultSscaling)
   {
     ImVec2 defaultSize        = (_registry._UseLowResCovers) ? ImVec2 (220.0f, 330.0f) : ImVec2 (600.0f, 900.0f);
@@ -5808,15 +5808,21 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // Only calculate new values when the content region has changed
   // All of these calculations are DPI aware
-  if (tab_ContentRegionAvail    != tab_ContentRegionAvail_last ||
-      SKIF_ImGui_GlobalDPIScale != SKIF_ImGui_GlobalDPIScale_Last)
+
+  // SKIF_vecRegularMode is changed on the next frame after the DPI scaling has changed,
+  //   so we need to use a change in that value as a trigger to calculate everything anew
+  extern ImVec2 SKIF_vecRegularMode;
+  static ImVec2 SKIF_vecRegularMode_last;
+
+  if (tab_ContentRegionAvail    != tab_ContentRegionAvail_last    ||
+    //SKIF_ImGui_GlobalDPIScale != SKIF_ImGui_GlobalDPIScale_Last || // Not necessary when using SKIF_vecRegularMode
+      SKIF_vecRegularMode.x     != SKIF_vecRegularMode_last.x      ) // Only one dimension needs to be checked since both will change when the DPI scaling changes
   {
-    tab_ContentRegionAvail_last = tab_ContentRegionAvail;
+    tab_ContentRegionAvail_last  = tab_ContentRegionAvail;
+    SKIF_vecRegularMode_last     = SKIF_vecRegularMode;
 
     sizeSK       = ImVec2 (600.0f, 900.0f) * SKIF_ImGui_GlobalDPIScale;
     sizeSK_small = ImVec2 (220.0f, 330.0f) * SKIF_ImGui_GlobalDPIScale;
-
-    extern ImVec2 SKIF_vecRegularMode;
 
     static float arCover = 600.0f / 900.0f;
 

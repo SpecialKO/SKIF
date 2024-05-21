@@ -254,7 +254,7 @@ SKIF_UI_Tab_DrawAbout (void)
 
   SKIF_ImGui_Spacing      ( );
 
-  ImGui::BeginChild ("##TipsTricks", ImVec2 (0, (135.0f * SKIF_ImGui_GlobalDPIScale) + ImGui::GetStyle().ScrollbarSize), ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar);
+  ImGui::BeginChild ("##TipsTricks", ImVec2 (0, (5 * ImGui::GetTextLineHeightWithSpacing()) + ImGui::GetStyle().ScrollbarSize), ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar); // 128.0f * SKIF_ImGui_GlobalDPIScale
 
   // Show a (currently not randomized) selection of tips and tricks
   SKIF_UI_TipsAndTricks   ( );
@@ -502,6 +502,9 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGui::NewLine        ( );
     ImGui::EndGroup       ( );
   }
+
+  ImGui::Spacing     ();
+  ImGui::Spacing     ();
 
   ImGui::PopStyleColor    ( );
 }

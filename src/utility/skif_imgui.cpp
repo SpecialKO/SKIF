@@ -720,8 +720,8 @@ void SKIF_ImGui_BeginTabChildFrame (void)
   float maxContentHeight   = ImGui::GetWindowSize().y - ImGui::GetCursorPosY() - (statusbar_size.y * SKIF_ImGui_GlobalDPIScale);
 
   // Some shitty hack to fix 902px tall covers
-  if (! _registry.bHorizonMode)
-    maxContentHeight -= 2.0f * SKIF_ImGui_GlobalDPIScale;
+  //if (! _registry._LibHorizonMode)
+  maxContentHeight -= 2.0f * SKIF_ImGui_GlobalDPIScale;
 
   maxContentHeight   = ImFloor (maxContentHeight);
 

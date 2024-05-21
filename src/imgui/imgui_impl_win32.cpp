@@ -1448,8 +1448,8 @@ static void ImGui_ImplWin32_UpdateWindow (ImGuiViewport *viewport)
       (LONG)( viewport->Pos.x + viewport->Size.x ), (LONG)( viewport->Pos.y + viewport->Size.y )
     };
 
-    //::AdjustWindowRectEx ( &rect, data->DwStyle,
-    //                       FALSE, data->DwExStyle ); // Client to Screen
+    //::AdjustWindowRectEx ( &rect, vd->DwStyle,
+    //                       FALSE, vd->DwExStyle ); // Client to Screen
 
     ::SetWindowPos       ( vd->Hwnd, insert_after,
                                            rect.left,               rect.top,
@@ -1856,13 +1856,33 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
           break;
         }
 
+        // Windows 10, version 1703+
+        // 
+        // The function returns a BOOL.
+        //   - Returning TRUE indicates that a new size has been computed.
+        //   - Returning FALSE indicates that the message will not be handled, and the default linear DPI scaling will apply to the window.
+        // 
+        // There is no specific default handling of this message in DefWindowProc.
+        //   - As for all messages it does not explicitly handle, DefWindowProc will return zero for this message.
+        //   - As noted above, this return tells the system to use the default linear behavior.
+        case WM_GETDPISCALEDSIZE:
+        {
+          // Return TRUE if HiDPI is disabled as this allows us to retain our window size
+          return (! _registry.bDPIScaling);
+          break;
+        }
+
         case WM_DPICHANGED:
         {
+          // Only process if we actually follow HiDPI
+          if (! _registry.bDPIScaling)
+            return 0;
+
           int g_dpi    = HIWORD (wParam);
           RECT* const prcNewWindow = (RECT*) lParam;
 
           // Update the style scaling
-          SKIF_ImGui_GlobalDPIScale = (_registry.bDPIScaling) ? (float) g_dpi / USER_DEFAULT_SCREEN_DPI : 1.0f;
+          SKIF_ImGui_GlobalDPIScale = (float) g_dpi / USER_DEFAULT_SCREEN_DPI;
 
           ImGuiStyle              newStyle;
           extern void

@@ -592,8 +592,8 @@ void SKIF_UI_TipsAndTricks (void)
   ImGui::EndGroup         ( );
 
 
-  ImGui::Spacing          ( );
-  ImGui::Spacing          ( );
+  //ImGui::Spacing          ( );
+  //ImGui::Spacing          ( );
 
 
   if (SKIF_Util_IsHDRSupported())
@@ -621,8 +621,8 @@ void SKIF_UI_TipsAndTricks (void)
     ImGui::EndGroup         ( );
 
 
-    ImGui::Spacing          ( );
-    ImGui::Spacing          ( );
+    //ImGui::Spacing          ( );
+    //ImGui::Spacing          ( );
   }
 
   
@@ -643,8 +643,8 @@ void SKIF_UI_TipsAndTricks (void)
   ImGui::EndGroup         ( );
 
 
-  ImGui::Spacing          ( );
-  ImGui::Spacing          ( );
+  //ImGui::Spacing          ( );
+  //ImGui::Spacing          ( );
 
 
   ImGui::BeginGroup       ( );
