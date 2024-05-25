@@ -1776,14 +1776,14 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
               {
                 ImVec2 tmpExpectedSize = ImVec2 (0.0f, 0.0f);
                 ImVec2 tmpAlteredSize  = ImVec2 (0.0f, 0.0f);
-                ImVec2 tmpCurrentSize  = (_registry.bServiceMode) ? SKIF_vecServiceModeDefault  :
+                ImVec2 tmpCurrentSize  = (_registry.bMiniMode) ? SKIF_vecServiceModeDefault  :
                                          (_registry.bHorizonMode) ? SKIF_vecHorizonModeAdjusted :
                                                                     SKIF_vecRegularModeAdjusted ;
 
                 float targetDPI = (_registry.bDPIScaling) ? targetMonitor.DpiScale : 1.0f;
                 tmpExpectedSize = tmpCurrentSize * targetDPI;
 
-                if (! _registry.bServiceMode)
+                if (! _registry.bMiniMode)
                 {
                   // Needed to account for an altered size on the target display
                   if (tmpCurrentSize.y * targetDPI > targetWorkArea.Max.y)
@@ -1913,7 +1913,7 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
               ImVec2 ( (float)( info.rcWork.right  - info.rcWork.left ),
                        (float)( info.rcWork.bottom - info.rcWork.top  ) );
 
-            ImVec2 tmpCurrentSize  = (_registry.bServiceMode) ? SKIF_vecServiceModeDefault  :
+            ImVec2 tmpCurrentSize  = (_registry.bMiniMode) ? SKIF_vecServiceModeDefault  :
                                      (_registry.bHorizonMode) ? SKIF_vecHorizonModeAdjusted :
                                                                 SKIF_vecRegularModeAdjusted ;
 

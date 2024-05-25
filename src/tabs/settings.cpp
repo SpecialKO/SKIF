@@ -1453,8 +1453,8 @@ SKIF_UI_Tab_DrawSettings (void)
     if ( ImGui::Checkbox ( "Open this app on the same monitor as the  " ICON_FA_ARROW_POINTER, &_registry.bOpenAtCursorPosition ) )
       _registry.regKVOpenAtCursorPosition.putData (                           _registry.bOpenAtCursorPosition );
 
-    if ( ImGui::Checkbox ( "Open this app in the smaller service mode view", &_registry.bOpenInServiceMode) )
-      _registry.regKVOpenInServiceMode.putData (                              _registry.bOpenInServiceMode);
+    if ( ImGui::Checkbox ( "Open this app in the mini service mode view", &_registry.bOpenInMiniMode) )
+      _registry.regKVOpenInMiniMode.putData (                              _registry.bOpenInMiniMode);
 
     /*
     if (! SKIF_Util_GetDragFromMaximized ( ))

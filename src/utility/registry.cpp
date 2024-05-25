@@ -344,7 +344,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 
   uiSteamUser              =   regKVSteamUser              .getData (&hKey);
 
-//bServiceMode             =   regKVServiceMode            .getData (&hKey);
+//bMiniMode             =   regKVServiceMode            .getData (&hKey);
 //bHorizonMode             =   regKVHorizonMode            .getData (&hKey);
   bHorizonMode = false;
 
@@ -353,7 +353,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
     bHorizonModeAuto       =   regKVHorizonModeAuto        .getData (&hKey);
 #endif
 
-  bServiceMode = bOpenInServiceMode = regKVOpenInServiceMode.getData(&hKey);
+  bMiniMode = bOpenInMiniMode = regKVOpenInMiniMode        .getData(&hKey);
   bFirstLaunch             =   regKVFirstLaunch            .getData (&hKey);
   bAllowMultipleInstances  =   regKVAllowMultipleInstances .getData (&hKey);
   bAllowBackgroundService  =   regKVAllowBackgroundService .getData (&hKey);

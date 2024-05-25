@@ -39,7 +39,7 @@ enum UITab {
   UITab_Monitor,
   UITab_Settings,
   UITab_About,
-  UITab_SmallMode,
+  UITab_MiniMode,
   UITab_ALL      // Total number of elements in enum (technically against Microsoft's enum design guidelines, but whatever)
 };
 

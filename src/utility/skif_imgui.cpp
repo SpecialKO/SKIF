@@ -353,7 +353,7 @@ SKIF_ImGui_AdjustAppModeSize (HMONITOR monitor)
       ImVec2 ( (float)( info.rcWork.right  - info.rcWork.left ),
                (float)( info.rcWork.bottom - info.rcWork.top  ) );
 
-    ImVec2 tmpCurrentSize  = (_registry.bServiceMode) ? SKIF_vecServiceModeDefault  :
+    ImVec2 tmpCurrentSize  = (_registry.bMiniMode) ? SKIF_vecServiceModeDefault  :
                              (_registry.bHorizonMode) ? SKIF_vecHorizonModeAdjusted :
                                                         SKIF_vecRegularModeAdjusted ;
 
@@ -560,7 +560,7 @@ SKIF_ImGui_SetHoverText ( const std::string_view& szText,
 
   if ( ImGui::IsItemHovered ()                                  &&
         ( overrideExistingText || SKIF_StatusBarHelp.empty () ) &&
-        (                       ! _registry.bServiceMode         )
+        (                       ! _registry.bMiniMode         )
      )
   {
     extern ImVec2 SKIF_vecCurrentMode;

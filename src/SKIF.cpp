@@ -1576,7 +1576,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     {
       SKIF_Startup_LaunchGameService ( );
       SKIF_Startup_LaunchGame        ( );
-      _registry.bServiceMode = true;
+      _registry.bMiniMode = true;
 
       // We do not want the Steam overlay to draw upon SKIF so we have to disable it,
       // though we need to set this _after_ we have launched any game but before we set up Direct3D.
@@ -1595,16 +1595,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
       // If we are starting the service,
       //   let us start in small mode
       //if (_Signal.Start)
-      //  _registry.bServiceMode = true;
+      //  _registry.bMiniMode = true;
 
       if (_Signal.ServiceMode)
-        _registry.bServiceMode = true;
+        _registry.bMiniMode = true;
       
       // If we are intending to quit, let us
       //   start in small mode so that the
       //     updater etc are not executed...
       if (_Signal.Quit)
-        _registry.bServiceMode = true;
+        _registry.bMiniMode = true;
     }
   }
   
@@ -1958,7 +1958,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     /*
     SKIF_vecCurrentMode =
-                  (_registry.bServiceMode) ? SKIF_vecServiceMode :
+                  (_registry.bMiniMode) ? SKIF_vecServiceMode :
                   (_registry.bHorizonMode) ? SKIF_vecHorizonMode :
                                              SKIF_vecRegularMode ;
     */
@@ -1999,13 +1999,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if (applySizeOnLaunch)
     {   applySizeOnLaunch = false;
 
-      if (! _registry.bServiceMode && _registry.iUIWidth > 0 && _registry.iUIHeight > 0)
+      if (! _registry.bMiniMode && _registry.iUIWidth > 0 && _registry.iUIHeight > 0)
         SKIF_vecCurrentModeNext =
                        ImVec2 (static_cast<float> (_registry.iUIWidth),
                                static_cast<float> (_registry.iUIHeight));
       else
         SKIF_vecCurrentModeNext =
-                      (_registry.bServiceMode) ? SKIF_vecServiceMode :
+                      (_registry.bMiniMode) ? SKIF_vecServiceMode :
                       (_registry.bHorizonMode) ? SKIF_vecHorizonMode :
                                                  SKIF_vecRegularMode ;
     }
@@ -2038,7 +2038,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     }
 
     static bool newHorizonMode = _registry.bHorizonMode;
-    static bool newServiceMode = _registry.bServiceMode;
+    static bool newServiceMode = _registry.bMiniMode;
 
     // Change mode based on window size
     static ImVec2
@@ -2074,12 +2074,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
     }
 
     // Apply new service mode state
-    if (newServiceMode != _registry.bServiceMode)
+    if (newServiceMode != _registry.bMiniMode)
     {
-      _registry.bServiceMode = newServiceMode;
+      _registry.bMiniMode = newServiceMode;
       _registry._ExitOnInjection = false;
 
-      PLOG_DEBUG << "Switched to " << ((_registry.bServiceMode) ? "Service mode" : "App mode");
+      PLOG_DEBUG << "Switched to " << ((_registry.bMiniMode) ? "Service mode" : "App mode");
 
       SKIF_ImGui_AdjustAppModeSize (NULL);
 
@@ -2398,7 +2398,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           // This is only necessary to run once on launch, to account for the startup display DPI
           SK_RunOnce (SKIF_ImGui_GlobalDPIScale = (_registry.bDPIScaling) ? ImGui::GetWindowViewport()->DpiScale : 1.0f);
 
-          //ImVec2 tmpCurrentSize  = (_registry.bServiceMode) ? SKIF_vecServiceModeDefault  :
+          //ImVec2 tmpCurrentSize  = (_registry.bMiniMode) ? SKIF_vecServiceModeDefault  :
           //                         (_registry.bHorizonMode) ? SKIF_vecHorizonModeAdjusted :
           //                                                    SKIF_vecRegularModeAdjusted ;
 
@@ -2453,7 +2453,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
 
       // Only allow navigational hotkeys when in Large Mode and as long as no popups are opened
-      if (! _registry.bServiceMode && ! SKIF_ImGui_IsAnyPopupOpen ( ))
+      if (! _registry.bMiniMode && ! SKIF_ImGui_IsAnyPopupOpen ( ))
       {
         if (hotkeyCtrl1)
         {
@@ -2510,20 +2510,20 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
       }
 
-      // Begin Small Mode
-#pragma region UI: Small Mode
+      // Begin Mini Mode
+#pragma region UI: Mini Mode
 
-      if (_registry.bServiceMode)
+      if (_registry.bMiniMode)
       {
-        SKIF_Tab_Selected = UITab_SmallMode;
+        SKIF_Tab_Selected = UITab_MiniMode;
 
-        auto smallMode_id =
+        auto miniMode_id =
           ImGui::GetID ("###Small_Mode_Frame");
 
-        // A new line to allow the window titlebar buttons to be accessible
+        // A new line to pad the top a bit
         ImGui::NewLine ();
 
-        SKIF_ImGui_BeginChildFrame ( smallMode_id,
+        SKIF_ImGui_BeginChildFrame ( miniMode_id,
           ImVec2 ( 400.0f * SKIF_ImGui_GlobalDPIScale,
                     12.0f * ImGui::GetTextLineHeightWithSpacing () ),
             ImGuiChildFlags_None,
@@ -2539,11 +2539,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         SKIF_ImGui_ServiceMenu      ( );
 
-      } // End Small Mode
+      } // End Mini Mode
 
 #pragma endregion
 
-      // Begin Large Mode
+      // Begin Regular Mode
 #pragma region UI: Large Mode
 
       else
@@ -2659,14 +2659,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
         //  ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f), SK_FormatString (R"(%s (%s))", SKIF_WINDOW_TITLE_A, SKIF_Util_GetEffectivePowerMode ( ).c_str ( ) ).c_str ( ));
 
         ImGui::EndTabBar          ( );
-      } // End Large Mode
+      } // End Regular Mode
 
 #pragma endregion
 
 #pragma region StatusBar
 
         // Status Bar at the bottom
-      if (! _registry.bServiceMode && _registry.bUIStatusBar)
+      if (! _registry.bMiniMode && _registry.bUIStatusBar)
       {
         // This counteracts math performed on SKIF_vecRegularMode.y at the beginning of the frame
         ImGui::SetCursorPosY (ImGui::GetCursorPosY ( ) - 2.0f * SKIF_ImGui_GlobalDPIScale);
@@ -2824,7 +2824,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
            showBtnMinimize = true;
 
       // If in service mode
-      if (_registry.bServiceMode)
+      if (_registry.bMiniMode)
       {
         showBtnHorizon = false;
         window_btn_size.x -= 48.0f; // -48px due to one less button
@@ -2894,7 +2894,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         if (showBtnService)
         {
-          if (ImGui::Button ((_registry.bServiceMode) ? ICON_FA_EXPAND : ICON_FA_COMPRESS, ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale, 0.0f ))) // ICON_FA_MAXIMIZE : ICON_FA_MINIMIZE
+          if (ImGui::Button ((_registry.bMiniMode) ? ICON_FA_EXPAND : ICON_FA_COMPRESS, ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale, 0.0f ))) // ICON_FA_MAXIMIZE : ICON_FA_MINIMIZE
             hotkeyCtrlT = true;
 
           SKIF_ImGui_SetHoverTip ("Toggle mini mode");
@@ -2952,7 +2952,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       if (hotkeyCtrlT || hotkeyF11)
       {
-        newServiceMode = ! _registry.bServiceMode;
+        newServiceMode = ! _registry.bMiniMode;
 
         // Changes the app window to the proper size
         SKIF_vecCurrentModeNext = (newServiceMode) ? SKIF_vecServiceMode :
@@ -3073,7 +3073,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       static float  UpdateAvailableWidth = 0.0f;
 
       // Only open the update prompt after the library has appeared (fixes the popup weirdly closing for some unknown reason)
-      if (PopulatedGames && UpdatePromptPopup == PopupState_Open && ! _registry.bServiceMode && ! HiddenFramesContinueProcessing && ! SKIF_ImGui_IsAnyPopupOpen ( ) && ! ImGui::IsMouseDragging (ImGuiMouseButton_Left))
+      if (PopulatedGames && UpdatePromptPopup == PopupState_Open && ! _registry.bMiniMode && ! HiddenFramesContinueProcessing && ! SKIF_ImGui_IsAnyPopupOpen ( ) && ! ImGui::IsMouseDragging (ImGuiMouseButton_Left))
       {
         //UpdateAvailableWidth = ImGui::CalcTextSize ((SK_WideCharToUTF8 (newVersion.description) + " is ready to be installed.").c_str()).x + 3 * ImGui::GetStyle().ItemSpacing.x;
         UpdateAvailableWidth = 360.0f;
@@ -4013,7 +4013,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       vecCurrentModeDPIUnaware.y <= SKIF_vecRegularModeDefault.y * 1.5f))
   {
     // Only store the window size if we are not in service mode
-    if (! _registry.bServiceMode  &&
+    if (! _registry.bMiniMode  &&
         vecCurrentModeDPIUnaware.x > 0 &&
         vecCurrentModeDPIUnaware.y > 0)
     {

@@ -294,7 +294,7 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Open At Cursor Position)" );
 
-  KeyValue <bool> regKVOpenInServiceMode =
+  KeyValue <bool> regKVOpenInMiniMode =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Open In Service Mode)" );
 
@@ -556,7 +556,7 @@ struct SKIF_RegistrySettings {
   bool bLibraryXbox             =  true;
   bool bLibraryCustom           =  true;
 
-  bool bServiceMode             = false;
+  bool bMiniMode             = false;
   bool bHorizonMode             = false; // 1038 x 325 -- covers are 186.67 x 280
 //bool bHorizonModeAuto         =  true;
 
@@ -564,7 +564,7 @@ struct SKIF_RegistrySettings {
   bool bAllowMultipleInstances  = false;
   bool bAllowBackgroundService  = false;
   bool bOpenAtCursorPosition    = false;
-  bool bOpenInServiceMode       = false;
+  bool bOpenInMiniMode       = false;
   bool bStopOnInjection         = false;
   bool bCloseToTray             = false;
   bool bLowBandwidthMode        = false;

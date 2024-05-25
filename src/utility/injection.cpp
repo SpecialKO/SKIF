@@ -977,7 +977,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   ImGui::EndChild ();
 
   // Only when we're not in service mode
-  if (! _registry.bServiceMode &&
+  if (! _registry.bMiniMode &&
       ImGui::IsItemClicked (ImGuiMouseButton_Right) &&
       ServiceMenu    == PopupState_Closed &&
       EmptySpaceMenu == PopupState_Closed)
