@@ -341,7 +341,7 @@ struct app_record_s {
     std::wstring  time_string;      // Cached text representation
     std:: string  time_string_utf8; // Cached text representation
 
-    std::wstring getDescription     (void);
+    std::wstring getDescription     (void) const;
     std:: string getDescriptionUTF8 (void);
     std::wstring getTime            (void);
     std:: string getTimeUTF8        (void);

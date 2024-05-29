@@ -1940,6 +1940,252 @@ SKIF_Util_GetProcessHandleFromHwnd (HWND hwnd, DWORD dwDesiredAccess)
   return NULL;
 }
 
+// The function GetEncoderClsid in the following example receives the MIME type of an encoder and returns the class identifier (CLSID) of that encoder.
+// Returns 0 or above on success; -1 on failure.
+// 
+// The MIME types of the encoders built into Windows GDI+ are as follows:
+// * image/bmp
+// * image/jpeg
+// * image/gif
+// * image/tiff
+// * image/png
+//
+// From: https://learn.microsoft.com/en-us/windows/win32/gdiplus/-gdiplus-retrieving-the-class-identifier-for-an-encoder-use
+static int
+GetEncoderClsid (const WCHAR* format, CLSID* pClsid)
+{
+  UINT num  = 0; // number of image encoders
+  UINT size = 0; // size of the image encoder array in bytes
+
+  Gdiplus::ImageCodecInfo* pImageCodecInfo = NULL;
+  Gdiplus::GetImageEncodersSize (&num, &size);
+
+  if(size == 0)
+    return -1;  // Failure
+
+  pImageCodecInfo = (Gdiplus::ImageCodecInfo*)(malloc(size));
+
+  if(pImageCodecInfo == NULL)
+    return -1;  // Failure
+
+  Gdiplus::GetImageEncoders(num, size, pImageCodecInfo);
+
+  for(UINT j = 0; j < num; ++j)
+  {
+    if( wcscmp(pImageCodecInfo[j].MimeType, format) == 0 )
+    {
+        *pClsid = pImageCodecInfo[j].Clsid;
+        free(pImageCodecInfo);
+        return j;  // Success
+    }    
+  }
+
+  free(pImageCodecInfo);
+  return -1;  // Failure
+}
+
+// https://msdn.microsoft.com/en-us/library/ms997538.aspx
+typedef struct
+{
+    BYTE            bWidth;          // Width, in pixels, of the image
+    BYTE            bHeight;         // Height, in pixels, of the image
+    BYTE            bColorCount;     // Number of colors in image (0 if >=8bpp)
+    BYTE            bReserved;       // Reserved ( must be 0)
+    WORD            wPlanes;         // Color Planes
+    WORD            wBitCount;       // Bits per pixel
+    DWORD           dwBytesInRes;    // How many bytes in this resource?
+    DWORD           dwImageOffset;   // Where in the file is this image?
+} ICONDIRENTRY, *LPICONDIRENTRY;
+
+// #pragmas are used here to insure that the structure's packing in memory matches the packing of the EXE or DLL.
+// Without this, the idEntries[1] gets the alignment (aligned 2 bytes off).
+#pragma pack( push )
+#pragma pack( 2 )
+typedef struct
+{
+    WORD            idReserved;      // Reserved (must be 0)
+    WORD            idType;          // Resource Type (1 for icons)
+    WORD            idCount;         // How many images?
+    ICONDIRENTRY    idEntries[1];    // An entry for each image (idCount of 'em)
+} ICONDIR, *LPICONDIR;
+#pragma pack( pop )
+
+typedef struct
+{
+  BITMAPINFOHEADER  icHeader;        // DIB header
+  RGBQUAD           icColors[1];     // Color table
+  BYTE              icXOR[1];        // DIB bits for XOR mask
+  BYTE              icAND[1];        // DIB bits for AND mask
+} ICONIMAGE, *LPICONIMAGE;
+
+// Converts a given HICON into a vector buffer
+// Parts of this is CC BY-SA 4.0, https://stackoverflow.com/a/59253425
+bool
+GetIcoBuffer (HICON hIcon, int iColorBits, std::vector<char>& buff)
+{
+  if (offsetof (ICONDIRENTRY, dwImageOffset) != 12)
+    return false;
+
+  HDC dc = CreateCompatibleDC (NULL);
+
+  // ICO header (file with 1 image)
+  char icoHeader[6] = { 0, 0, 1, 0, 1, 0 };
+
+  // Icon info
+  ICONINFO iconInfo = { };
+  GetIconInfo (hIcon, &iconInfo);
+
+  BITMAPINFO bmInfo = { 0 };
+  bmInfo.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+  bmInfo.bmiHeader.biBitCount = 0;
+
+  if (! GetDIBits (dc, iconInfo.hbmColor, 0, 0, NULL, &bmInfo, DIB_RGB_COLORS))
+    return false;
+
+  int nBmInfoSize = sizeof(BITMAPINFOHEADER);
+  if (iColorBits < 24)
+    nBmInfoSize += sizeof(RGBQUAD) * (int)(1 << iColorBits);
+
+  // Allocate memory
+  std::vector<UCHAR> bitmapInfo;
+  bitmapInfo.resize (nBmInfoSize);
+  BITMAPINFO* pBmInfo = (BITMAPINFO *)bitmapInfo.data();
+  memcpy (pBmInfo, &bmInfo, sizeof (BITMAPINFOHEADER));
+
+  if (! bmInfo.bmiHeader.biSizeImage)
+    return false;
+
+  // Bitmap data
+  std::vector<UCHAR> bits;
+  bits.resize (bmInfo.bmiHeader.biSizeImage);
+  pBmInfo->bmiHeader.biBitCount = static_cast<WORD>(iColorBits);
+  pBmInfo->bmiHeader.biCompression = BI_RGB;
+
+  if (! GetDIBits (dc, iconInfo.hbmColor, 0, bmInfo.bmiHeader.biHeight, bits.data(), pBmInfo, DIB_RGB_COLORS))
+    return false;
+
+  BITMAPINFO maskInfo = { 0 };
+  maskInfo.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+  maskInfo.bmiHeader.biBitCount = 0;
+
+  if (! GetDIBits (dc, iconInfo.hbmMask, 0, 0, NULL, &maskInfo, DIB_RGB_COLORS) || maskInfo.bmiHeader.biBitCount != 1)
+    return false;
+
+  // Mask data
+  std::vector<UCHAR> maskBits;
+  maskBits.resize(maskInfo.bmiHeader.biSizeImage);
+  std::vector<UCHAR> maskInfoBytes;
+  maskInfoBytes.resize(sizeof(BITMAPINFO) + 2 * sizeof(RGBQUAD));
+  BITMAPINFO* pMaskInfo = (BITMAPINFO*)maskInfoBytes.data();
+  memcpy(pMaskInfo, &maskInfo, sizeof(maskInfo));
+
+  if (! GetDIBits (dc, iconInfo.hbmMask, 0, maskInfo.bmiHeader.biHeight, maskBits.data(), pMaskInfo, DIB_RGB_COLORS))
+    return false;
+
+  // Directory entry
+  ICONDIRENTRY iconDirEntry  = { };
+  iconDirEntry.bWidth        = (UCHAR)pBmInfo->bmiHeader.biWidth;
+  iconDirEntry.bHeight       = (UCHAR)pBmInfo->bmiHeader.biHeight;
+  iconDirEntry.bColorCount   = (iColorBits == 4 ? 16 : 0);
+  iconDirEntry.bReserved     = 0;
+  iconDirEntry.wPlanes       = 0;
+  iconDirEntry.wBitCount     = pBmInfo->bmiHeader.biBitCount;
+  iconDirEntry.dwBytesInRes  = pBmInfo->bmiHeader.biSizeImage + pMaskInfo->bmiHeader.biSizeImage + nBmInfoSize;
+  iconDirEntry.dwImageOffset = sizeof(ICONDIR); // + sizeof(icoHeader);
+
+  ICONDIR iconDir      = { };
+  iconDir.idReserved   = 0;
+  iconDir.idType       = 1;
+  iconDir.idCount      = 1;
+  iconDir.idEntries[0] = iconDirEntry;
+
+  // Bitmap header 
+  int nBitsSize                    = pBmInfo->bmiHeader.biSizeImage;
+  pBmInfo->bmiHeader.biHeight     *= 2; // The header is for image + mask
+  pBmInfo->bmiHeader.biCompression = 0;
+  pBmInfo->bmiHeader.biSizeImage  += pMaskInfo->bmiHeader.biSizeImage; // because the header is for both image and mask
+
+  // Write icon header + directory entry
+  buff.insert (buff.end(), reinterpret_cast<const char *>(&iconDir), reinterpret_cast<const char *>(&iconDir) + sizeof(iconDir));
+
+  // Write BITMAPINFO (DIB) header (including color table)
+  buff.insert (buff.end(), reinterpret_cast<const char *>(&pBmInfo->bmiHeader), reinterpret_cast<const char *>(&pBmInfo->bmiHeader) + nBmInfoSize);
+
+  // Write image data
+  buff.insert (buff.end(), reinterpret_cast<const char *>(bits.data()), reinterpret_cast<const char *>(bits.data()) + nBitsSize);
+
+  // Write mask data
+  buff.insert (buff.end(), reinterpret_cast<const char *>(maskBits.data()), reinterpret_cast<const char *>(maskBits.data()) + pMaskInfo->bmiHeader.biSizeImage);
+
+  DeleteObject (iconInfo.hbmColor);
+  DeleteObject (iconInfo.hbmMask);
+  DeleteDC     (dc);
+
+  return true;
+}
+
+bool
+SKIF_Util_SaveImageAsICO (const wchar_t* imgFilePath, const wchar_t* icoFilePath, int iColorBits)
+{
+  bool status = false;
+
+  // Initialize GDI+
+  ULONG_PTR gdiplusToken;
+  Gdiplus::GdiplusStartupInput gdiplusStartupInput;
+
+  // Start up GDI+
+  if (Gdiplus::Status::Ok == Gdiplus::GdiplusStartup (&gdiplusToken, &gdiplusStartupInput, NULL))
+  {
+    // Load the input image
+    Gdiplus::Image* image = new Gdiplus::Image (imgFilePath);
+    if (Gdiplus::Status::Ok == image->GetLastStatus ( ))
+    {
+      INT size = 32;
+
+      // Resize the loaded image
+      Gdiplus::Bitmap*  resizedImage = new Gdiplus::Bitmap (size, size, PixelFormat32bppARGB);
+      Gdiplus::Graphics graphics(resizedImage);
+      graphics.DrawImage (image, 0, 0, size, size);
+
+      // Convert the resized image to HICON format
+      HICON hIcon;
+      if (Gdiplus::Status::Ok == resizedImage->GetHICON (&hIcon))
+      {
+        std::vector<char> fileData = { };
+        if (GetIcoBuffer (hIcon, iColorBits, fileData))
+        {
+          HANDLE hFile = CreateFile (icoFilePath, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+          if (hFile)
+          {
+            DWORD written = 0;
+            if (WriteFile   (hFile, fileData.data(), static_cast<DWORD>(fileData.size()), &written, 0))
+            {
+              PLOG_VERBOSE << "Wrote " << written << " bytes to " << std::wstring(icoFilePath);
+              status = true;
+            }
+
+            CloseHandle (hFile);
+          }
+        }
+
+        // Destroy the icon
+        DestroyIcon (hIcon);
+      }
+
+    }
+
+    else {
+      PLOG_ERROR << L"Failed to load source image.";
+    }
+
+    // Cleanup
+    delete image;
+    Gdiplus::GdiplusShutdown (gdiplusToken);
+  }
+
+  return status;
+}
+
 bool
 SKIF_Util_SaveExtractExeIcon (std::wstring sourcePath, std::wstring targetPath)
 {
@@ -1963,13 +2209,13 @@ SKIF_Util_SaveExtractExeIcon (std::wstring sourcePath, std::wstring targetPath)
     // image/tiff : {557cf405-1a04-11d3-9a73-0000f81ef32e}
     // image/png  : {557cf406-1a04-11d3-9a73-0000f81ef32e}
 
-    const CLSID pngEncoderClsId =
-      { 0x557cf406, 0x1a04, 0x11d3,{ 0x9a,0x73,0x00,0x00,0xf8,0x1e,0xf3,0x2e } };
+    //const CLSID pngEncoderClsId =
+    //  { 0x557cf406, 0x1a04, 0x11d3,{ 0x9a,0x73,0x00,0x00,0xf8,0x1e,0xf3,0x2e } };
 
     // Variables
     HICON hIcon;
-    Gdiplus::GdiplusStartupInput gdiplusStartupInput;
     ULONG_PTR gdiplusToken;
+    Gdiplus::GdiplusStartupInput gdiplusStartupInput;
 
     // Extract the icon
     HRESULT hr = SHDefExtractIcon (sourcePath.c_str(), 0, 0, &hIcon, 0, 32); // 256
@@ -1978,17 +2224,27 @@ SKIF_Util_SaveExtractExeIcon (std::wstring sourcePath, std::wstring targetPath)
       // Start up GDI+
       if (Gdiplus::Status::Ok == Gdiplus::GdiplusStartup (&gdiplusToken, &gdiplusStartupInput, NULL))
       {
-        // Create the GDI+ object
-        Gdiplus::Bitmap* gdiplusImage =
-          Gdiplus::Bitmap::FromHICON (hIcon);
+        CLSID pngEncoderClsId;
 
-        // Save the image in PNG as GIF loses the transparency
-        if (Gdiplus::Status::Ok == gdiplusImage->Save (targetPath.c_str (), &pngEncoderClsId, NULL))
-          ret = true;
+        if (GetEncoderClsid (L"image/png", &pngEncoderClsId) < 0)
+        {
+          PLOG_ERROR << "The PNG encoder is not installed.";
+        }
 
-        // Delete the object
-        delete gdiplusImage;
-        gdiplusImage = NULL;
+        else
+        {
+          // Create the GDI+ object
+          Gdiplus::Bitmap* gdiplusImage =
+            Gdiplus::Bitmap::FromHICON (hIcon);
+
+          // Save the image in PNG as GIF loses the transparency
+          if (Gdiplus::Status::Ok == gdiplusImage->Save (targetPath.c_str (), &pngEncoderClsId, NULL))
+            ret = true;
+
+          // Delete the object
+          delete gdiplusImage;
+          gdiplusImage = NULL;
+        }
 
         // Shut down GDI+
         Gdiplus::GdiplusShutdown (gdiplusToken);
@@ -3519,12 +3775,14 @@ SKIF_Util_CreateShortcut (LPCWSTR lpszPathLink, LPCWSTR lpszTarget, LPCWSTR lpsz
   // Get a pointer to the IShellLink interface. It is assumed that CoInitialize
   // has already been called.
 
-  PLOG_INFO                                      << "Creating a desktop shortcut...";
-  PLOG_INFO_IF(lpszPathLink != nullptr)          << "Shortcut    : " << std::wstring(lpszPathLink);
-  PLOG_INFO_IF(lpszTarget   != nullptr)          << "Target      : " << std::wstring(lpszTarget);
-  PLOG_INFO_IF(wcscmp (lpszArgs,    L"\0") != 0) << "Parameters  : " << std::wstring(lpszArgs);
-  PLOG_INFO_IF(wcscmp (lpszWorkDir, L"\0") != 0) << "Start in    : " << std::wstring(lpszWorkDir);
-  PLOG_INFO_IF(wcscmp (lpszDesc,    L"\0") != 0) << "Description : " << std::wstring(lpszDesc);
+  PLOG_INFO                                           << "Creating a desktop shortcut...";
+  PLOG_INFO_IF(lpszPathLink != nullptr)               << "Shortcut    : " << std::wstring(lpszPathLink);
+  PLOG_INFO_IF(lpszTarget   != nullptr)               << "Target      : " << std::wstring(lpszTarget);
+  PLOG_INFO_IF(wcscmp (lpszArgs,         L"\0") != 0) << "Parameters  : " << std::wstring(lpszArgs);
+  PLOG_INFO_IF(wcscmp (lpszWorkDir,      L"\0") != 0) << "Start in    : " << std::wstring(lpszWorkDir);
+  PLOG_INFO_IF(wcscmp (lpszDesc,         L"\0") != 0) << "Description : " << std::wstring(lpszDesc);
+  PLOG_INFO_IF(wcscmp (lpszIconLocation, L"\0") != 0) << "Icon        : " << std::wstring(lpszIconLocation);
+  PLOG_INFO_IF(iIcon != 0)                            << "Icon index  : " << iIcon;
 
   if (SUCCEEDED (CoCreateInstance (CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl)))
   {

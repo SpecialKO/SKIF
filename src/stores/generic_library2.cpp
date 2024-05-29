@@ -223,6 +223,17 @@ LoadLibraryTexture (
                  SKIF_Util_SaveExtractExeIcon (pApp->launch_configs[0].getExecutableFullPath ( ), EpicAssetPath + L"icon-original.png"))
           load_str =               SKIFCustomPath + L"-original.png";
       }
+
+      // Extract a copy of the icon and save it as an .ico
+      if (libTexToLoad == LibraryTexture::Icon)
+      {
+        std::wstring
+          OriginalIconPath  = EpicAssetPath + L"icon-original.png",
+          ExtractedIconPath = EpicAssetPath + L"icon-original.ico";
+
+        if (! PathFileExistsW (ExtractedIconPath.c_str()))
+          SKIF_Util_SaveImageAsICO (OriginalIconPath.c_str(), ExtractedIconPath.c_str(), 32);
+      }
     }
 
     // GOG
@@ -317,14 +328,23 @@ LoadLibraryTexture (
     // STEAM
     else if (pApp->store == app_record_s::Store::Steam)
     {
-
-      SKIFCustomPath  = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",           _path_cache.specialk_userdata,                            appid);
-      SteamCustomPath = SK_FormatStringW (LR"(%ws\userdata\%i\config\grid\%i)", _path_cache.steam_install, SKIF_Steam_GetCurrentUser ( ), appid);
+      SKIFCustomPath    = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",                  _path_cache.specialk_userdata,                            appid);
+      SteamCustomPath   = SK_FormatStringW (LR"(%ws\userdata\%i\config\grid\%i)",        _path_cache.steam_install, SKIF_Steam_GetCurrentUser ( ), appid);
 
       if (libTexToLoad == LibraryTexture::Cover)
         SKIFCustomPath += L"cover";
       else
         SKIFCustomPath += L"icon";
+
+      // Extract a copy of the official Steam icon and save it as a .ico
+      if (libTexToLoad == LibraryTexture::Icon)
+      {
+        std::wstring
+          ExtractedIconPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\icon-original.ico)", _path_cache.specialk_userdata,                        appid);
+
+        if (! PathFileExistsW (ExtractedIconPath.c_str()))
+          SKIF_Util_SaveImageAsICO (name.c_str(), ExtractedIconPath.c_str(), 32);
+      }
 
       if      (PathFileExistsW (( SKIFCustomPath +  L".png").c_str()))
         load_str =                SKIFCustomPath +  L".png";

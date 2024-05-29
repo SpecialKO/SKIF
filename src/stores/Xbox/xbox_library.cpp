@@ -308,12 +308,14 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                       else
                         record.specialk.injection.injection.bitness = InjectionBitness::ThirtyTwo;
 
-                      std::wstring targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)", _path_cache.specialk_userdata, SK_UTF8ToWideChar (record.xbox.package_name).c_str());
-                      std::wstring iconPath   = targetPath + L"icon-original.png";
-                      std::wstring coverPath  = targetPath + L"cover-fallback.png";
+                      std::wstring targetPath  = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)", _path_cache.specialk_userdata, SK_UTF8ToWideChar (record.xbox.package_name).c_str());
+                      std::wstring iconPath    = targetPath + L"icon-original.png";
+                      std::wstring iconIcoPath = targetPath + L"icon-original.ico";
+                      std::wstring coverPath   = targetPath + L"cover-fallback.png";
 
-                      bool icon  = PathFileExists(iconPath .c_str()),
-                           cover = PathFileExists(coverPath.c_str());
+                      bool icon    = PathFileExists(iconPath .c_str()),
+                           iconIco = PathFileExists(iconIcoPath.c_str()),
+                           cover   = PathFileExists(coverPath.c_str());
 
                       int lid = 0;
                       for (pugi::xml_node app = xmlRoot.child("Applications").child("Application"); app; app = app.next_sibling("Application"))
@@ -403,7 +405,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                         lid++;
 
                         // Create necessary directories if they do not exist
-                        if (!icon || !cover)
+                        if (!icon || !cover || !iconIco)
                         {
                           std::error_code ec;
                           // Create any missing directories
@@ -422,6 +424,11 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                             if (CopyFile(fullPath.c_str(), iconPath.c_str(), FALSE))
                               icon = true;
                           }
+                        }
+
+                        if (!iconIco && icon)
+                        {
+                          iconIco = SKIF_Util_SaveImageAsICO (iconPath.c_str(), iconIcoPath.c_str(), 32);
                         }
 
                         if (!cover)

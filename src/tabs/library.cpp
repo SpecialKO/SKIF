@@ -696,7 +696,7 @@ GetSteamCommandLaunchOptions (app_record_s* pApp, app_record_s::launch_config_s*
 static void
 LaunchGame (app_record_s* pApp)
 {
-//static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( ); // Not currently used
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
 
@@ -830,7 +830,9 @@ LaunchGame (app_record_s* pApp)
         pApp->_status.dwTimeDelayChecks = current_time + 7500;
         pApp->_status.running           = true;
 
-        SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), L"", launchOptions, L"", launchConfig->getExecutableFullPath ( ), (! localInjection && usingSK));
+        std::wstring iconPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\icon-original.ico)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->epic.name_app).c_str());
+
+        SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), L"", launchOptions, L"", iconPath, (! localInjection && usingSK));
       }
     }
 
@@ -873,7 +875,9 @@ LaunchGame (app_record_s* pApp)
         pApp->_status.dwTimeDelayChecks = current_time + 7500;
         pApp->_status.running           = true;
 
-        SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), launchConfig->executable_helper, L"", launchConfig->getExecutableDir(), launchConfig->getExecutableFullPath(), (! localInjection && usingSK));
+        std::wstring iconPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\icon-original.ico)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->xbox.package_name).c_str());
+
+        SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), launchConfig->executable_helper, L"", launchConfig->getExecutableDir(), iconPath, (!localInjection && usingSK));
       }
 
       if (proc->hWorkerThread.load() == INVALID_HANDLE_VALUE)
@@ -1137,11 +1141,18 @@ LaunchGame (app_record_s* pApp)
 
           SKIF_Util_TrimTrailingSpacesW (cmdLine);
 
+          std::wstring iconPath =
+              (pApp->store == app_record_s::Store::Steam)
+            ? SK_FormatStringW (LR"(%ws\Assets\Steam\%i\icon-original.ico)",  _path_cache.specialk_userdata, pApp->id)
+            : (pApp->store == app_record_s::Store::Steam)
+            ? SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\icon-original.ico)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->xbox.package_name).c_str())
+            : launchConfig->getExecutableFullPath ( );
+
           SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal),
             launchConfig->getExecutableFullPath ( ),
             cmdLine,
             dirPath,
-            launchConfig->getExecutableFullPath ( ),
+            iconPath,
             (! localInjection && usingSK));
         }
         
@@ -1227,7 +1238,9 @@ LaunchGame (app_record_s* pApp)
           pApp->_status.dwTimeDelayChecks = current_time + 7500;
           pApp->_status.running           = true;
 
-          SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), L"", launchOptions, L"", launchConfig->getExecutableFullPath ( ), (! localInjection && usingSK));
+          std::wstring iconPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\icon-original.ico)",  _path_cache.specialk_userdata, pApp->id);
+
+          SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), L"", launchOptions, L"", iconPath, (! localInjection && usingSK));
         }
       }
     }
@@ -2304,7 +2317,8 @@ DrawGameContextMenu (app_record_s* pApp)
     bool desktopShortcutPossible =
           (SteamShortcutPossible                     ||
           pApp->store == app_record_s::Store::Custom ||
-          pApp->store == app_record_s::Store::GOG);
+          pApp->store == app_record_s::Store::GOG    ||
+          pApp->store == app_record_s::Store::Xbox);
 
     if (SKIF_ImGui_MenuItemEx2 ("Properties", ICON_FA_GEAR, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info)))
       ModifyGamePopup = PopupState_Open;
@@ -2548,7 +2562,16 @@ DrawGameContextMenu (app_record_s* pApp)
         std::string name = SKIF_Util_StripInvalidFilenameChars (pApp->names.normal);
 
         std::wstring linkPath = SK_FormatStringW (LR"(%ws\%ws.lnk)", std::wstring(_path_cache.desktop.path).c_str(), SK_UTF8ToWideChar(name).c_str());
-        std::wstring linkArgs = SK_FormatStringW (LR"("%ws" %ws)", pApp->launch_configs[0].getExecutableFullPath().c_str(), pApp->launch_configs[0].getLaunchOptions().c_str());
+        std::wstring linkArgs =
+          (pApp->store == app_record_s::Store::Xbox)
+        //? SK_UTF8ToWideChar (SK_FormatString  (R"(SKIF_URI="%s!%s")", pApp->xbox.package_name_family.c_str(),                  pApp->launch_configs[0].Xbox_ApplicationId.c_str()))
+          ?                    SK_FormatStringW (LR"("%ws" %ws)",       pApp->launch_configs[0].executable_helper.c_str(),       pApp->launch_configs[0].getLaunchOptions().c_str())
+          :                    SK_FormatStringW (LR"("%ws" %ws)",       pApp->launch_configs[0].getExecutableFullPath().c_str(), pApp->launch_configs[0].getLaunchOptions().c_str());
+
+        std::wstring iconPath =
+          (pApp->store == app_record_s::Store::Xbox)
+          ?                    SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\icon-original.ico)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->xbox.package_name).c_str())
+          :                    pApp->launch_configs[0].getExecutableFullPath();
 
         SKIF_Util_TrimTrailingSpacesW (linkArgs);
 
@@ -2565,7 +2588,7 @@ DrawGameContextMenu (app_record_s* pApp)
             linkArgs.c_str(),
             pApp->launch_configs[0].getWorkOrExeDirectory().c_str(),
             SK_UTF8ToWideChar(name).c_str(),
-            pApp->launch_configs[0].getExecutableFullPath().c_str()
+            iconPath.c_str()
             )
           )
           SKIF_ImGui_InfoMessage (info_title, info_label_success);

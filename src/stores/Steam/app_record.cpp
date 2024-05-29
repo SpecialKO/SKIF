@@ -446,7 +446,7 @@ app_branch_record_s::getTimeUTF8 (void)
 }
 
 std::wstring
-app_branch_record_s::getDescription (void)
+app_branch_record_s::getDescription (void) const
 {
   return description;
 }
