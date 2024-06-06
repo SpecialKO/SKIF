@@ -162,6 +162,7 @@ bool            SKIF_Util_IsTouchCapable              (void);
 bool            SKIF_Util_IsProcessAdmin              (DWORD PID);
 bool            SKIF_Util_IsProcessX86                (HANDLE process);
 PROCESSENTRY32W SKIF_Util_FindProcessByName           (const wchar_t* wszName);
+DWORD           SKIF_Util_GetProcessIdFromHwnd        (HWND hwnd);
 HANDLE          SKIF_Util_GetProcessHandleFromHwnd    (HWND hwnd, DWORD dwDesiredAccess);
 bool            SKIF_Util_SaveImageAsICO              (const wchar_t* imgFilePath, const wchar_t* icoFilePath, int iColorBits);
 bool            SKIF_Util_SaveExtractExeIcon          (std::wstring exePath, std::wstring targetPath);

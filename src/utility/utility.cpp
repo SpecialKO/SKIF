@@ -1930,6 +1930,16 @@ SKIF_Util_FindProcessByName (const wchar_t* wszName)
   return none;
 }
 
+DWORD
+SKIF_Util_GetProcessIdFromHwnd (HWND hwnd)
+{
+  DWORD pid = 0;
+  if (GetWindowThreadProcessId (hwnd, &pid))
+    return pid;
+
+  return NULL;
+}
+
 HANDLE
 SKIF_Util_GetProcessHandleFromHwnd (HWND hwnd, DWORD dwDesiredAccess)
 {
