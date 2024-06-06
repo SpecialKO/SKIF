@@ -1198,8 +1198,6 @@ LaunchGame (app_record_s* pApp)
       // Check localconfig.vdf if user is attempting to launch without Special K 
       if (! usingSK && ! localInjection)
       {
-        ;
-
         if (SKIF_Steam_GetLaunchOptions (pApp->id, SKIF_Steam_GetCurrentUser(), pApp).size() > 0)
         {
           if (SKIF_Util_ToLower (pApp->steam.local.launch_option).find("skif ") == 0)

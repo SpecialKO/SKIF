@@ -1138,7 +1138,7 @@ void SKIF_Shell_AddJumpList (std::wstring name, std::wstring path, std::wstring 
   {
     CComQIPtr <IPropertyStore>   pPropStore = pLink.p;                      // The link title is kept in the object's property store, so QI for that interface.
 
-    bool uriLaunch = (! PathFileExists (path.c_str()));
+    bool uriLaunch = (path.empty() || ! PathFileExists (path.c_str()));
 
     if (uriLaunch)
     {
