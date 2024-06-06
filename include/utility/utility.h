@@ -172,6 +172,7 @@ bool            SKIF_Util_IsMPOsDisabledInRegistry    (bool refresh = false);
 void            SKIF_Util_GetMonitorHzPeriod          (HWND hwnd, DWORD dwFlags, DWORD& dwPeriod);
 bool            SKIF_Util_SetClipboardData            (const std::wstring_view& data);
 std::wstring    SKIF_Util_AddEnvironmentBlock         (const void* pEnvBlock, const std::wstring& varName, const std::wstring& varValue);
+void            SKIF_Util_FileExplorer_SelectFile     (PCWSTR filePath);
 std::string     SKIF_Util_GetWindowMessageAsStr       (UINT msg);
 
 

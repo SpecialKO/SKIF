@@ -2601,6 +2601,61 @@ SKIF_Util_AddEnvironmentBlock (const void* pEnvBlock, const std::wstring& varNam
   return result;
 }
 
+void
+SKIF_Util_FileExplorer_SelectFile (PCWSTR filePath)
+{
+  struct thread_s {
+    std::wstring path = L"";
+  };
+  
+  thread_s* data = new thread_s;
+  data->path = filePath;
+
+  HANDLE hWorkerThread = (HANDLE)
+  _beginthreadex (nullptr, 0x0, [](void* var) -> unsigned
+  {
+    CoInitialize (NULL);
+
+    SKIF_Util_SetThreadDescription (GetCurrentThread (), L"Worker_SelectFile");
+
+    thread_s* _data = static_cast<thread_s*>(var);
+
+    // PIDLIST_ABSOLUTE: The ITEMIDLIST is absolute and has been allocated, as indicated by its being non-constant.
+    // This means that it needs to be deallocated with ILFree when it is no longer needed.
+    // Because it is a direct pointer to allocated memory, it is aligned.
+    PIDLIST_ABSOLUTE iidlPtr = nullptr;
+
+    // Unused
+    SFGAOF           flags   = 0;
+
+    // You should call this function from a background thread. Failure to do so could cause the UI to stop responding.
+    if (S_OK == SHParseDisplayName (_data->path.c_str(), nullptr, &iidlPtr, 0, &flags))
+    {
+      // CoInitialize or CoInitializeEx must be called before using SHOpenFolderAndSelectItems.
+      // Not doing so causes SHOpenFolderAndSelectItems to fail.
+      if (S_OK == SHOpenFolderAndSelectItems (iidlPtr, 0, nullptr, 0))
+      {
+        // Success !
+      }
+
+      // Use the task allocator to free to returned pidl
+      ILFree (iidlPtr);
+    }
+
+    // Free up the memory we allocated
+    delete _data;
+
+    CoUninitialize ( );
+
+    return 0;
+  }, data, 0x0, nullptr);
+
+  if (hWorkerThread != NULL) // We don't care about how it goes so the handle is unneeded
+    CloseHandle (hWorkerThread);
+  else // Someting went wrong during thread creation, so free up the memory we allocated earlier
+    delete data;
+}
+
 
 // Effective Power Mode (Windows 10 1809+)
 typedef enum EFFECTIVE_POWER_MODE {
