@@ -43,7 +43,7 @@ int SKIF_AddCustomAppID (std::wstring name, std::wstring path, std::wstring args
   bool    failed = false;
 
   // We're expressively using .c_str() and not .wstring()
-  //   because the latter adds a bunch of undesireable
+  //   because the latter adds a bunch of undesirable
   //     null terminators that screw the registry over.
   std::filesystem::path p = std::filesystem::path (path);
   std::wstring exe         = p.lexically_normal(),
@@ -118,7 +118,7 @@ bool SKIF_ModifyCustomAppID (app_record_s* pApp, std::wstring_view path, std::ws
   bool failed = false;
 
   // We're expressively using .c_str() and not .wstring()
-  //   because the latter adds a bunch of undesireable
+  //   because the latter adds a bunch of undesirable
   //     null terminators that screw the registry over.
   std::filesystem::path p  = std::filesystem::path (path);
   std::wstring exe         = p.lexically_normal(),

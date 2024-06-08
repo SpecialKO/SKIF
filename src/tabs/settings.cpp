@@ -2445,9 +2445,9 @@ SKIF_UI_Tab_DrawSettings (void)
             
     ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), ICON_FA_THUMBS_DOWN);
     ImGui::SameLine    ();
-    ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), "Undesireable latency:");
+    ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), "Undesirable latency:");
 
-    ImGui::TreePush    ("LatencyUndesireable");
+    ImGui::TreePush    ("LatencyUndesirable");
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
     ImGui::Text        ("Composed: Flip");
