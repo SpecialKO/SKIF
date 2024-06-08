@@ -544,15 +544,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-    <None Include="packages_misc\gsl\gsl" />
-    <None Include="packages_misc\gsl\gsl_algorithm" />
-    <None Include="packages_misc\gsl\gsl_assert" />
-    <None Include="packages_misc\gsl\gsl_byte" />
-    <None Include="packages_misc\gsl\gsl_util" />
-    <None Include="packages_misc\gsl\multi_span" />
-    <None Include="packages_misc\gsl\pointers" />
-    <None Include="packages_misc\gsl\span" />
-    <None Include="packages_misc\gsl\string_span" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -12,7 +12,6 @@ This software is based on the following MIT licensed projects:
 - Plog                             : Copyright (c) 2022 Sergey Podobry
 - pugixml                          : Copyright (c) 2006-2023 Arseny Kapoulkine
 - ValveFileVDF                     : Copyright (c) Matthias Moeller 2016 m_moeller@live.de
-- Guidelines Support Library (GSL) : Copyright (c) 2015 Microsoft Corporation. All rights reserved.
 - HybridDetect                     : Copyright (c) 2017 Intel
 
 ---

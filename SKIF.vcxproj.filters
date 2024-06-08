@@ -82,9 +82,6 @@
     <Filter Include="Header Files\Packages_Misc">
       <UniqueIdentifier>{9fb4cf13-f304-4e2c-a64a-0fb28fa175f2}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\Packages_Misc\GSL">
-      <UniqueIdentifier>{995078a9-45f5-4bd8-8760-dec8aed20f6d}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\imgui\imconfig.h">
@@ -379,32 +376,5 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-    <None Include="packages_misc\gsl\gsl">
-      <Filter>Header Files\Packages_Misc\GSL</Filter>
-    </None>
-    <None Include="packages_misc\gsl\gsl_algorithm">
-      <Filter>Header Files\Packages_Misc\GSL</Filter>
-    </None>
-    <None Include="packages_misc\gsl\gsl_assert">
-      <Filter>Header Files\Packages_Misc\GSL</Filter>
-    </None>
-    <None Include="packages_misc\gsl\gsl_byte">
-      <Filter>Header Files\Packages_Misc\GSL</Filter>
-    </None>
-    <None Include="packages_misc\gsl\gsl_util">
-      <Filter>Header Files\Packages_Misc\GSL</Filter>
-    </None>
-    <None Include="packages_misc\gsl\multi_span">
-      <Filter>Header Files\Packages_Misc\GSL</Filter>
-    </None>
-    <None Include="packages_misc\gsl\pointers">
-      <Filter>Header Files\Packages_Misc\GSL</Filter>
-    </None>
-    <None Include="packages_misc\gsl\span">
-      <Filter>Header Files\Packages_Misc\GSL</Filter>
-    </None>
-    <None Include="packages_misc\gsl\string_span">
-      <Filter>Header Files\Packages_Misc\GSL</Filter>
-    </None>
   </ItemGroup>
 </Project>
