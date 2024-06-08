@@ -20,15 +20,12 @@ public:
                                    IID_IDropTargetHelper, reinterpret_cast<LPVOID *>(&m_pDropTargetHelper))))
       m_pDropTargetHelper = nullptr;
 
-    // Images (files) from e.g. File Explorer
-    m_fmtSupported.push_back ({ CF_HDROP, nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL });
-
-    // ANSI text, e.g. URL to images from a web browser
-    m_fmtSupported.push_back ({ CF_TEXT,  nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL });
-
-    // NOT CURRENTLY IMPLEMENTED
-    // Unicode text, e.g. URL to images from a web browser
-    //formatEtc_.push_back ({ CF_UNICODETEXT,  nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL });
+    // Initialize our supported clipboard formats
+    m_fmtSupported = {
+      { CF_UNICODETEXT, nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL }, // Unicode text, e.g. URL to images from a web browser
+      { CF_HDROP,       nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL }, // Images (files) from e.g. File Explorer or a local Bitmap image from Firefox
+      { CF_TEXT,        nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL }  //   ANSI  text, e.g. URL to images from a web browser
+    };
   }
 
   ~DropTarget ()
@@ -88,20 +85,44 @@ public:
     // We are only interested in copy operations (for now)
     if ((*pdwEffect & DROPEFFECT_COPY) == DROPEFFECT_COPY)
     {
-      for (auto& fmt : m_fmtSupported)
+      IEnumFORMATETC* pEnumFormatEtc = nullptr;
+      if (SUCCEEDED (pDataObj->EnumFormatEtc (DATADIR_GET, &pEnumFormatEtc)))
       {
-        if (SUCCEEDED (pDataObj->QueryGetData (&fmt)))
+        FORMATETC s_fmtSupported = { }; // FormatEtc supported by the source
+        ULONG fetched;
+
+        // We need to find a matching format that both we and the source supports
+        while (pEnumFormatEtc->Next (1, &s_fmtSupported, &fetched) == S_OK)
         {
-          m_bAllowDrop  = true;
-          m_fmtDropping = &fmt;
-          *pdwEffect    = DROPEFFECT_COPY;
 
-          if (m_pDropTargetHelper != nullptr)
-            m_pDropTargetHelper->DragEnter (m_hWnd, pDataObj, reinterpret_cast<LPPOINT>(&pt), *pdwEffect);
+#ifdef _DEBUG
+          TCHAR szFormatName[256];
+          GetClipboardFormatName (s_fmtSupported.cfFormat, szFormatName, 256);
+          PLOG_VERBOSE << "Supported format: " << s_fmtSupported.cfFormat << " - " << szFormatName;
+#endif
 
-          return S_OK;
+          for (auto& fmt : m_fmtSupported)
+          {
+            if (fmt.cfFormat == s_fmtSupported.cfFormat && // Are we dealing with the same format type?
+                SUCCEEDED (pDataObj->QueryGetData (&fmt))) // Does it accept our format specification?
+            {
+              m_bAllowDrop  = true;
+              m_fmtDropping = &fmt;
+              *pdwEffect    = DROPEFFECT_COPY;
+
+              if (m_pDropTargetHelper != nullptr)
+                m_pDropTargetHelper->DragEnter (m_hWnd, pDataObj, reinterpret_cast<LPPOINT>(&pt), *pdwEffect);
+              
+              pEnumFormatEtc->Release();
+              return S_OK;
+            }
+          }
         }
+        pEnumFormatEtc->Release();
       }
+
+      else
+        PLOG_VERBOSE << "Failed to enumerate formats!";
     }
 
     *pdwEffect = DROPEFFECT_NONE;
@@ -159,11 +180,40 @@ public:
         m_pDropTargetHelper->Drop (pDataObj, reinterpret_cast<LPPOINT>(&pt), *pdwEffect);
 
       extern std::wstring dragDroppedFilePath;
-      STGMEDIUM medium = { };
+      STGMEDIUM medium;
 
-      // Files from e.g. File Explorer
-      if (m_fmtDropping->cfFormat == CF_HDROP && SUCCEEDED (pDataObj->GetData (m_fmtDropping, &medium)))
+      auto ReturnAndCleanUp = [&](void)
       {
+        ReleaseStgMedium (&medium);
+
+        m_bAllowDrop  = false;
+        m_fmtDropping = nullptr;
+
+        return S_OK;
+      };
+
+      // Unicode text to e.g. URL to images from a Chromium web browser
+      if (m_fmtDropping->cfFormat == CF_UNICODETEXT && SUCCEEDED (pDataObj->GetData (m_fmtDropping, &medium)))
+      {
+        PLOG_VERBOSE << "Detected a drop of type CF_UNICODETEXT";
+
+        const wchar_t* pszSource = static_cast<const wchar_t*> (GlobalLock (medium.hGlobal));
+
+        if (pszSource != nullptr)
+        {
+          dragDroppedFilePath = std::wstring (pszSource);
+
+          GlobalUnlock (medium.hGlobal);
+        }
+
+        ReturnAndCleanUp ( );
+      }
+
+      // Files from e.g. File Explorer or a local Bitmap image from Firefox
+      else if (m_fmtDropping->cfFormat == CF_HDROP && SUCCEEDED (pDataObj->GetData (m_fmtDropping, &medium)))
+      {
+        PLOG_VERBOSE << "Detected a drop of type CF_HDROP";
+
         HDROP hDrop = static_cast<HDROP> (GlobalLock(medium.hGlobal));
 
         if (hDrop != nullptr)
@@ -180,32 +230,24 @@ public:
           GlobalUnlock (medium.hGlobal);
         }
 
-        ReleaseStgMedium (&medium);
-
-        m_bAllowDrop  = false;
-        m_fmtDropping = nullptr;
-
-        return S_OK;
+        ReturnAndCleanUp ( );
       }
 
-      // ANSI text
+      // ANSI text to e.g. URL to images from a Chromium web browser
       else if (m_fmtDropping->cfFormat == CF_TEXT && SUCCEEDED (pDataObj->GetData (m_fmtDropping, &medium)))
       {
-        char *pszData = static_cast<char *> (GlobalLock (medium.hGlobal));
+        PLOG_VERBOSE << "Detected a drop of type CF_TEXT";
 
-        if (pszData != nullptr)
+        const char* pszSource = static_cast<const char *> (GlobalLock (medium.hGlobal));
+
+        if (pszSource != nullptr)
         {
-          dragDroppedFilePath = SK_UTF8ToWideChar (pszData);
+          dragDroppedFilePath = SK_UTF8ToWideChar (pszSource);
 
           GlobalUnlock (medium.hGlobal);
         }
 
-        ReleaseStgMedium (&medium);
-
-        m_bAllowDrop  = false;
-        m_fmtDropping = nullptr;
-
-        return S_OK;
+        ReturnAndCleanUp ( );
       }
     }
 
