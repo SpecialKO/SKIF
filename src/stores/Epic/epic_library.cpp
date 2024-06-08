@@ -7,8 +7,6 @@
 #include <comdef.h>
 #include <process.h>
 
-#include <gsl/gsl>
-
 #include <utility/registry.h>
 
 /*

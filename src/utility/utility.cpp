@@ -1,7 +1,6 @@
 #include <utility/utility.h>
 #include <utility/sk_utility.h>
 #include <comdef.h>
-#include <gsl/gsl_util>
 #include <Psapi.h>
 #include <cwctype>
 #include <unordered_set>
@@ -3349,10 +3348,14 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get)
   else
     flags  |= INTERNET_FLAG_RELOAD                   | INTERNET_FLAG_NO_CACHE_WRITE           | INTERNET_FLAG_PRAGMA_NOCACHE;
 
+  std::wstring full_path = std::wstring (get->wszHostPath);
+  if (get->wszExtraInfo[0] != L'\0')
+    full_path += std::wstring (get->wszExtraInfo);
+
   hInetHTTPGetReq =
     HttpOpenRequest ( hInetHost,
                         get->method,
-                          get->wszHostPath,
+                          full_path.c_str(),
                             L"HTTP/1.1",
                               nullptr,
                                 rgpszAcceptTypes,
@@ -3472,6 +3475,9 @@ SKIF_Util_GetWebResource (std::wstring url, std::wstring_view destination, std::
   urlcomps.lpszUrlPath      = get->wszHostPath;
   urlcomps.dwUrlPathLength  = INTERNET_MAX_PATH_LENGTH;
 
+  urlcomps.lpszExtraInfo     = get->wszExtraInfo;
+  urlcomps.dwExtraInfoLength = INTERNET_MAX_PATH_LENGTH;
+
   if (! method.empty())
     get->method = method.c_str();
 
@@ -3481,12 +3487,7 @@ SKIF_Util_GetWebResource (std::wstring url, std::wstring_view destination, std::
   if (! body.empty())
     get->body = body;
 
-  if ( InternetCrackUrl (          url.c_str  (),
-         gsl::narrow_cast <DWORD> (url.length ()),
-                            0x00,
-                              &urlcomps
-                        )
-     )
+  if (InternetCrackUrl (url.c_str(), static_cast <DWORD> (url.length ()), 0x00, &urlcomps))
   {
     wcsncpy ( get->wszLocalPath,
                            destination.data (),
@@ -3506,6 +3507,38 @@ SKIF_Util_GetWebResource (std::wstring url, std::wstring_view destination, std::
   }
 
   return 0;
+}
+
+skif_get_web_uri_t
+SKIF_Util_CrackWebUrl (const std::wstring url)
+{
+  skif_get_web_uri_t cracked = { };
+  URL_COMPONENTSW urlcomps   = { };
+
+  urlcomps.dwStructSize      = sizeof (URL_COMPONENTSW);
+
+  urlcomps.lpszHostName      = cracked.wszHostName;
+  urlcomps.dwHostNameLength  = INTERNET_MAX_HOST_NAME_LENGTH;
+
+  urlcomps.lpszUrlPath       = cracked.wszHostPath;
+  urlcomps.dwUrlPathLength   = INTERNET_MAX_PATH_LENGTH;
+
+  urlcomps.lpszExtraInfo     = cracked.wszExtraInfo;
+  urlcomps.dwExtraInfoLength = INTERNET_MAX_PATH_LENGTH;
+
+  if (! InternetCrackUrl (url.c_str(), static_cast <DWORD> (url.length ()), 0x00, &urlcomps))
+    PLOG_ERROR << "Failed to cracks a URL into its component parts! URL: " << url;
+
+#ifdef _DEBUG
+  else {
+    PLOG_VERBOSE << "Cracked URL:\n"
+                 << "wszHostName : " << std::wstring (cracked.wszHostName) << "\n"
+                 << "wszHostPath : " << std::wstring (cracked.wszHostPath) << "\n"
+                 << "wszExtraInfo: " << std::wstring (cracked.wszExtraInfo);
+  }
+#endif
+
+  return cracked;
 }
 
 

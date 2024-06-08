@@ -23,7 +23,6 @@
 #include <utility/sk_utility.h>
 #include <utility/utility.h>
 #include <Windows.h>
-#include <gsl/gsl>
 
 #ifndef SECURITY_WIN32 
 #define SECURITY_WIN32 
@@ -39,25 +38,6 @@
 std::string
 SK_WideCharToUTF8 (const std::wstring& in)
 {
-  /*
-  size_t len =
-    WideCharToMultiByte ( CP_UTF8, 0x00, in.c_str (), -1,
-                           nullptr, 0, nullptr, FALSE );
-
-  std::string out (
-    len * 2 + 2,
-      '\0'
-  );
-
-  WideCharToMultiByte   ( CP_UTF8, 0x00,          in.c_str  (),
-                          gsl::narrow_cast <int> (in.length ()),
-                                                 out.data   (),
-                          gsl::narrow_cast <DWORD>       (len),
-                            nullptr,                   FALSE );
-
-  out.resize(len);
-  */
-  
   // CC BY-SA 4.0: https://stackoverflow.com/a/59617138
   int count = 
     WideCharToMultiByte (CP_UTF8, 0, in.c_str(), static_cast <int> (in.length()), NULL, 0, NULL, NULL);
@@ -71,24 +51,6 @@ SK_WideCharToUTF8 (const std::wstring& in)
 std::wstring
 SK_UTF8ToWideChar (const std::string& in)
 {
-  /*
-  size_t len =
-    MultiByteToWideChar ( CP_UTF8, 0x00, in.c_str (), -1,
-                           nullptr, 0 );
-
-  std::wstring out (
-    len * 2 + 2,
-      L'\0'
-  );
-
-  MultiByteToWideChar   ( CP_UTF8, 0x00,          in.c_str  (),
-                          gsl::narrow_cast <int> (in.length ()),
-                                                 out.data   (),
-                          gsl::narrow_cast <DWORD>       (len) );
-
-  out.resize(len);
-  */
-
   // CC BY-SA 4.0: https://stackoverflow.com/a/59617138
   int count = 
     MultiByteToWideChar (CP_UTF8, 0, in.c_str(), static_cast <int> (in.length()), NULL, 0);

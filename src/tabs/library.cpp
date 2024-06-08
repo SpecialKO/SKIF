@@ -53,7 +53,6 @@
 #include <utility/fsutil.h>
 #include <atlimage.h>
 #include <TlHelp32.h>
-#include <gsl/gsl_util>
 
 #include <utility/registry.h>
 #include <utility/updater.h>
