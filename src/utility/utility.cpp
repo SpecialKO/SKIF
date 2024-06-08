@@ -2655,8 +2655,6 @@ SKIF_Util_FileExplorer_SelectFile (PCWSTR filePath)
       SKIF_Util_ExplorePath (std::filesystem::path(_data->path).parent_path().wstring());
     }
 
-    PLOG_VERBOSE << "Worker_SelectFile shutting down...";
-
     // Free up the memory we allocated
     delete _data;
 
