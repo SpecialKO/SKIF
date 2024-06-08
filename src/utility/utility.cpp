@@ -2636,19 +2636,26 @@ SKIF_Util_FileExplorer_SelectFile (PCWSTR filePath)
     // Unused
     SFGAOF           flags   = 0;
 
-    // You should call this function from a background thread. Failure to do so could cause the UI to stop responding.
-    if (S_OK == SHParseDisplayName (_data->path.c_str(), nullptr, &iidlPtr, 0, &flags))
+    if (PathFileExists (_data->path.c_str()))
     {
-      // CoInitialize or CoInitializeEx must be called before using SHOpenFolderAndSelectItems.
-      // Not doing so causes SHOpenFolderAndSelectItems to fail.
-      if (S_OK == SHOpenFolderAndSelectItems (iidlPtr, 0, nullptr, 0))
+      // You should call this function from a background thread. Failure to do so could cause the UI to stop responding.
+      if (S_OK == SHParseDisplayName (_data->path.c_str(), nullptr, &iidlPtr, 0, &flags))
       {
-        // Success !
-      }
+        // CoInitialize or CoInitializeEx must be called before using SHOpenFolderAndSelectItems.
+        // Not doing so causes SHOpenFolderAndSelectItems to fail.
+        if (S_OK == SHOpenFolderAndSelectItems (iidlPtr, 0, nullptr, 0))
+        { } // Success
 
-      // Use the task allocator to free to returned pidl
-      ILFree (iidlPtr);
+        // Use the task allocator to free to returned pidl
+        ILFree (iidlPtr);
+      }
     }
+
+    else {
+      SKIF_Util_ExplorePath (std::filesystem::path(_data->path).parent_path().wstring());
+    }
+
+    PLOG_VERBOSE << "Worker_SelectFile shutting down...";
 
     // Free up the memory we allocated
     delete _data;
