@@ -254,7 +254,7 @@ SKIF_Util_GetErrorAsWStr (DWORD error, HMODULE module)
   std::wstring message (messageBuffer, size);
   LocalFree (messageBuffer);
 
-  message.erase (std::remove (message.begin(), message.end(), '\n'), message.end());
+  SKIF_Util_CleanStringW (message);
 
   message = L"[" + std::to_wstring(error) + L"] " + message;
 
