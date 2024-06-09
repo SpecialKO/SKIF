@@ -120,41 +120,119 @@ SKIF_Util_ToUpperW     (std::wstring_view input)
 }
 
 void
+SKIF_Util_CleanString (std::string& input)
+{
+  SKIF_Util_StripNulls             (input);
+  SKIF_Util_StripCarriageReturns   (input);
+  SKIF_Util_TrimSpaces             (input);
+}
+
+void
+SKIF_Util_CleanStringW (std::wstring& input)
+{
+  SKIF_Util_StripNullsW              (input);
+  SKIF_Util_StripCarriageReturnsW    (input);
+  SKIF_Util_TrimSpacesW              (input);
+}
+
+void
+SKIF_Util_StripNulls (std::string& input)
+{
+  input.erase (std::find (input.begin(), input.end(), '\0'), input.end());
+}
+
+void
+SKIF_Util_StripNullsW (std::wstring& input)
+{
+  input.erase (std::find (input.begin(), input.end(), L'\0'), input.end());
+}
+
+void
+SKIF_Util_StripCarriageReturns (std::string& input)
+{
+  input.erase (std::find (input.begin(), input.end(), '\r'), input.end());
+}
+
+void
+SKIF_Util_StripCarriageReturnsW (std::wstring& input)
+{
+  input.erase (std::find (input.begin(), input.end(), L'\r'), input.end());
+}
+
+void
 SKIF_Util_TrimSpaces (std::string& input)
 {
-  SKIF_Util_TrimLeadingSpaces  (input);
-  SKIF_Util_TrimTrailingSpaces (input);
+  SKIF_Util_TrimLeadingSpaces     (input);
+  SKIF_Util_TrimTrailingSpaces    (input);
 }
 
 void
 SKIF_Util_TrimSpacesW (std::wstring& input)
 {
-  SKIF_Util_TrimLeadingSpacesW  (input);
-  SKIF_Util_TrimTrailingSpacesW (input);
+  SKIF_Util_TrimLeadingSpacesW      (input);
+  SKIF_Util_TrimTrailingSpacesW     (input);
 }
 
 void
 SKIF_Util_TrimLeadingSpaces (std::string& input)
 {
-  input.erase (input.begin(), std::find_if (input.begin(), input.end(), [](unsigned char ch) { return !std::isspace (ch); }));
+  input.erase (input.begin(), std::find_if (input.begin(), input.end(), [](const unsigned char ch) { return !std::isspace (ch); }));
 }
 
 void
 SKIF_Util_TrimLeadingSpacesW (std::wstring& input)
 {
-  input.erase (input.begin(), std::find_if (input.begin(), input.end(), [](      wchar_t ch) { return !std::iswspace (ch); }));
+  input.erase (input.begin(), std::find_if (input.begin(), input.end(), [](const       wchar_t ch) { return !std::iswspace (ch); }));
 }
 
 void
 SKIF_Util_TrimTrailingSpaces (std::string& input)
 {
-  input.erase (std::find_if (input.rbegin(), input.rend(), [](unsigned char ch) { return !std::isspace  (ch); }).base(), input.end());
+  input.erase (std::find_if (input.rbegin(), input.rend(), [](const unsigned char ch) { return !std::isspace  (ch); }).base(), input.end());
 }
 
 void
 SKIF_Util_TrimTrailingSpacesW (std::wstring& input)
 {
-  input.erase (std::find_if (input.rbegin(), input.rend(), [](      wchar_t ch) { return !std::iswspace (ch); }).base(), input.end());
+  input.erase (std::find_if (input.rbegin(), input.rend(), [](const       wchar_t ch) { return !std::iswspace (ch); }).base(), input.end());
+}
+
+void
+SKIF_Util_TrimNewLines (std::string& input)
+{
+  SKIF_Util_TrimLeadingNewlines     (input);
+  SKIF_Util_TrimTrailingNewlines    (input);
+}
+
+void
+SKIF_Util_TrimNewLinesW (std::wstring& input)
+{
+  SKIF_Util_TrimLeadingNewlinesW      (input);
+  SKIF_Util_TrimTrailingNewlinesW     (input);
+}
+
+void
+SKIF_Util_TrimLeadingNewlines (std::string& input)
+{
+  input.erase (input.begin(), std::find_if (input.begin(), input.end(), [](const unsigned char ch) { return (ch != '\n'); }));
+}
+
+void
+SKIF_Util_TrimLeadingNewlinesW (std::wstring& input)
+{
+  input.erase (input.begin(), std::find_if (input.begin(), input.end(), [](const       wchar_t ch) { return (ch != L'\n'); }));
+}
+
+void
+SKIF_Util_TrimTrailingNewlines (std::string& input)
+{
+  input.erase (std::find_if (input.rbegin(), input.rend(), [](const unsigned char ch) { return (ch != '\n'); }).base(), input.end());
+}
+
+void
+SKIF_Util_TrimTrailingNewlinesW (std::wstring& input)
+{
+  input.erase (std::find_if (input.rbegin(), input.rend(), [](const       wchar_t ch) { return (ch != L'\n'); }).base(), input.end());
 }
 
 
