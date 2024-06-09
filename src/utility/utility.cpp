@@ -124,6 +124,7 @@ SKIF_Util_CleanString (std::string& input)
 {
   SKIF_Util_StripNulls             (input);
   SKIF_Util_StripCarriageReturns   (input);
+  SKIF_Util_TrimNewLines           (input);
   SKIF_Util_TrimSpaces             (input);
 }
 
@@ -132,6 +133,7 @@ SKIF_Util_CleanStringW (std::wstring& input)
 {
   SKIF_Util_StripNullsW              (input);
   SKIF_Util_StripCarriageReturnsW    (input);
+  SKIF_Util_TrimNewLinesW            (input);
   SKIF_Util_TrimSpacesW              (input);
 }
 
