@@ -1438,8 +1438,10 @@ SKIF_UI_Tab_DrawSettings (void)
              SKIF_GamePadInputHelper::GetInstance ( );
 
       if (_registry.bControllers)
+      {
+        _gamepad.InvalidateGamePads ( );
         _gamepad.WakeThread  ( );
-      else
+      } else
         _gamepad.SleepThread ( );
     }
 

@@ -4367,32 +4367,36 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         case DBT_DEVICEARRIVAL:
         case DBT_DEVICEREMOVECOMPLETE:
         {
-          DEV_BROADCAST_HDR* pDevHdr =
-            (DEV_BROADCAST_HDR *)lParam;
-          if (pDevHdr->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE)
+          // Only process these if controller support is enabled
+          if (_registry.bControllers)
           {
-            DEV_BROADCAST_DEVICEINTERFACE_W *pDev =
-              (DEV_BROADCAST_DEVICEINTERFACE_W *)pDevHdr;
-
-            static constexpr GUID GUID_DEVINTERFACE_HID =
-              { 0x4D1E55B2L, 0xF16F, 0x11CF, { 0x88, 0xCB, 0x00, 0x11, 0x11, 0x00, 0x00, 0x30 } };
-
-            if (IsEqualGUID (pDev->dbcc_classguid, GUID_DEVINTERFACE_HID))
+            DEV_BROADCAST_HDR* pDevHdr =
+              (DEV_BROADCAST_HDR *)lParam;
+            if (pDevHdr->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE)
             {
-              // Check for changes in case any device has arrived
-              if (wParam == DBT_DEVICEARRIVAL)
-              {
-                PLOG_VERBOSE << "A HID device has arrived, and we need to refresh gamepad connectivity...";
-                _gamepad.InvalidateGamePads( );
-                _gamepad.WakeThread ( );
-              }
+              DEV_BROADCAST_DEVICEINTERFACE_W *pDev =
+                (DEV_BROADCAST_DEVICEINTERFACE_W *)pDevHdr;
 
-              // Only check for changes if a device was removed if we actually had a connected gamepad
-              else if (wParam == DBT_DEVICEREMOVECOMPLETE && _gamepad.HasGamePad())
+              static constexpr GUID GUID_DEVINTERFACE_HID =
+                { 0x4D1E55B2L, 0xF16F, 0x11CF, { 0x88, 0xCB, 0x00, 0x11, 0x11, 0x00, 0x00, 0x30 } };
+
+              if (IsEqualGUID (pDev->dbcc_classguid, GUID_DEVINTERFACE_HID))
               {
-                PLOG_VERBOSE << "A HID device was removed, and we need to refresh gamepad connectivity...";
-                _gamepad.InvalidateGamePads( );
-                _gamepad.WakeThread ( );
+                // Check for changes in case any device has arrived
+                if (wParam == DBT_DEVICEARRIVAL)
+                {
+                  PLOG_VERBOSE << "A HID device has arrived, and we need to refresh gamepad connectivity...";
+                  _gamepad.InvalidateGamePads( );
+                  _gamepad.WakeThread ( );
+                }
+
+                // Only check for changes if a device was removed if we actually had a connected gamepad
+                else if (wParam == DBT_DEVICEREMOVECOMPLETE && _gamepad.HasGamePad ( ))
+                {
+                  PLOG_VERBOSE << "A HID device was removed, and we need to refresh gamepad connectivity...";
+                  _gamepad.InvalidateGamePads( );
+                  _gamepad.WakeThread ( );
+                }
               }
             }
           }

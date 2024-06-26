@@ -109,6 +109,7 @@ void SKIF_UI_DrawComponentVersion (void)
 void SKIF_UI_DrawPlatformStatus (void)
 {
   static SKIF_GamePadInputHelper& _gamepad  = SKIF_GamePadInputHelper::GetInstance ( );
+  static SKIF_RegistrySettings&   _registry = SKIF_RegistrySettings  ::GetInstance ( );
 
   ImGui::BeginGroup       ( );
   ImGui::Spacing          ( );
@@ -479,44 +480,54 @@ void SKIF_UI_DrawPlatformStatus (void)
   }
 
   SKIF_ImGui_Spacing      ( );
+
   ImGui::Text             ("Connected XInput gamepads:");
   ImGui::SameLine         ( );
-
-  std::vector<bool> slots = _gamepad.GetGamePads ( );
-
-  ImGui::BeginGroup       ( );
-  for (auto slot : slots)
+    
+  if (! _registry.bControllers)
   {
-    ImGui::SameLine ( );
-
-    if (slot)
-      ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success), ICON_FA_CHECK);
-    else
-      ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Yellow ), ICON_FA_XMARK);
+    ImGui::TextDisabled     ("Disabled");
+    SKIF_ImGui_SetHoverTip  ("Please re-enable controller support in the Settings tab.");
   }
-  ImGui::EndGroup         ( );
-  SKIF_ImGui_SetHoverTip  ("Indicates which Xbox (XInput) controller slots are currently in use/connected.");
 
-  // If the primary slot is false and one of the other are true, show a warning
-  if (slots[0] == false &&
-     (slots[1] == true  ||
-      slots[2] == true  ||
-      slots[3] == true  ))
+  else
   {
-    ImGui::Spacing          ( );
+    std::vector<bool> slots = _gamepad.GetGamePads ( );
 
-    ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Yellow));
     ImGui::BeginGroup       ( );
-    ImGui::Spacing          ( );
-    ImGui::SameLine         ( );
-    ImGui::Text             (ICON_FA_TRIANGLE_EXCLAMATION " ");
-    ImGui::SameLine         ( );
-    ImGui::Text             ("Some games may not detect the gamepad!");
-    ImGui::EndGroup         ( );
-    ImGui::PopStyleColor    ( );
+    for (auto slot : slots)
+    {
+      ImGui::SameLine ( );
 
-    SKIF_ImGui_SetHoverTip  ("Some games may not be able to detect the controller if it is not connected to the first slot.\n"
-                             "Disconnect and reconnect the controller to the system usually takes care of the issue.");
+      if (slot)
+        ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success), ICON_FA_CHECK);
+      else
+        ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Yellow ), ICON_FA_XMARK);
+    }
+    ImGui::EndGroup         ( );
+    SKIF_ImGui_SetHoverTip  ("Indicates which Xbox (XInput) controller slots are currently in use/connected.");
+
+    // If the primary slot is false and one of the other are true, show a warning
+    if (slots[0] == false &&
+       (slots[1] == true  ||
+        slots[2] == true  ||
+        slots[3] == true  ))
+    {
+      ImGui::Spacing          ( );
+
+      ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Yellow));
+      ImGui::BeginGroup       ( );
+      ImGui::Spacing          ( );
+      ImGui::SameLine         ( );
+      ImGui::Text             (ICON_FA_TRIANGLE_EXCLAMATION " ");
+      ImGui::SameLine         ( );
+      ImGui::Text             ("Some games may not detect the gamepad!");
+      ImGui::EndGroup         ( );
+      ImGui::PopStyleColor    ( );
+
+      SKIF_ImGui_SetHoverTip  ("Some games may not be able to detect the controller if it is not connected to the first slot.\n"
+                               "Disconnect and reconnect the controller to the system usually takes care of the issue.");
+    }
   }
 }
 
