@@ -4340,6 +4340,13 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
   // TODO: Make the specialk.injection bitness/state/etc stuff bound
   //         to launch_config so it is not universal any longer
 
+  // If we cannot detect any launch configs, add an empty one
+  if (pApp->launch_configs.empty())
+  {
+    PLOG_ERROR << "Could not detect any launch configs?! Defaulting to an empty one.";
+    pApp->launch_configs.emplace (0, app_record_s::launch_config_s());
+  }
+
   auto& launch = pApp->launch_configs.begin()->second;
 
   // If primary launch config was invalid (e.g. Link2EA games) then set it to use global
@@ -4372,13 +4379,22 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
       ConfigType::Centralized;
 
     pApp->specialk.injection.dll.shorthand      = 
-                                       bIs64Bit ? L"SpecialK64.dll"
+                                       bIs64Bit
+#ifdef _WIN64
+                                                ? L"SpecialK64.dll"
+#else
+                                                ? L"64-bit required!"
+#endif
                                                 : L"SpecialK32.dll";
     pApp->specialk.injection.dll.shorthand_utf8 = SK_WideCharToUTF8 (pApp->specialk.injection.dll.shorthand);
     pApp->specialk.injection.dll.full_path      = SK_FormatStringW (LR"(%ws\%ws)", _path_cache.specialk_install, pApp->specialk.injection.dll.shorthand.c_str());
     pApp->specialk.injection.dll.full_path_utf8 = SK_WideCharToUTF8 (pApp->specialk.injection.dll.full_path);
-    pApp->specialk.injection.dll.version        = 
+    pApp->specialk.injection.dll.version        =
+#ifdef _WIN64
                                        bIs64Bit ? _inject.SKVer64
+#else
+                                       bIs64Bit ? L"64-bit required!"
+#endif
                                                 : _inject.SKVer32;
     pApp->specialk.injection.dll.version_utf8   = SK_WideCharToUTF8 (pApp->specialk.injection.dll.version);
   }
