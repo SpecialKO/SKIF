@@ -755,8 +755,10 @@ SKIF_InjectionContext::_RefreshSKDLLVersions (void)
               << "\n+------------------+-------------------------------------+"
               << "\n| SpecialK32.dll   | " << SKVer32
               << "\n|  SKIFsvc32.exe   | " << SKSvc32
+#ifdef _WIN64
               << "\n| SpecialK64.dll   | " << SKVer64
               << "\n|  SKIFsvc64.exe   | " << SKSvc64
+#endif
               << "\n+------------------+-------------------------------------+";
   }
 }
@@ -813,7 +815,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   else
     ImGui::NewLine       ();
 #else
-  if (! SKVer32_utf8.empty())
+  if (! SKVer32.empty())
     ImGui::TextUnformatted (("v " + SKVer32_utf8).c_str ());
 #endif
 

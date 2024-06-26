@@ -3340,7 +3340,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         ImGui::Text        ("You are currently using");
         ImGui::SameLine    ( );
+#ifdef _WIN64
         ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), ("Special K v " + _inject.SKVer64_utf8).c_str());
+#else
+        ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), ("Special K v " + _inject.SKVer32_utf8).c_str());
+#endif
 
         SKIF_ImGui_Spacing ();
 
@@ -3443,7 +3447,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         ImGui::Text        ("You are now using");
         ImGui::SameLine    ( );
+#ifdef _WIN64
         ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), ("Special K v " + _inject.SKVer64_utf8).c_str());
+#else
+        ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), ("Special K v " + _inject.SKVer32_utf8).c_str());
+#endif
 
         SKIF_ImGui_Spacing ();
 
