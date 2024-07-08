@@ -1447,6 +1447,8 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::EndGroup   ();
   }
 
+  ImGui::Spacing ();
+  ImGui::Spacing ();
 #pragma endregion
 
 #pragma region Section: Advanced
