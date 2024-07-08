@@ -12,6 +12,7 @@
 #include <vector>
 #include <shellapi.h>
 #include <stdexcept>
+#include <utility/sk_utility.h>
 
 #pragma comment(lib, "wininet.lib")
 
@@ -201,10 +202,10 @@ bool            SKIF_Util_IsHDRSupported              (bool refresh = false);
 bool            SKIF_Util_IsHDRActive                 (bool refresh = false);
 float           SKIF_Util_GetSDRWhiteLevelForHMONITOR (HMONITOR hMonitor);
 bool            SKIF_Util_EnableHDROutput             (void);
-bool            SKIF_Util_RegisterHotKeyHDRToggle     (void);
+bool            SKIF_Util_RegisterHotKeyHDRToggle     (SK_Keybind* binding);
 bool            SKIF_Util_UnregisterHotKeyHDRToggle   (void);
 bool            SKIF_Util_GetHotKeyStateHDRToggle     (void);
-bool            SKIF_Util_RegisterHotKeySVCTemp       (void);
+bool            SKIF_Util_RegisterHotKeySVCTemp       (SK_Keybind* binding);
 bool            SKIF_Util_UnregisterHotKeySVCTemp     (void);
 bool            SKIF_Util_GetHotKeyStateSVCTemp       (void);
 

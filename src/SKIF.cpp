@@ -181,6 +181,11 @@ PopupState AutoUpdatePopup   = PopupState_Closed;
 UITab SKIF_Tab_Selected      = UITab_Library,
       SKIF_Tab_ChangeTo      = UITab_None;
 
+// Variables related to the display SKIF is visible on
+ImVec2  windowPos;
+ImRect  windowRect       = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
+ImRect  monitor_extent   = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
+
 HMODULE hModSKIF     = nullptr;
 HMODULE hModSpecialK = nullptr;
 HICON   hIcon        = nullptr;
@@ -1696,10 +1701,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Message queue/pump
   MSG msg = { };
 
-  // Variables related to the display SKIF is visible on
-  ImVec2  windowPos;
-  ImRect  windowRect       = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
-  ImRect  monitor_extent   = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
   RepositionSKIF   = (! PathFileExistsW (L"SKIF.ini") || _registry.bOpenAtCursorPosition);
 
   // Add the status bar if it is not disabled
@@ -1720,10 +1721,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
   if (! _Signal.Launcher && ! _Signal.LauncherURI && ! _Signal.Quit && ! _Signal.ServiceMode)
   {
     // Register HDR toggle hotkey (if applicable)
-    SKIF_Util_RegisterHotKeyHDRToggle ( );
+    SKIF_Util_RegisterHotKeyHDRToggle (&_registry.kbToggleHDRDisplay);
 
     // Register service (auto-stop) hotkey
-    SKIF_Util_RegisterHotKeySVCTemp   ( );
+    SKIF_Util_RegisterHotKeySVCTemp   (&_registry.kbStartService);
   }
 
   PLOG_INFO << "Initializing updater...";
@@ -2115,10 +2116,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
         {   _Signal.Launcher =  _Signal.LauncherURI =  _Signal.Quit =  _Signal.ServiceMode = false;
 
           // Register HDR toggle hotkey (if applicable)
-          SKIF_Util_RegisterHotKeyHDRToggle ( );
+          SKIF_Util_RegisterHotKeyHDRToggle (&_registry.kbToggleHDRDisplay);
 
           // Register service (auto-stop) hotkey
-          SKIF_Util_RegisterHotKeySVCTemp   ( );
+          SKIF_Util_RegisterHotKeySVCTemp   (&_registry.kbStartService);
             
           /*
           // Check for the presence of an internet connection

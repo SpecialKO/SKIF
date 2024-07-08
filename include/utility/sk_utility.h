@@ -780,4 +780,56 @@ SK_make_unique_nothrow (Args && ... args) noexcept
 );
 
 
+// Keybindings
+
+struct SK_Keybind
+{
+  const char*  bind_name           = nullptr;
+  std::wstring human_readable      =     L"";
+  std:: string human_readable_utf8 =      ""; // Read-only UTF8 copy
+
+  struct {
+    BOOL ctrl  = false,
+         shift = false,
+         alt   = false,
+         super = false; // Cmd/Super/Windows
+  };
+
+  SHORT vKey        =   0;
+  UINT  masked_code = 0x0; // For fast comparison
+
+  void parse  (void);
+  void update (void);
+};
+
+// Adds a parameter to store and retrieve the keybind in an INI / XML file
+struct SK_ConfigSerializedKeybind : public SK_Keybind
+{
+  SK_ConfigSerializedKeybind ( SK_Keybind&& bind,
+                             const wchar_t* cfg_name) :
+                               SK_Keybind  (bind)
+  {
+    if (cfg_name != nullptr)
+    {
+      wcsncpy_s ( short_name, 32,
+                    cfg_name, _TRUNCATE );
+    }
+  }
+
+  bool                  assigning       = false;
+  wchar_t               short_name [32] = L"Uninitialized";
+  wchar_t               param      [32] = L"Uninitialized"; //sk::ParameterStringW* param           = nullptr;
+};
+
+bool
+SK_ImGui_KeybindSelect (SK_Keybind* keybind, const char* szLabel);
+
+//SK_API
+void
+__stdcall
+SK_ImGui_KeybindDialog (SK_Keybind* keybind);
+
+bool
+SK_ImGui_Keybinding (SK_Keybind* binding); // sk::ParameterStringW* param
+
 #endif /* __SK__UTILITY_H__ */

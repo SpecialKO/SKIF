@@ -5,6 +5,7 @@
 #include <utility/sk_utility.h>
 #include <utility/utility.h>
 #include <filesystem>
+#include <functional>
 
 #include <dxgi.h>
 #include <d3d11.h>
@@ -1407,6 +1408,45 @@ SKIF_UI_Tab_DrawSettings (void)
 
   ImGui::Spacing ();
   ImGui::Spacing ();
+#pragma endregion
+
+#pragma region Section: Keybindings
+
+  if (ImGui::CollapsingHeader ("Keybindings###SKIF_SettingsHeader-0", ImGuiTreeNodeFlags_DefaultOpen))
+  {
+    struct kb_kv_bool_s
+    {
+      SK_Keybind*                                    _key;
+      SKIF_RegistrySettings::KeyValue<std::wstring>* _reg;
+      std::function <void(kb_kv_bool_s*)>            _callback;
+    };
+
+    static std::vector <kb_kv_bool_s>
+      keybinds = {
+      { &_registry.kbToggleHDRDisplay, &_registry.regKVHotkeyToggleHDRDisplay, { [](kb_kv_bool_s* ptr) { SKIF_Util_RegisterHotKeyHDRToggle (ptr->_key); } } },
+      { &_registry.kbStartService,     &_registry.regKVHotkeyStartService,     { [](kb_kv_bool_s* ptr) { SKIF_Util_RegisterHotKeySVCTemp   (ptr->_key); } } }
+    };
+
+    ImGui::BeginGroup ();
+    for (auto& keybind : keybinds)
+    {
+      ImGui::Text          ( "%s:  ",
+                            keybind._key->bind_name );
+    }
+    ImGui::EndGroup   ();
+    ImGui::SameLine   ();
+    ImGui::BeginGroup ();
+    for (auto& keybind : keybinds)
+    {
+      if (SK_ImGui_Keybinding (keybind._key))
+      {
+        keybind._reg->putData (keybind._key->human_readable);
+        keybind._callback    (&keybind);
+      }
+    }
+    ImGui::EndGroup   ();
+  }
+
 #pragma endregion
 
 #pragma region Section: Advanced

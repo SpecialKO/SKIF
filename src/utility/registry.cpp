@@ -503,6 +503,19 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   // Warnings
   bWarningRTSS             =   regKVWarningRTSS            .getData (&hKey);
 
+  // Keybindings
+  // All keybindings must first read the data from the registry,
+  //   then parse the human_readable data through .parse()
+
+  if (regKVHotkeyToggleHDRDisplay.hasData(&hKey))
+    kbToggleHDRDisplay.human_readable = regKVHotkeyToggleHDRDisplay.getData (&hKey);
+
+  if (regKVHotkeyStartService.hasData(&hKey))
+    kbStartService.human_readable = regKVHotkeyStartService.getData (&hKey);
+
+  kbToggleHDRDisplay.parse();
+  kbStartService.parse();
+
   if (hKey != nullptr)
     RegCloseKey (hKey);
 

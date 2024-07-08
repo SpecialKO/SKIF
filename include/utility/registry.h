@@ -4,6 +4,7 @@
 #include <typeindex>
 #include <sstream>
 #include <vector>
+#include <utility/sk_utility.h>
 
 #ifndef RRF_SUBKEY_WOW6464KEY
 #define RRF_SUBKEY_WOW6464KEY  0x00010000
@@ -482,6 +483,14 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(InstallGUID)" );
 
+  KeyValue <std::wstring> regKVHotkeyToggleHDRDisplay =
+    SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Hotkey Toggle HDR Display)" );
+
+  KeyValue <std::wstring> regKVHotkeyStartService =
+    SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Hotkey Start Service)" );
+
   // Multi wide Strings
 
   KeyValue <std::vector<std::wstring>> regKVCategories =
@@ -626,6 +635,20 @@ struct SKIF_RegistrySettings {
   bool _LibPinnedVisible            = false; // Whether to show pinned apps separately or not
   bool _UseLowResCovers             = false; // Whether to use low-res covers
   bool _UseLowResCoversHiDPIBypass  = false; // Bypass for HiDPI scenarios
+
+  // Keybindings
+
+  SK_Keybind kbToggleHDRDisplay = SK_Keybind {
+        "Toggle Display HDR",
+       L"Ctrl+Windows+Shift+H",
+        "Ctrl+Windows+Shift+H"
+  };
+
+  SK_Keybind kbStartService = SK_Keybind {
+        "Start Service",
+       L"Windows+Shift+Insert",
+        "Windows+Shift+Insert"
+  };
 
   // Functions
   bool isDevLogging (void) const;
