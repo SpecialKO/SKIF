@@ -1717,6 +1717,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   bool repositionToCenter = false;
 
+  // Check if the display supports HDR
   SKIF_Util_IsHDRSupported (true);
 
   // Do final checks and actions if we are expected to live longer than a few seconds
