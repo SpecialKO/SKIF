@@ -368,6 +368,10 @@ std::unordered_map <wstring_hash, BYTE> humanKeyNameToVirtKeyCode;
 std::unordered_map <BYTE, wchar_t [32]> virtKeyCodeToHumanKeyName;
 std::unordered_map <BYTE, wchar_t [32]> virtKeyCodeToFullyLocalizedKeyName;
 
+static auto& humanToVirtual = humanKeyNameToVirtKeyCode;
+static auto& virtualToHuman = virtKeyCodeToHumanKeyName;
+static auto& virtualToLocal = virtKeyCodeToFullyLocalizedKeyName;
+
 constexpr UINT
 SK_MakeKeyMask ( const SHORT vKey,
                  const bool  ctrl,
@@ -431,6 +435,8 @@ SK_KeyMap_StandardizeNames (wchar_t* wszNameToFormalize)
 void
 SK_Keybind::update (void)
 {
+  init();
+
   human_readable     .clear ();
   human_readable_utf8.clear ();
 
@@ -484,193 +490,19 @@ SK_Keybind::update (void)
 void
 SK_Keybind::parse (void)
 {
-  vKey = 0x00;
-
-  static bool init = false;
-
-  static auto& humanToVirtual = humanKeyNameToVirtKeyCode;
-  static auto& virtualToHuman = virtKeyCodeToHumanKeyName;
-  static auto& virtualToLocal = virtKeyCodeToFullyLocalizedKeyName;
-
-  static const auto _PushVirtualToHuman =
-  [] (BYTE vKey_, const wchar_t* wszHumanName)
-  {
-    if (! wszHumanName)
-      return;
-
-    auto& pair_builder =
-      virtualToHuman [vKey_];
-
-    wcsncpy_s ( pair_builder, 32,
-                wszHumanName, _TRUNCATE );
-  };
-
-  static const auto _PushVirtualToLocal =
-  [] (BYTE vKey_, const wchar_t* wszHumanName)
-  {
-    if (! wszHumanName)
-      return;
-
-    auto& pair_builder =
-      virtualToLocal [vKey_];
-
-    wcsncpy_s ( pair_builder, 32,
-                wszHumanName, _TRUNCATE );
-  };
-
-  static const auto _PushHumanToVirtual =
-  [] (const wchar_t* wszHumanName, BYTE vKey_)
-  {
-    if (! wszHumanName)
-      return;
-
-    humanToVirtual.emplace (
-      hash_string (wszHumanName),
-        vKey_
-    );
-  };
-
-  if (! init)
-  {
-    for (int i = 0; i < 0xFF; i++)
-    {
-      wchar_t name [32] = { };
-
-      switch (i)
-      {
-        case VK_F1:          wcscat (name, L"F1");           break;
-        case VK_F2:          wcscat (name, L"F2");           break;
-        case VK_F3:          wcscat (name, L"F3");           break;
-        case VK_F4:          wcscat (name, L"F4");           break;
-        case VK_F5:          wcscat (name, L"F5");           break;
-        case VK_F6:          wcscat (name, L"F6");           break;
-        case VK_F7:          wcscat (name, L"F7");           break;
-        case VK_F8:          wcscat (name, L"F8");           break;
-        case VK_F9:          wcscat (name, L"F9");           break;
-        case VK_F10:         wcscat (name, L"F10");          break;
-        case VK_F11:         wcscat (name, L"F11");          break;
-        case VK_F12:         wcscat (name, L"F12");          break;
-        case VK_F13:         wcscat (name, L"F13");          break;
-        case VK_F14:         wcscat (name, L"F14");          break;
-        case VK_F15:         wcscat (name, L"F15");          break;
-        case VK_F16:         wcscat (name, L"F16");          break;
-        case VK_F17:         wcscat (name, L"F17");          break;
-        case VK_F18:         wcscat (name, L"F18");          break;
-        case VK_F19:         wcscat (name, L"F19");          break;
-        case VK_F20:         wcscat (name, L"F20");          break;
-        case VK_F21:         wcscat (name, L"F21");          break;
-        case VK_F22:         wcscat (name, L"F22");          break;
-        case VK_F23:         wcscat (name, L"F23");          break;
-        case VK_F24:         wcscat (name, L"F24");          break;
-        case VK_SNAPSHOT:    wcscat (name, L"Print Screen"); break;
-        case VK_SCROLL:      wcscat (name, L"Scroll Lock");  break;
-        case VK_PAUSE:       wcscat (name, L"Pause Break");  break;
-
-        default:
-        {
-          unsigned int scanCode =
-            ( MapVirtualKey (i, 0) & 0xFFU );
-          unsigned short int temp      =  0;
-
-          bool asc = (i <= 32);
-
-          if (! asc && i != VK_DIVIDE)
-          {
-                                     BYTE buf [256] = { };
-             asc = ToAscii ( i, scanCode, buf, &temp, 1 );
-          }
-
-          scanCode             <<= 16U;
-          scanCode   |= ( 0x1U <<  25U  );
-
-          if (! asc)
-            scanCode |= ( 0x1U << 24U   );
-
-          GetKeyNameText ( scanCode,
-                             name,
-                               32 );
-
-          SK_KeyMap_StandardizeNames (name);
-        } break;
-      }
-
-
-      if ( i != VK_CONTROL  && i != VK_MENU     &&
-           i != VK_SHIFT    && i != VK_OEM_PLUS && i != VK_OEM_MINUS &&
-           i != VK_LSHIFT   && i != VK_RSHIFT   &&
-           i != VK_LCONTROL && i != VK_RCONTROL &&
-           i != VK_LMENU    && i != VK_RMENU    && i != VK_ADD   && // Num Plus
-           i != VK_BACK     && i != VK_HOME     && i != VK_END   &&
-           i != VK_DELETE   && i != VK_INSERT   && i != VK_PRIOR &&
-           i != VK_NEXT     && i != VK_LWIN     && i != VK_RWIN
-         )
-      {
-        _PushHumanToVirtual (name, static_cast <BYTE> (i));
-        _PushVirtualToHuman (      static_cast <BYTE> (i), name);
-      }
-
-      _PushVirtualToLocal   (      static_cast <BYTE> (i), name);
-    }
-
-    _PushHumanToVirtual (L"Plus",          static_cast <BYTE> (VK_OEM_PLUS));
-    _PushHumanToVirtual (L"Minus",         static_cast <BYTE> (VK_OEM_MINUS));
-    _PushHumanToVirtual (L"Ctrl",          static_cast <BYTE> (VK_CONTROL));
-    _PushHumanToVirtual (L"Alt",           static_cast <BYTE> (VK_MENU));
-    _PushHumanToVirtual (L"Shift",         static_cast <BYTE> (VK_SHIFT));
-    _PushHumanToVirtual (L"Left Shift",    static_cast <BYTE> (VK_LSHIFT));
-    _PushHumanToVirtual (L"Right Shift",   static_cast <BYTE> (VK_RSHIFT));
-    _PushHumanToVirtual (L"Left Alt",      static_cast <BYTE> (VK_LMENU));
-    _PushHumanToVirtual (L"Right Alt",     static_cast <BYTE> (VK_RMENU));
-    _PushHumanToVirtual (L"Left Ctrl",     static_cast <BYTE> (VK_LCONTROL));
-    _PushHumanToVirtual (L"Right Ctrl",    static_cast <BYTE> (VK_RCONTROL));
-    _PushHumanToVirtual (L"Backspace",     static_cast <BYTE> (VK_BACK));
-    _PushHumanToVirtual (L"Home",          static_cast <BYTE> (VK_HOME));
-    _PushHumanToVirtual (L"End",           static_cast <BYTE> (VK_END));
-    _PushHumanToVirtual (L"Insert",        static_cast <BYTE> (VK_INSERT));
-    _PushHumanToVirtual (L"Delete",        static_cast <BYTE> (VK_DELETE));
-    _PushHumanToVirtual (L"Page Up",       static_cast <BYTE> (VK_PRIOR));
-    _PushHumanToVirtual (L"Page Down",     static_cast <BYTE> (VK_NEXT));
-    _PushHumanToVirtual (L"Windows",       static_cast <BYTE> (VK_LWIN)); // Left Windows (Super), but just refer to it as Windows
-    _PushHumanToVirtual (L"Right Windows", static_cast <BYTE> (VK_RWIN));
-
-    _PushVirtualToHuman (static_cast <BYTE> (VK_CONTROL),   L"Ctrl");
-    _PushVirtualToHuman (static_cast <BYTE> (VK_MENU),      L"Alt");
-    _PushVirtualToHuman (static_cast <BYTE> (VK_SHIFT),     L"Shift");
-    _PushVirtualToHuman (static_cast <BYTE> (VK_OEM_PLUS),  L"Plus");
-    _PushVirtualToHuman (static_cast <BYTE> (VK_OEM_MINUS), L"Minus");
-    _PushVirtualToHuman (static_cast <BYTE> (VK_LSHIFT),    L"Left Shift");
-    _PushVirtualToHuman (static_cast <BYTE> (VK_RSHIFT),    L"Right Shift");
-    _PushVirtualToHuman (static_cast <BYTE> (VK_LMENU),     L"Left Alt");
-    _PushVirtualToHuman (static_cast <BYTE> (VK_RMENU),     L"Right Alt");
-    _PushVirtualToHuman (static_cast <BYTE> (VK_LCONTROL),  L"Left Ctrl");
-    _PushVirtualToHuman (static_cast <BYTE> (VK_RCONTROL),  L"Right Ctrl");
-    _PushVirtualToHuman (static_cast <BYTE> (VK_BACK),      L"Backspace");
-    _PushVirtualToHuman (static_cast <BYTE> (VK_HOME),      L"Home");
-    _PushVirtualToHuman (static_cast <BYTE> (VK_END),       L"End");
-    _PushVirtualToHuman (static_cast <BYTE> (VK_INSERT),    L"Insert");
-    _PushVirtualToHuman (static_cast <BYTE> (VK_DELETE),    L"Delete");
-    _PushVirtualToHuman (static_cast <BYTE> (VK_PRIOR),     L"Page Up");
-    _PushVirtualToHuman (static_cast <BYTE> (VK_NEXT),      L"Page Down");
-    _PushVirtualToHuman (static_cast <BYTE> (VK_LWIN),      L"Windows"); // Left Windows (Super), but just refer to it as Windows
-    _PushVirtualToHuman (static_cast <BYTE> (VK_RWIN),      L"Right Windows");
-
-    _PushHumanToVirtual (L"Num Plus", static_cast <BYTE> (VK_ADD));
-    _PushVirtualToHuman (             static_cast <BYTE> (VK_ADD), L"Num Plus");
-
-    init = true;
-  }
-
-  wchar_t   wszKeyBind [128] = { };
-  lstrcatW (wszKeyBind, human_readable.c_str ());
-
-  wchar_t* wszBuf = nullptr;
-  wchar_t* wszTok = std::wcstok (wszKeyBind, L"+", &wszBuf);
+  init();
 
   vKey  = 0x0;
   ctrl  = false;
   alt   = false;
   shift = false;
   super = false;
+
+  wchar_t   wszKeyBind [128] = { };
+  lstrcatW (wszKeyBind, human_readable.c_str ());
+
+  wchar_t* wszBuf = nullptr;
+  wchar_t* wszTok = std::wcstok (wszKeyBind, L"+", &wszBuf);
 
   if (wszTok == nullptr)
   {
@@ -715,6 +547,180 @@ SK_Keybind::parse (void)
     SK_MakeKeyMask (vKey & 0xFFU, ctrl, shift, alt, super);
 
   human_readable_utf8 = SK_WideCharToUTF8 (human_readable);
+}
+
+void
+SK_Keybind::init (void)
+{
+  static bool init = false;
+
+  if (init)
+    return;
+
+  init = true;
+
+  static const auto _PushVirtualToHuman =
+  [] (BYTE vKey_, const wchar_t* wszHumanName)
+  {
+    if (! wszHumanName)
+      return;
+
+    auto& pair_builder =
+      virtualToHuman [vKey_];
+
+    wcsncpy_s ( pair_builder, 32,
+                wszHumanName, _TRUNCATE );
+  };
+
+  static const auto _PushVirtualToLocal =
+  [] (BYTE vKey_, const wchar_t* wszHumanName)
+  {
+    if (! wszHumanName)
+      return;
+
+    auto& pair_builder =
+      virtualToLocal [vKey_];
+
+    wcsncpy_s ( pair_builder, 32,
+                wszHumanName, _TRUNCATE );
+  };
+
+  static const auto _PushHumanToVirtual =
+  [] (const wchar_t* wszHumanName, BYTE vKey_)
+  {
+    if (! wszHumanName)
+      return;
+
+    humanToVirtual.emplace (
+      hash_string (wszHumanName),
+        vKey_
+    );
+  };
+
+  for (int i = 0; i < 0xFF; i++)
+  {
+    wchar_t name [32] = { };
+
+    switch (i)
+    {
+      case VK_F1:          wcscat (name, L"F1");           break;
+      case VK_F2:          wcscat (name, L"F2");           break;
+      case VK_F3:          wcscat (name, L"F3");           break;
+      case VK_F4:          wcscat (name, L"F4");           break;
+      case VK_F5:          wcscat (name, L"F5");           break;
+      case VK_F6:          wcscat (name, L"F6");           break;
+      case VK_F7:          wcscat (name, L"F7");           break;
+      case VK_F8:          wcscat (name, L"F8");           break;
+      case VK_F9:          wcscat (name, L"F9");           break;
+      case VK_F10:         wcscat (name, L"F10");          break;
+      case VK_F11:         wcscat (name, L"F11");          break;
+      case VK_F12:         wcscat (name, L"F12");          break;
+      case VK_F13:         wcscat (name, L"F13");          break;
+      case VK_F14:         wcscat (name, L"F14");          break;
+      case VK_F15:         wcscat (name, L"F15");          break;
+      case VK_F16:         wcscat (name, L"F16");          break;
+      case VK_F17:         wcscat (name, L"F17");          break;
+      case VK_F18:         wcscat (name, L"F18");          break;
+      case VK_F19:         wcscat (name, L"F19");          break;
+      case VK_F20:         wcscat (name, L"F20");          break;
+      case VK_F21:         wcscat (name, L"F21");          break;
+      case VK_F22:         wcscat (name, L"F22");          break;
+      case VK_F23:         wcscat (name, L"F23");          break;
+      case VK_F24:         wcscat (name, L"F24");          break;
+      case VK_SNAPSHOT:    wcscat (name, L"Print Screen"); break;
+      case VK_SCROLL:      wcscat (name, L"Scroll Lock");  break;
+      case VK_PAUSE:       wcscat (name, L"Pause Break");  break;
+
+      default:
+      {
+        unsigned int scanCode =
+          ( MapVirtualKey (i, 0) & 0xFFU );
+        unsigned short int temp      =  0;
+
+        bool asc = (i <= 32);
+
+        if (! asc && i != VK_DIVIDE)
+        {
+                                    BYTE buf [256] = { };
+            asc = ToAscii ( i, scanCode, buf, &temp, 1 );
+        }
+
+        scanCode             <<= 16U;
+        scanCode   |= ( 0x1U <<  25U  );
+
+        if (! asc)
+          scanCode |= ( 0x1U << 24U   );
+
+        GetKeyNameText ( scanCode,
+                            name,
+                              32 );
+
+        SK_KeyMap_StandardizeNames (name);
+      } break;
+    }
+
+
+    if ( i != VK_CONTROL  && i != VK_MENU     &&
+          i != VK_SHIFT    && i != VK_OEM_PLUS && i != VK_OEM_MINUS &&
+          i != VK_LSHIFT   && i != VK_RSHIFT   &&
+          i != VK_LCONTROL && i != VK_RCONTROL &&
+          i != VK_LMENU    && i != VK_RMENU    && i != VK_ADD   && // Num Plus
+          i != VK_BACK     && i != VK_HOME     && i != VK_END   &&
+          i != VK_DELETE   && i != VK_INSERT   && i != VK_PRIOR &&
+          i != VK_NEXT     && i != VK_LWIN     && i != VK_RWIN
+        )
+    {
+      _PushHumanToVirtual (name, static_cast <BYTE> (i));
+      _PushVirtualToHuman (      static_cast <BYTE> (i), name);
+    }
+
+    _PushVirtualToLocal   (      static_cast <BYTE> (i), name);
+  }
+
+  _PushHumanToVirtual (L"Plus",          static_cast <BYTE> (VK_OEM_PLUS));
+  _PushHumanToVirtual (L"Minus",         static_cast <BYTE> (VK_OEM_MINUS));
+  _PushHumanToVirtual (L"Ctrl",          static_cast <BYTE> (VK_CONTROL));
+  _PushHumanToVirtual (L"Alt",           static_cast <BYTE> (VK_MENU));
+  _PushHumanToVirtual (L"Shift",         static_cast <BYTE> (VK_SHIFT));
+  _PushHumanToVirtual (L"Left Shift",    static_cast <BYTE> (VK_LSHIFT));
+  _PushHumanToVirtual (L"Right Shift",   static_cast <BYTE> (VK_RSHIFT));
+  _PushHumanToVirtual (L"Left Alt",      static_cast <BYTE> (VK_LMENU));
+  _PushHumanToVirtual (L"Right Alt",     static_cast <BYTE> (VK_RMENU));
+  _PushHumanToVirtual (L"Left Ctrl",     static_cast <BYTE> (VK_LCONTROL));
+  _PushHumanToVirtual (L"Right Ctrl",    static_cast <BYTE> (VK_RCONTROL));
+  _PushHumanToVirtual (L"Backspace",     static_cast <BYTE> (VK_BACK));
+  _PushHumanToVirtual (L"Home",          static_cast <BYTE> (VK_HOME));
+  _PushHumanToVirtual (L"End",           static_cast <BYTE> (VK_END));
+  _PushHumanToVirtual (L"Insert",        static_cast <BYTE> (VK_INSERT));
+  _PushHumanToVirtual (L"Delete",        static_cast <BYTE> (VK_DELETE));
+  _PushHumanToVirtual (L"Page Up",       static_cast <BYTE> (VK_PRIOR));
+  _PushHumanToVirtual (L"Page Down",     static_cast <BYTE> (VK_NEXT));
+  _PushHumanToVirtual (L"Windows",       static_cast <BYTE> (VK_LWIN)); // Left Windows (Super), but just refer to it as Windows
+  _PushHumanToVirtual (L"Right Windows", static_cast <BYTE> (VK_RWIN));
+
+  _PushVirtualToHuman (static_cast <BYTE> (VK_CONTROL),   L"Ctrl");
+  _PushVirtualToHuman (static_cast <BYTE> (VK_MENU),      L"Alt");
+  _PushVirtualToHuman (static_cast <BYTE> (VK_SHIFT),     L"Shift");
+  _PushVirtualToHuman (static_cast <BYTE> (VK_OEM_PLUS),  L"Plus");
+  _PushVirtualToHuman (static_cast <BYTE> (VK_OEM_MINUS), L"Minus");
+  _PushVirtualToHuman (static_cast <BYTE> (VK_LSHIFT),    L"Left Shift");
+  _PushVirtualToHuman (static_cast <BYTE> (VK_RSHIFT),    L"Right Shift");
+  _PushVirtualToHuman (static_cast <BYTE> (VK_LMENU),     L"Left Alt");
+  _PushVirtualToHuman (static_cast <BYTE> (VK_RMENU),     L"Right Alt");
+  _PushVirtualToHuman (static_cast <BYTE> (VK_LCONTROL),  L"Left Ctrl");
+  _PushVirtualToHuman (static_cast <BYTE> (VK_RCONTROL),  L"Right Ctrl");
+  _PushVirtualToHuman (static_cast <BYTE> (VK_BACK),      L"Backspace");
+  _PushVirtualToHuman (static_cast <BYTE> (VK_HOME),      L"Home");
+  _PushVirtualToHuman (static_cast <BYTE> (VK_END),       L"End");
+  _PushVirtualToHuman (static_cast <BYTE> (VK_INSERT),    L"Insert");
+  _PushVirtualToHuman (static_cast <BYTE> (VK_DELETE),    L"Delete");
+  _PushVirtualToHuman (static_cast <BYTE> (VK_PRIOR),     L"Page Up");
+  _PushVirtualToHuman (static_cast <BYTE> (VK_NEXT),      L"Page Down");
+  _PushVirtualToHuman (static_cast <BYTE> (VK_LWIN),      L"Windows"); // Left Windows (Super), but just refer to it as Windows
+  _PushVirtualToHuman (static_cast <BYTE> (VK_RWIN),      L"Right Windows");
+
+  _PushHumanToVirtual (L"Num Plus", static_cast <BYTE> (VK_ADD));
+  _PushVirtualToHuman (             static_cast <BYTE> (VK_ADD), L"Num Plus");
 }
 
 bool

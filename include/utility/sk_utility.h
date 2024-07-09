@@ -798,8 +798,11 @@ struct SK_Keybind
   SHORT vKey        =   0;
   UINT  masked_code = 0x0; // For fast comparison
 
-  void parse  (void);
-  void update (void);
+  void        parse    (void);
+  void        update   (void);
+
+private:
+  static void init (void);
 };
 
 // Adds a parameter to store and retrieve the keybind in an INI / XML file

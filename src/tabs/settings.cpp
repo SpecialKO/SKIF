@@ -468,7 +468,8 @@ SKIF_UI_Tab_DrawSettings (void)
   {
     GetMPOSupport         (    );
     SKIF_Util_IsMPOsDisabledInRegistry (true);
-    SKIF_Util_IsHDRActive (true);
+    SKIF_Util_IsHDRSupported (true);
+    SKIF_Util_IsHDRActive    (true);
     driverBinaryPath    = GetDrvInstallState (driverStatus);
     driverStatusPending =                     driverStatus;
     RefreshSettingsTab  = false;
@@ -1412,24 +1413,28 @@ SKIF_UI_Tab_DrawSettings (void)
 
 #pragma region Section: Keybindings
 
-  if (ImGui::CollapsingHeader ("Keybindings###SKIF_SettingsHeader-0", ImGuiTreeNodeFlags_DefaultOpen))
+  if (ImGui::CollapsingHeader ("Keybindings###SKIF_SettingsHeader-0"))
   {
-    struct kb_kv_bool_s
+    struct kb_kv_s
     {
-      SK_Keybind*                                    _key;
-      SKIF_RegistrySettings::KeyValue<std::wstring>* _reg;
-      std::function <void(kb_kv_bool_s*)>            _callback;
+      SK_Keybind*                                     _key;
+      SKIF_RegistrySettings::KeyValue <std::wstring>* _reg;
+      std::function <void (kb_kv_s*)>                 _callback;
+      std::function <bool (void)>                     _show;
     };
 
-    static std::vector <kb_kv_bool_s>
+    static std::vector <kb_kv_s>
       keybinds = {
-      { &_registry.kbToggleHDRDisplay, &_registry.regKVHotkeyToggleHDRDisplay, { [](kb_kv_bool_s* ptr) { SKIF_Util_RegisterHotKeyHDRToggle (ptr->_key); } } },
-      { &_registry.kbStartService,     &_registry.regKVHotkeyStartService,     { [](kb_kv_bool_s* ptr) { SKIF_Util_RegisterHotKeySVCTemp   (ptr->_key); } } }
+      { &_registry.kbToggleHDRDisplay, &_registry.regKVHotkeyToggleHDRDisplay, { [](kb_kv_s* ptr) { SKIF_Util_RegisterHotKeyHDRToggle (ptr->_key); } }, { []() { return (SKIF_Util_IsWindows10v1709OrGreater ( ) && SKIF_Util_IsHDRSupported ( )); } } },
+      { &_registry.kbStartService,     &_registry.regKVHotkeyStartService,     { [](kb_kv_s* ptr) { SKIF_Util_RegisterHotKeySVCTemp   (ptr->_key); } }, { []() { return true;                                                                      } } }
     };
 
     ImGui::BeginGroup ();
     for (auto& keybind : keybinds)
     {
+      if (! keybind._show())
+        continue;
+
       ImGui::Text          ( "%s:  ",
                             keybind._key->bind_name );
     }
@@ -1438,6 +1443,9 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::BeginGroup ();
     for (auto& keybind : keybinds)
     {
+      if (! keybind._show())
+        continue;
+
       if (SK_ImGui_Keybinding (keybind._key))
       {
         keybind._reg->putData (keybind._key->human_readable);

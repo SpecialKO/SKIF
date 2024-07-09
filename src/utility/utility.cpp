@@ -2879,6 +2879,14 @@ SKIF_Util_IsHDRSupported (bool refresh)
   std::vector<DISPLAYCONFIG_PATH_INFO> pathArray;
   std::vector<DISPLAYCONFIG_MODE_INFO> modeArray;
   DWORD result = ERROR_SUCCESS;
+
+  // First check always executes
+  static bool
+      init  = false;
+  if (init == false)
+  {   init  = true;
+    refresh = true;
+  }
   
   static bool state = false;
 
@@ -2944,7 +2952,7 @@ SKIF_Util_IsHDRSupported (bool refresh)
       }
     }
     else {
-      PLOG_ERROR << "DisplayConfigGetDeviceInfo failed: " << SKIF_Util_GetErrorAsWStr(result);
+      PLOG_ERROR << "DisplayConfigGetDeviceInfo failed: " << SKIF_Util_GetErrorAsWStr (result);
     }
   }
 
@@ -2961,6 +2969,14 @@ SKIF_Util_IsHDRActive (bool refresh)
   std::vector<DISPLAYCONFIG_PATH_INFO> pathArray;
   std::vector<DISPLAYCONFIG_MODE_INFO> modeArray;
   DWORD result = ERROR_SUCCESS;
+
+  // First check always executes
+  static bool
+      init  = false;
+  if (init == false)
+  {   init  = true;
+    refresh = true;
+  }
   
   static bool state = false;
 
@@ -3263,13 +3279,13 @@ SKIF_Util_RegisterHotKeyHDRToggle (SK_Keybind* binding)
   if (binding->vKey == 0)
     return false;
 
-  if (! SKIF_Util_IsWindows10v1709OrGreater())
+  if (! SKIF_Util_IsWindows10v1709OrGreater ( ))
   {
     PLOG_INFO << "OS does not support HDR display output.";
     return false;
   }
 
-  if (! SKIF_Util_IsHDRSupported())
+  if (! SKIF_Util_IsHDRSupported ( ))
   {
     PLOG_INFO << "No HDR capable display detected on the system.";
     return false;
@@ -3280,41 +3296,25 @@ SKIF_Util_RegisterHotKeyHDRToggle (SK_Keybind* binding)
   *              Keyboard shortcuts that involve the WINDOWS key are reserved for use by the operating system.
   */
 
-  UINT fsModifiers = MOD_NOREPEAT;
-  std::string szModifiers = "";
+  UINT
+    fsModifiers  = MOD_NOREPEAT;
 
   if (binding->ctrl)
-  {
     fsModifiers |= MOD_CONTROL;
-    szModifiers += "Ctrl+";
-  }
 
   if (binding->super)
-  {
     fsModifiers |= MOD_WIN;
-    szModifiers += "Windows+";
-  }
 
   if (binding->shift)
-  {
     fsModifiers |= MOD_SHIFT;
-    szModifiers += "Shift+";
-  }
 
   if (binding->alt)
-  {
     fsModifiers |= MOD_ALT;
-    szModifiers += "Alt+";
-  }
-
-  szModifiers += (char)(binding->vKey);
-
-  PLOG_VERBOSE_IF(szModifiers != binding->human_readable_utf8) << "Misread input?! " << szModifiers << " vs. " << binding->human_readable_utf8;
 
   if (RegisterHotKey (SKIF_Notify_hWnd, SKIF_HotKey_HDR, fsModifiers, binding->vKey))
   {
     bHotKeyHDR = true;
-    PLOG_INFO << "Successfully registered hotkey (" << szModifiers << ") for toggling HDR for individual displays.";
+    PLOG_INFO << "Successfully registered hotkey (" << binding->human_readable_utf8 << ") for toggling HDR for individual displays.";
   }
   else
     PLOG_ERROR << "Failed to register hotkey for toggling HDR: " << SKIF_Util_GetErrorAsWStr ( );
@@ -3324,7 +3324,7 @@ SKIF_Util_RegisterHotKeyHDRToggle (SK_Keybind* binding)
 
 // Unregisters a hotkey for toggling HDR on a per-display basis (WinKey + Ctrl + Shift + H)
 bool
-SKIF_Util_UnregisterHotKeyHDRToggle(void)
+SKIF_Util_UnregisterHotKeyHDRToggle (void)
 {
   if (! bHotKeyHDR)
     return true;
@@ -3360,41 +3360,25 @@ SKIF_Util_RegisterHotKeySVCTemp (SK_Keybind* binding)
   *              Keyboard shortcuts that involve the WINDOWS key are reserved for use by the operating system.
   */
 
-  UINT fsModifiers = MOD_NOREPEAT;
-  std::string szModifiers = "";
+  UINT
+    fsModifiers  = MOD_NOREPEAT;
 
   if (binding->ctrl)
-  {
     fsModifiers |= MOD_CONTROL;
-    szModifiers += "Ctrl+";
-  }
 
   if (binding->super)
-  {
     fsModifiers |= MOD_WIN;
-    szModifiers += "Windows+";
-  }
 
   if (binding->shift)
-  {
     fsModifiers |= MOD_SHIFT;
-    szModifiers += "Shift+";
-  }
 
   if (binding->alt)
-  {
     fsModifiers |= MOD_ALT;
-    szModifiers += "Alt+";
-  }
-
-  szModifiers += (char)(binding->vKey);
-
-  PLOG_VERBOSE_IF(szModifiers != binding->human_readable_utf8) << "Misread input?! " << szModifiers << " vs. " << binding->human_readable_utf8;
 
   if (RegisterHotKey (SKIF_Notify_hWnd, SKIF_HotKey_SVC, fsModifiers, binding->vKey))
   {
     bHotKeySVC = true;
-    PLOG_INFO << "Successfully registered hotkey (" << szModifiers << ") for starting the service with auto-stop.";
+    PLOG_INFO << "Successfully registered hotkey (" << binding->human_readable_utf8 << ") for starting the service with auto-stop.";
   }
   else
     PLOG_ERROR << "Failed to register hotkey for starting the service with auto-stop: " << SKIF_Util_GetErrorAsWStr ( );
