@@ -773,38 +773,44 @@ SK_ImGui_KeybindDialog (SK_Keybind* keybind)
 		// Render over all other windows
 		//ImGui::BringWindowToDisplayFront (ImGui::GetCurrentWindow ( ));
 
-    int  i = 0;
-    for (i = 0x08; i < 256; i++)
+    int  vKey = 256;
+
+#ifndef IMGUI_DISABLE_OBSOLETE_KEYIO
+    for (vKey = 0x08; vKey < 256; vKey++)
     {
-      if ( i == VK_LCONTROL || i == VK_RCONTROL || i == VK_CONTROL ||
-           i == VK_LSHIFT   || i == VK_RSHIFT   || i == VK_SHIFT   ||
-           i == VK_LMENU    || i == VK_RMENU    || i == VK_MENU    ||
-           i == VK_LWIN     || i == VK_RWIN )
+      if ( vKey == VK_LCONTROL || vKey == VK_RCONTROL || vKey == VK_CONTROL || // Ctrl
+           vKey == VK_LSHIFT   || vKey == VK_RSHIFT   || vKey == VK_SHIFT   || // Shift
+           vKey == VK_LMENU    || vKey == VK_RMENU    || vKey == VK_MENU    || // Alt
+           vKey == VK_LWIN     || vKey == VK_RWIN     )                        // Windows
         continue;
 
       extern
-          ImGuiKey       ImGui_ImplWin32_VirtualKeyToImGuiKey (WPARAM wParam);
-      if (ImGuiKey key = ImGui_ImplWin32_VirtualKeyToImGuiKey (i))
+          ImGuiKey       ImGui_ImplWin32_VirtualKeyToImGuiKey (WPARAM);
+      if (ImGuiKey key = ImGui_ImplWin32_VirtualKeyToImGuiKey (vKey))
       {
         if (ImGui::IsKeyPressed (key, false))
           break;
       }
     }
-
-#if 0
-    ImGuiKey key = ImGuiKey_None;
-    for (key = ImGuiKey_KeysData_OFFSET; key < ImGuiKey_COUNT; key = (ImGuiKey)(key + 1))
+#else
+    for (ImGuiKey imKey = ImGuiKey_NamedKey_BEGIN; imKey < ImGuiKey_NamedKey_END; imKey = (ImGuiKey)(imKey + 1))
     {
-
-      if ( key == ImGuiKey_LeftCtrl  || key == ImGuiKey_RightCtrl  ||
-           key == ImGuiKey_LeftShift || key == ImGuiKey_RightShift ||
-           key == ImGuiKey_LeftAlt   || key == ImGuiKey_RightAlt   ||
-           key == ImGuiKey_LeftSuper || key == ImGuiKey_RightSuper )
-        /* key == ImGuiKey_Menu */ // VK_APPS
+      if ( imKey == ImGuiKey_LeftCtrl  || imKey == ImGuiKey_RightCtrl  || // Ctrl
+           imKey == ImGuiKey_LeftShift || imKey == ImGuiKey_RightShift || // Shift
+           imKey == ImGuiKey_LeftAlt   || imKey == ImGuiKey_RightAlt   || // Alt
+           imKey == ImGuiKey_LeftSuper || imKey == ImGuiKey_RightSuper )  // Windows
         continue;
 
-      if (ImGui::IsKeyDown (key))
-        break;
+      if (ImGui::IsKeyPressed (imKey, false))
+      {
+        extern
+            int       ImGui_ImplWin32_ImGuiKeyToVirtualKey (ImGuiKey);
+        if (int key = ImGui_ImplWin32_ImGuiKeyToVirtualKey (imKey))
+        {
+          vKey = key;
+          break;
+        }
+      }
     }
 #endif
 
@@ -813,14 +819,13 @@ SK_ImGui_KeybindDialog (SK_Keybind* keybind)
          bBackspace =
       ImGui::IsKeyPressed (ImGuiKey_Backspace, false);
 
-    ImGui::Text        ("Keybinding:  %hs (0x%02X)", keybind->human_readable_utf8.c_str (), keybind->vKey);
-    ImGui::Separator   (                            );
+    ImGui::Text        ("Keybinding:  %hs", keybind->human_readable_utf8.c_str ()); // (0x%02X), keybind->vKey
+    ImGui::Separator   ( );
 
     ImGui::TextColored (ImVec4 (0.6f, 0.6f, 0.6f, 1.f),
                         "Press BACKSPACE to clear, or ESC to cancel.");
 
     // Update the key binding after printing out the current one, to prevent a one-frame graphics glitch
-
     if (bBackspace)
     {
       keybind->vKey  = 0;
@@ -832,9 +837,9 @@ SK_ImGui_KeybindDialog (SK_Keybind* keybind)
       keybind->update ();
     }
 
-    else if (i != 256 && ! bEscape) // key != ImGuiKey_COUNT
+    else if (! bEscape && vKey != 256)
     {
-      keybind->vKey  = static_cast <SHORT> (i);
+      keybind->vKey  = static_cast <SHORT> (vKey);
 
       keybind->ctrl  = io.KeyCtrl;
       keybind->shift = io.KeyShift;
