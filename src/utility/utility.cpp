@@ -2417,7 +2417,18 @@ SKIF_Util_GetControlledFolderAccess (void)
   if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\Windows Defender\Windows Defender Exploit Guard\Controlled Folder Access\)", 0, KEY_READ | KEY_WOW64_64KEY, &hKey))
   {
     if (ERROR_SUCCESS == RegQueryValueEx (hKey, L"EnableControlledFolderAccess", NULL, NULL, (LPBYTE)&buffer, &size))
-      state = buffer;
+    {
+      // There are at least three possible states of controlled folder access,
+      // corresponding to these values:
+      //   0 - Disabled
+      //   1 - Enforcement mode
+      //   2 - Audit mode
+      //
+      // Only enforcement mode actually prevents writing to the controlled folders.
+      // SKIF shouldn't care if the user is using audit mode, so we'll treat audit mode
+      // as equivalent to controlled folder access being disabled.
+      state = (buffer == 1);
+    }
 
     PLOG_DEBUG << "Detected CFA as being " << ((state) ? "enabled" : "disabled");
 
