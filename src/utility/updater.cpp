@@ -21,8 +21,15 @@
 
 SKIF's auto-updater relies on the JSON file located at https://sk-data.special-k.info/repository.json
 This file dynamically reconfigures SKIF's behavior, and defines branches as well as versions of said branches.
-Pushing a new update is a matter of editing the file, adding a new node beneath "Versions" with the relevant details,
-  and then uploading the updated repository.json (and accompanied installer) to the CDN.
+
+  * Pushing a new update is a matter of editing the file, adding a new node beneath "Versions" with the relevant details,
+      and then uploading the updated repository.json (and accompanied installer) to the CDN.
+    * For information on how to build an installer, see https://github.com/SpecialKO/Installer
+  
+  * The updater also refreshes (downloads) patrons.txt and \Assets\lc.json
+    * Updates to lc.json is pushed automatically to the CDN through the GitHub workflows
+        defined in https://github.com/SpecialKO/SKIF_launch_configs
+ 
 
 The update process is performed in this way:
 
