@@ -17,6 +17,42 @@
 #include <utility/injection.h>
 #include <netlistmgr.h>
 
+/*
+
+SKIF's auto-updater relies on the JSON file located at https://sk-data.special-k.info/repository.json
+This file dynamically reconfigures SKIF's behavior, and defines branches as well as versions of said branches.
+Pushing a new update is a matter of editing the file, adding a new node beneath "Versions" with the relevant details,
+  and then uploading the updated repository.json (and accompanied installer) to the CDN.
+
+The update process is performed in this way:
+
+ 1. SKIF downloads a new copy of https://sk-data.special-k.info/repository.json and stores it in \Versions\repository.json
+
+ 2. SKIF validates the branches the file includes.
+    * If it was running on a temporary branch, e.g. a branch called "Discord (WIP)",
+        it falls back to using the recognized parent branch (Discord, Website, or Ancient).
+    * If no matching branch is found, it falls back to using the "Website" branch.
+ 
+ 3. SKIF checks through the listed versions, and tries to find the first one (the top-most one) of the current branch.
+
+ 4. If a relevant version if found, the version number (the "Name" attribute) is compared to the file/product version of the Special K DLL files.
+
+ 5. If the found version is newer than the installer version, the installer is downloaded using the provided link.
+
+ 6. Once the installer has been downloaded, the SHA256 checksum of the downloaded installer is verified against the one specified in repository.json.
+
+    * If the checksum is not a match, the downloaded file is deleted and a new attempt will be performed during the next launch of SKIF.
+    * If the checksum is a match, the updater hands the results over to the frontend UI which then acts upon the data depending on the configured settings.
+
+ 7. Once a decision to perform an update is taken, the installer is launched using some normal Inno Setup command line arguments along with some custom ones:
+    * /VerySilent /NoRestart /Shortcuts=false /StartService=%d /StartMinimized=%d /DIR="%ws"
+      (where DIR defines the current folder of Special K and SKIF)
+
+ 8. The actual shutdown (and restart) of SKIF is performed by the installer itself.
+
+*/
+
+
 CONDITION_VARIABLE UpdaterPaused = { };
 
 SKIF_Updater::SKIF_Updater (void)
