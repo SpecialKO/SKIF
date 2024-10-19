@@ -1,5 +1,5 @@
 ﻿//
-// Copyright 2020 - 2022 Andon "Kaldaien" Coleman
+// Copyright 2020 - 2024 Andon "Kaldaien" Coleman
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -4226,6 +4226,10 @@ bool CreateDeviceD3D (HWND hWnd)
     // HDR formats
     if (_registry._RendererCanHDR && _registry.iHDRMode > 0)
     {
+      // Disable support for HDR10, it looks terrible and I want it gone.
+      if (_registry.iHDRMode == 1)
+          _registry.iHDRMode = 2;
+
       if      (_registry.iHDRMode == 2)
         dxgi_format = DXGI_FORMAT_R16G16B16A16_FLOAT; // scRGB (16 bpc)
       else

@@ -23,7 +23,7 @@
     <ProjectGuid>{93301458-CC3B-4924-B659-EB190D6EF9EB}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>SKIF</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.22000.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

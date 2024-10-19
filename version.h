@@ -1,5 +1,5 @@
 //
-// Copyright 2020-2022 Andon "Kaldaien" Coleman
+// Copyright 2020-2024 Andon "Kaldaien" Coleman
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -26,8 +26,8 @@
 
 #define SKIF_MAJOR 1
 #define SKIF_MINOR 1
-#define SKIF_BUILD 5
-#define SKIF_REV   2
+#define SKIF_BUILD 6
+#define SKIF_REV   0
 
 
 #define _A2(a)     #a

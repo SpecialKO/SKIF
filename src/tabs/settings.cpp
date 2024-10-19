@@ -1312,12 +1312,15 @@ SKIF_UI_Tab_DrawSettings (void)
           _registry.regKVHDRMode.putData (         _registry.iHDRMode);
           RecreateSwapChains = true;
         }
+// Disable support for HDR10, it looks terrible and I want it gone.
+#if 0
         ImGui::SameLine        ( );
         if (ImGui::RadioButton ("HDR10 (10 bpc)", &_registry.iHDRMode, 1))
         {
           _registry.regKVHDRMode.putData (         _registry.iHDRMode);
           RecreateSwapChains = true;
         }
+#endif
         ImGui::SameLine        ( );
         if (ImGui::RadioButton ("scRGB (16 bpc)", &_registry.iHDRMode, 2))
         {
