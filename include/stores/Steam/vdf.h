@@ -87,11 +87,20 @@ public:
   {
     DWORD     version;
     DWORD     universe;
+    // String table pointer (not shown here) added in 0x29
     appinfo_s head;
+  };
+
+  // Added in June 2024 (version 0x29)
+  struct str_tbl_s
+  {
+    DWORD     num_strings;
+    uint8_t   strings [1];
   };
 
   header_s*  base = nullptr;
   appinfo_s* root = nullptr;
+  str_tbl_s* strs = nullptr;
 
 protected:
 private:

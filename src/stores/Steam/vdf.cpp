@@ -1,5 +1,5 @@
 //
-// Copyright 2020-2021 Andon "Kaldaien" Coleman
+// Copyright 2020-2024 Andon "Kaldaien" Coleman
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -70,6 +70,15 @@ skValveDataFile::skValveDataFile (std::wstring source) : path (source)
 
     root =
       &base->head;
+
+    // A string table was added in June of 2024 (0x29)
+    if (vdf_version >= 0x29)
+    {
+      uint64_t strtable_pos =
+                          *(uint64_t *)root;
+      root = (appinfo_s *)((uint64_t *)root + 1);
+      strs = (str_tbl_s *)(&_data [strtable_pos]);
+    }
   }
 }
 
@@ -102,10 +111,50 @@ app_section_s::parse (section_desc_s& desc)
 
       if (op != SectionEnd)
       {
-        // Skip past name declarations, except for </Section> because it has no name.
-                cur++;
-        while (*cur != '\0')
-              ++cur;
+        // String Table Lookup (June 2024+)
+        //
+        if (appinfo->vdf_version >= 0x29)
+        {
+          name =
+            (char *)appinfo->strs->strings;
+
+          const auto str_idx =
+            *(uint32_t *)(cur + 1);
+
+#ifdef DEBUG
+          PLOG_VERBOSE << "String Table Index:  " << str_idx << ", op=" << op;
+#endif
+          
+          if ( str_idx < appinfo->strs->num_strings )
+          {
+            for ( UINT i = 0 ; i < str_idx ; )
+            {
+              if ( *name++ == '\0' &&
+                       ++i == str_idx )
+              {
+#ifdef DEBUG
+                PLOG_VERBOSE << "String=" << name;
+#endif
+                break;
+              }
+            }
+          }
+
+          else
+            PLOG_ERROR << "String Table Index (" << str_idx << ") Out-of-Range!";
+
+          cur += 4;
+        }
+
+        // Legacy: null-terminated name is serialized inline after token type
+        //
+        else
+        {
+          // Skip past name declarations, except for </Section> because it has no name.
+                  cur++;
+          while (*cur != '\0')
+                ++cur;
+        }
       }
 
       if (op == SectionBegin)
@@ -154,7 +203,6 @@ app_section_s::parse (section_desc_s& desc)
             break;
 
           default:
-            //MessageBox (nullptr, std::to_wstring (op).c_str (), L"Unknown VDF Token Operator", MB_OK);
             PLOG_WARNING << "Unknown VDF Token Operator: " << op;
             exception = true;
             break;
@@ -178,6 +226,9 @@ appinfo_s::getRootSection (size_t* pSize)
   
     switch (vdf_version)
     {
+      case 0x29: // v41
+        PLOG_VERBOSE << "appinfo.vdf version: " << vdf_version << " (June 2024)";
+        break;
       case 0x28: // v40
         PLOG_VERBOSE << "appinfo.vdf version: " << vdf_version << " (December 2022)";
         break;
@@ -186,8 +237,6 @@ appinfo_s::getRootSection (size_t* pSize)
         break;
       default:
         PLOG_WARNING << "appinfo.vdf version: " << vdf_version << " (unknown/unsupported)";
-        //MessageBox ( nullptr, std::to_wstring (vdf_version).c_str (),
-        //               L"Unsupported VDF Version", MB_OK );
     }
   }
 
@@ -273,7 +322,7 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
           pIter->getRootSection (&app_desc.size);
 
         section.parse (app_desc);
-//#define _WRITE_APPID_INI
+#define _WRITE_APPID_INI
 #ifdef  _WRITE_APPID_INI
         FILE* fTest =
           fopen ("appid.ini", "w");
@@ -1083,9 +1132,11 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
           for ( auto& datum : finished_section.keys )
           {
             if (datum.second.first == appinfo_s::section_s::String)
-              fprintf (fTest, "%s=%s\n",  datum.first,  (char     *)datum.second.second);
+              fprintf (fTest, "%s=%s\n",   datum.first,  (char     *)datum.second.second);
             else if (datum.second.first == appinfo_s::section_s::Int32)
-              fprintf (fTest, "%s=%lu\n", datum.first, *(uint32_t *)datum.second.second);
+              fprintf (fTest, "%s=%lu\n",  datum.first, *(uint32_t *)datum.second.second);
+            else if (datum.second.first == appinfo_s::section_s::Int64)
+              fprintf (fTest, "%s=%llu\n", datum.first, *(uint64_t *)datum.second.second);
           }
           fprintf (fTest, "\n");
 #endif
