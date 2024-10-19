@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Andon "Kaldaien" Coleman
+// Copyright 2020-2024 Andon "Kaldaien" Coleman
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -5312,9 +5312,17 @@ SKIF_UI_Tab_DrawLibrary (void)
 
             if (ERROR_SUCCESS != RegSetValueExW (hKey, app.second.install_dir.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.length() * sizeof(wchar_t)))
               PLOG_ERROR   << "Failed adding profile name (" << wsName << ") to registry value: " << app.second.install_dir;
+          }
 
-            if (app.second.store == app_record_s::Store::Xbox)
+          // Xbox apps have two directories, but otherwise the procedure is the same as above.
+          if (app.second.store == app_record_s::Store::Xbox)
+          {
+            if ( ERROR_SUCCESS        == lsKey &&
+                (ERROR_FILE_NOT_FOUND == RegQueryValueExW (hKey, app.second.xbox.directory_app.c_str(),           NULL, NULL, NULL, NULL) ||
+                 ERROR_FILE_NOT_FOUND == RegQueryValueExW (hKey, app.second.xbox.directory_program_files.c_str(), NULL, NULL, NULL, NULL)) )
             {
+              std::wstring wsName = SK_UTF8ToWideChar(app.second.names.original);
+
               if (ERROR_SUCCESS != RegSetValueExW (hKey, app.second.xbox.directory_app.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.length() * sizeof(wchar_t)))
                 PLOG_ERROR << "Failed adding profile name (" << wsName << ") to registry value: " << app.second.xbox.directory_app;
 
