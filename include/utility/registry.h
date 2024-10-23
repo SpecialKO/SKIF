@@ -535,10 +535,10 @@ struct SKIF_RegistrySettings {
   int iLibrarySort             =   0; //  0 = Name,                        1 = Uses (frequently),      2 = Last Used (recently)
   int iProcessSort             =   0; //  0 = Status,                      1 = PID,                    2 = Arch,                        3 = Admin,                          4 = Name
   int iProcessRefreshInterval  =   2; //  0 = Paused,                      1 = Slow (5s),              2 = Normal (1s),                [3 = High (0.5s; not implemented)]
-  int iSDRMode                 =   0; //  0 = 8 bpc,                       1 = 10 bpc,                 2 = 16 bpc
-  int iHDRMode                 =   1; //  0 = Disabled,                    1 = HDR10 (10 bpc),         2 = scRGB (16 bpc)
+  int iSDRMode                 =   2; //  0 = 8 bpc,                       1 = 10 bpc,                 2 = 16 bpc
+  int iHDRMode                 =   2; //  0 = Disabled,                    1 = HDR10 (Invalid!),       2 = scRGB (16 bpc)
   int iHDRBrightness           = 203; //      HDR reference white for BT.2408
-  int iUIMode                  =   1; //  0 = Safe Mode (BitBlt),          1 = Normal,                 2 = VRR Compatibility
+  int iUIMode                  =   2; //  0 = Safe Mode (BitBlt),          1 = Normal,                 2 = VRR Compatibility
   int iDiagnostics             =   1; //  0 = None,                        1 = Normal,                 2 = Enhanced (not actually used yet)
   int iValvePlug               =   1; //  0 = Disabled,                    1 = Enabled (default)
   int iUIWidth                 =   0; //  0 = None (default)
@@ -565,7 +565,7 @@ struct SKIF_RegistrySettings {
   bool bLibraryXbox             =  true;
   bool bLibraryCustom           =  true;
 
-  bool bMiniMode             = false;
+  bool bMiniMode                = false;
   bool bHorizonMode             = false; // 1038 x 325 -- covers are 186.67 x 280
 //bool bHorizonModeAuto         =  true;
 
@@ -573,7 +573,7 @@ struct SKIF_RegistrySettings {
   bool bAllowMultipleInstances  = false;
   bool bAllowBackgroundService  = false;
   bool bOpenAtCursorPosition    = false;
-  bool bOpenInMiniMode       = false;
+  bool bOpenInMiniMode          = false;
   bool bStopOnInjection         = false;
   bool bCloseToTray             = false;
   bool bLowBandwidthMode        = false;

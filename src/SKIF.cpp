@@ -4230,7 +4230,7 @@ bool CreateDeviceD3D (HWND hWnd)
       if (_registry.iHDRMode == 1)
           _registry.iHDRMode = 2;
 
-      if      (_registry.iHDRMode == 2)
+      if (_registry.iHDRMode == 2)
         dxgi_format = DXGI_FORMAT_R16G16B16A16_FLOAT; // scRGB (16 bpc)
       else
         dxgi_format = DXGI_FORMAT_R10G10B10A2_UNORM;  // HDR10 (10 bpc)

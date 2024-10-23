@@ -322,7 +322,7 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
           pIter->getRootSection (&app_desc.size);
 
         section.parse (app_desc);
-#define _WRITE_APPID_INI
+//#define _WRITE_APPID_INI
 #ifdef  _WRITE_APPID_INI
         FILE* fTest =
           fopen ("appid.ini", "w");
