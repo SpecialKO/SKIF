@@ -98,14 +98,15 @@ public:
     uint8_t   strings [1];
   };
 
-  header_s*  base = nullptr;
-  appinfo_s* root = nullptr;
-  str_tbl_s* strs = nullptr;
+  header_s*  base  = nullptr;
+  appinfo_s* root  = nullptr;
+  str_tbl_s* table = nullptr;
 
 protected:
 private:
-  std::wstring        path;
-  std::vector <BYTE> _data;
+  std::wstring          path;
+  std::vector <BYTE>   _data;
+  std::vector <char *>  strs; // Preparsed array of pointers
 };
 
 #pragma pack(pop)

@@ -75,9 +75,30 @@ skValveDataFile::skValveDataFile (std::wstring source) : path (source)
     if (vdf_version >= 0x29)
     {
       uint64_t strtable_pos =
-                          *(uint64_t *)root;
-      root = (appinfo_s *)((uint64_t *)root + 1);
-      strs = (str_tbl_s *)(&_data [strtable_pos]);
+                           *(uint64_t *)root;
+      root  = (appinfo_s *)((uint64_t *)root + 1);
+      table = (str_tbl_s *)(&_data [strtable_pos]);
+
+      strs.reserve   (        table->num_strings);
+      strs.push_back ((char *)table->strings);
+
+      char* str     = (char *)table->strings;
+      char* end_tbl = (char *)_data.data () +
+                              _data.size ();
+
+      for (DWORD i = 1; i < table->num_strings; ++i)
+      {
+        while (*str++ != '\0' && str < end_tbl);
+
+        if (str > end_tbl)
+        {
+          // On overflow, restart table iteration from the beginning
+          PLOG_ERROR << "Malformed string table detected!";
+          str = (char *)table->strings;
+        }
+
+        strs.push_back (str);
+      }
     }
   }
 }
@@ -116,7 +137,7 @@ app_section_s::parse (section_desc_s& desc)
         if (appinfo->vdf_version >= 0x29)
         {
           name =
-            (char *)appinfo->strs->strings;
+            (char *)appinfo->table->strings;
 
           const auto str_idx =
             *(uint32_t *)(cur + 1);
@@ -124,20 +145,14 @@ app_section_s::parse (section_desc_s& desc)
 #ifdef DEBUG
           PLOG_VERBOSE << "String Table Index:  " << str_idx << ", op=" << op;
 #endif
-          
-          if ( str_idx < appinfo->strs->num_strings )
+
+          if ( str_idx < appinfo->table->num_strings )
           {
-            for ( UINT i = 0 ; i < str_idx ; )
-            {
-              if ( *name++ == '\0' &&
-                       ++i == str_idx )
-              {
+            name =
+              appinfo->strs [str_idx];
 #ifdef DEBUG
-                PLOG_VERBOSE << "String=" << name;
+            PLOG_VERBOSE << "String=" << name;
 #endif
-                break;
-              }
-            }
           }
 
           else
