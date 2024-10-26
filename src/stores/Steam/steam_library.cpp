@@ -1236,54 +1236,59 @@ SKIF_SteamInt_DiscoverInstalledApps (void)
           bInit = false;
     if (! bInit)
     {
-      static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
-      
-      // We don't want Steam to draw its overlay on us
-      _registry._LoadedSteamOverlay = true;
-      SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
-
-      // Store the current state of the environment variables
-      auto env_str = GetEnvironmentStringsW ( );
-
-      static bool bLoaded =
-        (LoadLibraryW (L"steam_api64.dll") != nullptr);
-
-      if (bLoaded)
+      CreateThread (nullptr, 0x0, [](LPVOID)->DWORD
       {
-        using  SteamAPI_Init_pfn = bool (__cdecl *)(void);
-        static SteamAPI_Init_pfn
-              _SteamAPI_Init     = nullptr;
+        static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
-        if (_SteamAPI_Init == nullptr)
-        {   _SteamAPI_Init =
-            (SteamAPI_Init_pfn)GetProcAddress (GetModuleHandleW (
-               SK_RunLHIfBitness ( 64, L"steam_api64.dll",
-                                       L"steam_api.dll" )
-         ), "SteamAPI_Init");
-        }
+        // We don't want Steam to draw its overlay on us
+        _registry._LoadedSteamOverlay = true;
+        SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
 
-        if (_SteamAPI_Init != nullptr)
+        // Store the current state of the environment variables
+        auto env_str = GetEnvironmentStringsW ( );
+
+        static bool bLoaded =
+          (LoadLibraryW (L"steam_api64.dll") != nullptr);
+
+        if (bLoaded)
         {
-          std::ofstream ("steam_appid.txt") << std::to_string (1157970);
+          using  SteamAPI_Init_pfn = bool (__cdecl *)(void);
+          static SteamAPI_Init_pfn
+                _SteamAPI_Init     = nullptr;
 
-          if (_SteamAPI_Init ())
+          if (_SteamAPI_Init == nullptr)
+          {   _SteamAPI_Init =
+              (SteamAPI_Init_pfn)GetProcAddress (GetModuleHandleW (
+                 SK_RunLHIfBitness ( 64, L"steam_api64.dll",
+                                         L"steam_api.dll" )
+           ), "SteamAPI_Init");
+          }
+
+          if (_SteamAPI_Init != nullptr)
           {
-            DeleteFileW (L"steam_appid.txt");
-            bInit = true;
+            std::ofstream ("steam_appid.txt") << std::to_string (1157970);
+
+            if (_SteamAPI_Init ())
+            {
+              DeleteFileW (L"steam_appid.txt");
+              bInit = true;
+            }
           }
         }
-      }
 
-      // Restore the state (clears out any additional Steam set variables)
-      SetEnvironmentStringsW  (env_str);
-      FreeEnvironmentStringsW (env_str);
+        // Restore the state (clears out any additional Steam set variables)
+        SetEnvironmentStringsW  (env_str);
+        FreeEnvironmentStringsW (env_str);
 
-      // If the DLL file could not be loaded, go back to regular handling
-      if (! bLoaded)
-      {
-        SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
-        _registry._LoadedSteamOverlay = false;
-      }
+        // If the DLL file could not be loaded, go back to regular handling
+        if (! bLoaded)
+        {
+          SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
+          _registry._LoadedSteamOverlay = false;
+        }
+
+        return 0;
+      }, nullptr, 0x0, nullptr);
     }
   }
 
