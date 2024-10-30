@@ -255,13 +255,11 @@ void
 SKIF_Startup_SetGameAsForeground (void)
 {
   // Exit if there is nothing to actually do
-  if (pidForegroundFocusOnExit  == NULL && 
+  if (pidForegroundFocusOnExit  == NULL ||
       hWndForegroundFocusOnExit == nullptr)
     return;
 
-  static DWORD _pid;
-  
-  _pid = 0;
+  DWORD _pid = 0;
 
   if (hWndForegroundFocusOnExit != nullptr &&
       hWndForegroundFocusOnExit == GetForegroundWindow ())
@@ -294,11 +292,16 @@ SKIF_Startup_SetGameAsForeground (void)
   // Primary approach -- use the HWND reported by Special K
   if (hWndForegroundFocusOnExit != nullptr)
   {
-    if (IsWindow (hWndForegroundFocusOnExit))
+    if (GetWindowThreadProcessId (hWndForegroundFocusOnExit,  &_pid) &&
+                                   pidForegroundFocusOnExit == _pid)
     {
-      PLOG_INFO << "Special K reported a game window, setting as foreground...";
-      if (! SetForegroundWindow (hWndForegroundFocusOnExit))
-        PLOG_WARNING << "SetForegroundWindow ( ) failed!";
+      if (IsWindowVisible (hWndForegroundFocusOnExit))
+      {
+        PLOG_INFO << "Special K reported a game window, setting as foreground...";
+        if (! SetForegroundWindow (hWndForegroundFocusOnExit))
+          PLOG_WARNING << "SetForegroundWindow ( ) failed!";
+      }
+
       return;
     }
   }
@@ -307,6 +310,7 @@ SKIF_Startup_SetGameAsForeground (void)
   EnumWindows ( []( HWND   hWnd,
                     LPARAM lParam ) -> BOOL
   {
+    DWORD                                _pid = 0;
     if (GetWindowThreadProcessId (hWnd, &_pid))
     {
       if (_pid != NULL && 
@@ -322,8 +326,11 @@ SKIF_Startup_SetGameAsForeground (void)
         // If it doesn't have this style, then don't set it foreground.
         if (dwExStyle & WS_EX_APPWINDOW)
         {
-          if (! SetForegroundWindow (hWnd))
-            PLOG_WARNING << "SetForegroundWindow ( ) failed!";
+          if (IsWindowVisible (hWnd))
+          {
+            if (! SetForegroundWindow (hWnd))
+              PLOG_WARNING << "SetForegroundWindow ( ) failed!";
+          }
 
           return FALSE; // Stop enumeration
         }

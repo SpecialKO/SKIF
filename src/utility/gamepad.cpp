@@ -151,8 +151,14 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
 
     m_bWantUpdate.store(false);
 
-    // Trigger the main thread to refresh its focus, which will also trickle down to us
-    PostMessage (m_hWindowHandle, WM_SKIF_REFRESHFOCUS, 0x0, 0x0);
+    DWORD                                       dwProcId = 0x0;
+    GetWindowThreadProcessId (m_hWindowHandle, &dwProcId);
+
+    if (dwProcId == GetProcessId (GetCurrentProcess ()))
+    {
+      // Trigger the main thread to refresh its focus, which will also trickle down to us
+      SendMessage (m_hWindowHandle, WM_SKIF_REFRESHFOCUS, 0x0, 0x0);
+    }
   }
 
   if (SKIF_XInputGetState == nullptr)
@@ -253,7 +259,18 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
   }
 
   if (newest.slot == INFINITE)
+      newest.state = XSTATE_EMPTY;
+
+  DWORD dwPidOfMe = GetCurrentProcessId (),
+        dwPidOfFG = 0x0;
+
+  if (!(GetWindowThreadProcessId (GetForegroundWindow (), &dwPidOfFG) &&
+                                              dwPidOfMe == dwPidOfFG) ||
+        !IsWindowVisible (SKIF_ImGui_hWnd))
+  {
+    // Neutralize input because SKIF is not in the foreground
     newest.state = XSTATE_EMPTY;
+  }
 
   m_xisGamepad.store (newest.state);
 
@@ -263,6 +280,15 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
 bool
 SKIF_GamePadInputHelper::RegisterDevNotification (HWND hWnd)
 {
+  DWORD                            dwProcId = 0x0;
+  GetWindowThreadProcessId (hWnd, &dwProcId);
+
+  if (dwProcId != GetProcessId (GetCurrentProcess ()))
+  {
+    m_hWindowHandle = 0;
+    return false;
+  }
+
   GUID GUID_DEVINTERFACE_HID =
   { 0x4D1E55B2L, 0xF16F, 0x11CF,
           { 0x88, 0xCB, 0x00, 0x11, 0x11, 0x00, 0x00, 0x30 } };
@@ -313,7 +339,9 @@ SKIF_GamePadInputHelper::SpawnChildThread (void)
     CRITICAL_SECTION            GamepadInputPump = { };
     InitializeCriticalSection (&GamepadInputPump);
     EnterCriticalSection      (&GamepadInputPump);
-        
+
+    SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_TIME_CRITICAL);
+
     SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_GamePadInputPump");
 
     static SKIF_GamePadInputHelper& parent = SKIF_GamePadInputHelper::GetInstance ( );
@@ -333,20 +361,49 @@ SKIF_GamePadInputHelper::SpawnChildThread (void)
         );
       }
 
-      packetNew  = parent.UpdateXInputState ( ).dwPacketNumber;
+      static auto constexpr
+        _ThrottleIdleInputAfterMs = 3333UL;
+
+      static DWORD dwLastInputTime =
+        SKIF_Util_timeGetTime (),
+                   dwCurrentTime;
+
+      auto _IsGamepadIdle =
+      [&]{ return
+           (dwLastInputTime < dwCurrentTime - _ThrottleIdleInputAfterMs);
+       };
+
+      dwCurrentTime = SKIF_Util_timeGetTime    ();
+      packetNew     = parent.UpdateXInputState ().dwPacketNumber;
 
       if (packetNew  > 0  &&
           packetNew != packetLast)
       {
         packetLast = packetNew;
-        PostMessage (parent.m_hWindowHandle, WM_SKIF_GAMEPAD, 0x0, 0x0);
+
+        if (! _IsGamepadIdle ())
+        {
+          SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_TIME_CRITICAL);
+        }
+
+        dwLastInputTime =
+          SKIF_Util_timeGetTime ();
+
+        SendMessage (parent.m_hWindowHandle, WM_SKIF_GAMEPAD, 0x0, 0x0);
       }
 
-      // XInput tends to have ~3-7 ms of latency between updates
-      //   best-case, try to delay the next poll until there's
-      //     new data.
-      Sleep (5);
+      static bool
+        s_wasGamepadIdle =
+          _IsGamepadIdle ();
+      if (_IsGamepadIdle ())
+      {
+        if (! std::exchange (s_wasGamepadIdle, true))
+          SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_IDLE);
 
+        SleepEx (15UL, TRUE);
+      }
+      else
+        s_wasGamepadIdle = false;
     } while (! SKIF_Shutdown.load());
 
     LeaveCriticalSection  (&GamepadInputPump);
