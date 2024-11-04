@@ -39,7 +39,13 @@ SKIF_GamePadInputHelper::InvalidateGamePads (void)
 XINPUT_STATE
 SKIF_GamePadInputHelper::GetXInputState (void)
 {
-  return m_xisGamepad.load();
+  DWORD                                              dwActivePid = 0x0;
+  GetWindowThreadProcessId (GetForegroundWindow (), &dwActivePid);
+
+  if (dwActivePid == GetCurrentProcessId ())
+    return m_xisGamepad.load ();
+
+  return {};
 }
 
 // If we really wanted to limit the exposure of this function,
@@ -183,7 +189,11 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
   DWORD                                              dwActivePid = 0x0;
   GetWindowThreadProcessId (GetForegroundWindow (), &dwActivePid);
 
-  static DWORD dwLastActivePid = dwActivePid;
+  static DWORD dwLastActivePid    = dwActivePid;
+  static DWORD dwTimeOfActivation = 0;
+
+  if (dwLastActivePid != dwActivePid && dwActivePid == GetCurrentProcessId ())
+    dwTimeOfActivation = SKIF_Util_timeGetTime ();
 
   for ( auto idx : XUSER_INDEXES )
   {
@@ -199,7 +209,8 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
         m_bGamepads    [idx].store (false);
 
       else if (dwResult == ERROR_SUCCESS && GetCurrentProcessId () == dwActivePid &&
-                                                   dwLastActivePid == dwActivePid)
+                                                   dwLastActivePid == dwActivePid &&
+                                                   dwTimeOfActivation < SKIF_Util_timeGetTime () - 500UL)
       {
         // If button state is different, this controller is active...
         if ( xinput_state.dwPacketNumber != local.last_state.dwPacketNumber )
@@ -268,7 +279,8 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
       newest.state = XSTATE_EMPTY;
 
   if (dwActivePid != GetCurrentProcessId () ||
-      !IsWindowVisible (SKIF_ImGui_hWnd))
+         !IsWindowVisible (SKIF_ImGui_hWnd) ||
+      dwTimeOfActivation > SKIF_Util_timeGetTime () - 500UL)
   {
     // Neutralize input because SKIF is not in the foreground
     newest.state = XSTATE_EMPTY;
@@ -312,6 +324,8 @@ SKIF_GamePadInputHelper::WakeThread (void)
   {
     PLOG_VERBOSE << "Waking the gamepad input child thread...";
     m_bThreadAwake.store (true);
+    m_xisGamepad.store   ({});
+
     WakeAllConditionVariable (&m_GamePadInput);
   }
 }
@@ -320,6 +334,7 @@ void
 SKIF_GamePadInputHelper::SleepThread (void)
 {
   m_bThreadAwake.store (false);
+  m_xisGamepad.store   ({});
 }
 
 void
