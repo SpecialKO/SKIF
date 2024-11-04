@@ -180,6 +180,11 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
 
   static std::array<gamepad_state_s, XUSER_MAX_COUNT> history;
 
+  DWORD                                              dwActivePid = 0x0;
+  GetWindowThreadProcessId (GetForegroundWindow (), &dwActivePid);
+
+  static DWORD dwLastActivePid = dwActivePid;
+
   for ( auto idx : XUSER_INDEXES )
   {
     // Load the static object
@@ -193,7 +198,8 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
       if (dwResult == ERROR_DEVICE_NOT_CONNECTED)
         m_bGamepads    [idx].store (false);
 
-      else if (dwResult == ERROR_SUCCESS)
+      else if (dwResult == ERROR_SUCCESS && GetCurrentProcessId () == dwActivePid &&
+                                                   dwLastActivePid == dwActivePid)
       {
         // If button state is different, this controller is active...
         if ( xinput_state.dwPacketNumber != local.last_state.dwPacketNumber )
@@ -261,16 +267,14 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
   if (newest.slot == INFINITE)
       newest.state = XSTATE_EMPTY;
 
-  DWORD dwPidOfMe = GetCurrentProcessId (),
-        dwPidOfFG = 0x0;
-
-  if (!(GetWindowThreadProcessId (GetForegroundWindow (), &dwPidOfFG) &&
-                                              dwPidOfMe == dwPidOfFG) ||
-        !IsWindowVisible (SKIF_ImGui_hWnd))
+  if (dwActivePid != GetCurrentProcessId () ||
+      !IsWindowVisible (SKIF_ImGui_hWnd))
   {
     // Neutralize input because SKIF is not in the foreground
     newest.state = XSTATE_EMPTY;
   }
+
+  dwLastActivePid = dwActivePid;
 
   m_xisGamepad.store (newest.state);
 
@@ -280,15 +284,6 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
 bool
 SKIF_GamePadInputHelper::RegisterDevNotification (HWND hWnd)
 {
-  DWORD                            dwProcId = 0x0;
-  GetWindowThreadProcessId (hWnd, &dwProcId);
-
-  if (dwProcId != GetProcessId (GetCurrentProcess ()))
-  {
-    m_hWindowHandle = 0;
-    return false;
-  }
-
   GUID GUID_DEVINTERFACE_HID =
   { 0x4D1E55B2L, 0xF16F, 0x11CF,
           { 0x88, 0xCB, 0x00, 0x11, 0x11, 0x00, 0x00, 0x30 } };
