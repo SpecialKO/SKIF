@@ -27,6 +27,7 @@
 #include <cwctype>
 #include <dxgi1_5.h>
 
+#include <MinHook.h>
 #include <SKIF.h>
 
 // Plog ini includes (must be included after SKIF.h)
@@ -1339,6 +1340,73 @@ bool bKeepWindowAlive  = true,
 // Modern (Current User; non-elevated): %LOCALAPPDATA%\Programs\Special K
 // Modern (All Users;        elevated): %PROGRAMFILES%\Special K
 
+
+using LoadLibraryA_pfn   = HMODULE (WINAPI*)(LPCSTR);
+using LoadLibraryW_pfn   = HMODULE (WINAPI*)(LPCWSTR);
+using LoadLibraryExA_pfn = HMODULE (WINAPI*)(LPCSTR,HANDLE,DWORD);
+using LoadLibraryExW_pfn = HMODULE (WINAPI*)(LPCWSTR,HANDLE,DWORD);
+
+LoadLibraryA_pfn   LoadLibraryA_Original   = nullptr;
+LoadLibraryW_pfn   LoadLibraryW_Original   = nullptr;
+LoadLibraryExA_pfn LoadLibraryExA_Original = nullptr;
+LoadLibraryExW_pfn LoadLibraryExW_Original = nullptr;
+
+HMODULE
+WINAPI
+LoadLibraryExW_Hook (LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
+{
+  if (StrStrIW (lpLibFileName, L"GameOverlayRenderer") || StrStrIW (lpLibFileName, L"RTSS"))
+  {
+    SetLastError (ERROR_MOD_NOT_FOUND);
+    return nullptr;
+  }
+
+  return
+    LoadLibraryExW_Original (lpLibFileName, hFile, dwFlags);
+}
+
+HMODULE
+WINAPI
+LoadLibraryExA_Hook (LPCSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
+{
+  if (StrStrIA (lpLibFileName, "GameOverlayRenderer") || StrStrIA (lpLibFileName, "RTSS"))
+  {
+    SetLastError (ERROR_MOD_NOT_FOUND);
+    return nullptr;
+  }
+
+  return
+    LoadLibraryExA_Original (lpLibFileName, hFile, dwFlags);
+}
+
+HMODULE
+WINAPI
+LoadLibraryW_Hook (LPCWSTR lpLibFileName)
+{
+  if (StrStrIW (lpLibFileName, L"GameOverlayRenderer") || StrStrIW (lpLibFileName, L"RTSS"))
+  {
+    SetLastError (ERROR_MOD_NOT_FOUND);
+    return nullptr;
+  }
+
+  return
+    LoadLibraryW_Original (lpLibFileName);
+}
+
+HMODULE
+WINAPI
+LoadLibraryA_Hook (LPCSTR lpLibFileName)
+{
+  if (StrStrIA (lpLibFileName, "GameOverlayRenderer") || StrStrIA (lpLibFileName, "RTSS"))
+  {
+    SetLastError (ERROR_MOD_NOT_FOUND);
+    return nullptr;
+  }
+
+  return
+    LoadLibraryA_Original (lpLibFileName);
+}
+
 // Main code
 int
 APIENTRY
@@ -1349,6 +1417,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
 {
   UNREFERENCED_PARAMETER (hPrevInstance);
   UNREFERENCED_PARAMETER (hInstance);
+
+  MH_Initialize ();
+
+  MH_CreateHookApi (L"kernel32.dll", "LoadLibraryW",   LoadLibraryW_Hook,   (LPVOID *)&LoadLibraryW_Original);
+  MH_CreateHookApi (L"kernel32.dll", "LoadLibraryExW", LoadLibraryExW_Hook, (LPVOID *)&LoadLibraryExW_Original);
+  MH_CreateHookApi (L"kernel32.dll", "LoadLibraryA",   LoadLibraryA_Hook,   (LPVOID *)&LoadLibraryA_Original);
+  MH_CreateHookApi (L"kernel32.dll", "LoadLibraryExA", LoadLibraryExA_Hook, (LPVOID *)&LoadLibraryExA_Original);
+
+  MH_QueueEnableHook (MH_ALL_HOOKS);
+  MH_ApplyQueued     ();
+ 
 
   SetErrorMode (SEM_FAILCRITICALERRORS | SEM_NOALIGNMENTFAULTEXCEPT);
   

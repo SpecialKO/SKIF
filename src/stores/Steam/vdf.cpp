@@ -481,7 +481,7 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
                     _ParseOSArch (key);
                 }
                 
-                if (! _stricmp (key.first, "type"))
+                else if (! _stricmp (key.first, "type"))
                 {
                   if      (! _stricmp ((char *)key.second.second, "game"))
                     pAppRecord->common_config.type =
@@ -498,6 +498,11 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
                   else if (! _stricmp ((char *)key.second.second, "demo"))
                     pAppRecord->common_config.type =
                       app_record_s::common_config_s::AppType::Demo;
+                }
+
+                else if (! _stricmp (key.first, "icon"))
+                {
+                  pAppRecord->common_config.icon_hash = (char *)key.second.second;
                 }
               }
             }

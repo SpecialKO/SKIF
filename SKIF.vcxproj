@@ -438,6 +438,11 @@
     <ClCompile Include="src\imgui\imgui_impl_dx11.cpp" />
     <ClCompile Include="src\imgui\imgui_impl_win32.cpp" />
     <ClCompile Include="src\imgui\imgui_tables.cpp" />
+    <ClCompile Include="src\MinHook\buffer.c" />
+    <ClCompile Include="src\MinHook\hde\hde32.c" />
+    <ClCompile Include="src\MinHook\hde\hde64.c" />
+    <ClCompile Include="src\MinHook\hook.c" />
+    <ClCompile Include="src\MinHook\trampoline.c" />
     <ClCompile Include="src\stores\Epic\epic_library.cpp" />
     <ClCompile Include="src\stores\generic_library2.cpp" />
     <ClCompile Include="src\utility\drvreset.cpp" />

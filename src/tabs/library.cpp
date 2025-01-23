@@ -6748,7 +6748,10 @@ SKIF_UI_Tab_DrawLibrary (void)
       else  if (app.second.store == app_record_s::Store::GOG)   // GOG
         load_str = app.second.install_dir + L"\\goggame-" + std::to_wstring(app.second.id) + L".ico";
       else if (app.second.store  == app_record_s::Store::Steam)  // Steam
-        load_str = SK_FormatStringW(LR"(%ws\appcache\librarycache\%i_icon.jpg)", _path_cache.steam_install, app.second.id); //L"_icon.jpg"
+      {
+        appinfo->getAppInfo ( app.second.id, &g_apps );
+        load_str = SK_FormatStringW(LR"(%ws\appcache\librarycache\%i\%hs.jpg)", _path_cache.steam_install, app.second.id, app.second.common_config.icon_hash.c_str ()); //L"_icon.jpg"
+      }
       else if (app.second.store  == app_record_s::Store::Xbox)  // Xbox
         load_str = L"icon";
 
@@ -7188,9 +7191,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
             // Will fail on read-only marked files
             bool d1 = DeleteFile ((targetPath + fileName + L".png").c_str()),
-                  d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
-                  d3 = false,
-                  d4 = false;
+                 d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
+                 d3 = false,
+                 d4 = false;
 
             // For Xbox titles we also store a fallback cover that we must reset
             if (! pApp->tex_cover.isCustom && pApp->store == app_record_s::Store::Xbox)
@@ -7444,7 +7447,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                                     pApp->tex_icon.texture,
                                       (pApp->store == app_record_s::Store::GOG)
                                       ? pApp->install_dir + L"\\goggame-" + std::to_wstring(pApp->id) + L".ico"
-                                      : SK_FormatStringW (LR"(%ws\appcache\librarycache\%i_icon.jpg)", _path_cache.steam_install, pApp->id), //L"_icon.jpg",
+                                      : SK_FormatStringW (LR"(%ws\appcache\librarycache\%i\%hs.jpg)", _path_cache.steam_install, pApp->id, pApp->common_config.icon_hash.c_str ()),
                                           dontCare,
                                             pApp );
           }
@@ -7516,13 +7519,16 @@ SKIF_UI_Tab_DrawLibrary (void)
 
             // Will fail on read-only marked files
             bool d1 = DeleteFile ((targetPath + fileName + L".png").c_str()),
-                  d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
-                  d3 = DeleteFile ((targetPath + fileName + L".ico").c_str());
+                 d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
+                 d3 = DeleteFile ((targetPath + fileName + L".ico").c_str());
 
             // If any file was removed
             if (d1 || d2 || d3)
             {
               ImVec2 dontCare;
+
+              if (pApp->store == app_record_s::Store::Steam)
+                appinfo->getAppInfo ( pApp->id, &g_apps );
 
               // Reload the icon
               LoadLibraryTexture (LibraryTexture::Icon,
@@ -7530,7 +7536,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                                       pApp->tex_icon.texture,
                                         (pApp->store == app_record_s::Store::GOG)
                                         ? pApp->install_dir + L"\\goggame-" + std::to_wstring(pApp->id) + L".ico"
-                                        : SK_FormatStringW (LR"(%ws\appcache\librarycache\%i_icon.jpg)", _path_cache.steam_install, pApp->id), //L"_icon.jpg",
+                                        : SK_FormatStringW (LR"(%ws\appcache\librarycache\%i\%hs.jpg)", _path_cache.steam_install, pApp->id, pApp->common_config.icon_hash.c_str ()),
                                             dontCare,
                                               pApp );
             }
@@ -7818,7 +7824,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         load_str     = _path_cache.steam_install;
         load_str    += LR"(/appcache/librarycache/)" +
           std::to_wstring (_pApp->id)                +
-                                  L"_library_600x900.jpg";
+                                  L"/library_600x900.jpg";
 
         // Do not load a high-res copy if low-res covers are being used,
         //   as in those scenarios we prefer to load the original 300x450 cover
