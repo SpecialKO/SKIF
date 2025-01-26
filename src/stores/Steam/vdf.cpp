@@ -677,6 +677,12 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
           }
         }
 
+        // If the appinfo.vdf didn't contain library asset paths, default to standard path
+        if (get_library_asset_paths)
+        {
+          pAppRecord->common_config.boxart_hash = "library_600x900.jpg";
+        }
+
         // At this point, since we used Steam's index as the position to stuff data into, the vector has
         //   has objects all over -- some at 0, some at 1, others at 0-4, not 5, 6-9. Basically we cannot
         //     be certain of anything, at all, what so bloody ever! So let's just recreate the std::map!
@@ -861,7 +867,6 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
           pAppRecord->launch_configs[0].id               = 0;
           pAppRecord->launch_configs[firstValidFound].id = copy_id;
         }
-          
 #if 0
 
         for (auto& launch : pAppRecord->launch_configs)
