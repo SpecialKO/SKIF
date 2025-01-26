@@ -510,8 +510,7 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
             }
 
             if ( get_library_asset_paths &&
-                 0 ==
-                 finished_section.name.find ("appinfo.common.library_assets_full.library_capsule.image") )
+                 finished_section.name._Equal ("appinfo.common.library_assets_full.library_capsule.image") )
             {
               bool found_english_asset = false;
               for (auto& key : finished_section.keys)
