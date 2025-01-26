@@ -216,6 +216,7 @@ struct app_record_s {
     CPUType      cpu_type  = CPUType::Any;     // This is an utterly useless key on Steam -- do not expect it to contain anything important! It's either not set, empty, or set to 64 -- nothing else!
     AppType      type      = AppType::Unknown; // Steam
     std::string  icon_hash;                    // Steam's internal name for the icon (40 digits)
+    std::string  boxart_hash;                  // Alternate filesystem location for boxart
   };
 
   struct extended_config_s {

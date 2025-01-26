@@ -340,7 +340,7 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
 //#define _WRITE_APPID_INI
 #ifdef  _WRITE_APPID_INI
         FILE* fTest =
-          fopen ("appid.ini", "w");
+          fopen (SK_FormatString ("appid%d.ini", pAppRecord->id).c_str (), "w");
 #endif
 
         bool populate_appinfo_extended =
@@ -358,6 +358,8 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
         bool populate_launch_configs =
         //pAppRecord != nullptr      &&
           pAppRecord->launch_configs.empty ();
+
+        bool get_library_asset_paths = true;
 
         pAppRecord->install_dir =
           SK_UseManifestToGetInstallDir (pAppRecord);
@@ -505,6 +507,33 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
                   pAppRecord->common_config.icon_hash = (char *)key.second.second;
                 }
               }
+            }
+
+            if ( get_library_asset_paths &&
+                 0 ==
+                 finished_section.name.find ("appinfo.common.library_assets_full.library_capsule.image") )
+            {
+              bool found_english_asset = false;
+              for (auto& key : finished_section.keys)
+              {
+                if (! _stricmp (key.first, "english"))
+                {
+                  pAppRecord->common_config.boxart_hash = (const char*)key.second.second;
+                  found_english_asset = true;
+                  break;
+                }
+              }
+
+              if (! found_english_asset)
+              {
+                // Since language is not known, just use the first language found
+                for (auto& key : finished_section.keys)
+                {
+                  pAppRecord->common_config.boxart_hash = (const char*)key.second.second;
+                  break;
+                }
+              }
+              get_library_asset_paths = false;
             }
 
             if ( populate_launch_configs &&

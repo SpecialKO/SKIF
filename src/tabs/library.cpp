@@ -7824,7 +7824,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         load_str     = _path_cache.steam_install;
         load_str    += LR"(/appcache/librarycache/)" +
           std::to_wstring (_pApp->id)                +
-                                  L"/library_600x900.jpg";
+                                  L"/" + SK_FormatStringW (L"%hs", pApp->common_config.boxart_hash.c_str ());
 
         // Do not load a high-res copy if low-res covers are being used,
         //   as in those scenarios we prefer to load the original 300x450 cover
