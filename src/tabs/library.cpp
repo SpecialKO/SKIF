@@ -8975,6 +8975,68 @@ SKIF_UI_Tab_DrawLibrary (void)
 
 #pragma endregion
 
+  auto UpgradeDLL = [&](std::wstring src_path)
+  {
+    const bool is_64_bit =
+      StrStrIW (src_path.c_str (), L"SpecialK64.dll");
+
+    const std::wstring local_path =
+      is_64_bit ? L"SpecialK64.dll" :
+                  L"SpecialK32.dll";
+
+    const auto orig_ver =
+      SKIF_Util_GetFileVersion (local_path.c_str ());
+
+    const bool bWasRunning =
+      (_inject.bHasServlet && _inject.bCurrentState),
+               bWasWaiting =
+      (_inject.bHasServlet && _inject.bAckInj);
+
+    if (bWasRunning)
+      _inject._StartStopInject (true, bWasWaiting, launchConfig->isElevated (), pApp->skif.auto_stop);
+
+    if (! DeleteFileW (local_path.c_str ()))
+    {
+      const std::wstring old_file =
+        (local_path + L".old");
+
+      if (PathFileExistsW (old_file.c_str ())) {
+        if (! DeleteFileW (old_file.c_str ()))
+        {
+          const std::wstring older_file =
+            (old_file + L".old");
+
+          DeleteFileW (older_file.c_str ());
+          MoveFileExW (  old_file.c_str (), older_file.c_str (), MOVEFILE_REPLACE_EXISTING);
+        }
+      }
+
+      MoveFileExW (local_path.c_str (), old_file.c_str (), MOVEFILE_REPLACE_EXISTING);
+    }
+
+    if (PathIsURLW (src_path.c_str ()))
+    {
+      SKIF_Util_GetWebResource (src_path, local_path.c_str ());
+    }
+
+    else
+    {
+      CopyFile (src_path.c_str (),        local_path.c_str (), FALSE);
+    }
+
+    std::string msg =
+      is_64_bit ? "64-bit version of Special K (" : "32-bit version of Special K (";
+
+    msg += SK_WideCharToUTF8 (orig_ver);
+    msg += ") replaced using ";
+    msg += SK_WideCharToUTF8 (SKIF_Util_GetFileVersion (local_path.c_str ()));
+
+    SKIF_ImGui_InfoMessage ("New DLL Installed", msg);
+
+    _inject._RefreshSKDLLVersions ();
+    _inject._RefreshUIQuickToggle (bWasRunning);
+  };
+
   if (! dragDroppedFilePath.empty())
   {
     PLOG_VERBOSE << "New drop was given: " << dragDroppedFilePath;
@@ -9039,64 +9101,151 @@ SKIF_UI_Tab_DrawLibrary (void)
     else if (ext == L".dll" && (StrStrIW (dragDroppedFilePath.c_str (), L"SpecialK64.dll") ||
                                 StrStrIW (dragDroppedFilePath.c_str (), L"SpecialK32.dll")))
     {
-      const bool is_64_bit =
-        StrStrIW (dragDroppedFilePath.c_str (), L"SpecialK64.dll");
+      UpgradeDLL (dragDroppedFilePath);
+    }
 
-      const std::wstring local_path =
-        is_64_bit ? L"SpecialK64.dll" :
-                    L"SpecialK32.dll";
+    else if (ext == L".7z" && (StrStrIW (dragDroppedFilePath.c_str (), L"SpecialK")))
+    {
+      int sk64_year = 0, sk64_month = 0,
+          sk64_day  = 0, sk64_rev   = 0;
 
-      const auto orig_ver =
-        SKIF_Util_GetFileVersion (local_path.c_str ());
+      std::wstring install_helper_dll =
+        L"SpecialK64.dll";
+      std::wstring install_helper_ver =
+        SKIF_Util_GetFileVersion (install_helper_dll.c_str ());
 
-      const bool bWasRunning =
-        (_inject.bHasServlet && _inject.bCurrentState),
-                 bWasWaiting =
-        (_inject.bHasServlet && _inject.bAckInj);
+      std::swscanf (
+        install_helper_ver.c_str (), L"%d.%d.%d.%d",
+          &sk64_year, &sk64_month, &sk64_day, &sk64_rev
+      );
 
-      if (bWasRunning)
-        _inject._StartStopInject (true, bWasWaiting, launchConfig->isElevated (), pApp->skif.auto_stop);
-
-      if (! DeleteFileW (local_path.c_str ()))
+      // Make a backup so that rolling-back to old versions still allows this feature.
+      if (sk64_year > 25 || (sk64_year == 25 && sk64_month  > 3) ||
+                            (sk64_year == 25 && sk64_month == 3 && sk64_day >= 11))
       {
-        const std::wstring old_file =
-          (local_path + L".old");
+        CopyFileW (L"SpecialK64.dll", LR"(Version\SpecialK_7ZipHelper.dll)", TRUE);
+      }
 
-        if (PathFileExistsW (old_file.c_str ())) {
-          if (! DeleteFileW (old_file.c_str ()))
+      install_helper_dll      = LR"(Version\SpecialK_7ZipHelper.dll)";
+      install_helper_ver      =
+        SKIF_Util_GetFileVersion (install_helper_dll.c_str ());
+      std::swscanf (
+        install_helper_ver.c_str (), L"%d.%d.%d.%d",
+          &sk64_year, &sk64_month, &sk64_day, &sk64_rev
+      );
+
+      if (sk64_year > 25 || (sk64_year == 25 && sk64_month  > 3) ||
+                            (sk64_year == 25 && sk64_month == 3 && sk64_day >= 11))
+      {
+        const auto orig_ver32 =
+          SKIF_Util_GetFileVersion (L"SpecialK32.dll"),
+                   orig_ver64 =
+          SKIF_Util_GetFileVersion (L"SpecialK64.dll");
+
+        CreateDirectoryW (L"Version", nullptr);
+
+        if (PathIsURLW (dragDroppedFilePath.c_str ()))
+        {
+          SKIF_Util_GetWebResource (dragDroppedFilePath, LR"(Version\SpecialK_DropInstall.7z)");
+        }
+
+        else
+        {
+          CopyFile (dragDroppedFilePath.c_str (),        LR"(Version\SpecialK_DropInstall.7z)", false);
+        }
+
+        wchar_t              wszRunDLL32 [MAX_PATH + 2] = { };
+        GetSystemDirectoryW (wszRunDLL32, MAX_PATH);
+        PathAppendW         (wszRunDLL32, L"rundll32.exe");
+        static std::wstring wszExtractCall = SK_FormatStringW (
+          LR"("%ws\%ws",RunDLL_Extract7Zip SpecialK_DropInstall.7z)",
+           _path_cache.specialk_install, install_helper_dll.c_str ()
+        );
+
+        SHELLEXECUTEINFOW
+          sexi              = { };
+          sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
+          sexi.lpVerb       = L"open";
+          sexi.lpFile       = wszRunDLL32;
+          sexi.lpParameters = wszExtractCall.c_str ();
+          sexi.nShow        = SW_HIDE;
+          sexi.fMask        = SEE_MASK_NOASYNC | SEE_MASK_NOZONECHECKS;
+          
+        SetLastError (NO_ERROR);
+
+        wchar_t                         wszCurrentDir [MAX_PATH] = {};
+        wchar_t                         wszInstallDir [MAX_PATH] = {};
+        GetCurrentDirectoryW (MAX_PATH, wszCurrentDir);
+        GetCurrentDirectoryW (MAX_PATH, wszInstallDir);
+
+        PathAppendW          (wszInstallDir, L"Version");
+        CreateDirectoryW     (wszInstallDir, nullptr);
+        SetCurrentDirectoryW (wszInstallDir);
+
+        bool ret =
+          ShellExecuteExW (&sexi);
+
+        SetCurrentDirectoryW (wszCurrentDir);
+
+        // Wait for up to 5 seconds for the archive to extract and files to flush
+        int            retries              = 0;
+        constexpr auto retry_interval_in_ms = 50UL;
+
+        if (ret)
+        {
+          while (! (PathFileExistsW (LR"(Version\SpecialK64.dll)") &&
+                    PathFileExistsW (LR"(Version\SpecialK32.dll)")))
           {
-            const std::wstring older_file =
-              (old_file + L".old");
+            Sleep (retry_interval_in_ms);
 
-            DeleteFileW (older_file.c_str ());
-            MoveFileExW (  old_file.c_str (), older_file.c_str (), MOVEFILE_REPLACE_EXISTING);
+            if (++retries > 50)
+            {
+              SKIF_ImGui_InfoMessage ( "Missing Files",
+                "Unable to extract SpecialK64.dll and SpecialK32.dll from the provided .7z file"
+              );
+              SetLastError (ERROR_FILE_INVALID);
+              ret = false;
+              break;
+            }
+          }
+
+          retries = 0;
+
+          while (! DeleteFileW (LR"(Version\SpecialK_DropInstall.7z)"))
+          {
+            Sleep (retry_interval_in_ms);
+
+            if (++retries > 50)
+            {
+              SetLastError (ERROR_FILE_INVALID);
+              ret = false;
+              break;
+            }
           }
         }
 
-        MoveFileExW (local_path.c_str (), old_file.c_str (), MOVEFILE_REPLACE_EXISTING);
-      }
+        if (GetLastError ( ) != NO_ERROR)
+          PLOG_ERROR << "An unexpected error occurred: " << SKIF_Util_GetErrorAsWStr();
 
-      if (PathIsURLW (dragDroppedFilePath.c_str ()))
-      {
-        SKIF_Util_GetWebResource (dragDroppedFilePath, local_path.c_str ());
+        if (ret)
+        {
+          PLOG_INFO  << "The operation was successful.";
+
+          UpgradeDLL (LR"(Version\SpecialK64.dll)");
+          UpgradeDLL (LR"(Version\SpecialK32.dll)");
+
+          DeleteFileW (LR"(Version\SpecialK64.dll)");
+          DeleteFileW (LR"(Version\SpecialK32.dll)");
+        }
+        else
+          PLOG_ERROR << "The operation was unsuccessful.";
       }
 
       else
       {
-        CopyFile (dragDroppedFilePath.c_str (), local_path.c_str (), false);
+        SKIF_ImGui_InfoMessage ("Unsupported Feature",
+       "SKIF cannot perform a drag-n-drop update because Special K 25.3.11 or newer is required.");
       }
-
-      std::string msg =
-        is_64_bit ? "64-bit version of Special K (" : "32-bit version of Special K (";
-
-      msg += SK_WideCharToUTF8 (orig_ver);
-      msg += ") replaced using ";
-      msg += SK_WideCharToUTF8 (SKIF_Util_GetFileVersion (local_path.c_str ()));
-
-      SKIF_ImGui_InfoMessage ("New DLL Installed", msg);
-
-      _inject._RefreshSKDLLVersions ();
-      _inject._RefreshUIQuickToggle (bWasRunning);
     }
 
     // Images + URLs

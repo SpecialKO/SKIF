@@ -1381,12 +1381,14 @@ SKIF_Util_GetFileVersion (const wchar_t* wszName)
   DWORD start = SKIF_Util_timeGetTime1 ( );
 
   UINT cbTranslatedBytes = 0,
+       cbProductBytes    = 0,
        cbVersionBytes    = 0;
 
-  std::vector <uint8_t>
-    cbData (16384, 0ui8);
+  uint8_t cbData [4097] = { };
+  size_t  dwSize= 4096;
 
-  wchar_t* wszVersion    = nullptr; // Will point somewhere in cbData
+  wchar_t* wszFileDescrip = nullptr; // Will point somewhere in cbData
+  wchar_t* wszFileVersion = nullptr; // "
 
   struct LANGANDCODEPAGE {
     WORD wLanguage;
@@ -1394,37 +1396,86 @@ SKIF_Util_GetFileVersion (const wchar_t* wszName)
   } *lpTranslate = nullptr;
 
   BOOL bRet =
-    GetFileVersionInfoExW ( FILE_VER_GET_PREFETCHED,
-                                   wszName,
-                                     0x00,
-                    static_cast <DWORD> (cbData.size ()),
-                                         cbData.data () );
+    GetFileVersionInfoExW ( FILE_VER_GET_NEUTRAL |
+                            FILE_VER_GET_PREFETCHED,
+                              wszName,
+                                0x00,
+             static_cast <DWORD> (dwSize),
+                                    cbData );
 
-  if (! bRet) return L"";
+  if (! bRet)
+    return L"N/A";
 
-  if ( VerQueryValueW ( cbData.data (),
-                             TEXT ("\\VarFileInfo\\Translation"),
-            static_cast_p2p <void> (&lpTranslate),
-                                    &cbTranslatedBytes ) &&
-                                     cbTranslatedBytes   && lpTranslate )
+  if ( VerQueryValueW ( cbData,
+                          TEXT ("\\VarFileInfo\\Translation"),
+              static_cast_p2p <void> (&lpTranslate),
+                                      &cbTranslatedBytes ) && cbTranslatedBytes &&
+                                                              lpTranslate )
   {
     wchar_t        wszPropName [64] = { };
     _snwprintf_s ( wszPropName, 63,
+                    LR"(\StringFileInfo\%04x%04x\FileDescription)",
+                      lpTranslate   [0].wLanguage,
+                        lpTranslate [0].wCodePage );
+
+    VerQueryValueW ( cbData,
+                       wszPropName,
+           static_cast_p2p <void> (&wszFileDescrip),
+                                   &cbProductBytes );
+
+    if (cbProductBytes == 0)
+    {
+      _snwprintf_s ( wszPropName, 63,
+                    LR"(\StringFileInfo\%04x%04x\ProductName)",
+                      lpTranslate   [0].wLanguage,
+                        lpTranslate [0].wCodePage );
+
+      VerQueryValueW ( cbData,
+                         wszPropName,
+             static_cast_p2p <void> (&wszFileDescrip),
+                                     &cbProductBytes );
+    }
+
+    _snwprintf_s ( wszPropName, 63,
+                    LR"(\StringFileInfo\%04x%04x\FileVersion)",
+                      lpTranslate   [0].wLanguage,
+                        lpTranslate [0].wCodePage );
+
+    VerQueryValueW ( cbData,
+                       wszPropName,
+           static_cast_p2p <void> (&wszFileVersion),
+                                   &cbVersionBytes );
+
+    if (cbVersionBytes == 0)
+    {
+      _snwprintf_s ( wszPropName, 63,
                       LR"(\StringFileInfo\%04x%04x\ProductVersion)",
                         lpTranslate   [0].wLanguage,
                           lpTranslate [0].wCodePage );
 
-    VerQueryValueW ( cbData.data (),
-                            wszPropName,
-            static_cast_p2p <void> (&wszVersion),
-                                    &cbVersionBytes );
+      VerQueryValueW ( cbData,
+                         wszPropName,
+             static_cast_p2p <void> (&wszFileVersion),
+                                     &cbVersionBytes );
+    }
   }
+
+  if ( cbTranslatedBytes == 0 ||
+         (cbProductBytes == 0 && cbVersionBytes == 0) )
+  {
+    return L"  ";
+  }
+
+  std::wstring ret;
+
+  if (cbVersionBytes)
+    ret.append (wszFileVersion);
 
   DWORD stop = SKIF_Util_timeGetTime1 ( );
 
   PLOG_DEBUG << "Processing took " << (stop - start) << " ms.";
 
-  return (cbVersionBytes) ? wszVersion  : L"";
+  return ret;
 }
 
 std::wstring
