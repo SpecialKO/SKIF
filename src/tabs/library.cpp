@@ -8980,7 +8980,24 @@ SKIF_UI_Tab_DrawLibrary (void)
     PLOG_VERBOSE << "New drop was given: " << dragDroppedFilePath;
 
     const std::filesystem::path fsPath (dragDroppedFilePath.data());
-    std::wstring ext        = SKIF_Util_ToLowerW(fsPath.extension().wstring());
+
+    std::wstring ext =
+      SKIF_Util_ToLowerW (fsPath.extension ().wstring ());
+
+    if (PathIsURLW (dragDroppedFilePath.c_str ()))
+    {
+      wchar_t    wszExt [MAX_PATH + 1] = {};
+      wcsncpy_s (wszExt, MAX_PATH, ext.c_str (), _TRUNCATE);
+
+      // Strip the ? from the extension
+      if (wchar_t* url_args_delim  = StrStrW (wszExt, L"?");
+                   url_args_delim != nullptr)
+      {
+        *url_args_delim = L'\0';
+        ext             = wszExt;
+      }
+    }
+
     PLOG_VERBOSE << "    File extension: " << ext;
 
 #if 0
@@ -9016,6 +9033,70 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       if (AddGamePopup == PopupState_Closed)
         AddGamePopup = PopupState_Open;
+    }
+
+    // Special K DLLs
+    else if (ext == L".dll" && (StrStrIW (dragDroppedFilePath.c_str (), L"SpecialK64.dll") ||
+                                StrStrIW (dragDroppedFilePath.c_str (), L"SpecialK32.dll")))
+    {
+      const bool is_64_bit =
+        StrStrIW (dragDroppedFilePath.c_str (), L"SpecialK64.dll");
+
+      const std::wstring local_path =
+        is_64_bit ? L"SpecialK64.dll" :
+                    L"SpecialK32.dll";
+
+      const auto orig_ver =
+        SKIF_Util_GetFileVersion (local_path.c_str ());
+
+      const bool bWasRunning =
+        (_inject.bHasServlet && _inject.bCurrentState),
+                 bWasWaiting =
+        (_inject.bHasServlet && _inject.bAckInj);
+
+      if (bWasRunning)
+        _inject._StartStopInject (true, bWasWaiting, launchConfig->isElevated (), pApp->skif.auto_stop);
+
+      if (! DeleteFileW (local_path.c_str ()))
+      {
+        const std::wstring old_file =
+          (local_path + L".old");
+
+        if (PathFileExistsW (old_file.c_str ())) {
+          if (! DeleteFileW (old_file.c_str ()))
+          {
+            const std::wstring older_file =
+              (old_file + L".old");
+
+            DeleteFileW (older_file.c_str ());
+            MoveFileExW (  old_file.c_str (), older_file.c_str (), MOVEFILE_REPLACE_EXISTING);
+          }
+        }
+
+        MoveFileExW (local_path.c_str (), old_file.c_str (), MOVEFILE_REPLACE_EXISTING);
+      }
+
+      if (PathIsURLW (dragDroppedFilePath.c_str ()))
+      {
+        SKIF_Util_GetWebResource (dragDroppedFilePath, local_path.c_str ());
+      }
+
+      else
+      {
+        CopyFile (dragDroppedFilePath.c_str (), local_path.c_str (), false);
+      }
+
+      std::string msg =
+        is_64_bit ? "64-bit version of Special K (" : "32-bit version of Special K (";
+
+      msg += SK_WideCharToUTF8 (orig_ver);
+      msg += ") replaced using ";
+      msg += SK_WideCharToUTF8 (SKIF_Util_GetFileVersion (local_path.c_str ()));
+
+      SKIF_ImGui_InfoMessage ("New DLL Installed", msg);
+
+      _inject._RefreshSKDLLVersions ();
+      _inject._RefreshUIQuickToggle (bWasRunning);
     }
 
     // Images + URLs
