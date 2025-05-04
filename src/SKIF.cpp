@@ -2545,6 +2545,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
       // Only allow navigational hotkeys when in Large Mode and as long as no popups are opened
       if (! _registry.bMiniMode && ! SKIF_ImGui_IsAnyPopupOpen ( ))
       {
+        int gamepad_tab = 0;
+
+        if (ImGui::IsKeyPressed (ImGuiKey_GamepadL1)) gamepad_tab--;
+        if (ImGui::IsKeyPressed (ImGuiKey_GamepadR1)) gamepad_tab++;
+        
         if (hotkeyCtrl1)
         {
           if (SKIF_Tab_Selected != UITab_Library)
@@ -2567,6 +2572,22 @@ wWinMain ( _In_     HINSTANCE hInstance,
         {
           if (SKIF_Tab_Selected != UITab_About)
               SKIF_Tab_ChangeTo  = UITab_About;
+        }
+
+        if (gamepad_tab != 0)
+        {
+          int tab_select =
+            SKIF_Tab_Selected + gamepad_tab;
+
+          if (tab_select < UITab_Library)
+              tab_select = UITab_About;
+          if (tab_select > UITab_About)
+              tab_select = UITab_Library;
+
+          if (tab_select != SKIF_Tab_Selected)
+          {
+            SKIF_Tab_ChangeTo = (UITab)tab_select;
+          }
         }
 
         if (hotkeyCtrlA && allowShortcutCtrlA)

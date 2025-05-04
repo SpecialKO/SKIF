@@ -564,11 +564,11 @@ SKIF_UI_Tab_DrawSettings (void)
   ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
   SKIF_ImGui_SetHoverTip ("Allows the UI to be controlled using " ICON_FA_XBOX " or " ICON_FA_PLAYSTATION " controllers, and adds special features while SKIF is running.");
 
-  ImGui::SameLine             ( );
-  ImGui::Spacing              ( );
-  ImGui::SameLine             ( );
-  ImGui::Button               (ICON_FA_GAMEPAD " Config");
-  ImGui::OpenPopupOnItemClick ("Special K Input Config###SKInput_GamepadCfg", ImGuiPopupFlags_MouseButtonLeft);
+  ImGui::SameLine    ( );
+  ImGui::Spacing     ( );
+  ImGui::SameLine    ( );
+  if (ImGui::Button  (ICON_FA_GAMEPAD " Config"))
+    ImGui::OpenPopup ("Special K Input Config###SKInput_GamepadCfg");
 
   if (ImGui::BeginPopupModal ("Special K Input Config###SKInput_GamepadCfg", nullptr,
                                 ImGuiWindowFlags_NoResize |
