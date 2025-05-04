@@ -355,6 +355,18 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Controllers)" );
 
+  KeyValue <int> regKVControllerPowerOffChord =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\SKInput\)",
+                         LR"(PowerOffChord)" );
+
+  KeyValue <int> regKVControllerScreenSaverChord =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\SKInput\)",
+                         LR"(ScreenSaverChord)" );
+
+  KeyValue <int> regKVControllerIdlePowerOffTimeOut =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\SKInput\)",
+                         LR"(SecondsBeforeIdlePowerOff)" );
+
   KeyValue <bool> regKVLoggingDeveloper =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Logging Developer)" );
@@ -593,6 +605,12 @@ struct SKIF_RegistrySettings {
   bool bControllers             =  true; // Should SKIF support controller input ?
   bool bLoggingDeveloper        = false; // This is a log level "above" verbose logging that also includes stuff like window messages. Only useable for SKIF developers
   bool bPatreon                 =  true; // Should the Patreon button/kudos be shown when Special K is selected in the game list?
+
+  struct {
+    bool  bPowerOffChord        = true;
+    bool  bScreenSaverChord     = true;
+    DWORD dwIdleTimeoutInSecs   = 750UL;
+  } skinput;
 
   // Warnings
   bool bWarningRTSS             = false;

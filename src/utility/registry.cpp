@@ -271,12 +271,15 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   if (SKIF_Util_IsWindows10OrGreater ( ))
     iUIMode                =   2;
 
-  HKEY hKey = nullptr;
+  HKEY hKey        = nullptr;
+  HKEY hKeySKInput = nullptr;
   
   LSTATUS lsKey = RegCreateKeyW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\)", &hKey);
 
   if (lsKey != ERROR_SUCCESS)
     hKey = nullptr;
+
+  RegCreateKeyW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\SKInput\)", &hKeySKInput);
 
   if (regKVUIPositionX.hasData(&hKey))
     iUIPositionX           =   regKVUIPositionX            .getData (&hKey);
@@ -492,9 +495,6 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   if (regKVFadeCovers.hasData(&hKey))
     bFadeCovers            =   regKVFadeCovers             .getData (&hKey);
 
-  if (regKVControllers.hasData(&hKey))
-    bControllers           =   regKVControllers            .getData (&hKey);
-
   bLoggingDeveloper        =   regKVLoggingDeveloper       .getData (&hKey);
 
   if (regKVPatreon.hasData(&hKey))
@@ -502,6 +502,18 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 
   // Warnings
   bWarningRTSS             =   regKVWarningRTSS            .getData (&hKey);
+
+  if (regKVControllers.hasData(&hKey))
+    bControllers                = regKVControllers                  .getData (&hKey);
+
+  if (regKVControllerIdlePowerOffTimeOut.hasData(&hKeySKInput))
+    skinput.dwIdleTimeoutInSecs = regKVControllerIdlePowerOffTimeOut.getData (&hKeySKInput);
+
+  if (regKVControllerScreenSaverChord.hasData(&hKeySKInput))
+    skinput.bScreenSaverChord   = regKVControllerScreenSaverChord   .getData (&hKeySKInput) != 0;
+
+  if (regKVControllerPowerOffChord.hasData(&hKeySKInput))
+    skinput.bPowerOffChord      = regKVControllerPowerOffChord      .getData (&hKeySKInput) != 0;
 
   // Keybindings
   // All keybindings must first read the data from the registry,

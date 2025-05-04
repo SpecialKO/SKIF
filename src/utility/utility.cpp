@@ -1396,8 +1396,7 @@ SKIF_Util_GetFileVersion (const wchar_t* wszName)
   } *lpTranslate = nullptr;
 
   BOOL bRet =
-    GetFileVersionInfoExW ( FILE_VER_GET_NEUTRAL |
-                            FILE_VER_GET_PREFETCHED,
+    GetFileVersionInfoExW ( FILE_VER_GET_NEUTRAL,
                               wszName,
                                 0x00,
              static_cast <DWORD> (dwSize),

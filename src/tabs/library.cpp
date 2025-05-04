@@ -1,5 +1,5 @@
 //
-// Copyright 2020-2024 Andon "Kaldaien" Coleman
+// Copyright 2020-2025 Andon "Kaldaien" Coleman
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -8992,8 +8992,11 @@ SKIF_UI_Tab_DrawLibrary (void)
                bWasWaiting =
       (_inject.bHasServlet && _inject.bAckInj);
 
-    if (bWasRunning)
+    if (bWasRunning) {
       _inject._StartStopInject (true, bWasWaiting, launchConfig->isElevated (), pApp->skif.auto_stop);
+      // XXX: This delay helps but does not completely solve wrong reported versions
+      Sleep (500UL);
+    }
 
     if (! DeleteFileW (local_path.c_str ()))
     {

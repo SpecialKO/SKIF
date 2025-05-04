@@ -543,6 +543,77 @@ SKIF_UI_Tab_DrawSettings (void)
 
   _inject._StartAtLogonCtrl ( );
 
+
+  if ( ImGui::Checkbox ( "Controller support",                                    &_registry.bControllers ) )
+  {
+    _registry.regKVControllers.putData (                                           _registry.bControllers);
+
+    // Ensure the gamepad input thread knows what state we are actually in
+    static SKIF_GamePadInputHelper& _gamepad =
+           SKIF_GamePadInputHelper::GetInstance ( );
+
+    if (_registry.bControllers)
+    {
+      _gamepad.InvalidateGamePads ( );
+      _gamepad.WakeThread  ( );
+    } else
+      _gamepad.SleepThread ( );
+  }
+
+  ImGui::SameLine        ( );
+  ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
+  SKIF_ImGui_SetHoverTip ("Allows the UI to be controlled using " ICON_FA_XBOX " or " ICON_FA_PLAYSTATION " controllers, and adds special features while SKIF is running.");
+
+  ImGui::SameLine             ( );
+  ImGui::Spacing              ( );
+  ImGui::SameLine             ( );
+  ImGui::Button               (ICON_FA_GAMEPAD " Config");
+  ImGui::OpenPopupOnItemClick ("Special K Input Config###SKInput_GamepadCfg", ImGuiPopupFlags_MouseButtonLeft);
+
+  if (ImGui::BeginPopupModal ("Special K Input Config###SKInput_GamepadCfg", nullptr,
+                                ImGuiWindowFlags_NoResize |
+                                ImGuiWindowFlags_NoMove   |
+                                ImGuiWindowFlags_AlwaysAutoResize))
+  {
+    ImGui::SeparatorText ("General Controller Settings");
+    ImGui::TreePush      ("");
+    if (ImGui::Checkbox  ("Activate Screen Saver Using  " ICON_FA_XBOX " + A  or  " ICON_FA_PLAYSTATION " + Cross", &_registry.skinput.bScreenSaverChord))
+    {
+      _registry.regKVControllerScreenSaverChord.putData (_registry.skinput.bScreenSaverChord ? 1 : 0);
+    }
+    ImGui::TreePop       (  );
+    ImGui::SeparatorText ("PlayStation Power Management");
+    ImGui::TreePush      ("");
+    if (ImGui::Checkbox ("Power Off Controllers Using " ICON_FA_PLAYSTATION " + Triangle", &_registry.skinput.bPowerOffChord))
+    {
+      _registry.regKVControllerPowerOffChord.putData (_registry.skinput.bPowerOffChord ? 1 : 0);
+    }
+
+    float fIdleMinutes =
+      static_cast <float> (_registry.skinput.dwIdleTimeoutInSecs) / 60.0f;
+
+    if (ImGui::SliderFloat ("Idle Behavior", &fIdleMinutes, 0.0f, 30.0f,
+                                              fIdleMinutes < 0.5f ? "Never Power Off" :
+                                                                          "Power Off After %.1f Minutes"))
+    {
+      _registry.skinput.dwIdleTimeoutInSecs =
+        fIdleMinutes < 0.5f ? 0 : static_cast <DWORD> (60.0f * fIdleMinutes);
+
+      _registry.regKVControllerIdlePowerOffTimeOut.putData (_registry.skinput.dwIdleTimeoutInSecs);
+    }
+
+    ImGui::SetItemTooltip ("This only applies when no game is using Special K and SKIF or SKIV are running.");
+
+    ImGui::TreePop   ( );
+    ImGui::Separator ( );
+
+    if (ImGui::Button ("OK"))
+        ImGui::CloseCurrentPopup ();
+
+    ImGui::EndPopup ();
+  }
+
+
   if (enableColums)
   {
     ImGui::NextColumn    ( );
@@ -1483,26 +1554,6 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::SetCursorPosX (ImGui::GetCursorPosX ( ) + ImGui::GetStyle().FramePadding.x);
       ImGui::BeginGroup    ( );
     }
-
-    if ( ImGui::Checkbox ( "Controller support",                                    &_registry.bControllers ) )
-    {
-      _registry.regKVControllers.putData (                                           _registry.bControllers);
-
-      // Ensure the gamepad input thread knows what state we are actually in
-      static SKIF_GamePadInputHelper& _gamepad =
-             SKIF_GamePadInputHelper::GetInstance ( );
-
-      if (_registry.bControllers)
-      {
-        _gamepad.InvalidateGamePads ( );
-        _gamepad.WakeThread  ( );
-      } else
-        _gamepad.SleepThread ( );
-    }
-
-    ImGui::SameLine    ( );
-    ImGui::TextColored      (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
-    SKIF_ImGui_SetHoverTip  ("This enables the use of Xbox controllers to navigate within this app.");
 
     if ( ImGui::Checkbox ( "Automatically install new updates",              &_registry.bAutoUpdate ) )
       _registry.regKVAutoUpdate.putData (                                     _registry.bAutoUpdate);
