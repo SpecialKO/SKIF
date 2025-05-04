@@ -609,7 +609,7 @@ struct SKIF_RegistrySettings {
   struct {
     bool  bPowerOffChord        =  true;
     bool  bScreenSaverChord     = false;
-    DWORD dwIdleTimeoutInSecs   = 750UL;
+    DWORD dwIdleTimeoutInSecs   = 450UL;
   } skinput;
 
   // Warnings
