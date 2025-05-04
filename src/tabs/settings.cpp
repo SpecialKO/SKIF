@@ -592,10 +592,16 @@ SKIF_UI_Tab_DrawSettings (void)
     float fIdleMinutes =
       static_cast <float> (_registry.skinput.dwIdleTimeoutInSecs) / 60.0f;
 
+    float fLastIdle = fIdleMinutes;
+
     if (ImGui::SliderFloat ("Idle Behavior", &fIdleMinutes, 0.0f, 30.0f,
                                               fIdleMinutes < 0.5f ? "Never Power Off" :
                                                                           "Power Off After %.1f Minutes"))
     {
+      // Minimum positive step value to allow gamepad to move this slider off of "Never Power Off"
+      if (fLastIdle == 0.0f && fIdleMinutes > 0.0f)
+          fIdleMinutes = 0.5f;
+
       _registry.skinput.dwIdleTimeoutInSecs =
         fIdleMinutes < 0.5f ? 0 : static_cast <DWORD> (60.0f * fIdleMinutes);
 
