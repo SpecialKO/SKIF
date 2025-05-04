@@ -279,7 +279,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   if (lsKey != ERROR_SUCCESS)
     hKey = nullptr;
 
-  RegCreateKeyW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\SKInput\)", &hKeySKInput);
+  RegCreateKeyW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\Input\)", &hKeySKInput);
 
   if (regKVUIPositionX.hasData(&hKey))
     iUIPositionX           =   regKVUIPositionX            .getData (&hKey);
