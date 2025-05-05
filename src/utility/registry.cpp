@@ -503,8 +503,8 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   // Warnings
   bWarningRTSS             =   regKVWarningRTSS            .getData (&hKey);
 
-  if (regKVControllers.hasData(&hKey))
-    bControllers                = regKVControllers                  .getData (&hKey);
+  if (regKVControllers.hasData(&hKeySKInput))
+    bControllers                = regKVControllers                  .getData (&hKeySKInput) != 0;
 
   if (regKVControllerIdlePowerOffTimeOut.hasData(&hKeySKInput))
     skinput.dwIdleTimeoutInSecs = regKVControllerIdlePowerOffTimeOut.getData (&hKeySKInput);

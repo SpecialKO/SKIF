@@ -351,20 +351,20 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Fade Covers)" );
 
-  KeyValue <bool> regKVControllers =
-    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
-                         LR"(Controllers)" );
+  KeyValue <int> regKVControllers =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\Input\)",
+                         LR"(EnableControllersInApps)" );
 
   KeyValue <int> regKVControllerPowerOffChord =
-    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\SKInput\)",
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\Input\)",
                          LR"(PowerOffChord)" );
 
   KeyValue <int> regKVControllerScreenSaverChord =
-    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\SKInput\)",
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\Input\)",
                          LR"(ScreenSaverChord)" );
 
   KeyValue <int> regKVControllerIdlePowerOffTimeOut =
-    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\SKInput\)",
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\Input\)",
                          LR"(SecondsBeforeIdlePowerOff)" );
 
   KeyValue <bool> regKVLoggingDeveloper =

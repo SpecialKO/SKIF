@@ -544,9 +544,9 @@ SKIF_UI_Tab_DrawSettings (void)
   _inject._StartAtLogonCtrl ( );
 
 
-  if ( ImGui::Checkbox ( "Controller support",                                    &_registry.bControllers ) )
-  {
-    _registry.regKVControllers.putData (                                           _registry.bControllers);
+  if ( ImGui::Checkbox ( "Controller support", &_registry.bControllers ) )
+  {                                            
+    _registry.regKVControllers.putData (        _registry.bControllers ? 1 : 0);
 
     // Ensure the gamepad input thread knows what state we are actually in
     static SKIF_GamePadInputHelper& _gamepad =
@@ -564,60 +564,68 @@ SKIF_UI_Tab_DrawSettings (void)
   ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
   SKIF_ImGui_SetHoverTip ("Allows the UI to be controlled using " ICON_FA_XBOX " or " ICON_FA_PLAYSTATION " controllers, and adds special features while SKIF is running.");
 
-  ImGui::SameLine    ( );
-  ImGui::Spacing     ( );
-  ImGui::SameLine    ( );
-  if (ImGui::Button  (ICON_FA_GAMEPAD " Config"))
+  ImGui::SameLine        ( );
+
+  if (! _registry.bControllers)
+    SKIF_ImGui_PushDisableState ();
+
+  if ( ImGui::ButtonEx ( ICON_FA_GAMEPAD "  Config", ImVec2 ( 115 * SKIF_ImGui_GlobalDPIScale,
+                                                               25 * SKIF_ImGui_GlobalDPIScale ) ) )
     ImGui::OpenPopup ("Special K Input Config###SKInput_GamepadCfg");
 
-  if (ImGui::BeginPopupModal ("Special K Input Config###SKInput_GamepadCfg", nullptr,
-                                ImGuiWindowFlags_NoResize |
-                                ImGuiWindowFlags_NoMove   |
-                                ImGuiWindowFlags_AlwaysAutoResize))
+  if (_registry.bControllers)
   {
-    ImGui::SeparatorText ("General Controller Settings");
-    ImGui::TreePush      ("");
-    if (ImGui::Checkbox  ("Activate Screen Saver Using  " ICON_FA_XBOX " + A  or  " ICON_FA_PLAYSTATION " + Cross", &_registry.skinput.bScreenSaverChord))
+    if (ImGui::BeginPopup ("Special K Input Config###SKInput_GamepadCfg",
+                                  ImGuiWindowFlags_NoMove |
+                                  ImGuiWindowFlags_AlwaysAutoResize))
     {
-      _registry.regKVControllerScreenSaverChord.putData (_registry.skinput.bScreenSaverChord ? 1 : 0);
+      ImGui::SeparatorText ("General Controller Settings");
+      ImGui::TreePush      ("");
+      if (ImGui::Checkbox  ("Activate Screen Saver Using  " ICON_FA_XBOX " + A  or  " ICON_FA_PLAYSTATION " + Cross", &_registry.skinput.bScreenSaverChord))
+      {
+        _registry.regKVControllerScreenSaverChord.putData (_registry.skinput.bScreenSaverChord ? 1 : 0);
+      }
+      ImGui::TreePop       (  );
+      ImGui::SeparatorText ("PlayStation Power Management");
+      ImGui::TreePush      ("");
+      if (ImGui::Checkbox ("Power Off Controllers Using " ICON_FA_PLAYSTATION " + Triangle", &_registry.skinput.bPowerOffChord))
+      {
+        _registry.regKVControllerPowerOffChord.putData (_registry.skinput.bPowerOffChord ? 1 : 0);
+      }
+
+      float fIdleMinutes =
+        static_cast <float> (_registry.skinput.dwIdleTimeoutInSecs) / 60.0f;
+
+      float fLastIdle = fIdleMinutes;
+
+      if (ImGui::SliderFloat ("Idle Behavior", &fIdleMinutes, 0.0f, 30.0f,
+                                                fIdleMinutes < 0.5f ? "Never Power Off" :
+                                                                            "Power Off After %.1f Minutes"))
+      {
+        // Minimum positive step value to allow gamepad to move this slider off of "Never Power Off"
+        if (fLastIdle == 0.0f && fIdleMinutes > 0.0f)
+            fIdleMinutes = 0.5f;
+
+        _registry.skinput.dwIdleTimeoutInSecs =
+          fIdleMinutes < 0.5f ? 0 : static_cast <DWORD> (60.0f * fIdleMinutes);
+
+        _registry.regKVControllerIdlePowerOffTimeOut.putData (_registry.skinput.dwIdleTimeoutInSecs);
+      }
+
+      SKIF_ImGui_SetHoverTip ("This only applies when no game is using Special K and SKIF or SKIV are running.");
+
+      ImGui::TreePop   ( );
+      //ImGui::Separator ( );
+      //
+      //if (ImGui::Button ("OK"))
+      //    ImGui::CloseCurrentPopup ();
+
+      ImGui::EndPopup ();
     }
-    ImGui::TreePop       (  );
-    ImGui::SeparatorText ("PlayStation Power Management");
-    ImGui::TreePush      ("");
-    if (ImGui::Checkbox ("Power Off Controllers Using " ICON_FA_PLAYSTATION " + Triangle", &_registry.skinput.bPowerOffChord))
-    {
-      _registry.regKVControllerPowerOffChord.putData (_registry.skinput.bPowerOffChord ? 1 : 0);
-    }
-
-    float fIdleMinutes =
-      static_cast <float> (_registry.skinput.dwIdleTimeoutInSecs) / 60.0f;
-
-    float fLastIdle = fIdleMinutes;
-
-    if (ImGui::SliderFloat ("Idle Behavior", &fIdleMinutes, 0.0f, 30.0f,
-                                              fIdleMinutes < 0.5f ? "Never Power Off" :
-                                                                          "Power Off After %.1f Minutes"))
-    {
-      // Minimum positive step value to allow gamepad to move this slider off of "Never Power Off"
-      if (fLastIdle == 0.0f && fIdleMinutes > 0.0f)
-          fIdleMinutes = 0.5f;
-
-      _registry.skinput.dwIdleTimeoutInSecs =
-        fIdleMinutes < 0.5f ? 0 : static_cast <DWORD> (60.0f * fIdleMinutes);
-
-      _registry.regKVControllerIdlePowerOffTimeOut.putData (_registry.skinput.dwIdleTimeoutInSecs);
-    }
-
-    ImGui::SetItemTooltip ("This only applies when no game is using Special K and SKIF or SKIV are running.");
-
-    ImGui::TreePop   ( );
-    ImGui::Separator ( );
-
-    if (ImGui::Button ("OK"))
-        ImGui::CloseCurrentPopup ();
-
-    ImGui::EndPopup ();
   }
+
+  else
+    SKIF_ImGui_PopDisableState ();
 
 
   if (enableColums)
