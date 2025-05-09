@@ -515,6 +515,11 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   if (regKVControllerPowerOffChord.hasData(&hKeySKInput))
     skinput.dwPowerOffChord     = regKVControllerPowerOffChord      .getData (&hKeySKInput) != 0;
 
+  if (regKVControllerGamepadsDeactivateScreenSaver.hasData(&hKeySKInput))
+    skinput.dwGamepadsDeactivateScreenSaver
+                                = regKVControllerGamepadsDeactivateScreenSaver
+                                                                    .getData (&hKeySKInput) != 0;
+
   // Keybindings
   // All keybindings must first read the data from the registry,
   //   then parse the human_readable data through .parse()

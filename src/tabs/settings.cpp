@@ -710,6 +710,18 @@ SKIF_UI_Tab_DrawSettings (void)
         }
       }
 
+      bool                                                            bGamepadsDeactivateScreenSaver =
+               _registry.skinput.dwGamepadsDeactivateScreenSaver != 0;
+      if (ImGui::Checkbox ("Gamepad Input Deactivates Screen Saver", &bGamepadsDeactivateScreenSaver))
+      {
+        _registry.regKVControllerGamepadsDeactivateScreenSaver.putData (
+          _registry.skinput.dwGamepadsDeactivateScreenSaver =
+                             bGamepadsDeactivateScreenSaver ? 1 : 0
+        );
+      }
+
+      ImGui::SetItemTooltip ("This feature is experimental, it may detect false-positive inputs on Xbox controllers.");
+
       ImGui::TreePop       (  );
       ImGui::SeparatorText ("PlayStation Power Management");
       ImGui::TreePush      ("");

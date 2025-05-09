@@ -369,7 +369,7 @@ SKIF_GamePadInputHelper::SpawnChildThread (void)
         //         input chords are configured.
         SleepConditionVariableCS (
           &parent.m_GamePadInput, &GamepadInputPump,
-            parent.HasGamePad () ? 250UL : 1000UL
+            parent.HasGamePad () ? 1UL : 250UL
         );
       }
 
@@ -412,7 +412,7 @@ SKIF_GamePadInputHelper::SpawnChildThread (void)
         if (! std::exchange (s_wasGamepadIdle, true))
           SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_IDLE);
 
-        SleepEx (15UL, TRUE);
+        SleepEx (parent.HasGamePad () ? 15UL : 250UL, TRUE);
       }
       else
         s_wasGamepadIdle = false;

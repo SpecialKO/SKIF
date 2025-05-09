@@ -367,6 +367,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\Input\)",
                          LR"(SecondsBeforeIdlePowerOff)" );
 
+  KeyValue <int> regKVControllerGamepadsDeactivateScreenSaver =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\Input\)",
+                         LR"(GamepadsDeactivateScreenSaver)" );
+
   KeyValue <bool> regKVLoggingDeveloper =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Logging Developer)" );
@@ -607,11 +611,12 @@ struct SKIF_RegistrySettings {
   bool bPatreon                 =  true; // Should the Patreon button/kudos be shown when Special K is selected in the game list?
 
   struct {
-    DWORD dwPowerOffChord            =     1;
-    DWORD dwPowerOffChordBehavior    =     1;
-    DWORD dwScreenSaverChord         =     0;
-    DWORD dwScreenSaverChordBehavior =     1;
-    DWORD dwIdleTimeoutInSecs        = 450UL;
+    DWORD dwPowerOffChord                 =     1;
+    DWORD dwPowerOffChordBehavior         =     1;
+    DWORD dwScreenSaverChord              =     0;
+    DWORD dwScreenSaverChordBehavior      =     1;
+    DWORD dwIdleTimeoutInSecs             = 450UL;
+    DWORD dwGamepadsDeactivateScreenSaver =  TRUE;
   } skinput;
 
   // Warnings
