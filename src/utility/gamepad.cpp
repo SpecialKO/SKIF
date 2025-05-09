@@ -363,14 +363,14 @@ SKIF_GamePadInputHelper::SpawnChildThread (void)
       // Sleep when there's nothing to do
       if (! parent.m_bThreadAwake.load ())
       {
-        SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_IDLE);
-
-        // TODO: Restore original "always-sleep-when-not-focused" behavior if no
-        //         input chords are configured.
-        SleepConditionVariableCS (
-          &parent.m_GamePadInput, &GamepadInputPump,
-            parent.HasGamePad () ? 1UL : 250UL
-        );
+        ///SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_IDLE);
+        ///
+        ///// TODO: Restore original "always-sleep-when-not-focused" behavior if no
+        /////         input chords are configured.
+        ///SleepConditionVariableCS (
+        ///  &parent.m_GamePadInput, &GamepadInputPump,
+        ///    parent.HasGamePad () ? 1UL : 250UL
+        ///);
       }
 
       static auto constexpr
@@ -412,7 +412,7 @@ SKIF_GamePadInputHelper::SpawnChildThread (void)
         if (! std::exchange (s_wasGamepadIdle, true))
           SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_IDLE);
 
-        SleepEx (parent.HasGamePad () ? 15UL : 250UL, TRUE);
+        ///SleepEx (parent.HasGamePad () ? 15UL : 250UL, TRUE);
       }
       else
         s_wasGamepadIdle = false;
