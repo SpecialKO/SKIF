@@ -48,6 +48,12 @@ SKIF_GamePadInputHelper::GetXInputState (void)
   return {};
 }
 
+HMODULE                                            SKIF_GamePadInputHelper::hModXInput                 = nullptr;
+SKIF_GamePadInputHelper::XInputGetState_pfn        SKIF_GamePadInputHelper::SKIF_XInputGetState        = nullptr;
+SKIF_GamePadInputHelper::XInputGetCapabilities_pfn SKIF_GamePadInputHelper::SKIF_XInputGetCapabilities = nullptr;
+bool                                               SKIF_GamePadInputHelper::runOnce                    = true;
+bool                                               SKIF_GamePadInputHelper::skipFreeLibrary            = false;
+
 // If we really wanted to limit the exposure of this function,
 //   it should've technically been a part of the thread in
 //     SpawnChildThread ( ) since that is the only one intended
@@ -55,21 +61,10 @@ SKIF_GamePadInputHelper::GetXInputState (void)
 XINPUT_STATE
 SKIF_GamePadInputHelper::UpdateXInputState (void)
 {
-  using XInputGetState_pfn =
-    DWORD (WINAPI *)( DWORD, XINPUT_STATE * );
-  using XInputGetCapabilities_pfn =
-    DWORD (WINAPI *)( DWORD, DWORD, XINPUT_CAPABILITIES * );
-
   static constexpr XINPUT_STATE XSTATE_EMPTY  =
     { 0, XINPUT_GAMEPAD { 0 } };
   static constexpr auto         XUSER_INDEXES =
     std::array <DWORD, 4> { 0, 1, 2, 3 };
-  
-  static HMODULE                         hModXInput                       = nullptr;
-  static XInputGetState_pfn              SKIF_XInputGetState              = nullptr;
-  static XInputGetCapabilities_pfn       SKIF_XInputGetCapabilities       = nullptr;
-  static bool                            runOnce         = true;
-  static bool                            skipFreeLibrary = false;
 
   // Calling XInputGetState() every frame on disconnected gamepads is unfortunately too slow.
   // Instead we refresh gamepad availability by calling XInputGetCapabilities() _only_ after receiving WM_DEVICECHANGE.
@@ -337,6 +332,46 @@ SKIF_GamePadInputHelper::SleepThread (void)
   m_xisGamepad.store   ({});
 }
 
+std::optional <WORD>
+SKIF_GamePadInputHelper::GetButtonPressed (void)
+{
+  static XINPUT_STATE last [4] = {};
+
+  for (int i = 0; i < XUSER_MAX_COUNT; i++)
+  {
+    if (SKIF_XInputGetState != nullptr)
+    {
+      XINPUT_STATE new_state = {};
+
+      if ( ERROR_SUCCESS ==
+             SKIF_XInputGetState (i, &new_state) )
+      {
+        if (last [i].dwPacketNumber   != new_state.dwPacketNumber &&
+            last [i].Gamepad.wButtons != new_state.Gamepad.wButtons)
+        {
+          last [i] = new_state;
+
+          if (new_state.Gamepad.wButtons != 0)
+          {
+            return
+              new_state.Gamepad.wButtons;
+          }
+        }
+
+        last [i] = new_state;
+      }
+
+      else
+      {
+        last [i] = { };
+      }
+    }
+  }
+
+  return
+    std::nullopt;
+}
+
 void
 SKIF_GamePadInputHelper::SpawnChildThread (void)
 {
@@ -357,17 +392,24 @@ SKIF_GamePadInputHelper::SpawnChildThread (void)
     static SKIF_GamePadInputHelper& parent = SKIF_GamePadInputHelper::GetInstance ( );
     extern std::atomic<bool> SKIF_Shutdown;
 
+    // Register for device notifications
+    parent.RegisterDevNotification (SKIF_Notify_hWnd);
+
     DWORD packetLast = 0,
           packetNew  = 0;
 
     do
     {
       // Sleep when there's nothing to do
-      while (! parent.m_bThreadAwake.load())
+      if (! parent.m_bThreadAwake.load ())
       {
+        SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_IDLE);
+
+        // TODO: Restore original "always-sleep-when-not-focused" behavior if no
+        //         input chords are configured.
         SleepConditionVariableCS (
           &parent.m_GamePadInput, &GamepadInputPump,
-            INFINITE
+            parent.HasGamePad () ? 250UL : 1000UL
         );
       }
 

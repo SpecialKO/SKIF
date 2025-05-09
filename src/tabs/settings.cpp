@@ -585,6 +585,58 @@ SKIF_UI_Tab_DrawSettings (void)
       {
         _registry.regKVControllerScreenSaverChord.putData (_registry.skinput.bScreenSaverChord ? 1 : 0);
       }
+
+#if 0
+      static DWORD wButtonPressed = 0;
+
+#define XINPUT_GAMEPAD_GUIDE         0x00400
+#define XINPUT_GAMEPAD_LEFT_TRIGGER  0x10000 // Custom
+#define XINPUT_GAMEPAD_RIGHT_TRIGGER 0x20000 // Custom
+
+           if (ImGui::IsKeyPressed (ImGuiKey_GamepadL1))         wButtonPressed = XINPUT_GAMEPAD_LEFT_SHOULDER; //ImGui::Text ("LB / L1");
+      else if (ImGui::IsKeyPressed (ImGuiKey_GamepadL2))         wButtonPressed = XINPUT_GAMEPAD_LEFT_TRIGGER;  //ImGui::Text ("LT / L2");
+      else if (ImGui::IsKeyPressed (ImGuiKey_GamepadL3))         wButtonPressed = XINPUT_GAMEPAD_LEFT_THUMB;    //ImGui::Text ("LS / L3");
+      else if (ImGui::IsKeyPressed (ImGuiKey_GamepadR1))         wButtonPressed = XINPUT_GAMEPAD_RIGHT_SHOULDER;//ImGui::Text ("RB / R1");
+      else if (ImGui::IsKeyPressed (ImGuiKey_GamepadR2))         wButtonPressed = XINPUT_GAMEPAD_RIGHT_TRIGGER; //ImGui::Text ("RT / R2");
+      else if (ImGui::IsKeyPressed (ImGuiKey_GamepadR3))         wButtonPressed = XINPUT_GAMEPAD_RIGHT_THUMB;   //ImGui::Text ("RS / R3");
+
+      else if (ImGui::IsKeyPressed (ImGuiKey_GamepadDpadUp))     wButtonPressed = XINPUT_GAMEPAD_DPAD_UP;       //ImGui::Text ("Up");
+      else if (ImGui::IsKeyPressed (ImGuiKey_GamepadDpadDown))   wButtonPressed = XINPUT_GAMEPAD_DPAD_DOWN;     //ImGui::Text ("Down");
+      else if (ImGui::IsKeyPressed (ImGuiKey_GamepadDpadLeft))   wButtonPressed = XINPUT_GAMEPAD_DPAD_LEFT;     //ImGui::Text ("Left");
+      else if (ImGui::IsKeyPressed (ImGuiKey_GamepadDpadRight))  wButtonPressed = XINPUT_GAMEPAD_DPAD_RIGHT;    //ImGui::Text ("Right");
+
+      else if (ImGui::IsKeyPressed (ImGuiKey_GamepadStart))      wButtonPressed = XINPUT_GAMEPAD_START;         //ImGui::Text ("Start");
+      else if (ImGui::IsKeyPressed (ImGuiKey_GamepadBack))       wButtonPressed = XINPUT_GAMEPAD_BACK;          //ImGui::Text ("Back / Select");
+
+      else if (ImGui::IsKeyPressed (ImGuiKey_GamepadFaceUp))     wButtonPressed = XINPUT_GAMEPAD_Y;             //ImGui::Text ("Y / Triangle");
+      else if (ImGui::IsKeyPressed (ImGuiKey_GamepadFaceDown))   wButtonPressed = XINPUT_GAMEPAD_A;             //ImGui::Text ("A / Cross");
+      else if (ImGui::IsKeyPressed (ImGuiKey_GamepadFaceLeft))   wButtonPressed = XINPUT_GAMEPAD_X;             //ImGui::Text ("X / Square");
+      else if (ImGui::IsKeyPressed (ImGuiKey_GamepadFaceRight))  wButtonPressed = XINPUT_GAMEPAD_B;             //ImGui::Text ("B / Circle");
+
+      switch (wButtonPressed)
+      {
+        case XINPUT_GAMEPAD_LEFT_SHOULDER:  ImGui::Text ("LB / L1");       break;
+        case XINPUT_GAMEPAD_LEFT_TRIGGER:   ImGui::Text ("LT / L2");       break;
+        case XINPUT_GAMEPAD_LEFT_THUMB:     ImGui::Text ("LS / L3");       break;
+        case XINPUT_GAMEPAD_RIGHT_SHOULDER: ImGui::Text ("RB / R1");       break;
+        case XINPUT_GAMEPAD_RIGHT_TRIGGER:  ImGui::Text ("RT / R2");       break;
+        case XINPUT_GAMEPAD_RIGHT_THUMB:    ImGui::Text ("RS / R3");       break;
+
+        case XINPUT_GAMEPAD_DPAD_UP:        ImGui::Text ("Up");            break;
+        case XINPUT_GAMEPAD_DPAD_DOWN:      ImGui::Text ("Down");          break;
+        case XINPUT_GAMEPAD_DPAD_LEFT:      ImGui::Text ("Left");          break;
+        case XINPUT_GAMEPAD_DPAD_RIGHT:     ImGui::Text ("Right");         break;
+
+        case XINPUT_GAMEPAD_START:          ImGui::Text ("Start");
+        case XINPUT_GAMEPAD_BACK:           ImGui::Text ("Back / Select"); break;
+
+        case XINPUT_GAMEPAD_Y:              ImGui::Text ("Y / Triangle");  break;
+        case XINPUT_GAMEPAD_A:              ImGui::Text ("A / Cross");     break;
+        case XINPUT_GAMEPAD_X:              ImGui::Text ("X / Square");    break;
+        case XINPUT_GAMEPAD_B:              ImGui::Text ("B / Circle");    break;
+      }
+#endif
+
       ImGui::TreePop       (  );
       ImGui::SeparatorText ("PlayStation Power Management");
       ImGui::TreePush      ("");
@@ -615,12 +667,22 @@ SKIF_UI_Tab_DrawSettings (void)
       SKIF_ImGui_SetHoverTip ("This only applies when no game is using Special K and SKIF or SKIV are running.");
 
       ImGui::TreePop   ( );
-      //ImGui::Separator ( );
-      //
-      //if (ImGui::Button ("OK"))
-      //    ImGui::CloseCurrentPopup ();
 
-      ImGui::EndPopup ();
+      ImGui::SeparatorText ("Gamepad Status");
+
+      auto&                     _gamepad = SKIF_GamePadInputHelper::GetInstance ();
+      std::vector<bool> slots = _gamepad.GetGamePads ( );
+
+      ImGui::SameLine        ( );
+      ImGui::BeginGroup      ( );
+      for (auto slot : slots){
+        ImGui::SameLine      ( );
+        if (slot)
+          ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success), ICON_FA_CHECK);
+        else
+          ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Yellow ), ICON_FA_XMARK); }
+      ImGui::EndGroup        ( );
+      ImGui::EndPopup        ( );
     }
   }
 

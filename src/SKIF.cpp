@@ -1654,9 +1654,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   static SKIF_GamePadInputHelper& _gamepad =
          SKIF_GamePadInputHelper::GetInstance ( );
 
-  // Register for device notifications
-  _gamepad.RegisterDevNotification  (SKIF_Notify_hWnd);
-
   // If there were not an instance of SKIF already running
   //   we need to handle any remaining tasks here after 
   //   we have a window ready to handle remaining cmds
@@ -1815,6 +1812,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
     // Register service (auto-stop) hotkey
     SKIF_Util_RegisterHotKeySVCTemp   (&_registry.kbStartService);
   }
+
+  // Spawn the gamepad input thread
+  _gamepad.SpawnChildThread ( );
 
   PLOG_INFO << "Initializing updater...";
   // Initialize the updater
@@ -2209,14 +2209,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           // Register service (auto-stop) hotkey
           SKIF_Util_RegisterHotKeySVCTemp   (&_registry.kbStartService);
-            
+
           /*
           // Check for the presence of an internet connection
           if (SUCCEEDED (hrNLM))
           {
             VARIANT_BOOL connStatus = 0;
             dwNLM = SKIF_Util_timeGetTime ( );
-      
+
             PLOG_DEBUG << "Checking for an online connection...";
             if (SUCCEEDED (pNLM->get_IsConnectedToInternet (&connStatus)))
               SKIF_NoInternet = (VARIANT_FALSE == connStatus);
@@ -2227,12 +2227,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
               runOnce = true;
           if (runOnce)
           {   runOnce = false;
-            
+
             // Kickstart the update thread
             _updater.CheckForUpdates ( );
-
-            // Spawn the gamepad input thread
-            _gamepad.SpawnChildThread ( );
           }
         }
       }
@@ -2373,7 +2370,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
     }
 #endif
-    
+
     extern bool
       SKIF_ImGui_ImplWin32_WantUpdateMonitors (void);
     bool _WantUpdateMonitors =
@@ -3821,10 +3818,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         SKIF_Util_GetMonitorHzPeriod (SKIF_ImGui_hWnd, MONITOR_DEFAULTTOPRIMARY, dwDwmPeriod);
         //OutputDebugString((L"Initial refresh rate period: " + std::to_wstring (dwDwmPeriod) + L"\n").c_str());
-
-        // Spawn the gamepad input thread
-        if (! _Signal.Launcher && ! _Signal.LauncherURI && ! _Signal.Quit && ! _Signal.ServiceMode)
-          _gamepad.SpawnChildThread         ( );
       }
     }
 
