@@ -367,10 +367,10 @@ SKIF_GamePadInputHelper::SpawnChildThread (void)
         ///
         ///// TODO: Restore original "always-sleep-when-not-focused" behavior if no
         /////         input chords are configured.
-        ///SleepConditionVariableCS (
-        ///  &parent.m_GamePadInput, &GamepadInputPump,
-        ///    parent.HasGamePad () ? 1UL : 250UL
-        ///);
+        SleepConditionVariableCS (
+          &parent.m_GamePadInput, &GamepadInputPump,
+            parent.HasGamePad () ? 0UL : 750UL
+        );
       }
 
       static auto constexpr
@@ -401,7 +401,7 @@ SKIF_GamePadInputHelper::SpawnChildThread (void)
         dwLastInputTime =
           SKIF_Util_timeGetTime ();
 
-        SendMessage (parent.m_hWindowHandle, WM_SKIF_GAMEPAD, 0x0, 0x0);
+        PostMessage (parent.m_hWindowHandle, WM_SKIF_GAMEPAD, 0x0, 0x0);
       }
 
       static bool
@@ -412,7 +412,8 @@ SKIF_GamePadInputHelper::SpawnChildThread (void)
         if (! std::exchange (s_wasGamepadIdle, true))
           SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_IDLE);
 
-        ///SleepEx (parent.HasGamePad () ? 15UL : 250UL, TRUE);
+        if (! parent.HasGamePad ())
+          SleepEx (750UL, TRUE);
       }
       else
         s_wasGamepadIdle = false;
