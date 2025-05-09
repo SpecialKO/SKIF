@@ -4,20 +4,22 @@
 #include <vector>
 #include <Windows.h>
 #include <Xinput.h>
-#include <optional>
+
+#define XINPUT_GAMEPAD_GUIDE         0x00400
+#define XINPUT_GAMEPAD_LEFT_TRIGGER  0x10000 // Custom
+#define XINPUT_GAMEPAD_RIGHT_TRIGGER 0x20000 // Custom
 
 struct SKIF_GamePadInputHelper
 {
-  bool                 HasGamePad                (void);      // Returns true if at least one gamepad is connected
-  std::vector <bool>   GetGamePads               (void);      // Returns a boolean vector indicating the connectivity state of each XInput slot
-  void                 InvalidateGamePads        (void);      // This triggers a check for connected gamepads next time UpdateXInputState ( ) executes
-  XINPUT_STATE         GetXInputState            (void);      // Returns the latest XInput state across all slots
-  std::optional <WORD> GetButtonPressed          (void);      // Returns the newest button pressed since the last time this function was called
-  void                 WakeThread                (void);      // Wake the gamepad worker thread
-  void                 SleepThread               (void);      // Sleep the gamepad worker thread
-  void                 SpawnChildThread          (void);      // Spawns the gamepad worker thread
-  bool                 RegisterDevNotification   (HWND hWnd); // Registers the given window for device notifications
-  bool                 UnregisterDevNotification (void);      // Unregister the window for device notifications
+  bool               HasGamePad                (void);      // Returns true if at least one gamepad is connected
+  std::vector <bool> GetGamePads               (void);      // Returns a boolean vector indicating the connectivity state of each XInput slot
+  void               InvalidateGamePads        (void);      // This triggers a check for connected gamepads next time UpdateXInputState ( ) executes
+  XINPUT_STATE       GetXInputState            (void);      // Returns the latest XInput state across all slots
+  void               WakeThread                (void);      // Wake the gamepad worker thread
+  void               SleepThread               (void);      // Sleep the gamepad worker thread
+  void               SpawnChildThread          (void);      // Spawns the gamepad worker thread
+  bool               RegisterDevNotification   (HWND hWnd); // Registers the given window for device notifications
+  bool               UnregisterDevNotification (void);      // Unregister the window for device notifications
 
   SKIF_GamePadInputHelper (SKIF_GamePadInputHelper const&) = delete; // Delete copy constructor
   SKIF_GamePadInputHelper (SKIF_GamePadInputHelper&&)      = delete; // Delete move constructor

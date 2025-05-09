@@ -510,10 +510,10 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
     skinput.dwIdleTimeoutInSecs = regKVControllerIdlePowerOffTimeOut.getData (&hKeySKInput);
 
   if (regKVControllerScreenSaverChord.hasData(&hKeySKInput))
-    skinput.bScreenSaverChord   = regKVControllerScreenSaverChord   .getData (&hKeySKInput) != 0;
+    skinput.dwScreenSaverChord  = regKVControllerScreenSaverChord   .getData (&hKeySKInput) != 0;
 
   if (regKVControllerPowerOffChord.hasData(&hKeySKInput))
-    skinput.bPowerOffChord      = regKVControllerPowerOffChord      .getData (&hKeySKInput) != 0;
+    skinput.dwPowerOffChord     = regKVControllerPowerOffChord      .getData (&hKeySKInput) != 0;
 
   // Keybindings
   // All keybindings must first read the data from the registry,

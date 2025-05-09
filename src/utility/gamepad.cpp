@@ -332,46 +332,6 @@ SKIF_GamePadInputHelper::SleepThread (void)
   m_xisGamepad.store   ({});
 }
 
-std::optional <WORD>
-SKIF_GamePadInputHelper::GetButtonPressed (void)
-{
-  static XINPUT_STATE last [4] = {};
-
-  for (int i = 0; i < XUSER_MAX_COUNT; i++)
-  {
-    if (SKIF_XInputGetState != nullptr)
-    {
-      XINPUT_STATE new_state = {};
-
-      if ( ERROR_SUCCESS ==
-             SKIF_XInputGetState (i, &new_state) )
-      {
-        if (last [i].dwPacketNumber   != new_state.dwPacketNumber &&
-            last [i].Gamepad.wButtons != new_state.Gamepad.wButtons)
-        {
-          last [i] = new_state;
-
-          if (new_state.Gamepad.wButtons != 0)
-          {
-            return
-              new_state.Gamepad.wButtons;
-          }
-        }
-
-        last [i] = new_state;
-      }
-
-      else
-      {
-        last [i] = { };
-      }
-    }
-  }
-
-  return
-    std::nullopt;
-}
-
 void
 SKIF_GamePadInputHelper::SpawnChildThread (void)
 {

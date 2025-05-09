@@ -607,9 +607,11 @@ struct SKIF_RegistrySettings {
   bool bPatreon                 =  true; // Should the Patreon button/kudos be shown when Special K is selected in the game list?
 
   struct {
-    bool  bPowerOffChord        =  true;
-    bool  bScreenSaverChord     = false;
-    DWORD dwIdleTimeoutInSecs   = 450UL;
+    DWORD dwPowerOffChord            =     1;
+    DWORD dwPowerOffChordBehavior    =     1;
+    DWORD dwScreenSaverChord         =     0;
+    DWORD dwScreenSaverChordBehavior =     1;
+    DWORD dwIdleTimeoutInSecs        = 450UL;
   } skinput;
 
   // Warnings
