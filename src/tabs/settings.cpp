@@ -710,14 +710,8 @@ SKIF_UI_Tab_DrawSettings (void)
         }
       }
 
-      ImGui::BulletText ("Xbox users may deactivate the screensaver by pressing " ICON_FA_XBOX);
-
-      ImGui::TreePop       (  );
-      ImGui::SeparatorText ("PlayStation Power Management");
-      ImGui::TreePush      ("");
-
       bool                                                            bGamepadsDeactivateScreenSaver =
-               _registry.skinput.dwGamepadsDeactivateScreenSaver != 0;
+              _registry.skinput.dwGamepadsDeactivateScreenSaver != 0;
       if (ImGui::Checkbox ("Gamepad Input Deactivates Screen Saver", &bGamepadsDeactivateScreenSaver))
       {
         _registry.regKVControllerGamepadsDeactivateScreenSaver.putData (
@@ -726,7 +720,11 @@ SKIF_UI_Tab_DrawSettings (void)
         );
       }
 
-      ImGui::SetItemTooltip ("This feature will not work on Xbox controllers.");
+      ImGui::BulletText ("Xbox users may deactivate the screensaver by pressing " ICON_FA_XBOX);
+
+      ImGui::TreePop       (  );
+      ImGui::SeparatorText ("PlayStation Power Management");
+      ImGui::TreePush      ("");
 
       bool bEnablePowerOffChord = _registry.skinput.dwPowerOffChordBehavior != 0 &&
                                   _registry.skinput.dwPowerOffChord         != 0;
