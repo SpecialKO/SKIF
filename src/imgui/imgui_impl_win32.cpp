@@ -2360,7 +2360,7 @@ bool SKIF_ImGui_ImplWin32_IsFocused (void)
     HWND focused_hwnd = ::GetForegroundWindow ();
 
     // If the focused HWND has not changed, this is just burning CPU cycles for no reason
-    if (std::exchange (focused_hwnd, hWndLastForeground) != hWndLastForeground)
+    if (std::exchange (hWndLastForeground, focused_hwnd) != focused_hwnd)
     {
       DWORD
         dwWindowOwnerPid = 0;
