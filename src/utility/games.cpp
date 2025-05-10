@@ -318,10 +318,13 @@ SKIF_GamingCollection::RefreshRunningApps (std::vector <std::pair <std::string, 
   extern bool steamFallback;
   extern SKIF_Util_CreateProcess_s iPlayCache[15];
 
-  DWORD current_time = SKIF_Util_timeGetTime ( );
+  DWORD        current_time = SKIF_Util_timeGetTime ( );
+  static DWORD last_checked = 0;
 
-  if (current_time > lastGameRefresh + 5000 && (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( )))
+  if (current_time > lastGameRefresh + 5000 && current_time > last_checked + 2500UL && (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( )))
   {
+    last_checked = current_time;
+
     bool new_steamRunning = false;
 
     for (auto& app : *apps)

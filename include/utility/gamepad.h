@@ -36,15 +36,17 @@ protected:
 private:
   SKIF_GamePadInputHelper (void);
 
-  HWND                       m_hWindowHandle = NULL;
-  HDEVNOTIFY                 m_hDeviceNotify = NULL;
-  CONDITION_VARIABLE         m_GamePadInput  = {  };
+  HWND                       m_hWindowHandle   = NULL;
+  HDEVNOTIFY                 m_hDeviceNotify   = NULL;
+  CONDITION_VARIABLE         m_GamePadInput    = {  };
   std::array <
     std::atomic <bool>, XUSER_MAX_COUNT
-  >                          m_bGamepads     = { false, false, false, false };
-  std::atomic <bool>         m_bThreadAwake  = false; // 0 - No focus, so sleep.       1 - Focus, so remain awake
-  std::atomic <XINPUT_STATE> m_xisGamepad    = { };
-  std::atomic <bool>         m_bWantUpdate   = true;
+  >                          m_bGamepads       = { false, false, false, false };
+  std::atomic <bool>         m_bThreadAwake    = false; // 0 - No focus, so sleep.       1 - Focus, so remain awake
+  std::atomic_int            m_iCurrentGamepad = 0;
+  XINPUT_STATE*              m_xisGamepad      = nullptr;
+  XINPUT_STATE               m_xisGamepadBuffers [3];
+  std::atomic <bool>         m_bWantUpdate     = true;
 
   using XInputGetState_pfn =
     DWORD (WINAPI *)( DWORD, XINPUT_STATE * );

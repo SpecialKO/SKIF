@@ -39,11 +39,22 @@ SKIF_GamePadInputHelper::InvalidateGamePads (void)
 XINPUT_STATE
 SKIF_GamePadInputHelper::GetXInputState (void)
 {
-  DWORD                                              dwActivePid = 0x0;
-  GetWindowThreadProcessId (GetForegroundWindow (), &dwActivePid);
+  static HWND    hWndLastForeground = 0;
+  static DWORD  dwActivePid         = 0x0;
 
-  if (dwActivePid == GetCurrentProcessId ())
-    return m_xisGamepad.load ();
+  HWND hWndForeground = GetForegroundWindow ();
+
+  // GetWindowThreadProcessId has surprisingly high overhead, if the foreground window
+  //   has not changed, then we can avoid calling it.
+  if (std::exchange (hWndLastForeground, hWndForeground) != hWndForeground)
+  {
+    GetWindowThreadProcessId (hWndForeground, &dwActivePid);
+  }
+
+  auto pGamepad = m_xisGamepad;
+
+  if (dwActivePid == GetCurrentProcessId () && pGamepad != nullptr)
+    return *pGamepad;
 
   return {};
 }
@@ -152,10 +163,14 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
 
     m_bWantUpdate.store(false);
 
-    DWORD                                       dwProcId = 0x0;
-    GetWindowThreadProcessId (m_hWindowHandle, &dwProcId);
+    static HWND    hWndLastForeground = 0;
+    static DWORD  dwActivePid         = 0x0;
 
-    if (dwProcId == GetProcessId (GetCurrentProcess ()))
+    HWND                                   hWndForeground =    GetForegroundWindow ();
+    if (std::exchange (hWndLastForeground, hWndForeground) != hWndForeground)
+      GetWindowThreadProcessId (           hWndForeground, &dwActivePid);
+
+    if (dwActivePid == GetProcessId (GetCurrentProcess ()))
     {
       // Trigger the main thread to refresh its focus, which will also trickle down to us
       SendMessage (m_hWindowHandle, WM_SKIF_REFRESHFOCUS, 0x0, 0x0);
@@ -164,7 +179,8 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
 
   if (SKIF_XInputGetState == nullptr)
   {
-    m_xisGamepad.store (XSTATE_EMPTY);
+    m_xisGamepad = nullptr;
+
     return XSTATE_EMPTY;
   }
 
@@ -181,8 +197,14 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
 
   static std::array<gamepad_state_s, XUSER_MAX_COUNT> history;
 
-  DWORD                                              dwActivePid = 0x0;
-  GetWindowThreadProcessId (GetForegroundWindow (), &dwActivePid);
+  static HWND    hWndLastForeground = 0;
+  static DWORD  dwActivePid         = 0x0;
+
+  // GetWindowThreadProcessId has surprisingly high overhead, if the foreground window
+  //   has not changed, then we can avoid calling it.
+  HWND                                   hWndForeground =    GetForegroundWindow ();
+  if (std::exchange (hWndLastForeground, hWndForeground) != hWndForeground)
+    GetWindowThreadProcessId (           hWndForeground, &dwActivePid);
 
   static DWORD dwLastActivePid    = dwActivePid;
   static DWORD dwTimeOfActivation = 0;
@@ -283,7 +305,13 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
 
   dwLastActivePid = dwActivePid;
 
-  m_xisGamepad.store (newest.state);
+  auto pGamepad =
+    &m_xisGamepadBuffers [(m_iCurrentGamepad + 1) % 3];
+
+  *pGamepad = newest.state;
+
+  m_xisGamepad = pGamepad;
+  m_iCurrentGamepad++;
 
   return newest.state;
 }
@@ -317,9 +345,11 @@ SKIF_GamePadInputHelper::WakeThread (void)
 {
   if (! m_bThreadAwake.load())
   {
+    m_xisGamepad = nullptr;
+    m_iCurrentGamepad++;
+
     PLOG_VERBOSE << "Waking the gamepad input child thread...";
     m_bThreadAwake.store (true);
-    m_xisGamepad.store   ({});
 
     WakeAllConditionVariable (&m_GamePadInput);
   }
@@ -329,7 +359,9 @@ void
 SKIF_GamePadInputHelper::SleepThread (void)
 {
   m_bThreadAwake.store (false);
-  m_xisGamepad.store   ({});
+
+  m_xisGamepad = nullptr;
+  m_iCurrentGamepad++;
 }
 
 void
@@ -345,7 +377,7 @@ SKIF_GamePadInputHelper::SpawnChildThread (void)
     InitializeCriticalSection (&GamepadInputPump);
     EnterCriticalSection      (&GamepadInputPump);
 
-    SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_TIME_CRITICAL);
+    SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_ABOVE_NORMAL);
 
     SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_GamePadInputPump");
 
@@ -360,19 +392,6 @@ SKIF_GamePadInputHelper::SpawnChildThread (void)
 
     do
     {
-      // Sleep when there's nothing to do
-      if (! parent.m_bThreadAwake.load ())
-      {
-        ///SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_IDLE);
-        ///
-        ///// TODO: Restore original "always-sleep-when-not-focused" behavior if no
-        /////         input chords are configured.
-        SleepConditionVariableCS (
-          &parent.m_GamePadInput, &GamepadInputPump,
-            parent.HasGamePad () ? 0UL : 750UL
-        );
-      }
-
       static auto constexpr
         _ThrottleIdleInputAfterMs = 3333UL;
 
@@ -395,18 +414,17 @@ SKIF_GamePadInputHelper::SpawnChildThread (void)
 
         if (! _IsGamepadIdle ())
         {
-          SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_TIME_CRITICAL);
+          SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_ABOVE_NORMAL);
         }
 
         dwLastInputTime =
-          SKIF_Util_timeGetTime ();
+          dwCurrentTime;
 
-        PostMessage (parent.m_hWindowHandle, WM_SKIF_GAMEPAD, 0x0, 0x0);
+        SendMessage (parent.m_hWindowHandle, WM_SKIF_GAMEPAD, 0x0, 0x0);
       }
 
       static bool
-        s_wasGamepadIdle =
-          _IsGamepadIdle ();
+        s_wasGamepadIdle = false;
       if (_IsGamepadIdle ())
       {
         if (! std::exchange (s_wasGamepadIdle, true))

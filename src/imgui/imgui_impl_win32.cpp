@@ -2349,14 +2349,18 @@ bool SKIF_ImGui_ImplWin32_IsFocused (void)
 
   // Semi-new workaround introduced in 2024-01-28
 
+  static HWND hWndLastForeground = 0;
+
   // Execute once per frame
   int newFrame   = ImGui::GetFrameCount ( );
   static int
       lastFrame  = 0;
   if (lastFrame != newFrame)
   {   lastFrame  = newFrame;
+    HWND focused_hwnd = ::GetForegroundWindow ();
 
-    if (HWND focused_hwnd = ::GetForegroundWindow ())
+    // If the focused HWND has not changed, this is just burning CPU cycles for no reason
+    if (std::exchange (focused_hwnd, hWndLastForeground) != hWndLastForeground)
     {
       DWORD
         dwWindowOwnerPid = 0;
