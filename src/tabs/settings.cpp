@@ -733,7 +733,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
       bool bEnablePowerOffChord = _registry.skinput.dwPowerOffChordBehavior != 0 &&
                                   _registry.skinput.dwPowerOffChord         != 0;
-      if (ImGui::Checkbox  ("Power Off Controllers Using  " ICON_FA_XBOX "/" ICON_FA_PLAYSTATION "  + ", &bEnablePowerOffChord))
+      if (ImGui::Checkbox  ("Power Off Controllers Using      " ICON_FA_PLAYSTATION "   + ", &bEnablePowerOffChord))
       {
         if (bEnablePowerOffChord)
         {
@@ -756,7 +756,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
       if (bEnablePowerOffChord)
       {
-        SKIF_ImGui_SetHoverTip ("The controller binding is configurable by clicking the text after " ICON_FA_XBOX " / " ICON_FA_PLAYSTATION);
+        SKIF_ImGui_SetHoverTip ("The controller binding is configurable by clicking the text after " ICON_FA_PLAYSTATION);
 
         ImGui::SameLine ();
 
@@ -771,26 +771,26 @@ SKIF_UI_Tab_DrawSettings (void)
         ImGui::PushID ("PowerOffBinding");
         switch (_registry.skinput.dwPowerOffChord)
         {
-          case XINPUT_GAMEPAD_LEFT_SHOULDER:  selected = ImGui::Selectable ("LB / L1",       true, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_LEFT_TRIGGER:   selected = ImGui::Selectable ("LT / L2",       true, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_LEFT_THUMB:     selected = ImGui::Selectable ("LS / L3",       true, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_RIGHT_SHOULDER: selected = ImGui::Selectable ("RB / R1",       true, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_RIGHT_TRIGGER:  selected = ImGui::Selectable ("RT / R2",       true, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_RIGHT_THUMB:    selected = ImGui::Selectable ("RS / R3",       true, ImGuiSelectableFlags_DontClosePopups); break;
-          case 0x1:                           selected = ImGui::Selectable ("Y / Triangle",  true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_LEFT_SHOULDER:  selected = ImGui::Selectable ("L1",       true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_LEFT_TRIGGER:   selected = ImGui::Selectable ("L2",       true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_LEFT_THUMB:     selected = ImGui::Selectable ("L3",       true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_RIGHT_SHOULDER: selected = ImGui::Selectable ("R1",       true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_RIGHT_TRIGGER:  selected = ImGui::Selectable ("R2",       true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_RIGHT_THUMB:    selected = ImGui::Selectable ("R3",       true, ImGuiSelectableFlags_DontClosePopups); break;
+          case 0x1:                           selected = ImGui::Selectable ("Triangle", true, ImGuiSelectableFlags_DontClosePopups); break;
           case 0x3/*
-               XINPUT_GAMEPAD_DPAD_UP*/:      selected = ImGui::Selectable ("Up",            true, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_DPAD_DOWN:      selected = ImGui::Selectable ("Down",          true, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_DPAD_LEFT:      selected = ImGui::Selectable ("Left",          true, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_DPAD_RIGHT:     selected = ImGui::Selectable ("Right",         true, ImGuiSelectableFlags_DontClosePopups); break;
+               XINPUT_GAMEPAD_DPAD_UP*/:      selected = ImGui::Selectable ("Up",       true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_DPAD_DOWN:      selected = ImGui::Selectable ("Down",     true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_DPAD_LEFT:      selected = ImGui::Selectable ("Left",     true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_DPAD_RIGHT:     selected = ImGui::Selectable ("Right",    true, ImGuiSelectableFlags_DontClosePopups); break;
 
-          case XINPUT_GAMEPAD_START:          selected = ImGui::Selectable ("Start",         true, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_BACK:           selected = ImGui::Selectable ("Back / Select", true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_START:          selected = ImGui::Selectable ("Start",    true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_BACK:           selected = ImGui::Selectable ("Select",   true, ImGuiSelectableFlags_DontClosePopups); break;
 
-          case XINPUT_GAMEPAD_Y:              selected = ImGui::Selectable ("Y / Triangle",  true, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_A:              selected = ImGui::Selectable ("A / Cross",     true, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_X:              selected = ImGui::Selectable ("X / Square",    true, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_B:              selected = ImGui::Selectable ("B / Circle",    true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_Y:              selected = ImGui::Selectable ("Triangle", true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_A:              selected = ImGui::Selectable ("Cross",    true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_X:              selected = ImGui::Selectable ("Square",   true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_B:              selected = ImGui::Selectable ("Circle",   true, ImGuiSelectableFlags_DontClosePopups); break;
         }
         ImGui::PopID ();
 
