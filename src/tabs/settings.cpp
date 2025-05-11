@@ -583,7 +583,7 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::TreePush      ("");
       bool bEnableScreenSaverChord = _registry.skinput.dwScreenSaverChordBehavior != 0 &&
                                      _registry.skinput.dwScreenSaverChord         != 0;
-      if (ImGui::Checkbox  ("Activate Screen Saver Using  " ICON_FA_XBOX " / " ICON_FA_PLAYSTATION "  +", &bEnableScreenSaverChord))
+      if (ImGui::Checkbox  ("Activate Screen Saver Using  " ICON_FA_XBOX "/" ICON_FA_PLAYSTATION "  + ", &bEnableScreenSaverChord))
       {
         if (bEnableScreenSaverChord)
         {
@@ -606,7 +606,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
       if (bEnableScreenSaverChord)
       {
-        ImGui::SetItemTooltip ("The controller binding is configurable by clicking the text after " ICON_FA_XBOX " / " ICON_FA_PLAYSTATION);
+        SKIF_ImGui_SetHoverTip ("The controller binding is configurable by clicking the text after " ICON_FA_XBOX " / " ICON_FA_PLAYSTATION);
 
         ImGui::SameLine ();
 
@@ -618,29 +618,31 @@ SKIF_UI_Tab_DrawSettings (void)
           dwButtonPressed = 0;
         }
 
+        ImGui::PushID ("ScreenSaverBinding");
         switch (_registry.skinput.dwScreenSaverChord)
         {
-          case XINPUT_GAMEPAD_LEFT_SHOULDER:  selected = ImGui::Selectable ("LB / L1###ScreenSaverBinding",       selected, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_LEFT_TRIGGER:   selected = ImGui::Selectable ("LT / L2###ScreenSaverBinding",       selected, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_LEFT_THUMB:     selected = ImGui::Selectable ("LS / L3###ScreenSaverBinding",       selected, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_RIGHT_SHOULDER: selected = ImGui::Selectable ("RB / R1###ScreenSaverBinding",       selected, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_RIGHT_TRIGGER:  selected = ImGui::Selectable ("RT / R2###ScreenSaverBinding",       selected, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_RIGHT_THUMB:    selected = ImGui::Selectable ("RS / R3###ScreenSaverBinding",       selected, ImGuiSelectableFlags_DontClosePopups); break;
-          case 0x1:                           selected = ImGui::Selectable ("A / Cross###ScreenSaverBinding",     selected, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_LEFT_SHOULDER:  selected = ImGui::Selectable ("LB / L1",       true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_LEFT_TRIGGER:   selected = ImGui::Selectable ("LT / L2",       true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_LEFT_THUMB:     selected = ImGui::Selectable ("LS / L3",       true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_RIGHT_SHOULDER: selected = ImGui::Selectable ("RB / R1",       true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_RIGHT_TRIGGER:  selected = ImGui::Selectable ("RT / R2",       true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_RIGHT_THUMB:    selected = ImGui::Selectable ("RS / R3",       true, ImGuiSelectableFlags_DontClosePopups); break;
+          case 0x1:                           selected = ImGui::Selectable ("A / Cross",     true, ImGuiSelectableFlags_DontClosePopups); break;
           case 0x3/*
-               XINPUT_GAMEPAD_DPAD_UP*/:      selected = ImGui::Selectable ("Up###ScreenSaverBinding",            selected, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_DPAD_DOWN:      selected = ImGui::Selectable ("Down###ScreenSaverBinding",          selected, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_DPAD_LEFT:      selected = ImGui::Selectable ("Left###ScreenSaverBinding",          selected, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_DPAD_RIGHT:     selected = ImGui::Selectable ("Right###ScreenSaverBinding",         selected, ImGuiSelectableFlags_DontClosePopups); break;
+               XINPUT_GAMEPAD_DPAD_UP*/:      selected = ImGui::Selectable ("Up",            true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_DPAD_DOWN:      selected = ImGui::Selectable ("Down",          true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_DPAD_LEFT:      selected = ImGui::Selectable ("Left",          true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_DPAD_RIGHT:     selected = ImGui::Selectable ("Right",         true, ImGuiSelectableFlags_DontClosePopups); break;
 
-          case XINPUT_GAMEPAD_START:          selected = ImGui::Selectable ("Start###ScreenSaverBinding",         selected, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_BACK:           selected = ImGui::Selectable ("Back / Select###ScreenSaverBinding", selected, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_START:          selected = ImGui::Selectable ("Start",         true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_BACK:           selected = ImGui::Selectable ("Back / Select", true, ImGuiSelectableFlags_DontClosePopups); break;
 
-          case XINPUT_GAMEPAD_Y:              selected = ImGui::Selectable ("Y / Triangle###ScreenSaverBinding",  selected, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_A:              selected = ImGui::Selectable ("A / Cross###ScreenSaverBinding",     selected, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_X:              selected = ImGui::Selectable ("X / Square###ScreenSaverBinding",    selected, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_B:              selected = ImGui::Selectable ("B / Circle###ScreenSaverBinding",    selected, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_Y:              selected = ImGui::Selectable ("Y / Triangle",  true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_A:              selected = ImGui::Selectable ("A / Cross",     true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_X:              selected = ImGui::Selectable ("X / Square",    true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_B:              selected = ImGui::Selectable ("B / Circle",    true, ImGuiSelectableFlags_DontClosePopups); break;
         }
+        ImGui::PopID ();
 
         static bool open = false;
         if (selected)
@@ -720,15 +722,18 @@ SKIF_UI_Tab_DrawSettings (void)
         );
       }
 
-      ImGui::BulletText ("Xbox users may deactivate the screensaver by pressing " ICON_FA_XBOX);
+      if (! bGamepadsDeactivateScreenSaver)
+        ImGui::BulletText  ("Pressing " ICON_FA_XBOX " on Xbox controllers always deactivates.");
 
       ImGui::TreePop       (  );
+      ImGui::Spacing       (  );
+      ImGui::Spacing       (  );
       ImGui::SeparatorText ("PlayStation Power Management");
       ImGui::TreePush      ("");
 
       bool bEnablePowerOffChord = _registry.skinput.dwPowerOffChordBehavior != 0 &&
                                   _registry.skinput.dwPowerOffChord         != 0;
-      if (ImGui::Checkbox  ("Power Off Controllers Using  " ICON_FA_XBOX " / " ICON_FA_PLAYSTATION "  +", &bEnablePowerOffChord))
+      if (ImGui::Checkbox  ("Power Off Controllers Using  " ICON_FA_XBOX "/" ICON_FA_PLAYSTATION "  + ", &bEnablePowerOffChord))
       {
         if (bEnablePowerOffChord)
         {
@@ -751,7 +756,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
       if (bEnablePowerOffChord)
       {
-        ImGui::SetItemTooltip ("The controller binding is configurable by clicking the text after " ICON_FA_XBOX " / " ICON_FA_PLAYSTATION);
+        SKIF_ImGui_SetHoverTip ("The controller binding is configurable by clicking the text after " ICON_FA_XBOX " / " ICON_FA_PLAYSTATION);
 
         ImGui::SameLine ();
 
@@ -763,29 +768,31 @@ SKIF_UI_Tab_DrawSettings (void)
           dwButtonPressed = 0;
         }
 
+        ImGui::PushID ("PowerOffBinding");
         switch (_registry.skinput.dwPowerOffChord)
         {
-          case XINPUT_GAMEPAD_LEFT_SHOULDER:  selected = ImGui::Selectable ("LB / L1###PowerOffBinding",       selected, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_LEFT_TRIGGER:   selected = ImGui::Selectable ("LT / L2###PowerOffBinding",       selected, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_LEFT_THUMB:     selected = ImGui::Selectable ("LS / L3###PowerOffBinding",       selected, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_RIGHT_SHOULDER: selected = ImGui::Selectable ("RB / R1###PowerOffBinding",       selected, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_RIGHT_TRIGGER:  selected = ImGui::Selectable ("RT / R2###PowerOffBinding",       selected, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_RIGHT_THUMB:    selected = ImGui::Selectable ("RS / R3###PowerOffBinding",       selected, ImGuiSelectableFlags_DontClosePopups); break;
-          case 0x1:                           selected = ImGui::Selectable ("Y / Triangle###PowerOffBinding",  selected, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_LEFT_SHOULDER:  selected = ImGui::Selectable ("LB / L1",       true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_LEFT_TRIGGER:   selected = ImGui::Selectable ("LT / L2",       true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_LEFT_THUMB:     selected = ImGui::Selectable ("LS / L3",       true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_RIGHT_SHOULDER: selected = ImGui::Selectable ("RB / R1",       true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_RIGHT_TRIGGER:  selected = ImGui::Selectable ("RT / R2",       true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_RIGHT_THUMB:    selected = ImGui::Selectable ("RS / R3",       true, ImGuiSelectableFlags_DontClosePopups); break;
+          case 0x1:                           selected = ImGui::Selectable ("Y / Triangle",  true, ImGuiSelectableFlags_DontClosePopups); break;
           case 0x3/*
-               XINPUT_GAMEPAD_DPAD_UP*/:      selected = ImGui::Selectable ("Up###PowerOffBinding",            selected, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_DPAD_DOWN:      selected = ImGui::Selectable ("Down###PowerOffBinding",          selected, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_DPAD_LEFT:      selected = ImGui::Selectable ("Left###PowerOffBinding",          selected, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_DPAD_RIGHT:     selected = ImGui::Selectable ("Right###PowerOffBinding",         selected, ImGuiSelectableFlags_DontClosePopups); break;
+               XINPUT_GAMEPAD_DPAD_UP*/:      selected = ImGui::Selectable ("Up",            true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_DPAD_DOWN:      selected = ImGui::Selectable ("Down",          true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_DPAD_LEFT:      selected = ImGui::Selectable ("Left",          true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_DPAD_RIGHT:     selected = ImGui::Selectable ("Right",         true, ImGuiSelectableFlags_DontClosePopups); break;
 
-          case XINPUT_GAMEPAD_START:          selected = ImGui::Selectable ("Start###PowerOffBinding",         selected, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_BACK:           selected = ImGui::Selectable ("Back / Select###PowerOffBinding", selected, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_START:          selected = ImGui::Selectable ("Start",         true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_BACK:           selected = ImGui::Selectable ("Back / Select", true, ImGuiSelectableFlags_DontClosePopups); break;
 
-          case XINPUT_GAMEPAD_Y:              selected = ImGui::Selectable ("Y / Triangle###PowerOffBinding",  selected, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_A:              selected = ImGui::Selectable ("A / Cross###PowerOffBinding",     selected, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_X:              selected = ImGui::Selectable ("X / Square###PowerOffBinding",    selected, ImGuiSelectableFlags_DontClosePopups); break;
-          case XINPUT_GAMEPAD_B:              selected = ImGui::Selectable ("B / Circle###PowerOffBinding",    selected, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_Y:              selected = ImGui::Selectable ("Y / Triangle",  true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_A:              selected = ImGui::Selectable ("A / Cross",     true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_X:              selected = ImGui::Selectable ("X / Square",    true, ImGuiSelectableFlags_DontClosePopups); break;
+          case XINPUT_GAMEPAD_B:              selected = ImGui::Selectable ("B / Circle",    true, ImGuiSelectableFlags_DontClosePopups); break;
         }
+        ImGui::PopID ();
 
         static bool open = false;
         if (selected)
@@ -854,10 +861,6 @@ SKIF_UI_Tab_DrawSettings (void)
           ImGui::EndPopup ();
         }
       }
-      ////if (ImGui::Checkbox ("Power Off Controllers Using " ICON_FA_PLAYSTATION " + Triangle", &_registry.skinput.bPowerOffChord))
-      ////{
-      ////  _registry.regKVControllerPowerOffChord.putData (_registry.skinput.bPowerOffChord ? 1 : 0);
-      ////}
 
       float fIdleMinutes =
         static_cast <float> (_registry.skinput.dwIdleTimeoutInSecs) / 60.0f;
@@ -878,24 +881,88 @@ SKIF_UI_Tab_DrawSettings (void)
         _registry.regKVControllerIdlePowerOffTimeOut.putData (_registry.skinput.dwIdleTimeoutInSecs);
       }
 
-      SKIF_ImGui_SetHoverTip ("This only applies when no game is using Special K and SKIF or SKIV are running.");
+      SKIF_ImGui_SetHoverTip ("This only applies when SKIF or SKIV are running and no game is actively using Special K.");
 
-      ImGui::TreePop   ( );
+      ImGui::TreePop         (  );
 
-      ImGui::SeparatorText ("Gamepad Status");
+      ImGui::Spacing         (  );
+      ImGui::Spacing         (  );
+      ImGui::SeparatorText   ("Third-Party Setup\tXInput Assignment: ");
 
       auto&                     _gamepad = SKIF_GamePadInputHelper::GetInstance ();
       std::vector<bool> slots = _gamepad.GetGamePads ( );
 
-      ImGui::SameLine        ( );
-      ImGui::BeginGroup      ( );
+      ImGui::SameLine        (  );
+      ImGui::BeginGroup      (  );
       for (auto slot : slots){
-        ImGui::SameLine      ( );
+        ImGui::SameLine      (  );
         if (slot)
           ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success), ICON_FA_CHECK);
         else
           ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Yellow ), ICON_FA_XMARK); }
+      ImGui::EndGroup        (  );
+
+      ImGui::TreePush        ("");
+      ImGui::BeginGroup      (  );
+      if (valvePlug)
+      {
+        static bool valvePlugState = (bool)_registry.iValvePlug;
+        extern HANDLE SteamProcessHandle;
+
+        bool disable = (SteamProcessHandle != NULL);
+
+        if (disable)
+          SKIF_ImGui_PushDisableState ( );
+
+        if ( ImGui::Checkbox ( "Disable " ICON_FA_STEAM " Input (will restart Steam)", &valvePlugState) )
+        {
+          _registry.regKVValvePlug.putData (              static_cast<int> (valvePlugState));
+
+          PROCESSENTRY32W pe32 = SKIF_Util_FindProcessByName (L"steam.exe");
+          // Exits the Steam client if it is running
+          if (pe32.th32ProcessID != 0)
+          {
+            SteamProcessHandle = OpenProcess (SYNCHRONIZE, FALSE, pe32.th32ProcessID);
+
+            if (SteamProcessHandle != NULL)
+            {
+              // Wait on all tabs as well...
+              for (auto& vWatchHandle : vWatchHandles)
+                vWatchHandle.push_back (SteamProcessHandle);
+
+              // Signal the Steam client to exit
+              PLOG_INFO << "Shutting down the Steam client...";
+              SKIF_Util_OpenURI (L"steam://exit");
+            }
+          }
+        }
+
+        if (disable)
+          SKIF_ImGui_PopDisableState ( );
+
+        if (SteamProcessHandle != NULL && WaitForSingleObject (SteamProcessHandle, 0) == WAIT_TIMEOUT)
+        {
+          ImGui::SameLine    ( ); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow),     ICON_FA_TRIANGLE_EXCLAMATION);
+          ImGui::SameLine    ( ); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),    "Restarting Steam...");
+        }
+      }
+      else
+      {
+        ImGui::BeginGroup    ( );
+        ImGui::TextColored   (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
+        ImGui::SameLine      ( );
+        if (ImGui::Button    ("Install " ICON_FA_STEAM " Input Kill Switch"))
+        {
+          SKIF_Util_OpenURI  (L"https://github.com/SpecialKO/ValvePlug/releases");
+        }
+        ImGui::EndGroup      ( );
+        SKIF_ImGui_SetHoverTip
+                             ("Allows Steam Input to be Fully Disabled or Enabled.\r\n\r\n"
+                              " * Steam Input usually does stuff whether or not it is enabled per-game.\r\n"
+                              " * No registry settings need to be set if you use this config menu.");
+      }
       ImGui::EndGroup        ( );
+      ImGui::TreePop         ( );
       ImGui::EndPopup        ( );
     }
   }
@@ -1141,49 +1208,6 @@ SKIF_UI_Tab_DrawSettings (void)
 
     if ( ImGui::Checkbox ( "Remember category collapsible state",       &_registry.bRememberCategoryState) )
       _registry.regKVRememberCategoryState.putData (                     _registry.bRememberCategoryState);
-
-    if (valvePlug)
-    {
-      static bool valvePlugState = (bool)_registry.iValvePlug;
-      extern HANDLE SteamProcessHandle;
-
-      bool disable = (SteamProcessHandle != NULL);
-
-      if (disable)
-        SKIF_ImGui_PushDisableState ( );
-
-      if ( ImGui::Checkbox ( "Disable Steam Input (will restart Steam)", &valvePlugState) )
-      {
-        _registry.regKVValvePlug.putData (              static_cast<int> (valvePlugState));
-
-        PROCESSENTRY32W pe32 = SKIF_Util_FindProcessByName (L"steam.exe");
-        // Exits the Steam client if it is running
-        if (pe32.th32ProcessID != 0)
-        {
-          SteamProcessHandle = OpenProcess (SYNCHRONIZE, FALSE, pe32.th32ProcessID);
-
-          if (SteamProcessHandle != NULL)
-          {
-            // Wait on all tabs as well...
-            for (auto& vWatchHandle : vWatchHandles)
-              vWatchHandle.push_back (SteamProcessHandle);
-
-            // Signal the Steam client to exit
-            PLOG_INFO << "Shutting down the Steam client...";
-            SKIF_Util_OpenURI (L"steam://exit");
-          }
-        }
-      }
-
-      if (disable)
-        SKIF_ImGui_PopDisableState ( );
-
-      if (SteamProcessHandle != NULL && WaitForSingleObject (SteamProcessHandle, 0) == WAIT_TIMEOUT)
-      {
-        ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow),     ICON_FA_TRIANGLE_EXCLAMATION);
-        ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),    "Restarting Steam...");
-      }
-    }
 
     if (enableColums)
     {
