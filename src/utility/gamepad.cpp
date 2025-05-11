@@ -435,6 +435,24 @@ SKIF_GamePadInputHelper::SpawnChildThread (void)
       }
       else
         s_wasGamepadIdle = false;
+
+
+      using  SK_Input_HasPlayStationDevices_pfn = bool (WINAPI *)(void);
+      static SK_Input_HasPlayStationDevices_pfn
+             SK_Input_HasPlayStationDevices =
+            (SK_Input_HasPlayStationDevices_pfn)
+             GetProcAddress (SKIF_GamePadInputHelper::hModXInput, "SK_Input_HasPlayStationDevices");
+
+      // Real XInput is MUCH higher overhead than SK's HID implementation,
+      //   so it needs to be throttled.
+      if (SK_Input_HasPlayStationDevices == nullptr||
+          SK_Input_HasPlayStationDevices () == false)
+      {
+        static int
+            spins         = 0;
+        if (spins++ % 10 == 0)
+          SleepEx (2, FALSE);
+      }
     } while (! SKIF_Shutdown.load());
 
     LeaveCriticalSection  (&GamepadInputPump);
