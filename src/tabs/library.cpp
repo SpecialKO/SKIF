@@ -1849,7 +1849,7 @@ DrawGameContextMenu (app_record_s* pApp)
   bool SteamShortcutPossible = false;
 
   app_record_s::launch_config_s*
-    firstLaunchConfig = (pApp != nullptr && ! pApp->launch_configs.empty()) ? &pApp->launch_configs.begin()->second : nullptr;
+    firstLaunchConfig = (pApp != nullptr && ! pApp->launch_configs.empty ()) ? &pApp->launch_configs.begin ()->second : nullptr;
 
   if (firstLaunchConfig != nullptr && pApp->store == app_record_s::Store::Steam && ! pApp->_status.updating)
     SteamShortcutPossible = firstLaunchConfig->isExecutableFullPathValid ( );
@@ -3933,8 +3933,11 @@ GetInjectionSummary (app_record_s* pApp)
       // If there is 0-1 valid launch option
       if (numOfItems <= 1)
       {
-        _BlacklistCfg          (
-              pApp->launch_configs.begin ()->second, false );
+        if (! pApp->launch_configs.empty ())
+        {
+          _BlacklistCfg          (
+                pApp->launch_configs.begin ()->second, false );
+        }
       }
 
       // If there are more than one launch option
@@ -4238,8 +4241,8 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
       };
 
       std::wstring test_paths[] = { 
-        pApp->launch_configs[0].getExecutableDir ( ),
-        pApp->launch_configs[0].working_dir
+        pApp->launch_configs.count (0) ? pApp->launch_configs.at (0).getExecutableDir() : L"",
+        pApp->launch_configs.count (0) ? pApp->launch_configs.at (0).working_dir        : L""
       };
 
       if (test_paths[0] == test_paths[1])
@@ -4332,22 +4335,30 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
   // Swap out the first element for the first valid one we found
   if (firstValidFound != -1)
   {
-    app_record_s::launch_config_s copy    = pApp->launch_configs[0];
-    pApp->launch_configs[0]               = pApp->launch_configs[firstValidFound];
-    pApp->launch_configs[firstValidFound] = copy;
+    app_record_s::launch_config_s copy      = pApp->launch_configs.count (0) ?
+                                              pApp->launch_configs.at    (0) :
+                                      app_record_s::launch_config_s {       };
+
+    if (pApp->launch_configs.count (0))
+    {
+      pApp->launch_configs [0]               = pApp->launch_configs[firstValidFound];
+      pApp->launch_configs [firstValidFound] = copy;
+    }
   }
 
   // TODO: Make the specialk.injection bitness/state/etc stuff bound
   //         to launch_config so it is not universal any longer
 
   // If we cannot detect any launch configs, add an empty one
-  if (pApp->launch_configs.empty())
+  if (pApp->launch_configs.empty ())
   {
     PLOG_ERROR << "Could not detect any launch configs?! Defaulting to an empty one.";
     pApp->launch_configs.emplace (0, app_record_s::launch_config_s());
   }
 
-  auto& launch = pApp->launch_configs.begin()->second;
+  // This is safe because we inserted one above
+  auto& launch =
+    pApp->launch_configs.begin ()->second;
 
   // If primary launch config was invalid (e.g. Link2EA games) then set it to use global
   if (launch.injection.injection.type == InjectionType::Unknown)
@@ -5315,16 +5326,20 @@ SKIF_UI_Tab_DrawLibrary (void)
               PLOG_ERROR   << "Failed adding profile name (" << wsName << ") to registry value: " << app.second.install_dir;
           }
 
-          auto& exe_path =
-            app.second.launch_configs.begin ()->second.executable_path;
-
-          if (ERROR_SUCCESS        == lsKey &&
-              ERROR_FILE_NOT_FOUND == RegQueryValueExW (hKey, exe_path.c_str (), NULL, NULL, NULL, NULL))
+          if (! app.second.launch_configs.empty ())
           {
-            std::wstring wsName = SK_UTF8ToWideChar(app.second.names.original);
+            auto& exe_path =
+              app.second.launch_configs.begin ()->second.executable_path;
 
-            if (ERROR_SUCCESS != RegSetValueExW (hKey, exe_path.c_str (), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.length() * sizeof(wchar_t)))
-              PLOG_ERROR   << "Failed adding profile name (" << wsName << ") to registry value: " << app.second.install_dir;
+            if (ERROR_SUCCESS        == lsKey &&
+                ERROR_FILE_NOT_FOUND == RegQueryValueExW (hKey, exe_path.c_str (), NULL, NULL, NULL, NULL))
+            {
+              std::wstring wsName =
+                SK_UTF8ToWideChar (app.second.names.original);
+
+              if (ERROR_SUCCESS != RegSetValueExW (hKey, exe_path.c_str (), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.length() * sizeof(wchar_t)))
+                PLOG_ERROR   << "Failed adding profile name (" << wsName << ") to registry value: " << app.second.install_dir;
+            }
           }
 
           // Xbox apps have two directories, but otherwise the procedure is the same as above.
@@ -7733,7 +7748,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   {
     LaunchGame         (pApp);
 
-    launchConfig     = &pApp->launch_configs.begin()->second; // Reset to primary launch config
+    launchConfig     = !pApp->launch_configs.empty () ? &pApp->launch_configs.begin()->second
+                                                      : nullptr; // Reset to primary launch config
     launchGame       = false;
     launchGameMenu   = false;
     launchInstant    = false;
