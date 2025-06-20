@@ -5266,10 +5266,11 @@ SKIF_UI_Tab_DrawLibrary (void)
 
 #if 0
           PLOG_DEBUG << "\nGame Titles: (" << app.second.id << ")"
-                     << "\nOriginal : " << SK_UTF8ToWideChar(app.second.names.original)
-                     << "\nCleaned  : " << SK_UTF8ToWideChar(app.second.names.clean)
-                     << "\nNormal   : " << SK_UTF8ToWideChar(app.second.names.normal)
-                     << "\nImGuiLID : " << SK_UTF8ToWideChar(app.second.ImGuiLabelID);
+                     << "\nOriginal   : " << SK_UTF8ToWideChar(app.second.names.original)
+                     << "\nCleaned    : " << SK_UTF8ToWideChar(app.second.names.clean)
+                     << "\nNormal     : " << SK_UTF8ToWideChar(app.second.names.normal)
+                     << "\nImGuiLID   : " << SK_UTF8ToWideChar(app.second.ImGuiLabelID)
+                     << "\nInstallDir : " << app.second.install_dir;
 #endif
         }
 
@@ -5311,6 +5312,18 @@ SKIF_UI_Tab_DrawLibrary (void)
             std::wstring wsName = SK_UTF8ToWideChar(app.second.names.original);
 
             if (ERROR_SUCCESS != RegSetValueExW (hKey, app.second.install_dir.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.length() * sizeof(wchar_t)))
+              PLOG_ERROR   << "Failed adding profile name (" << wsName << ") to registry value: " << app.second.install_dir;
+          }
+
+          auto& exe_path =
+            app.second.launch_configs.begin ()->second.executable_path;
+
+          if (ERROR_SUCCESS        == lsKey &&
+              ERROR_FILE_NOT_FOUND == RegQueryValueExW (hKey, exe_path.c_str (), NULL, NULL, NULL, NULL))
+          {
+            std::wstring wsName = SK_UTF8ToWideChar(app.second.names.original);
+
+            if (ERROR_SUCCESS != RegSetValueExW (hKey, exe_path.c_str (), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.length() * sizeof(wchar_t)))
               PLOG_ERROR   << "Failed adding profile name (" << wsName << ") to registry value: " << app.second.install_dir;
           }
 
