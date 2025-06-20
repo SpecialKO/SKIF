@@ -871,17 +871,18 @@ SKIF_Util_GenerateInstallGUID (void)
 // ShellExecute
 
 HINSTANCE
-SKIF_Util_ExplorePath (
-  const std::wstring_view& path )
+SKIF_Util_ExplorePath (std::wstring path )
 {
+  if (! path.ends_with (LR"(\)"))
+    path += LR"(\)";
+
   SHELLEXECUTEINFOW
     sexi              = { };
     sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
     sexi.lpVerb       = L"EXPLORE";
     sexi.lpFile       = path.data ();
     sexi.nShow        = SW_SHOWNORMAL;
-    sexi.fMask        = SEE_MASK_FLAG_NO_UI |
-                        SEE_MASK_ASYNCOK    | SEE_MASK_NOZONECHECKS;
+    sexi.fMask        = SEE_MASK_NOZONECHECKS;
 
   if (ShellExecuteExW (&sexi))
     return sexi.hInstApp;

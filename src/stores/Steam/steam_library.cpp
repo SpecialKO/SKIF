@@ -847,11 +847,14 @@ SKIF_Steam_PreloadUserSharedConfig (SteamId3_t userid, std::vector <std::pair < 
 
               // Load favorite state...
               // "UserRoamingConfigStore" -> "Software" -> "valve" -> "Steam" -> "apps" -> "<app-id>" -> "tags" -> "<order>" == "favorite"
-              auto& tags = conf_app->second->childs.at("tags");
-              for (auto& child : tags->attribs)
+              if (! conf_app->second->childs.empty() && conf_app->second->childs.count("tags") > 0)
               {
-                if (! child.first.empty() && child.second == "favorite")
-                  app.second.steam.shared.favorite = 1;
+                auto& tags = conf_app->second->childs.at("tags");
+                for (auto& child : tags->attribs)
+                {
+                  if (! child.first.empty() && child.second == "favorite")
+                    app.second.steam.shared.favorite = 1;
+                }
               }
             }
           }
