@@ -5315,30 +5315,29 @@ SKIF_UI_Tab_DrawLibrary (void)
           // Prepare for the keyboard hint / search/filter functionality
           InsertTrieKey (&app, &_data->labels);
 
+          std::wstring wsName =
+            SK_UTF8ToWideChar (app.second.names.original);
+
           // Ensure the Profiles registry key is populated properly, but only write it once to ensure
           //   profile folders are not randomly renamed if a game gets renamed on the storefront
           if (ERROR_SUCCESS        == lsKey &&
               ERROR_FILE_NOT_FOUND == RegQueryValueExW (hKey, app.second.install_dir.c_str(), NULL, NULL, NULL, NULL))
           {
-            std::wstring wsName = SK_UTF8ToWideChar(app.second.names.original);
-
             if (ERROR_SUCCESS != RegSetValueExW (hKey, app.second.install_dir.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.length() * sizeof(wchar_t)))
               PLOG_ERROR   << "Failed adding profile name (" << wsName << ") to registry value: " << app.second.install_dir;
           }
 
-          if (! app.second.launch_configs.empty ())
+          // Register profile mappings for all launch configs
+          for (auto& lc : app.second.launch_configs)
           {
             auto& exe_path =
-              app.second.launch_configs.begin ()->second.executable_path;
+              lc.second.executable_path;
 
             if (ERROR_SUCCESS        == lsKey &&
                 ERROR_FILE_NOT_FOUND == RegQueryValueExW (hKey, exe_path.c_str (), NULL, NULL, NULL, NULL))
             {
-              std::wstring wsName =
-                SK_UTF8ToWideChar (app.second.names.original);
-
               if (ERROR_SUCCESS != RegSetValueExW (hKey, exe_path.c_str (), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.length() * sizeof(wchar_t)))
-                PLOG_ERROR   << "Failed adding profile name (" << wsName << ") to registry value: " << app.second.install_dir;
+                PLOG_ERROR   << "Failed adding profile name (" << wsName << ") to registry value: " << exe_path;
             }
           }
 
@@ -5349,8 +5348,6 @@ SKIF_UI_Tab_DrawLibrary (void)
                 (ERROR_FILE_NOT_FOUND == RegQueryValueExW (hKey, app.second.xbox.directory_app.c_str(),           NULL, NULL, NULL, NULL) ||
                  ERROR_FILE_NOT_FOUND == RegQueryValueExW (hKey, app.second.xbox.directory_program_files.c_str(), NULL, NULL, NULL, NULL)) )
             {
-              std::wstring wsName = SK_UTF8ToWideChar(app.second.names.original);
-
               if (ERROR_SUCCESS != RegSetValueExW (hKey, app.second.xbox.directory_app.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.length() * sizeof(wchar_t)))
                 PLOG_ERROR << "Failed adding profile name (" << wsName << ") to registry value: " << app.second.xbox.directory_app;
 
