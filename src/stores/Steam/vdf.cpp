@@ -74,10 +74,16 @@ skValveDataFile::skValveDataFile (std::wstring source) : path (source)
     // A string table was added in June of 2024 (0x29)
     if (vdf_version >= 0x29)
     {
-      uint64_t strtable_pos =
-                           *(uint64_t *)root;
+      uintptr_t strtable_pos
+            =   (uintptr_t)*(uint64_t *)root;
       root  = (appinfo_s *)((uint64_t *)root + 1);
       table = (str_tbl_s *)(&_data [strtable_pos]);
+
+      // Valve is using 64-bit offsets, if this file is larger than
+      //   4 GiB SKIF32 is fundamentally inoperable!
+      PLOG_ERROR_IF (
+        *(uint64_t *)root > std::numeric_limits <uintptr_t>::max ()
+      ) << "VDF File is Too Large!";
 
       strs.reserve   (        table->num_strings);
       strs.push_back ((char *)table->strings);
