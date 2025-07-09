@@ -562,6 +562,19 @@ SearchAppsList (void)
 
 #pragma endregion
 
+// Basic counter used to provide some additional metadata in the logs
+size_t
+JsonDB_CountElements (void)
+{
+  size_t items = 0;
+
+  for (auto& platform : jsonMetaDB)
+  {
+    items += platform.size();
+  }
+
+  return items;
+}
 
 // This writes the Json object to the disk
 bool
@@ -570,10 +583,18 @@ JsonDB_WriteFile (void)
   if (! jsonMetaDB.is_discarded())
   {
     std::ofstream out_file(file_metadata);
-    out_file << std::setw(2) << jsonMetaDB << std::endl;
-    out_file.close();
+    if (out_file.is_open())
+    {
+      out_file << std::setw(2) << jsonMetaDB << std::endl;
+      out_file.close();
 
-    return true;
+      PLOG_INFO << "Successfully wrote persistent metadata (" << JsonDB_CountElements ( ) << " items) to JSON file.";
+
+      return true;
+    }
+    else {
+      PLOG_ERROR << "Could not open JSON file for writing: " << file_metadata;
+    }
   }
 
   else
@@ -4661,7 +4682,10 @@ SKIF_UI_Tab_DrawLibrary (void)
   static int   frameLibraryRefreshed = 0;
 
   // The value needs to be set here since it relies on _path_cache to have been initated
-  file_metadata = SK_FormatStringW(LR"(%ws\Assets\db.json)", _path_cache.specialk_userdata);
+  // Only do this once!!! >__________________________<
+  SK_RunOnce(
+    file_metadata = SK_FormatStringW(LR"(%ws\Assets\db.json)", _path_cache.specialk_userdata)
+  );
 
 #pragma region Initialization
 
@@ -5033,6 +5057,12 @@ SKIF_UI_Tab_DrawLibrary (void)
           MoveFileEx (file_metadata.c_str(), (file_metadata + L".bak").c_str(), MOVEFILE_REPLACE_EXISTING);
           jsonMetaDB = nlohmann::json();
         }
+        else {
+          PLOG_INFO << "Successfully read persistent metadata (" << JsonDB_CountElements ( ) << " items) from JSON file.";
+        }
+      }
+      else {
+        PLOG_ERROR << "Could not open JSON file for reading: " << file_metadata;
       }
 
       PLOG_INFO << "Processing detected games...";
@@ -5362,12 +5392,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         RegCloseKey (hKey);
 
       // Update the db.json file with any additions and whatnot
-      if (! jsonMetaDB.is_discarded())
-      {
-        std::ofstream out_file(file_metadata);
-        out_file << std::setw(2) << jsonMetaDB << std::endl;
-        out_file.close();
-      }
+      JsonDB_WriteFile ( );
 
       // We have detected new categories!
       if (newCategories)
