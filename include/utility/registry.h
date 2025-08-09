@@ -351,6 +351,14 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Fade Covers)" );
 
+  KeyValue <bool> regKVPCGWCoversGOG =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(PCGW Covers GOG)" );
+
+  KeyValue <bool> regKVPCGWCoversSteam =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(PCGW Covers Steam)" );
+
   KeyValue <int> regKVControllers =
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\Input\)",
                          LR"(EnableControllersInApps)" );
@@ -606,6 +614,8 @@ struct SKIF_RegistrySettings {
   bool bDeveloperMode           = false;
   bool bEfficiencyMode          =  true; // Should the main thread try to engage EcoQoS / Efficiency Mode on Windows 11 ?
   bool bFadeCovers              =  true;
+  bool bPCGWCoversGOG           =  true; // Should SKIF prefer covers from PCGW where available?
+  bool bPCGWCoversSteam         = false; // Should SKIF prefer covers from PCGW where available?
   bool bControllers             =  true; // Should SKIF support controller input ?
   bool bLoggingDeveloper        = false; // This is a log level "above" verbose logging that also includes stuff like window messages. Only useable for SKIF developers
   bool bPatreon                 =  true; // Should the Patreon button/kudos be shown when Special K is selected in the game list?

@@ -269,22 +269,34 @@ LoadLibraryTexture (
 
         else if (libTexToLoad == LibraryTexture::Cover)
         {
-          managedAsset = false; // GOG covers are not managed
-
-          extern std::wstring GOGGalaxy_UserID;
-          load_str = SK_FormatStringW (LR"(C:\ProgramData\GOG.com\Galaxy\webcache\%ws\gog\%i\)", GOGGalaxy_UserID.c_str(), appid);
-
-          HANDLE hFind        = INVALID_HANDLE_VALUE;
-          WIN32_FIND_DATA ffd = { };
-
-          hFind =
-            FindFirstFileExW ((load_str + name).c_str(), FindExInfoBasic, &ffd, FindExSearchNameMatch, NULL, NULL);
-          //FindFirstFile((load_str + name).c_str(), &ffd);
-
-          if (INVALID_HANDLE_VALUE != hFind)
+          // Load PCGW cover
+          if (_registry.bPCGWCoversGOG &&
+              PathFileExistsW ((SKIFCustomPath + L"-pcgw.png").c_str()))
           {
-            load_str += ffd.cFileName;
-            FindClose(hFind);
+            load_str =          SKIFCustomPath + L"-pcgw.png";
+
+            managedAsset = true; // PCGW covers are managed
+          }
+
+          // Load GOG Galaxy cover
+          else {
+            managedAsset = false; // GOG covers are not managed
+
+            extern std::wstring GOGGalaxy_UserID;
+            load_str = SK_FormatStringW (LR"(C:\ProgramData\GOG.com\Galaxy\webcache\%ws\gog\%i\)", GOGGalaxy_UserID.c_str(), appid);
+
+            HANDLE hFind        = INVALID_HANDLE_VALUE;
+            WIN32_FIND_DATA ffd = { };
+
+            hFind =
+              FindFirstFileExW ((load_str + name).c_str(), FindExInfoBasic, &ffd, FindExSearchNameMatch, NULL, NULL);
+            //FindFirstFile((load_str + name).c_str(), &ffd);
+
+            if (INVALID_HANDLE_VALUE != hFind)
+            {
+              load_str += ffd.cFileName;
+              FindClose(hFind);
+            }
           }
         }
       }
@@ -359,8 +371,14 @@ LoadLibraryTexture (
       if (! customAsset)
       {
         managedAsset = false; // Steam's user-specific custom covers are not managed
-
-        if      (libTexToLoad == LibraryTexture::Cover &&
+        
+        if      (libTexToLoad == LibraryTexture::Cover && _registry.bPCGWCoversSteam &&
+                 PathFileExistsW ((SKIFCustomPath + L"-pcgw.png").c_str()))
+        {
+          load_str =               SKIFCustomPath + L"-pcgw.png";
+          managedAsset = true; // PCGW cover is managed!
+        }
+        else if (libTexToLoad == LibraryTexture::Cover &&
                  PathFileExistsW ((SteamCustomPath + L"p.png").c_str()))
           load_str =               SteamCustomPath + L"p.png";
         else if (libTexToLoad == LibraryTexture::Cover &&
@@ -371,7 +389,7 @@ LoadLibraryTexture (
 
           // The fallback is normally managed! <%ws\Assets\Steam\%i\cover-original.jpg>
           // The only time it is not is when SKIF is in tinyCovers mode and loaded the original 300x450 cover from the Steam client
-          if (load_str.find (L"cover-original.jpg") != std::wstring::npos)
+          if (load_str.find (L"cover-original.jpg") != std::wstring::npos) 
             managedAsset = true;
         }
       }

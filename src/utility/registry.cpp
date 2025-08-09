@@ -495,6 +495,12 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   if (regKVFadeCovers.hasData(&hKey))
     bFadeCovers            =   regKVFadeCovers             .getData (&hKey);
 
+  if (regKVPCGWCoversGOG.hasData(&hKey))
+    bPCGWCoversGOG         =   regKVPCGWCoversGOG          .getData (&hKey);
+
+  if (regKVPCGWCoversSteam.hasData(&hKey))
+    bPCGWCoversSteam       =   regKVPCGWCoversSteam        .getData (&hKey);
+
   bLoggingDeveloper        =   regKVLoggingDeveloper       .getData (&hKey);
 
   if (regKVPatreon.hasData(&hKey))

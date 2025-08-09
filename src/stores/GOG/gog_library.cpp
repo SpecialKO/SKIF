@@ -1,7 +1,10 @@
 
 #include <stores/gog/gog_library.h>
 #include <wtypes.h>
+#include <fstream>
 #include <filesystem>
+#include <utility/registry.h>
+#include <nlohmann/json.hpp>
 
 
 /*
@@ -238,4 +241,80 @@ SKIF_GOG_hasGalaxySettingsChanged (void)
   }
 
   return signal;
+}
+
+void
+SKIF_GOG_IdentifyAssetPCGW (uint32_t app_id)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
+  std::wstring targetAssetPath = SK_FormatStringW(LR"(%ws\Assets\GOG\%i\)", _path_cache.specialk_userdata, app_id);
+
+  std::error_code ec;
+  // Create any missing directories
+  if (! std::filesystem::exists (            targetAssetPath, ec))
+        std::filesystem::create_directories (targetAssetPath, ec);
+
+  // Do not load a high-res copy if low-res covers are being used,
+  //   as in those scenarios we prefer to load the local GOG Galaxy cover
+  if (! _registry._UseLowResCovers || _registry._UseLowResCoversHiDPIBypass)
+  {
+
+    // We intend to download PCGW's cover
+    // https://www.pcgamingwiki.com/w/api.php?action=cargoquery&format=json&tables=Infobox_game&fields=Cover_URL&where=GOGcom_ID+HOLDS+'2099051765'
+    // https://www.pcgamingwiki.com/w/api.php?action=cargoquery&format=json&tables=Infobox_game&fields=Cover_URL&where=GOGcom_ID%20HOLDS%20%272099051765%27
+    std::wstring url  = L"https://www.pcgamingwiki.com/w/api.php?action=cargoquery&format=json&tables=Infobox_game&fields=Cover_URL&where=GOGcom_ID+HOLDS+'";
+                  url += std::to_wstring (app_id);
+                  url += L"'";
+
+    // If PCGW cover has not been downloaded
+    if (! PathFileExistsW ((targetAssetPath + L"cover-pcgw.png").c_str()))
+    {
+      PLOG_DEBUG << "Downloading PCGW json: " << url;
+
+      SKIF_Util_GetWebResource (url, (targetAssetPath + L"pcgw.json"));
+
+      try
+      {
+        std::ifstream fileJson(targetAssetPath + L"pcgw.json");
+        nlohmann::json jf = nlohmann::json::parse(fileJson, nullptr, false);
+        fileJson.close();
+
+        if (jf.is_discarded ( ))
+        {
+          PLOG_ERROR << "Could not read PCGW JSON!";
+        }
+
+        else
+        {
+          if (jf["errors"].is_array())
+          {
+            PLOG_ERROR << "Could not read PCGW JSON!";
+          }
+
+          else
+          {
+            for (auto& image : jf["cargoquery"][0]["title"]["Cover URL"])
+            {
+              // Convert the URL value to a regular string
+              std::string assetUrl = image; // will throw exception if value does not exist
+
+              PLOG_DEBUG << "Downloading cover asset: " << assetUrl;
+
+              SKIF_Util_GetWebResource (SK_UTF8ToWideChar (assetUrl), targetAssetPath + L"cover-pcgw.png");
+            }
+          }
+        }
+      }
+      catch (const std::exception&)
+      {
+        PLOG_ERROR << "Error parsing PCGW JSON!";
+      }
+
+      // Delete the JSON file when we are done
+      if (_registry.iLogging < 5)
+        DeleteFile ((targetAssetPath + L"pcgw.json").c_str());
+    }
+  }
 }

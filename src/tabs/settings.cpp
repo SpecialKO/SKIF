@@ -1209,6 +1209,38 @@ SKIF_UI_Tab_DrawSettings (void)
     if ( ImGui::Checkbox ( "Remember category collapsible state",       &_registry.bRememberCategoryState) )
       _registry.regKVRememberCategoryState.putData (                     _registry.bRememberCategoryState);
 
+    ImGui::Spacing         ( );
+
+    ImGui::TextColored (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+        "Prefer covers from PCGamingWiki for these platforms:"
+    );
+
+    ImGui::TreePush      ("PCGWCovers");
+
+    extern bool coverRefresh;
+    extern float fAlpha;
+
+    if (ImGui::Checkbox       ("GOG",         &_registry.bPCGWCoversGOG))
+    {
+      _registry.regKVPCGWCoversGOG.putData    (_registry.bPCGWCoversGOG);
+      coverRefresh = true;
+      fAlpha       = (_registry.bFadeCovers) ? 0.0f : 1.0f;
+    }
+
+    ImGui::SameLine ( );
+    ImGui::Spacing  ( );
+    ImGui::SameLine ( );
+
+    if (ImGui::Checkbox       ("Steam",       &_registry.bPCGWCoversSteam))
+    {
+      _registry.regKVPCGWCoversSteam.putData  (_registry.bPCGWCoversSteam);
+      coverRefresh = true;
+      fAlpha       = (_registry.bFadeCovers) ? 0.0f : 1.0f;
+    }
+
+    ImGui::TreePop          ( );
+
     if (enableColums)
     {
       ImGui::NextColumn    ( );
@@ -1276,6 +1308,8 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::EndGroup ( );
 
     ImGui::TreePop          ( );
+
+    ImGui::Spacing         ( );
 
     ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION); // ImColor::HSV(0.11F, 1.F, 1.F)
     SKIF_ImGui_SetHoverTip ("Warning: This skips the regular platform launch process for the game,\n"

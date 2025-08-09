@@ -7,3 +7,4 @@ void SKIF_GOG_GetInstalledAppIDs       (std::vector <std::pair < std::string, ap
 void SKIF_GOG_UpdateGalaxyUserID       (void);
 bool SKIF_GOG_hasInstalledGamesChanged (void);
 bool SKIF_GOG_hasGalaxySettingsChanged (void);
+void SKIF_GOG_IdentifyAssetPCGW        (uint32_t app_id);

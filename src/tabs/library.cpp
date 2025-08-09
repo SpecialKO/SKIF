@@ -7245,10 +7245,17 @@ SKIF_UI_Tab_DrawLibrary (void)
                  d3 = false,
                  d4 = false;
 
+            // For GOG titles we may also store a PCGW cover that we must reset
+            if (! pApp->tex_cover.isCustom && pApp->store == app_record_s::Store::GOG)
+            {
+              fileName = L"cover-pcgw";
+              d3 = DeleteFile ((targetPath + fileName + L".png").c_str());
+            }
+
             // For Xbox titles we also store a fallback cover that we must reset
             if (! pApp->tex_cover.isCustom && pApp->store == app_record_s::Store::Xbox)
             {
-              fileName = L"cover-fallback.png";
+              fileName = L"cover-fallback";
               d3 = DeleteFile ((targetPath + fileName + L".png").c_str()),
               d4 = DeleteFile ((targetPath + fileName + L".jpg").c_str());
             }
@@ -7836,7 +7843,10 @@ SKIF_UI_Tab_DrawLibrary (void)
       // GOG
       else if (_pApp->store == app_record_s::Store::GOG)
       {
-        load_str = L"*_glx_vertical_cover.webp";
+        load_str = L"*_glx_vertical_cover.webp"; // Fallback
+
+        if (_registry.bPCGWCoversGOG)
+          SKIF_GOG_IdentifyAssetPCGW (_pApp->id);
       }
 
       // Epic
@@ -7876,6 +7886,9 @@ SKIF_UI_Tab_DrawLibrary (void)
         load_str    += LR"(/appcache/librarycache/)" +
           std::to_wstring (_pApp->id)                +
                                   L"/" + SK_FormatStringW (L"%hs", pApp->common_config.boxart_hash.c_str ());
+
+        if (_registry.bPCGWCoversSteam)
+          SKIF_Steam_IdentifyAssetPCGW (_pApp->id);
 
         // Do not load a high-res copy if low-res covers are being used,
         //   as in those scenarios we prefer to load the original 300x450 cover
