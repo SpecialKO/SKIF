@@ -7845,8 +7845,11 @@ SKIF_UI_Tab_DrawLibrary (void)
       {
         load_str = L"*_glx_vertical_cover.webp"; // Fallback
 
-        if (_registry.bPCGWCoversGOG)
+        if (_registry.bPCGWCoversGOG && ! _pApp->tex_cover.queriedPCGW)
+        {
+          _pApp->tex_cover.queriedPCGW = true;
           SKIF_GOG_IdentifyAssetPCGW (_pApp->id);
+        }
       }
 
       // Epic
@@ -7887,8 +7890,11 @@ SKIF_UI_Tab_DrawLibrary (void)
           std::to_wstring (_pApp->id)                +
                                   L"/" + SK_FormatStringW (L"%hs", pApp->common_config.boxart_hash.c_str ());
 
-        if (_registry.bPCGWCoversSteam)
+        if (_registry.bPCGWCoversSteam && ! _pApp->tex_cover.queriedPCGW)
+        {
+          _pApp->tex_cover.queriedPCGW = true;
           SKIF_Steam_IdentifyAssetPCGW (_pApp->id);
+        }
 
         // Do not load a high-res copy if low-res covers are being used,
         //   as in those scenarios we prefer to load the original 300x450 cover

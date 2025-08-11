@@ -115,10 +115,11 @@ struct app_record_s {
 
   struct tex_registry_s {
     d3d11_tex_ref_s texture;
-    bool            isCustom  = false; // Indicates whether SKIF is using a custom texture or not
-    bool            isManaged = false; // Indicates whether the texture is managed by SKIF or not (can be refreshed by SKIF)
-    int             iWorker   = 0;     // 0 = worker not started, 1 = worker active, 2 = worker done
-    HANDLE          hWorker   = NULL;
+    bool            isCustom    = false; // Indicates whether SKIF is using a custom texture or not
+    bool            isManaged   = false; // Indicates whether the texture is managed by SKIF or not (can be refreshed by SKIF)
+    bool            queriedPCGW = false; // Has we queried PCGW for an artwork?
+    int             iWorker     = 0;     // 0 = worker not started, 1 = worker active, 2 = worker done
+    HANDLE          hWorker     = NULL;
   } tex_icon, tex_cover;
   
   enum class Store {
