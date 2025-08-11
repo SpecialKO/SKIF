@@ -221,10 +221,11 @@ struct skif_get_web_uri_t {
   bool         https                                  = false;
   std::string  body;
   std::wstring header;
+  std::wstring user_agent                             = L"Special K - Asset Crawler";
 };
 
 DWORD WINAPI SKIF_Util_GetWebUri              (skif_get_web_uri_t* get);
-DWORD        SKIF_Util_GetWebResource         (std::wstring url, std::wstring_view destination, std::wstring method = L"GET", std::wstring header = L"", std::string body = "");
+DWORD        SKIF_Util_GetWebResource         (std::wstring url, std::wstring_view destination, std::wstring method = L"GET", std::wstring header = L"", std::string body = "", std::wstring user_agent = L"");
 skif_get_web_uri_t SKIF_Util_CrackWebUrl      (const std::wstring url);
 
 

@@ -238,15 +238,18 @@ SKIF_Epic_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogIte
     // Up to 2020-04: 6e7c4dd0177150eb9a47d624be221929582df8648e7ec271c821838ff4ee148e
     //  From 2020-04: 4bebe12f9eab12438766fb5971b0bc54422ba81954539f294ec23b0a29ff92ad
     //  From 2023-xx: 7d58e12d9dd8cb14c84a3ff18d360bf9f0caa96bf218f2c5fda68ba88d68a437
+    //
+    // graphql. stopped working sometime in 2025, so use launcher.store. instead
     std::wstring query = SK_FormatStringW (
-      LR"(https://graphql.epicgames.com/graphql?operationName=searchStoreQuery&variables={"country":"US", "category": "games/edition/base", "namespace": "%ws"}&extensions={"persistedQuery":{"version":1,"sha256Hash":"%ws"}})",
+      LR"(https://launcher.store.epicgames.com/graphql?operationName=searchStoreQuery&variables={"country":"US", "category": "games/edition/base", "namespace": "%ws"}&extensions={"persistedQuery":{"version":1,"sha256Hash":"%ws"}})",
       SK_UTF8ToWideChar(CatalogNamespace).c_str(),
       L"7d58e12d9dd8cb14c84a3ff18d360bf9f0caa96bf218f2c5fda68ba88d68a437" // sha256Hash
     );
 
     PLOG_DEBUG << "Downloading platform JSON: " << query;
 
-    SKIF_Util_GetWebResource (query, targetAssetPath + L"offer.json");
+    // Epic's GraphQL API now seems to perform a basic User-Agent validation...
+    SKIF_Util_GetWebResource (query, targetAssetPath + L"offer.json", L"GET", L"", "", L"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) EpicGamesLauncher");
   }
 
   try

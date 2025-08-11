@@ -3529,14 +3529,16 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get)
     return 0;
   };
   
-  PLOG_VERBOSE                           << "Method: " << std::wstring(get->method);
-  PLOG_VERBOSE                           << "Target: " << ((get->https) ? "https://" : "http://") << get->wszHostName << get->wszHostPath;
-  PLOG_VERBOSE_IF(! get->header.empty()) << "Header: " << get->header;
-  PLOG_VERBOSE_IF(! get->body.empty())   << "  Body: " << get->body;
+  PLOG_VERBOSE                                     << "Method: " << std::wstring(get->method);
+  PLOG_VERBOSE                                     << "Target: " << ((get->https) ? "https://" : "http://") << get->wszHostName << get->wszHostPath;
+  PLOG_VERBOSE_IF(  get->wszExtraInfo[0] != L'\0') << " Query: " << get->wszExtraInfo;
+  PLOG_VERBOSE                                     << "   U-A: " << get->user_agent;
+  PLOG_VERBOSE_IF(! get->header.empty())           << "Header: " << get->header;
+  PLOG_VERBOSE_IF(! get->body.empty())             << "  Body: " << get->body;
 
   hInetRoot =
     InternetOpen (
-      L"Special K - Asset Crawler",
+      get->user_agent.c_str(),
         INTERNET_OPEN_TYPE_DIRECT,
           nullptr, nullptr,
             0x00 );
@@ -3679,7 +3681,7 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get)
 }
 
 DWORD
-SKIF_Util_GetWebResource (std::wstring url, std::wstring_view destination, std::wstring method, std::wstring header, std::string body)
+SKIF_Util_GetWebResource (std::wstring url, std::wstring_view destination, std::wstring method, std::wstring header, std::string body, std::wstring user_agent)
 {
   auto* get =
     new skif_get_web_uri_t { };
@@ -3705,6 +3707,9 @@ SKIF_Util_GetWebResource (std::wstring url, std::wstring_view destination, std::
 
   if (! body.empty())
     get->body = body;
+
+  if (! user_agent.empty())
+    get->user_agent = user_agent;
 
   if (InternetCrackUrl (url.c_str(), static_cast <DWORD> (url.length ()), 0x00, &urlcomps))
   {
