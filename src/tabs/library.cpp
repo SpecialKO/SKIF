@@ -153,7 +153,8 @@ std::vector <
 std::set    < std::string >
               g_apptickets;
 
-nlohmann::json jsonMetaDB;
+nlohmann::json       jsonMetaDB;
+std::recursive_mutex jsonMetaDB_mutex;
 
 const float fTintMin     = 0.75f;
       float fTint        = 1.0f;
@@ -580,6 +581,8 @@ JsonDB_CountElements (void)
 bool
 JsonDB_WriteFile (void)
 {
+  std::scoped_lock jsonLock (jsonMetaDB_mutex);
+
   if (! jsonMetaDB.is_discarded())
   {
     std::ofstream out_file(file_metadata);
@@ -607,6 +610,8 @@ JsonDB_WriteFile (void)
 bool
 JsonDB_UpdateApp (app_record_s* pApp, bool bWriteToDisk)
 {
+  std::scoped_lock jsonLock (jsonMetaDB_mutex);
+
   // Update the db.json file with any new values
   if (! jsonMetaDB.is_discarded())
   {
@@ -654,6 +659,8 @@ JsonDB_SetCategoryName (std::string szOld, std::string szNew)
 {
   if (szOld.empty())
     return false;
+
+  std::scoped_lock jsonLock (jsonMetaDB_mutex);
 
   if (! jsonMetaDB.is_discarded())
   {
@@ -5048,6 +5055,8 @@ SKIF_UI_Tab_DrawLibrary (void)
       std::ifstream file(file_metadata);
       if (file.is_open())
       {
+        std::scoped_lock jsonLock (jsonMetaDB_mutex);
+
         jsonMetaDB = nlohmann::json::parse(file, nullptr, false);
         file.close();
 
@@ -5115,6 +5124,8 @@ SKIF_UI_Tab_DrawLibrary (void)
         //     the app is installed.
         if (app.second._status.installed)
         {
+          std::scoped_lock jsonLock (jsonMetaDB_mutex);
+
           // Load any custom data
           if (! jsonMetaDB.is_discarded())
           {
@@ -8899,6 +8910,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         if (! static_category.rename || (static_category.rename && ! static_category.exists))
         {
+          std::scoped_lock jsonLock (jsonMetaDB_mutex);
+
           // Go through the whole jsonMetaDB object (even entries that is not a part of g_apps)
           //   and update/clear out the entries where the current category that we are working with is set
           JsonDB_SetCategoryName (static_category.Name, static_category.newName);
