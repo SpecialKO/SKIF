@@ -2209,7 +2209,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
       // Loop through the list, checking the existance of a lone \ not proceeded or followed by other \.
       // i == 0 to prevent szList[i - 1] from executing when at the first character.
-      for (i = 0, count = 0; szList[i] != '\0' && i < MAX_PATH * 128 * 2; i++)
+      for (i = 0, count = 0; szList[i] != '\0' && i < MAX_PATH * 512 * 2; i++)
         count += (szList[i] == '\\' && szList[i + 1] != '\\' && (i == 0 || szList[i - 1] != '\\'));
 
       if (count > 0)
@@ -2230,16 +2230,16 @@ SKIF_UI_Tab_DrawSettings (void)
       }
 
       // Loop through the list, counting the number of occurances of a newline
-      for (i = 0, count = 0; szList[i] != '\0' && i < MAX_PATH * 128 * 2; i++)
+      for (i = 0, count = 0; szList[i] != '\0' && i < MAX_PATH * 512 * 2; i++)
         count += (szList[i] == '\n');
 
-      if (count >= 128)
+      if (count >= 512)
       {
         ImGui::BeginGroup ();
         ImGui::Spacing    ();
         ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),      ICON_FA_LIGHTBULB);
         ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),   "The list can only include");
-        ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Failure),   " 128 ");
+        ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Failure),   " 512 ");
         ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),   "lines, though multiple can be combined using a pipe");
         ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success),   " | ");
         ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),   "character.");
@@ -2330,7 +2330,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     white_edited |=
       ImGui::InputTextEx ( "###WhitelistPatterns", "SteamApps\nEpic Games\\\\\nGOG Galaxy\\\\Games\nOrigin Games\\\\",
-                              _inject.whitelist, MAX_PATH * 128 - 1,
+                              _inject.whitelist, MAX_PATH * 512 - 1,
                                 ImVec2 ( 700 * SKIF_ImGui_GlobalDPIScale,
                                          150 * SKIF_ImGui_GlobalDPIScale ), // 120 // 150
                                   ImGuiInputTextFlags_Multiline );
@@ -2430,7 +2430,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     black_edited |=
       ImGui::InputTextEx ( "###BlacklistPatterns", "launcher.exe",
-                              _inject.blacklist, MAX_PATH * 128 - 1,
+                              _inject.blacklist, MAX_PATH * 512 - 1,
                                 ImVec2 ( 700 * SKIF_ImGui_GlobalDPIScale,
                                          120 * SKIF_ImGui_GlobalDPIScale ),
                                   ImGuiInputTextFlags_Multiline );
