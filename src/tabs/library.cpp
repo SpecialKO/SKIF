@@ -889,6 +889,15 @@ LaunchGame (app_record_s* pApp)
 
       static auto _instantLaunch = [&](app_record_s* pApp, SKIF_Util_CreateProcess_s* proc) -> bool
       {
+        // The "install" directory is often at least one level below where we should be...
+        //   generally we want the same path as gamelaunchhelper.exe and appxmanifest.xml
+        std::wstring          working_dir = pApp->install_dir;
+
+        // Current standard convention for Microsoft Store is to put everything in a Content subdir,
+        //   make sure we don't set the base directory as the working dir before launching.
+        if (PathFileExistsW ((working_dir +  LR"(\Content\appxmanifest.xml)").c_str ()))
+                              working_dir += LR"(\Content)";
+
         SKIF_Util_CreateProcess (
           L"",
           SK_FormatStringW (
@@ -897,10 +906,12 @@ LaunchGame (app_record_s* pApp)
             SK_UTF8ToWideChar (pApp->xbox.package_name_family).c_str(),
             launchConfig->getExecutableFullPath().c_str()
           ),
-          pApp->install_dir,
+          working_dir.c_str (),
           nullptr,
           proc
         );
+
+        PLOG_VERBOSE << "Using Working Directory for Xbox Instant Play... " << SK_WideCharToUTF8 (working_dir).c_str ();
 
         return (proc->dwProcessId != 0);
       };
