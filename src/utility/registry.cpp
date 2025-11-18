@@ -308,6 +308,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   bLowBandwidthMode        =   regKVLowBandwidthMode       .getData (&hKey);
   bInstantPlayGOG          =   regKVInstantPlayGOG         .getData (&hKey);
   bInstantPlaySteam        =   regKVInstantPlaySteam       .getData (&hKey);
+  bInstantPlayXbox         =   regKVInstantPlayXbox        .getData (&hKey);
   
   // UI elements that can be toggled
 

@@ -306,7 +306,7 @@ SKIF_GamingCollection::SortApps (std::vector <std::pair <std::string, app_record
 #pragma region RefreshRunningApps
 
 void
-SKIF_GamingCollection::RefreshRunningApps (std::vector <std::pair <std::string, app_record_s> > *apps)
+SKIF_GamingCollection::RefreshRunningApps (std::vector <std::pair <std::string, app_record_s> > *apps, bool forced)
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
@@ -321,7 +321,7 @@ SKIF_GamingCollection::RefreshRunningApps (std::vector <std::pair <std::string, 
   DWORD        current_time = SKIF_Util_timeGetTime ( );
   static DWORD last_checked = 0;
 
-  if (current_time > lastGameRefresh + 5000 && current_time > last_checked + 2500UL && (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( )))
+  if (forced || (current_time > lastGameRefresh + 5000 && current_time > last_checked + 2500UL && (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( ))))
   {
     last_checked = current_time;
 
@@ -402,15 +402,15 @@ SKIF_GamingCollection::RefreshRunningApps (std::vector <std::pair <std::string, 
 
           for (auto& app : *apps)
           {
-            if (! app.second.launch_configs.contains (0))
+            if (app.second._status.dwTimeDelayChecks > current_time && (! forced))
               continue;
 
-            if (app.second._status.dwTimeDelayChecks > current_time)
+            if (! app.second.launch_configs.contains (0))
               continue;
 
             // Workaround for Xbox games that run under the virtual folder, e.g. H:\Games\Xbox Games\Hades\Content\Hades.exe, by only checking the presence of the process name
             // TODO: Investigate if this is even really needed any longer? // Aemony, 2023-12-31
-            if (app.second.store == app_record_s::Store::Xbox && _wcsnicmp (app.second.launch_configs[0].getExecutableFileName ( ).c_str(), pe32.szExeFile, MAX_PATH) == 0)
+            if (app.second.store == app_record_s::Store::Xbox && StrStrIW (app.second.launch_configs[0].getExecutableFileName ( ).c_str(), pe32.szExeFile))
             {
               app.second._status.running     = true;
               app.second._status.running_pid = pe32.th32ProcessID;
@@ -435,7 +435,7 @@ SKIF_GamingCollection::RefreshRunningApps (std::vector <std::pair <std::string, 
               }
 
               // Epic, GOG and SKIF Custom should be straight forward
-              else if (_wcsnicmp (app.second.launch_configs[0].getExecutableFullPath ( ).c_str(), szExePath, szExePathLen) == 0) // full patch
+              else if (_wcsnicmp (app.second.launch_configs[0].getExecutableFullPath ( ).c_str(), szExePath, szExePathLen) == 0) // full path
               {
                 app.second._status.running     = true;
                 app.second._status.running_pid = pe32.th32ProcessID;

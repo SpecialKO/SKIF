@@ -1042,7 +1042,7 @@ SKIF_Util_CreateProcess (
     SKIF_Util_CreateProcess_s* proc;
   };
   
-  thread_s* data = new thread_s;
+  thread_s* data = new thread_s {};
 
   data->proc = proc;
 
@@ -1180,14 +1180,20 @@ SKIF_Util_CreateProcess (
         if (ShellExecuteExW (&sexi))
         {
           PLOG_INFO << "The operation was successful.";
-          _data->proc->iReturnCode.store (0);
-          _data->proc->hProcess.store    (sexi.hProcess);
+
+          if (_data->proc != nullptr)
+          {
+            _data->proc->iReturnCode.store (0);
+            _data->proc->hProcess.store    (sexi.hProcess);
+          }
         }
 
         else {
           error = GetLastError ( );
           PLOG_ERROR << "ShellExecuteEx failed: " << SKIF_Util_GetErrorAsWStr (error);
-          _data->proc->iReturnCode.store (error);
+
+          if (_data->proc != nullptr)
+              _data->proc->iReturnCode.store (error);
         }
 
         // Remove any custom environment variables
@@ -1201,7 +1207,9 @@ SKIF_Util_CreateProcess (
       // No fallback available
       else {
         PLOG_ERROR << "No fallback was available!";
-        _data->proc->iReturnCode.store (error);
+
+        if (_data->proc != nullptr)
+            _data->proc->iReturnCode.store (error);
       }
     }
 

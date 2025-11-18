@@ -131,7 +131,7 @@ int                    coverRefreshStore = 0;
 int                    numRegular        = 0;
 int                    numPinnedOnTop    = 0;
 
-// Support up to 15 running games at once, lol
+// Support up to 32 running games at once, lol
 SKIF_Util_CreateProcess_s iPlayCache[15] = { };
 
 struct SKIF_Lib_GameWorkerThread_s {
@@ -832,9 +832,14 @@ LaunchGame (app_record_s* pApp)
         && launchConfig->isExecutableFullPathValid ( ))
           launchInstant = true;
 
-        if (pApp->store == app_record_s::Store::GOG   &&
+        else if (pApp->store == app_record_s::Store::GOG   &&
             (pApp->skif.instant_play == 1 || // Always use Instant Play
             (pApp->skif.instant_play == 0 && _registry.bInstantPlayGOG))) // Use global default (and globally enabled)
+          launchInstant = true;
+
+        else if (pApp->store == app_record_s::Store::Xbox &&
+            (pApp->skif.instant_play == 1 || // Always use Instant Play
+            (pApp->skif.instant_play == 0 && _registry.bInstantPlayXbox))) // Use global default (and globally enabled)
           launchInstant = true;
       }
     }
@@ -842,6 +847,7 @@ LaunchGame (app_record_s* pApp)
 
     // LAUNCH PROCEDURES
 
+    pApp->launch_failed = false;
 
     // Launch Epic game
     if (pApp->store == app_record_s::Store::Epic)
@@ -868,7 +874,8 @@ LaunchGame (app_record_s* pApp)
     {
       PLOG_VERBOSE << "Performing an Xbox launch...";
 
-      SKIF_Util_CreateProcess_s* proc = nullptr;
+      static SKIF_Util_CreateProcess_s   default_proc = {};
+      SKIF_Util_CreateProcess_s* proc = &default_proc;
       for (auto& item : iPlayCache)
       {
         if (item.id == 0)
@@ -880,7 +887,7 @@ LaunchGame (app_record_s* pApp)
         }
       }
 
-      if (launchInstant)
+      static auto _instantLaunch = [&](app_record_s* pApp, SKIF_Util_CreateProcess_s* proc) -> bool
       {
         SKIF_Util_CreateProcess (
           L"",
@@ -894,17 +901,30 @@ LaunchGame (app_record_s* pApp)
           nullptr,
           proc
         );
+
+        return (proc->dwProcessId != 0);
+      };
+
+      static SKIF_Util_CreateProcess_s* launch_proc;
+      static bool                       launched;
+
+      launch_proc = nullptr;
+      launched    = false;
+
+      if (launchInstant)
+      {
+        launched = _instantLaunch (pApp, proc);
       }
 
       else if (SKIF_Util_CreateProcess (launchConfig->executable_helper, L"", L"", nullptr, proc))
       {
-        // Don't check the running state for at least 7.5 seconds
-        pApp->_status.dwTimeDelayChecks = current_time + 7500;
+        launch_proc = proc;
+
+        // Don't check the running state for at least 5.0 seconds
+        pApp->_status.dwTimeDelayChecks = current_time + 5000;
         pApp->_status.running           = true;
 
-        std::wstring iconPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\icon-original.ico)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->xbox.package_name).c_str());
-
-        SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), launchConfig->executable_helper, L"", launchConfig->getExecutableDir(), iconPath, (!localInjection && usingSK));
+        launched = true;
       }
 
       if (proc->hWorkerThread.load() == INVALID_HANDLE_VALUE)
@@ -913,6 +933,64 @@ LaunchGame (app_record_s* pApp)
 
         proc->id              =  0;
         proc->store_id        = -1;
+      }
+
+      // Fallback to Instant Play if that didn't work.
+      else if (pApp->_status.running_pid == 0 && ! launchInstant)
+      {
+        HANDLE hThread =
+        CreateThread (nullptr, 0x0, [](LPVOID pUser)->DWORD
+        {
+          app_record_s *pApp =
+            (app_record_s *)pUser;
+
+          SKIF_GamingCollection::RefreshRunningApps (&g_apps, true);
+
+          const DWORD dwTimeToCheck   = pApp->_status.dwTimeDelayChecks;
+          const DWORD dwTimeToReCheck = pApp->_status.dwTimeDelayChecks + 333UL;
+
+          while (SKIF_Util_timeGetTime () < dwTimeToCheck)
+          {
+            SleepEx (100, FALSE);
+
+            SKIF_GamingCollection::RefreshRunningApps (&g_apps, true);
+
+            if (pApp->_status.running_pid != 0)
+              break;
+          }
+
+          while (SKIF_Util_timeGetTime () < dwTimeToReCheck)
+          {
+            SleepEx (50, FALSE);
+          }
+
+          SKIF_GamingCollection::RefreshRunningApps (&g_apps, true);
+
+          // Fallback to Instant Play if that didn't work.
+          if (pApp->_status.running_pid == 0)
+          {
+            PLOG_ERROR << "Xbox Game Launch Timed Out, attempting Instant Play instead";
+
+            launched =
+              _instantLaunch (pApp, launch_proc);
+
+            if (launched)
+            {
+              pApp->launch_failed = true;
+              ModifyGamePopup     = PopupState_Open;
+            }
+          }
+
+          return 0;
+        }, pApp, 0x0, nullptr);
+
+        CloseHandle (hThread);
+      }
+
+      if (launched)
+      {
+        std::wstring iconPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\icon-original.ico)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->xbox.package_name).c_str());
+        SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), launchConfig->executable_helper, L"", launchConfig->getExecutableDir(), iconPath, (!localInjection && usingSK));
       }
     }
 
@@ -1925,7 +2003,7 @@ DrawGameContextMenu (app_record_s* pApp)
   // Instant Play options
   if (SteamShortcutPossible || pApp->store != app_record_s::Store::Steam)
   {
-    if (pApp->ui.numSecondaryLaunchConfigs > 0 || (pApp->store == app_record_s::Store::Steam || pApp->store == app_record_s::Store::GOG))
+    if (pApp->ui.numSecondaryLaunchConfigs > 0 || (pApp->store == app_record_s::Store::Steam || pApp->store == app_record_s::Store::GOG || pApp->store == app_record_s::Store::Xbox))
       ImGui::Separator ( );
 
     // If there is only one valid launch config (Steam, GOG, Xbox games only)
@@ -2091,7 +2169,7 @@ DrawGameContextMenu (app_record_s* pApp)
         ImGui::EndMenu ();
       }
 
-      if (pApp->store == app_record_s::Store::Steam || pApp->store == app_record_s::Store::GOG)
+      if (pApp->isInstantPlayCompatible ())
         SKIF_ImGui_SetHoverTip  ("Skips the regular platform launch process for the game,\n"
                                   "including steps such as cloud saves synchronization.");
 
@@ -5203,11 +5281,9 @@ SKIF_UI_Tab_DrawLibrary (void)
               time_t          last_played    = (time_t)strtol(app.second.skif.used.c_str(), NULL, 10);
               app.second.skif.used_formatted = SK_WideCharToUTF8 (SKIF_Util_timeGetTimeAsWStr (last_played));
                 
-              if ((app.second.store == app_record_s::Store::Steam ||
-                   app.second.store == app_record_s::Store::GOG   ||
-                   app.second.store == app_record_s::Store::Xbox) && key.contains("InstantPlay"))
+              if (app.second.isInstantPlayCompatible () && key.contains ("InstantPlay"))
               {
-                app.second.skif.instant_play = key.at("InstantPlay");
+                app.second.skif.instant_play = key.at ("InstantPlay");
               }
 
               // This also populates the JSON object with empty entries for new games
@@ -5222,9 +5298,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                 { "Pin",      app.second.skif.pinned    }
               };
 
-              if (app.second.store == app_record_s::Store::Steam ||
-                  app.second.store == app_record_s::Store::GOG   ||
-                  app.second.store == app_record_s::Store::Xbox)
+              if (app.second.isInstantPlayCompatible ())
                 key += { "InstantPlay", app.second.skif.instant_play };
             }
             catch (const std::exception&)
@@ -8377,7 +8451,14 @@ SKIF_UI_Tab_DrawLibrary (void)
   ImGui::SetNextWindowSize (ImVec2 (fModifyGamePopupWidth, 0.0f));
   ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
 
-  if (ImGui::BeginPopupModal ("Manage Game###ModifyGamePopup", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize))
+  const bool failure_induced_popup =
+    pApp != nullptr && pApp->launch_failed;
+
+  const char* title =
+      failure_induced_popup ? "Standard Game Launch Failed - Instant Play Was Used Instead###ModifyGamePopup"
+                            : "Manage Game###ModifyGamePopup";
+
+  if (ImGui::BeginPopupModal (title, nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize))
   {
     static char charName     [MAX_PATH + 2] = { },
                 hintName     [MAX_PATH + 2] = { },
@@ -8595,22 +8676,40 @@ SKIF_UI_Tab_DrawLibrary (void)
           "Use Instant Play:"
       );
 
+      if (pApp->launch_failed)
+      {
+        ImGui::SameLine (); SKIF_ImGui_Spacing ( );
+        ImGui::SameLine (); SKIF_ImGui_Spacing ( );
+        ImGui::SameLine ();
+
+        ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), "Standard Launch Failed!");
+      }
+
       ImGui::TreePush        ("ManageGame_InstantPlay");
       ImGui::RadioButton     (
         SKIF_Util_FormatStringRaw ("Default (%s)", ((_registry.bInstantPlaySteam && pApp->store == app_record_s::Store::Steam) ||
-                                             (_registry.bInstantPlayGOG   && pApp->store == app_record_s::Store::GOG))
+                                                    (_registry.bInstantPlayGOG   && pApp->store == app_record_s::Store::GOG)   ||
+                                                    (_registry.bInstantPlayXbox  && pApp->store == app_record_s::Store::Xbox))
                                             ? "Always" : "Never"), &cached_instant_play, 0);
       SKIF_ImGui_SetHoverTip ("The game will use the default behavior configured in the Settings tab.");
       ImGui::SameLine        ( );
       ImGui::RadioButton     ("Never",             &cached_instant_play, 2);
       SKIF_ImGui_SetHoverTip ("The game will never use instant play except\nwhen launched through the right click menu.");
       ImGui::SameLine        ( );
-      ImGui::RadioButton     ("Always",            &cached_instant_play, 1);
-      SKIF_ImGui_SetHoverTip ("The game will always use instant play except\nwhen launched through the right click menu.");
+      if (pApp->launch_failed && cached_instant_play != 1)
+      {
+        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info));
+        ImGui::RadioButton   ("Always",            &cached_instant_play, 1);
+        ImGui::PopStyleColor ();
+        SKIF_ImGui_SetHoverTip ("This game may not launch correctly unless Always is set.");
+      } else {
+        ImGui::RadioButton     ("Always",            &cached_instant_play, 1);
+        SKIF_ImGui_SetHoverTip ("The game will always use instant play except\nwhen launched through the right click menu.");
+      }
       ImGui::TreePop         ( );
         
-      SKIF_ImGui_Spacing ( );
-      SKIF_ImGui_Spacing ( );
+      SKIF_ImGui_Spacing     ( );
+      SKIF_ImGui_Spacing     ( );
     }
 
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
@@ -8640,8 +8739,8 @@ SKIF_UI_Tab_DrawLibrary (void)
     SKIF_ImGui_SetHoverTip ("Warning: The service will remain even\nafter the game has been closed.");
     ImGui::TreePop         ( );
     
-    SKIF_ImGui_Spacing ( );
-    SKIF_ImGui_Spacing ( );
+    SKIF_ImGui_Spacing     ( );
+    SKIF_ImGui_Spacing     ( );
 
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -8774,6 +8873,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       ModifyGamePopup = PopupState_Closed;
       ImGui::CloseCurrentPopup ( );
+
+      if (pApp != nullptr)
+          pApp->launch_failed = false;
     }
 
     SKIF_ImGui_DisallowMouseDragMove ( );
@@ -8788,6 +8890,9 @@ SKIF_UI_Tab_DrawLibrary (void)
   }
   else {
     ModifyGamePopup = PopupState_Closed;
+
+    if (pApp != nullptr)
+        pApp->launch_failed = false;
   }
 
   

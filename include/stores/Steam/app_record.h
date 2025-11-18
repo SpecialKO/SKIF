@@ -201,6 +201,19 @@ struct app_record_s {
     std::string    localized_name; // UTF-8
   };
 
+  bool isInstantPlayCompatible (void) const {
+    switch (store)
+    {
+      case Store::GOG:
+      case Store::Steam:
+      case Store::Xbox:
+        return true;
+
+      default:
+        return false;
+    }
+  }
+
   struct common_config_s {
 
     enum class AppType {   // Used by Steam to indicate the type of "app" we're dealing with
@@ -460,6 +473,8 @@ struct app_record_s {
     std::wstring directory_app           = L""; // AppDirectory; Holds the x:\WindowsApps\<package-full-name> path
     std::wstring directory_program_files = L""; // Program Files directory; Holds the C:\Program Files\WindowsApps\<package-full-name> path
   } xbox;
+
+  bool           launch_failed           = false;
 
   template <class _Tp> static
     constexpr bool

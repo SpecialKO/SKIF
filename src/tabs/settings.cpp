@@ -1332,14 +1332,12 @@ SKIF_UI_Tab_DrawSettings (void)
     if (ImGui::Checkbox       ("Steam",       &_registry.bInstantPlaySteam))
       _registry.regKVInstantPlaySteam.putData (_registry.bInstantPlaySteam);
     
-    /* NEED MORE TESTING
     ImGui::SameLine ( );
     ImGui::Spacing  ( );
     ImGui::SameLine ( );
 
     if (ImGui::Checkbox       ("Xbox",        &_registry.bInstantPlayXbox))
       _registry.regKVInstantPlayXbox.putData  (_registry.bInstantPlayXbox);
-    */
 
     ImGui::TreePop          ( );
 

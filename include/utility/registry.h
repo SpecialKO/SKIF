@@ -195,6 +195,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Instant Play Steam)" );
 
+  KeyValue <bool> regKVInstantPlayXbox =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Instant Play Xbox)" );
+
   KeyValue <bool> regKVRememberLastSelected =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Remember Last Selected)" );
@@ -603,6 +607,7 @@ struct SKIF_RegistrySettings {
   bool bLowBandwidthMode        = false;
   bool bInstantPlayGOG          = false;
   bool bInstantPlaySteam        = false;
+  bool bInstantPlayXbox         = false;
   bool bMaximizeOnDoubleClick   = false;
   bool bMinimizeOnGameLaunch    = false;
   bool bRestoreOnGameExit       = false;

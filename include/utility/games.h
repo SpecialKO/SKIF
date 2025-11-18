@@ -43,7 +43,7 @@ struct SKIF_GamingCollection {
       static SKIF_GamingCollection instance;
       return instance;
   }
-  static void RefreshRunningApps (std::vector <std::pair <std::string, app_record_s> > *apps);
+  static void RefreshRunningApps (std::vector <std::pair <std::string, app_record_s> > *apps, bool forced = false);
   static void SortApps (std::vector <std::pair <std::string, app_record_s> > *apps);
   SKIF_GamingCollection (SKIF_GamingCollection const&) = delete; // Delete copy constructor
   SKIF_GamingCollection (SKIF_GamingCollection&&)      = delete; // Delete move constructor
