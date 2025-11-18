@@ -767,20 +767,20 @@ LaunchGame (app_record_s* pApp)
       {
         // Whitelist the path if it haven't been already
         // Instant launches needs to fall back to the regular approach
-        if (pApp->store == app_record_s::Store::Xbox && ! launchInstant)
+        if (pApp->store == app_record_s::Store::Xbox)
         {
           if (! _inject._TestUserList (SK_WideCharToUTF8 (pApp->xbox.directory_app).c_str(), true))
           {
             if (_inject.WhitelistPattern (pApp->xbox.package_name))
               _inject.SaveWhitelist ( );
           }
-        }
 
-        else
-        {
-          if (launchConfig->isExecutableFullPathValid ( ) &&
-              _inject.WhitelistPath (launchConfig->getExecutableFullPathUTF8 ( )))
-            _inject.SaveWhitelist ( );
+          if (! _inject._TestUserList (launchConfig->getExecutableFullPathUTF8 ( ).c_str (), true))
+          {
+            if (launchConfig->isExecutableFullPathValid ( ) &&
+                _inject.WhitelistPath (launchConfig->getExecutableFullPathUTF8 ( )))
+              _inject.SaveWhitelist ( );
+          }
         }
 
         // Disable the first service notification

@@ -324,7 +324,7 @@ SKIF_GamingCollection::RefreshRunningApps (std::vector <std::pair <std::string, 
   bool focused          = SKIF_ImGui_IsFocused ();
   int  focus_multiplier = focused ? 1 : 10;
 
-  if (forced || (current_time > lastGameRefresh + 666 * focus_multiplier && current_time > last_checked + 333UL * focus_multiplier && (! ImGui::IsAnyMouseDown ( ) && SKIF_ImGui_IsFocused ( ))))
+  if (forced || (current_time > lastGameRefresh + 666 * focus_multiplier && current_time > last_checked + 333UL * focus_multiplier && (! ImGui::IsAnyMouseDown ( ))))
   {
     if (! forced)
       last_checked = current_time;
