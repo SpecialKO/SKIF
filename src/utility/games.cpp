@@ -321,15 +321,19 @@ SKIF_GamingCollection::RefreshRunningApps (std::vector <std::pair <std::string, 
   DWORD        current_time = SKIF_Util_timeGetTime ( );
   static DWORD last_checked = 0;
 
-  if (forced || (current_time > lastGameRefresh + 5000 && current_time > last_checked + 2500UL && (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( ))))
+  bool focused          = SKIF_ImGui_IsFocused ();
+  int  focus_multiplier = focused ? 1 : 10;
+
+  if (forced || (current_time > lastGameRefresh + 666 * focus_multiplier && current_time > last_checked + 333UL * focus_multiplier && (! ImGui::IsAnyMouseDown ( ) && SKIF_ImGui_IsFocused ( ))))
   {
-    last_checked = current_time;
+    if (! forced)
+      last_checked = current_time;
 
     bool new_steamRunning = false;
 
     for (auto& app : *apps)
     {
-      if (app.second._status.dwTimeDelayChecks > current_time)
+      if (app.second._status.dwTimeDelayChecks > current_time && (! forced))
         continue;
 
       app.second._status.running_pid = 0;
@@ -479,7 +483,8 @@ SKIF_GamingCollection::RefreshRunningApps (std::vector <std::pair <std::string, 
 
     steamRunning = new_steamRunning;
 
-    lastGameRefresh = current_time;
+    if (! forced)
+      lastGameRefresh = current_time;
   }
 
   

@@ -920,8 +920,8 @@ LaunchGame (app_record_s* pApp)
       {
         launch_proc = proc;
 
-        // Don't check the running state for at least 5.0 seconds
-        pApp->_status.dwTimeDelayChecks = current_time + 5000;
+        // Don't check the running state for at least 3.0 seconds
+        pApp->_status.dwTimeDelayChecks = current_time + 3000;
         pApp->_status.running           = true;
 
         launched = true;
@@ -938,7 +938,10 @@ LaunchGame (app_record_s* pApp)
       // Fallback to Instant Play if that didn't work.
       else if (pApp->_status.running_pid == 0 && ! launchInstant)
       {
-        HANDLE hThread =
+        static HANDLE
+            highlander = 0; // We don't need more than one of these :)
+        if (highlander == 0)
+            highlander =
         CreateThread (nullptr, 0x0, [](LPVOID pUser)->DWORD
         {
           app_record_s *pApp =
@@ -947,11 +950,11 @@ LaunchGame (app_record_s* pApp)
           SKIF_GamingCollection::RefreshRunningApps (&g_apps, true);
 
           const DWORD dwTimeToCheck   = pApp->_status.dwTimeDelayChecks;
-          const DWORD dwTimeToReCheck = pApp->_status.dwTimeDelayChecks + 333UL;
+          const DWORD dwTimeToReCheck = pApp->_status.dwTimeDelayChecks + 250UL;
 
           while (SKIF_Util_timeGetTime () < dwTimeToCheck)
           {
-            SleepEx (100, FALSE);
+            SleepEx (250, FALSE);
 
             SKIF_GamingCollection::RefreshRunningApps (&g_apps, true);
 
@@ -964,8 +967,6 @@ LaunchGame (app_record_s* pApp)
             SleepEx (50, FALSE);
           }
 
-          SKIF_GamingCollection::RefreshRunningApps (&g_apps, true);
-
           // Fallback to Instant Play if that didn't work.
           if (pApp->_status.running_pid == 0)
           {
@@ -976,15 +977,26 @@ LaunchGame (app_record_s* pApp)
 
             if (launched)
             {
-              pApp->launch_failed = true;
-              ModifyGamePopup     = PopupState_Open;
+              while (pApp->_status.running_pid == 0 && SKIF_Util_timeGetTime () < pApp->_status.dwTimeDelayChecks + 10000UL)
+              {
+                SleepEx (500, FALSE);
+
+                SKIF_GamingCollection::RefreshRunningApps (&g_apps, true);
+
+                if (pApp->_status.running_pid != 0)
+                {
+                  pApp->launch_failed = true;
+                  ModifyGamePopup     = PopupState_Open;
+                  break;
+                }
+              }
             }
           }
 
+          CloseHandle (std::exchange (highlander, (HANDLE)0));
+
           return 0;
         }, pApp, 0x0, nullptr);
-
-        CloseHandle (hThread);
       }
 
       if (launched)
