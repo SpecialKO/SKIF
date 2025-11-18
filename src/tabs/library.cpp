@@ -774,7 +774,12 @@ LaunchGame (app_record_s* pApp)
             if (_inject.WhitelistPattern (pApp->xbox.package_name))
               _inject.SaveWhitelist ( );
           }
+        }
 
+        // Steam and EGS are the only stores that do not require manual whitelisting;
+        //   Instant Play is not even supported for EGS at the moment.
+        if (pApp->store != app_record_s::Store::Steam)
+        {
           if (! _inject._TestUserList (launchConfig->getExecutableFullPathUTF8 ( ).c_str (), true))
           {
             if (launchConfig->isExecutableFullPathValid ( ) &&
