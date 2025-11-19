@@ -823,7 +823,7 @@ SK_ImGui_KeybindDialog (SK_Keybind* keybind)
     ImGui::Separator   ( );
 
     ImGui::TextColored (ImVec4 (0.6f, 0.6f, 0.6f, 1.f),
-                        "Press BACKSPACE to clear, or ESC to cancel.");
+                        "Press BACKSPACE to clear, or ESC to confirm.");
 
     // Update the key binding after printing out the current one, to prevent a one-frame graphics glitch
     if (bBackspace)

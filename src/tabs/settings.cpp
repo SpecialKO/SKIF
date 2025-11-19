@@ -1868,11 +1868,13 @@ SKIF_UI_Tab_DrawSettings (void)
       if (! keybind._show())
         continue;
 
+      ImGui::PushID (keybind._key->bind_name);
       if (SK_ImGui_Keybinding (keybind._key))
       {
         keybind._reg->putData (keybind._key->human_readable);
         keybind._callback    (&keybind);
       }
+      ImGui::PopID ();
     }
     ImGui::EndGroup   ();
   }

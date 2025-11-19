@@ -730,31 +730,6 @@ LaunchGame (app_record_s* pApp)
   if (launchConfig == nullptr)
     return;
 
-  // Common to all Chips-A-Hoy Asian Gambling Games
-  if (! launchConfig->isElevated ())
-  {
-    bool reconfig = false;
-
-    if (PathFileExistsW (L"HYPHelper.exe"))
-    {
-      launchConfig->setElevated (true);
-                      reconfig = true;
-    }
-
-    else if (StrStrIW (launchConfig->getExecutableFullPath ().c_str (), L"Wuthering Waves.exe") ||
-             StrStrIW (launchConfig->getExecutableFullPath ().c_str (), L"wwm.exe"))
-    {
-      launchConfig->setElevated (true);
-                      reconfig = true;
-    }
-
-    if (reconfig)
-    {
-      // Update any locally stored metadata
-      JsonDB_UpdateApp (pApp, true);
-    }
-  }
-
   DWORD current_time = SKIF_Util_timeGetTime ( );
 
   if ( pApp->store != app_record_s::Store::Steam && pApp->store != app_record_s::Store::Epic &&
