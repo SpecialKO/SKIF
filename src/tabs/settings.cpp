@@ -3040,17 +3040,17 @@ SKIF_UI_Tab_DrawSettings (void)
           std::wstring cmd = L"";
 
           switch (MessageBox (NULL,
-            L"Restart the display drivers to apply the changes.\n"
+            L"Restart the display drivers and desktop window manager (DWM) to apply the changes.\n"
             L"\n"
-            L"Some games and applications (e.g. Steam, Discord) may close or crash when the drivers are restarted.\n"
+            L"Some games and applications (e.g. Steam, Discord) may close or crash when the drivers or DWM are restarted.\n"
             L"\n"
-            L"Do you want to restart the display drivers now?",
-            L"Restart the display drivers?", MB_ICONQUESTION | MB_YESNOCANCEL))
+            L"Do you want to restart the display drivers and DWM now?",
+            L"Restart the display drivers and desktop window manager (DWM)?", MB_ICONQUESTION | MB_YESNOCANCEL))
           {
 
-          // When YES is used, we reset the registry keys and restart the display drivers
+          // When YES is used, we reset the registry keys and restart the display drivers and DWM
           case IDYES:
-            cmd = L"ResetOverlayMode RestartDisplDrv";
+            cmd = L"ResetOverlayMode RestartDisplDrv RestartDWM";
             break;
 
           // When NO is used, we only reset the registry keys.
@@ -3163,10 +3163,56 @@ SKIF_UI_Tab_DrawSettings (void)
 
       ImGui::Separator ( );
 
-      if (ImGui::Selectable (ICON_FA_ROTATE_RIGHT " Restart display driver"))
+      if (! SKIF_Util_IsMPOsDisabledInRegistry ( ))
+      {
+
+        if (ImGui::Selectable (ICON_FA_USER_SHIELD " Disable MPOs"))
+        {
+          std::wstring cmd = L"";
+
+          switch (MessageBox (NULL,
+            L"Restart the display drivers and desktop window manager (DWM) to apply the changes.\n"
+            L"\n"
+            L"Some games and applications (e.g. Steam, Discord) may close or crash when the drivers or DWM are restarted.\n"
+            L"\n"
+            L"Do you want to restart the display drivers and DWM now?",
+            L"Restart the display drivers and desktop window manager (DWM)?", MB_ICONQUESTION | MB_YESNOCANCEL))
+          {
+
+          // When YES is used, we reset the registry keys and restart the display drivers and DWM
+          case IDYES:
+            cmd = L"DisableOverlayMode RestartDisplDrv RestartDWM";
+            break;
+
+          // When NO is used, we only reset the registry keys.
+          case IDNO:
+            cmd = L"DisableOverlayMode";
+            break;
+
+          // When CANCEL is used, we do nothing.
+          case IDCANCEL:
+            break;
+          }
+
+          if (! cmd.empty() && ShellExecuteW (nullptr, L"runas", _path_cache.skif_executable, cmd.c_str(), nullptr, SW_SHOWNORMAL) > (HINSTANCE)32)
+          {
+            dwTriggerNewRefresh = SKIF_Util_timeGetTime ( ) + 5000; // Trigger a refresh in 500ms
+          }
+        }
+
+        ImGui::Separator ( );
+      }
+
+      if (ImGui::Selectable (ICON_FA_USER_SHIELD " Restart display driver"))
       {
         PLOG_DEBUG << "Restarting the display driver...";
         ShellExecuteW (nullptr, L"runas", _path_cache.skif_executable, L"RestartDisplDrv", nullptr, SW_SHOWNORMAL);
+      }
+
+      if (ImGui::Selectable (ICON_FA_USER_SHIELD " Restart DWM"))
+      {
+        PLOG_DEBUG << "Restarting the Desktop Window Manager (DWM)...";
+        ShellExecuteW (nullptr, L"runas", _path_cache.skif_executable, L"RestartDWM", nullptr, SW_SHOWNORMAL);
       }
 
       ImGui::EndPopup ( );
