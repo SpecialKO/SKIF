@@ -3163,45 +3163,46 @@ SKIF_UI_Tab_DrawSettings (void)
 
       ImGui::Separator ( );
 
-      if (! SKIF_Util_IsMPOsDisabledInRegistry ( ))
+      bool disabled = SKIF_Util_IsMPOsDisabledInRegistry ( );
+
+      if (ImGui::Selectable (disabled ? ICON_FA_USER_SHIELD " Enable MPOs"
+                                      : ICON_FA_USER_SHIELD " Disable MPOs"))
       {
+        std::wstring cmd = L"";
 
-        if (ImGui::Selectable (ICON_FA_USER_SHIELD " Disable MPOs"))
+        switch (MessageBox (NULL,
+          L"Restart the display drivers and desktop window manager (DWM) to apply the changes.\n"
+          L"\n"
+          L"Some games and applications (e.g. Steam, Discord) may close or crash when the drivers or DWM are restarted.\n"
+          L"\n"
+          L"Do you want to restart the display drivers and DWM now?",
+          L"Restart the display drivers and desktop window manager (DWM)?", MB_ICONQUESTION | MB_YESNOCANCEL))
         {
-          std::wstring cmd = L"";
 
-          switch (MessageBox (NULL,
-            L"Restart the display drivers and desktop window manager (DWM) to apply the changes.\n"
-            L"\n"
-            L"Some games and applications (e.g. Steam, Discord) may close or crash when the drivers or DWM are restarted.\n"
-            L"\n"
-            L"Do you want to restart the display drivers and DWM now?",
-            L"Restart the display drivers and desktop window manager (DWM)?", MB_ICONQUESTION | MB_YESNOCANCEL))
-          {
+        // When YES is used, we reset the registry keys and restart the display drivers and DWM
+        case IDYES:
+          cmd = disabled ? L"ResetOverlayMode RestartDisplDrv RestartDWM" :
+                           L"DisableOverlayMode RestartDisplDrv RestartDWM";
+          break;
 
-          // When YES is used, we reset the registry keys and restart the display drivers and DWM
-          case IDYES:
-            cmd = L"DisableOverlayMode RestartDisplDrv RestartDWM";
-            break;
+        // When NO is used, we only reset the registry keys.
+        case IDNO:
+          cmd = disabled ? L"ResetOverlayMode" :
+                           L"DisableOverlayMode";
+          break;
 
-          // When NO is used, we only reset the registry keys.
-          case IDNO:
-            cmd = L"DisableOverlayMode";
-            break;
-
-          // When CANCEL is used, we do nothing.
-          case IDCANCEL:
-            break;
-          }
-
-          if (! cmd.empty() && ShellExecuteW (nullptr, L"runas", _path_cache.skif_executable, cmd.c_str(), nullptr, SW_SHOWNORMAL) > (HINSTANCE)32)
-          {
-            dwTriggerNewRefresh = SKIF_Util_timeGetTime ( ) + 5000; // Trigger a refresh in 500ms
-          }
+        // When CANCEL is used, we do nothing.
+        case IDCANCEL:
+          break;
         }
 
-        ImGui::Separator ( );
+        if (! cmd.empty() && ShellExecuteW (nullptr, L"runas", _path_cache.skif_executable, cmd.c_str(), nullptr, SW_SHOWNORMAL) > (HINSTANCE)32)
+        {
+          dwTriggerNewRefresh = SKIF_Util_timeGetTime ( ) + 5000; // Trigger a refresh in 500ms
+        }
       }
+
+      ImGui::Separator ( );
 
       if (ImGui::Selectable (ICON_FA_USER_SHIELD " Restart display driver"))
       {
