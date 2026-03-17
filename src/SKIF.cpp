@@ -62,8 +62,9 @@
 
 #include <stores/Steam/app_record.h>
 
-#include <tabs/about.h>
+#include <tabs/hardware.h>
 #include <tabs/settings.h>
+#include <tabs/about.h>
 
 #include <utility/registry.h>
 #include <utility/updater.h>
@@ -153,6 +154,7 @@ bool         GOGGalaxy_Installed   = false;
 
 DWORD    RepopulateGamesWasSet     = 0;
 bool     RepopulateGames           = false,
+         RefreshHardwareTab        = false,
          RefreshSettingsTab        = false;
 uint32_t SelectNewSKIFGame         = 0;
 
@@ -1936,8 +1938,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
          hotkeyCtrlN = (io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_N  )->DownDuration == 0.0f), // Minimize app
          hotkeyCtrl1 = (io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_1  )->DownDuration == 0.0f), // Switch to Library
          hotkeyCtrl2 = (io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_2  )->DownDuration == 0.0f), // Switch to Monitor
-         hotkeyCtrl3 = (io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_3  )->DownDuration == 0.0f), // Switch to Settings
-         hotkeyCtrl4 = (io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_4  )->DownDuration == 0.0f); // Switch to About
+         hotkeyCtrl3 = (io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_3  )->DownDuration == 0.0f), // Switch to Hardware
+         hotkeyCtrl4 = (io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_4  )->DownDuration == 0.0f), // Switch to Settings
+         hotkeyCtrl5 = (io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_5  )->DownDuration == 0.0f); // Switch to About
 
     auto _TranslateAndDispatch = [&](void) -> bool
     {
@@ -2604,6 +2607,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (SKIF_Tab_Selected == UITab_Library)
           RepopulateGames   = true;
 
+        if (SKIF_Tab_Selected == UITab_Hardware)
+          RefreshHardwareTab = true;
+
         if (SKIF_Tab_Selected == UITab_Settings)
           RefreshSettingsTab = true;
       }
@@ -2630,11 +2636,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         if (hotkeyCtrl3)
         {
+          if (SKIF_Tab_Selected != UITab_Hardware)
+              SKIF_Tab_ChangeTo  = UITab_Hardware;
+        }
+
+        if (hotkeyCtrl4)
+        {
           if (SKIF_Tab_Selected != UITab_Settings)
               SKIF_Tab_ChangeTo  = UITab_Settings;
         }
 
-        if (hotkeyCtrl4)
+        if (hotkeyCtrl5)
         {
           if (SKIF_Tab_Selected != UITab_About)
               SKIF_Tab_ChangeTo  = UITab_About;
@@ -2725,11 +2737,28 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       else
       {
+        static char tabTitleLibraryL[]  = " " ICON_FA_GAMEPAD " Library ###SKIF_TAB_BAR-1",
+                    tabTitleLibraryS[]  = " " ICON_FA_GAMEPAD " ###SKIF_TAB_BAR-1",
+                    tabTitleMonitorL[]  = " " ICON_FA_MICROCHIP " Monitor ###SKIF_TAB_BAR-2",
+                    tabTitleMonitorS[]  = " " ICON_FA_MICROCHIP " ###SKIF_TAB_BAR-2",
+                    tabTitleHardwareL[] = " " ICON_FA_DISPLAY " Hardware ###SKIF_TAB_BAR-3",
+                    tabTitleHardwareS[] = " " ICON_FA_DISPLAY " ###SKIF_TAB_BAR-3",
+                    tabTitleSettingsL[] = " " ICON_FA_LIST_CHECK " Settings ###SKIF_TAB_BAR-4",
+                    tabTitleSettingsS[] = " " ICON_FA_LIST_CHECK " ###SKIF_TAB_BAR-4",
+                    tabTitleAboutL[]    = " " ICON_FA_COMMENT " About ###SKIF_TAB_BAR-5",
+                    tabTitleAboutS[]    = " " ICON_FA_COMMENT " ###SKIF_TAB_BAR-5";
+
+        char *tabTitleLibrary  = (ImGui::GetWindowSize ().x < 435.f * SKIF_ImGui_GlobalDPIScale) ? tabTitleLibraryS  : tabTitleLibraryL,
+             *tabTitleMonitor  = (ImGui::GetWindowSize ().x < 490.f * SKIF_ImGui_GlobalDPIScale) ? tabTitleMonitorS  : tabTitleMonitorL,
+             *tabTitleHardware = (ImGui::GetWindowSize ().x < 555.f * SKIF_ImGui_GlobalDPIScale) ? tabTitleHardwareS : tabTitleHardwareL,
+             *tabTitleSettings = (ImGui::GetWindowSize ().x < 610.f * SKIF_ImGui_GlobalDPIScale) ? tabTitleSettingsS : tabTitleSettingsL,
+             *tabTitleAbout    = (ImGui::GetWindowSize ().x < 650.f * SKIF_ImGui_GlobalDPIScale) ? tabTitleAboutS    : tabTitleAboutL;
+
         ImGui::BeginTabBar ( "###SKIF_TAB_BAR",
                                ImGuiTabBarFlags_FittingPolicyResizeDown |
                                ImGuiTabBarFlags_FittingPolicyScroll );
 
-        if (ImGui::BeginTabItem (" " ICON_FA_GAMEPAD " Library ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Library) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
+        if (ImGui::BeginTabItem (tabTitleLibrary, nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Library) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
         {
           SKIF_ImGui_BeginTabChildFrame ();
 
@@ -2774,7 +2803,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           _drag_drop.Revoke (SKIF_ImGui_hWnd);
 
 
-        if (ImGui::BeginTabItem (" " ICON_FA_MICROCHIP " Monitor ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Monitor) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
+        if (ImGui::BeginTabItem (tabTitleMonitor, nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Monitor) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
         {
           SKIF_ImGui_BeginTabChildFrame ();
 
@@ -2796,7 +2825,23 @@ wWinMain ( _In_     HINSTANCE hInstance,
           hModSpecialK = nullptr;
         }
 
-        if (ImGui::BeginTabItem (" " ICON_FA_LIST_CHECK " Settings ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Settings) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
+        if (ImGui::BeginTabItem (tabTitleHardware, nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Hardware) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
+        {
+          SKIF_ImGui_BeginTabChildFrame ();
+
+          if (SKIF_Tab_Selected != UITab_Hardware)
+            PLOG_DEBUG << "Switched to tab: Hardware";
+
+          SKIF_UI_Tab_DrawHardware( );
+
+          // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
+          SKIF_ImGui_AutoScroll  (true, SKIF_ImGuiAxis_Y);
+
+          ImGui::EndChild         ( );
+          ImGui::EndTabItem       ( );
+        }
+
+        if (ImGui::BeginTabItem (tabTitleSettings, nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Settings) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
         {
           SKIF_ImGui_BeginTabChildFrame ();
 
@@ -2812,7 +2857,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::EndTabItem       ( );
         }
         
-        if (ImGui::BeginTabItem (" " ICON_FA_COMMENT " About ", nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_About) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
+        if (ImGui::BeginTabItem (tabTitleAbout, nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_About) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
         {
           SKIF_ImGui_BeginTabChildFrame ();
 
@@ -2996,9 +3041,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
          24.0f
       );
 
-      bool showBtnHorizon  = true,
-           showBtnService  = true,
-           showBtnMinimize = true;
+      bool showBtnHorizon  = true;
 
       // If in service mode
       if (_registry.bMiniMode)
@@ -3007,29 +3050,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
         window_btn_size.x -= 48.0f; // -48px due to one less button
       }
 
-      // Regular mode: Three less buttons
-      else if (ImGui::GetWindowSize ().x < 450.0f * SKIF_ImGui_GlobalDPIScale)
-      {
-        showBtnHorizon = false;
-        window_btn_size.x -= 48.0f;
-        showBtnService = false;
-        window_btn_size.x -= 48.0f;
-        showBtnMinimize = false;
-        window_btn_size.x -= 38.0f; // Special handling for this one
-      }
-
-      // Regular mode: Two less buttons
-      else if (ImGui::GetWindowSize ().x < 500.0f * SKIF_ImGui_GlobalDPIScale)
-      {
-        showBtnHorizon = false;
-        window_btn_size.x -= 48.0f;
-        showBtnService = false;
-        window_btn_size.x -= 48.0f;
-      }
-
       // Regular mode: One less button
-      else if (ImGui::GetWindowSize ().x < 550.0f * SKIF_ImGui_GlobalDPIScale ||
-               monitor_extent.GetWidth () < SKIF_vecRegularMode.x || // Hide the Horizon button if the display is only large enough to fit it
+      else if (monitor_extent.GetWidth () < SKIF_vecRegularMode.x || // Hide the Horizon button if the display is only large enough to fit it
                monitor_extent.GetHeight() < SKIF_vecRegularMode.y)
       {
         showBtnHorizon = false;
@@ -3069,23 +3091,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::SameLine ();
         }
 
-        if (showBtnService)
-        {
-          if (ImGui::Button ((_registry.bMiniMode) ? ICON_FA_EXPAND : ICON_FA_COMPRESS, ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale, 0.0f ))) // ICON_FA_MAXIMIZE : ICON_FA_MINIMIZE
-            hotkeyCtrlT = true;
+        if (ImGui::Button ((_registry.bMiniMode) ? ICON_FA_EXPAND : ICON_FA_COMPRESS, ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale, 0.0f ))) // ICON_FA_MAXIMIZE : ICON_FA_MINIMIZE
+          hotkeyCtrlT = true;
 
-          SKIF_ImGui_SetHoverTip ("Toggle mini mode");
+        SKIF_ImGui_SetHoverTip ("Toggle mini mode");
 
-          ImGui::SameLine ();
-        }
+        ImGui::SameLine ();
 
-        if (showBtnMinimize)
-        {
-          if (ImGui::Button (ICON_FA_WINDOW_MINIMIZE, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale, 0.0f )))
-            hotkeyCtrlN = true;
+        if (ImGui::Button (ICON_FA_WINDOW_MINIMIZE, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale, 0.0f )))
+          hotkeyCtrlN = true;
 
-          ImGui::SameLine ();
-        }
+        ImGui::SameLine ();
 
         ImGui::PushStyleColor   (ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Failure));
         ImGui::PushStyleColor   (ImGuiCol_ButtonActive,  ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Failure) * ImVec4(1.2f, 1.2f, 1.2f, 1.0f));
@@ -4707,6 +4723,9 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
     case WM_DISPLAYCHANGE:
       SKIF_Util_GetMonitorHzPeriod (SKIF_ImGui_hWnd, MONITOR_DEFAULTTONEAREST, dwDwmPeriod);
+
+      if (SKIF_Tab_Selected == UITab_Hardware)
+        RefreshHardwareTab = true; // Only set this if the Hardware tab is actually selected
 
       if (SKIF_Tab_Selected == UITab_Settings)
         RefreshSettingsTab = true; // Only set this if the Settings tab is actually selected
