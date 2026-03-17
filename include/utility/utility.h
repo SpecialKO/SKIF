@@ -38,6 +38,7 @@ enum UITab {
   UITab_None,
   UITab_Library,
   UITab_Monitor,
+  UITab_Hardware,
   UITab_Settings,
   UITab_About,
   UITab_MiniMode,
