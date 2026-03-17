@@ -1444,6 +1444,38 @@ wWinMain ( _In_     HINSTANCE hInstance,
   extern   CRITICAL_SECTION   VFSManifestSection;
   InitializeCriticalSection (&VFSManifestSection);
 
+  if (StrStrIW (lpCmdLine, L"DisableOverlayMode") != NULL)
+  {
+    if (::IsUserAnAdmin ( ))
+    {
+      // HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers\ -> DisableOverlays (DWORD; 1 = disabled)
+      // HKLM\SOFTWARE\Microsoft\Windows\Dwm\                   -> OverlayTestMode (DWORD; 5 = disabled)
+
+      HKEY hKey;
+      DWORD valueDisableOverlays = 1;
+      DWORD valueOverlayTestMode = 5;
+
+      if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SYSTEM\CurrentControlSet\Control\GraphicsDrivers\)", 0, KEY_READ | KEY_WRITE | KEY_WOW64_64KEY, &hKey))
+      {
+        RegSetKeyValueW (hKey, NULL, L"DisableOverlays", REG_DWORD, &valueDisableOverlays, sizeof(valueDisableOverlays));
+        RegCloseKey     (hKey);
+      }
+
+      if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\Windows\Dwm\)", 0, KEY_READ | KEY_WRITE | KEY_WOW64_64KEY, &hKey))
+      {
+        RegSetKeyValueW (hKey, NULL, L"OverlayTestMode", REG_DWORD, &valueOverlayTestMode, sizeof(valueOverlayTestMode));
+        RegCloseKey     (hKey);
+      }
+    }
+
+    else {
+      MessageBox(NULL, L"The 'DisableOverlayMode' command line argument requires"
+                       L" elevated permissions to work properly.",
+                       L"Admin privileges required",
+               MB_ICONERROR | MB_OK);
+    }
+  }
+
   if (StrStrIW (lpCmdLine, L"ResetOverlayMode") != NULL)
   {
     if (::IsUserAnAdmin ( ))
@@ -1490,9 +1522,46 @@ wWinMain ( _In_     HINSTANCE hInstance,
     }
   }
 
+  if (StrStrIW (lpCmdLine, L"RestartDWM" ) != NULL)
+  {
+    if (::IsUserAnAdmin ( ))
+    {
+      BOOL   dwmTerminated = 0;
+
+      /* Error 5: Access Denied, so let's not even bother...
+      PROCESSENTRY32W pe32 = SKIF_Util_FindProcessByName (L"dwm.exe");
+
+      if (pe32.th32ProcessID != 0)
+      {
+        HANDLE DWMProcessHandle = OpenProcess (PROCESS_ALL_ACCESS, FALSE, pe32.th32ProcessID);
+
+        if (DWMProcessHandle != NULL)
+        {
+          dwmTerminated = TerminateProcess (DWMProcessHandle, 0);
+          CloseHandle (DWMProcessHandle);
+        }
+      }
+      */
+
+      dwmTerminated = (ShellExecuteW (nullptr, L"runas", L"taskkill", L"/f /im dwm.exe", nullptr, SW_SHOWNORMAL) > (HINSTANCE)32);         
+
+      if (dwmTerminated == 0)
+        SKIF_Util_GetErrorAsMsgBox (L"Failed to restart DWM");
+    }
+
+    else {
+      MessageBox(NULL, L"The 'RestartDWM' command line argument requires"
+                       L" elevated permissions to work properly.",
+                       L"Admin privileges required",
+               MB_ICONERROR | MB_OK);
+    }
+  }
+
   // Don't stick around if any of these commands are being used.
-  if (StrStrIW (lpCmdLine, L"ResetOverlayMode") != NULL ||
-      StrStrIW (lpCmdLine, L"RestartDisplDrv" ) != NULL)
+  if (StrStrIW (lpCmdLine, L"DisableOverlayMode") != NULL ||
+      StrStrIW (lpCmdLine, L"ResetOverlayMode")   != NULL ||
+      StrStrIW (lpCmdLine, L"RestartDisplDrv" )   != NULL ||
+      StrStrIW (lpCmdLine, L"RestartDWM" )        != NULL)
     ExitProcess (0x0);
 
   // Get the current time to use as a basis of how long the initialization took
