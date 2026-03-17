@@ -243,6 +243,9 @@
     <ClInclude Include="packages_misc\stb_image.h">
       <Filter>Header Files\Packages_Misc</Filter>
     </ClInclude>
+    <ClInclude Include="include\tabs\hardware.h">
+      <Filter>Header Files\UI Tabs</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\imgui\imgui.cpp">
@@ -355,6 +358,9 @@
     </ClCompile>
     <ClCompile Include="src\MinHook\hde\hde64.c">
       <Filter>Source Files\Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tabs\hardware.cpp">
+      <Filter>Source Files\UI Tabs</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

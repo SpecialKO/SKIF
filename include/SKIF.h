@@ -169,4 +169,5 @@ extern std::string SKIF_StatusBarHelp;
 
 extern bool        PopulatedGames;
 extern bool        RepopulateGames;
+extern bool        RefreshHardwareTab;
 extern bool        RefreshSettingsTab;
