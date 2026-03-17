@@ -534,7 +534,6 @@ void SKIF_UI_DrawPlatformStatus (void)
 void SKIF_UI_DrawShellyTheGhost (void)
 {
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
-  static SKIF_InjectionContext& _inject   = SKIF_InjectionContext::GetInstance ( );
 
   // Prepare Shelly color and Y position
   const  float fGhostTimeStep = 0.01f;
