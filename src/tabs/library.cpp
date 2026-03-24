@@ -3675,8 +3675,8 @@ GetInjectionSummary (app_record_s* pApp)
         pApp->id == 359870       || // FFX/X-2 HD Remaster
       //pApp->id == 578330       || // LEGO City Undercover // Do not exclude from the updater as its a part of mainline SK
         pApp->id == 429660       || // Tales of Berseria
-        pApp->id == 372360       || // Tales of Symphonia
-        pApp->id == 738540     //|| // Tales of Vesperia DE
+        pApp->id == 372360     //|| // Tales of Symphonia
+      //pApp->id == 738540     //|| // Tales of Vesperia DE
       //pApp->id == 351970          // Tales of Zestiria
       ) && pApp->specialk.injection.injection.type != InjectionType::Local)
   {
