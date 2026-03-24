@@ -966,7 +966,7 @@ LaunchGame (app_record_s* pApp)
           SKIF_GamingCollection::RefreshRunningApps (&g_apps, true);
 
           const DWORD dwTimeToCheck   = pApp->_status.dwTimeDelayChecks;
-          const DWORD dwTimeToReCheck = pApp->_status.dwTimeDelayChecks + 250UL;
+          const DWORD dwTimeToReCheck = pApp->_status.dwTimeDelayChecks + 7500UL;
 
           while (SKIF_Util_timeGetTime () < dwTimeToCheck)
           {
@@ -980,7 +980,7 @@ LaunchGame (app_record_s* pApp)
 
           while (SKIF_Util_timeGetTime () < dwTimeToReCheck)
           {
-            SleepEx (50, FALSE);
+            SleepEx (250, FALSE);
           }
 
           // Fallback to Instant Play if that didn't work.
