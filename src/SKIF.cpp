@@ -3586,7 +3586,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       static std::string AutoUpdatePopupTitle;
       static bool        AutoUpdateChanges = (_updater.GetAutoUpdateNotes().max_length > 0 && ! _inject.SKVer32.empty() && _inject.SKVer32 == _registry.wsAutoUpdateVersion);
 
-      if (AutoUpdateChanges)
+      if (AutoUpdateChanges && SKIF_ImGui_IsFocused ())
       {
         AutoUpdateChanges = false;
         AutoUpdatePopup = PopupState_Open;
