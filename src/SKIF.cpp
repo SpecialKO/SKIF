@@ -2484,6 +2484,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
             _registry.iUIPositionY != -1)
           ImGui::SetNextWindowPos (ImVec2 (static_cast<float> (_registry.iUIPositionX),
                                            static_cast<float> (_registry.iUIPositionY)));
+        else
+          RepositionSKIF = true;
       }
 
       // RepositionSKIF -- Step 2: Repositon the window
