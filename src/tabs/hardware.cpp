@@ -471,7 +471,7 @@ SKIF_Hardware_RefreshVulkanLayers (void)
     { "Mirillis Action!",     LR"(MirillisActionVulkanLayer)", true  },
     { "OBS Studio",           LR"(obs-vulkan)"               , true  },
     { "ReShade",              LR"(ReShade)"                  , true  },
-    { "RTSS",                 LR"(RTSSVkLayer)"              , true  }, // The RTSS layer does not seem to do anything when the app is not running, and we cover that elsewhere.
+    { "RTSS",                 LR"(RTSSVkLayer)"              , false }, // The RTSS layer does not seem to do anything when the app is not running, and we cover that elsewhere.
     { "Steam Fossilize",      LR"(SteamFossilizeVulkanLayer)", false },
     { "Steam Overlay",        LR"(SteamOverlayVulkanLayer)"  , false },
   };
