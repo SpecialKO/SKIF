@@ -299,7 +299,7 @@ struct SKIF_RegistryWatch {
     BOOL         wow64_64key; // Access a 64-bit key from either a 32-bit or 64-bit application.
   } _init;
 
-  HKEY    _hKeyBase    = { };
+  HKEY    _hKeyBase    = NULL;
   HANDLE  _hEvent      = NULL; // If the CreateEvent function fails, the return value is NULL.
   UITab   _waitTab     = UITab_None;
 };

@@ -3901,9 +3901,6 @@ SKIF_RegistryWatch::SKIF_RegistryWatch ( HKEY hRootKey, const wchar_t* wszSubKey
 
   reset ();
 
-  if (_waitTab != UITab_None && _hEvent != NULL)
-    vWatchHandles[_waitTab].push_back(_hEvent);
-
   if (_hEvent != NULL)
   {
     if (_waitTab == UITab_ALL)
@@ -3930,11 +3927,12 @@ SKIF_RegistryWatch::~SKIF_RegistryWatch (void)
     }
     else if (_waitTab != UITab_None && ! vWatchHandles[_waitTab].empty())
       vWatchHandles[_waitTab].erase(std::remove(vWatchHandles[_waitTab].begin(), vWatchHandles[_waitTab].end(), _hEvent), vWatchHandles[_waitTab].end());
-  }
 
-  RegCloseKey (_hKeyBase);
-  CloseHandle (_hEvent);
-  _hEvent = NULL;
+    RegCloseKey (_hKeyBase);
+    _hKeyBase = NULL;
+    CloseHandle (_hEvent);
+    _hEvent = NULL;
+  }
 }
 
 LSTATUS
@@ -3946,9 +3944,13 @@ SKIF_RegistryWatch::registerNotify (void)
 void
 SKIF_RegistryWatch::reset (void)
 {
-  RegCloseKey (_hKeyBase);
+  if (_hKeyBase != NULL)
+  {
+    RegCloseKey (_hKeyBase);
+    _hKeyBase = NULL;
+  }
 
-  if ((intptr_t)_hEvent > 0)
+  if (_hEvent != NULL)
     ResetEvent (_hEvent);
 
   LSTATUS lStat =
@@ -3961,10 +3963,29 @@ SKIF_RegistryWatch::reset (void)
 
   if (lStat != ERROR_SUCCESS)
   {
-    PLOG_ERROR << "Failed to register for registry notifications: " << _init.sub_key << ", " << _init.watch_subtree;
-    RegCloseKey (_hKeyBase);
-    CloseHandle (_hEvent);
-    _hEvent = NULL;
+    PLOG_ERROR << "Failed to register for registry notifications: "
+               << ((_init.root == HKEY_LOCAL_MACHINE)  ? R"(HKLM\)" :
+                   (_init.root == HKEY_CURRENT_USER)   ? R"(HKCU\)" :
+                   (_init.root == HKEY_CLASSES_ROOT)   ? R"(HKCR\)" :
+                   (_init.root == HKEY_USERS)          ? R"(HKU\)" :
+                   (_init.root == HKEY_CURRENT_CONFIG) ? R"(HKEY_CURRENT_CONFIG\)" : "")
+               << _init.sub_key
+               << ", " << _init.watch_subtree
+               << ", " << _init.filter_mask
+               << ", " << _init.wow64_32key
+               << ", " << _init.wow64_32key;
+
+    if (_hKeyBase != NULL)
+    {
+      RegCloseKey (_hKeyBase);
+      _hKeyBase = NULL;
+    }
+
+    if (_hEvent != NULL)
+    {
+      CloseHandle (_hEvent);
+      _hEvent   = NULL;
+    }
   }
 }
 
