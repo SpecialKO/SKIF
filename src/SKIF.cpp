@@ -493,6 +493,180 @@ SKIF_Startup_AddGame (LPWSTR lpCmdLine)
   }
 }
 
+static bool
+SKIF_Startup_ParseBoolSetting (const wchar_t* value)
+{
+  return
+    value != nullptr &&
+    ( _wcsicmp (value, L"true") == 0 ||
+      _wcsicmp (value, L"yes")  == 0 ||
+      _wcsicmp (value, L"on")   == 0 ||
+      wcscmp   (value, L"1")    == 0 );
+}
+
+static bool
+SKIF_Startup_ReadCpuSpoofConfig (const std::wstring& iniPath)
+{
+  if ( iniPath.empty() ||
+       GetFileAttributesW (iniPath.c_str()) == INVALID_FILE_ATTRIBUTES )
+  {
+    return false;
+  }
+
+  wchar_t enabled [32] = { };
+
+  GetPrivateProfileStringW (
+    L"Scheduler.CPUSpoof", L"Enable", L"",
+      enabled, static_cast <DWORD> (_countof (enabled)), iniPath.c_str()
+  );
+
+  if (! SKIF_Startup_ParseBoolSetting (enabled))
+    return false;
+
+  int logical =
+    GetPrivateProfileIntW (
+      L"Scheduler.CPUSpoof", L"LogicalProcessors", 0, iniPath.c_str()
+    );
+
+  int physical =
+    GetPrivateProfileIntW (
+      L"Scheduler.CPUSpoof", L"PhysicalCores", 0, iniPath.c_str()
+    );
+
+  return logical > 0 || physical > 0;
+}
+
+static bool
+SKIF_Startup_QueryProfileNameForPath (
+        const std::wstring& gamePath,
+              std::wstring& profileName )
+{
+  HKEY profileKey = nullptr;
+
+  if ( RegOpenKeyExW ( HKEY_CURRENT_USER,
+                       LR"(Software\Kaldaien\Special K\Profiles)",
+                       0, KEY_READ | KEY_WOW64_64KEY, &profileKey ) != ERROR_SUCCESS )
+  {
+    return false;
+  }
+
+  bool found = false;
+
+  std::wstring queryPath = gamePath;
+
+  while (! queryPath.empty())
+  {
+    wchar_t profile [MAX_PATH + 2] = { };
+    DWORD   type                  = REG_SZ;
+    DWORD   bytes                 = sizeof (profile);
+
+    if ( RegQueryValueExW ( profileKey, queryPath.c_str(), nullptr,
+                            &type, reinterpret_cast <LPBYTE> (profile),
+                            &bytes ) == ERROR_SUCCESS &&
+         type == REG_SZ &&
+         profile [0] != L'\0' )
+    {
+      profileName = profile;
+      found       = true;
+      break;
+    }
+
+    size_t slash = queryPath.find_last_of (L"\\/");
+
+    if (slash == std::wstring::npos)
+      break;
+
+    queryPath.resize (slash);
+  }
+
+  RegCloseKey (profileKey);
+
+  return found;
+}
+
+static bool
+SKIF_Startup_BuildProfileIniPath (
+        const std::wstring& gamePath,
+              std::wstring& iniPath )
+{
+  std::wstring profileName;
+
+  if (! SKIF_Startup_QueryProfileNameForPath (gamePath, profileName))
+    return false;
+
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
+  const std::wstring userDataPath = _path_cache.specialk_userdata;
+  const std::wstring installPath  = _path_cache.specialk_install;
+
+  std::wstring candidate =
+    SK_FormatStringW (
+      LR"(%ws\Profiles\%ws\SpecialK.ini)",
+      userDataPath.c_str(),
+      profileName.c_str()
+    );
+
+  if (GetFileAttributesW (candidate.c_str()) != INVALID_FILE_ATTRIBUTES)
+  {
+    iniPath = candidate;
+    return true;
+  }
+
+  if (_wcsicmp (userDataPath.c_str(), installPath.c_str()) != 0)
+  {
+    candidate =
+      SK_FormatStringW (
+        LR"(%ws\Profiles\%ws\SpecialK.ini)",
+        installPath.c_str(),
+        profileName.c_str()
+      );
+
+    if (GetFileAttributesW (candidate.c_str()) != INVALID_FILE_ATTRIBUTES)
+    {
+      iniPath = candidate;
+      return true;
+    }
+  }
+
+  return false;
+}
+
+static bool
+SKIF_Startup_ShouldUseEarlySpecialKInjection (const std::wstring& gamePath)
+{
+  if ( gamePath.empty() ||
+       _Signal.LauncherBAT )
+  {
+    return false;
+  }
+
+  int binaryType =
+    SKIF_Util_GetBinaryType (gamePath.c_str());
+
+#ifdef _WIN64
+  if (binaryType != 2)
+#else
+  if (binaryType != 1)
+#endif
+  {
+    PLOG_WARNING << "Skipping early Special K injection; unsupported target architecture: " << binaryType;
+    return false;
+  }
+
+  std::wstring iniPath;
+
+  if ( ! SKIF_Startup_BuildProfileIniPath (gamePath, iniPath) ||
+       ! SKIF_Startup_ReadCpuSpoofConfig  (iniPath) )
+  {
+    return false;
+  }
+
+  PLOG_INFO << "CPU topology spoofing is enabled; using suspended Special K injection before process start.";
+  PLOG_INFO << "CPU topology profile : " << iniPath;
+
+  return true;
+}
+
 void
 SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
 {
@@ -578,6 +752,10 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
     isGlobalBlacklisted = _inject._TestUserList (SK_WideCharToUTF8(path).c_str(), false);
 
     _Signal._DoNotUseService = (isLocalBlacklisted || isGlobalBlacklisted);
+
+    if (! _Signal._DoNotUseService)
+      _Signal._EarlyInjectSpecialK =
+        SKIF_Startup_ShouldUseEarlySpecialKInjection (path);
 
     if (! _Signal._DoNotUseService)
     {
@@ -675,6 +853,12 @@ SKIF_Startup_LaunchGameService (void)
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
 
+  if (_Signal._EarlyInjectSpecialK)
+  {
+    PLOG_INFO << "Skipping injection service; launcher will inject Special K while the target is suspended.";
+    return;
+  }
+
   if (_Signal._DoNotUseService)
   {
     // 2023-11-14: I am unsure how effective _inject.bCurrentState is here...
@@ -705,6 +889,250 @@ SKIF_Startup_LaunchGameService (void)
 }
 
 
+static std::wstring
+SKIF_Startup_BuildCreateProcessCommandLine (void)
+{
+  std::wstring commandLine =
+    SK_FormatStringW (LR"("%ws")", _Signal._GamePath.c_str());
+
+  if (! _Signal._GameArgs.empty())
+  {
+    commandLine += L" ";
+    commandLine += _Signal._GameArgs;
+  }
+
+  return commandLine;
+}
+
+static bool
+SKIF_Startup_InjectSpecialK (HANDLE hProcess, const std::wstring& dllPath)
+{
+  if ( GetFileAttributesW (dllPath.c_str()) == INVALID_FILE_ATTRIBUTES )
+  {
+    PLOG_ERROR << "Special K DLL not found for early injection: " << dllPath;
+    return false;
+  }
+
+  const SIZE_T bytes =
+    (dllPath.length() + 1) * sizeof (wchar_t);
+
+  LPVOID remotePath =
+    VirtualAllocEx (hProcess, nullptr, bytes, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+
+  if (remotePath == nullptr)
+  {
+    PLOG_ERROR << "VirtualAllocEx failed during early Special K injection: " << GetLastError();
+    return false;
+  }
+
+  bool success = false;
+
+  if (! WriteProcessMemory (hProcess, remotePath, dllPath.c_str(), bytes, nullptr))
+  {
+    PLOG_ERROR << "WriteProcessMemory failed during early Special K injection: " << GetLastError();
+  }
+
+  else
+  {
+    HMODULE kernel32 =
+      GetModuleHandleW (L"kernel32.dll");
+
+    auto loadLibraryW =
+      reinterpret_cast <LPTHREAD_START_ROUTINE> (
+        GetProcAddress (kernel32, "LoadLibraryW")
+      );
+
+    if (loadLibraryW == nullptr)
+    {
+      PLOG_ERROR << "Could not resolve LoadLibraryW for early Special K injection.";
+    }
+
+    else
+    {
+      HANDLE remoteThread =
+        CreateRemoteThread (hProcess, nullptr, 0, loadLibraryW, remotePath, 0, nullptr);
+
+      if (remoteThread == nullptr)
+      {
+        PLOG_ERROR << "CreateRemoteThread failed during early Special K injection: " << GetLastError();
+      }
+
+      else
+      {
+        DWORD waitResult =
+          WaitForSingleObject (remoteThread, 60000);
+
+        DWORD exitCode = 0;
+
+        if ( waitResult == WAIT_OBJECT_0 &&
+             GetExitCodeThread (remoteThread, &exitCode) &&
+             exitCode != 0 )
+        {
+          success = true;
+        }
+
+        else
+        {
+          PLOG_ERROR << "Early Special K injection failed; wait=" << waitResult
+                     << ", exit=" << exitCode
+                     << ", error=" << GetLastError();
+        }
+
+        CloseHandle (remoteThread);
+      }
+    }
+  }
+
+  VirtualFreeEx (hProcess, remotePath, 0, MEM_RELEASE);
+
+  return success;
+}
+
+static bool
+SKIF_Startup_CreateExplicitInjectionStub (
+        std::wstring& stubPath,
+        bool&         createdStub )
+{
+  createdStub = false;
+  stubPath    =
+    (std::filesystem::path (_Signal._GamePath).parent_path() / L"SpecialK.dxgi").wstring();
+
+  if (GetFileAttributesW (stubPath.c_str()) != INVALID_FILE_ATTRIBUTES)
+    return true;
+
+  HANDLE stubFile =
+    CreateFileW ( stubPath.c_str(),
+                  GENERIC_WRITE,
+                  FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                  nullptr,
+                  CREATE_NEW,
+                  FILE_ATTRIBUTE_NORMAL,
+                  nullptr );
+
+  if (stubFile == INVALID_HANDLE_VALUE)
+  {
+    PLOG_WARNING << "Could not create SpecialK.dxgi explicit-injection stub: "
+                 << stubPath << " (" << GetLastError() << ")";
+
+    return false;
+  }
+
+  CloseHandle (stubFile);
+
+  createdStub = true;
+
+  return true;
+}
+
+static bool
+SKIF_Startup_LaunchGameEarlyInjected (void)
+{
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
+  int binaryType =
+    SKIF_Util_GetBinaryType (_Signal._GamePath.c_str());
+
+#ifdef _WIN64
+  if (binaryType != 2)
+#else
+  if (binaryType != 1)
+#endif
+  {
+    PLOG_ERROR << "Cannot early-inject Special K into unsupported target architecture: " << binaryType;
+    return false;
+  }
+
+  std::wstring dllPath =
+    SK_FormatStringW (
+#ifdef _WIN64
+      LR"(%ws\SpecialK64.dll)",
+#else
+      LR"(%ws\SpecialK32.dll)",
+#endif
+      _path_cache.specialk_install
+    );
+
+  std::wstring stubPath;
+  bool createdStub = false;
+
+  SKIF_Startup_CreateExplicitInjectionStub (stubPath, createdStub);
+
+  auto cleanupStub =
+    [&]()
+    {
+      if (createdStub)
+        DeleteFileW (stubPath.c_str());
+    };
+
+  std::wstring commandLine =
+    SKIF_Startup_BuildCreateProcessCommandLine ();
+
+  STARTUPINFOW startupInfo = { };
+  startupInfo.cb = sizeof (startupInfo);
+
+  PROCESS_INFORMATION processInfo = { };
+
+  DWORD creationFlags =
+    NORMAL_PRIORITY_CLASS |
+    CREATE_UNICODE_ENVIRONMENT |
+    CREATE_SUSPENDED;
+
+  PLOG_INFO << "Launching target suspended for early Special K injection.";
+
+  if (! CreateProcessW (
+          _Signal._GamePath.c_str(),
+          commandLine.data(),
+          nullptr,
+          nullptr,
+          FALSE,
+          creationFlags,
+          nullptr,
+          _Signal._GameWorkDir.empty() ? nullptr : _Signal._GameWorkDir.c_str(),
+          &startupInfo,
+          &processInfo ) )
+  {
+    PLOG_ERROR << "CreateProcessW(CREATE_SUSPENDED) failed: " << GetLastError();
+    cleanupStub ();
+    return false;
+  }
+
+  bool injected =
+    SKIF_Startup_InjectSpecialK (processInfo.hProcess, dllPath);
+
+  if (! injected)
+  {
+    TerminateProcess (processInfo.hProcess, 0x0);
+    CloseHandle      (processInfo.hThread);
+    CloseHandle      (processInfo.hProcess);
+    cleanupStub      ();
+
+    return false;
+  }
+
+  if (ResumeThread (processInfo.hThread) == static_cast <DWORD> (-1))
+  {
+    PLOG_ERROR << "ResumeThread failed after early Special K injection: " << GetLastError();
+
+    TerminateProcess (processInfo.hProcess, 0x0);
+    CloseHandle      (processInfo.hThread);
+    CloseHandle      (processInfo.hProcess);
+    cleanupStub      ();
+
+    return false;
+  }
+
+  cleanupStub ();
+
+  pidForegroundFocusOnExit = processInfo.dwProcessId;
+
+  CloseHandle (processInfo.hThread);
+  CloseHandle (processInfo.hProcess);
+
+  PLOG_INFO << "Early Special K injection succeeded; target resumed.";
+
+  return true;
+}
+
 void
 SKIF_Startup_LaunchGame (void)
 {
@@ -720,6 +1148,32 @@ SKIF_Startup_LaunchGame (void)
     PLOG_INFO << "        Steam App ID : " << _Signal._SteamAppID;
     SetEnvironmentVariable (L"SteamAppId",    _Signal._SteamAppID.c_str());
     SetEnvironmentVariable (L"SteamGameId",   _Signal._SteamAppID.c_str());
+  }
+
+  if (_Signal._EarlyInjectSpecialK)
+  {
+    if (SKIF_Startup_LaunchGameEarlyInjected ())
+    {
+      if (! _Signal._SteamAppID.empty ( ))
+      {
+        SetEnvironmentVariable (L"SteamAppId",  NULL);
+        SetEnvironmentVariable (L"SteamGameId", NULL);
+      }
+
+      if (_Signal._RunningInstance || _Signal._DoNotUseService)
+      {
+        SKIF_Startup_SetGameAsForeground ( );
+        PLOG_INFO << "Terminating as this instance has fulfilled its purpose.";
+
+        ExitProcess (0x0);
+      }
+
+      return;
+    }
+
+    PLOG_ERROR << "Early Special K injection failed; falling back to the regular launcher path.";
+    _Signal._EarlyInjectSpecialK = FALSE;
+    SKIF_Startup_LaunchGameService ( );
   }
 
   SHELLEXECUTEINFOW
