@@ -1,4 +1,6 @@
 
+#include <tabs/hardware.h>
+
 #include <utility/skif_imgui.h>
 #include <fonts/fa_621.h>
 #include <fonts/fa_621b.h>
@@ -13,6 +15,37 @@
 
 #include <utility/fsutil.h>
 #include <utility/registry.h>
+
+// Global Vulkan layer object (incompatible, layers)
+std::pair<bool, std::vector<VkLayer>> g_VkLayers = { false, { } };
+
+void
+VkLayer::Toggle (void)
+{
+  SHELLEXECUTEINFOW
+    sexi              = { };
+    sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
+    sexi.lpVerb       = L"runas";
+    sexi.lpFile       = L"cmd";
+    sexi.lpParameters = regCmd.c_str();
+    sexi.lpDirectory  = nullptr;
+    sexi.nShow        = SW_SHOWNORMAL;
+    sexi.fMask        = SEE_MASK_NOCLOSEPROCESS | // We need the PID of the process that gets started
+                        SEE_MASK_NOASYNC        | // Never async since our own process needs to wait until the new process is done
+                        SEE_MASK_NOZONECHECKS;    // No zone check needs to be performed
+
+  ShellExecuteExW (&sexi);
+
+  // Wait for the process to finish before continuing
+  if (sexi.hInstApp  > (HINSTANCE)32 &&
+      sexi.hProcess != NULL)
+  {
+    WaitForSingleObject (sexi.hProcess, INFINITE);
+    CloseHandle (sexi.hProcess);
+    isEnabled = ! isEnabled;
+  }
+}
+
 
 struct Monitor_MPO_Support
 {
@@ -416,6 +449,207 @@ GetDrvInstallState (DrvInstallState& ptrStatus, std::wstring svcName = L"SK_WinR
   return binaryPath;
 };
 
+// Unwinder on the topic of Vulkan layer compatibility issues:
+// Ironically, true reason of 99% of compatibility issues with third-party implicit layers are on LunarG.
+// Their sample Vulkan layer code, which virtually everyone used as a template to create own layers,
+//   had a bug with Vulkan instance handle leak. So it was and it is echoed in any layer based on that
+//     source code. I nailed it down myself in my layer when debugging compatibility issues with DXVK.
+// 
+// Version 7.3.0 (published on 28.02.2021)
+// - Fixed Vulkan device and instance handle leak in Vulkan bootstrap layer
+
+void
+SKIF_Hardware_RefreshVulkanLayers (void)
+{
+  static SKIF_RegistrySettings&   _registry = SKIF_RegistrySettings  ::GetInstance ( );
+
+  //   humanFriendlyName,         valuePattern,                knownCompatibilityIssue
+  static const std::tuple<std::string, std::wstring, bool> VkLayerKnownDatabase[] = {
+    { "Epic Online Services", LR"(EOSOverlayVkLayer)"        , false },
+    { "FPS Monitor",          LR"(fpsmonvk)"                 , false },
+    { "GOG Galaxy",           LR"(galaxy_overlay_vklayer)"   , false },
+    { "Mirillis Action!",     LR"(MirillisActionVulkanLayer)", true  },
+    { "OBS Studio",           LR"(obs-vulkan)"               , true  },
+    { "ReShade",              LR"(ReShade)"                  , true  },
+    { "RTSS",                 LR"(RTSSVkLayer)"              , false }, // The RTSS layer does not seem to do anything when the app is not running, and we cover that elsewhere.
+    { "Steam Fossilize",      LR"(SteamFossilizeVulkanLayer)", false },
+    { "Steam Overlay",        LR"(SteamOverlayVulkanLayer)"  , false },
+  };
+
+  static SKIF_RegistryWatch watchers[] = {
+    { HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Khronos\Vulkan)", L"SKIF_HKLM_Vulkan",   TRUE, REG_NOTIFY_CHANGE_LAST_SET, UITab_None, false }
+   ,{ HKEY_CURRENT_USER,  LR"(SOFTWARE\Khronos\Vulkan)", L"SKIF_HKCU_Vulkan",   TRUE, REG_NOTIFY_CHANGE_LAST_SET, UITab_None, false }
+#ifdef _WIN64
+   ,{ HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Khronos\Vulkan)", L"SKIF_HKLM32_Vulkan", TRUE, REG_NOTIFY_CHANGE_LAST_SET, UITab_None, true  }
+   ,{ HKEY_CURRENT_USER,  LR"(SOFTWARE\Khronos\Vulkan)", L"SKIF_HKCU32_Vulkan", TRUE, REG_NOTIFY_CHANGE_LAST_SET, UITab_None, true  }
+#endif
+  };
+
+  static bool update = true; // First run
+
+  // Check if any changes have been made to the registry
+  for (auto& watcher : watchers)
+    if (watcher.isSignaled())
+      update = true;
+
+  if (update)
+  {
+    update = false;
+    g_VkLayers.first = false;
+
+    for (auto& l : g_VkLayers.second)
+    {
+      l.isEnabled = false;
+      l.Matches.clear();
+    }
+
+    static const HKEY regHives[] = {
+      HKEY_LOCAL_MACHINE,
+      HKEY_CURRENT_USER,
+    };
+
+    // It is questionable if we even need to check explicit layers...
+    static const std::pair<VkLayerType, std::wstring> regKeys[] = {
+      { VkLayerType_Implicit, LR"(ImplicitLayers)" }
+     ,{ VkLayerType_Explicit, LR"(ExplicitLayers)" }
+    };
+
+    // Detect Vulkan layers through the registry
+    for (auto& watcher : watchers)
+    {
+      for (auto& pKey : regKeys)
+      {
+        HKEY hKey;
+
+        if (RegOpenKeyExW (watcher._hKeyBase, pKey.second.c_str(), 0, KEY_READ, &hKey) == ERROR_SUCCESS) // Worth using KEY_WOW64_64KEY ?
+        {
+          DWORD dwIndex           = 0, // A variable that receives the number of values that are associated with the key.
+                dwResult          = 0,
+                dwMaxValueNameLen = 0, // A pointer to a variable that receives the size of the key's longest value name, in Unicode characters. The size does not include the terminating null character.
+                dwMaxValueLen     = 0; // A pointer to a variable that receives the size of the longest data component among the key's values, in bytes.
+
+          if (RegQueryInfoKeyW (hKey, NULL, NULL, NULL, NULL, NULL, NULL, &dwIndex, &dwMaxValueNameLen, &dwMaxValueLen, NULL, NULL) == ERROR_SUCCESS)
+          {
+            while (dwIndex > 0)
+            {
+              dwIndex--;
+          
+              DWORD dwValueNameLen =
+                    (dwMaxValueNameLen + 2);
+
+              std::unique_ptr <wchar_t []> pValue =
+                std::make_unique <wchar_t []> (sizeof (wchar_t) * dwValueNameLen);
+          
+              DWORD dwValueLen =
+                    (dwMaxValueLen);
+
+              LPBYTE pData = (LPBYTE)malloc(dwValueLen);
+              memcpy(pData, &dwValueLen, sizeof(DWORD));
+
+              DWORD dwType = REG_NONE;
+
+              dwResult = RegEnumValueW (hKey, dwIndex, (wchar_t *) pValue.get(), &dwValueNameLen, NULL, &dwType, pData, &dwValueLen);
+
+              if (dwResult == ERROR_NO_MORE_ITEMS)
+                break;
+
+              if (dwResult == ERROR_SUCCESS && dwType == REG_DWORD)
+              {
+                VkLayer* ptr = nullptr;
+
+                // Do we already have one of the same type (implicit/explicit) ?
+                for (auto& l : g_VkLayers.second)
+                {
+                  if (l.Type == pKey.first && StrStrIW (pValue.get(), l.Pattern.c_str()) != NULL)
+                  {
+                    ptr = &l;
+                  }
+                }
+
+                // Create a new entry if we do not
+                if (ptr == nullptr)
+                {
+                  VkLayer new_layer = {
+                    .Name = SK_WideCharToUTF8 (pValue.get()),
+                    .Type = pKey.first
+                  };
+
+                  for (auto& knownLayer : VkLayerKnownDatabase)
+                  {
+                    if (StrStrIW (pValue.get(), std::get<std::wstring>(knownLayer).c_str()) != NULL)
+                    {
+                      new_layer.Name           = std::get<std::string>(knownLayer);
+                      new_layer.Pattern        = std::get<std::wstring>(knownLayer);
+                      new_layer.isIncompatible = std::get<bool>(knownLayer);
+                    }
+                  }
+
+                  g_VkLayers.second.push_back (std::move(new_layer));
+                  ptr = &g_VkLayers.second.back();
+                }
+
+                VkLayer::reg item;
+
+                item.Key   = ((watcher._init.root == HKEY_LOCAL_MACHINE) ? LR"(HKLM\)" : LR"(HKCU\)") + watcher._init.sub_key + LR"(\)" + pKey.second;
+                item.Value = pValue.get();
+                item.Data  = *((DWORD*)pData);
+                item.WOW6432Node = (watcher._init.wow64_32key == TRUE);
+
+                if (ptr->isIncompatible)
+                  g_VkLayers.first = true;
+
+                ptr->Matches.push_back (std::move(item));
+              }
+
+              free(pData);
+            }
+          }
+
+          RegCloseKey (hKey);
+        }
+      }
+    }
+
+    // Prep the UI / command components
+    for (auto& l : g_VkLayers.second)
+    {
+      if (l.Matches.empty())
+        continue;
+
+      for (auto& item : l.Matches)
+        if (! item.Value.empty() && item.Data == 0)
+          l.isEnabled = true;
+
+      l.regCmd      = LR"(/c )";
+      l.uiWarnLabel = (" " + l.Name + ((l.isEnabled) ? "  " ICON_FA_TRIANGLE_EXCLAMATION : ""));
+      l.uiHoverTip  = "";
+      l.uiHoverTxt  = "";
+
+      for (auto& item : l.Matches)
+      {
+        if (! item.Value.empty())
+        {
+          l.regCmd += SK_FormatStringW (LR"(%ws add "%ws" /v "%ws" /t REG_DWORD /d %i /f %ws)",
+              ((l.regCmd.length() <= 3) ? L"reg" : L" & reg"),
+                item.Key.c_str(),
+                item.Value.c_str(),
+              ((l.isEnabled) ? 1 : 0),
+              ((item.WOW6432Node) ? LR"(/reg:32)" : LR"(/reg:64)")
+          );
+
+          if (l.uiHoverTip.empty())
+            l.uiHoverTip  =         SK_WideCharToUTF8 (item.Value);
+          else
+            l.uiHoverTip += "\n"  + SK_WideCharToUTF8 (item.Value);
+
+          if (l.uiHoverTxt.empty())
+            l.uiHoverTxt = SK_FormatString (R"(cmd /c reg add "%s"...)", SK_WideCharToUTF8 (item.Key).c_str());
+        }
+      }
+    }
+  }
+}
+
 void
 SKIF_UI_Tab_DrawHardware (void)
 {
@@ -471,6 +705,8 @@ SKIF_UI_Tab_DrawHardware (void)
     if (valvePlug && _registry.regKVValvePlug.hasData())
       _registry.iValvePlug = _registry.regKVValvePlug.getData();
   }
+
+  SKIF_Hardware_RefreshVulkanLayers ( );
 
   SKIF_Tab_Selected = UITab_Hardware;
   if (SKIF_Tab_ChangeTo == UITab_Hardware)
@@ -1230,6 +1466,114 @@ SKIF_UI_Tab_DrawHardware (void)
   ImGui::Spacing ();
   ImGui::Spacing ();
 #endif
+#pragma endregion
+
+#pragma region Section: Vulkan Layer Management
+  if (ImGui::CollapsingHeader ("Vulkan Layer Management###SKIF_HardwareHeader-3"))
+  {
+    ImGui::PushStyleColor (
+      ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
+                            );
+
+    SKIF_ImGui_Spacing      ( );
+
+    ImGui::BeginGroup  ();
+
+    ImGui::TextWrapped    (
+      "The Vulkan API includes support for defining third-party layers that can be implicitly or explicitly loaded by applications."
+      " These third-party layers has been known to cause compatibility issues with other third-party injectors and tools such as Special K,"
+      " and might therefor be of interest to disable. Note that any change made below will affect all apps/games on the system!"
+    );
+
+    SKIF_ImGui_Spacing ( );
+
+    ImGui::Spacing     ();
+    ImGui::SameLine    ();
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
+    ImGui::SameLine    ();
+    ImGui::TextWrapped ("Implicit layers are automatically enabled in any running games/apps.");
+
+    ImGui::Spacing     ();
+    ImGui::SameLine    ();
+    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
+    ImGui::SameLine    ();
+    ImGui::TextWrapped ("Explicit layers are only enabled if the game/app requires it.");
+
+    static const std::tuple<VkLayerType, std::string, std::string> types[] = {
+      { VkLayerType_Implicit, "Implicit Vulkan Layers", "Implicit layers are automatically enabled in any running games/apps." },
+      { VkLayerType_Explicit, "Explicit Vulkan Layers", "Explicit layers are only enabled if the game/app requires it."        }
+    };
+
+    for (auto& type : types)
+    {
+      SKIF_ImGui_Spacing ( );
+
+      ImGui::TextColored (
+        ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+          std::get<1>(type).c_str()
+      );
+
+      ImGui::SameLine    ( );
+
+      ImGui::TextColored (
+        ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
+          ICON_FA_LIGHTBULB
+      );
+
+      SKIF_ImGui_SetHoverTip (std::get<2>(type).c_str());
+
+      SKIF_ImGui_Spacing ( );
+
+      bool foundAny = false;
+
+      for (auto& l : g_VkLayers.second)
+      {
+        if (l.Type != std::get<VkLayerType>(type))
+          continue;
+
+        if (l.Matches.empty())
+          continue;
+
+        foundAny = true;
+
+        ImVec2 posXY = ImGui::GetCursorPos ();
+
+        if (l.isIncompatible && l.isEnabled)
+        {
+          ImGui::SetCursorPosY (posXY.y + ImGui::GetStyle().FramePadding.y);
+          ImGui::TextColored   (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Yellow), ICON_FA_TRIANGLE_EXCLAMATION);
+
+          SKIF_ImGui_SetHoverTip ("This layer has known compatibility issues with Special K and may cause issues.");
+
+          ImGui::SameLine ( );
+          ImGui::SetCursorPos (posXY);
+        }
+
+        ImGui::TreePush("");
+        bool dontCare = l.isEnabled;
+        if (ImGui::Checkbox     (l.Name.c_str(), &dontCare))
+          l.Toggle ( );
+        ImGui::TreePop();
+
+        SKIF_ImGui_SetHoverText (l.uiHoverTxt);
+        SKIF_ImGui_SetHoverTip  (l.uiHoverTip);
+      }
+
+      if (! foundAny)
+      {
+        ImGui::TreePush("");
+        ImGui::Text             ("No layer of this kind was found.");
+        ImGui::TreePop();
+      }
+    }
+
+    ImGui::EndGroup ();
+
+    ImGui::PopStyleColor ();
+  }
+
+  ImGui::Spacing ();
+  ImGui::Spacing ();
 #pragma endregion
 
 }

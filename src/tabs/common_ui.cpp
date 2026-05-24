@@ -19,6 +19,8 @@
 #include <ShlObj.h>
 #include <fonts/fa_621b.h>
 
+#include <tabs/hardware.h>
+
 void SKIF_UI_DrawComponentVersion (void)
 {
   static SKIF_InjectionContext& _inject   = SKIF_InjectionContext::GetInstance ( );
@@ -111,6 +113,8 @@ void SKIF_UI_DrawPlatformStatus (void)
   static SKIF_GamePadInputHelper& _gamepad  = SKIF_GamePadInputHelper::GetInstance ( );
   static SKIF_RegistrySettings&   _registry = SKIF_RegistrySettings  ::GetInstance ( );
 
+  SKIF_Hardware_RefreshVulkanLayers ( );
+
   ImGui::BeginGroup       ( );
   ImGui::Spacing          ( );
   ImGui::SameLine         ( );
@@ -164,45 +168,6 @@ void SKIF_UI_DrawPlatformStatus (void)
     {"RTSS",                L"RTSS.exe"}
   };
 
-  struct VulkanLayer {
-    struct reg {
-      std::wstring    Key      = L"";
-      std::wstring    Value    = L"";
-      DWORD           Data     =   0; // 0 = enabled; >0 = disabled
-    };
-    
-    std:: string      Name;
-    std::wstring      Pattern   = L"";
-    std::vector <reg> Matches   = { };
-    bool              isEnabled = false; // Simplified state
-
-    std:: string      uiLabel;
-    std:: string      uiHoverTxt; // Status bar text
-    std::wstring      regCmd;     // Combined command to toggle
-
-    VulkanLayer (std::string n, std::wstring pn)
-    {
-      Name    = n;
-      Pattern = pn;
-    }
-  };
-
-  // Unwinder on the topic of Vulkan layer compatibility issues:
-  // Ironically, true reason of 99% of compatibility issues with third-party implicit layers are on LunarG.
-  // Their sample Vulkan layer code, which virtually everyone used as a template to create own layers,
-  //   had a bug with Vulkan instance handle leak. So it was and it is echoed in any layer based on that
-  //     source code. I nailed it down myself in my layer when debugging compatibility issues with DXVK.
-  // 
-  // Version 7.3.0 (published on 28.02.2021)
-  // - Fixed Vulkan device and instance handle leak in Vulkan bootstrap layer
-
-  static VulkanLayer Layers[]   = {
-  //{ "RTSS",             LR"(RTSSVkLayer)"               }, // Disabled since we seems to have no confirmed compatibility issues for now. // Aemony, 2024-02-02
-    { "ReShade",          LR"(ReShade)"                   }, //
-    { "OBS Studio",       LR"(obs-vulkan)"                }, //
-    { "Mirillis Action!", LR"(MirillisActionVulkanLayer)" }  // Causes Borderlands 2 with DXVK to fail to launch. // Aemony, 2024-02-02
-  };
-
   // Timer has expired, refresh
   if (dwLastRefresh < SKIF_Util_timeGetTime() && (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( ) ))
   {
@@ -210,14 +175,6 @@ void SKIF_UI_DrawPlatformStatus (void)
     {
       p.ProcessID = 0;
       p.isRunning = false;
-    }
-
-    for (auto& l : Layers)
-    {
-      l.Matches.clear();
-      l.isEnabled  = false;
-      l.uiLabel    =  "";
-      l.uiHoverTxt =  "";
     }
 
     PROCESSENTRY32W pe32 = { };
@@ -253,118 +210,6 @@ void SKIF_UI_DrawPlatformStatus (void)
             }
           }
         } while (Process32NextW (hProcessSnap, &pe32));
-      }
-    }
-
-    static const HKEY regHives[] = {
-      HKEY_LOCAL_MACHINE,
-      HKEY_CURRENT_USER,
-    };
-
-    // Do not bother checking explicit layers
-    static const std::wstring regKeys[] = {
-      LR"(SOFTWARE\Khronos\Vulkan\ImplicitLayers)"
-    //LR"(SOFTWARE\Khronos\Vulkan\ExplicitLayers)"
-#ifdef _WIN64
-     ,LR"(SOFTWARE\WOW6432Node\Khronos\Vulkan\ImplicitLayers)"
-    //LR"(SOFTWARE\WOW6432Node\Khronos\Vulkan\ExplicitLayers)"
-#endif
-    };
-
-    // Identify conflicting Vulkan layers through the registry
-    for (auto& hHive : regHives)
-    {
-      for (auto& wzKey : regKeys)
-      {
-        HKEY hKey;
-
-        if (RegOpenKeyExW (hHive, wzKey.c_str(), 0, KEY_READ, &hKey) == ERROR_SUCCESS) // Worth using KEY_WOW64_64KEY ?
-        {
-          DWORD dwIndex           = 0, // A variable that receives the number of values that are associated with the key.
-                dwResult          = 0,
-                dwMaxValueNameLen = 0, // A pointer to a variable that receives the size of the key's longest value name, in Unicode characters. The size does not include the terminating null character.
-                dwMaxValueLen     = 0; // A pointer to a variable that receives the size of the longest data component among the key's values, in bytes.
-
-          if (RegQueryInfoKeyW (hKey, NULL, NULL, NULL, NULL, NULL, NULL, &dwIndex, &dwMaxValueNameLen, &dwMaxValueLen, NULL, NULL) == ERROR_SUCCESS)
-          {
-            while (dwIndex > 0)
-            {
-              dwIndex--;
-          
-              DWORD dwValueNameLen =
-                    (dwMaxValueNameLen + 2);
-
-              std::unique_ptr <wchar_t []> pValue =
-                std::make_unique <wchar_t []> (sizeof (wchar_t) * dwValueNameLen);
-          
-              DWORD dwValueLen =
-                    (dwMaxValueLen);
-
-              LPBYTE pData = (LPBYTE)malloc(dwValueLen);
-              memcpy(pData, &dwValueLen, sizeof(DWORD));
-
-              DWORD dwType = REG_NONE;
-
-              dwResult = RegEnumValueW (hKey, dwIndex, (wchar_t *) pValue.get(), &dwValueNameLen, NULL, &dwType, pData, &dwValueLen);
-
-              if (dwResult == ERROR_NO_MORE_ITEMS)
-                break;
-
-              if (dwResult == ERROR_SUCCESS && dwType == REG_DWORD)
-              {
-                for (auto& l : Layers)
-                {
-                  if (StrStrIW (pValue.get(), l.Pattern.c_str()) != NULL)
-                  {
-                    VulkanLayer::reg item;
-
-                    item.Key       = ((hHive == HKEY_LOCAL_MACHINE) ? LR"(HKLM\)" : LR"(HKCU\)") + wzKey;
-                    item.Value     = pValue.get();
-                    item.Data      = *((DWORD*)pData);
-
-                    if (item.Data == 0)
-                      l.isEnabled = true;
-
-                    l.Matches.push_back (item);
-                  }
-                }
-              }
-
-              free(pData);
-            }
-          }
-
-          RegCloseKey (hKey);
-        }
-      }
-    }
-
-    // Prep the UI / command components
-    for (auto& l : Layers)
-    {
-      if (l.Matches.empty())
-        continue;
-
-      l.regCmd     = LR"(/c )";
-      l.uiLabel    = (l.isEnabled) ? (l.Name + " may conflict with Special K!") : (l.Name + " has been disabled.");
-      l.uiHoverTxt = "";
-
-      for (auto& item : l.Matches)
-      {
-        if (!item.Value.empty())
-        {
-          l.regCmd += SK_FormatStringW (LR"(%ws add "%ws" /v "%ws" /t REG_DWORD /d %i /f)",
-              ((l.regCmd.length() <= 3) ? L"reg" : L"& reg"),
-                item.Key.c_str(),
-                item.Value.c_str(),
-              ((l.isEnabled) ? 1 : 0)
-          );
-
-          if (l.uiHoverTxt.empty())
-            l.uiHoverTxt  =         SK_WideCharToUTF8 (item.Key);
-          else
-            l.uiHoverTxt += " / " + SK_WideCharToUTF8 (item.Key);
-        }
       }
     }
 
@@ -433,50 +278,49 @@ void SKIF_UI_DrawPlatformStatus (void)
 #endif
   }
 
-  bool header = false;
-  for (auto& l : Layers)
+  if (g_VkLayers.first)
   {
-    if (l.Matches.empty())
-      continue;
+    SKIF_ImGui_Spacing      ( );
 
-    if (! header)
+    ImGui::TextColored (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+        "Problematic Vulkan layers:"
+    );
+
+    ImGui::SameLine         ( );
+
+    ImGui::TextColored (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
+        ICON_FA_LIGHTBULB
+    );
+
+    SKIF_ImGui_SetHoverTip ("The Vulkan layers listed below have known compatibility issues with Special K and may cause issues.\n"
+                            "Click on the layers to toggle them on/off. Note however that this will affects all apps/games.");
+
+    SKIF_ImGui_Spacing      ( );
+
+    for (auto& l : g_VkLayers.second)
     {
-      header = true;
+      if (! l.isIncompatible)
+        continue;
 
-      SKIF_ImGui_Spacing      ( );
+      if (l.Matches.empty())
+        continue;
 
-      ImGui::TextColored (
-        ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-          "Vulkan layers:"
-      );
+      ImGui::SetCursorPosX (ImGui::GetCursorPosX() + ImGui::GetStyle().FramePadding.x);
 
-      ImGui::SameLine         ( );
+      bool dontCare = l.isEnabled;
+      ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 ((l.isEnabled) ? ImGuiCol_SKIF_Yellow : ImGuiCol_SKIF_Success));
+      ImGui::BeginGroup       ( );
+      if (ImGui::Checkbox     (l.uiWarnLabel.c_str(), &dontCare))
+        l.Toggle ( );
 
-      ImGui::TextColored (
-        ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-          ICON_FA_LIGHTBULB
-      );
+      ImGui::EndGroup         ( );
+      ImGui::PopStyleColor    ( );
 
-      SKIF_ImGui_SetHoverTip ("Vulkan allows applications to install custom layers that are auto-loaded by all games/apps.\n"
-                              "Those that have known compatibility issues with Special K can be toggled on/off from here.");
-
-      SKIF_ImGui_Spacing      ( );
+      SKIF_ImGui_SetHoverText (l.uiHoverTxt);
+      SKIF_ImGui_SetHoverTip  ((l.isEnabled) ? "This layer is enabled and may cause issues. Click to disable it." : "This layer is disabled. Click to re-enable it.");
     }
-
-    ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 ((l.isEnabled) ? ImGuiCol_SKIF_Yellow : ImGuiCol_SKIF_Success));
-
-    ImGui::Spacing          ( );
-    ImGui::SameLine         ( );
-    ImGui::BeginGroup       ( );
-    ImGui::Text             ((l.isEnabled) ? ICON_FA_TRIANGLE_EXCLAMATION " " : ICON_FA_CHECK " ");
-    ImGui::SameLine         ( );
-    if (ImGui::Selectable   (l.uiLabel.c_str()))
-      ShellExecuteW (nullptr, L"runas", L"cmd", l.regCmd.c_str(), nullptr, SW_SHOWNORMAL);
-    ImGui::EndGroup         ( );
-    ImGui::PopStyleColor    ( );
-
-    SKIF_ImGui_SetHoverText (l.uiHoverTxt);
-    SKIF_ImGui_SetHoverTip  ("Click to toggle this Vulkan layer.");
   }
 
   SKIF_ImGui_Spacing      ( );
@@ -487,7 +331,7 @@ void SKIF_UI_DrawPlatformStatus (void)
   if (! _registry.bControllers)
   {
     ImGui::TextDisabled     ("Disabled");
-    SKIF_ImGui_SetHoverTip  ("Please re-enable controller support in the Settings tab.");
+    SKIF_ImGui_SetHoverTip  ("Controller support can be re-enabled in the Settings tab.");
   }
 
   else
