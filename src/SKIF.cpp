@@ -2107,11 +2107,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_vecRegularMode     = SKIF_vecRegularModeAdjusted * SKIF_ImGui_GlobalDPIScale;
 
     // Add support for an even smaller regular mode, at 800x675, but only if the regular size 1000x944 can't be used
-    if ((SKIF_vecRegularMode.x > monitor_extent.GetWidth () ||
-         SKIF_vecRegularMode.y > monitor_extent.GetHeight()))
+    if (monitor_extent.GetWidth() > 0)
     {
-      SKIF_vecRegularMode.x = 800.0f * SKIF_ImGui_GlobalDPIScale;
-      SKIF_vecRegularMode.y = 675.0f * SKIF_ImGui_GlobalDPIScale;
+      if ((SKIF_vecRegularMode.x > monitor_extent.GetWidth () ||
+           SKIF_vecRegularMode.y > monitor_extent.GetHeight()))
+      {
+        SKIF_vecRegularMode.x = 800.0f * SKIF_ImGui_GlobalDPIScale;
+        SKIF_vecRegularMode.y = 675.0f * SKIF_ImGui_GlobalDPIScale;
+      }
     }
 
     SKIF_vecServiceMode     = ImFloor (SKIF_vecServiceMode);
@@ -2484,6 +2487,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
             _registry.iUIPositionY != -1)
           ImGui::SetNextWindowPos (ImVec2 (static_cast<float> (_registry.iUIPositionX),
                                            static_cast<float> (_registry.iUIPositionY)));
+        else
+          RepositionSKIF = true;
       }
 
       // RepositionSKIF -- Step 2: Repositon the window
@@ -3586,7 +3591,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       static std::string AutoUpdatePopupTitle;
       static bool        AutoUpdateChanges = (_updater.GetAutoUpdateNotes().max_length > 0 && ! _inject.SKVer32.empty() && _inject.SKVer32 == _registry.wsAutoUpdateVersion);
 
-      if (AutoUpdateChanges)
+      if (AutoUpdateChanges && SKIF_ImGui_IsFocused ())
       {
         AutoUpdateChanges = false;
         AutoUpdatePopup = PopupState_Open;
