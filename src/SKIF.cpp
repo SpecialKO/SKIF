@@ -1705,6 +1705,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
     return 0;
   }
 
+  SKIF_Util_SetAppColorMode (AppColorMode::AllowDark);
+
   SKIF_Notify_hWnd      =
     CreateWindowExW (                                            WS_EX_NOACTIVATE,
       wcNotify.lpszClassName, _T("Special K Notification Icon"), WS_ICONIC,
@@ -5129,7 +5131,7 @@ SKIF_Notify_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         SHELL_TASKBAR_BUTTON_CREATED = RegisterWindowMessage (TEXT ("TaskbarButtonCreated"));
       );
       break;
-        
+
     default:
       // Taskbar was recreated (explorer.exe restarted),
       //   so we need to recreate the notification icon

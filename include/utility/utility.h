@@ -145,6 +145,15 @@ typedef struct _SKIF_MEMORY_PRIORITY_INFORMATION {
   ULONG MemoryPriority;
 } SKIF_MEMORY_PRIORITY_INFORMATION, *SKIF_PMEMORY_PRIORITY_INFORMATION;
 
+enum class AppColorMode // PreferredAppMode
+{
+  Default,
+  AllowDark,
+  ForceDark,
+  ForceLight,
+  Max
+};
+
 HANDLE          SKIF_Util_GetCurrentProcess           (void);
 HANDLE          SKIF_Util_GetCurrentProcessToken      (void);
 BOOL            SKIF_Util_TerminateProcess            (DWORD  dwProcessId, UINT uExitCode);
@@ -188,6 +197,7 @@ void            SKIF_Util_GetMonitorHzPeriod          (HWND hwnd, DWORD dwFlags,
 bool            SKIF_Util_SetClipboardData            (const std::wstring_view& data);
 std::wstring    SKIF_Util_AddEnvironmentBlock         (const void* pEnvBlock, const std::wstring& varName, const std::wstring& varValue);
 void            SKIF_Util_FileExplorer_SelectFile     (PCWSTR filePath);
+AppColorMode    SKIF_Util_SetAppColorMode             (AppColorMode mode);
 std::string     SKIF_Util_GetWindowMessageAsStr       (UINT msg);
 
 
