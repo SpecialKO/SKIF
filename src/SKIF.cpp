@@ -3820,57 +3820,71 @@ wWinMain ( _In_     HINSTANCE hInstance,
       SK_RunOnce (SKIF_Shell_CreateJumpList ( ));
     }
 
-    // Conditional rendering, but only if SKIF_ImGui_hWnd has actually been created
-    bool bRefresh = (SKIF_ImGui_hWnd != NULL && (SKIF_isTrayed || IsIconic (SKIF_ImGui_hWnd))) ? false : true;
-
-    if (invalidatedDevice > 0 && SKIF_Tab_Selected == UITab_Library)
-      bRefresh = false;
-
     // Disable navigation highlight on first frames
     SK_RunOnce(
       ImGuiContext& g = *ImGui::GetCurrentContext();
       g.NavDisableHighlight = true;
     );
 
+    // Conditional rendering, but only if SKIF_ImGui_hWnd has actually been created
+    bool bRefresh = (SKIF_ImGui_hWnd != NULL && (SKIF_isTrayed || IsIconic (SKIF_ImGui_hWnd))) ? false : true;
 
-    // From ImHex: https://github.com/WerWolv/ImHex/blob/09bffb674505fa2b09f0135a519d213f6fb6077e/main/gui/source/window/window.cpp#L631-L672
-    // GPL-2.0 license: https://github.com/WerWolv/ImHex/blob/master/LICENSE
+    if (invalidatedDevice > 0 && SKIF_Tab_Selected == UITab_Library)
+      bRefresh = false;
+
     if (bRefresh)
     {
       bRefresh = false;
-      static std::vector<uint8_t> previousVtxData;
-      static size_t previousVtxDataSize = 0;
+      static std::vector<uint8_t>
+                    snapVtxBufferData;
+      static size_t snapVtxBufferSize = 0;
+             size_t  newVtxBufferSize = 0;
 
-      size_t offset = 0;
-      size_t vtxDataSize = 0;
+      // Pass 1: Calculate total size
+      for (ImGuiViewport* viewport : ImGui::GetPlatformIO().Viewports)
+      {
+        if (! viewport || ! viewport->DrawData)
+          continue;
 
-      for (const auto viewPort : ImGui::GetPlatformIO().Viewports) {
-        auto drawData = viewPort->DrawData;
-        for (int n = 0; n < drawData->CmdListsCount; n++) {
-          vtxDataSize += drawData->CmdLists[n]->VtxBuffer.size() * sizeof(ImDrawVert);
-        }
-      }
-      for (const auto viewPort : ImGui::GetPlatformIO().Viewports) {
-        auto drawData = viewPort->DrawData;
-        for (int n = 0; n < drawData->CmdListsCount; n++) {
-          const ImDrawList *cmdList = drawData->CmdLists[n];
-
-          if (vtxDataSize == previousVtxDataSize) {
-            bRefresh = bRefresh || std::memcmp(previousVtxData.data() + offset, cmdList->VtxBuffer.Data, cmdList->VtxBuffer.size() * sizeof(ImDrawVert)) != 0;
-          } else {
-            bRefresh = true;
-          }
-
-          if (previousVtxData.size() < offset + cmdList->VtxBuffer.size() * sizeof(ImDrawVert)) {
-            previousVtxData.resize(offset + cmdList->VtxBuffer.size() * sizeof(ImDrawVert));
-          }
-
-          std::memcpy(previousVtxData.data() + offset, cmdList->VtxBuffer.Data, cmdList->VtxBuffer.size() * sizeof(ImDrawVert));
-          offset += cmdList->VtxBuffer.size() * sizeof(ImDrawVert);
-        }
+        for (int i = 0; i < viewport->DrawData->CmdListsCount; ++i)
+          newVtxBufferSize += viewport->DrawData->CmdLists[i]->VtxBuffer.Size * sizeof (ImDrawVert);
       }
 
-      previousVtxDataSize = vtxDataSize;
+      // Immediate refresh conditions
+      if (newVtxBufferSize != snapVtxBufferSize)
+        bRefresh = true;
+
+      std::vector<uint8_t>     newVtxBufferData;
+      newVtxBufferData.resize (newVtxBufferSize);
+
+      if (! bRefresh && newVtxBufferSize > 0)
+      {
+        size_t offset = 0;
+
+        // Pass 2: Pack vertex buffers
+        for (ImGuiViewport* viewport : ImGui::GetPlatformIO().Viewports)
+        {
+          if (! viewport || ! viewport->DrawData)
+            continue;
+
+          for (int i = 0; i < viewport->DrawData->CmdListsCount; ++i)
+          {
+            if (viewport->DrawData->CmdLists[i]->VtxBuffer.Size <= 0)
+              continue;
+
+            const size_t bytes = static_cast<size_t> (viewport->DrawData->CmdLists[i]->VtxBuffer.Size) * sizeof (ImDrawVert);
+            std::memcpy (newVtxBufferData.data() + offset, viewport->DrawData->CmdLists[i]->VtxBuffer.Data, bytes);
+            offset += bytes;
+          }
+        }
+
+        // Compare snapshot with new buffer
+        bRefresh = std::memcmp (snapVtxBufferData.data(), newVtxBufferData.data(), newVtxBufferSize) != 0;
+      }
+
+      // Store snapshot
+      snapVtxBufferData.swap (newVtxBufferData);
+      snapVtxBufferSize = newVtxBufferSize;
     }
 
     // Update, Render and Present the main and any additional Platform Windows
