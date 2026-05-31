@@ -197,6 +197,12 @@ void            SKIF_Util_GetMonitorHzPeriod          (HWND hwnd, DWORD dwFlags,
 bool            SKIF_Util_SetClipboardData            (const std::wstring_view& data);
 std::wstring    SKIF_Util_AddEnvironmentBlock         (const void* pEnvBlock, const std::wstring& varName, const std::wstring& varValue);
 void            SKIF_Util_FileExplorer_SelectFile     (PCWSTR filePath);
+bool            SKIF_Util_FileExplorer_DeleteFile     (PCWSTR filePath, bool hideWarning);
+void            SKIF_Util_FileExplorer_ContextMenuFile(PCWSTR filePath, HWND hWndOwner);
+std::wstring    SKIF_Util_FileExplorer_BrowseForFolderXP(PCWSTR defaultPath);
+std::wstring    SKIF_Util_FileExplorer_BrowseForFolder(PCWSTR defaultPath);
+bool            SKIF_Util_Files_PruneOlderThan        (std::wstring path, ULONGLONG secondsSince);
+bool            SKIF_Util_Files_PruneToLatestN        (std::wstring path, size_t filesToRetain);
 AppColorMode    SKIF_Util_SetAppColorMode             (AppColorMode mode);
 std::string     SKIF_Util_GetWindowMessageAsStr       (UINT msg);
 

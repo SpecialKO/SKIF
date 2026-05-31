@@ -2835,6 +2835,273 @@ SKIF_Util_FileExplorer_SelectFile (PCWSTR filePath)
     delete data;
 }
 
+bool
+SKIF_Util_FileExplorer_DeleteFile (PCWSTR filePath, bool hideWarning)
+{
+  bool ret = false;
+
+  IShellItem* psi = nullptr;
+  if (SUCCEEDED (SHCreateItemFromParsingName (filePath, nullptr, IID_PPV_ARGS(&psi))))
+  {
+    IFileOperation* pfo = nullptr;
+    if (SUCCEEDED (CoCreateInstance (CLSID_FileOperation, nullptr, CLSCTX_ALL, IID_PPV_ARGS(&pfo))))
+    {
+      // This primarily adheres to Explorer's "Display delete confirmation dialog" setting
+      //   i.e. if that setting is disabled, the confirmation won't appear regardless
+      DWORD flags  =
+        FOF_FILESONLY | FOFX_RECYCLEONDELETE | FOFX_ADDUNDORECORD | ((hideWarning) ? FOF_NOCONFIRMATION : FOF_WANTNUKEWARNING); // FOF_WANTNUKEWARNING only seems to trigger on network shares
+
+      if (SUCCEEDED (pfo->SetOperationFlags (flags)))
+      {
+        if (SUCCEEDED (pfo->DeleteItem (psi, nullptr)))
+        {
+          ret = SUCCEEDED (pfo->PerformOperations());
+        }
+      }
+
+      pfo->Release();
+    }
+
+    psi->Release();
+  }
+
+  return ret;
+}
+
+void
+SKIF_Util_FileExplorer_ContextMenuFile (PCWSTR filePath, HWND hWndOwner)
+{
+  // You should call this function from a background thread.
+  // Failure to do so could cause the UI to stop responding.
+  PIDLIST_ABSOLUTE iidlPtr = nullptr;
+  HRESULT hr = SHParseDisplayName (filePath, NULL, &iidlPtr, 0, nullptr);
+  // Let us take the risk since TrackPopupMenuEx() needs to be called from the UI thread
+
+  if (SUCCEEDED (hr))
+  {
+    CComPtr<IShellFolder> parentFolder;
+    LPCITEMIDLIST child        = nullptr;
+
+    hr = SHBindToParent (iidlPtr, IID_PPV_ARGS(&parentFolder), &child);
+
+    if (SUCCEEDED (hr))
+    {
+      CComPtr<IContextMenu> ctxMenu;
+      hr = parentFolder->GetUIObjectOf (hWndOwner, 1, &child, IID_IContextMenu, nullptr, (void**)&ctxMenu);
+
+      if (SUCCEEDED (hr))
+      {
+        HMENU hMenu = CreatePopupMenu();
+        ctxMenu->QueryContextMenu (hMenu, 0, 1, 0x7FFF, CMF_NORMAL);
+
+        POINT cur = { };
+        GetCursorPos (&cur);
+
+        int cmd = TrackPopupMenuEx (hMenu, TPM_RETURNCMD, cur.x, cur.y, hWndOwner, nullptr);
+
+        if (cmd > 0)
+        {
+          CMINVOKECOMMANDINFOEX
+            info        = { sizeof(info) };
+            info.fMask  = CMIC_MASK_UNICODE;
+            info.hwnd   = hWndOwner;
+            info.lpVerb = MAKEINTRESOURCEA(cmd - 1);
+            info.nShow  = SW_SHOWNORMAL;
+
+          ctxMenu->InvokeCommand ((LPCMINVOKECOMMANDINFO)&info);
+        }
+
+        DestroyMenu (hMenu);
+      }
+    }
+
+    CoTaskMemFree (iidlPtr);
+  }
+}
+
+static int
+CALLBACK
+SKIF_Util_FileExplorer_BrowseForFolder_CallbackProc (HWND hWnd,UINT uMsg, LPARAM lParam, LPARAM lpData)
+{
+  UNREFERENCED_PARAMETER (lParam);
+
+  if (uMsg == BFFM_INITIALIZED)
+    SendMessage (hWnd, BFFM_SETSELECTION, TRUE, lpData);
+
+  return 0;
+}
+
+std::wstring
+SKIF_Util_FileExplorer_BrowseForFolderXP (PCWSTR defaultPath)
+{
+  TCHAR path[MAX_PATH] = { };
+
+  BROWSEINFO
+    bi = { };
+    bi.lpszTitle  = L"Select a new screenshot folder for SKIV to use:";
+    bi.ulFlags    = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
+    bi.lpfn       = SKIF_Util_FileExplorer_BrowseForFolder_CallbackProc;
+    bi.lParam     = (LPARAM) defaultPath;
+
+  LPITEMIDLIST pidl = SHBrowseForFolder ( &bi );
+
+  if ( pidl != 0 )
+  {
+    SHGetPathFromIDList ( pidl, path );
+    CoTaskMemFree (pidl);
+  }
+
+  return path;
+}
+
+std::wstring
+SKIF_Util_FileExplorer_BrowseForFolder (PCWSTR defaultPath)
+{
+  std::wstring path;
+
+  IFileDialog* pfd = nullptr;
+  if (SUCCEEDED (CoCreateInstance (CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pfd))))
+  {
+    DWORD dwFlags;
+    pfd->GetOptions(&dwFlags);
+    pfd->SetOptions (dwFlags | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM);
+
+    // Force the dialogue to open a specific folder
+    IShellItem* psiFolder = nullptr;
+    if (SUCCEEDED (SHCreateItemFromParsingName (defaultPath, nullptr, IID_PPV_ARGS(&psiFolder))))
+      pfd->SetFolder (psiFolder);
+
+    if (SUCCEEDED (pfd->Show (SKIF_ImGui_hWnd)))
+    {
+      IShellItem* psiResult = nullptr;
+      if (SUCCEEDED (pfd->GetResult (&psiResult)))
+      {
+        PWSTR pszFolderPath = nullptr;
+        if (SUCCEEDED (psiResult->GetDisplayName (SIGDN_FILESYSPATH, &pszFolderPath)))
+        {
+          path = pszFolderPath;
+          CoTaskMemFree (pszFolderPath);
+        }
+        psiResult->Release();
+      }
+    }
+
+    if (psiFolder != nullptr)
+      psiFolder->Release();
+
+    pfd->Release();
+  }
+
+  return path;
+}
+
+bool
+SKIF_Util_Files_PruneOlderThan (std::wstring path, ULONGLONG secondsSince)
+{
+  if (path.empty())
+    return false;
+
+  if (! path.ends_with (LR"(\)"))
+    path += LR"(\)";
+
+  // Clear out any temp files older than the threshold
+  auto _isLastModified = [&](FILETIME ftLastWriteTime) -> bool
+  {
+    FILETIME ftSystemTime{}, ftAdjustedFileTime{};
+    SYSTEMTIME systemTime{};
+    GetSystemTime (&systemTime);
+
+    if (SystemTimeToFileTime (&systemTime, &ftSystemTime))
+    {
+      ULARGE_INTEGER uintLastWriteTime{};
+
+      // Copy to ULARGE_INTEGER union to perform 64-bit arithmetic
+      uintLastWriteTime.HighPart        = ftLastWriteTime.dwHighDateTime;
+      uintLastWriteTime.LowPart         = ftLastWriteTime.dwLowDateTime;
+
+      // Perform 64-bit arithmetic to add the required amount of seconds to last modified timestamp
+      uintLastWriteTime.QuadPart        = uintLastWriteTime.QuadPart + ULONGLONG(1 * (secondsSince) * 1.0e+7);
+
+      // Copy the results to an FILETIME struct
+      ftAdjustedFileTime.dwHighDateTime = uintLastWriteTime.HighPart;
+      ftAdjustedFileTime.dwLowDateTime  = uintLastWriteTime.LowPart;
+
+      // Compare with system time, and if system time is later (1), then return true
+      if (CompareFileTime (&ftSystemTime, &ftAdjustedFileTime) == 1)
+        return true;
+    }
+
+    return false;
+  };
+
+  HANDLE hFind        = INVALID_HANDLE_VALUE;
+  WIN32_FIND_DATA ffd = { };
+
+  hFind = 
+    FindFirstFileExW ((path + L"*").c_str(), FindExInfoBasic, &ffd, FindExSearchNameMatch, NULL, NULL);
+
+  if (INVALID_HANDLE_VALUE != hFind)
+  {
+    if (_isLastModified   (ffd.ftLastWriteTime))
+      DeleteFile  ((path + ffd.cFileName).c_str());
+
+    while (FindNextFile (hFind, &ffd))
+      if (_isLastModified   (ffd.ftLastWriteTime))
+        DeleteFile  ((path + ffd.cFileName).c_str());
+
+    FindClose (hFind);
+  } else return false;
+
+  return true;
+}
+
+bool
+SKIF_Util_Files_PruneToLatestN (std::wstring path, size_t filesToRetain)
+{
+  if (path.empty())
+    return false;
+
+  if (! path.ends_with (LR"(\)"))
+    path += LR"(\)";
+
+  HANDLE hFind        = INVALID_HANDLE_VALUE;
+  WIN32_FIND_DATA ffd = { };
+  std::vector<WIN32_FIND_DATA> files;
+
+  // This excludes the . and .. items
+  auto _isValid = [](const wchar_t* str) -> bool
+  { return (! ((str[0] == '.') && ((str[1] == '\0') || (str[1] == '.' && str[2] == '\0')))); };
+
+  hFind = 
+    FindFirstFileExW ((path + L"*").c_str(), FindExInfoBasic, &ffd, FindExSearchNameMatch, NULL, NULL);
+
+  if (INVALID_HANDLE_VALUE != hFind)
+  {
+    if (_isValid (ffd.cFileName))
+      files.push_back (ffd);
+
+    while (FindNextFile (hFind, &ffd))
+      if (_isValid (ffd.cFileName))
+        files.push_back (ffd);
+
+    FindClose (hFind);
+  } else return false;
+
+  if (files.size() > filesToRetain)
+  {
+    std::sort (files.begin(), files.end(), [](const WIN32_FIND_DATA& a, const WIN32_FIND_DATA& b)
+      { return (CompareFileTime (&a.ftLastWriteTime, &b.ftLastWriteTime) == -1); } // First file time is earlier than second file time.
+    );
+
+    for (size_t i = 0; i < (files.size() - filesToRetain); i++)
+      DeleteFile ((path + files[i].cFileName).c_str());
+
+    return true;
+  }
+
+  return false;
+}
+
 // Sets a new app color mode and returns the previous one
 AppColorMode
 SKIF_Util_SetAppColorMode (AppColorMode mode)
