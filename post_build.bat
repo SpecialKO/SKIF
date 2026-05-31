@@ -12,7 +12,7 @@ taskkill /im %2 /f /fi "STATUS eq RUNNING"
 ping 127.0.0.1 -n 2 >nul
 
 @REM Copies the executable to the desired target folder
-copy /b /v /y %1 "D:\Games\Special K"
+copy /b /v /y %1 "%USERPROFILE%\Documents\My Mods\SpecialK"
 
 @REM Sign the executable (requires knowing TargetPath)
 @REM signtool sign /n "Open Source Developer" /t http://time.certum.pl/ /fd sha256 /v %1
