@@ -68,6 +68,7 @@ SKIF supports detecting and launching games from the following platforms:
 ## Third-party code
 
 * Uses [Dear ImGui](https://github.com/ocornut/imgui), licensed under [MIT](https://github.com/ocornut/imgui/blob/master/LICENSE.txt).
+* Uses [ImGuiNotify](https://github.com/TyomaVader/ImGuiNotify), licensed under [MIT](https://github.com/TyomaVader/ImGuiNotify/blob/Dev/LICENSE).
 * Uses [DirectX Texture Library](http://go.microsoft.com/fwlink/?LinkId=248926), licensed under [MIT](https://github.com/microsoft/DirectXTex/blob/main/LICENSE).
 * Uses [Font Awesome Free v6.2.1](https://fontawesome.com/v6/download), licensed under [SIL OFL 1.1 License](https://scripts.sil.org/OFL).
 * Uses [JSON for Modern C++](https://github.com/nlohmann/json), licensed under [MIT](https://github.com/nlohmann/json/blob/develop/LICENSE.MIT).

@@ -388,6 +388,7 @@
     <ClInclude Include="include\utility\gamepad.h" />
     <ClInclude Include="include\utility\plog_formatter.h" />
     <ClInclude Include="packages_misc\HybridDetect.h" />
+    <ClInclude Include="packages_misc\ImGuiNotify.hpp" />
     <ClInclude Include="packages_misc\picosha2.h" />
     <ClInclude Include="packages_misc\stb_image.h" />
     <ClInclude Include="packages_misc\TextFlow.hpp" />

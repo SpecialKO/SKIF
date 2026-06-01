@@ -6,6 +6,7 @@ created by third-parties and licensed separately. The details of those are detai
 This software is based on the following MIT licensed projects:
 
 - Dear ImGui                       : Copyright (c) 2014-2024 Omar Cornut
+- ImGuiNotify                      : Copyright (c) 2021 Patrick, 2024 TyomaVader
 - DirectX Texture Library          : Copyright (c) Microsoft Corporation.
 - JSON for Modern C++              : Copyright (c) 2013-2022 Niels Lohmann
 - PicoSHA2                         : Copyright (c) 2017 okdshin

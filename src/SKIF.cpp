@@ -48,9 +48,10 @@
 #include <imgui/imgui_impl_win32.h>
 #include "imgui/imgui_impl_dx11.h"
 #include <imgui/imgui_internal.h>
-#include <xinput.h>
+#include <ImGuiNotify.hpp>
 
 #include <utility/fsutil.h>
+#include <xinput.h>
 
 #include <filesystem>
 #include <concurrent_queue.h>
@@ -112,6 +113,8 @@ bool  SKIF_debuggerPresent      = false;
 DWORD SKIF_startupTime          = 0; // Used as a basis of how long the initialization took
 DWORD SKIF_firstFrameTime       = 0; // Used as a basis of how long the initialization took
 HANDLE SteamProcessHandle       = NULL;
+
+int32_t ImGuiToast::maxAssignedId = 0;
 
 // Shell messages (registered window messages)
 UINT SHELL_TASKBAR_RESTART        = 0; // TaskbarCreated
@@ -3760,6 +3763,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 #endif
 
       //OutputDebugString((L"Hidden frames: " + std::to_wstring(ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems) + L"\n").c_str());
+
+      // Main rendering function
+      ImGui::RenderNotifications ( );
 
       SKIF_vecCurrentMode     = ImGui::GetWindowSize ( );
       SKIF_vecCurrentPosition = ImGui::GetWindowPos  ( );

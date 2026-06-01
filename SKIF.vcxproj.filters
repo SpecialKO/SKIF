@@ -246,6 +246,9 @@
     <ClInclude Include="include\tabs\hardware.h">
       <Filter>Header Files\UI Tabs</Filter>
     </ClInclude>
+    <ClInclude Include="packages_misc\ImGuiNotify.hpp">
+      <Filter>Header Files\Packages_Misc</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\imgui\imgui.cpp">
