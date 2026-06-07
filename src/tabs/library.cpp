@@ -8103,18 +8103,20 @@ SKIF_UI_Tab_DrawLibrary (void)
           std::wstring load_str_final = load_str;
 
           // Get UNIX-style time
-          time_t ltime;
-          time (&ltime);
+        //time_t ltime;
+        //time (&ltime);
 
           // Steam typically uses one of two different CDNs:
           // * CloudFlare : https://cdn.cloudflare.steamstatic.com/steam/apps/2673660/library_600x900_2x.jpg
           // * Akamai     :        https://steamcdn-a.akamaihd.net/steam/apps/2673660/library_600x900_2x.jpg
           // Historically the Akamai CDN has been ever so slightly more reliable than the CloudFlare CDN.
+          /*
           std::wstring url  = L"https://steamcdn-a.akamaihd.net/steam/apps/";
                        url += std::to_wstring (_pApp->id);
                        url += L"/library_600x900_2x.jpg";
                        url += L"?t=";
                        url += std::to_wstring (ltime); // Add UNIX-style timestamp to ensure we don't get anything cached
+          */
 
           // If 600x900 exists but 600x900_x2 cannot be found
           if (  PathFileExistsW (load_str.   c_str ()) &&
@@ -8138,6 +8140,7 @@ SKIF_UI_Tab_DrawLibrary (void)
               if (meta.width  == 300 &&
                   meta.height == 450)
               {
+                std::wstring url = SKIF_Steam_GetCoverURI (_pApp->id);
                 PLOG_DEBUG << "Downloading cover asset: " << url;
 
                 SKIF_Util_GetWebResource (url, load_str_2x);
@@ -8161,7 +8164,9 @@ SKIF_UI_Tab_DrawLibrary (void)
               {
                 DeleteFile (load_str_2x.c_str ());
 
+                std::wstring url = SKIF_Steam_GetCoverURI (_pApp->id);
                 PLOG_DEBUG << "Downloading cover asset: " << url;
+
                 SKIF_Util_GetWebResource (url, load_str_2x);
               }
             }

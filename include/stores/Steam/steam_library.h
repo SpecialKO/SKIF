@@ -268,3 +268,4 @@ std::wstring                 SKIF_Steam_GetAppStateString        (HKEY* hKey, co
 wchar_t                      SKIF_Steam_GetAppStateDWORD         (HKEY* hKey, const wchar_t *wszStateKey, DWORD *pdwStateVal);
 bool                         SKIF_Steam_UpdateAppState           (app_record_s *pApp);
 void                         SKIF_Steam_IdentifyAssetPCGW        (uint32_t app_id);
+std::wstring                 SKIF_Steam_GetCoverURI              (uint32_t app_id);

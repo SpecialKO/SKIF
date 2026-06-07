@@ -1582,3 +1582,114 @@ SKIF_Steam_IdentifyAssetPCGW (uint32_t app_id)
     }
   }
 }
+
+std::wstring
+SKIF_Steam_GetCoverURI (uint32_t app_id)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
+  const std::wstring URI     = L"https://api.steampowered.com/IStoreBrowseService/GetItems/v1/";
+  const std::string SteamCDN = "https://shared.fastly.steamstatic.com/store_item_assets/";
+  const std::vector<std::string> countryCodes = { "US", "UK", "AU", "FR", "PL", "DE", "JP", "CN", "RU" };
+  const std::string pattern = "${FILENAME}";
+        std::string asset    = "";
+
+  std::wstring json_path (
+    SK_FormatStringW (LR"(%ws\Assets\Steam\%i\GetItems1.json)", _path_cache.specialk_userdata, app_id)
+  );
+
+  for (const auto& cc : countryCodes)
+  {
+    nlohmann::json payload =
+    {
+      {"ids", {
+        {
+          {"appid", app_id}
+        }
+      }},
+      {"context", {
+        {"country_code", cc},
+        {"language", "english"}
+      }},
+      {"data_request", {
+        {"include_assets",                   true},
+        {"include_release",                 false},
+        {"include_platforms",               false},
+        {"include_all_purchase_options",    false},
+        {"include_screenshots",             false},
+        {"include_trailers",                false},
+        {"include_ratings",                 false},
+        {"include_reviews",                 false},
+      //{"include_tag_count",                   1}, // omitted so it excludes tags entirely
+        {"include_basic_info",              false},
+        {"include_supported_languages",     false},
+        {"include_full_description",        false},
+        {"include_included_items",          false},
+        {"include_assets_without_overrides", true},
+        {"include_links",                   false}
+      }}
+    };
+
+    std::string payloadText =
+      payload.dump();
+
+    std::wstring request =
+      URI +
+      L"?input_json=" + SK_UTF8ToWideChar (payloadText);
+
+    std::string response;
+
+    PLOG_DEBUG << "Downloading Steam GetItems v1 JSON: " << request;
+
+    SKIF_Util_GetWebResource (request, json_path);
+
+    try
+    {
+      std::ifstream fileJson (json_path);
+      nlohmann::json jf = nlohmann::json::parse (fileJson, nullptr, false);
+      fileJson.close();
+
+      if (jf.is_discarded ( ))
+      {
+        PLOG_ERROR << "Could not read Steam GetItems v1 JSON!";
+      }
+
+      else
+      {
+        const auto& item = jf["response"]["store_items"][0];
+
+        if (item.value ("unavailable_for_country_restriction", false))
+          continue;
+
+        std::string
+        //store_url_path           = item          .value ("store_url_path",     std::string{}), // app/1675830/1000xRESIST
+          asset_url_format         = item["assets"].value ("asset_url_format",   std::string{}), // steam/apps/2483190/${FILENAME}?t=1779221600
+          asset_library_capsule_2x = item["assets"].value ("library_capsule_2x", std::string{}), // library_600x900_2x.jpg
+          asset_library_capsule    = item["assets"].value ("library_capsule",    std::string{}); // library_600x900.jpg
+        //asset_header             = item["assets"].value ("header",             std::string{}); // header.jpg
+
+        if (asset_library_capsule_2x.empty() && asset_library_capsule.empty())
+          continue;
+
+        asset = (! asset_library_capsule_2x.empty())
+                 ? asset_library_capsule_2x
+                 : asset_library_capsule;
+
+        asset = SteamCDN + asset_url_format.replace (asset_url_format.find (pattern), pattern.length(), asset);
+
+        PLOG_VERBOSE << "asset_url_format: " << asset_url_format;
+        PLOG_VERBOSE << "asset: " << asset;
+
+        break;
+      }
+    }
+    catch (const std::exception&)
+    {
+      PLOG_ERROR << "Error parsing Steam GetItems v1 JSON!";
+      continue;
+    }
+  }
+
+  return SK_UTF8ToWideChar (asset);
+}
