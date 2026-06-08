@@ -1642,13 +1642,16 @@ SKIF_Steam_GetCoverURI (uint32_t app_id)
 
     PLOG_DEBUG << "Downloading Steam GetItems v1 JSON: " << request;
 
-    SKIF_Util_GetWebResource (request, json_path);
+    SKIF_Util_GetWebResource (request, L"", L"GET", L"", "", L"", &response);
 
     try
     {
-      std::ifstream fileJson (json_path);
-      nlohmann::json jf = nlohmann::json::parse (fileJson, nullptr, false);
-      fileJson.close();
+      //std::ifstream fileJson (json_path);
+      //nlohmann::json jf = nlohmann::json::parse (fileJson, nullptr, false);
+      //fileJson.close();
+      nlohmann::json jf = nlohmann::json::parse (response);
+
+      //PLOG_DEBUG << "Retrieved Steam GetItem v1 JSON: " << jf.dump();
 
       if (jf.is_discarded ( ))
       {
