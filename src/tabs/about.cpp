@@ -394,10 +394,10 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::SameLine         ( );
 
   if (ImGui::Selectable   ("Forum"))
-    SKIF_Util_OpenURI     (L"https://discourse.differentk.fyi/");
+    SKIF_Util_OpenURI     (L"https://discourse.special-k.info/");
 
   SKIF_ImGui_SetMouseCursorHand ();
-  SKIF_ImGui_SetHoverText ( "https://discourse.differentk.fyi/");
+  SKIF_ImGui_SetHoverText ( "https://discourse.special-k.info/");
   ImGui::EndGroup         ( );
 
   ImGui::BeginGroup       ( );

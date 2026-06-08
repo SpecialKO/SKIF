@@ -3322,10 +3322,10 @@ DrawSpecialKContextMenu (app_record_s* pApp)
   SKIF_ImGui_SetHoverText       ("https://discord.special-k.info");
 
   if (SKIF_ImGui_MenuItemEx2 ("Forum", ICON_FA_DISCOURSE, (_registry._StyleLightMode) ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow) : ImVec4(ImColor(247, 241, 169))))
-    SKIF_Util_OpenURI (L"https://discourse.differentk.fyi/");
+    SKIF_Util_OpenURI (L"https://discourse.special-k.info/");
 
   SKIF_ImGui_SetMouseCursorHand ();
-  SKIF_ImGui_SetHoverText       ("https://discourse.differentk.fyi/");
+  SKIF_ImGui_SetHoverText       ("https://discourse.special-k.info/");
 
   if (SKIF_ImGui_MenuItemEx2 ("Patreon", ICON_FA_PATREON, ImColor(249, 104, 84)))
     SKIF_Util_OpenURI (L"https://www.patreon.com/Kaldaien");
