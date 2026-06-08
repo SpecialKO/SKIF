@@ -378,10 +378,10 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::SameLine         (35.0f * SKIF_ImGui_GlobalDPIScale);
 
   if (ImGui::Selectable   ("Discord"))
-    SKIF_Util_OpenURI     (L"https://discord.gg/specialk");
+    SKIF_Util_OpenURI     (L"https://discord.special-k.info");
 
   SKIF_ImGui_SetMouseCursorHand ();
-  SKIF_ImGui_SetHoverText ( "https://discord.gg/specialk");
+  SKIF_ImGui_SetHoverText ( "https://discord.special-k.info");
   ImGui::EndGroup         ( );
 
 

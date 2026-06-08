@@ -3316,10 +3316,10 @@ DrawSpecialKContextMenu (app_record_s* pApp)
   SKIF_ImGui_SetHoverText       ("https://wiki.special-k.info/");
 
   if (SKIF_ImGui_MenuItemEx2 ("Discord", ICON_FA_DISCORD, ImColor(114, 137, 218)))
-    SKIF_Util_OpenURI (L"https://discord.gg/specialk");
+    SKIF_Util_OpenURI (L"https://discord.special-k.info");
 
   SKIF_ImGui_SetMouseCursorHand ();
-  SKIF_ImGui_SetHoverText       ("https://discord.gg/specialk");
+  SKIF_ImGui_SetHoverText       ("https://discord.special-k.info");
 
   if (SKIF_ImGui_MenuItemEx2 ("Forum", ICON_FA_DISCOURSE, (_registry._StyleLightMode) ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow) : ImVec4(ImColor(247, 241, 169))))
     SKIF_Util_OpenURI (L"https://discourse.differentk.fyi/");
