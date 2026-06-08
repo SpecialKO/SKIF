@@ -239,7 +239,6 @@ struct skif_get_web_uri_t {
   std::string  body                                   = { };
   std::wstring header                                 = { };
   std::wstring user_agent                             = L"Special K - Asset Crawler";
-  std::string  response                               = { };
 };
 
 DWORD WINAPI SKIF_Util_GetWebUri              (skif_get_web_uri_t* get, std::string* response_body = nullptr);
