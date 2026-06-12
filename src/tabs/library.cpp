@@ -5249,8 +5249,14 @@ SKIF_UI_Tab_DrawLibrary (void)
       pre = SKIF_Util_timeGetTime1 ( );
 
       bool     newCategories = true;
-      HKEY     hKey;
-      LSTATUS lsKey = RegCreateKeyW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\Profiles)", &hKey);
+      HKEY     hProfilesKey  = 0;
+      HKEY     hAppIdsKey    = 0;
+      LSTATUS lsKey = RegCreateKeyW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\Profiles)", &hProfilesKey);
+
+      if (lsKey == ERROR_SUCCESS)
+          lsKey  = RegCreateKeyW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\AppIds)", &hAppIdsKey);
+      else if (      hProfilesKey != 0)
+        RegCloseKey (hProfilesKey);
 
       // UNIX timestamp for new arrivals
       time_t ltime;
@@ -5529,10 +5535,31 @@ SKIF_UI_Tab_DrawLibrary (void)
           // Ensure the Profiles registry key is populated properly, but only write it once to ensure
           //   profile folders are not randomly renamed if a game gets renamed on the storefront
           if (ERROR_SUCCESS        == lsKey &&
-              ERROR_FILE_NOT_FOUND == RegQueryValueExW (hKey, app.second.install_dir.c_str(), NULL, NULL, NULL, NULL))
+              ERROR_FILE_NOT_FOUND == RegQueryValueExW (hProfilesKey, app.second.install_dir.c_str(), NULL, NULL, NULL, NULL))
           {
-            if (ERROR_SUCCESS != RegSetValueExW (hKey, app.second.install_dir.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.length() * sizeof(wchar_t)))
+            if (ERROR_SUCCESS != RegSetValueExW (hProfilesKey, app.second.install_dir.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.length() * sizeof(wchar_t)))
               PLOG_ERROR   << "Failed adding profile name (" << wsName << ") to registry value: " << app.second.install_dir;
+          }
+
+          // Populate a list of Path-to-AppID mappings in the registry for platforms that may not have a manifest that Special K can parse (e.g. Epic)
+          if (ERROR_SUCCESS == lsKey)
+          {
+            switch (app.second.store)
+            {
+              case app_record_s::Store::Epic:
+              {
+                if (! app.second.epic.name_app.empty ())
+                {
+                  std::wstring wsAppId =
+                    SK_UTF8ToWideChar (app.second.epic.name_app);
+
+                  if (ERROR_SUCCESS != RegSetValueExW (hAppIdsKey, app.second.install_dir.c_str(), 0, REG_SZ, (LPBYTE)wsAppId.data (), (DWORD)wsAppId.length() * sizeof(wchar_t)))
+                    PLOG_ERROR   << "Failed adding appid mapping (" << wsAppId << ") to registry value : " << app.second.epic.name_app;
+                }
+              } break;
+              default:
+                break;
+            }
           }
 
           // Register profile mappings for all launch configs
@@ -5542,9 +5569,9 @@ SKIF_UI_Tab_DrawLibrary (void)
               lc.second.executable_path;
 
             if (ERROR_SUCCESS        == lsKey &&
-                ERROR_FILE_NOT_FOUND == RegQueryValueExW (hKey, exe_path.c_str (), NULL, NULL, NULL, NULL))
+                ERROR_FILE_NOT_FOUND == RegQueryValueExW (hProfilesKey, exe_path.c_str (), NULL, NULL, NULL, NULL))
             {
-              if (ERROR_SUCCESS != RegSetValueExW (hKey, exe_path.c_str (), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.length() * sizeof(wchar_t)))
+              if (ERROR_SUCCESS != RegSetValueExW (hProfilesKey, exe_path.c_str (), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.length() * sizeof(wchar_t)))
                 PLOG_ERROR   << "Failed adding profile name (" << wsName << ") to registry value: " << exe_path;
             }
           }
@@ -5553,21 +5580,23 @@ SKIF_UI_Tab_DrawLibrary (void)
           if (app.second.store == app_record_s::Store::Xbox)
           {
             if ( ERROR_SUCCESS        == lsKey &&
-                (ERROR_FILE_NOT_FOUND == RegQueryValueExW (hKey, app.second.xbox.directory_app.c_str(),           NULL, NULL, NULL, NULL) ||
-                 ERROR_FILE_NOT_FOUND == RegQueryValueExW (hKey, app.second.xbox.directory_program_files.c_str(), NULL, NULL, NULL, NULL)) )
+                (ERROR_FILE_NOT_FOUND == RegQueryValueExW (hProfilesKey, app.second.xbox.directory_app.c_str(),           NULL, NULL, NULL, NULL) ||
+                 ERROR_FILE_NOT_FOUND == RegQueryValueExW (hProfilesKey, app.second.xbox.directory_program_files.c_str(), NULL, NULL, NULL, NULL)) )
             {
-              if (ERROR_SUCCESS != RegSetValueExW (hKey, app.second.xbox.directory_app.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.length() * sizeof(wchar_t)))
+              if (ERROR_SUCCESS != RegSetValueExW (hProfilesKey, app.second.xbox.directory_app.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.length() * sizeof(wchar_t)))
                 PLOG_ERROR << "Failed adding profile name (" << wsName << ") to registry value: " << app.second.xbox.directory_app;
 
-              if (ERROR_SUCCESS != RegSetValueExW (hKey, app.second.xbox.directory_program_files.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.length() * sizeof(wchar_t)))
+              if (ERROR_SUCCESS != RegSetValueExW (hProfilesKey, app.second.xbox.directory_program_files.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.length() * sizeof(wchar_t)))
                 PLOG_ERROR << "Failed adding profile name (" << wsName << ") to registry value: " << app.second.xbox.directory_program_files;
             }
           }
         }
       }
 
-      if (ERROR_SUCCESS == lsKey)
-        RegCloseKey (hKey);
+      if (ERROR_SUCCESS == lsKey) {
+        RegCloseKey (hProfilesKey);
+        RegCloseKey (hAppIdsKey);
+      }
 
       // Update the db.json file with any additions and whatnot
       JsonDB_WriteFile ( );
