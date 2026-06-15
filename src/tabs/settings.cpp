@@ -211,9 +211,13 @@ SKIF_UI_Tab_DrawSettings (void)
         }
         ImGui::PopID ();
 
+        static DWORD dwPopupOpenedTime = 0;
+               DWORD dwTimeNow         = SKIF_Util_timeGetTime ();
+
         static bool open = false;
         if (selected)
         {
+          dwPopupOpenedTime = dwTimeNow;
           ImGui::OpenPopup ("ChordBinding_ScreenSaver");
           open = true;
         }
@@ -222,57 +226,61 @@ SKIF_UI_Tab_DrawSettings (void)
         {
           selected = false;
 
-               if (ImGui::IsKeyPressed (ImGuiKey_GamepadL1))         dwButtonPressed = XINPUT_GAMEPAD_LEFT_SHOULDER;
-          else if (ImGui::IsKeyPressed (ImGuiKey_GamepadL2))         dwButtonPressed = XINPUT_GAMEPAD_LEFT_TRIGGER;
-          else if (ImGui::IsKeyPressed (ImGuiKey_GamepadL3))         dwButtonPressed = XINPUT_GAMEPAD_LEFT_THUMB;
-          else if (ImGui::IsKeyPressed (ImGuiKey_GamepadR1))         dwButtonPressed = XINPUT_GAMEPAD_RIGHT_SHOULDER;
-          else if (ImGui::IsKeyPressed (ImGuiKey_GamepadR2))         dwButtonPressed = XINPUT_GAMEPAD_RIGHT_TRIGGER;
-          else if (ImGui::IsKeyPressed (ImGuiKey_GamepadR3))         dwButtonPressed = XINPUT_GAMEPAD_RIGHT_THUMB;
-
-          else if (ImGui::IsKeyPressed (ImGuiKey_GamepadDpadUp))     dwButtonPressed = XINPUT_GAMEPAD_DPAD_UP;
-          else if (ImGui::IsKeyPressed (ImGuiKey_GamepadDpadDown))   dwButtonPressed = XINPUT_GAMEPAD_DPAD_DOWN;
-          else if (ImGui::IsKeyPressed (ImGuiKey_GamepadDpadLeft))   dwButtonPressed = XINPUT_GAMEPAD_DPAD_LEFT;
-          else if (ImGui::IsKeyPressed (ImGuiKey_GamepadDpadRight))  dwButtonPressed = XINPUT_GAMEPAD_DPAD_RIGHT;
-
-          else if (ImGui::IsKeyPressed (ImGuiKey_GamepadStart))      dwButtonPressed = XINPUT_GAMEPAD_START;
-          else if (ImGui::IsKeyPressed (ImGuiKey_GamepadBack))       dwButtonPressed = XINPUT_GAMEPAD_BACK;
-
-          else if (ImGui::IsKeyPressed (ImGuiKey_GamepadFaceUp))     dwButtonPressed = XINPUT_GAMEPAD_Y;
-          else if (ImGui::IsKeyPressed (ImGuiKey_GamepadFaceDown))   dwButtonPressed = XINPUT_GAMEPAD_A;
-          else if (ImGui::IsKeyPressed (ImGuiKey_GamepadFaceLeft))   dwButtonPressed = XINPUT_GAMEPAD_X;
-          else if (ImGui::IsKeyPressed (ImGuiKey_GamepadFaceRight))  dwButtonPressed = XINPUT_GAMEPAD_B;
-
-          switch (dwButtonPressed)
+          // Avoid immediately closing the popup again before it has a chance to process the button press
+          if (dwTimeNow != dwPopupOpenedTime)
           {
-            case XINPUT_GAMEPAD_LEFT_SHOULDER:  _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
-            case XINPUT_GAMEPAD_LEFT_TRIGGER:   _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
-            case XINPUT_GAMEPAD_LEFT_THUMB:     _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
-            case XINPUT_GAMEPAD_RIGHT_SHOULDER: _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
-            case XINPUT_GAMEPAD_RIGHT_TRIGGER:  _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
-            case XINPUT_GAMEPAD_RIGHT_THUMB:    _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
-            case XINPUT_GAMEPAD_DPAD_UP:        _registry.skinput.dwScreenSaverChord = 0x3;             break;
-            case XINPUT_GAMEPAD_DPAD_DOWN:      _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
-            case XINPUT_GAMEPAD_DPAD_LEFT:      _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
-            case XINPUT_GAMEPAD_DPAD_RIGHT:     _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
+                 if (ImGui::IsKeyPressed (ImGuiKey_GamepadL1))         dwButtonPressed = XINPUT_GAMEPAD_LEFT_SHOULDER;
+            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadL2))         dwButtonPressed = XINPUT_GAMEPAD_LEFT_TRIGGER;
+            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadL3))         dwButtonPressed = XINPUT_GAMEPAD_LEFT_THUMB;
+            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadR1))         dwButtonPressed = XINPUT_GAMEPAD_RIGHT_SHOULDER;
+            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadR2))         dwButtonPressed = XINPUT_GAMEPAD_RIGHT_TRIGGER;
+            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadR3))         dwButtonPressed = XINPUT_GAMEPAD_RIGHT_THUMB;
 
-            case XINPUT_GAMEPAD_START:          _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
-            case XINPUT_GAMEPAD_BACK:           _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
+            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadDpadUp))     dwButtonPressed = XINPUT_GAMEPAD_DPAD_UP;
+            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadDpadDown))   dwButtonPressed = XINPUT_GAMEPAD_DPAD_DOWN;
+            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadDpadLeft))   dwButtonPressed = XINPUT_GAMEPAD_DPAD_LEFT;
+            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadDpadRight))  dwButtonPressed = XINPUT_GAMEPAD_DPAD_RIGHT;
 
-            case XINPUT_GAMEPAD_Y:              _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
-            case XINPUT_GAMEPAD_A:              _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
-            case XINPUT_GAMEPAD_X:              _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
-            case XINPUT_GAMEPAD_B:              _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
-            default:
-              selected = true;
-              break;
-          }
+            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadStart))      dwButtonPressed = XINPUT_GAMEPAD_START;
+            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadBack))       dwButtonPressed = XINPUT_GAMEPAD_BACK;
 
-          if (! selected)
-          {
-            _registry.regKVControllerScreenSaverChord.putData (_registry.skinput.dwScreenSaverChord);
+            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadFaceUp))     dwButtonPressed = XINPUT_GAMEPAD_Y;
+            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadFaceDown))   dwButtonPressed = XINPUT_GAMEPAD_A;
+            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadFaceLeft))   dwButtonPressed = XINPUT_GAMEPAD_X;
+            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadFaceRight))  dwButtonPressed = XINPUT_GAMEPAD_B;
 
-            ImGui::CloseCurrentPopup ();
-            open = false;
+            switch (dwButtonPressed)
+            {
+              case XINPUT_GAMEPAD_LEFT_SHOULDER:  _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
+              case XINPUT_GAMEPAD_LEFT_TRIGGER:   _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
+              case XINPUT_GAMEPAD_LEFT_THUMB:     _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
+              case XINPUT_GAMEPAD_RIGHT_SHOULDER: _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
+              case XINPUT_GAMEPAD_RIGHT_TRIGGER:  _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
+              case XINPUT_GAMEPAD_RIGHT_THUMB:    _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
+              case XINPUT_GAMEPAD_DPAD_UP:        _registry.skinput.dwScreenSaverChord = 0x3;             break;
+              case XINPUT_GAMEPAD_DPAD_DOWN:      _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
+              case XINPUT_GAMEPAD_DPAD_LEFT:      _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
+              case XINPUT_GAMEPAD_DPAD_RIGHT:     _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
+
+              case XINPUT_GAMEPAD_START:          _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
+              case XINPUT_GAMEPAD_BACK:           _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
+
+              case XINPUT_GAMEPAD_Y:              _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
+              case XINPUT_GAMEPAD_A:              _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
+              case XINPUT_GAMEPAD_X:              _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
+              case XINPUT_GAMEPAD_B:              _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
+              default:
+                selected = true;
+                break;
+            }
+
+            if (! selected)
+            {
+              _registry.regKVControllerScreenSaverChord.putData (_registry.skinput.dwScreenSaverChord);
+
+              ImGui::CloseCurrentPopup ();
+              open = false;
+            }
           }
 
           ImGui::EndPopup ();
@@ -361,9 +369,13 @@ SKIF_UI_Tab_DrawSettings (void)
         }
         ImGui::PopID ();
 
+        static DWORD dwPopupOpenedTime = 0;
+               DWORD dwTimeNow         = SKIF_Util_timeGetTime ();
+
         static bool open = false;
         if (selected)
         {
+          dwPopupOpenedTime = dwTimeNow;
           ImGui::OpenPopup ("ChordBinding_PowerOff");
           open = true;
         }
@@ -372,57 +384,61 @@ SKIF_UI_Tab_DrawSettings (void)
         {
           selected = false;
 
-               if (ImGui::IsKeyPressed (ImGuiKey_GamepadL1))         dwButtonPressed = XINPUT_GAMEPAD_LEFT_SHOULDER;
-          else if (ImGui::IsKeyPressed (ImGuiKey_GamepadL2))         dwButtonPressed = XINPUT_GAMEPAD_LEFT_TRIGGER;
-          else if (ImGui::IsKeyPressed (ImGuiKey_GamepadL3))         dwButtonPressed = XINPUT_GAMEPAD_LEFT_THUMB;
-          else if (ImGui::IsKeyPressed (ImGuiKey_GamepadR1))         dwButtonPressed = XINPUT_GAMEPAD_RIGHT_SHOULDER;
-          else if (ImGui::IsKeyPressed (ImGuiKey_GamepadR2))         dwButtonPressed = XINPUT_GAMEPAD_RIGHT_TRIGGER;
-          else if (ImGui::IsKeyPressed (ImGuiKey_GamepadR3))         dwButtonPressed = XINPUT_GAMEPAD_RIGHT_THUMB;
-
-          else if (ImGui::IsKeyPressed (ImGuiKey_GamepadDpadUp))     dwButtonPressed = XINPUT_GAMEPAD_DPAD_UP;
-          else if (ImGui::IsKeyPressed (ImGuiKey_GamepadDpadDown))   dwButtonPressed = XINPUT_GAMEPAD_DPAD_DOWN;
-          else if (ImGui::IsKeyPressed (ImGuiKey_GamepadDpadLeft))   dwButtonPressed = XINPUT_GAMEPAD_DPAD_LEFT;
-          else if (ImGui::IsKeyPressed (ImGuiKey_GamepadDpadRight))  dwButtonPressed = XINPUT_GAMEPAD_DPAD_RIGHT;
-
-          else if (ImGui::IsKeyPressed (ImGuiKey_GamepadStart))      dwButtonPressed = XINPUT_GAMEPAD_START;
-          else if (ImGui::IsKeyPressed (ImGuiKey_GamepadBack))       dwButtonPressed = XINPUT_GAMEPAD_BACK;
-
-          else if (ImGui::IsKeyPressed (ImGuiKey_GamepadFaceUp))     dwButtonPressed = XINPUT_GAMEPAD_Y;
-          else if (ImGui::IsKeyPressed (ImGuiKey_GamepadFaceDown))   dwButtonPressed = XINPUT_GAMEPAD_A;
-          else if (ImGui::IsKeyPressed (ImGuiKey_GamepadFaceLeft))   dwButtonPressed = XINPUT_GAMEPAD_X;
-          else if (ImGui::IsKeyPressed (ImGuiKey_GamepadFaceRight))  dwButtonPressed = XINPUT_GAMEPAD_B;
-
-          switch (dwButtonPressed)
+          // Avoid immediately closing the popup again before it has a chance to process the button press
+          if (dwTimeNow != dwPopupOpenedTime)
           {
-            case XINPUT_GAMEPAD_LEFT_SHOULDER:  _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
-            case XINPUT_GAMEPAD_LEFT_TRIGGER:   _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
-            case XINPUT_GAMEPAD_LEFT_THUMB:     _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
-            case XINPUT_GAMEPAD_RIGHT_SHOULDER: _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
-            case XINPUT_GAMEPAD_RIGHT_TRIGGER:  _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
-            case XINPUT_GAMEPAD_RIGHT_THUMB:    _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
-            case XINPUT_GAMEPAD_DPAD_UP:        _registry.skinput.dwPowerOffChord = 0x3;             break;
-            case XINPUT_GAMEPAD_DPAD_DOWN:      _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
-            case XINPUT_GAMEPAD_DPAD_LEFT:      _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
-            case XINPUT_GAMEPAD_DPAD_RIGHT:     _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
+                 if (ImGui::IsKeyPressed (ImGuiKey_GamepadL1))         dwButtonPressed = XINPUT_GAMEPAD_LEFT_SHOULDER;
+            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadL2))         dwButtonPressed = XINPUT_GAMEPAD_LEFT_TRIGGER;
+            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadL3))         dwButtonPressed = XINPUT_GAMEPAD_LEFT_THUMB;
+            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadR1))         dwButtonPressed = XINPUT_GAMEPAD_RIGHT_SHOULDER;
+            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadR2))         dwButtonPressed = XINPUT_GAMEPAD_RIGHT_TRIGGER;
+            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadR3))         dwButtonPressed = XINPUT_GAMEPAD_RIGHT_THUMB;
 
-            case XINPUT_GAMEPAD_START:          _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
-            case XINPUT_GAMEPAD_BACK:           _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
+            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadDpadUp))     dwButtonPressed = XINPUT_GAMEPAD_DPAD_UP;
+            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadDpadDown))   dwButtonPressed = XINPUT_GAMEPAD_DPAD_DOWN;
+            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadDpadLeft))   dwButtonPressed = XINPUT_GAMEPAD_DPAD_LEFT;
+            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadDpadRight))  dwButtonPressed = XINPUT_GAMEPAD_DPAD_RIGHT;
 
-            case XINPUT_GAMEPAD_Y:              _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
-            case XINPUT_GAMEPAD_A:              _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
-            case XINPUT_GAMEPAD_X:              _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
-            case XINPUT_GAMEPAD_B:              _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
-            default:
-              selected = true;
-              break;
-          }
+            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadStart))      dwButtonPressed = XINPUT_GAMEPAD_START;
+            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadBack))       dwButtonPressed = XINPUT_GAMEPAD_BACK;
 
-          if (! selected)
-          {
-            _registry.regKVControllerPowerOffChord.putData (_registry.skinput.dwPowerOffChord);
+            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadFaceUp))     dwButtonPressed = XINPUT_GAMEPAD_Y;
+            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadFaceDown))   dwButtonPressed = XINPUT_GAMEPAD_A;
+            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadFaceLeft))   dwButtonPressed = XINPUT_GAMEPAD_X;
+            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadFaceRight))  dwButtonPressed = XINPUT_GAMEPAD_B;
 
-            ImGui::CloseCurrentPopup ();
-            open = false;
+            switch (dwButtonPressed)
+            {
+              case XINPUT_GAMEPAD_LEFT_SHOULDER:  _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
+              case XINPUT_GAMEPAD_LEFT_TRIGGER:   _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
+              case XINPUT_GAMEPAD_LEFT_THUMB:     _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
+              case XINPUT_GAMEPAD_RIGHT_SHOULDER: _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
+              case XINPUT_GAMEPAD_RIGHT_TRIGGER:  _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
+              case XINPUT_GAMEPAD_RIGHT_THUMB:    _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
+              case XINPUT_GAMEPAD_DPAD_UP:        _registry.skinput.dwPowerOffChord = 0x3;             break;
+              case XINPUT_GAMEPAD_DPAD_DOWN:      _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
+              case XINPUT_GAMEPAD_DPAD_LEFT:      _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
+              case XINPUT_GAMEPAD_DPAD_RIGHT:     _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
+
+              case XINPUT_GAMEPAD_START:          _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
+              case XINPUT_GAMEPAD_BACK:           _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
+
+              case XINPUT_GAMEPAD_Y:              _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
+              case XINPUT_GAMEPAD_A:              _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
+              case XINPUT_GAMEPAD_X:              _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
+              case XINPUT_GAMEPAD_B:              _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
+              default:
+                selected = true;
+                break;
+            }
+
+            if (! selected)
+            {
+              _registry.regKVControllerPowerOffChord.putData (_registry.skinput.dwPowerOffChord);
+
+              ImGui::CloseCurrentPopup ();
+              open = false;
+            }
           }
 
           ImGui::EndPopup ();
