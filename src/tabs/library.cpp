@@ -724,6 +724,195 @@ GetSteamCommandLaunchOptions (app_record_s* pApp, app_record_s::launch_config_s*
 
 #pragma region LaunchGame
 
+static bool
+SKIF_Lib_ParseBoolSetting (const wchar_t* value)
+{
+  return
+    value != nullptr &&
+    ( _wcsicmp (value, L"true") == 0 ||
+      _wcsicmp (value, L"yes")  == 0 ||
+      _wcsicmp (value, L"on")   == 0 ||
+      wcscmp   (value, L"1")    == 0 );
+}
+
+static bool
+SKIF_Lib_ReadCpuSpoofConfig (const std::wstring& iniPath)
+{
+  if ( iniPath.empty() ||
+       GetFileAttributesW (iniPath.c_str()) == INVALID_FILE_ATTRIBUTES )
+  {
+    return false;
+  }
+
+  wchar_t enabled [32] = { };
+
+  GetPrivateProfileStringW (
+    L"Scheduler.CPUSpoof", L"Enable", L"",
+      enabled, static_cast <DWORD> (_countof (enabled)), iniPath.c_str()
+  );
+
+  if (! SKIF_Lib_ParseBoolSetting (enabled))
+    return false;
+
+  int logical =
+    GetPrivateProfileIntW (
+      L"Scheduler.CPUSpoof", L"LogicalProcessors", 0, iniPath.c_str()
+    );
+
+  int physical =
+    GetPrivateProfileIntW (
+      L"Scheduler.CPUSpoof", L"PhysicalCores", 0, iniPath.c_str()
+    );
+
+  return logical > 0 || physical > 0;
+}
+
+static bool
+SKIF_Lib_QueryProfileNameForPath (
+        const std::wstring& gamePath,
+              std::wstring& profileName )
+{
+  HKEY profileKey = nullptr;
+
+  if ( RegOpenKeyExW ( HKEY_CURRENT_USER,
+                       LR"(Software\Kaldaien\Special K\Profiles)",
+                       0, KEY_READ | KEY_WOW64_64KEY, &profileKey ) != ERROR_SUCCESS )
+  {
+    return false;
+  }
+
+  bool found = false;
+
+  std::wstring queryPath = gamePath;
+
+  while (! queryPath.empty())
+  {
+    wchar_t profile [MAX_PATH + 2] = { };
+    DWORD   type                  = REG_SZ;
+    DWORD   bytes                 = sizeof (profile);
+
+    if ( RegQueryValueExW ( profileKey, queryPath.c_str(), nullptr,
+                            &type, reinterpret_cast <LPBYTE> (profile),
+                            &bytes ) == ERROR_SUCCESS &&
+         type == REG_SZ &&
+         profile [0] != L'\0' )
+    {
+      profileName = profile;
+      found       = true;
+      break;
+    }
+
+    size_t slash = queryPath.find_last_of (L"\\/");
+
+    if (slash == std::wstring::npos)
+      break;
+
+    queryPath.resize (slash);
+  }
+
+  RegCloseKey (profileKey);
+
+  return found;
+}
+
+static bool
+SKIF_Lib_ShouldUseCpuTopologyLauncherPath (const std::wstring& gamePath)
+{
+  if (gamePath.empty())
+    return false;
+
+  int binaryType =
+    SKIF_Util_GetBinaryType (gamePath.c_str());
+
+#ifdef _WIN64
+  if (binaryType != 2)
+#else
+  if (binaryType != 1)
+#endif
+    return false;
+
+  std::wstring profileName;
+
+  if (! SKIF_Lib_QueryProfileNameForPath (gamePath, profileName))
+    return false;
+
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
+  std::wstring iniPath =
+    SK_FormatStringW (
+      LR"(%ws\Profiles\%ws\SpecialK.ini)",
+      _path_cache.specialk_userdata,
+      profileName.c_str()
+    );
+
+  if (SKIF_Lib_ReadCpuSpoofConfig (iniPath))
+    return true;
+
+  iniPath =
+    SK_FormatStringW (
+      LR"(%ws\Profiles\%ws\SpecialK.ini)",
+      _path_cache.specialk_install,
+      profileName.c_str()
+    );
+
+  return SKIF_Lib_ReadCpuSpoofConfig (iniPath);
+}
+
+static bool
+SKIF_Lib_ForwardCpuTopologyLaunchToLauncher (
+        app_record_s* pApp,
+        const std::wstring& gamePath,
+              std::wstring  cmdLine )
+{
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
+  if (pApp->store == app_record_s::Store::Steam)
+  {
+    if (! cmdLine.empty())
+      cmdLine += L" ";
+
+    cmdLine += L"SKIF_SteamAppId=" + std::to_wstring (pApp->id);
+  }
+
+  SKIF_Util_TrimTrailingSpacesW (cmdLine);
+
+  std::wstring parameters =
+    SK_FormatStringW (LR"("%ws")", gamePath.c_str());
+
+  if (! cmdLine.empty())
+  {
+    parameters += L" ";
+    parameters += cmdLine;
+  }
+
+  SHELLEXECUTEINFOW
+    sexi              = { };
+    sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
+    sexi.lpVerb       = L"OPEN";
+    sexi.lpFile       = _path_cache.skif_executable;
+    sexi.lpParameters = parameters.c_str();
+    sexi.lpDirectory  = _path_cache.specialk_install;
+    sexi.nShow        = SW_SHOWNORMAL;
+    sexi.fMask        = SEE_MASK_NOCLOSEPROCESS |
+                        SEE_MASK_NOASYNC        |
+                        SEE_MASK_NOZONECHECKS;
+
+  PLOG_INFO << "Forwarding CPU topology launch to SKIF launcher path.";
+  PLOG_INFO << "File      : " << _path_cache.skif_executable;
+  PLOG_INFO << "Parameters: " << parameters;
+
+  if (! ShellExecuteExW (&sexi))
+  {
+    PLOG_ERROR << "Failed to forward CPU topology launch: " << SKIF_Util_GetErrorAsWStr ();
+    return false;
+  }
+
+  if (sexi.hProcess != NULL)
+    CloseHandle (sexi.hProcess);
+
+  return true;
+}
+
 static void
 LaunchGame (app_record_s* pApp)
 {
@@ -766,6 +955,36 @@ LaunchGame (app_record_s* pApp)
       usingSK = ! launchWithoutSK       &&
                 ! isLocalBlacklisted    &&
                 ! isGlobalBlacklisted;
+
+      if ( usingSK &&
+           launchConfig->isExecutableFullPathValid ( ) &&
+           SKIF_Lib_ShouldUseCpuTopologyLauncherPath (launchConfig->getExecutableFullPath ( )) )
+      {
+        std::wstring cmdLine =
+          launchConfig->getLaunchOptions ( );
+
+        if (SKIF_Lib_ForwardCpuTopologyLaunchToLauncher (
+              pApp,
+              launchConfig->getExecutableFullPath ( ),
+              cmdLine ))
+        {
+          std::wstring iconPath =
+              (pApp->store == app_record_s::Store::Steam)
+            ? SK_FormatStringW (LR"(%ws\Assets\Steam\%i\icon-original.ico)", _path_cache.specialk_userdata, pApp->id)
+            : launchConfig->getExecutableFullPath ( );
+
+          SKIF_Shell_AddJumpList (
+            SK_UTF8ToWideChar (pApp->names.normal),
+            launchConfig->getExecutableFullPath ( ),
+            cmdLine,
+            launchConfig->getWorkOrExeDirectory ( ),
+            iconPath,
+            true
+          );
+
+          return;
+        }
+      }
 
       if (usingSK)
       {
@@ -1731,6 +1950,112 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
 
 #pragma region GameConfigMenu
 
+static bool
+SKIF_Lib_UninstallAndDeleteCpuTopologySdb (const std::wstring& sdbPath)
+{
+  if ( sdbPath.empty() ||
+       GetFileAttributesW (sdbPath.c_str()) == INVALID_FILE_ATTRIBUTES )
+  {
+    return false;
+  }
+
+  wchar_t wszSystemDir [MAX_PATH + 2] = { };
+
+  if (GetSystemDirectoryW (wszSystemDir, MAX_PATH) == 0)
+  {
+    PLOG_WARNING << "Unable to locate System32 while removing CPU topology SDB.";
+    return DeleteFileW (sdbPath.c_str()) != FALSE;
+  }
+
+  std::wstring sdbinst =
+    SK_FormatStringW (LR"(%ws\sdbinst.exe)", wszSystemDir);
+
+  if (GetFileAttributesW (sdbinst.c_str()) == INVALID_FILE_ATTRIBUTES)
+  {
+    PLOG_WARNING << "Unable to locate sdbinst.exe while removing CPU topology SDB.";
+    return DeleteFileW (sdbPath.c_str()) != FALSE;
+  }
+
+  std::wstring cmd =
+    SK_FormatStringW (LR"(%ws\cmd.exe)", wszSystemDir);
+
+  std::wstring params =
+    SK_FormatStringW (
+      LR"(/c ""%ws" -q -u "%ws" >nul 2>nul & del /f /q "%ws" >nul 2>nul")",
+      sdbinst.c_str(),
+      sdbPath.c_str(),
+      sdbPath.c_str()
+    );
+
+  SHELLEXECUTEINFOW
+    sexi              = { };
+    sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
+    sexi.lpVerb       = L"runas";
+    sexi.lpFile       = cmd.c_str();
+    sexi.lpParameters = params.c_str();
+    sexi.nShow        = SW_HIDE;
+    sexi.fMask        = SEE_MASK_NOCLOSEPROCESS |
+                        SEE_MASK_NOASYNC        |
+                        SEE_MASK_NOZONECHECKS;
+
+  PLOG_INFO << "Removing CPU topology AppCompat SDB: " << sdbPath;
+
+  if (! ShellExecuteExW (&sexi))
+  {
+    PLOG_WARNING << "Failed to run sdbinst.exe while removing CPU topology SDB: "
+                 << SKIF_Util_GetErrorAsWStr ();
+    return DeleteFileW (sdbPath.c_str()) != FALSE;
+  }
+
+  if (sexi.hProcess != NULL)
+    CloseHandle (sexi.hProcess);
+
+  return true;
+}
+
+static void
+SKIF_Lib_ResetCpuTopologyProfileArtifacts (app_record_s* pApp)
+{
+  if ( pApp == nullptr ||
+       pApp->specialk.injection.config.root_dir.empty() )
+  {
+    return;
+  }
+
+  std::wstring appCompatDir =
+    SK_FormatStringW (
+      LR"(%ws\AppCompat\)",
+      pApp->specialk.injection.config.root_dir.c_str()
+    );
+
+  HANDLE          hFind = INVALID_HANDLE_VALUE;
+  WIN32_FIND_DATA ffd   = { };
+
+  hFind =
+    FindFirstFileExW (
+      (appCompatDir + L"*_CPU_Topology.sdb").c_str(),
+      FindExInfoBasic,
+      &ffd,
+      FindExSearchNameMatch,
+      NULL,
+      NULL
+    );
+
+  if (hFind == INVALID_HANDLE_VALUE)
+    return;
+
+  do {
+    if (! (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+    {
+      SKIF_Lib_UninstallAndDeleteCpuTopologySdb (
+        appCompatDir + ffd.cFileName
+      );
+    }
+  } while (FindNextFileW (hFind, &ffd));
+
+  FindClose (hFind);
+}
+
 // This is an unusual popup that needs to be called from two different ImGui popup contexts...
 // ... usually this means any existing popup is closed, hence why we instead invoke this directly where relevant!
 static void
@@ -1935,6 +2260,8 @@ DrawGameConfigMenu (app_record_s* pApp)
       // Create any missing directories
       if (! std::filesystem::exists             (pApp->specialk.injection.config.root_dir, ec))
             std::filesystem::create_directories (pApp->specialk.injection.config.root_dir, ec);
+
+      SKIF_Lib_ResetCpuTopologyProfileArtifacts (pApp);
 
       std::wofstream config_file (pApp->specialk.injection.config.full_path.c_str(), std::wofstream::out | std::wofstream::trunc);
 
