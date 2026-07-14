@@ -565,11 +565,47 @@ SKIF_ImGui_SetHoverText ( const std::string_view& szText,
   {
     extern ImVec2 SKIF_vecCurrentMode;
 
-    // If the text is wider than the app window is, use a hover tooltip if possible
-    if (_registry.bUITooltips && ImGui::CalcTextSize (szText.data()).x > (SKIF_vecCurrentMode.x - 100.0f * SKIF_ImGui_GlobalDPIScale)) // -100px due to the Add Game option
-      SKIF_ImGui_SetHoverTip (szText);
-    else
-      SKIF_StatusBarHelp.assign (szText);
+    // Use a cache so we don't reevaluate the input on every frame.
+    struct {
+      std::string szInput;
+      std::string szOutput;
+      float       availWidth = 0.0f;
+    } static _cache;
+
+    float availWidth = (SKIF_vecCurrentMode.x - 150.0f * SKIF_ImGui_GlobalDPIScale); // -150px due to the Add Game option
+
+    if (_cache.availWidth != availWidth || _cache.szInput != szText)
+    {
+      _cache.availWidth = availWidth;
+      _cache.szInput    = szText;
+      _cache.szOutput   = szText;
+
+      // If the text is wider than the app window is...
+      if (ImGui::CalcTextSize (szText.data()).x > availWidth)
+      {
+        // ... use a hover tooltip if enabled and possible
+        // if (_registry.bUITooltips)
+        //   SKIF_ImGui_SetHoverTip (szText);
+
+        // ... crop the text
+        std::string szTrimmed;
+        size_t end = szText.length();
+        while (end > 3)
+        {
+          szTrimmed = szText.substr (0, end);
+          if (ImGui::CalcTextSize (szTrimmed.c_str()).x <= availWidth)
+          {
+            szTrimmed.replace (end - 3, end, "...");
+            break;
+          }
+          end--;
+        }
+
+        _cache.szOutput = szTrimmed;
+      }
+    }
+
+    SKIF_StatusBarHelp.assign (_cache.szOutput);
   }
 }
 
