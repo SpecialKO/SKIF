@@ -1441,13 +1441,13 @@ static void ImGui_ImplWin32_ShowWindow(ImGuiViewport* viewport)
     if (vd->HwndParent != NULL)
         ::SetWindowLongPtr(vd->Hwnd, GWLP_HWNDPARENT, (LONG_PTR)nullptr);
 
-    PLOG_VERBOSE << "SKIF_nCmdShow is set to: " << SKIF_nCmdShow;
-
     // Main platform window must respect nCmdShow
     //  in the first ShowWindow() call
     if (SKIF_nCmdShow   != -1   &&
         SKIF_ImGui_hWnd == vd->Hwnd)
     {
+      PLOG_VERBOSE << "SKIF_nCmdShow is set to: " << SKIF_nCmdShow;
+
       ::ShowWindow (vd->Hwnd, SKIF_nCmdShow);
       SKIF_nCmdShow = -1; // SKIF_nCmdShow has served its purpose by now
     }
