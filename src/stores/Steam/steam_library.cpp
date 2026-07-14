@@ -1586,57 +1586,15 @@ SKIF_Steam_IdentifyAssetPCGW (uint32_t app_id)
 std::wstring
 SKIF_Steam_GetCoverURI (uint32_t app_id)
 {
-  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
-  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
-
-  const std::wstring URI     = L"https://api.steampowered.com/IStoreBrowseService/GetItems/v1/";
   const std::string SteamCDN = "https://shared.fastly.steamstatic.com/store_item_assets/";
   const std::vector<std::string> countryCodes = { "US", "UK", "AU", "FR", "PL", "DE", "JP", "CN", "RU" };
   const std::string pattern = "${FILENAME}";
         std::string asset    = "";
 
-  std::wstring json_path (
-    SK_FormatStringW (LR"(%ws\Assets\Steam\%i\GetItems1.json)", _path_cache.specialk_userdata, app_id)
-  );
-
   for (const auto& cc : countryCodes)
   {
-    nlohmann::json payload =
-    {
-      {"ids", {
-        {
-          {"appid", app_id}
-        }
-      }},
-      {"context", {
-        {"country_code", cc},
-        {"language", "english"}
-      }},
-      {"data_request", {
-        {"include_assets",                   true},
-        {"include_release",                 false},
-        {"include_platforms",               false},
-        {"include_all_purchase_options",    false},
-        {"include_screenshots",             false},
-        {"include_trailers",                false},
-        {"include_ratings",                 false},
-        {"include_reviews",                 false},
-      //{"include_tag_count",                   1}, // omitted so it excludes tags entirely
-        {"include_basic_info",              false},
-        {"include_supported_languages",     false},
-        {"include_full_description",        false},
-        {"include_included_items",          false},
-        {"include_assets_without_overrides", true},
-        {"include_links",                   false}
-      }}
-    };
-
-    std::string payloadText =
-      payload.dump();
-
     std::wstring request =
-      URI +
-      L"?input_json=" + SK_UTF8ToWideChar (payloadText);
+      SKIF_SteamWebAPI_IStoreBrowseService_GetItems1 (app_id, cc);
 
     std::string response;
 
@@ -1646,9 +1604,6 @@ SKIF_Steam_GetCoverURI (uint32_t app_id)
 
     try
     {
-      //std::ifstream fileJson (json_path);
-      //nlohmann::json jf = nlohmann::json::parse (fileJson, nullptr, false);
-      //fileJson.close();
       nlohmann::json jf = nlohmann::json::parse (response);
 
       //PLOG_DEBUG << "Retrieved Steam GetItem v1 JSON: " << jf.dump();
@@ -1695,4 +1650,73 @@ SKIF_Steam_GetCoverURI (uint32_t app_id)
   }
 
   return SK_UTF8ToWideChar (asset);
+}
+
+std::wstring
+SKIF_SteamWebAPI_AppDetails (uint32_t app_id)
+{
+  const std::wstring URI = L"https://store.steampowered.com/api/appdetails/";
+
+  std::wstring request =
+    URI +
+    L"?appids=" + std::to_wstring (app_id);
+
+  return request;
+}
+
+std::wstring
+SKIF_SteamWebAPI_IStoreBrowseService_GetItems1 (uint32_t app_id, std::string country_code)
+{
+  const std::wstring URI = L"https://api.steampowered.com/IStoreBrowseService/GetItems/v1/";
+
+  nlohmann::json payload =
+  {
+    {"ids", {
+      {
+        {"appid", app_id}
+      }
+    }},
+    {"context", {
+      {"country_code", country_code},
+      {"language", "english"}
+    }},
+    {"data_request", {
+      {"include_assets",                   true},
+      {"include_release",                 false},
+      {"include_platforms",               false},
+      {"include_all_purchase_options",    false},
+      {"include_screenshots",             false},
+      {"include_trailers",                false},
+      {"include_ratings",                 false},
+      {"include_reviews",                 false},
+    //{"include_tag_count",                   1}, // omitted so it excludes tags entirely
+      {"include_basic_info",              false},
+      {"include_supported_languages",     false},
+      {"include_full_description",        false},
+      {"include_included_items",          false},
+      {"include_assets_without_overrides", true},
+      {"include_links",                   false}
+    }}
+  };
+
+  std::string payloadText =
+    SKIF_Util_URLEncode (payload.dump());
+
+  std::wstring request =
+    URI +
+    L"?input_json=" + SK_UTF8ToWideChar (payloadText);
+
+  return request;
+}
+
+std::wstring
+SKIF_SteamWebAPI_ISteamUserStats_GetNumberOfCurrentPlayers1 (uint32_t app_id)
+{
+  const std::wstring URI = L"https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/";
+
+  std::wstring request =
+    URI +
+    L"?appid=" + std::to_wstring (app_id);
+
+  return request;
 }
