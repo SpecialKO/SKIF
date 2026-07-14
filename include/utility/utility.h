@@ -243,7 +243,9 @@ struct skif_get_web_uri_t {
 
 DWORD WINAPI SKIF_Util_GetWebUri              (skif_get_web_uri_t* get, std::string* response_body = nullptr);
 DWORD        SKIF_Util_GetWebResource         (std::wstring url, std::wstring_view file_path, std::wstring method = L"GET", std::wstring header = L"", std::string body = "", std::wstring user_agent = L"", std::string* response_body = nullptr);
-skif_get_web_uri_t SKIF_Util_CrackWebUrl      (const std::wstring url);
+skif_get_web_uri_t SKIF_Util_CrackWebUrl      (const std::wstring  url);
+std:: string SKIF_Util_URLEncode              (const std:: string& url);
+std::wstring SKIF_Util_URLEncode              (const std::wstring& url);
 
 
 // Shortcuts (*.lnk)

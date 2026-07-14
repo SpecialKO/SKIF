@@ -4074,6 +4074,58 @@ SKIF_Util_CrackWebUrl (const std::wstring url)
   return cracked;
 }
 
+std::string
+SKIF_Util_URLEncode (const std::string & url)
+{
+  std::ostringstream out;
+  out << std::uppercase << std::hex;
+
+  for (unsigned char c : url)
+  {
+    if (std::isalnum(c) ||
+        c == '-' || c == '_' ||
+        c == '.' || c == '~')
+    {
+      out << c;
+    }
+    else
+    {
+      out << '%'
+          << std::setw(2)
+          << std::setfill('0')
+          << static_cast<int>(c);
+    }
+  }
+
+  return out.str();
+}
+
+std::wstring
+SKIF_Util_URLEncode (const std::wstring & url)
+{
+  std::wostringstream out;
+  out << std::uppercase << std::hex;
+
+  for (wchar_t c : url)
+  {
+    if (std::iswalnum(c) ||
+        c == L'-' || c == L'_' ||
+        c == L'.' || c == L'~')
+    {
+      out << c;
+    }
+    else
+    {
+      out << '%'
+          << std::setw(2)
+          << std::setfill(L'0')
+          << static_cast<int>(c);
+    }
+  }
+
+  return out.str();
+}
+
 
 // Directory Watch
 
