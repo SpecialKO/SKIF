@@ -2986,8 +2986,62 @@ DrawGameContextMenu (app_record_s* pApp)
         ImGui::EndMenu ();
       }
 
-      ImGui::Separator ( );
+      if (pApp->store == app_record_s::Store::Steam)
+      {
+        if (SKIF_ImGui_BeginMenuEx2 ("Steam Web API", ICON_FA_DATABASE))
+        {
+          ImGui::PushID         ("#Storefront");
 
+          // ---
+
+          if (pApp->steam.urls.AppDetails.empty())
+          {
+            pApp->steam.urls.AppDetails      = SKIF_SteamWebAPI_AppDetails (pApp->id);
+            pApp->steam.urls.AppDetails_utf8 = SK_WideCharToUTF8 (pApp->steam.urls.AppDetails);
+          }
+
+          if (SKIF_ImGui_MenuItemEx2 ("/AppDetails/", (const char*)u8"\u2022", ImColor(101, 192, 244, 255)))
+            SKIF_Util_OpenURI (pApp->steam.urls.AppDetails.c_str());
+
+          SKIF_ImGui_SetMouseCursorHand ( );
+          SKIF_ImGui_SetHoverText       (pApp->steam.urls.AppDetails_utf8.c_str());
+
+          // ---
+
+          if (pApp->steam.urls.ISteamUserStats_GetNumberOfCurrentPlayers1.empty())
+          {
+            pApp->steam.urls.ISteamUserStats_GetNumberOfCurrentPlayers1 = SKIF_SteamWebAPI_ISteamUserStats_GetNumberOfCurrentPlayers1 (pApp->id);
+            pApp->steam.urls.ISteamUserStats_GetNumberOfCurrentPlayers1_utf8 = SK_WideCharToUTF8 (pApp->steam.urls.ISteamUserStats_GetNumberOfCurrentPlayers1);
+          }
+
+          if (SKIF_ImGui_MenuItemEx2 ("/ISteamUserStats/GetNumberOfCurrentPlayers/v1/", (const char*)u8"\u2022", ImColor(101, 192, 244, 255)))
+            SKIF_Util_OpenURI (pApp->steam.urls.ISteamUserStats_GetNumberOfCurrentPlayers1.c_str());
+
+          SKIF_ImGui_SetMouseCursorHand ( );
+          SKIF_ImGui_SetHoverText       (pApp->steam.urls.ISteamUserStats_GetNumberOfCurrentPlayers1_utf8.c_str());
+
+          // ---
+
+          if (pApp->steam.urls.IStoreBrowseService_GetItems1.empty())
+          {
+            pApp->steam.urls.IStoreBrowseService_GetItems1      = SKIF_SteamWebAPI_IStoreBrowseService_GetItems1 (pApp->id, "US");
+            pApp->steam.urls.IStoreBrowseService_GetItems1_utf8 = SK_WideCharToUTF8 (pApp->steam.urls.IStoreBrowseService_GetItems1);
+          }
+
+          if (SKIF_ImGui_MenuItemEx2 ("/IStoreBrowseService/GetItems/v1/", (const char*)u8"\u2022", ImColor(101, 192, 244, 255)))
+            SKIF_Util_OpenURI (pApp->steam.urls.IStoreBrowseService_GetItems1.c_str());
+
+          SKIF_ImGui_SetMouseCursorHand ( );
+          SKIF_ImGui_SetHoverText       (pApp->steam.urls.IStoreBrowseService_GetItems1_utf8.c_str());
+
+          // ---
+
+          ImGui::PopID        ( );
+          ImGui::EndMenu      ( );
+        }
+      }
+
+      ImGui::Separator ( );
 
       if (! pApp->branches.empty ())
       {

@@ -453,6 +453,15 @@ struct app_record_s {
       std::vector <std::string> tags; // ???
     } shared; // roaming
 
+    struct {
+      std::wstring AppDetails      = L"";
+      std:: string AppDetails_utf8 =  "";
+      std::wstring IStoreBrowseService_GetItems1      = L"";
+      std:: string IStoreBrowseService_GetItems1_utf8 =  "";
+      std::wstring ISteamUserStats_GetNumberOfCurrentPlayers1      = L"";
+      std:: string ISteamUserStats_GetNumberOfCurrentPlayers1_utf8 =  "";
+    } urls; // Used by the Developer menu
+
     std::string  manifest_data    =  "";
     std::wstring manifest_path    = L"";
     std::string  branch           = "public"; // Holds the current "beta" branch set in the Steam client (default: public)
