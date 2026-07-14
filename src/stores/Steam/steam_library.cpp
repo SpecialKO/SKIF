@@ -1584,7 +1584,7 @@ SKIF_Steam_IdentifyAssetPCGW (uint32_t app_id)
 }
 
 std::wstring
-SKIF_Steam_GetCoverURI (uint32_t app_id)
+SKIF_Steam_GetCoverURI (uint32_t app_id, bool force_2x)
 {
   const std::string SteamCDN = "https://shared.fastly.steamstatic.com/store_item_assets/";
   const std::vector<std::string> countryCodes = { "US", "UK", "AU", "FR", "PL", "DE", "JP", "CN", "RU" };
@@ -1632,7 +1632,9 @@ SKIF_Steam_GetCoverURI (uint32_t app_id)
 
         asset = (! asset_library_capsule_2x.empty())
                  ? asset_library_capsule_2x
-                 : asset_library_capsule;
+                 : (force_2x                    // Force library_600x900_2x.jpg even if only library_600x900.jpg is set,
+                    ? "library_600x900_2x.jpg"  //   as apparently some games are just weird like that, such as Returnal (1649240) and Forbidden West (2420110).
+                    : asset_library_capsule);
 
         asset = SteamCDN + asset_url_format.replace (asset_url_format.find (pattern), pattern.length(), asset);
 

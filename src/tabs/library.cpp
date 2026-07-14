@@ -8223,7 +8223,7 @@ SKIF_UI_Tab_DrawLibrary (void)
               if (meta.width  == 300 &&
                   meta.height == 450)
               {
-                std::wstring url = SKIF_Steam_GetCoverURI (_pApp->id);
+                std::wstring url = SKIF_Steam_GetCoverURI (_pApp->id, true);
                 PLOG_DEBUG << "Downloading cover asset: " << url;
 
                 SKIF_Util_GetWebResource (url, load_str_2x);
@@ -8247,7 +8247,7 @@ SKIF_UI_Tab_DrawLibrary (void)
               {
                 DeleteFile (load_str_2x.c_str ());
 
-                std::wstring url = SKIF_Steam_GetCoverURI (_pApp->id);
+                std::wstring url = SKIF_Steam_GetCoverURI (_pApp->id, true);
                 PLOG_DEBUG << "Downloading cover asset: " << url;
 
                 SKIF_Util_GetWebResource (url, load_str_2x);
