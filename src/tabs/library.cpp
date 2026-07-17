@@ -7532,6 +7532,15 @@ SKIF_UI_Tab_DrawLibrary (void)
             if (! pApp->tex_cover.isCustom && pApp->store == app_record_s::Store::GOG)
             {
               fileName = L"cover-pcgw";
+              pApp->tex_cover.queriedPCGW = false;
+              d3 = DeleteFile ((targetPath + fileName + L".png").c_str());
+            }
+
+            // For Steam titles we may also store a PCGW cover that we must reset
+            if (! pApp->tex_cover.isCustom && pApp->store == app_record_s::Store::Steam)
+            {
+              fileName = L"cover-pcgw";
+              pApp->tex_cover.queriedPCGW = false;
               d3 = DeleteFile ((targetPath + fileName + L".png").c_str());
             }
 
