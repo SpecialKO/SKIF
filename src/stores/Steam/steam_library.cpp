@@ -1535,15 +1535,15 @@ SKIF_Steam_IdentifyAssetPCGW (uint32_t app_id)
     // If PCGW cover has not been downloaded
     if (! PathFileExistsW ((targetAssetPath + L"cover-pcgw.png").c_str()))
     {
+      std::string response;
+
       PLOG_DEBUG << "Downloading PCGW json: " << url;
 
-      SKIF_Util_GetWebResource (url, (targetAssetPath + L"pcgw.json"));
+      SKIF_Util_GetWebResource (url, L"", L"GET", L"", "", L"", &response);
 
       try
       {
-        std::ifstream fileJson(targetAssetPath + L"pcgw.json");
-        nlohmann::json jf = nlohmann::json::parse(fileJson, nullptr, false);
-        fileJson.close();
+        nlohmann::json jf = nlohmann::json::parse (response);
 
         if (jf.is_discarded ( ))
         {
