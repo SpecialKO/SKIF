@@ -560,6 +560,7 @@ enum inject_policy {
 
 struct standby_record_s {
   DWORD         pid;
+  int           handles; // count
   std::wstring  filename;
   std::wstring  path;
   std::string   pathUTF8;
@@ -1200,8 +1201,12 @@ SKIF_UI_Tab_DrawMonitor (void)
               // Go through each handle the process contains (but only if not local)
               if (proc.status != 2)
               {
+                proc.handles = 0;
+
                 for ( auto& handle : handles_by_process[pe32.th32ProcessID])
                 {
+                  proc.handles++;
+
                   auto hHandleSrc = handle.Handle;
 
                   // Debug purposes
@@ -1620,13 +1625,17 @@ SKIF_UI_Tab_DrawMonitor (void)
   ImGui::SameLine    ( );
   ImGui::ItemSize    (ImVec2 (170.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
   ImGui::SameLine    ( );
+  ImGui::Text        ("%s", "Handles");
+  ImGui::SameLine    ( );
+  ImGui::ItemSize    (ImVec2 (235.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+  ImGui::SameLine    ( );
   ImGui::TextColored ((bHLArch) ? colHLActive : colHLNormal, "Arch");
   SKIF_ImGui_SetHoverTip ("CPU architecture");
   SKIF_ImGui_SetMouseCursorHand ( );
   if (ImGui::IsItemClicked ()) _ChangeSort (2);
   if (ImGui::IsItemHovered ()) bHLArch = true; else bHLArch = false;
   ImGui::SameLine    ( );
-  ImGui::ItemSize    (ImVec2 (220.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+  ImGui::ItemSize    (ImVec2 (295.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
   ImGui::SameLine    ( );
   ImGui::TextColored ((bHLAdmin) ? colHLActive : colHLNormal, "Admin");
   SKIF_ImGui_SetHoverTip ("Elevated process");
@@ -1634,7 +1643,7 @@ SKIF_UI_Tab_DrawMonitor (void)
   if (ImGui::IsItemClicked ()) _ChangeSort (3);
   if (ImGui::IsItemHovered ()) bHLAdmin = true; else bHLAdmin = false;
   ImGui::SameLine    ( );
-  ImGui::ItemSize    (ImVec2 (275.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+  ImGui::ItemSize    (ImVec2 (340.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
   ImGui::SameLine    ( );
   ImGui::TextColored ((bHLName) ? colHLActive : colHLNormal, "Process Name");
   SKIF_ImGui_SetHoverTip ("Process name");
@@ -1771,13 +1780,17 @@ SKIF_UI_Tab_DrawMonitor (void)
     ImGui::SameLine        ( );
     ImGui::ItemSize        (ImVec2 (165.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
     ImGui::SameLine        ( );
+    ImGui::TextColored     (colText, "%i", proc.handles);
+    ImGui::SameLine        ( );
+    ImGui::ItemSize        (ImVec2 (230.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+    ImGui::SameLine        ( );
     ImGui::TextColored     (colText, "%s", proc.arch.c_str());
     ImGui::SameLine        ( );
-    ImGui::ItemSize        (ImVec2 (225.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+    ImGui::ItemSize        (ImVec2 (290.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
     ImGui::SameLine        ( );
     ImGui::TextColored     (colText, "%s", proc.admin ? "Yes" : "No");
     ImGui::SameLine        ( );
-    ImGui::ItemSize        (ImVec2 (270.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+    ImGui::ItemSize        (ImVec2 (335.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
     ImGui::SameLine        ( );
     ImGui::TextColored     ((proc.status <= 2) ? colStatus
                                                : colText,
@@ -1786,7 +1799,7 @@ SKIF_UI_Tab_DrawMonitor (void)
       SKIF_ImGui_SetHoverTip (proc.tooltip);
     /* Detail column is so far only used for special purposes */
     ImGui::SameLine        ( );
-    ImGui::ItemSize        (ImVec2 (565.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+    ImGui::ItemSize        (ImVec2 (630.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
     ImGui::SameLine        ( );
     ImGui::TextColored     (colText, "%s", proc.details.c_str());
     if (proc.details.length() > 73)
