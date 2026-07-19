@@ -249,6 +249,9 @@
     <ClInclude Include="packages_misc\ImGuiNotify.hpp">
       <Filter>Header Files\Packages_Misc</Filter>
     </ClInclude>
+    <ClInclude Include="include\tabs\monitor.h">
+      <Filter>Header Files\UI Tabs</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\imgui\imgui.cpp">

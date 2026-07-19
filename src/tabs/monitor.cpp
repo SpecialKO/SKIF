@@ -20,6 +20,8 @@
 // DEALINGS IN THE SOFTWARE.
 //
 
+#include <tabs/monitor.h>
+
 #include <utility/skif_imgui.h>
 #include <utility/utility.h>
 
@@ -47,6 +49,9 @@
 #include <tabs/common_ui.h>
 
 #include <utility/registry.h>
+
+HMODULE hModSpecialK; // Used to dynamically load and unload the Special K DLL file when switching back and forth to the tab
+std::atomic <bool> SKIF_Monitor_bReloadDLL = false; // Used by main thread to signal if the Special K DLL file should be reloaded.
 
 CONDITION_VARIABLE ProcRefreshPaused = { };
 
@@ -949,11 +954,21 @@ SKIF_UI_Tab_DrawMonitor (void)
       };
 
       static std::vector<known_dll_s> knownDLLs;
+      static SKX_GetInjectedPIDs_pfn
+              SKX_GetInjectedPIDs = nullptr;
 
       do
       {
         while (SKIF_Tab_Selected != UITab_Monitor || refreshIntervalInMsec.load() == 0)
         {
+          // If the Special K DLL file is currently loaded, unload it
+          if (hModSpecialK != nullptr)
+          {
+            FreeLibrary (hModSpecialK);
+            hModSpecialK = nullptr;
+            SKX_GetInjectedPIDs = nullptr;
+          }
+
           SleepConditionVariableCS (
             &ProcRefreshPaused, &ProcessRefreshJob,
               INFINITE
@@ -1348,48 +1363,62 @@ SKIF_UI_Tab_DrawMonitor (void)
 
 #pragma region Detect Active Injections
 
+        if (SKIF_Monitor_bReloadDLL.load())
+        {
+          SKIF_Monitor_bReloadDLL.store (false);
+
+          // If the Special K DLL file is currently loaded, unload it
+          if (hModSpecialK != nullptr)
+          {
+            FreeLibrary (hModSpecialK);
+            hModSpecialK = nullptr;
+            SKX_GetInjectedPIDs = nullptr;
+          }
+        }
+
         // Check if DLL is currently loaded. If not, load it.
-        extern HMODULE hModSpecialK;
         if (hModSpecialK == nullptr)
+        {
+          static wchar_t fullPath [MAX_PATH];
+          static DWORD length = 
 #ifdef _WIN64
-          hModSpecialK = LoadLibraryW (L"SpecialK64.dll");
+            GetFullPathNameW (L"SpecialK64.dll", MAX_PATH, fullPath, NULL);
 #else
-          hModSpecialK = LoadLibraryW (L"SpecialK32.dll");
+            GetFullPathNameW (L"SpecialK32.dll", MAX_PATH, fullPath, NULL);
 #endif
 
-        if (hModSpecialK != nullptr)
+          if (0 < length && length < MAX_PATH)
+          {
+            hModSpecialK = LoadLibraryW (fullPath);
+            SKX_GetInjectedPIDs = (SKX_GetInjectedPIDs_pfn)GetProcAddress (hModSpecialK, "SKX_GetInjectedPIDs");
+
+            /* Unused
+            SK_Inject_GetRecord     =
+            (SK_Inject_GetRecord_pfn)GetProcAddress   (hModSpecialK,
+            "SK_Inject_GetRecord");
+
+            SK_Inject_AuditRecord     =
+            (SK_Inject_AuditRecord_pfn)GetProcAddress (hModSpecialK,
+            "SK_Inject_AuditRecord");
+            */
+          }
+        }
+
+        if (hModSpecialK != nullptr && SKX_GetInjectedPIDs != nullptr)
         {
           // This retrieves a list of the 32 latest injected processes.
           // There is no guarantee any of these are still running.
-            SKX_GetInjectedPIDs_pfn
-            SKX_GetInjectedPIDs     =
-          (SKX_GetInjectedPIDs_pfn)GetProcAddress   (hModSpecialK,
-          "SKX_GetInjectedPIDs");
+          size_t num_pids =
+            SKX_GetInjectedPIDs (snapshot.dwPIDs, MAX_INJECTED_PROCS);
 
-          /* Unused
-            SK_Inject_GetRecord     =
-          (SK_Inject_GetRecord_pfn)GetProcAddress   (hModSpecialK,
-          "SK_Inject_GetRecord");
-
-            SK_Inject_AuditRecord     =
-          (SK_Inject_AuditRecord_pfn)GetProcAddress (hModSpecialK,
-          "SK_Inject_AuditRecord");
-          */
-
-          if (SKX_GetInjectedPIDs != nullptr)
+          while (num_pids > 0)
           {
-            size_t num_pids =
-              SKX_GetInjectedPIDs (snapshot.dwPIDs, MAX_INJECTED_PROCS);
+            DWORD dwPID =
+              snapshot.dwPIDs[--num_pids];
 
-            while (num_pids > 0)
-            {
-              DWORD dwPID =
-                snapshot.dwPIDs[--num_pids];
-
-              for (auto& proc : Processes)
-                if (proc.pid == dwPID)
-                  proc.status   = 1; // Active
-            }
+            for (auto& proc : Processes)
+              if (proc.pid == dwPID)
+                proc.status   = 1; // Active
           }
         }
 

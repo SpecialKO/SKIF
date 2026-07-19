@@ -156,7 +156,6 @@ extern PopupState  UpdatePromptPopup;   // App Mode: show an update prompt
 extern PopupState  HistoryPopup;        // Monitor / About: show a changelog popup
 extern PopupState  AutoUpdatePopup;     // Show changelog from the latest auto-installed update
 
-extern HMODULE     hModSpecialK;        // Monitor: Used to dynamically load and unload the Special K DLL file when switching back and forth to the tab
 extern HWND        SKIF_ImGui_hWnd;     // Main ImGui platform window (aka the main window of SKIF)
 extern HWND        SKIF_Notify_hWnd;    // Notification area icon "window" that also doubles as a handler for the stuff previously tied to the now removed SKIF_hWnd 0x0 hidden window
 

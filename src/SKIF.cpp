@@ -63,6 +63,7 @@
 
 #include <stores/Steam/app_record.h>
 
+#include <tabs/monitor.h>
 #include <tabs/hardware.h>
 #include <tabs/settings.h>
 #include <tabs/about.h>
@@ -193,7 +194,6 @@ ImRect  windowRect       = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
 ImRect  monitor_extent   = ImRect(0.0f, 0.0f, 0.0f, 0.0f);
 
 HMODULE hModSKIF     = nullptr;
-HMODULE hModSpecialK = nullptr;
 HICON   hIcon        = nullptr;
 #define GCL_HICON      (-14)
 
@@ -2820,19 +2820,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
           if (SKIF_Tab_Selected != UITab_Monitor)
             PLOG_DEBUG << "Switched to tab: Monitor";
 
-          extern void
-            SKIF_UI_Tab_DrawMonitor (void);
-            SKIF_UI_Tab_DrawMonitor (    );
+          SKIF_UI_Tab_DrawMonitor ( );
 
           ImGui::EndChild         ( );
           ImGui::EndTabItem       ( );
-        }
-
-        // Unload the SpecialK DLL file if the tab is not selected
-        else if (hModSpecialK != 0)
-        {
-          FreeLibrary (hModSpecialK);
-          hModSpecialK = nullptr;
         }
 
         if (ImGui::BeginTabItem (tabTitleHardware, nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Hardware) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
@@ -3252,17 +3243,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
         // Destroy the timer
         KillTimer (SKIF_Notify_hWnd, IDT_REFRESH_DIR_ROOT);
 
-        // If the Special K DLL file is currently loaded, unload it
-        if (hModSpecialK != 0)
-        {
-          FreeLibrary (hModSpecialK);
-          hModSpecialK = nullptr;
-        }
-
         _inject._DanceOfTheDLLFiles     ();
         _inject._RefreshSKDLLVersions   ();
-      }
 
+        // Trigger a refresh of the DLL file for the Monitor child thread as well
+        SKIF_Monitor_bReloadDLL.store (true);
+      }
 
       // Process any existing message popups
       extern void
