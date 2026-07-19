@@ -1643,7 +1643,7 @@ SKIF_UI_Tab_DrawMonitor (void)
   if (ImGui::IsItemClicked ()) _ChangeSort (3);
   if (ImGui::IsItemHovered ()) bHLAdmin = true; else bHLAdmin = false;
   ImGui::SameLine    ( );
-  ImGui::ItemSize    (ImVec2 (340.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+  ImGui::ItemSize    (ImVec2 (350.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
   ImGui::SameLine    ( );
   ImGui::TextColored ((bHLName) ? colHLActive : colHLNormal, "Process Name");
   SKIF_ImGui_SetHoverTip ("Process name");
@@ -1790,7 +1790,7 @@ SKIF_UI_Tab_DrawMonitor (void)
     ImGui::SameLine        ( );
     ImGui::TextColored     (colText, "%s", proc.admin ? "Yes" : "No");
     ImGui::SameLine        ( );
-    ImGui::ItemSize        (ImVec2 (335.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+    ImGui::ItemSize        (ImVec2 (345.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
     ImGui::SameLine        ( );
     ImGui::TextColored     ((proc.status <= 2) ? colStatus
                                                : colText,
@@ -1799,7 +1799,7 @@ SKIF_UI_Tab_DrawMonitor (void)
       SKIF_ImGui_SetHoverTip (proc.tooltip);
     /* Detail column is so far only used for special purposes */
     ImGui::SameLine        ( );
-    ImGui::ItemSize        (ImVec2 (630.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+    ImGui::ItemSize        (ImVec2 (640.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
     ImGui::SameLine        ( );
     ImGui::TextColored     (colText, "%s", proc.details.c_str());
     if (proc.details.length() > 73)
