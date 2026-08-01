@@ -405,6 +405,7 @@ SKIF_Startup_AddGame (LPWSTR lpCmdLine)
 
   std::wstring cmdLine        = std::wstring(lpCmdLine);
   std::wstring cmdLineArgs    = cmdLine;
+  std::wstring workingDir     = L"";
 
   // Transform to lowercase
   std::wstring cmdLineLower   = SKIF_Util_ToLowerW (cmdLine);
@@ -443,13 +444,15 @@ SKIF_Startup_AddGame (LPWSTR lpCmdLine)
     // Exclude anything past ".lnk" since we're reading the arguments from the shortcut itself
     cmdLine = cmdLine.substr(0, cmdLineLower.find(splitLNKLower) + splitLNKLower.length());
       
-    WCHAR wszTarget   [MAX_PATH + 2] = { };
-    WCHAR wszArguments[MAX_PATH + 2] = { };
+    WCHAR wszTarget    [MAX_PATH + 2] = { };
+    WCHAR wszWorkingDir[MAX_PATH + 2] = { };
+    WCHAR wszArguments [MAX_PATH + 2] = { };
 
-    SKIF_Util_ResolveShortcut (SKIF_ImGui_hWnd, cmdLine.c_str(), wszTarget, wszArguments, MAX_PATH * sizeof (WCHAR));
+    SKIF_Util_ResolveShortcut (SKIF_ImGui_hWnd, cmdLine.c_str(), wszTarget, wszArguments, wszWorkingDir, MAX_PATH * sizeof (WCHAR));
 
     cmdLine     = std::wstring(wszTarget);
     cmdLineArgs = std::wstring(wszArguments);
+    workingDir  = std::wstring(wszWorkingDir);
   }
 
   // Clear var if no valid path was found
@@ -464,7 +467,7 @@ SKIF_Startup_AddGame (LPWSTR lpCmdLine)
     if (cmdLineArgs.find(L" ") == 0)
       cmdLineArgs = cmdLineArgs.substr(1);
 
-    extern int          SKIF_AddCustomAppID         (std::wstring name, std::wstring path, std::wstring args);
+    extern int          SKIF_AddCustomAppID         (std::wstring name, std::wstring exePath, std::wstring args, std::wstring workingPath);
 
     if (PathFileExists (cmdLine.c_str()))
     {
@@ -473,7 +476,7 @@ SKIF_Startup_AddGame (LPWSTR lpCmdLine)
       if (productName == L"")
         productName = std::filesystem::path (cmdLine).replace_extension().filename().wstring();
 
-      SelectNewSKIFGame = (uint32_t)SKIF_AddCustomAppID (productName, cmdLine, cmdLineArgs);
+      SelectNewSKIFGame = (uint32_t)SKIF_AddCustomAppID (productName, cmdLine, cmdLineArgs, workingDir);
     
       // If a running instance of SKIF already exists, terminate this one as it has served its purpose
       if (SelectNewSKIFGame > 0 && _Signal._RunningInstance != 0)

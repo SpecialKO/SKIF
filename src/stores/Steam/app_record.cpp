@@ -426,7 +426,7 @@ app_launch_config_s::isElevated (bool refresh)
 std::wstring
 app_branch_record_s::getTime (void)
 {
-  if (! time_string.empty ())
+  if (! time_string.empty())
     return time_string;
 
   time_string = SKIF_Util_timeGetTimeAsWStr (time_updated);
@@ -437,7 +437,7 @@ app_branch_record_s::getTime (void)
 std::string
 app_branch_record_s::getTimeUTF8 (void)
 {
-  if (! time_string_utf8.empty ())
+  if (! time_string_utf8.empty())
     return time_string_utf8;
 
   time_string_utf8 = SK_WideCharToUTF8 (getTime());
@@ -454,7 +454,7 @@ app_branch_record_s::getDescription (void) const
 std::string
 app_branch_record_s::getDescriptionUTF8 (void)
 {
-  if (! description_utf8.empty ())
+  if (! description_utf8.empty())
     return description_utf8;
 
   description_utf8 = SK_WideCharToUTF8 (description);
