@@ -12,6 +12,8 @@
 #include <vector>
 #include <shellapi.h>
 #include <stdexcept>
+#include <shobjidl_core.h>
+#include <KnownFolders.h>
 #include <utility/sk_utility.h>
 
 #pragma comment(lib, "wininet.lib")
@@ -199,8 +201,9 @@ std::wstring    SKIF_Util_AddEnvironmentBlock         (const void* pEnvBlock, co
 void            SKIF_Util_FileExplorer_SelectFile     (PCWSTR filePath);
 bool            SKIF_Util_FileExplorer_DeleteFile     (PCWSTR filePath, bool hideWarning);
 void            SKIF_Util_FileExplorer_ContextMenuFile(PCWSTR filePath, HWND hWndOwner);
+HRESULT         SKIF_Util_FileExplorer_BrowseForFile  (LPWSTR *pszPath, HWND hWndOwner, const COMDLG_FILTERSPEC fileTypes = { }, UINT cFileTypes = 0, FILEOPENDIALOGOPTIONS dialogOptions = _FILEOPENDIALOGOPTIONS::FOS_FILEMUSTEXIST, const GUID defaultFolder = FOLDERID_ComputerFolder, PCWSTR defaultFolderPath = nullptr);
+HRESULT         SKIF_Util_FileExplorer_BrowseForFolder(LPWSTR *pszPath, HWND hWndOwner, const GUID defaultFolder = FOLDERID_ComputerFolder, PCWSTR defaultFolderPath = nullptr);
 std::wstring    SKIF_Util_FileExplorer_BrowseForFolderXP(PCWSTR defaultPath);
-std::wstring    SKIF_Util_FileExplorer_BrowseForFolder(PCWSTR defaultPath);
 bool            SKIF_Util_Files_PruneOlderThan        (std::wstring path, ULONGLONG secondsSince);
 bool            SKIF_Util_Files_PruneToLatestN        (std::wstring path, size_t filesToRetain);
 AppColorMode    SKIF_Util_SetAppColorMode             (AppColorMode mode);
@@ -250,7 +253,7 @@ std::wstring SKIF_Util_URLEncode              (const std::wstring& url);
 
 // Shortcuts (*.lnk)
 
-void         SKIF_Util_ResolveShortcut       (HWND hwnd, LPCWSTR lpszLinkFile, LPWSTR lpszTarget, LPWSTR lpszArguments, int iPathBufferSize);
+void         SKIF_Util_ResolveShortcut       (HWND hwnd, LPCWSTR lpszLinkFile, LPWSTR lpszTarget, LPWSTR lpszArguments, LPWSTR lpszWorkingDir, int iPathBufferSize);
 bool         SKIF_Util_CreateShortcut        (LPCWSTR lpszPathLink, LPCWSTR lpszTarget, LPCWSTR lpszArgs = L"\0", LPCWSTR lpszWorkDir = L"\0", LPCWSTR lpszDesc = L"\0", LPCWSTR lpszIconLocation = L"\0", int iIcon = 0);
 
 

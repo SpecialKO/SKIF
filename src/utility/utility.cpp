@@ -2919,9 +2919,79 @@ SKIF_Util_FileExplorer_ContextMenuFile (PCWSTR filePath, HWND hWndOwner)
   }
 }
 
+HRESULT
+SKIF_Util_FileExplorer_BrowseForFile (LPWSTR *pszPath, HWND hwndOwner, const COMDLG_FILTERSPEC fileTypes, UINT cFileTypes, FILEOPENDIALOGOPTIONS dialogOptions, const GUID defaultFolder, PCWSTR defaultFolderPath)
+{
+  IFileOpenDialog  *pFileOpen = nullptr;
+  HRESULT hr = E_UNEXPECTED;
+
+  hr = CoCreateInstance (CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
+                          IID_IFileOpenDialog, reinterpret_cast<void**> (&pFileOpen));
+
+  if (SUCCEEDED(hr))
+  {
+    IShellItem* psiDefaultFolder = nullptr;
+
+    // Force the dialogue to open a specific folder
+    if (defaultFolderPath != nullptr && wcscmp (defaultFolderPath, L"\0") != 0)
+    {
+      if (S_OK == SHCreateItemFromParsingName (defaultFolderPath, nullptr, IID_PPV_ARGS(&psiDefaultFolder)))
+      {
+        pFileOpen->SetFolder (psiDefaultFolder);
+        psiDefaultFolder->Release();
+      }
+    }
+
+    // Otherwise set a default folder
+    else if (S_OK == SHGetKnownFolderItem (defaultFolder, KF_FLAG_DEFAULT, NULL, IID_IShellItem, (void**)&psiDefaultFolder))
+    {
+      pFileOpen->SetDefaultFolder (psiDefaultFolder);
+      psiDefaultFolder->Release();
+    }
+
+    if (cFileTypes > 0)
+      pFileOpen->SetFileTypes (cFileTypes, &fileTypes);
+
+    if (dialogOptions != 0)
+      pFileOpen->SetOptions   (dialogOptions);
+
+    hr = pFileOpen->Show(hwndOwner);
+
+    if (S_OK == hr)
+    {
+      IShellItem      *pItem      = nullptr;
+      IShellItemArray* pItemArray = nullptr;
+
+      if (S_OK == pFileOpen->GetResults (&pItemArray))
+      {
+        if (S_OK == pItemArray->GetItemAt (0, &pItem))
+        {
+          hr = pItem->GetDisplayName (SIGDN_FILESYSPATH, pszPath); // SIGDN_URL
+
+          pItem->Release();
+        }
+
+        pItemArray->Release();
+      }
+    }
+
+    pFileOpen->Release();
+  }
+
+  PLOG_ERROR_IF(FAILED(hr)) << SKIF_Util_GetErrorAsWStr (HRESULT_CODE(hr));
+
+  return hr;
+}
+
+HRESULT
+SKIF_Util_FileExplorer_BrowseForFolder (LPWSTR *pszPath, HWND hwndOwner, const GUID defaultFolder, PCWSTR defaultFolderPath)
+{
+  return SKIF_Util_FileExplorer_BrowseForFile (pszPath, hwndOwner, { }, 0, (FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM), defaultFolder, defaultFolderPath);
+}
+
 static int
 CALLBACK
-SKIF_Util_FileExplorer_BrowseForFolder_CallbackProc (HWND hWnd,UINT uMsg, LPARAM lParam, LPARAM lpData)
+SKIF_Util_FileExplorer_BrowseForFolderXP_CallbackProc (HWND hWnd,UINT uMsg, LPARAM lParam, LPARAM lpData)
 {
   UNREFERENCED_PARAMETER (lParam);
 
@@ -2940,7 +3010,7 @@ SKIF_Util_FileExplorer_BrowseForFolderXP (PCWSTR defaultPath)
     bi = { };
     bi.lpszTitle  = L"Select a new screenshot folder for SKIV to use:";
     bi.ulFlags    = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
-    bi.lpfn       = SKIF_Util_FileExplorer_BrowseForFolder_CallbackProc;
+    bi.lpfn       = SKIF_Util_FileExplorer_BrowseForFolderXP_CallbackProc;
     bi.lParam     = (LPARAM) defaultPath;
 
   LPITEMIDLIST pidl = SHBrowseForFolder ( &bi );
@@ -2949,47 +3019,6 @@ SKIF_Util_FileExplorer_BrowseForFolderXP (PCWSTR defaultPath)
   {
     SHGetPathFromIDList ( pidl, path );
     CoTaskMemFree (pidl);
-  }
-
-  return path;
-}
-
-std::wstring
-SKIF_Util_FileExplorer_BrowseForFolder (PCWSTR defaultPath)
-{
-  std::wstring path;
-
-  IFileDialog* pfd = nullptr;
-  if (SUCCEEDED (CoCreateInstance (CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pfd))))
-  {
-    DWORD dwFlags;
-    pfd->GetOptions(&dwFlags);
-    pfd->SetOptions (dwFlags | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM);
-
-    // Force the dialogue to open a specific folder
-    IShellItem* psiFolder = nullptr;
-    if (SUCCEEDED (SHCreateItemFromParsingName (defaultPath, nullptr, IID_PPV_ARGS(&psiFolder))))
-      pfd->SetFolder (psiFolder);
-
-    if (SUCCEEDED (pfd->Show (SKIF_ImGui_hWnd)))
-    {
-      IShellItem* psiResult = nullptr;
-      if (SUCCEEDED (pfd->GetResult (&psiResult)))
-      {
-        PWSTR pszFolderPath = nullptr;
-        if (SUCCEEDED (psiResult->GetDisplayName (SIGDN_FILESYSPATH, &pszFolderPath)))
-        {
-          path = pszFolderPath;
-          CoTaskMemFree (pszFolderPath);
-        }
-        psiResult->Release();
-      }
-    }
-
-    if (psiFolder != nullptr)
-      psiFolder->Release();
-
-    pfd->Release();
   }
 
   return path;
@@ -4383,15 +4412,17 @@ SKIF_RegistryWatch::isSignaled (void)
 //
 
 void
-SKIF_Util_ResolveShortcut (HWND hwnd, LPCWSTR lpszLinkFile, LPWSTR lpszTarget, LPWSTR lpszArguments, int iPathBufferSize)
+SKIF_Util_ResolveShortcut (HWND hwnd, LPCWSTR lpszLinkFile, LPWSTR lpszTarget, LPWSTR lpszArguments, LPWSTR lpszWorkingDir, int iPathBufferSize)
 {
   IShellLink* psl = nullptr;
 
   WCHAR szArguments [MAX_PATH + 2] = { };
   WCHAR szTarget    [MAX_PATH + 2] = { };
+  WCHAR szWorkingDir[MAX_PATH + 2] = { };
 
   *lpszTarget    = 0; // Assume failure
   *lpszArguments = 0; // Assume failure
+  *lpszWorkingDir= 0; // Assume failure
 
   //CoInitializeEx (nullptr, 0x0);
 
@@ -4424,6 +4455,10 @@ SKIF_Util_ResolveShortcut (HWND hwnd, LPCWSTR lpszLinkFile, LPWSTR lpszTarget, L
           // Get the link target.
           if (SUCCEEDED (psl->GetPath (szTarget, MAX_PATH, NULL, SLGP_RAWPATH)))
             StringCbCopy (lpszTarget, iPathBufferSize, szTarget);
+
+          // Get the working directory.
+          if (SUCCEEDED (psl->GetWorkingDirectory (szWorkingDir, MAX_PATH)))
+            StringCbCopy (lpszWorkingDir, iPathBufferSize, szWorkingDir);
 
           // Get the arguments of the target.
           // In the case of a Unicode string, there is no limitation on maximum string length.
