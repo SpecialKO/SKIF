@@ -389,21 +389,6 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::Spacing          ( );
   ImGui::SameLine         ( );
   ImGui::TextColored      (
-    (_registry._StyleLightMode) ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow) : ImVec4 (ImColor (247, 241, 169)),
-      ICON_FA_DISCOURSE " " );
-  ImGui::SameLine         ( );
-
-  if (ImGui::Selectable   ("Forum"))
-    SKIF_Util_OpenURI     (L"https://discourse.special-k.info/");
-
-  SKIF_ImGui_SetMouseCursorHand ();
-  SKIF_ImGui_SetHoverText ( "https://discourse.special-k.info/");
-  ImGui::EndGroup         ( );
-
-  ImGui::BeginGroup       ( );
-  ImGui::Spacing          ( );
-  ImGui::SameLine         ( );
-  ImGui::TextColored      (
     ImColor (249, 104, 84),
       ICON_FA_PATREON " "   );
   ImGui::SameLine         ( );
