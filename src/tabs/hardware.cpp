@@ -231,7 +231,10 @@ GetMPOSupport (void)
 
         // This is pure assumption from us based on discoveries/experiences and this line in the MSFT docs:
         // "At least one plane must support shrinking and stretching, independent from other planes that might be enabled."
-        if (monitor.MaxStretchFactor  !=  monitor.MaxShrinkFactor  &&
+        // 
+        // 2026-09-13 Update: Disabled the stretch requirement as a Discord user had functioning non-stretched MPOs still,
+        //  in a scenario where having an Valve Index connected on their AMD card resulted in 3 MPO planes w/o stretching.
+        if (//monitor.MaxStretchFactor != monitor.MaxShrinkFactor &&
             monitor.MaxPlanes  > 1    && (monitor.MaxRGBPlanes > 1 || monitor.MaxYUVPlanes > 1))
           monitor.Supported = true;
 
