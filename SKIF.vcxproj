@@ -466,7 +466,6 @@
     <ClCompile Include="src\stores\SKIF\custom_library.cpp" />
     <ClCompile Include="src\stores\Steam\app_record.cpp" />
     <ClCompile Include="src\stores\Steam\steam_library.cpp" />
-    <ClCompile Include="src\stores\Steam\ugc.cpp" />
     <ClCompile Include="src\stores\Steam\vdf.cpp" />
     <ClCompile Include="src\stores\Xbox\xbox_library.cpp" />
     <ClCompile Include="src\tabs\about.cpp" />
