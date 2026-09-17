@@ -1,5 +1,5 @@
 //
-// Copyright 2020-2021 Andon "Kaldaien" Coleman
+// Copyright 2020 - 2026  Andon "Kaldaien" Coleman and Aemony
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -1400,7 +1400,7 @@ bool SKIF_InjectionContext::SaveUserList (bool whitelist_)
     {
       // Win8.1 fallback relies on deprecated stuff, so surpress warning when compiling
 #pragma warning(disable : 4996)
-      list_file.imbue (std::locale (std::locale::empty (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
+      list_file.imbue (std::locale (std::locale (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
     }
 
     std::wstring out_text =
@@ -1480,7 +1480,7 @@ bool SKIF_InjectionContext::LoadUserList (bool whitelist_)
     {
       // Win8.1 fallback relies on deprecated stuff, so surpress warning when compiling
 #pragma warning(disable : 4996)
-      list_file.imbue (std::locale (std::locale::empty (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
+      list_file.imbue (std::locale (std::locale (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
     }
 
     std::wstring line;

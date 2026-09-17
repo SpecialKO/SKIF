@@ -247,7 +247,7 @@ SKIF_Updater::SKIF_Updater (void)
           {
             // Win8.1 fallback relies on deprecated stuff, so surpress warning when compiling
 #pragma warning(disable : 4996)
-            changes_file.imbue (std::locale (std::locale::empty (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
+            changes_file.imbue (std::locale (std::locale (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
           }
 
           std::wstring out_text =
@@ -907,7 +907,7 @@ SKIF_Updater::ReadPatronsFile (void)
     {
       // Win8.1 fallback relies on deprecated stuff, so surpress warning when compiling
   #pragma warning(disable : 4996)
-      file.imbue (std::locale (std::locale::empty (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
+      file.imbue (std::locale (std::locale (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
     }
     
     std::vector <std::wstring> lines;
@@ -972,7 +972,7 @@ SKIF_Updater::ReadChangesFile (void)
     {
       // Win8.1 fallback relies on deprecated stuff, so surpress warning when compiling
   #pragma warning(disable : 4996)
-      file.imbue (std::locale (std::locale::empty (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
+      file.imbue (std::locale (std::locale (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
     }
 
     std::string line;

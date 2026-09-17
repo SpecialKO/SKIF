@@ -1,5 +1,5 @@
 ﻿//
-// Copyright 2021 - 2022 Andon "Kaldaien" Coleman
+// Copyright 2021 - 2026  Andon "Kaldaien" Coleman and Aemony
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -441,6 +441,8 @@ SK_Inject_GetRecord   = nullptr;
 // Some string manipulation to assume whether a process is an Xbox app or not
 bool SKIF_Debug_IsXboxApp(std::string path, std::string processName)
 {
+  std::ignore = processName;
+
   // Does the string contain "\Content\" ?
   if (path.find(R"(\Content\)") != std::string::npos)
     return true;
@@ -488,6 +490,8 @@ bool SKIF_Debug_IsXboxApp(std::string path, std::string processName)
 // Some string manipulation to assume whether a process is a Steam app or not
 bool SKIF_Debug_IsSteamApp(std::string path, std::string processName)
 {
+  std::ignore = processName;
+
   return (path.find("SteamApps") != std::string::npos);
 }
 

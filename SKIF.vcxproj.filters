@@ -263,9 +263,6 @@
     <ClCompile Include="src\imgui\imgui_widgets.cpp">
       <Filter>Source Files\ImGui</Filter>
     </ClCompile>
-    <ClCompile Include="src\stores\Steam\ugc.cpp">
-      <Filter>Source Files\Stores\Steam</Filter>
-    </ClCompile>
     <ClCompile Include="src\SKIF.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
