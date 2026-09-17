@@ -547,6 +547,26 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
     cmdLineLower.erase (posSKIF_SteamAppID_start, posSKIF_SteamAppID_end);
   }
 
+  // Extract the SKIF_SteamAppIDtxt=0 cmd line argument
+  const std::wstring argSKIF_SteamAppIDtxt = L"skif_steamappidtxt=0";
+  size_t posSKIF_SteamAppIDtxt_start       = cmdLineLower.find (argSKIF_SteamAppIDtxt);
+
+  if (posSKIF_SteamAppIDtxt_start != std::wstring::npos)
+  {
+    size_t
+      posSKIF_SteamAppIDtxt_end    = cmdLineLower.find (L" ", posSKIF_SteamAppIDtxt_start);
+
+    if (posSKIF_SteamAppIDtxt_end == std::wstring::npos)
+      posSKIF_SteamAppIDtxt_end    = cmdLineLower.length ( );
+
+    // Length of the substring to remove
+    posSKIF_SteamAppIDtxt_end -= posSKIF_SteamAppIDtxt_start;
+
+    // Remove substring from the original variables
+    cmdLine     .erase (posSKIF_SteamAppIDtxt_start, posSKIF_SteamAppIDtxt_end);
+    cmdLineLower.erase (posSKIF_SteamAppIDtxt_start, posSKIF_SteamAppIDtxt_end);
+  }
+
   // Extract the target path and any proxied command line arguments
   std::wstring path           = cmdLine.substr(0, cmdLineLower.find(delimiter) + delimiter.length());                        // path
   std::wstring proxiedCmdLine = cmdLine.substr(   cmdLineLower.find(delimiter) + delimiter.length(), cmdLineLower.length()); // proxied command line
