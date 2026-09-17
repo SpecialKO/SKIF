@@ -371,6 +371,9 @@ SKIF_Startup_ProcessCmdLineArgs (LPWSTR lpCmdLine)
   _Signal.LauncherURI =
     StrStrIW (lpCmdLine, L"SKIF_URI=")   != NULL;
 
+  _Signal._RemoveSteamAppIDtxt =
+    StrStrIW (lpCmdLine, L"SKIF_SteamAppIDtxt=0") != NULL;
+
   _Signal.CheckForUpdates =
     StrStrIW (lpCmdLine, L"RunUpdater")  != NULL;
 
@@ -597,6 +600,20 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
       );
 
       _Signal._ElevatedService = PathFileExists (elevationFile.c_str());
+    }
+
+    // The user wants us to remove any steam_appid.txt file that might be present in the working directory
+    if (_Signal._RemoveSteamAppIDtxt)
+    {
+      std::wstring steamAppIdTxt = SK_FormatStringW (L"%s\\steam_appid.txt",
+                                                      std::filesystem::path(path).parent_path().wstring().c_str()                  // full path to parent folder
+      );
+
+      if (PathFileExists (steamAppIdTxt.c_str()))
+      {
+        PLOG_INFO << "Found steam_appid.txt in the working directory; attempting to delete.";
+        DeleteFile (steamAppIdTxt.c_str());
+      }
     }
   }
 

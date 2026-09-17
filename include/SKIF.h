@@ -133,6 +133,9 @@ struct SKIF_Signals { // Used for command line arguments
   BOOL CheckForUpdates      = FALSE;
   BOOL ServiceMode          = FALSE;
 
+  // Optional functionality
+  BOOL _RemoveSteamAppIDtxt = FALSE; // Removes the steam_appid.txt file if it is present in the target folder
+
   // Helper variables
   HWND _RunningInstance     = NULL;
   BOOL _DoNotUseService     = FALSE;
