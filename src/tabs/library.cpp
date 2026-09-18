@@ -135,7 +135,7 @@ int                    coverRefreshStore = 0;
 int                    numRegular        = 0;
 int                    numPinnedOnTop    = 0;
 
-// Support up to 32 running games at once, lol
+// Support up to 16 running games at once, lol
 SKIF_Util_CreateProcess_s iPlayCache[15] = { };
 
 struct SKIF_Lib_GameWorkerThread_s {
@@ -966,6 +966,9 @@ LaunchGame (app_record_s* pApp)
       }
 
       // Fallback to Instant Play if that didn't work.
+      // 2026-09-18: Temporarily disabled as it causes
+      //             duplicate launches for slow-starting apps
+#if 0
       else if (pApp->_status.running_pid == 0 && ! launchInstant)
       {
         static HANDLE
@@ -1028,6 +1031,7 @@ LaunchGame (app_record_s* pApp)
           return 0;
         }, pApp, 0x0, nullptr);
       }
+#endif
 
       if (launched)
       {
