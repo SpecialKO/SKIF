@@ -6523,7 +6523,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   {
     strncpy (charFilter,    "\0", MAX_PATH);
     strncpy (charFilterTmp, "\0", MAX_PATH);
-      
+
     numPinnedOnTop = 0;
     numRegular     = 0;
 
