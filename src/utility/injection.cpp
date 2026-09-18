@@ -53,6 +53,9 @@
 #include <sstream>
 #include <strsafe.h>
 
+// This can be used to force the service to run in user-mode even if SKIF was launched elevated
+//#define UNELEVATED 1
+
 // Helper Functions
 
 void CALLBACK
