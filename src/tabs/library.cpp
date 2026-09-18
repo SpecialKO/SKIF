@@ -6519,6 +6519,27 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   //PLOG_VERBOSE << "Numbers: " << numRegular << " (regular) -- " << numPinnedOnTop << " (on top)";
 
+  auto _ClearCharFilter = [&](void) -> void
+  {
+    strncpy (charFilter,    "\0", MAX_PATH);
+    strncpy (charFilterTmp, "\0", MAX_PATH);
+      
+    numPinnedOnTop = 0;
+    numRegular     = 0;
+
+    for (auto& app : g_apps)
+    {
+      app.second.filtered = false;
+
+      numRegular++;
+
+      if (app.second.skif.pinned > 50)
+        numPinnedOnTop++;
+    }
+
+    numRegular -= numPinnedOnTop;
+  };
+
   if (showClearBtn)
   {
     // Needed to stop flickering on the same frame as the field is emptied
@@ -6533,25 +6554,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase));
 
     if (ImGui::Button (ICON_FA_XMARK))
-    {
-      strncpy (charFilter,    "\0", MAX_PATH);
-      strncpy (charFilterTmp, "\0", MAX_PATH);
-      
-      numPinnedOnTop = 0;
-      numRegular     = 0;
-
-      for (auto& app : g_apps)
-      {
-        app.second.filtered = false;
-
-        numRegular++;
-
-        if (app.second.skif.pinned > 50)
-          numPinnedOnTop++;
-      }
-
-      numRegular -= numPinnedOnTop;
-    }
+      _ClearCharFilter ( );
 
     ImGui::PopStyleColor ( );
 
@@ -7926,7 +7929,15 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     ImGui::PushStyleColor (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
 
-     if (SKIF_ImGui_MenuItemEx2 ("Add Game", ICON_FA_SQUARE_PLUS, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success)))
+    if (showClearBtn)
+    {
+      if (SKIF_ImGui_MenuItemEx2 ("Clear filter", ICON_FA_SQUARE_XMARK, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Failure)))
+        _ClearCharFilter ( );
+
+      ImGui::Separator   ( );
+    }
+
+     if (SKIF_ImGui_MenuItemEx2 ("Add game", ICON_FA_SQUARE_PLUS, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success)))
        AddGamePopup = PopupState_Open;
 
     ImGui::Separator      ( );
