@@ -13,324 +13,316 @@
 #include <fonts/fa_621.h>
 #include <fonts/fa_621b.h>
 
+int window_identifier = 0;
+std::vector <__INIFile> vIniEditor_Files;
+bool INIEditorActive = false;
 
-// Derp
+// DERP
 
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-
-#include <cstdio>
-#include <cstdint>
-#include <stdexcept>
-#include <string>
-#include <vector>
-#include <limits>
-
-namespace
+enum class Encoding
 {
-  enum class Encoding
+  Utf8,
+  Utf16LE,
+  Utf16BE,
+  Utf32LE,
+  Utf32BE
+};
+
+std::vector<std::uint8_t>
+ReadAllBytes (const std::wstring& path)
+{
+  FILE* file = _wfopen(path.c_str(), L"rb");
+
+  if (!file)
+    throw std::runtime_error("_wfopen failed");
+
+  if (_fseeki64(file, 0, SEEK_END) != 0)
   {
-    Utf8,
-    Utf16LE,
-    Utf16BE,
-    Utf32LE,
-    Utf32BE
-  };
-
-  std::vector<std::uint8_t> ReadAllBytes(const std::wstring& path)
-  {
-    FILE* file = _wfopen(path.c_str(), L"rb");
-
-    if (!file)
-      throw std::runtime_error("_wfopen failed");
-
-    if (_fseeki64(file, 0, SEEK_END) != 0)
-    {
-      fclose(file);
-      throw std::runtime_error("_fseeki64 failed");
-    }
-
-    const __int64 size = _ftelli64(file);
-
-    if (size < 0)
-    {
-      fclose(file);
-      throw std::runtime_error("_ftelli64 failed");
-    }
-
-    if (_fseeki64(file, 0, SEEK_SET) != 0)
-    {
-      fclose(file);
-      throw std::runtime_error("_fseeki64 failed");
-    }
-
-    std::vector<std::uint8_t> data(
-      static_cast<size_t>(size));
-
-    size_t offset = 0;
-
-    while (offset < data.size())
-    {
-      const size_t remaining = data.size() - offset;
-
-      // fread's size parameter is size_t, but use reasonably
-      // sized chunks to avoid implementation-specific issues.
-      const size_t chunk =
-        (remaining > 1024 * 1024)
-        ? 1024 * 1024
-        : remaining;
-
-      const size_t n = fread(
-        data.data() + offset,
-        1,
-        chunk,
-        file);
-
-      if (n != chunk)
-      {
-        fclose(file);
-        throw std::runtime_error("fread failed");
-      }
-
-      offset += n;
-    }
-
     fclose(file);
-    return data;
+    throw std::runtime_error("_fseeki64 failed");
   }
 
-  Encoding DetectEncoding(
-    const std::vector<std::uint8_t>& data,
-    size_t& bomSize)
+  const __int64 size = _ftelli64(file);
+
+  if (size < 0)
   {
-    bomSize = 0;
+    fclose(file);
+    throw std::runtime_error("_ftelli64 failed");
+  }
 
-    // UTF-8 BOM: EF BB BF
-    if (data.size() >= 3 &&
-      data[0] == 0xEF &&
-      data[1] == 0xBB &&
-      data[2] == 0xBF)
+  if (_fseeki64(file, 0, SEEK_SET) != 0)
+  {
+    fclose(file);
+    throw std::runtime_error("_fseeki64 failed");
+  }
+
+  std::vector<std::uint8_t> data(
+    static_cast<size_t>(size));
+
+  size_t offset = 0;
+
+  while (offset < data.size())
+  {
+    const size_t remaining = data.size() - offset;
+
+    // fread's size parameter is size_t, but use reasonably
+    // sized chunks to avoid implementation-specific issues.
+    const size_t chunk =
+      (remaining > 1024 * 1024)
+      ? 1024 * 1024
+      : remaining;
+
+    const size_t n = fread(
+      data.data() + offset,
+      1,
+      chunk,
+      file);
+
+    if (n != chunk)
     {
-      bomSize = 3;
-      return Encoding::Utf8;
+      fclose(file);
+      throw std::runtime_error("fread failed");
     }
 
-    // UTF-32 LE BOM: FF FE 00 00
-    if (data.size() >= 4 &&
-      data[0] == 0xFF &&
-      data[1] == 0xFE &&
-      data[2] == 0x00 &&
-      data[3] == 0x00)
-    {
-      bomSize = 4;
-      return Encoding::Utf32LE;
-    }
+    offset += n;
+  }
 
-    // UTF-32 BE BOM: 00 00 FE FF
-    if (data.size() >= 4 &&
-      data[0] == 0x00 &&
-      data[1] == 0x00 &&
-      data[2] == 0xFE &&
-      data[3] == 0xFF)
-    {
-      bomSize = 4;
-      return Encoding::Utf32BE;
-    }
+  fclose(file);
+  return data;
+}
 
-    // UTF-16 LE BOM: FF FE
-    if (data.size() >= 2 &&
-      data[0] == 0xFF &&
-      data[1] == 0xFE)
-    {
-      bomSize = 2;
-      return Encoding::Utf16LE;
-    }
+Encoding DetectEncoding (
+  const std::vector<std::uint8_t>& data,
+  size_t& bomSize)
+{
+  bomSize = 0;
 
-    // UTF-16 BE BOM: FE FF
-    if (data.size() >= 2 &&
-      data[0] == 0xFE &&
-      data[1] == 0xFF)
-    {
-      bomSize = 2;
-      return Encoding::Utf16BE;
-    }
-
-    // No BOM: assume UTF-8.
+  // UTF-8 BOM: EF BB BF
+  if (data.size() >= 3 &&
+    data[0] == 0xEF &&
+    data[1] == 0xBB &&
+    data[2] == 0xBF)
+  {
+    bomSize = 3;
     return Encoding::Utf8;
   }
 
-  std::wstring DecodeUtf8(
-    const std::uint8_t* data,
-    size_t size)
+  // UTF-32 LE BOM: FF FE 00 00
+  if (data.size() >= 4 &&
+    data[0] == 0xFF &&
+    data[1] == 0xFE &&
+    data[2] == 0x00 &&
+    data[3] == 0x00)
   {
-    if (size == 0)
-      return {};
-
-    if (size > static_cast<size_t>(INT_MAX))
-      throw std::runtime_error("UTF-8 data is too large");
-
-    const int inputSize = static_cast<int>(size);
-
-    const int outputSize = MultiByteToWideChar(
-      CP_UTF8,
-      MB_ERR_INVALID_CHARS,
-      reinterpret_cast<const char*>(data),
-      inputSize,
-      nullptr,
-      0);
-
-    if (outputSize <= 0)
-      throw std::runtime_error("Invalid UTF-8");
-
-    std::wstring result(outputSize, L'\0');
-
-    const int converted = MultiByteToWideChar(
-      CP_UTF8,
-      MB_ERR_INVALID_CHARS,
-      reinterpret_cast<const char*>(data),
-      inputSize,
-      result.data(),
-      outputSize);
-
-    if (converted != outputSize)
-      throw std::runtime_error("UTF-8 conversion failed");
-
-    return result;
+    bomSize = 4;
+    return Encoding::Utf32LE;
   }
 
-  std::wstring DecodeUtf16(
-    const std::uint8_t* data,
-    size_t size,
-    bool littleEndian)
+  // UTF-32 BE BOM: 00 00 FE FF
+  if (data.size() >= 4 &&
+    data[0] == 0x00 &&
+    data[1] == 0x00 &&
+    data[2] == 0xFE &&
+    data[3] == 0xFF)
   {
-    if (size % 2 != 0)
-      throw std::runtime_error("Invalid UTF-16 byte count");
-
-    const size_t count = size / 2;
-
-    std::wstring result;
-    result.reserve(count);
-
-    auto read16 = [&](size_t i) -> std::uint16_t
-      {
-        const std::uint8_t a = data[i * 2];
-        const std::uint8_t b = data[i * 2 + 1];
-
-        return littleEndian
-          ? static_cast<std::uint16_t>(a | (b << 8))
-          : static_cast<std::uint16_t>((a << 8) | b);
-      };
-
-    for (size_t i = 0; i < count; ++i)
-    {
-      const std::uint16_t ch = read16(i);
-
-      // High surrogate.
-      if (ch >= 0xD800 && ch <= 0xDBFF)
-      {
-        if (i + 1 >= count)
-          throw std::runtime_error(
-            "Invalid UTF-16 surrogate pair");
-
-        const std::uint16_t low = read16(i + 1);
-
-        if (low < 0xDC00 || low > 0xDFFF)
-          throw std::runtime_error(
-            "Invalid UTF-16 surrogate pair");
-
-        result.push_back(static_cast<wchar_t>(ch));
-        result.push_back(static_cast<wchar_t>(low));
-
-        ++i;
-      }
-      // Unpaired low surrogate.
-      else if (ch >= 0xDC00 && ch <= 0xDFFF)
-      {
-        throw std::runtime_error(
-          "Invalid UTF-16 surrogate");
-      }
-      else
-      {
-        result.push_back(static_cast<wchar_t>(ch));
-      }
-    }
-
-    return result;
+    bomSize = 4;
+    return Encoding::Utf32BE;
   }
 
-  std::wstring DecodeUtf32(
-    const std::uint8_t* data,
-    size_t size,
-    bool littleEndian)
+  // UTF-16 LE BOM: FF FE
+  if (data.size() >= 2 &&
+    data[0] == 0xFF &&
+    data[1] == 0xFE)
   {
-    if (size % 4 != 0)
-      throw std::runtime_error("Invalid UTF-32 byte count");
-
-    const size_t count = size / 4;
-
-    std::wstring result;
-    result.reserve(count);
-
-    auto read32 = [&](size_t i) -> std::uint32_t
-      {
-        const std::uint8_t* p = data + i * 4;
-
-        if (littleEndian)
-        {
-          return
-            static_cast<std::uint32_t>(p[0]) |
-            (static_cast<std::uint32_t>(p[1]) << 8) |
-            (static_cast<std::uint32_t>(p[2]) << 16) |
-            (static_cast<std::uint32_t>(p[3]) << 24);
-        }
-
-        return
-          (static_cast<std::uint32_t>(p[0]) << 24) |
-          (static_cast<std::uint32_t>(p[1]) << 16) |
-          (static_cast<std::uint32_t>(p[2]) << 8) |
-          static_cast<std::uint32_t>(p[3]);
-      };
-
-    for (size_t i = 0; i < count; ++i)
-    {
-      const std::uint32_t cp = read32(i);
-
-      // Invalid Unicode scalar values.
-      if (cp > 0x10FFFF ||
-        (cp >= 0xD800 && cp <= 0xDFFF))
-      {
-        throw std::runtime_error(
-          "Invalid UTF-32 code point");
-      }
-
-      // BMP character.
-      if (cp <= 0xFFFF)
-      {
-        result.push_back(static_cast<wchar_t>(cp));
-      }
-      else
-      {
-        // Convert Unicode scalar value to UTF-16 surrogate pair.
-        const std::uint32_t value = cp - 0x10000;
-
-        const wchar_t high = static_cast<wchar_t>(
-          0xD800 + (value >> 10));
-
-        const wchar_t low = static_cast<wchar_t>(
-          0xDC00 + (value & 0x3FF));
-
-        result.push_back(high);
-        result.push_back(low);
-      }
-    }
-
-    return result;
+    bomSize = 2;
+    return Encoding::Utf16LE;
   }
+
+  // UTF-16 BE BOM: FE FF
+  if (data.size() >= 2 &&
+    data[0] == 0xFE &&
+    data[1] == 0xFF)
+  {
+    bomSize = 2;
+    return Encoding::Utf16BE;
+  }
+
+  // No BOM: assume UTF-8.
+  return Encoding::Utf8;
 }
 
-std::wstring ReadTextFile(const std::wstring& path)
+std::wstring DecodeUtf8 (
+  const std::uint8_t* data,
+  size_t size)
 {
-  const std::vector<std::uint8_t> data = ReadAllBytes(path);
+  if (size == 0)
+    return {};
+
+  if (size > static_cast<size_t>(INT_MAX))
+    throw std::runtime_error("UTF-8 data is too large");
+
+  const int inputSize = static_cast<int>(size);
+
+  const int outputSize = MultiByteToWideChar(
+    CP_UTF8,
+    MB_ERR_INVALID_CHARS,
+    reinterpret_cast<const char*>(data),
+    inputSize,
+    nullptr,
+    0);
+
+  if (outputSize <= 0)
+    throw std::runtime_error("Invalid UTF-8");
+
+  std::wstring result(outputSize, L'\0');
+
+  const int converted = MultiByteToWideChar(
+    CP_UTF8,
+    MB_ERR_INVALID_CHARS,
+    reinterpret_cast<const char*>(data),
+    inputSize,
+    result.data(),
+    outputSize);
+
+  if (converted != outputSize)
+    throw std::runtime_error("UTF-8 conversion failed");
+
+  return result;
+}
+
+std::wstring DecodeUtf16 (
+  const std::uint8_t* data,
+  size_t size,
+  bool littleEndian)
+{
+  if (size % 2 != 0)
+    throw std::runtime_error("Invalid UTF-16 byte count");
+
+  const size_t count = size / 2;
+
+  std::wstring result;
+  result.reserve(count);
+
+  auto read16 = [&](size_t i) -> std::uint16_t
+    {
+      const std::uint8_t a = data[i * 2];
+      const std::uint8_t b = data[i * 2 + 1];
+
+      return littleEndian
+        ? static_cast<std::uint16_t>(a | (b << 8))
+        : static_cast<std::uint16_t>((a << 8) | b);
+    };
+
+  for (size_t i = 0; i < count; ++i)
+  {
+    const std::uint16_t ch = read16(i);
+
+    // High surrogate.
+    if (ch >= 0xD800 && ch <= 0xDBFF)
+    {
+      if (i + 1 >= count)
+        throw std::runtime_error(
+          "Invalid UTF-16 surrogate pair");
+
+      const std::uint16_t low = read16(i + 1);
+
+      if (low < 0xDC00 || low > 0xDFFF)
+        throw std::runtime_error(
+          "Invalid UTF-16 surrogate pair");
+
+      result.push_back(static_cast<wchar_t>(ch));
+      result.push_back(static_cast<wchar_t>(low));
+
+      ++i;
+    }
+    // Unpaired low surrogate.
+    else if (ch >= 0xDC00 && ch <= 0xDFFF)
+    {
+      throw std::runtime_error(
+        "Invalid UTF-16 surrogate");
+    }
+    else
+    {
+      result.push_back(static_cast<wchar_t>(ch));
+    }
+  }
+
+  return result;
+}
+
+std::wstring DecodeUtf32(
+  const std::uint8_t* data,
+  size_t size,
+  bool littleEndian)
+{
+  if (size % 4 != 0)
+    throw std::runtime_error("Invalid UTF-32 byte count");
+
+  const size_t count = size / 4;
+
+  std::wstring result;
+  result.reserve(count);
+
+  auto read32 = [&](size_t i) -> std::uint32_t
+    {
+      const std::uint8_t* p = data + i * 4;
+
+      if (littleEndian)
+      {
+        return
+          static_cast<std::uint32_t>(p[0]) |
+          (static_cast<std::uint32_t>(p[1]) << 8) |
+          (static_cast<std::uint32_t>(p[2]) << 16) |
+          (static_cast<std::uint32_t>(p[3]) << 24);
+      }
+
+      return
+        (static_cast<std::uint32_t>(p[0]) << 24) |
+        (static_cast<std::uint32_t>(p[1]) << 16) |
+        (static_cast<std::uint32_t>(p[2]) << 8) |
+        static_cast<std::uint32_t>(p[3]);
+    };
+
+  for (size_t i = 0; i < count; ++i)
+  {
+    const std::uint32_t cp = read32(i);
+
+    // Invalid Unicode scalar values.
+    if (cp > 0x10FFFF ||
+      (cp >= 0xD800 && cp <= 0xDFFF))
+    {
+      throw std::runtime_error(
+        "Invalid UTF-32 code point");
+    }
+
+    // BMP character.
+    if (cp <= 0xFFFF)
+    {
+      result.push_back(static_cast<wchar_t>(cp));
+    }
+    else
+    {
+      // Convert Unicode scalar value to UTF-16 surrogate pair.
+      const std::uint32_t value = cp - 0x10000;
+
+      const wchar_t high = static_cast<wchar_t>(
+        0xD800 + (value >> 10));
+
+      const wchar_t low = static_cast<wchar_t>(
+        0xDC00 + (value & 0x3FF));
+
+      result.push_back(high);
+      result.push_back(low);
+    }
+  }
+
+  return result;
+}
+
+std::wstring
+SKIF_IniHandler_ReadTextFile (const std::wstring& path)
+{
+  const std::vector<std::uint8_t> data = ReadAllBytes (path);
 
   size_t bomSize = 0;
   const Encoding encoding = DetectEncoding(data, bomSize);
@@ -362,48 +354,22 @@ std::wstring ReadTextFile(const std::wstring& path)
   throw std::runtime_error("Unknown encoding");
 }
 
-// CC BY-SA 4.0: https://stackoverflow.com/a/46711735
-static constexpr uint32_t hash(const std::string_view data) noexcept
-{
-  uint32_t hash = 5385;
-
-  for (const auto& e : data)
-    hash = ((hash << 5) + hash) + e;
-
-  return hash;
-}
-
 // NO DERP
 
-struct __INI {
-  char section[MAX_PATH + 2] = { };
-  char key    [MAX_PATH + 2] = { };
-  char value  [MAX_PATH + 2] = { };
-  char default[MAX_PATH + 2] = { }; // Used when resetting any unsaved changes
-  std::string _label_k;
-  std::string _label_v;
-  bool        _show = true;
-  SK_KeybindMultiState _keybind;
+__INI::__INI (const std::string& _s, const std::string& _k, const std::string& _v)
+{
+  strncpy (section, _s.c_str(), MAX_PATH);
+  strncpy (key,     _k.c_str(), MAX_PATH);
+  strncpy (default, _v.c_str(), MAX_PATH);
+  strncpy (value,   default,    MAX_PATH);
+  _label_k = ("###" + _s + "-" + _k);
+  _label_v = ("###" + _s + "-" + _k + "-" + _v);
+}
 
-  //
-  void (*DrawFunction)(__INI* ptr);
-  std::vector<std::string> _dditems = { };
-
-  __INI (const std::string& _s, const std::string& _k, const std::string& _v)
-  {
-    strncpy (section, _s.c_str(), MAX_PATH);
-    strncpy (key,     _k.c_str(), MAX_PATH);
-    strncpy (default, _v.c_str(), MAX_PATH);
-    strncpy (value,   default,    MAX_PATH);
-    _label_k = ("###" + _s + "-" + _k);
-    _label_v = ("###" + _s + "-" + _k + "-" + _v);
-  }
-
-  void Reset (void)
-  {
-    strncpy (value, default, MAX_PATH);
-  }
-};
+void __INI::Reset (void)
+{
+  strncpy (value, default, MAX_PATH);
+}
 
 static void DrawInputBox (__INI* ptr)
 {
@@ -430,44 +396,60 @@ static void DrawDropDown (__INI* ptr)
 
 static void DrawKeybinding (__INI* ptr)
 {
+  ImGui::PushID (ptr->section);
   ImGui::PushID (ptr->key);
-  ImGui::PushID (ptr->_keybind.bind_name.c_str());
   if (SK_ImGui_Keybinding (&ptr->_keybind))
   {
-    strncpy (ptr->value, ptr->_keybind.getKeybind()->human_readable_utf8.c_str(), MAX_PATH);
+    // Only update the label if we are done assigning
+    if (! ptr->_keybind.assigning)
+    {
+      strncpy (ptr->value, ptr->_keybind.getKeybind()->human_readable_utf8.c_str(), MAX_PATH);
+    }
   }
   ImGui::PopID ();
   ImGui::PopID ();
 }
 
-struct __INIFile {
-  int     wnd_index = 0;
-  std::string  path = { };
-  std::string label = { };
-  PopupState  state = PopupState_Open;
-  std::vector <__INI> ini;
-
-  // Filter field
-  char          charFilter    [MAX_PATH + 2] = { };
-  char          charFilterTmp [MAX_PATH + 2] = { };
-  bool          bFilterActive = false;
-
-  // Focused state
-  bool          bWindowFocused = false;
-};
-
-int window_identifier = 0;
-std::vector <__INIFile> vIniEditor_Files;
-bool INIEditorActive = false;
-
-void
-SKIF_ImGui_IniEditor (const std::wstring& file_path, const std::string& file_path_utf8)
+std::vector <__INI>
+SKIF_IniHandler_ParseIni (const std::wstring& file_path, const std::string& file_path_utf8)
 {
-  PLOG_VERBOSE << "Pushing INI editor: " << file_path_utf8;
+  PLOG_VERBOSE << "Parsing INI file: " << file_path_utf8;
   std::string unique_label = ("INI: " + file_path_utf8 + "###IniEditor-" + std::to_string(window_identifier));
 
   inih::INIReader ini;
-  ini.ParseContent (SK_WideCharToUTF8 (ReadTextFile (file_path)));
+  ini.ParseContent (SK_WideCharToUTF8 (SKIF_IniHandler_ReadTextFile (file_path)));
+
+  std::vector <__INI> ini_parsed;
+
+  for (auto& section : ini.Sections())
+  {
+    for (auto& kv : ini.Get (section))
+    {
+      ini_parsed.push_back ({ section, kv.first, kv.second });
+    }
+  }
+
+  return ini_parsed;
+}
+
+void
+SKIF_IniHandler_WriteIni (std::vector<__INI> ini, const std::string& file_path_utf8)
+{
+  inih::INIReader new_ini = { };
+
+  for (auto& trie : ini)
+    new_ini.InsertEntry (trie.section, trie.key, trie.value);
+
+  inih::INIWriter::write (file_path_utf8, new_ini, true);
+}
+
+void
+SKIF_ImGui_IniEditor_OpenFile (const std::wstring& file_path, const std::string& file_path_utf8)
+{
+  PLOG_VERBOSE << "Parsing INI file: " << file_path_utf8;
+
+  inih::INIReader ini;
+  ini.ParseContent (SK_WideCharToUTF8 (SKIF_IniHandler_ReadTextFile (file_path)));
 
   std::vector <__INI> ini_parsed;
 
@@ -477,9 +459,9 @@ SKIF_ImGui_IniEditor (const std::wstring& file_path, const std::string& file_pat
     {
       __INI item = { section, kv.first, kv.second };
 
-      switch (hash(kv.first))
+      switch (SwitchHash (kv.first))
       {
-        case hash("NotifyCorner"):
+        case SwitchHash ("NotifyCorner"):
         {
           item._dditems.push_back ("DontCare");
           item._dditems.push_back ("TopLeft");
@@ -490,7 +472,7 @@ SKIF_ImGui_IniEditor (const std::wstring& file_path, const std::string& file_pat
           break;
         }
 
-        case hash("Scaling"):
+        case SwitchHash ("Scaling"):
         {
           item._dditems.push_back ("DontCare");
           item._dditems.push_back ("Unspecified");
@@ -500,7 +482,7 @@ SKIF_ImGui_IniEditor (const std::wstring& file_path, const std::string& file_pat
           break;
         }
 
-        case hash("ScanlineOrder"):
+        case SwitchHash ("ScanlineOrder"):
         {
           item._dditems.push_back ("DontCare");
           item._dditems.push_back ("Unspecified");
@@ -511,7 +493,7 @@ SKIF_ImGui_IniEditor (const std::wstring& file_path, const std::string& file_pat
           break;
         }
 
-        case hash("ExceptionMode"):
+        case SwitchHash ("ExceptionMode"):
         {
           item._dditems.push_back ("DontCare");
           item._dditems.push_back ("Raise");
@@ -521,10 +503,10 @@ SKIF_ImGui_IniEditor (const std::wstring& file_path, const std::string& file_pat
         }
 
         // Keybindings (Keyboard)
-        case hash("Activate0"):
-        case hash("Activate1"):
-        case hash("Activate2"):
-        case hash("Activate3"):
+        case SwitchHash ("Activate0"):
+        case SwitchHash ("Activate1"):
+        case SwitchHash ("Activate2"):
+        case SwitchHash ("Activate3"):
         {
           item._keybind = {
             item.key,
@@ -539,11 +521,11 @@ SKIF_ImGui_IniEditor (const std::wstring& file_path, const std::string& file_pat
         }
 
         // Keybindings (Gamepad)
-        case hash("LeftPaddle"):
-        case hash("LeftFunction"):
-        case hash("RightFunction"):
-        case hash("RightPaddle"):
-        case hash("TouchpadClick"):
+        case SwitchHash ("LeftPaddle"):
+        case SwitchHash ("LeftFunction"):
+        case SwitchHash ("RightFunction"):
+        case SwitchHash ("RightPaddle"):
+        case SwitchHash ("TouchpadClick"):
         {
           item.DrawFunction = DrawInputBox;
           break;
@@ -568,6 +550,7 @@ SKIF_ImGui_IniEditor (const std::wstring& file_path, const std::string& file_pat
     }
   }
 
+  std::string unique_label = ("INI: " + file_path_utf8 + "###IniEditor-" + std::to_string(window_identifier));
   vIniEditor_Files.push_back({ window_identifier, file_path_utf8, unique_label, PopupState_Open, ini_parsed });
   window_identifier++;
 }
@@ -804,12 +787,7 @@ SKIF_ImGui_IniEditor_Process (void)
 
     if (save)
     {
-      inih::INIReader new_ini = { };
-
-      for (auto& trie : file.ini)
-        new_ini.InsertEntry (trie.section, trie.key, trie.value);
-
-      inih::INIWriter::write (file.path, new_ini, true);
+      SKIF_IniHandler_WriteIni (file.ini, file.path);
     }
 
     if (! show)

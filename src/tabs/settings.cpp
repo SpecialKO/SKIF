@@ -16,8 +16,121 @@
 #include <utility/injection.h>
 #include <utility/updater.h>
 #include <utility/gamepad.h>
+#include <utility/ini_editor.h>
 
 extern bool allowShortcutCtrlA;
+std::vector <__INI> vIniOSD;
+bool saveIniOSD = false;
+
+static void
+DrawIniKeybinding (__INI* ptr)
+{
+  ImGui::PushID (ptr->section);
+  ImGui::PushID (ptr->key);
+  if (SK_ImGui_Keybinding (&ptr->_keybind))
+  {
+    // Only update the label if we are done assigning
+    if (! ptr->_keybind.assigning)
+    {
+      strncpy (ptr->value, ptr->_keybind.getKeybind()->human_readable_utf8.c_str(), MAX_PATH);
+      saveIniOSD = true;
+    }
+  }
+  ImGui::PopID ();
+  ImGui::PopID ();
+}
+
+void
+RefreshOSDIni (void)
+{
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+  static std::wstring pathOSDIni = SK_FormatStringW (LR"(%ws\Global\osd.ini)", _path_cache.specialk_userdata);
+
+  vIniOSD = SKIF_IniHandler_ParseIni (pathOSDIni, SK_WideCharToUTF8 (pathOSDIni));
+
+  for (auto& trie : vIniOSD)
+  {
+    if (! trie._show)
+      continue;
+
+    switch (SwitchHash (trie.key))
+    {
+      // [Game.HUD]
+      case SwitchHash ("HUDToggle"):
+
+      // [OSD.System]
+      case SwitchHash ("ConsoleToggle"):
+
+      // [Screenshot.System]
+      case SwitchHash ("HUDFree"):
+      case SwitchHash ("WithoutOSD"):
+      case SwitchHash ("InsertOSD"):
+
+      // [Display.Monitor]
+      case SwitchHash ("MoveToPrimaryMonitor"):
+      case SwitchHash ("MoveToNextMonitor"):
+      case SwitchHash("MoveToPrevMonitor"):
+      case SwitchHash("ToggleHDR"):
+      case SwitchHash("ToggleADHDMultiMonitor"):
+
+      // [LatentSync.Control]
+      case SwitchHash ("MoveTearlineUp"):
+      case SwitchHash ("MoveTearlineDown"):
+      case SwitchHash ("ManualResync"):
+      case SwitchHash ("ToggleFCATBars"):
+
+      // [Sound.Mixing]
+      case SwitchHash ("MuteGame"):
+      case SwitchHash ("VolumePlus10%"):
+      case SwitchHash ("VolumeMinus10%"):
+
+      // [Widgets.Global]
+      case SwitchHash ("HideAllWidgets"):
+
+      // [ReShade.AddOn]
+      case SwitchHash ("ToggleReShadeOverlay"):
+      case SwitchHash ("InjectReShade"):
+
+      // [ImGui.Global]
+      case SwitchHash ("ControlPanelToggle"):
+
+      // [Widgets]
+      case SwitchHash ("ToggleKey"):
+      case SwitchHash ("FlashKey"):
+
+      // [HDR.Presets]
+      case SwitchHash ("Activate0"):
+      case SwitchHash ("Activate1"):
+      case SwitchHash ("Activate2"):
+      case SwitchHash ("Activate3"):
+      {
+        trie._keybind = {
+          trie.key,
+          SK_UTF8ToWideChar (trie.value)
+        };
+        trie._keybind.pending.human_readable = SK_UTF8ToWideChar (trie.value);
+        trie._keybind.pending.parse();
+        trie._keybind.applyChanges();
+
+        trie.DrawFunction = DrawIniKeybinding;
+        break;
+      }
+      default:
+      {
+        trie._show = false;
+      }
+    }
+  }
+}
+
+static void
+SaveOSDIni (void)
+{
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+  static std::string pathOSDIni_utf8 = SK_FormatString (R"(%s\Global\osd.ini)", SK_WideCharToUTF8 (_path_cache.specialk_userdata).c_str());
+
+  SKIF_IniHandler_WriteIni (vIniOSD, pathOSDIni_utf8);
+}
 
 void
 SKIF_UI_Tab_DrawSettings (void)
@@ -38,6 +151,7 @@ SKIF_UI_Tab_DrawSettings (void)
   if (SKIF_Tab_Selected != UITab_Settings                         ||
       RefreshSettingsTab                                          )
   {
+    RefreshOSDIni ( );
     SKIF_Util_IsHDRSupported (true);
     SKIF_Util_IsHDRActive    (true);
     RefreshSettingsTab  = false;
@@ -1415,7 +1529,6 @@ SKIF_UI_Tab_DrawSettings (void)
 #pragma endregion
 
 #pragma region Section: Keybindings
-
   if (ImGui::CollapsingHeader ("Keybindings###SKIF_SettingsHeader-3", ImGuiTreeNodeFlags_DefaultOpen))
   {
     SKIF_ImGui_Spacing      ( );
@@ -1465,6 +1578,63 @@ SKIF_UI_Tab_DrawSettings (void)
 
   ImGui::Spacing ();
   ImGui::Spacing ();
+#pragma endregion
+
+#pragma region Section: Keybindings (In-game)
+  if (_registry.bDeveloperMode)
+  {
+    if (ImGui::CollapsingHeader ("Keybindings (In-Game)###SKIF_SettingsHeader-3b"))
+    {
+      SKIF_ImGui_Spacing      ( );
+
+      // Headers
+
+      ImGui::ItemSize        (ImVec2 (0.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::SameLine        ( );
+      ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption), "[Section]");
+      ImGui::SameLine        ( );
+      ImGui::ItemSize        (ImVec2 (200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::SameLine        ( );
+      ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption), "Key=");
+      ImGui::SameLine        ( );
+      ImGui::ItemSize        (ImVec2 (600.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::SameLine        ( );
+      ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption), "Value");
+
+      ImGui::Separator   ( );
+
+      ImGui::PushStyleColor (
+        ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(0.8f, 0.8f, 0.8f, 1.0f)
+                              );
+
+      for (auto& trie : vIniOSD)
+      {
+        if (! trie._show)
+          continue;
+
+        ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), trie.section);
+        ImGui::SameLine        ( );
+        ImGui::ItemSize        (ImVec2 (200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::SameLine        ( );
+        ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), trie.key);
+        ImGui::SameLine        ( );
+        ImGui::ItemSize        (ImVec2 (600.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::SameLine        ( );
+        trie.DrawFunction      (&trie);
+      }
+
+      if (saveIniOSD)
+      {   saveIniOSD = false;
+        SaveOSDIni ();
+      }
+
+      ImGui::PopStyleColor  ( ); // ImGuiCol_Text
+    }
+
+    ImGui::Spacing ();
+    ImGui::Spacing ();
+  }
+
 #pragma endregion
 
 #pragma region Section: Advanced

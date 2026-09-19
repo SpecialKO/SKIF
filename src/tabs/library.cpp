@@ -1918,7 +1918,7 @@ DrawGameConfigMenu (app_record_s* pApp)
           }
         }
 
-        SKIF_ImGui_IniEditor (pApp->specialk.injection.config.full_path, pApp->specialk.injection.config.full_path_utf8);
+        SKIF_ImGui_IniEditor_OpenFile (pApp->specialk.injection.config.full_path, pApp->specialk.injection.config.full_path_utf8);
       }
     }
 
