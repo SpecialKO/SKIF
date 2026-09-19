@@ -3309,6 +3309,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
         SKIF_ImGui_InfoMessage_Process (void);
       SKIF_ImGui_InfoMessage_Process ( );
 
+      // Process any INI editor windows
+      extern void
+        SKIF_ImGui_IniEditor_Process (void);
+      SKIF_ImGui_IniEditor_Process ( );
+
 
       // Handle the update popup
 

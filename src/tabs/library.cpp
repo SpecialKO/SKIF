@@ -60,6 +60,7 @@
 
 #include <utility/registry.h>
 #include <utility/updater.h>
+#include <utility/ini_editor.h>
 #include <stores/Steam/steam_library.h>
 
 constexpr char         spaces[]          = { "\u0020\u0020\u0020\u0020" };
@@ -1750,7 +1751,7 @@ DrawGameConfigMenu (app_record_s* pApp)
     return;
 
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
-//static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 //static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
 
   static ImGuiID idGameConfigMenu = ImGui::GetID ("###GameConfigMenu");
@@ -1895,7 +1896,32 @@ DrawGameConfigMenu (app_record_s* pApp)
       runOnceCustomPresets = false;
       CustomPresets        = _FindPresets (CustomPresetsFolder, L"*.ini");
     }
-          
+
+    if (_registry.bDeveloperMode)
+    {
+      if (ImGui::Selectable ("Open INI editor"))
+      {
+        // If the file does not exist, create it
+        if (! PathFileExists (pApp->specialk.injection.config.full_path.c_str()))
+        {
+          std::error_code ec;
+          // Create any missing directories
+          if (! std::filesystem::exists             (pApp->specialk.injection.config.root_dir, ec))
+                std::filesystem::create_directories (pApp->specialk.injection.config.root_dir, ec);
+
+          std::wofstream config_file (pApp->specialk.injection.config.full_path.c_str(), std::wofstream::out | std::wofstream::trunc);
+
+          if (config_file.is_open())
+          {
+            config_file << utf8_bom;
+            config_file.close ( );
+          }
+        }
+
+        SKIF_ImGui_IniEditor (pApp->specialk.injection.config.full_path, pApp->specialk.injection.config.full_path_utf8);
+      }
+    }
+
     if (! DefaultPresets.empty() || ! CustomPresets.empty())
     {
       if (ImGui::BeginMenu("Apply Preset"))
@@ -8339,7 +8365,10 @@ SKIF_UI_Tab_DrawLibrary (void)
       RemoveGamePopup == PopupState_Closed &&
       ! io.KeyCtrl)
   {
-    SearchAppsList ( );
+    extern bool
+          INIEditorActive;
+    if (! INIEditorActive)
+      SearchAppsList ( );
   }
 
 #pragma endregion
