@@ -862,18 +862,22 @@ SK_ImGui_KeybindDialog (SK_KeybindMultiState* keybind)
     }
 #endif
 
-    bool bEscape    =
-      ImGui::IsKeyPressed (ImGuiKey_Escape,    false),
-         bBackspace =
-      ImGui::IsKeyPressed (ImGuiKey_Backspace, false),
-         bDelete =
-      ImGui::IsKeyPressed (ImGuiKey_Delete,    false);
+    bool modifierKey = io.KeyCtrl || io.KeyShift || io.KeyAlt || io.KeySuper;
+
+    bool bEscape    = (! modifierKey && // Cancel operation
+      ImGui::IsKeyPressed (ImGuiKey_Escape,    false)),
+         bBackspace = (! modifierKey && // Clear keybinding
+      ImGui::IsKeyPressed (ImGuiKey_Backspace, false)),
+         bDelete    = (! modifierKey && // Reset to default
+      ImGui::IsKeyPressed (ImGuiKey_Delete,    false)),
+         bEnter     = (! modifierKey && // Confirm
+      ImGui::IsKeyPressed (ImGuiKey_Enter,     false));
 
     ImGui::Text         ("Keybinding:"); //  %hs, keybind->pending.human_readable_utf8.c_str ()); // (0x%02X), keybind->vKey
     ImGui::SameLine     ( );
     ImGui::TextColored  (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), keybind->pending.human_readable_utf8.c_str ());
     ImGui::Separator    ( );
-    ImGui::TextDisabled ("Press BACKSPACE to clear, DELETE to reset to default, or ESC to finish.");
+    ImGui::TextDisabled ("Press RETURN to confirm, ESC to cancel, BACKSPACE to clear, DELETE to reset.");
 
     // Update the key binding after printing out the current one, to prevent a one-frame graphics glitch
     if (bBackspace)
@@ -895,7 +899,15 @@ SK_ImGui_KeybindDialog (SK_KeybindMultiState* keybind)
       keybind->pending.update   ( );
     }
 
-    else if (! bEscape && vKey != 256)
+    else if (bEscape)
+    {
+      keybind->pending = keybind->saved;
+      keybind->pending.parse    ( );
+      keybind->pending.makeMask ( );
+      keybind->pending.update   ( );
+    }
+
+    else if (! bEnter && vKey != 256)
     {
       keybind->pending.vKey  = static_cast <SHORT> (vKey);
       keybind->pending.ctrl  = io.KeyCtrl;
@@ -908,7 +920,7 @@ SK_ImGui_KeybindDialog (SK_KeybindMultiState* keybind)
     }
 
     // If we are done with the changes, mark it as such
-    if (bEscape || bBackspace || bDelete)
+    if (bEscape || bEnter)
     {
       keybind->assigning = false;
       ImGui::CloseCurrentPopup ( );
