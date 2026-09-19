@@ -1965,23 +1965,23 @@ wWinMain ( _In_     HINSTANCE hInstance,
 #endif // DEBUG
 
     // Various hotkeys that SKIF supports (resets on every frame)
-    bool hotkeyF5    = (              ImGui::GetKeyData (ImGuiKey_F5 )->DownDuration == 0.0f), // Library/About: Refresh data
-         hotkeyF6    = (              ImGui::GetKeyData (ImGuiKey_F6 )->DownDuration == 0.0f), // Appearance: Toggle DPI scaling
-         hotkeyF7    = (              ImGui::GetKeyData (ImGuiKey_F7 )->DownDuration == 0.0f), // Appearance: Cycle between color themes
-         hotkeyF8    = (              ImGui::GetKeyData (ImGuiKey_F8 )->DownDuration == 0.0f), // Appearance: Toggle UI borders
-         hotkeyF9    = (              ImGui::GetKeyData (ImGuiKey_F9 )->DownDuration == 0.0f), // Appearance: Toggle color depth
-         hotkeyF11   = (              ImGui::GetKeyData (ImGuiKey_F11)->DownDuration == 0.0f), // Appearance: Toggle app mode (Library/Service)
-         hotkeyCtrlQ = (io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_Q  )->DownDuration == 0.0f), // Close the app
-         hotkeyCtrlW = (io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_W  )->DownDuration == 0.0f), // Close the app
-         hotkeyCtrlR = (io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_R  )->DownDuration == 0.0f), // Library/About: Refresh data
-         hotkeyCtrlT = (io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_T  )->DownDuration == 0.0f), // Appearance: Toggle app mode (Library/Service)
-         hotkeyCtrlA = (io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_A  )->DownDuration == 0.0f), // Library: Add game
-         hotkeyCtrlN = (io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_N  )->DownDuration == 0.0f), // Minimize app
-         hotkeyCtrl1 = (io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_1  )->DownDuration == 0.0f), // Switch to Library
-         hotkeyCtrl2 = (io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_2  )->DownDuration == 0.0f), // Switch to Monitor
-         hotkeyCtrl3 = (io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_3  )->DownDuration == 0.0f), // Switch to Hardware
-         hotkeyCtrl4 = (io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_4  )->DownDuration == 0.0f), // Switch to Settings
-         hotkeyCtrl5 = (io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_5  )->DownDuration == 0.0f); // Switch to About
+    bool hotkeyF5    = (! g_activeKeybindPopup &&               ImGui::GetKeyData (ImGuiKey_F5 )->DownDuration == 0.0f), // Library/About: Refresh data
+         hotkeyF6    = (! g_activeKeybindPopup &&               ImGui::GetKeyData (ImGuiKey_F6 )->DownDuration == 0.0f), // Appearance: Toggle DPI scaling
+         hotkeyF7    = (! g_activeKeybindPopup &&               ImGui::GetKeyData (ImGuiKey_F7 )->DownDuration == 0.0f), // Appearance: Cycle between color themes
+         hotkeyF8    = (! g_activeKeybindPopup &&               ImGui::GetKeyData (ImGuiKey_F8 )->DownDuration == 0.0f), // Appearance: Toggle UI borders
+         hotkeyF9    = (! g_activeKeybindPopup &&               ImGui::GetKeyData (ImGuiKey_F9 )->DownDuration == 0.0f), // Appearance: Toggle color depth
+         hotkeyF11   = (! g_activeKeybindPopup &&               ImGui::GetKeyData (ImGuiKey_F11)->DownDuration == 0.0f), // Appearance: Toggle app mode (Library/Service)
+         hotkeyCtrlQ = (! g_activeKeybindPopup && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_Q  )->DownDuration == 0.0f), // Close the app
+         hotkeyCtrlW = (! g_activeKeybindPopup && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_W  )->DownDuration == 0.0f), // Close the app
+         hotkeyCtrlR = (! g_activeKeybindPopup && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_R  )->DownDuration == 0.0f), // Library/About: Refresh data
+         hotkeyCtrlT = (! g_activeKeybindPopup && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_T  )->DownDuration == 0.0f), // Appearance: Toggle app mode (Library/Service)
+         hotkeyCtrlA = (! g_activeKeybindPopup && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_A  )->DownDuration == 0.0f), // Library: Add game
+         hotkeyCtrlN = (! g_activeKeybindPopup && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_N  )->DownDuration == 0.0f), // Minimize app
+         hotkeyCtrl1 = (! g_activeKeybindPopup && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_1  )->DownDuration == 0.0f), // Switch to Library
+         hotkeyCtrl2 = (! g_activeKeybindPopup && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_2  )->DownDuration == 0.0f), // Switch to Monitor
+         hotkeyCtrl3 = (! g_activeKeybindPopup && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_3  )->DownDuration == 0.0f), // Switch to Hardware
+         hotkeyCtrl4 = (! g_activeKeybindPopup && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_4  )->DownDuration == 0.0f), // Switch to Settings
+         hotkeyCtrl5 = (! g_activeKeybindPopup && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_5  )->DownDuration == 0.0f); // Switch to About
 
     auto _TranslateAndDispatch = [&](void) -> bool
     {
