@@ -1919,10 +1919,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
   if (! _Signal.Launcher && ! _Signal.LauncherURI && ! _Signal.Quit && ! _Signal.ServiceMode)
   {
     // Register HDR toggle hotkey (if applicable)
-    SKIF_Util_RegisterHotKeyHDRToggle (&_registry.kbToggleHDRDisplay);
+    SKIF_Util_RegisterHotKeyHDRToggle (_registry.kbToggleHDRDisplay.getKeybind());
 
     // Register service (auto-stop) hotkey
-    SKIF_Util_RegisterHotKeySVCTemp   (&_registry.kbStartService);
+    SKIF_Util_RegisterHotKeySVCTemp   (_registry.kbStartService.getKeybind());
   }
 
   // Spawn the gamepad input thread
@@ -2321,10 +2321,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
         {   _Signal.Launcher =  _Signal.LauncherURI =  _Signal.Quit =  _Signal.ServiceMode = false;
 
           // Register HDR toggle hotkey (if applicable)
-          SKIF_Util_RegisterHotKeyHDRToggle (&_registry.kbToggleHDRDisplay);
+          SKIF_Util_RegisterHotKeyHDRToggle (_registry.kbToggleHDRDisplay.getKeybind());
 
           // Register service (auto-stop) hotkey
-          SKIF_Util_RegisterHotKeySVCTemp   (&_registry.kbStartService);
+          SKIF_Util_RegisterHotKeySVCTemp   (_registry.kbStartService.getKeybind());
 
           /*
           // Check for the presence of an internet connection
@@ -2498,6 +2498,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
     ImGui::NewFrame          ();
     {
       SKIF_FrameCount.store(ImGui::GetFrameCount());
+
+      // Reset every frame
+      g_activeKeybindPopup = false;
 
       if (SKIF_vecCurrentModeNext.x != 0.0f &&
           SKIF_vecCurrentModeNext   != SKIF_vecCurrentMode)

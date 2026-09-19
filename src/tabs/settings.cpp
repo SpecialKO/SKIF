@@ -1422,16 +1422,16 @@ SKIF_UI_Tab_DrawSettings (void)
 
     struct kb_kv_s
     {
-      SK_Keybind*                                     _key;
+      SK_KeybindMultiState*                           _key;
       SKIF_RegistrySettings::KeyValue <std::wstring>* _reg;
-      std::function <void (kb_kv_s*)>                 _callback;
+      std::function <void (SK_KeybindMultiState*)>    _callback;
       std::function <bool (void)>                     _show;
     };
 
     static std::vector <kb_kv_s>
       keybinds = {
-      { &_registry.kbToggleHDRDisplay, &_registry.regKVHotkeyToggleHDRDisplay, { [](kb_kv_s* ptr) { SKIF_Util_RegisterHotKeyHDRToggle (ptr->_key); } }, { []() { return (SKIF_Util_IsWindows10v1709OrGreater ( ) && SKIF_Util_IsHDRSupported ( )); } } },
-      { &_registry.kbStartService,     &_registry.regKVHotkeyStartService,     { [](kb_kv_s* ptr) { SKIF_Util_RegisterHotKeySVCTemp   (ptr->_key); } }, { []() { return true;                                                                      } } }
+      { &_registry.kbToggleHDRDisplay, &_registry.regKVHotkeyToggleHDRDisplay, { [](SK_KeybindMultiState* ptr) { SKIF_Util_RegisterHotKeyHDRToggle (ptr->getKeybind()); } }, { []() { return (SKIF_Util_IsWindows10v1709OrGreater ( ) && SKIF_Util_IsHDRSupported ( )); } } },
+      { &_registry.kbStartService,     &_registry.regKVHotkeyStartService,     { [](SK_KeybindMultiState* ptr) { SKIF_Util_RegisterHotKeySVCTemp   (ptr->getKeybind()); } }, { []() { return true;                                                                      } } }
     };
 
     ImGui::BeginGroup ();
@@ -1441,7 +1441,7 @@ SKIF_UI_Tab_DrawSettings (void)
         continue;
 
       ImGui::Text          ( "%s:  ",
-                            keybind._key->bind_name );
+                            keybind._key->bind_name.c_str() );
     }
     ImGui::EndGroup   ();
     ImGui::SameLine   ();
@@ -1451,13 +1451,14 @@ SKIF_UI_Tab_DrawSettings (void)
       if (! keybind._show())
         continue;
 
-      ImGui::PushID (keybind._key->bind_name);
       if (SK_ImGui_Keybinding (keybind._key))
       {
-        keybind._reg->putData (keybind._key->human_readable);
-        keybind._callback    (&keybind);
+        // Only update the registry if we are done assigning
+        if (! keybind._key->assigning)
+          keybind._reg->putData (keybind._key->saved.human_readable);
+
+        keybind._callback (keybind._key);
       }
-      ImGui::PopID ();
     }
     ImGui::EndGroup   ();
   }

@@ -532,13 +532,18 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   //   then parse the human_readable data through .parse()
 
   if (regKVHotkeyToggleHDRDisplay.hasData(&hKey))
-    kbToggleHDRDisplay.human_readable = regKVHotkeyToggleHDRDisplay.getData (&hKey);
+    kbToggleHDRDisplay.pending.human_readable = regKVHotkeyToggleHDRDisplay.getData (&hKey);
 
   if (regKVHotkeyStartService.hasData(&hKey))
-    kbStartService.human_readable = regKVHotkeyStartService.getData (&hKey);
+    kbStartService.pending.human_readable     = regKVHotkeyStartService.getData (&hKey);
 
-  kbToggleHDRDisplay.parse();
-  kbStartService.parse();
+  // Parse registry/default keybinding
+  kbToggleHDRDisplay.pending.parse();
+  kbStartService    .pending.parse();
+
+  // Apply changes
+  kbToggleHDRDisplay.applyChanges ();
+  kbStartService    .applyChanges ();
 
   if (hKey != nullptr)
     RegCloseKey (hKey);

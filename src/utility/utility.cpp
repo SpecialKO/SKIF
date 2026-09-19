@@ -3674,7 +3674,7 @@ SKIF_Util_EnableHDROutput (void)
 
 // Register a hotkey for toggling HDR on a per-display basis (WinKey + Ctrl + Shift + H)
 bool
-SKIF_Util_RegisterHotKeyHDRToggle (SK_Keybind* binding)
+SKIF_Util_RegisterHotKeyHDRToggle (const SK_Keybind* binding)
 {
   if (bHotKeyHDR)
     SKIF_Util_UnregisterHotKeyHDRToggle ( );
@@ -3750,7 +3750,7 @@ SKIF_Util_GetHotKeyStateHDRToggle (void)
 
 // Register a hotkey for starting the service with auto-stop (WinKey + Shift + Insert)
 bool
-SKIF_Util_RegisterHotKeySVCTemp (SK_Keybind* binding)
+SKIF_Util_RegisterHotKeySVCTemp (const SK_Keybind* binding)
 {
   if (bHotKeySVC)
     SKIF_Util_UnregisterHotKeySVCTemp ( );

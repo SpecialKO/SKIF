@@ -364,6 +364,7 @@ SK_RemoveTrailingDecimalZeros (char* szNum, size_t bufLen)
 
 using wstring_hash = size_t;
 
+bool g_activeKeybindPopup = false;
 std::unordered_map <wstring_hash, BYTE> humanKeyNameToVirtKeyCode;
 std::unordered_map <BYTE, wchar_t [32]> virtKeyCodeToHumanKeyName;
 std::unordered_map <BYTE, wchar_t [32]> virtKeyCodeToFullyLocalizedKeyName;
@@ -433,6 +434,75 @@ SK_KeyMap_StandardizeNames (wchar_t* wszNameToFormalize)
 }
 
 void
+SK_Keybind::parse (void)
+{
+  init();
+
+  vKey  = 0x0;
+  ctrl  = false;
+  alt   = false;
+  shift = false;
+  super = false;
+
+  // Abort if the key is unbound
+  if (human_readable == L"<Not Bound>")
+  {
+    human_readable_utf8 = SK_WideCharToUTF8 (human_readable);
+    masked_code         = 1 << 13; // Forced invalid to apply changes on launch
+    return;
+  }
+
+  wchar_t   wszKeyBind [128] = { };
+  lstrcatW (wszKeyBind, human_readable.c_str ());
+
+  wchar_t* wszBuf = nullptr;
+  wchar_t* wszTok = std::wcstok (wszKeyBind, L"+", &wszBuf);
+
+  if (wszTok == nullptr)
+  {
+    if (*wszKeyBind != L'\0')
+    {
+      SK_KeyMap_StandardizeNames (wszKeyBind);
+
+      if (*wszKeyBind != L'\0')
+      {
+        vKey =
+          humanToVirtual [hash_string (wszKeyBind)];
+      }
+    }
+  }
+
+  while (wszTok != nullptr)
+  {
+    SK_KeyMap_StandardizeNames (wszTok);
+
+    if (*wszTok != L'\0')
+    {
+      BYTE vKey_ =
+        humanToVirtual [hash_string (wszTok)];
+
+      if (     vKey_ == VK_CONTROL || vKey_ == VK_LCONTROL || vKey_ == VK_RCONTROL)
+        ctrl  = true;
+      else if (vKey_ == VK_SHIFT   || vKey_ == VK_LSHIFT   || vKey_ == VK_RSHIFT)
+        shift = true;
+      else if (vKey_ == VK_MENU    || vKey_ == VK_LMENU    || vKey_ == VK_RMENU)
+        alt   = true;
+      else if (vKey_ == VK_LWIN    || vKey_ == VK_RWIN)
+        super = true;
+      else
+        vKey = vKey_;
+    }
+
+    wszTok =
+      std::wcstok (nullptr, L"+", &wszBuf);
+  }
+
+  makeMask ( );
+
+  human_readable_utf8 = SK_WideCharToUTF8 (human_readable);
+}
+
+void
 SK_Keybind::update (void)
 {
   init();
@@ -481,72 +551,19 @@ SK_Keybind::update (void)
       human_readable += L"+";
   }
 
-  masked_code =
-    SK_MakeKeyMask (vKey & 0xFFU, ctrl, shift, alt, super);
-
   human_readable_utf8 = SK_WideCharToUTF8 (human_readable);
 }
 
 void
-SK_Keybind::parse (void)
+SK_Keybind::makeMask (void)
 {
-  init();
-
-  vKey  = 0x0;
-  ctrl  = false;
-  alt   = false;
-  shift = false;
-  super = false;
-
-  wchar_t   wszKeyBind [128] = { };
-  lstrcatW (wszKeyBind, human_readable.c_str ());
-
-  wchar_t* wszBuf = nullptr;
-  wchar_t* wszTok = std::wcstok (wszKeyBind, L"+", &wszBuf);
-
-  if (wszTok == nullptr)
-  {
-    if (*wszKeyBind != L'\0')
-    {
-      SK_KeyMap_StandardizeNames (wszKeyBind);
-
-      if (*wszKeyBind != L'\0')
-      {
-        vKey =
-          humanToVirtual [hash_string (wszKeyBind)];
-      }
-    }
-  }
-
-  while (wszTok != nullptr)
-  {
-    SK_KeyMap_StandardizeNames (wszTok);
-
-    if (*wszTok != L'\0')
-    {
-      BYTE vKey_ =
-        humanToVirtual [hash_string (wszTok)];
-
-      if (     vKey_ == VK_CONTROL || vKey_ == VK_LCONTROL || vKey_ == VK_RCONTROL)
-        ctrl  = true;
-      else if (vKey_ == VK_SHIFT   || vKey_ == VK_LSHIFT   || vKey_ == VK_RSHIFT)
-        shift = true;
-      else if (vKey_ == VK_MENU    || vKey_ == VK_LMENU    || vKey_ == VK_RMENU)
-        alt   = true;
-      else if (vKey_ == VK_LWIN    || vKey_ == VK_RWIN)
-        super = true;
-      else
-        vKey = vKey_;
-    }
-
-    wszTok =
-      std::wcstok (nullptr, L"+", &wszBuf);
-  }
-
   masked_code =
-    SK_MakeKeyMask (vKey & 0xFFU, ctrl, shift, alt, super);
-
-  human_readable_utf8 = SK_WideCharToUTF8 (human_readable);
+    static_cast <UINT> (
+      (vKey | ( (ctrl  != 0) <<  9 ) |
+              ( (shift != 0) << 10 ) |
+              ( (alt   != 0) << 11 ) |
+              ( (super != 0) << 12 ))
+    );
 }
 
 void
@@ -724,17 +741,45 @@ SK_Keybind::init (void)
 }
 
 bool
-SK_ImGui_KeybindSelect (SK_Keybind* keybind, const char* szLabel)
+SK_KeybindMultiState::applyChanges (void)
 {
-  std::ignore = keybind;
+  // Only return true when we have finished assigning any changes
+  bool applyChanges = (! assigning && (saved.masked_code != pending.masked_code));
 
-  bool ret = false;
+  if (applyChanges)
+    saved = pending;
 
-  ImGui::PushStyleColor (ImGuiCol_Text, ImVec4 (0.667f, 0.667f, 0.667f, 1.0f));
+  return applyChanges;
+}
+
+bool
+SK_KeybindMultiState::hasNewState (void)
+{
+  bool ret = (assigning != state);
+
+  if (ret)
+    state = assigning;
+
+  return ret;
+}
+
+const SK_Keybind*
+SK_KeybindMultiState::getKeybind (void)
+{
+  return ((assigning) ? &disabled : &saved);
+}
+
+static bool
+SK_ImGui_KeybindSelect (SK_Keybind* keybind)
+{
+  if (! keybind)
+    return false;
+
+  ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase)); //ImVec4 (0.667f, 0.667f, 0.667f, 1.0f));
   ImGui::PushItemWidth  (ImGui::GetContentRegionAvail ().x);
 
-  ret =
-    ImGui::Selectable (szLabel, false);
+  bool ret =
+    ImGui::Selectable (keybind->human_readable_utf8.c_str(), false);
 
   ImGui::PopItemWidth  ();
   ImGui::PopStyleColor ();
@@ -742,36 +787,39 @@ SK_ImGui_KeybindSelect (SK_Keybind* keybind, const char* szLabel)
   return ret;
 }
 
-//SK_API
-void
-__stdcall
-SK_ImGui_KeybindDialog (SK_Keybind* keybind)
+static bool
+SK_ImGui_KeybindDialog (SK_KeybindMultiState* keybind)
 {
   if (! keybind)
-    return;
+    return false;
 
   auto& io =
     ImGui::GetIO ();
 
   const  float font_size = ImGui::GetFont ()->FontSize * io.FontGlobalScale;
 
-  if (ImGui::IsPopupOpen (keybind->bind_name))
+  if (ImGui::IsPopupOpen (keybind->bind_name.c_str()))
   {
     ImGui::SetNextWindowSizeConstraints ( ImVec2 (font_size *  9.0f, font_size * 3.0f),
                                           ImVec2 (font_size * 30.0f, font_size * 6.0f) );
 
-    extern ImRect windowRect;
+    ImRect windowRect = ImRect (ImGui::GetWindowPos ( ), ImGui::GetWindowPos ( ) + ImGui::GetWindowSize ( ));
     ImGui::SetNextWindowPos  (windowRect.GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
 
     // Render over all other windows
     //ImGui::SetNextWindowFocus ( );
+
+    g_activeKeybindPopup = true;
   }
 
-  if (ImGui::BeginPopupModal (keybind->bind_name, nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove     | ImGuiWindowFlags_Tooltip | // ImGuiWindowFlags_Tooltip is required to work around a pesky z-order issue on first appearance
+  if (ImGui::BeginPopupModal (keybind->bind_name.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove     | ImGuiWindowFlags_Tooltip | // ImGuiWindowFlags_Tooltip is required to work around a pesky z-order issue on first appearance
                                                            ImGuiWindowFlags_NoCollapse       | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings))
   {
 		// Render over all other windows
 		//ImGui::BringWindowToDisplayFront (ImGui::GetCurrentWindow ( ));
+
+    // Indicate that we are assigning (this disables the keybinding while the popup is opened)
+    keybind->assigning = true;
 
     int  vKey = 256;
 
@@ -817,54 +865,80 @@ SK_ImGui_KeybindDialog (SK_Keybind* keybind)
     bool bEscape    =
       ImGui::IsKeyPressed (ImGuiKey_Escape,    false),
          bBackspace =
-      ImGui::IsKeyPressed (ImGuiKey_Backspace, false);
+      ImGui::IsKeyPressed (ImGuiKey_Backspace, false),
+         bDelete =
+      ImGui::IsKeyPressed (ImGuiKey_Delete,    false);
 
-    ImGui::Text        ("Keybinding:  %hs", keybind->human_readable_utf8.c_str ()); // (0x%02X), keybind->vKey
-    ImGui::Separator   ( );
-
-    ImGui::TextColored (ImVec4 (0.6f, 0.6f, 0.6f, 1.f),
-                        "Press BACKSPACE to clear, or ESC to confirm.");
+    ImGui::Text         ("Keybinding:"); //  %hs, keybind->pending.human_readable_utf8.c_str ()); // (0x%02X), keybind->vKey
+    ImGui::SameLine     ( );
+    ImGui::TextColored  (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), keybind->pending.human_readable_utf8.c_str ());
+    ImGui::Separator    ( );
+    ImGui::TextDisabled ("Press BACKSPACE to clear, DELETE to reset to default, or ESC to finish.");
 
     // Update the key binding after printing out the current one, to prevent a one-frame graphics glitch
     if (bBackspace)
     {
-      keybind->vKey  = 0;
-      keybind->ctrl  = false;
-      keybind->shift = false;
-      keybind->alt   = false;
-      keybind->super = false;
+      keybind->pending.vKey  = 0;
+      keybind->pending.ctrl  = false;
+      keybind->pending.shift = false;
+      keybind->pending.alt   = false;
+      keybind->pending.super = false;
+      keybind->pending.makeMask ( );
+      keybind->pending.update   ( );
+    }
 
-      keybind->update ();
+    else if (bDelete)
+    {
+      keybind->pending = keybind->default;
+      keybind->pending.parse    ( );
+      keybind->pending.makeMask ( );
+      keybind->pending.update   ( );
     }
 
     else if (! bEscape && vKey != 256)
     {
-      keybind->vKey  = static_cast <SHORT> (vKey);
-
-      keybind->ctrl  = io.KeyCtrl;
-      keybind->shift = io.KeyShift;
-      keybind->alt   = io.KeyAlt;
-      keybind->super = io.KeySuper;
-
-      keybind->update ();
+      keybind->pending.vKey  = static_cast <SHORT> (vKey);
+      keybind->pending.ctrl  = io.KeyCtrl;
+      keybind->pending.shift = io.KeyShift;
+      keybind->pending.alt   = io.KeyAlt;
+      keybind->pending.super = io.KeySuper;
+      keybind->pending.makeMask ( );
+      keybind->pending.makeMask ( );
+      keybind->pending.update   ( );
     }
 
-    if (bEscape || bBackspace)
-      ImGui::CloseCurrentPopup ();
+    // If we are done with the changes, mark it as such
+    if (bEscape || bBackspace || bDelete)
+    {
+      keybind->assigning = false;
+      ImGui::CloseCurrentPopup ( );
+    }
 
     ImGui::EndPopup ();
   }
+
+  // This applies any pending changes, once done
+  keybind->applyChanges ( );
+
+  // This returns true every time we change the state (active -> pending -> active, etc)
+  return keybind->hasNewState ( );
 }
 
 bool
-SK_ImGui_Keybinding (SK_Keybind* binding)
+SK_ImGui_Keybinding (SK_KeybindMultiState* binding)
 {
-  if (SK_ImGui_KeybindSelect (binding, binding->human_readable_utf8.c_str ()))
-    ImGui::OpenPopup (        binding->bind_name);
+  if (! binding)
+    return false;
 
-  std::string original_binding = binding->human_readable_utf8;
+  ImGui::PushID              (binding->bind_name.c_str());
 
-  SK_ImGui_KeybindDialog (binding);
+  if (SK_ImGui_KeybindSelect (&binding->saved))
+    ImGui::OpenPopup         (binding->bind_name.c_str());
 
-  return (original_binding != binding->human_readable_utf8);
-};
+  bool results =
+    SK_ImGui_KeybindDialog   (binding);
+
+  ImGui::PopID               ();
+
+  return results;
+}

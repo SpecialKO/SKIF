@@ -788,57 +788,53 @@ SK_make_unique_nothrow (Args && ... args) noexcept
 
 // Keybindings
 
-struct SK_Keybind
-{
-  const char*  bind_name           = nullptr;
-  std::wstring human_readable      =     L"";
-  std:: string human_readable_utf8 =      ""; // Read-only UTF8 copy
+// Workaround for SKIF_ImGui_IsAnyPopupOpen() not detecting keybind popups
+extern bool g_activeKeybindPopup;
 
-  struct {
-    BOOL ctrl  = false,
-         shift = false,
-         alt   = false,
-         super = false; // Cmd/Super/Windows
-  };
+// Core keybind structure for a single instance of a keybind
+struct SK_Keybind {
+  std::wstring human_readable      =   L"";
+  std:: string human_readable_utf8 =    ""; // Read-only UTF8 copy
+          bool ctrl                = false;
+          bool shift               = false;
+          bool alt                 = false;
+          bool super               = false; // Cmd/Super/Windows
+         SHORT vKey                =     0;
+          UINT masked_code         =   0x0; // For fast comparison
 
-  SHORT vKey        =   0;
-  UINT  masked_code = 0x0; // For fast comparison
-
-  void parse  (void);
-  void update (void);
+  void parse    (void);
+  void update   (void);
+  void makeMask (void);
 
 private:
   static void init (void);
 };
 
-// Adds a parameter to store and retrieve the keybind in an INI / XML file
-struct SK_ConfigSerializedKeybind : public SK_Keybind
+// Wrapper to handle various states of the keybinding
+struct SK_KeybindMultiState
 {
-  SK_ConfigSerializedKeybind ( SK_Keybind&& bind,
-                             const wchar_t* cfg_name) :
-                               SK_Keybind  (bind)
-  {
-    if (cfg_name != nullptr)
-    {
-      wcsncpy_s ( short_name, 32,
-                    cfg_name, _TRUNCATE );
-    }
-  }
+//const char*  bind_name = nullptr;
+  std::string  bind_name = ""; // Needed as otherwise this is limited to solely static objects
+  bool         assigning = false,
+               state     = false;
+  SK_Keybind   default, pending, saved;
 
-  bool                  assigning       = false;
-  wchar_t               short_name [32] = L"Uninitialized";
-  wchar_t               param      [32] = L"Uninitialized"; //sk::ParameterStringW* param           = nullptr;
+  // This empty object is used during assignment to disable hotkeys temporarily
+  static constexpr SK_Keybind disabled = { };
+
+  SK_KeybindMultiState () { };
+  SK_KeybindMultiState (std::string _n, std::wstring _h) {
+    bind_name                   = _n;
+    default.human_readable      = _h;
+    default.human_readable_utf8 = SK_WideCharToUTF8 (default.human_readable);
+    pending = default;
+  };
+
+              bool  applyChanges (void); // This applies the pending changes
+              bool  hasNewState  (void); // Lousy naming, but this indicates if the object has changed state (e.g. from active -> assigning (pending) -> saved (changes applied)...)
+  const SK_Keybind* getKeybind   (void); // This retrieves the currently "active" keybind (so either saved or disabled, whether we are currently assining one or not)
 };
 
-bool
-SK_ImGui_KeybindSelect (SK_Keybind* keybind, const char* szLabel);
-
-//SK_API
-void
-__stdcall
-SK_ImGui_KeybindDialog (SK_Keybind* keybind);
-
-bool
-SK_ImGui_Keybinding (SK_Keybind* binding); // sk::ParameterStringW* param
+bool SK_ImGui_Keybinding    (SK_KeybindMultiState* binding);
 
 #endif /* __SK__UTILITY_H__ */

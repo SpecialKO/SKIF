@@ -678,16 +678,16 @@ struct SKIF_RegistrySettings {
 
   // Keybindings
 
-  SK_Keybind kbToggleHDRDisplay = SK_Keybind {
+  SK_KeybindMultiState kbToggleHDRDisplay =
+  {
         "Toggle Display HDR",
-       L"Ctrl+Windows+Shift+H",
-        "Ctrl+Windows+Shift+H"
+       L"Ctrl+Windows+Shift+H"
   };
 
-  SK_Keybind kbStartService = SK_Keybind {
+  SK_KeybindMultiState kbStartService =
+  {
         "Start Service",
-       L"Windows+Shift+Insert",
-        "Windows+Shift+Insert"
+       L"Windows+Shift+Insert"
   };
 
   // Functions
