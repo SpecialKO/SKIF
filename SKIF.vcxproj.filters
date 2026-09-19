@@ -252,6 +252,12 @@
     <ClInclude Include="include\tabs\monitor.h">
       <Filter>Header Files\UI Tabs</Filter>
     </ClInclude>
+    <ClInclude Include="packages_misc\ini.h">
+      <Filter>Header Files\Packages_Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="include\utility\ini_editor.h">
+      <Filter>Header Files\Utility</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\imgui\imgui.cpp">
@@ -364,6 +370,9 @@
     </ClCompile>
     <ClCompile Include="src\tabs\hardware.cpp">
       <Filter>Source Files\UI Tabs</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utility\ini_editor.cpp">
+      <Filter>Source Files\Utility</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -384,6 +384,7 @@
   <ItemGroup>
     <ClInclude Include="include\imgui\imgui_impl_dx11.h" />
     <ClInclude Include="include\stores\Epic\epic_library.h" />
+    <ClInclude Include="include\utility\ini_editor.h" />
     <ClInclude Include="include\tabs\hardware.h" />
     <ClInclude Include="include\tabs\monitor.h" />
     <ClInclude Include="include\utility\droptarget.hpp" />
@@ -392,6 +393,7 @@
     <ClInclude Include="include\utility\plog_formatter.h" />
     <ClInclude Include="packages_misc\HybridDetect.h" />
     <ClInclude Include="packages_misc\ImGuiNotify.hpp" />
+    <ClInclude Include="packages_misc\ini.h" />
     <ClInclude Include="packages_misc\picosha2.h" />
     <ClInclude Include="packages_misc\stb_image.h" />
     <ClInclude Include="packages_misc\TextFlow.hpp" />
@@ -450,6 +452,7 @@
     <ClCompile Include="src\MinHook\trampoline.c" />
     <ClCompile Include="src\stores\Epic\epic_library.cpp" />
     <ClCompile Include="src\stores\generic_library2.cpp" />
+    <ClCompile Include="src\utility\ini_editor.cpp" />
     <ClCompile Include="src\tabs\hardware.cpp" />
     <ClCompile Include="src\utility\drvreset.cpp" />
     <ClCompile Include="src\utility\gamepad.cpp" />
