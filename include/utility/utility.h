@@ -201,7 +201,8 @@ std::wstring    SKIF_Util_AddEnvironmentBlock         (const void* pEnvBlock, co
 void            SKIF_Util_FileExplorer_SelectFile     (PCWSTR filePath);
 bool            SKIF_Util_FileExplorer_DeleteFile     (PCWSTR filePath, bool hideWarning);
 void            SKIF_Util_FileExplorer_ContextMenuFile(PCWSTR filePath, HWND hWndOwner);
-HRESULT         SKIF_Util_FileExplorer_BrowseForFile  (LPWSTR *pszPath, HWND hWndOwner, const COMDLG_FILTERSPEC fileTypes = { }, UINT cFileTypes = 0, FILEOPENDIALOGOPTIONS dialogOptions = _FILEOPENDIALOGOPTIONS::FOS_FILEMUSTEXIST, const GUID defaultFolder = FOLDERID_ComputerFolder, PCWSTR defaultFolderPath = nullptr);
+HRESULT         SKIF_Util_FileExplorer_SaveFile       (LPWSTR *pszPath, HWND hwndOwner, std::vector<COMDLG_FILTERSPEC> fileTypes = { }, FILEOPENDIALOGOPTIONS dialogOptions = _FILEOPENDIALOGOPTIONS::FOS_FILEMUSTEXIST, const GUID defaultFolder = FOLDERID_ComputerFolder, PCWSTR defaultFolderPath = nullptr, PCWSTR defaultExtension = nullptr);
+HRESULT         SKIF_Util_FileExplorer_BrowseForFile  (LPWSTR *pszPath, HWND hWndOwner, std::vector<COMDLG_FILTERSPEC> fileTypes = { }, FILEOPENDIALOGOPTIONS dialogOptions = _FILEOPENDIALOGOPTIONS::FOS_FILEMUSTEXIST, const GUID defaultFolder = FOLDERID_ComputerFolder, PCWSTR defaultFolderPath = nullptr);
 HRESULT         SKIF_Util_FileExplorer_BrowseForFolder(LPWSTR *pszPath, HWND hWndOwner, const GUID defaultFolder = FOLDERID_ComputerFolder, PCWSTR defaultFolderPath = nullptr);
 std::wstring    SKIF_Util_FileExplorer_BrowseForFolderXP(PCWSTR defaultPath);
 bool            SKIF_Util_Files_PruneOlderThan        (std::wstring path, ULONGLONG secondsSince);

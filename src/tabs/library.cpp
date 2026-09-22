@@ -1918,7 +1918,7 @@ DrawGameConfigMenu (app_record_s* pApp)
           }
         }
 
-        SKIF_ImGui_IniEditor_OpenFile (pApp->specialk.injection.config.full_path, pApp->specialk.injection.config.full_path_utf8);
+        SKIF_ImGui_IniEditor_OpenFile (pApp->specialk.injection.config.full_path);
       }
     }
 
@@ -7463,7 +7463,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       {
         LPWSTR pwszFilePath = NULL;
         HRESULT hr          =
-          SKIF_Util_FileExplorer_BrowseForFile (&pwszFilePath, SKIF_ImGui_hWnd, COMDLG_FILTERSPEC{ L"Images", L"*.png;*.jpg;*.jpeg;*.webp;*.psd;*.bmp" }, 1, FOS_FILEMUSTEXIST, FOLDERID_Pictures);
+          SKIF_Util_FileExplorer_BrowseForFile(&pwszFilePath, SKIF_ImGui_hWnd, { { L"Images", L"*.png;*.jpg;*.jpeg;*.webp;*.psd;*.bmp" } }, FOS_FILEMUSTEXIST, FOLDERID_Pictures);
           
         if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED))
         {
@@ -7772,7 +7772,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       {
         LPWSTR pwszFilePath = NULL;
         HRESULT hr          =
-          SKIF_Util_FileExplorer_BrowseForFile (&pwszFilePath, SKIF_ImGui_hWnd, COMDLG_FILTERSPEC{ L"Icons", L"*.exe;*.ico;*.png;*.jpg;*.jpeg" }, 1, FOS_FILEMUSTEXIST, FOLDERID_Pictures);
+          SKIF_Util_FileExplorer_BrowseForFile (&pwszFilePath, SKIF_ImGui_hWnd, { { L"Icons", L"*.exe;*.ico;*.png;*.jpg;*.jpeg" } }, FOS_FILEMUSTEXIST, FOLDERID_Pictures);
           
         if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED))
         {
@@ -8569,7 +8569,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     {
       LPWSTR pwszFilePath = NULL;
       HRESULT hr          =
-        SKIF_Util_FileExplorer_BrowseForFile (&pwszFilePath, SKIF_ImGui_hWnd, COMDLG_FILTERSPEC{ L"Executables", L"*.exe;*.bat" }, 1, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST);
+        SKIF_Util_FileExplorer_BrowseForFile (&pwszFilePath, SKIF_ImGui_hWnd, { { L"Executables", L"*.exe;*.bat" } }, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST);
 
       if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED))
       {
@@ -8872,7 +8872,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       {
         LPWSTR pwszFilePath = NULL;
         HRESULT hr          =
-          SKIF_Util_FileExplorer_BrowseForFile (&pwszFilePath, SKIF_ImGui_hWnd, COMDLG_FILTERSPEC{ L"Executables", L"*.exe;*.bat" }, 1, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST);
+          SKIF_Util_FileExplorer_BrowseForFile (&pwszFilePath, SKIF_ImGui_hWnd, { { L"Executables", L"*.exe;*.bat" } }, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST);
           
         if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED))
         {

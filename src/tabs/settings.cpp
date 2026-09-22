@@ -22,7 +22,7 @@ extern bool allowShortcutCtrlA;
 std::vector <__INI> vIniOSD;
 bool saveIniOSD = false;
 
-static void
+static bool
 DrawIniKeybinding (__INI* ptr)
 {
   ImGui::PushID (ptr->section);
@@ -38,6 +38,7 @@ DrawIniKeybinding (__INI* ptr)
   }
   ImGui::PopID ();
   ImGui::PopID ();
+  return saveIniOSD;
 }
 
 void

@@ -2920,7 +2920,67 @@ SKIF_Util_FileExplorer_ContextMenuFile (PCWSTR filePath, HWND hWndOwner)
 }
 
 HRESULT
-SKIF_Util_FileExplorer_BrowseForFile (LPWSTR *pszPath, HWND hwndOwner, const COMDLG_FILTERSPEC fileTypes, UINT cFileTypes, FILEOPENDIALOGOPTIONS dialogOptions, const GUID defaultFolder, PCWSTR defaultFolderPath)
+SKIF_Util_FileExplorer_SaveFile (LPWSTR *pszPath, HWND hwndOwner, std::vector<COMDLG_FILTERSPEC> fileTypes, FILEOPENDIALOGOPTIONS dialogOptions, const GUID defaultFolder, PCWSTR defaultFolderPath, PCWSTR defaultExtension)
+{
+  IFileSaveDialog  *pFileSave = nullptr;
+  HRESULT hr = E_UNEXPECTED;
+
+  hr = CoCreateInstance (CLSID_FileSaveDialog, NULL, CLSCTX_ALL,
+                          IID_IFileSaveDialog, reinterpret_cast<void**> (&pFileSave));
+
+  if (SUCCEEDED(hr))
+  {
+    IShellItem* psiDefaultFolder = nullptr;
+
+    // Force the dialogue to open a specific folder
+    if (defaultFolderPath != nullptr && wcscmp (defaultFolderPath, L"\0") != 0)
+    {
+      if (S_OK == SHCreateItemFromParsingName (defaultFolderPath, nullptr, IID_PPV_ARGS(&psiDefaultFolder)))
+      {
+        pFileSave->SetFolder (psiDefaultFolder);
+        psiDefaultFolder->Release();
+      }
+    }
+
+    // Otherwise set a default folder
+    else if (S_OK == SHGetKnownFolderItem (defaultFolder, KF_FLAG_DEFAULT, NULL, IID_IShellItem, (void**)&psiDefaultFolder))
+    {
+      pFileSave->SetDefaultFolder (psiDefaultFolder);
+      psiDefaultFolder->Release();
+    }
+
+    if (fileTypes.size())
+      pFileSave->SetFileTypes (static_cast<UINT>(fileTypes.size()), fileTypes.data());
+
+    if (dialogOptions != 0)
+      pFileSave->SetOptions   (dialogOptions);
+
+    if (defaultExtension != nullptr && wcscmp (defaultExtension, L"\0") != 0)
+      pFileSave->SetDefaultExtension (defaultExtension);
+
+    hr = pFileSave->Show      (hwndOwner);
+
+    if (S_OK == hr)
+    {
+      IShellItem      *pItem      = nullptr;
+
+      if (S_OK == pFileSave->GetResult (&pItem))
+      {
+        hr = pItem->GetDisplayName (SIGDN_FILESYSPATH, pszPath); // SIGDN_URL
+        pItem->Release();
+      }
+    }
+
+    pFileSave->Release();
+  }
+
+  PLOG_ERROR_IF(FAILED(hr)) << SKIF_Util_GetErrorAsWStr (HRESULT_CODE(hr));
+
+  return hr;
+}
+
+HRESULT
+SKIF_Util_FileExplorer_BrowseForFile (LPWSTR *pszPath, HWND hwndOwner, std::vector<COMDLG_FILTERSPEC> fileTypes, FILEOPENDIALOGOPTIONS dialogOptions, const GUID defaultFolder, PCWSTR defaultFolderPath)
 {
   IFileOpenDialog  *pFileOpen = nullptr;
   HRESULT hr = E_UNEXPECTED;
@@ -2949,13 +3009,13 @@ SKIF_Util_FileExplorer_BrowseForFile (LPWSTR *pszPath, HWND hwndOwner, const COM
       psiDefaultFolder->Release();
     }
 
-    if (cFileTypes > 0)
-      pFileOpen->SetFileTypes (cFileTypes, &fileTypes);
+    if (fileTypes.size())
+      pFileOpen->SetFileTypes (static_cast<UINT>(fileTypes.size()), fileTypes.data());
 
     if (dialogOptions != 0)
       pFileOpen->SetOptions   (dialogOptions);
 
-    hr = pFileOpen->Show(hwndOwner);
+    hr = pFileOpen->Show      (hwndOwner);
 
     if (S_OK == hr)
     {
@@ -2967,7 +3027,6 @@ SKIF_Util_FileExplorer_BrowseForFile (LPWSTR *pszPath, HWND hwndOwner, const COM
         if (S_OK == pItemArray->GetItemAt (0, &pItem))
         {
           hr = pItem->GetDisplayName (SIGDN_FILESYSPATH, pszPath); // SIGDN_URL
-
           pItem->Release();
         }
 
@@ -2986,7 +3045,7 @@ SKIF_Util_FileExplorer_BrowseForFile (LPWSTR *pszPath, HWND hwndOwner, const COM
 HRESULT
 SKIF_Util_FileExplorer_BrowseForFolder (LPWSTR *pszPath, HWND hwndOwner, const GUID defaultFolder, PCWSTR defaultFolderPath)
 {
-  return SKIF_Util_FileExplorer_BrowseForFile (pszPath, hwndOwner, { }, 0, (FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM), defaultFolder, defaultFolderPath);
+  return SKIF_Util_FileExplorer_BrowseForFile (pszPath, hwndOwner, { }, (FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM), defaultFolder, defaultFolderPath);
 }
 
 static int
