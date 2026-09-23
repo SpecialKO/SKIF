@@ -1978,12 +1978,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
          hotkeyCtrlR = (hotkeysEnabled && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_R  )->DownDuration == 0.0f), // Library/About: Refresh data
          hotkeyCtrlT = (hotkeysEnabled && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_T  )->DownDuration == 0.0f), // Appearance: Toggle app mode (Library/Service)
          hotkeyCtrlA = (hotkeysEnabled && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_A  )->DownDuration == 0.0f), // Library: Add game
-         hotkeyCtrlN = (hotkeysEnabled && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_N  )->DownDuration == 0.0f), // Minimize app
          hotkeyCtrl1 = (hotkeysEnabled && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_1  )->DownDuration == 0.0f), // Switch to Library
          hotkeyCtrl2 = (hotkeysEnabled && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_2  )->DownDuration == 0.0f), // Switch to Monitor
          hotkeyCtrl3 = (hotkeysEnabled && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_3  )->DownDuration == 0.0f), // Switch to Hardware
          hotkeyCtrl4 = (hotkeysEnabled && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_4  )->DownDuration == 0.0f), // Switch to Settings
-         hotkeyCtrl5 = (hotkeysEnabled && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_5  )->DownDuration == 0.0f); // Switch to About
+         hotkeyCtrl5 = (hotkeysEnabled && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_5  )->DownDuration == 0.0f), // Switch to About
+         hotkeyCtrlShiftN = (hotkeysEnabled && io.KeyCtrl && io.KeyShift && ImGui::GetKeyData (ImGuiKey_N  )->DownDuration == 0.0f); // Minimize app // 2026-09-22: Changed to open INI Editor instead
+    bool minimizeWindow = false; // Replaced old Ctrl+N boolean
 
     auto _TranslateAndDispatch = [&](void) -> bool
     {
@@ -3156,7 +3157,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::SameLine ();
 
         if (ImGui::Button (ICON_FA_WINDOW_MINIMIZE, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale, 0.0f )))
-          hotkeyCtrlN = true;
+          minimizeWindow = true;
 
         ImGui::SameLine ();
 
@@ -3210,7 +3211,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                                                      SKIF_vecRegularMode ;
       }
 
-      if (hotkeyCtrlN)
+      if (minimizeWindow)
         ShowWindow (SKIF_ImGui_hWnd, SW_MINIMIZE);
 
       if (hotkeyCtrlQ || hotkeyCtrlW || bKeepWindowAlive == false)
@@ -3235,6 +3236,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
 #pragma endregion
 
+      // Open INI Editor
+      if (hotkeyCtrlShiftN)
+      {
+        extern void
+          SKIF_ImGui_IniEditor_NewWindow (void);
+          SKIF_ImGui_IniEditor_NewWindow (    );
+      }
 
       // Font warning
       if (failedLoadFontsPrompt && !HiddenFramesContinueProcessing)

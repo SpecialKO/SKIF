@@ -113,6 +113,7 @@ SKIF_IniHandler_ParseIni (const std::wstring& file_path, const std::string& file
     ini.ParseContent (SK_WideCharToUTF8 (DERP_IniReader_ReadTextFile (file_path)));
   } catch (const std::exception&) {
     PLOG_ERROR << "Failed to parse INI file!";
+    MessageBoxW ((HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, L"Failed to parse INI file!", L"Error", MB_OK | MB_ICONEXCLAMATION);
     return ini_parsed;
   };
 
@@ -228,18 +229,41 @@ SKIF_ImGui_IniEditor_OpenFile (std::wstring path, IniWindow* iniWindow)
   }
 
   std::string path_utf8 = SK_WideCharToUTF8 (path);
+  std::string filename  = SKIF_Util_ToLower (std::filesystem::path(path).filename().replace_extension().string());
+  IniFileType type      = IniFile_Unknown;
 
-  PLOG_VERBOSE << "Parsing INI file: " << path_utf8;
+  if (     filename.find("specialk")      != std::string::npos ||
+           filename.find("opengl32")      != std::string::npos ||
+           filename.find( "dinput8")      != std::string::npos ||
+           filename.find(  "dxgi"  )      != std::string::npos ||
+           filename.find(  "d3d11" )      != std::string::npos ||
+           filename.find(  "d3d9"  )      != std::string::npos ||
+           filename.find(  "d3d9"  )      != std::string::npos ||
+           filename.find(  "ddraw" )      != std::string::npos)
+    type = IniFile_DLL;
+  else if (filename.find("osd")           != std::string::npos)
+    type = IniFile_OSD;
+  else if (filename.find("input")         != std::string::npos)
+    type = IniFile_Input;
+  else if (filename.find("notifications") != std::string::npos)
+    type = IniFile_Notify;
+  else if (filename.find("platform")      != std::string::npos)
+    type = IniFile_Platform;
+  else if (filename.find("macros")        != std::string::npos)
+    type = IniFile_Macros;
 
-  std::vector<const ConfigEntry*> ini_params = SKIF_IniHandler_GetParams (dll_ini);
+  std::vector<const ConfigEntry*> ini_params = SKIF_IniHandler_GetParams (type);
 
   std::vector <__INI> ini_parsed;
   inih::INIReader ini;
+
+  PLOG_VERBOSE << "Parsing INI file: " << path_utf8;
 
   try {
     ini.ParseContent (SK_WideCharToUTF8 (DERP_IniReader_ReadTextFile (path)));
   } catch (const std::exception&) {
     PLOG_ERROR << "Failed to parse INI file!";
+    MessageBoxW ((HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, L"Failed to parse INI file!", L"Error", MB_OK | MB_ICONEXCLAMATION);
     return;
   };
 
@@ -252,6 +276,7 @@ SKIF_ImGui_IniEditor_OpenFile (std::wstring path, IniWindow* iniWindow)
       switch (SwitchHash (kv.first))
       {
         case SwitchHash ("NotifyCorner"):
+        case SwitchHash ("PopupOrigin"):
         {
           item._dditems.push_back ("DontCare");
           item._dditems.push_back ("TopLeft");
@@ -293,10 +318,49 @@ SKIF_ImGui_IniEditor_OpenFile (std::wstring path, IniWindow* iniWindow)
         }
 
         // Keybindings (Keyboard)
+
+        // OSD [Game.HUD]
+        case SwitchHash ("HUDToggle"):
+        // OSD [OSD.System]
+        case SwitchHash ("ConsoleToggle"):
+        // OSD [Screenshot.System]
+        case SwitchHash ("HUDFree"):
+        case SwitchHash ("WithoutOSD"):
+        case SwitchHash ("InsertOSD"):
+        case SwitchHash ("Without3rdParty"):
+        case SwitchHash ("ClipboardOnly"):
+        case SwitchHash ("Snipping"):
+        // OSD [Display.Monitor]
+        case SwitchHash ("ToggleADHDMultiMonitor"):
+        case SwitchHash ("MoveToPrimaryMonitor"):
+        case SwitchHash ("MoveToNextMonitor"):
+        case SwitchHash ("MoveToPrevMonitor"):
+        case SwitchHash ("ToggleHDR"):
+        // OSD [LatentSync.Control]
+        case SwitchHash ("MoveTearlineDown"):
+        case SwitchHash ("MoveTearlineUp"):
+        case SwitchHash ("ManualResync"):
+        case SwitchHash ("ToggleFCATBars"):
+        // OSD [Sound.Mixing]
+        case SwitchHash ("MuteGame"):
+        case SwitchHash ("VolumePlus10%"):
+        case SwitchHash ("VolumeMinus10%"):
+        // OSD [Widgets.Global]
+        case SwitchHash ("HideAllWidgets"):
+        // OSD [ReShade.AddOn]
+        case SwitchHash ("ToggleReShadeOverlay"):
+        case SwitchHash ("InjectReShade"):
+        // OSD [ImGui.Global]
+        case SwitchHash ("ControlPanelToggle"):
+        // OSD [HDR.Presets]
         case SwitchHash ("Activate0"):
         case SwitchHash ("Activate1"):
         case SwitchHash ("Activate2"):
         case SwitchHash ("Activate3"):
+        // OSD [Widgets]
+        case SwitchHash ("ToggleKey"):
+        case SwitchHash ("FocusKey"):
+        case SwitchHash ("FlashKey"):
         {
           item._keybind = {
             item.key,

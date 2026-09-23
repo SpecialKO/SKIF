@@ -39,10 +39,11 @@ enum IniFileType_
 {
   IniFile_Unknown  = 0,
   IniFile_DLL      = 1 << 0,
-  IniFile_Input    = 1 << 1,
-  IniFile_OSD      = 1 << 2,
-  IniFile_Notify   = 1 << 3,
-  IniFile_Platform = 1 << 4,
+  IniFile_OSD      = 1 << 1,
+  IniFile_Input    = 1 << 2,
+  IniFile_Macros   = 1 << 3,
+  IniFile_Notify   = 1 << 4,
+  IniFile_Platform = 1 << 5,
 };
 
 enum IniBitness_
@@ -52,9 +53,10 @@ enum IniBitness_
   IniBitness_AMD64 = 1 << 1,
 };
 
-constexpr IniFileType osd_ini      = IniFileType_::IniFile_OSD;
 constexpr IniFileType dll_ini      = IniFileType_::IniFile_DLL;
+constexpr IniFileType osd_ini      = IniFileType_::IniFile_OSD;
 constexpr IniFileType input_ini    = IniFileType_::IniFile_Input;
+constexpr IniFileType macros_ini   = IniFileType_::IniFile_Macros;
 constexpr IniFileType notify_ini   = IniFileType_::IniFile_Notify;
 constexpr IniFileType platform_ini = IniFileType_::IniFile_Platform;
 

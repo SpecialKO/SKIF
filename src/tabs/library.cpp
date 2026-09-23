@@ -1897,7 +1897,7 @@ DrawGameConfigMenu (app_record_s* pApp)
       CustomPresets        = _FindPresets (CustomPresetsFolder, L"*.ini");
     }
 
-    if (_registry.bDeveloperMode)
+    if (true) // _registry.bDeveloperMode
     {
       if (ImGui::Selectable ("Open INI editor"))
       {
