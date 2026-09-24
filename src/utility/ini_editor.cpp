@@ -479,6 +479,8 @@ SKIF_ImGui_IniEditor_Process (void)
                       ImGuiWindowFlags_MenuBar
     );
 
+    ImGui::DockSpaceOverViewport (ImGui::GetWindowViewport());
+
     if (ImGui::BeginMenuBar())
     {
       if (ImGui::BeginMenu ("File"))
