@@ -148,9 +148,6 @@ float  SKIF_fStatusBarHeightTips    = 18.0f; // Disabled tooltips (two-line stat
 bool KeyWinKey = false;
 int  SnapKeys  = 0;     // 2 = Left, 4 = Up, 8 = Right, 16 = Down
 
-// Holds swapchain wait handles
-std::vector<HANDLE> vSwapchainWaitHandles;
-
 // GOG Galaxy stuff
 std::wstring GOGGalaxy_Path        = L"";
 std::wstring GOGGalaxy_Folder      = L"";
@@ -1853,7 +1850,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   io.ConfigViewportsNoDefaultParent  = false;
 
   // Docking
-//io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
+  io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
   io.ConfigDockingAlwaysTabBar       = false;
   io.ConfigDockingTransparentPayload =  true;
 
@@ -2592,6 +2589,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       ImGui::Begin ( SKIF_WINDOW_TITLE_SHORT_A SKIF_WINDOW_HASH,
                        nullptr,
+                         ImGuiWindowFlags_NoDocking         | // The main window should never be dockable
                        //ImGuiWindowFlags_NoResize          |
                          ImGuiWindowFlags_NoCollapse        |
                          ImGuiWindowFlags_NoTitleBar        |
@@ -3889,8 +3887,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
       g.NavDisableHighlight = true;
     );
 
-    // Conditional rendering, but only if SKIF_ImGui_hWnd has actually been created
-    bool bRefresh = (SKIF_ImGui_hWnd != NULL && (SKIF_isTrayed || IsIconic (SKIF_ImGui_hWnd))) ? false : true;
+
+    // Conditional rendering, but only if a viewport is actually visible
+    extern bool SKIF_ImGui_ImplWin32_IsAnyViewportVisible (void);
+    bool bRefresh = (SKIF_ImGui_ImplWin32_IsAnyViewportVisible ( )) ? true : false; // (SKIF_ImGui_hWnd != NULL && (SKIF_isTrayed || IsIconic (SKIF_ImGui_hWnd))) ? false : true;
 
     if (invalidatedDevice > 0 && SKIF_Tab_Selected == UITab_Library)
       bRefresh = false;
@@ -4152,16 +4152,32 @@ wWinMain ( _In_     HINSTANCE hInstance,
         else
         {
           //auto timePre = SKIF_Util_timeGetTime1 ( );
+          
+          extern bool SKIF_ImGui_ImplWin32_IsViewportVisible (ImGuiViewport* viewport);
+          extern HANDLE SKIF_ImplDX11_ViewPort_GetWaitHandle (ImGuiViewport* viewport);
+          std::vector<HANDLE> vActiveSwapchainWaitHandles;
+
+          for (int i = 1; i < ImGui::GetCurrentContext()->Viewports.Size; i++)
+          {
+            ImGuiViewportP* viewport = ImGui::GetCurrentContext()->Viewports[i];
+
+            if (SKIF_ImGui_ImplWin32_IsViewportVisible (viewport))
+            {
+              if (HANDLE h = SKIF_ImplDX11_ViewPort_GetWaitHandle (viewport))
+                vActiveSwapchainWaitHandles.push_back(h);
+            }
+          }
+          
 
           // Waitable Swapchains (used for Flip)
-          if (! vSwapchainWaitHandles.empty())
+          if (! vActiveSwapchainWaitHandles.empty())
           {
             static bool bWaitTimeoutSwapChainsFallback = false;
 
             DWORD res =
-              WaitForMultipleObjectsEx (static_cast<DWORD>(vSwapchainWaitHandles.size()), vSwapchainWaitHandles.data(), true, bWaitTimeoutSwapChainsFallback ? msSleep : 1000, true);
+              WaitForMultipleObjectsEx (static_cast<DWORD>(vActiveSwapchainWaitHandles.size()), vActiveSwapchainWaitHandles.data(), true, bWaitTimeoutSwapChainsFallback ? msSleep : 1000, true);
 
-            //OutputDebugString((L"[" + SKIF_Util_timeGetTimeAsWStr() + L"][#" + std::to_wstring(ImGui::GetFrameCount()) + L"] Maybe we'll be waiting? (handles: " + std::to_wstring(vSwapchainWaitHandles.size()) + L")\n").c_str());
+            //OutputDebugString((L"[" + SKIF_Util_timeGetTimeAsWStr() + L"][#" + std::to_wstring(ImGui::GetFrameCount()) + L"] Maybe we'll be waiting? (handles: " + std::to_wstring(vActiveSwapchainWaitHandles.size()) + L")\n").c_str());
             if (res == WAIT_TIMEOUT)
             {
               // This is only expected to occur when an issue arises
@@ -4188,7 +4204,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 #if 0
           auto timePost = SKIF_Util_timeGetTime1 ( );
           auto timeDiff = timePost - timePre;
-          //PLOG_VERBOSE << "Waited: " << timeDiff << " ms (handles : " << vSwapchainWaitHandles.size() << ")";
+          //PLOG_VERBOSE << "Waited: " << timeDiff << " ms (handles : " << vActiveSwapchainWaitHandles.size() << ")";
 
           // Fallback ""framerate limiter""
           static DWORD lastInput = timePre;

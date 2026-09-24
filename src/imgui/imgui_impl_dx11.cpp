@@ -69,7 +69,6 @@ extern bool  SKIF_Util_IsWindowsVersionOrGreater   (DWORD dwMajorVersion, DWORD 
 extern bool  SKIF_Util_IsHDRSupported              (bool refresh = false);
 extern bool  SKIF_Util_IsHDRActive                 (bool refresh = false);
 extern float SKIF_Util_GetSDRWhiteLevelForHMONITOR (HMONITOR hMonitor);
-extern std::vector<HANDLE> vSwapchainWaitHandles;
 extern bool  RecreateSwapChains;
 extern bool  RecreateSwapChainsPending;
 
@@ -1964,19 +1963,19 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
         // This method is only valid for use on swap chains created with DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT.
         if (SUCCEEDED (pSwapChain2->SetMaximumFrameLatency (1)))
         {
-          vd->WaitHandle =
-            pSwapChain2->GetFrameLatencyWaitableObject  ( );
-
-          if (vd->WaitHandle)
+          if (hWnd == SKIF_ImGui_hWnd)
           {
-            vSwapchainWaitHandles.push_back (vd->WaitHandle);
+            vd->WaitHandle =
+              pSwapChain2->GetFrameLatencyWaitableObject  ( );
 
-            // One-time wait to align the thread for minimum latency (reduces latency by half in testing)
-            WaitForSingleObjectEx (vd->WaitHandle, 1000, true);
-            //WaitForSingleObject (vd->WaitHandle, 1000);
-            // Block this thread until the swap chain is ready for presenting. Note that it is
-            // important to call this before the first Present in order to minimize the latency
-            // of the swap chain.
+            if (vd->WaitHandle)
+            {
+              // One-time wait to align the thread for minimum latency (reduces latency by half in testing)
+              WaitForSingleObjectEx (vd->WaitHandle, 1000, true);
+              // Block this thread until the swap chain is ready for presenting. Note that it is
+              // important to call this before the first Present in order to minimize the latency
+              // of the swap chain.
+            }
           }
         }
       }
@@ -1993,9 +1992,6 @@ static void ImGui_ImplDX11_DestroyWindow(ImGuiViewport* viewport)
     if (ImGui_ImplDX11_ViewportData* vd = (ImGui_ImplDX11_ViewportData*)viewport->RendererUserData)
     {
         if (vd->WaitHandle) {
-          if (! vSwapchainWaitHandles.empty())
-            vSwapchainWaitHandles.erase(std::remove(vSwapchainWaitHandles.begin(), vSwapchainWaitHandles.end(), vd->WaitHandle), vSwapchainWaitHandles.end());
-
           CloseHandle (
             vd->WaitHandle
           );
@@ -2068,4 +2064,12 @@ UINT SKIF_ImplDX11_ViewPort_GetPresentCount(ImGuiViewport* viewport)
         return vd->PresentCount;
 
     return 0;
+}
+
+HANDLE SKIF_ImplDX11_ViewPort_GetWaitHandle(ImGuiViewport* viewport)
+{
+    if (ImGui_ImplDX11_ViewportData* vd = (ImGui_ImplDX11_ViewportData*)viewport->RendererUserData)
+        return vd->WaitHandle;
+
+    return NULL;
 }
