@@ -144,12 +144,12 @@
       <OpenMPSupport>false</OpenMPSupport>
       <AdditionalOptions>/Ob3 %(AdditionalOptions)</AdditionalOptions>
       <UseUnicodeForAssemblerListing>true</UseUnicodeForAssemblerListing>
-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>advapi32.lib;comdlg32.lib;d3d11.lib;dbghelp.lib;dwmapi.lib;dxgi.lib;gdi32.lib;kernel32.lib;odbc32.lib;odbccp32.lib;ole32.lib;oleaut32.lib;shell32.lib;user32.lib;uuid.lib;version.lib;winmm.lib;winspool.lib</AdditionalDependencies>
+      <AdditionalDependencies>advapi32.lib;comdlg32.lib;d3d11.lib;dbghelp.lib;dwmapi.lib;dxgi.lib;gdi32.lib;kernel32.lib;odbc32.lib;odbccp32.lib;ole32.lib;oleaut32.lib;shell32.lib;user32.lib;uuid.lib;version.lib;winmm.lib;winspool.lib;$(SolutionDir)\packages_misc\DirectXTex\Bin\Desktop_2022\$(Platform)\$(Configuration)\DirectXTex.lib;$(SolutionDir)\packages_misc\pugixml\scripts\vs2022\$(Platform)_$(Configuration)Static\pugixml.lib</AdditionalDependencies>
       <DelayLoadDLLs>
       </DelayLoadDLLs>
       <OptimizeReferences>true</OptimizeReferences>
@@ -203,12 +203,12 @@
       <AdditionalOptions>/Ob3 %(AdditionalOptions)</AdditionalOptions>
       <UseUnicodeForAssemblerListing>true</UseUnicodeForAssemblerListing>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>advapi32.lib;comdlg32.lib;d3d11.lib;dbghelp.lib;dwmapi.lib;dxgi.lib;gdi32.lib;kernel32.lib;odbc32.lib;odbccp32.lib;ole32.lib;oleaut32.lib;shell32.lib;user32.lib;uuid.lib;version.lib;winmm.lib;winspool.lib</AdditionalDependencies>
+      <AdditionalDependencies>advapi32.lib;comdlg32.lib;d3d11.lib;dbghelp.lib;dwmapi.lib;dxgi.lib;gdi32.lib;kernel32.lib;odbc32.lib;odbccp32.lib;ole32.lib;oleaut32.lib;shell32.lib;user32.lib;uuid.lib;version.lib;winmm.lib;winspool.lib;$(SolutionDir)\packages_misc\DirectXTex\Bin\Desktop_2022\$(Platform)\$(Configuration)\DirectXTex.lib;$(SolutionDir)\packages_misc\pugixml\scripts\vs2022\$(Platform)_$(Configuration)Static\pugixml.lib</AdditionalDependencies>
       <DelayLoadDLLs>
       </DelayLoadDLLs>
       <OptimizeReferences>true</OptimizeReferences>
@@ -267,7 +267,7 @@
       <AdditionalOptions>/Ob3 /Zf %(AdditionalOptions)</AdditionalOptions>
       <CreateHotpatchableImage>true</CreateHotpatchableImage>
       <UseUnicodeForAssemblerListing>true</UseUnicodeForAssemblerListing>
-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <SupportJustMyCode>true</SupportJustMyCode>
       <SDLCheck>false</SDLCheck>
       <InlineFunctionExpansion>Default</InlineFunctionExpansion>
@@ -278,7 +278,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
-      <AdditionalDependencies>advapi32.lib;comdlg32.lib;d3d11.lib;dbghelp.lib;dwmapi.lib;dxgi.lib;gdi32.lib;kernel32.lib;odbc32.lib;odbccp32.lib;ole32.lib;oleaut32.lib;shell32.lib;user32.lib;uuid.lib;version.lib;winmm.lib;winspool.lib</AdditionalDependencies>
+      <AdditionalDependencies>advapi32.lib;comdlg32.lib;d3d11.lib;dbghelp.lib;dwmapi.lib;dxgi.lib;gdi32.lib;kernel32.lib;odbc32.lib;odbccp32.lib;ole32.lib;oleaut32.lib;shell32.lib;user32.lib;uuid.lib;version.lib;winmm.lib;winspool.lib;$(SolutionDir)\packages_misc\DirectXTex\Bin\Desktop_2022\$(Platform)\$(Configuration)\DirectXTex.lib;$(SolutionDir)\packages_misc\pugixml\scripts\vs2022\$(Platform)_$(Configuration)Static\pugixml.lib</AdditionalDependencies>
       <DelayLoadDLLs>
       </DelayLoadDLLs>
       <LargeAddressAware>true</LargeAddressAware>
@@ -339,7 +339,7 @@
       <OpenMPSupport>false</OpenMPSupport>
       <AdditionalOptions>/Ob3 /Zf %(AdditionalOptions)</AdditionalOptions>
       <UseUnicodeForAssemblerListing>true</UseUnicodeForAssemblerListing>
-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <SupportJustMyCode>true</SupportJustMyCode>
       <SDLCheck>false</SDLCheck>
       <InlineFunctionExpansion>Default</InlineFunctionExpansion>
@@ -349,7 +349,7 @@
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
-      <AdditionalDependencies>advapi32.lib;comdlg32.lib;d3d11.lib;dbghelp.lib;dwmapi.lib;dxgi.lib;gdi32.lib;kernel32.lib;odbc32.lib;odbccp32.lib;ole32.lib;oleaut32.lib;shell32.lib;user32.lib;uuid.lib;version.lib;winmm.lib;winspool.lib</AdditionalDependencies>
+      <AdditionalDependencies>advapi32.lib;comdlg32.lib;d3d11.lib;dbghelp.lib;dwmapi.lib;dxgi.lib;gdi32.lib;kernel32.lib;odbc32.lib;odbccp32.lib;ole32.lib;oleaut32.lib;shell32.lib;user32.lib;uuid.lib;version.lib;winmm.lib;winspool.lib;$(SolutionDir)\packages_misc\DirectXTex\Bin\Desktop_2022\$(Platform)\$(Configuration)\DirectXTex.lib;$(SolutionDir)\packages_misc\pugixml\scripts\vs2022\$(Platform)_$(Configuration)Static\pugixml.lib</AdditionalDependencies>
       <DelayLoadDLLs>
       </DelayLoadDLLs>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -567,17 +567,13 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="packages\plog.1.1.9\build\native\plog.targets" Condition="Exists('packages\plog.1.1.9\build\native\plog.targets')" />
-    <Import Project="packages\pugixml.1.13.0\build\native\pugixml.targets" Condition="Exists('packages\pugixml.1.13.0\build\native\pugixml.targets')" />
     <Import Project="packages\nlohmann.json.3.11.2\build\native\nlohmann.json.targets" Condition="Exists('packages\nlohmann.json.3.11.2\build\native\nlohmann.json.targets')" />
-    <Import Project="packages\directxtex_desktop_2019.2023.4.28.1\build\native\directxtex_desktop_2019.targets" Condition="Exists('packages\directxtex_desktop_2019.2023.4.28.1\build\native\directxtex_desktop_2019.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
     <Error Condition="!Exists('packages\plog.1.1.9\build\native\plog.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\plog.1.1.9\build\native\plog.targets'))" />
-    <Error Condition="!Exists('packages\pugixml.1.13.0\build\native\pugixml.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\pugixml.1.13.0\build\native\pugixml.targets'))" />
     <Error Condition="!Exists('packages\nlohmann.json.3.11.2\build\native\nlohmann.json.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\nlohmann.json.3.11.2\build\native\nlohmann.json.targets'))" />
-    <Error Condition="!Exists('packages\directxtex_desktop_2019.2023.4.28.1\build\native\directxtex_desktop_2019.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\directxtex_desktop_2019.2023.4.28.1\build\native\directxtex_desktop_2019.targets'))" />
   </Target>
 </Project>

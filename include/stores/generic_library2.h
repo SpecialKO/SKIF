@@ -13,7 +13,7 @@
 #include "Steam/app_record.h"
 #include <imgui/imgui.h>
 
-#include "DirectXTex.h"
+#include "DirectXTex/DirectXTex.h"
 
 enum class LibraryTexture
 {

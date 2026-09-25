@@ -1,6 +1,6 @@
 
 #include <stores/xbox/xbox_library.h>
-#include <pugixml.hpp>
+#include <pugixml/src/pugixml.hpp>
 #include <wtypes.h>
 #include <fstream>
 #include <filesystem>

@@ -30,7 +30,7 @@
 
 #include <utility/injection.h>
 
-#include "DirectXTex.h"
+#include "DirectXTex/DirectXTex.h"
 
 #include <fonts/fa_621.h>
 #include <fonts/fa_621b.h>

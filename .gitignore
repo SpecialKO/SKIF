@@ -14,3 +14,6 @@
 /steam_appid.txt
 /include/imgui_old/*
 /src/imgui_old/*
+/packages_misc/DirectXTex/Bin/*
+/packages_misc/DirectXTex/Shaders/Compiled/*
+/packages_misc/pugixml/scripts/vs*
