@@ -757,7 +757,7 @@ SKIF_UtilInt_IniUserMachineStrip (void)
     wchar_t wszUserDisName [MAX_PATH] = { };
     wchar_t wszMachineName [MAX_PATH] = { };
 
-    if (GetUserProfileDirectoryW (SKIF_Util_GetCurrentProcessToken ( ), wszUserProfile, &dwLen))
+    if (GetUserProfileDirectoryW (SKIF_Util_GetCurrentUserToken ( ), wszUserProfile, &dwLen))
     {
       PathStripPathW                   (wszUserProfile);
       userProfile     = std::wstring   (wszUserProfile);
@@ -1122,17 +1122,21 @@ SKIF_Util_CreateProcess (
     std::wstring wsEnvBlock;
       
     // Create a clear and empty environment block for the current user
-    CreateEnvironmentBlock (&lpEnvBlock, SKIF_Util_GetCurrentProcessToken(), FALSE);
+    if (CreateEnvironmentBlock (&lpEnvBlock, SKIF_Util_GetCurrentUserToken ( ), FALSE))
+    {
+      // Convert to a nicely stored wstring
+      wsEnvBlock   = SKIF_Util_AddEnvironmentBlock (lpEnvBlock, L"", L"");
 
-    // Convert to a nicely stored wstring
-    wsEnvBlock   = SKIF_Util_AddEnvironmentBlock (lpEnvBlock, L"", L"");
+      // Add any custom variables to it
+      for (auto& env_var : _data->env)
+        wsEnvBlock = SKIF_Util_AddEnvironmentBlock (wsEnvBlock.c_str(), env_var.first, env_var.second);
 
-    // Add any custom variables to it
-    for (auto& env_var : _data->env)
-      wsEnvBlock = SKIF_Util_AddEnvironmentBlock (wsEnvBlock.c_str(), env_var.first, env_var.second);
-
-    // Destroy the block once we are done with it
-    DestroyEnvironmentBlock (lpEnvBlock);
+      // Destroy the block once we are done with it
+      DestroyEnvironmentBlock (lpEnvBlock);
+    }
+    else {
+      PLOG_ERROR << "Failed to create an environment block for the current user: " << SKIF_Util_GetErrorAsWStr (GetLastError ( ));
+    }
       
     PLOG_INFO                                          << "Creating process...";
     PLOG_INFO_IF  (! _data->path             .empty()) << "Application         : " << _data->path;
@@ -1278,6 +1282,22 @@ SKIF_Util_GetCurrentProcessToken (void)
   // A pseudo handle is a special constant, currently (HANDLE)-4, that is interpreted as the current process access token.
   // https://github.com/microsoft/win32metadata/issues/436
   return (HANDLE)(LONG_PTR) -4;
+}
+
+// This is not always the same as what SKIF_Util_GetCurrentProcessToken() returns...
+// At least not on Windows 7 where CreateEnvironmentBlock() crashes if given a -4 handle...
+HANDLE
+SKIF_Util_GetCurrentUserToken (void)
+{
+  static HANDLE token = NULL;
+
+  if (token != NULL)
+    return token;
+
+  // CreateEnvironmentBlock requires a token with TOKEN_QUERY and TOKEN_DUPLICATE access
+  OpenProcessToken (SKIF_Util_GetCurrentProcess ( ), (TOKEN_QUERY | TOKEN_DUPLICATE), &token);
+
+  return token;
 }
 
 // Terminates the process with the given process ID

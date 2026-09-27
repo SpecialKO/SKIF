@@ -158,6 +158,7 @@ enum class AppColorMode // PreferredAppMode
 
 HANDLE          SKIF_Util_GetCurrentProcess           (void);
 HANDLE          SKIF_Util_GetCurrentProcessToken      (void);
+HANDLE          SKIF_Util_GetCurrentUserToken         (void);
 BOOL            SKIF_Util_TerminateProcess            (DWORD  dwProcessId, UINT uExitCode);
 BOOL    WINAPI  SKIF_Util_TerminateProcess            (HANDLE  hProcess,   UINT uExitCode);
 std::wstring    SKIF_Util_GetFileVersion              (const wchar_t* wszName);
