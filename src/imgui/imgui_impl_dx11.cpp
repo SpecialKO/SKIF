@@ -142,7 +142,7 @@ static void ImGui_ImplDX11_DestroyWindow (ImGuiViewport* viewport       );
        void ImGui_ImplDX11_InvalidateDevice (void);
        
 static DXGI_FORMAT SKIF_ImplDX11_ViewPort_GetDXGIFormat    (ImGuiViewport* viewport);
-static bool        SKIF_ImplDX11_ViewPort_IsHDR            (ImGuiViewport* viewport);
+       bool        SKIF_ImplDX11_ViewPort_IsHDR            (ImGuiViewport* viewport);
 static int         SKIF_ImplDX11_ViewPort_GetHDRMode       (ImGuiViewport* viewport);
 static FLOAT       SKIF_ImplDX11_ViewPort_GetSDRWhiteLevel (ImGuiViewport* viewport);
 static FLOAT       SKIF_ImplDX11_ViewPort_GetHDRLuma       (ImGuiViewport* viewport);
@@ -2033,7 +2033,7 @@ static DXGI_FORMAT SKIF_ImplDX11_ViewPort_GetDXGIFormat(ImGuiViewport* viewport)
     return DXGI_FORMAT_UNKNOWN;
 }
 
-static bool SKIF_ImplDX11_ViewPort_IsHDR(ImGuiViewport* viewport)
+bool SKIF_ImplDX11_ViewPort_IsHDR(ImGuiViewport* viewport)
 {
     if (ImGui_ImplDX11_ViewportData* vd = (ImGui_ImplDX11_ViewportData*)viewport->RendererUserData)
         return vd->HDRMode;
