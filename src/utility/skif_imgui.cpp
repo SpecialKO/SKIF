@@ -1536,6 +1536,32 @@ SKIF_ImGui_InvalidateFonts (void)
   ImGui_ImplDX11_InvalidateDeviceObjects ( );
 }
 
+bool
+SKIF_ImGui_IsViewportHDR (HWND hWnd)
+{
+  if (ImGuiViewport *vp = ImGui::FindViewportByPlatformHandle ((void *)hWnd))
+  {
+    extern bool
+           SKIF_ImplDX11_ViewPort_IsHDR (ImGuiViewport* viewport);
+    return SKIF_ImplDX11_ViewPort_IsHDR (vp);
+  }
+
+  return false;
+}
+
+bool
+SKIF_ImGui_IsViewportHDRCapable (HWND hWnd)
+{
+  if (ImGuiViewport *vp = ImGui::FindViewportByPlatformHandle ((void *)hWnd))
+  {
+    extern bool
+           SKIF_ImplDX11_ViewPort_IsHDRCapable (ImGuiViewport* viewport);
+    return SKIF_ImplDX11_ViewPort_IsHDRCapable (vp);
+  }
+
+  return false;
+}
+
 // This helper function maps char to ImGuiKey_xxx
 // For use with e.g. ImGui::GetKeyData ( )
 ImGuiKey

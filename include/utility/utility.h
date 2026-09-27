@@ -180,6 +180,7 @@ bool            SKIF_Util_SetProcessMemoryPriority    (HANDLE processHandle, ULO
 bool            SKIF_Util_IsWindows8Point1OrGreater   (void);
 bool            SKIF_Util_IsWindows10OrGreater        (void);
 bool            SKIF_Util_IsWindows10v1709OrGreater   (void);
+bool            SKIF_Util_IsWindows10v1803OrGreater   (void);
 bool            SKIF_Util_IsWindows10v1903OrGreater   (void);
 bool            SKIF_Util_IsWindows11orGreater        (void);
 bool            SKIF_Util_IsWindowsVersionOrGreater   (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber);
@@ -219,10 +220,11 @@ void            SKIF_Util_SetEffectivePowerModeNotifications (bool enable);
 
 // High Dynamic Range (HDR)
 
-bool            SKIF_Util_IsHDRSupported              (bool refresh = false);
-bool            SKIF_Util_IsHDRActive                 (bool refresh = false);
-float           SKIF_Util_GetSDRWhiteLevelForHMONITOR (HMONITOR hMonitor);
+bool            SKIF_Util_IsHDRSupported              (HMONITOR hMonitor);
+bool            SKIF_Util_IsHDRActive                 (HMONITOR hMonitor);
+float           SKIF_Util_GetSDRWhiteLevel            (HMONITOR hMonitor);
 bool            SKIF_Util_EnableHDROutput             (void);
+void            SKIF_Util_UpdateMonitors              (void); // Triggers a refresh of the data that feeds all of the above; called by WM_DISPLAYCHANGE
 bool            SKIF_Util_RegisterHotKeyHDRToggle     (const SK_Keybind* binding);
 bool            SKIF_Util_UnregisterHotKeyHDRToggle   (void);
 bool            SKIF_Util_GetHotKeyStateHDRToggle     (void);

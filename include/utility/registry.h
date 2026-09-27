@@ -391,6 +391,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Patreon)" );
 
+  KeyValue <bool> regKV99thPercentileMaxCLL =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(99th Percentile MaxCLL)" );
+
   // Integers (DWORDs)
 
   KeyValue <int> regKVLibrarySort =
@@ -586,6 +590,10 @@ struct SKIF_RegistrySettings {
   bool bDPIScaling              =  true;
   bool bWin11Corners            =  true; // 2023-08-28: Enabled by default
   bool bTouchInput              =  true; // Automatically make the UI more optimized for touch input on capable devices
+
+  bool b99thPercentileMaxCLL    =  true; // Mostly used in SKIF so default to true here
+  bool bAlpha                   = false;
+  bool bCheckerboard            = false;
 
   bool bLibrarySteam            =  true;
   bool bLibraryEpic             =  true;

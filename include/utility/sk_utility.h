@@ -837,4 +837,12 @@ struct SK_KeybindMultiState
 
 bool SK_ImGui_Keybinding    (SK_KeybindMultiState* binding);
 
+#include <winstring.h>
+
+PCWSTR  WINAPI SK_WindowsGetStringRawBuffer    (HSTRING string, UINT32* length);
+HRESULT WINAPI SK_WindowsDeleteString          (HSTRING string);
+HRESULT WINAPI SK_WindowsCreateString          (PCNZWCH sourceString, UINT32 length, HSTRING* string);
+HRESULT WINAPI SK_WindowsCreateStringReference (PCWSTR sourceString, UINT32 length, HSTRING_HEADER* hstringHeader, HSTRING* string);
+HRESULT WINAPI SK_RoGetActivationFactory       (HSTRING activatableClassId, REFIID iid, void** factory);
+
 #endif /* __SK__UTILITY_H__ */

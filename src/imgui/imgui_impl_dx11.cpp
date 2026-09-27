@@ -62,13 +62,13 @@
 #include <shaders/imgui_vtx.h>
 
 // External declarations
-extern DWORD SKIF_Util_timeGetTime1                (void);
-extern bool  SKIF_Util_IsWindows8Point1OrGreater   (void);
-extern bool  SKIF_Util_IsWindows10OrGreater        (void);
-extern bool  SKIF_Util_IsWindowsVersionOrGreater   (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber);
-extern bool  SKIF_Util_IsHDRSupported              (bool refresh = false);
-extern bool  SKIF_Util_IsHDRActive                 (bool refresh = false);
-extern float SKIF_Util_GetSDRWhiteLevelForHMONITOR (HMONITOR hMonitor);
+extern DWORD   SKIF_Util_timeGetTime1                (void);
+extern bool    SKIF_Util_IsWindows8Point1OrGreater   (void);
+extern bool    SKIF_Util_IsWindows10OrGreater        (void);
+extern bool    SKIF_Util_IsWindowsVersionOrGreater   (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber);
+extern bool    SKIF_Util_IsHDRSupported              (HMONITOR hMonitor);
+extern bool    SKIF_Util_IsHDRActive                 (HMONITOR hMonitor);
+extern float   SKIF_Util_GetSDRWhiteLevel            (HMONITOR hMonitor);
 extern bool  RecreateSwapChains;
 extern bool  RecreateSwapChainsPending;
 
@@ -145,6 +145,7 @@ static DXGI_FORMAT SKIF_ImplDX11_ViewPort_GetDXGIFormat    (ImGuiViewport* viewp
 static bool        SKIF_ImplDX11_ViewPort_IsHDR            (ImGuiViewport* viewport);
 static int         SKIF_ImplDX11_ViewPort_GetHDRMode       (ImGuiViewport* viewport);
 static FLOAT       SKIF_ImplDX11_ViewPort_GetSDRWhiteLevel (ImGuiViewport* viewport);
+static FLOAT       SKIF_ImplDX11_ViewPort_GetHDRLuma       (ImGuiViewport* viewport);
 #endif
 
 // Functions
@@ -1303,7 +1304,7 @@ void ImGui_ImplDX11_NewFrame()
         invalidatedDevice = 1;
       }
 
-      _registry._RendererCanHDR = SKIF_Util_IsHDRActive (true);
+      _registry._RendererCanHDR = SKIF_Util_IsHDRActive (NULL); // true
     
       PLOG_DEBUG << "Recreating any necessary swapchains and their wait objects...";
       for (int i = 0; i < g.Viewports.Size; i++)
@@ -1340,14 +1341,15 @@ struct ImGui_ImplDX11_ViewportData
     HANDLE                  WaitHandle;
     int                     SDRMode;       // 0 = 8 bpc,   1 = 10 bpc,      2 = 16 bpc scRGB
     FLOAT                   SDRWhiteLevel; // SDR white level in nits for the display
-    int                     HDRMode;       // 0 = No HDR,  1 = 10 bpc HDR,  2 = 16 bpc scRGB HDR
     bool                    HDR;
+    bool                    HDRCapable;
+    int                     HDRMode;       // 0 = No HDR,  1 = 10 bpc HDR,  2 = 16 bpc scRGB HDR
     FLOAT                   HDRLuma;
     FLOAT                   HDRMinLuma;
     DXGI_OUTPUT_DESC1       DXGIDesc;
     DXGI_FORMAT             DXGIFormat;
 
-     ImGui_ImplDX11_ViewportData (void) {            SwapChain  = nullptr;   RTView  = nullptr;   WaitHandle  = 0;  PresentCount = 0; SDRMode = 0; SDRWhiteLevel = 80.0f; HDRMode = 0; HDR = false; HDRLuma = 0.0f; HDRMinLuma = 0.0f; DXGIDesc = {   }; DXGIFormat = DXGI_FORMAT_UNKNOWN; }
+     ImGui_ImplDX11_ViewportData (void) {            SwapChain  = nullptr;   RTView  = nullptr;   WaitHandle  = 0;  PresentCount = 0; SDRMode = 0; SDRWhiteLevel = 80.0f; HDRMode = 0; HDR = false; HDRCapable = false; HDRLuma = 0.0f; HDRMinLuma = 0.0f; DXGIDesc = {   }; DXGIFormat = DXGI_FORMAT_UNKNOWN; }
     ~ImGui_ImplDX11_ViewportData (void) { IM_ASSERT (SwapChain == nullptr && RTView == nullptr && WaitHandle == 0); }
 };
 #endif
@@ -1877,16 +1879,17 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
           UINT uiHdrFlags = 0x0;
 
           pOutput6->GetDesc1 (&vd->DXGIDesc);
-    
-          vd->SDRWhiteLevel = SKIF_Util_GetSDRWhiteLevelForHMONITOR (vd->DXGIDesc.Monitor);
+
+          vd->HDRCapable    = SKIF_Util_IsHDRSupported   (vd->DXGIDesc.Monitor);
+          vd->SDRWhiteLevel = SKIF_Util_GetSDRWhiteLevel (vd->DXGIDesc.Monitor);
+          vd->HDRLuma       = vd->DXGIDesc.MaxLuminance;
 
   #pragma region Enable HDR
           // DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709    - SDR display with no Advanced Color capabilities
           // DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709    - Standard definition for scRGB, and is usually used with 16 bit integer, 16 bit floating point, or 32 bit floating point color channels.
           // DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020 - HDR display with all Advanced Color capabilities
 
-          if (_registry._RendererCanHDR          && // Does the system support HDR?
-              _registry.iHDRMode  > 0) // HDR support is not disabled, is it?
+          if (vd->HDRCapable && _registry.iHDRMode > 0)
           {
             DXGI_COLOR_SPACE_TYPE dxgi_cst =
               (_registry.iHDRMode == 2)
@@ -1899,8 +1902,6 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
                   ( uiHdrFlags & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT )
                 )
             {
-              pOutput6->GetDesc1 (&vd->DXGIDesc);
-
               // Is the output display in HDR mode?
               if (vd->DXGIDesc.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020)
               {
@@ -1908,8 +1909,6 @@ ImGui_ImplDX11_CreateWindow (ImGuiViewport *viewport)
                 vd->HDRMode = _registry.iHDRMode;
 
                 pSwapChain3->SetColorSpace1 (dxgi_cst);
-
-                pOutput6->GetDesc1 (&vd->DXGIDesc);
 
                 _registry._RendererHDREnabled = true;
               }
@@ -2042,6 +2041,14 @@ static bool SKIF_ImplDX11_ViewPort_IsHDR(ImGuiViewport* viewport)
     return 0;
 }
 
+bool SKIF_ImplDX11_ViewPort_IsHDRCapable(ImGuiViewport* viewport)
+{
+    if (ImGui_ImplDX11_ViewportData* vd = (ImGui_ImplDX11_ViewportData*)viewport->RendererUserData)
+        return vd->HDRCapable;
+
+    return false;
+}
+
 static int SKIF_ImplDX11_ViewPort_GetHDRMode(ImGuiViewport* viewport)
 {
     if (ImGui_ImplDX11_ViewportData* vd = (ImGui_ImplDX11_ViewportData*)viewport->RendererUserData)
@@ -2072,4 +2079,58 @@ HANDLE SKIF_ImplDX11_ViewPort_GetWaitHandle(ImGuiViewport* viewport)
         return vd->WaitHandle;
 
     return NULL;
+}
+
+static FLOAT SKIF_ImplDX11_ViewPort_GetHDRLuma(ImGuiViewport* viewport)
+{
+    if (ImGui_ImplDX11_ViewportData* vd = (ImGui_ImplDX11_ViewportData*)viewport->RendererUserData)
+        return vd->HDRLuma;
+
+    return 80.0f;
+}
+
+void SKIF_ImplDX11_ViewPort_ClearAndPresent (ImGuiViewport* viewport)
+{
+  // I have no idea why SKIF requires this stupid workaround but if I don't do this it keeps throwing
+  //   LNK2001: unresolved external symbol IID_ID3D11Device
+  // which makes no bloody sense since d3d11.lib is included and VS can resolve it... Stupid thing
+  // works in SKIV so I dunno why it fails to work as expected in SKIF...
+  static const GUID IID_ID3D11DeviceWorkaround = {
+    0xdb6f6ddb,0xac77,0x4e88,0x82,0x53,0x81,0x9d,0xf9,0xbb,0xf1,0x40
+  };
+
+  if (ImGui_ImplDX11_ViewportData* vd = (ImGui_ImplDX11_ViewportData*)viewport->RendererUserData)
+  {
+    CComPtr <ID3D11Device> pDev;
+    if (SUCCEEDED (vd->SwapChain->GetDevice (IID_ID3D11DeviceWorkaround, (void **)&pDev.p)))
+    {
+      CComPtr <ID3D11DeviceContext> pDevCtx;
+      pDev->GetImmediateContext   (&pDevCtx.p);
+
+      FLOAT fClearColor [4] =
+        { 0.0f, 0.0f, 0.0f, 0.0f };
+
+      pDevCtx->ClearRenderTargetView (vd->RTView, fClearColor);
+
+#if 1
+      vd->SwapChain->Present (0,0);
+
+      // We must wait for the Present to complete if SKIV is using a
+      //   latency waitable SwapChain, or this would be permanent!
+      CComQIPtr <IDXGISwapChain2>
+          pSwapChain2 (vd->SwapChain);
+      if (pSwapChain2 != nullptr)
+      {
+        HANDLE hWait =
+          pSwapChain2->GetFrameLatencyWaitableObject ();
+
+        if (hWait != 0)
+        {
+          WaitForSingleObject (hWait, 500UL);
+          CloseHandle         (hWait);
+        }
+      }
+#endif
+    }
+  }
 }

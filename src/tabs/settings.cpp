@@ -133,14 +133,26 @@ SaveOSDIni (void)
   SKIF_IniHandler_WriteIni (vIniOSD, pathOSDIni_utf8);
 }
 
+struct kb_kv_s
+{
+  SK_KeybindMultiState*                           _key;
+  SKIF_RegistrySettings::KeyValue <std::wstring>* _reg;
+  std::function <void (SK_KeybindMultiState*)>    _callback;
+  std::function <bool (void)>                     _show;
+};
+
 void
 SKIF_UI_Tab_DrawSettings (void)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
-  
-  static bool HDRSupported = false;
+
+  static std::vector <kb_kv_s>
+    keybinds = {
+    { &_registry.kbToggleHDRDisplay, &_registry.regKVHotkeyToggleHDRDisplay, { [](SK_KeybindMultiState* ptr) { SKIF_Util_RegisterHotKeyHDRToggle (ptr->getKeybind()); } }, { []() { return (SKIF_Util_IsWindows10v1709OrGreater ( ) && SKIF_Util_IsHDRSupported (NULL)); } } },
+    { &_registry.kbStartService,     &_registry.regKVHotkeyStartService,     { [](SK_KeybindMultiState* ptr) { SKIF_Util_RegisterHotKeySVCTemp   (ptr->getKeybind()); } }, { []() { return true;                                                                      } } }
+  };
 
   static const std::wstring valvePlugPath = SK_FormatStringW (LR"(%ws\XInput1_4.dll)", _path_cache.steam_install);
   static       bool         valvePlug     = false;
@@ -152,9 +164,8 @@ SKIF_UI_Tab_DrawSettings (void)
   if (SKIF_Tab_Selected != UITab_Settings                         ||
       RefreshSettingsTab                                          )
   {
+    SKIF_Util_IsHDRActive (NULL);
     RefreshOSDIni ( );
-    SKIF_Util_IsHDRSupported (true);
-    SKIF_Util_IsHDRActive    (true);
     RefreshSettingsTab  = false;
     valvePlug = (SKIF_Util_GetProductName (valvePlugPath.c_str()).find(L"Valve Plug") != std::wstring::npos);
 
@@ -1362,7 +1373,7 @@ SKIF_UI_Tab_DrawSettings (void)
     static int placeholder = 0;
     static int* ptrSDR = nullptr;
 
-    if ((_registry.iHDRMode > 0 && SKIF_Util_IsHDRActive ( )))
+    if ((_registry.iHDRMode > 0 && SKIF_Util_IsHDRActive (NULL)))
     {
       SKIF_ImGui_PushDisableState ( );
 
@@ -1396,14 +1407,14 @@ SKIF_UI_Tab_DrawSettings (void)
     }
     ImGui::TreePop         ( );
     
-    if ((_registry.iHDRMode > 0 && SKIF_Util_IsHDRActive ( )))
+    if ((_registry.iHDRMode > 0 && SKIF_Util_IsHDRActive (NULL)))
     {
       SKIF_ImGui_PopDisableState  ( );
     }
 
     ImGui::Spacing         ( );
     
-    if (SKIF_Util_IsHDRSupported ( )  )
+    if (SKIF_Util_IsHDRSupported (NULL)  )
     {
       ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
       SKIF_ImGui_SetHoverTip ("Makes the app pop more on HDR displays.");
@@ -1420,7 +1431,7 @@ SKIF_UI_Tab_DrawSettings (void)
         ImGui::TextDisabled   ("HDR support is disabled while the UI is in Safe Mode.");
       }
 
-      else if (SKIF_Util_IsHDRActive ( ))
+      else if (SKIF_Util_IsHDRActive (NULL))
       {
         if (ImGui::RadioButton ("No",             &_registry.iHDRMode, 0))
         {
@@ -1533,20 +1544,6 @@ SKIF_UI_Tab_DrawSettings (void)
   if (ImGui::CollapsingHeader ("Keybindings###SKIF_SettingsHeader-3", ImGuiTreeNodeFlags_DefaultOpen))
   {
     SKIF_ImGui_Spacing      ( );
-
-    struct kb_kv_s
-    {
-      SK_KeybindMultiState*                           _key;
-      SKIF_RegistrySettings::KeyValue <std::wstring>* _reg;
-      std::function <void (SK_KeybindMultiState*)>    _callback;
-      std::function <bool (void)>                     _show;
-    };
-
-    static std::vector <kb_kv_s>
-      keybinds = {
-      { &_registry.kbToggleHDRDisplay, &_registry.regKVHotkeyToggleHDRDisplay, { [](SK_KeybindMultiState* ptr) { SKIF_Util_RegisterHotKeyHDRToggle (ptr->getKeybind()); } }, { []() { return (SKIF_Util_IsWindows10v1709OrGreater ( ) && SKIF_Util_IsHDRSupported ( )); } } },
-      { &_registry.kbStartService,     &_registry.regKVHotkeyStartService,     { [](SK_KeybindMultiState* ptr) { SKIF_Util_RegisterHotKeySVCTemp   (ptr->getKeybind()); } }, { []() { return true;                                                                      } } }
-    };
 
     ImGui::BeginGroup ();
     for (auto& keybind : keybinds)

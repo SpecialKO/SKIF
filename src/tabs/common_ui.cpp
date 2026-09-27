@@ -450,7 +450,7 @@ void SKIF_UI_TipsAndTricks (void)
   //ImGui::Spacing          ( );
 
 
-  if (SKIF_Util_IsHDRSupported())
+  if (SKIF_Util_IsHDRSupported (NULL))
   {
     ImGui::BeginGroup       ( );
     ImGui::Spacing          ( );

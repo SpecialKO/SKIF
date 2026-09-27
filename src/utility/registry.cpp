@@ -507,6 +507,9 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   if (regKVPatreon.hasData(&hKey))
     bPatreon               =   regKVPatreon                .getData (&hKey);
 
+  if (regKV99thPercentileMaxCLL.hasData(&hKey))
+    b99thPercentileMaxCLL  =   regKV99thPercentileMaxCLL   .getData (&hKey);
+
   // Warnings
   bWarningRTSS             =   regKVWarningRTSS            .getData (&hKey);
 
