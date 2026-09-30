@@ -1359,6 +1359,13 @@ SKIF_ImGui_DisallowMouseDragMove (void)
     SKIF_MouseDragMoveAllowed = false;
 }
 
+void
+SKIF_ImGui_DisallowMouseDragMoveForced (void)
+{
+  extern bool SKIF_MouseDragMoveAllowed;
+  SKIF_MouseDragMoveAllowed = false;
+}
+
 // Allows moving the window but only in certain circumstances
 bool
 SKIF_ImGui_CanMouseDragMove (void)

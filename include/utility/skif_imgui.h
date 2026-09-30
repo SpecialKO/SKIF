@@ -53,6 +53,7 @@ void     SKIF_ImGui_PopDisableState       (void);
 void     SKIF_ImGui_PushDisabledSpacing   (void);
 void     SKIF_ImGui_PopDisabledSpacing    (void);
 void     SKIF_ImGui_DisallowMouseDragMove (void); // Prevents SKIF from enabling drag move using the mouse
+void     SKIF_ImGui_DisallowMouseDragMoveForced (void); // Prevent SKIF from enabling drag move using the mouse when the current window is focused
 bool     SKIF_ImGui_CanMouseDragMove      (void); // True if drag move using the mouse is allowed, false if not
 void     SKIF_ImGui_AutoScroll            (bool touch_only_on_void, SKIF_ImGuiAxis axis);
 void     SKIF_ImGui_UpdateScrollbarState  (void); // Update the internal state tracking scrollbars

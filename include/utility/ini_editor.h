@@ -13,37 +13,19 @@
 #include <SKIF.h>
 #include <utility/sk_utility.h>
 
-typedef unsigned int ParameterType;  // -> enum ParameterType_
+typedef unsigned int IniType;       // -> enum IniType_
+typedef unsigned int IniBitness;    // -> enum IniBitness_
+typedef unsigned int ParameterType; // -> enum ParameterType_
 
-enum ParameterType_
+enum IniType_
 {
-  ParameterType_Unknown   = 0,
-
-  // Core
-  ParameterType_Float        = 1 << 0, // float
-  ParameterType_Boolean      = 1 << 1, // bool
-  ParameterType_Integer      = 1 << 2, // int
-  ParameterType_Integer64    = 1 << 3, // int64
-  ParameterType_StringW      = 1 << 4, // std::wstring
-
-  // Custom
-  ParameterType_SyncInterval = 1 << 6, // -1, 0, 1, 2, 3, 4
-  ParameterType_DropDownList = 1 << 7, // DrawDropDown: NotifyCorner, Scaling, ScanlineOrder, ExceptionMode
-  ParameterType_Keybinding   = 1 << 8, // DrawKeybinding
-};
-
-typedef unsigned int IniFileType; // -> enum IniFile_
-typedef unsigned int IniBitness;  // -> enum IniBitness_
-
-enum IniFileType_
-{
-  IniFile_Unknown  = 0,
-  IniFile_DLL      = 1 << 0,
-  IniFile_OSD      = 1 << 1,
-  IniFile_Input    = 1 << 2,
-  IniFile_Macros   = 1 << 3,
-  IniFile_Notify   = 1 << 4,
-  IniFile_Platform = 1 << 5,
+  IniType_Unknown  = 0,
+  IniType_DLL      = 1 << 0,
+  IniType_OSD      = 1 << 1,
+  IniType_Input    = 1 << 2,
+  IniType_Macros   = 1 << 3,
+  IniType_Notify   = 1 << 4,
+  IniType_Platform = 1 << 5,
 };
 
 enum IniBitness_
@@ -53,34 +35,46 @@ enum IniBitness_
   IniBitness_AMD64 = 1 << 1,
 };
 
-constexpr IniFileType dll_ini      = IniFileType_::IniFile_DLL;
-constexpr IniFileType osd_ini      = IniFileType_::IniFile_OSD;
-constexpr IniFileType input_ini    = IniFileType_::IniFile_Input;
-constexpr IniFileType macros_ini   = IniFileType_::IniFile_Macros;
-constexpr IniFileType notify_ini   = IniFileType_::IniFile_Notify;
-constexpr IniFileType platform_ini = IniFileType_::IniFile_Platform;
+enum ParameterType_ {
+  ParameterUnknown = 0,
+  ParameterBool    = 1 << 0,
+  ParameterInt     = 1 << 1,
+  ParameterInt64   = 1 << 2,
+  ParameterFloat   = 1 << 3,
+  ParameterStringW = 1 << 4,
+  ParameterKeybind = 1 << 5,
+};
+
+constexpr IniType dll_ini      = IniType_::IniType_DLL;
+constexpr IniType osd_ini      = IniType_::IniType_OSD;
+constexpr IniType input_ini    = IniType_::IniType_Input;
+constexpr IniType macros_ini   = IniType_::IniType_Macros;
+constexpr IniType notify_ini   = IniType_::IniType_Notify;
+constexpr IniType platform_ini = IniType_::IniType_Platform;
 
 struct ConfigEntry
 {
-  const char             *description_ = nullptr;
-  IniFileType             ini_;
-  const char             *section_     = nullptr;
-  const char             *key_         = nullptr;
-  IniBitness              arch_;
+  ParameterType            param_type = ParameterUnknown;
+  const char             *description;
+  IniType                    ini_type = IniType_Unknown;
+  const char                 *section;
+  const char                     *key;
+  IniBitness                     arch = IniBitness_All;
 };
 
 struct __INI {
-  char section[MAX_PATH + 2] = { };
-  char key    [MAX_PATH + 2] = { };
-  char value  [MAX_PATH + 2] = { };
-  char default[MAX_PATH + 2] = { }; // Used when resetting any unsaved changes
+  char  section[MAX_PATH + 2] = { };
+  char  key    [MAX_PATH + 2] = { };
+  char  value  [MAX_PATH + 2] = { };
+  char  default[MAX_PATH + 2] = { }; // Used when resetting any unsaved changes
+  const char* description   = nullptr;
+  ParameterType _type = ParameterUnknown;
   std::string _label_k;
   std::string _label_v;
   bool        _show = true;
   bool        _ignore_if_unset = false; // Used to prevent empty and unset parameters from being populated on write
   SK_KeybindMultiState _keybind;
   bool (*DrawFunction)(__INI* ptr) = nullptr;
-  ParameterType _param_type = ParameterType_Unknown;
 
   // ParameterType_Boolean
   bool value_b   = false;
@@ -89,7 +83,7 @@ struct __INI {
   // ParameterType_DropDownList 
   std::vector<std::string> _dditems = { };
 
-              __INI    (const std::string& _s, const std::string& _k, const std::string& _v);
+              __INI    (ParameterType _t, std::string _s, std::string _k, std::string _v);
         void  Reset    (void);
 };
 
@@ -97,6 +91,7 @@ struct IniWindow {
   std::vector <__INI> ini;
   std::string        path;
   std::string       title;
+  std::string    wnd_name;
   PopupState        state = PopupState_Open;
 
   // Filter field
@@ -110,10 +105,10 @@ struct IniWindow {
   bool          bChanged = false;
 
   // Functions
-  IniWindow (std::vector<__INI> _i, const std::string& _p = "");
+  IniWindow (std::vector<__INI> _i, const std::string& _p = "", const std::string& _t = "");
 
   void UpdateWindowTitle (void) {
-    title = (((path.empty()) ? "Editor" : path) + (bChanged ? "*" : "") + label);
+    wnd_name = (((title.empty()) ? "Unsaved" : title) + " - Editor" + label); // + (bChanged ? "*" : "")
   }
 
 private:
@@ -124,11 +119,11 @@ private:
 void                             SKIF_ImGui_IniEditor_NewFile  (IniWindow* iniWindow);
 void                             SKIF_ImGui_IniEditor_NewWindow(void);
 void                             SKIF_ImGui_IniEditor_SaveAs   (IniWindow* iniWindow);
-void                             SKIF_ImGui_IniEditor_OpenFile (std::wstring path, IniWindow* iniWindow = nullptr);
+void                             SKIF_ImGui_IniEditor_OpenFile (std::wstring path, const std::string& title = "", IniWindow* iniWindow = nullptr);
 void                             SKIF_ImGui_IniEditor_Process  (void);
-std::vector <__INI>              SKIF_IniHandler_ParseIni      (const std::wstring& file_path, const std::string& file_path_utf8);
+std::vector <__INI>              SKIF_IniHandler_ParseIni      (const std::wstring& file_path, const std::string& file_path_utf8, IniType ini_type);
 void                             SKIF_IniHandler_WriteIni      (std::vector <__INI> ini,       const std::string& file_path_utf8);
-std::vector <const ConfigEntry*> SKIF_IniHandler_GetParams     (IniFileType ini);
+std::vector <const ConfigEntry*> SKIF_IniHandler_GetParams     (IniType ini_type);
 
 // CC BY-SA 4.0: https://stackoverflow.com/a/46711735
 static constexpr uint32_t

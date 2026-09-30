@@ -47,81 +47,7 @@ RefreshOSDIni (void)
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static std::wstring pathOSDIni = SK_FormatStringW (LR"(%ws\Global\osd.ini)", _path_cache.specialk_userdata);
 
-  vIniOSD = SKIF_IniHandler_ParseIni (pathOSDIni, SK_WideCharToUTF8 (pathOSDIni));
-
-  for (auto& trie : vIniOSD)
-  {
-    if (! trie._show)
-      continue;
-
-    switch (SwitchHash (trie.key))
-    {
-      // [Game.HUD]
-      case SwitchHash ("HUDToggle"):
-
-      // [OSD.System]
-      case SwitchHash ("ConsoleToggle"):
-
-      // [Screenshot.System]
-      case SwitchHash ("HUDFree"):
-      case SwitchHash ("WithoutOSD"):
-      case SwitchHash ("InsertOSD"):
-
-      // [Display.Monitor]
-      case SwitchHash ("MoveToPrimaryMonitor"):
-      case SwitchHash ("MoveToNextMonitor"):
-      case SwitchHash("MoveToPrevMonitor"):
-      case SwitchHash("ToggleHDR"):
-      case SwitchHash("ToggleADHDMultiMonitor"):
-
-      // [LatentSync.Control]
-      case SwitchHash ("MoveTearlineUp"):
-      case SwitchHash ("MoveTearlineDown"):
-      case SwitchHash ("ManualResync"):
-      case SwitchHash ("ToggleFCATBars"):
-
-      // [Sound.Mixing]
-      case SwitchHash ("MuteGame"):
-      case SwitchHash ("VolumePlus10%"):
-      case SwitchHash ("VolumeMinus10%"):
-
-      // [Widgets.Global]
-      case SwitchHash ("HideAllWidgets"):
-
-      // [ReShade.AddOn]
-      case SwitchHash ("ToggleReShadeOverlay"):
-      case SwitchHash ("InjectReShade"):
-
-      // [ImGui.Global]
-      case SwitchHash ("ControlPanelToggle"):
-
-      // [Widgets]
-      case SwitchHash ("ToggleKey"):
-      case SwitchHash ("FlashKey"):
-
-      // [HDR.Presets]
-      case SwitchHash ("Activate0"):
-      case SwitchHash ("Activate1"):
-      case SwitchHash ("Activate2"):
-      case SwitchHash ("Activate3"):
-      {
-        trie._keybind = {
-          trie.key,
-          SK_UTF8ToWideChar (trie.value)
-        };
-        trie._keybind.pending.human_readable = SK_UTF8ToWideChar (trie.value);
-        trie._keybind.pending.parse();
-        trie._keybind.applyChanges();
-
-        trie.DrawFunction = DrawIniKeybinding;
-        break;
-      }
-      default:
-      {
-        trie._show = false;
-      }
-    }
-  }
+  vIniOSD = SKIF_IniHandler_ParseIni (pathOSDIni, SK_WideCharToUTF8 (pathOSDIni), osd_ini);
 }
 
 static void
@@ -1607,7 +1533,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
       for (auto& trie : vIniOSD)
       {
-        if (! trie._show)
+        if (trie._type != ParameterKeybind)
           continue;
 
         ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), trie.section);
@@ -1615,6 +1541,8 @@ SKIF_UI_Tab_DrawSettings (void)
         ImGui::ItemSize        (ImVec2 (200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
         ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), trie.key);
+        if (trie.description != nullptr)
+          SKIF_ImGui_SetHoverTip (trie.description);
         ImGui::SameLine        ( );
         ImGui::ItemSize        (ImVec2 (600.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
