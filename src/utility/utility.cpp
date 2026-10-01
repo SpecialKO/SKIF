@@ -4019,21 +4019,12 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get, std::string* response_body)
             hInetHost        = nullptr,
             hInetRoot        = nullptr;
 
-  // (Cleanup On Error)
-  auto CLEANUP = [&](bool clean = false) ->
+  // Cleanup resources
+  auto CLEANUP = [&](bool success = false) ->
   DWORD
   {
-    if (! clean)
-    {
-#if 0
-      DWORD dwLastError =
-           GetLastError ();
-
-      std::wstring wsError = (std::wstring(L"WinInet Failure (") + std::to_wstring(dwLastError) + std::wstring(L"): ") + _com_error(dwLastError).ErrorMessage());
-#endif
-
+    if (! success)
       PLOG_ERROR << L"WinInet Failure: " << SKIF_Util_GetErrorAsWStr (GetLastError ( ), GetModuleHandle (L"wininet.dll"));
-    }
 
     if (hInetHTTPGetReq != nullptr) InternetCloseHandle (hInetHTTPGetReq);
     if (hInetHost       != nullptr) InternetCloseHandle (hInetHost);
@@ -4061,7 +4052,7 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get, std::string* response_body)
             0x00 );
 
   if (hInetRoot == nullptr)
-    return CLEANUP ();
+    return CLEANUP ( );
 
   DWORD_PTR dwInetCtx = 0;
 
@@ -4075,7 +4066,7 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get, std::string* response_body)
                                   (DWORD_PTR)&dwInetCtx );
 
   if (hInetHost == nullptr)
-    return CLEANUP ();
+    return CLEANUP ( );
 
   int flags = ((get->https) ? INTERNET_FLAG_SECURE : 0x0) |
               INTERNET_FLAG_IGNORE_REDIRECT_TO_HTTP  | INTERNET_FLAG_IGNORE_REDIRECT_TO_HTTPS |
@@ -4106,7 +4097,7 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get, std::string* response_body)
                          &ulTimeout,    sizeof (ULONG) );
 
   if (hInetHTTPGetReq == nullptr)
-    return CLEANUP ();
+    return CLEANUP ( );
 
   if ( HttpSendRequestW ( hInetHTTPGetReq,
                             get->header.c_str(),
@@ -4216,18 +4207,19 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get, std::string* response_body)
 DWORD
 SKIF_Util_GetWebResource (std::wstring url, std::wstring_view file_path, std::wstring method, std::wstring header, std::string body, std::wstring user_agent, std::string* response_body)
 {
-  auto* get =
+  skif_get_web_uri_t* fallback = nullptr;
+  skif_get_web_uri_t* get =
     new skif_get_web_uri_t { };
 
   URL_COMPONENTSW urlcomps = { };
 
-  urlcomps.dwStructSize     = sizeof (URL_COMPONENTSW);
+  urlcomps.dwStructSize      = sizeof (URL_COMPONENTSW);
 
-  urlcomps.lpszHostName     = get->wszHostName;
-  urlcomps.dwHostNameLength = INTERNET_MAX_HOST_NAME_LENGTH;
+  urlcomps.lpszHostName      = get->wszHostName;
+  urlcomps.dwHostNameLength  = INTERNET_MAX_HOST_NAME_LENGTH;
 
-  urlcomps.lpszUrlPath      = get->wszHostPath;
-  urlcomps.dwUrlPathLength  = INTERNET_MAX_PATH_LENGTH;
+  urlcomps.lpszUrlPath       = get->wszHostPath;
+  urlcomps.dwUrlPathLength   = INTERNET_MAX_PATH_LENGTH;
 
   urlcomps.lpszExtraInfo     = get->wszExtraInfo;
   urlcomps.dwExtraInfoLength = INTERNET_MAX_PATH_LENGTH;
@@ -4235,21 +4227,63 @@ SKIF_Util_GetWebResource (std::wstring url, std::wstring_view file_path, std::ws
   if (! method.empty())
     get->method = method.c_str();
 
-  if (! header.empty())
-    get->header = header.c_str();
+  if (! user_agent.empty())
+    get->user_agent = user_agent;
 
   if (! body.empty())
     get->body = body;
 
-  if (! user_agent.empty())
-    get->user_agent = user_agent;
+  if (! header.empty())
+    get->header = header.c_str();
+
+  DWORD dwRet = 0;
 
   if (InternetCrackUrl (url.c_str(), static_cast <DWORD> (url.length ()), 0x00, &urlcomps))
   {
     wcsncpy (get->wszLocalPath, file_path.data (), MAX_PATH);
     get->https = (urlcomps.nScheme == INTERNET_SCHEME_HTTPS);
 
-    return SKIF_Util_GetWebUri (get, response_body);
+    // Set up the fallback
+    if (_wcsicmp (get->wszHostName, L"sk-data.special-k.info") == 0)
+    {
+      fallback = new skif_get_web_uri_t { };
+      fallback->https = get->https;
+
+      wcsncpy (fallback->wszHostName,  L"sk-data.nyc3.digitaloceanspaces.com", INTERNET_MAX_HOST_NAME_LENGTH);
+      wcsncpy (fallback->wszHostPath,  get->wszHostPath,  INTERNET_MAX_PATH_LENGTH);
+      wcsncpy (fallback->wszExtraInfo, get->wszExtraInfo, INTERNET_MAX_PATH_LENGTH);
+      wcsncpy (fallback->wszLocalPath, get->wszLocalPath, MAX_PATH);
+
+      if (! method.empty())
+        fallback->method = method.c_str();
+
+      if (! user_agent.empty())
+        fallback->user_agent = user_agent;
+
+      if (! body.empty())
+        fallback->body = body;
+
+      if (! header.empty())
+        fallback->header = header.c_str();
+    }
+
+    dwRet = SKIF_Util_GetWebUri (get, response_body); // This deletes the get variable
+
+    if (fallback)
+    {
+      if (! dwRet)
+      {
+        PLOG_WARNING << "Failed to retrieve resource from subdomain endpoint (sk-data.special-k.info), retrying with CDN endpoint (sk-data.nyc3.digitaloceanspaces.com) (Cloudflare bypass)...";
+        dwRet = SKIF_Util_GetWebUri (fallback, response_body); // This deletes the fallback variable
+      }
+
+      // Delete fallback manually if the first request was successful
+      else {
+        skif_get_web_uri_t*  to_delete = nullptr;
+        std::swap (fallback, to_delete);
+        delete               to_delete;
+      }
+    }
   }
 
   else {
@@ -4258,9 +4292,14 @@ SKIF_Util_GetWebResource (std::wstring url, std::wstring_view file_path, std::ws
     PLOG_VERBOSE_IF(!    url.empty()) << "Target: " << url;
     PLOG_VERBOSE_IF(! header.empty()) << "Header: " << header;
     PLOG_VERBOSE_IF(!   body.empty()) << "  Body: " << body;
+
+    // Delete get manually on failure
+    skif_get_web_uri_t* to_delete = nullptr;
+    std::swap   (get,   to_delete);
+    delete              to_delete;
   }
 
-  return 0;
+  return dwRet;
 }
 
 skif_get_web_uri_t
