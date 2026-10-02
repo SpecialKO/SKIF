@@ -915,7 +915,6 @@ SK_ImGui_KeybindDialog (SK_KeybindMultiState* keybind)
       keybind->pending.alt   = io.KeyAlt;
       keybind->pending.super = io.KeySuper;
       keybind->pending.makeMask ( );
-      keybind->pending.makeMask ( );
       keybind->pending.update   ( );
     }
 
