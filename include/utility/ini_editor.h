@@ -29,12 +29,11 @@ struct IniWindow {
   // Changed anything?
   bool          bChanged = false;
 
-  // Functions
-  IniWindow (std::vector<__INI> _i, const std::string& _p = "", const std::string& _t = "");
+  std::string   path_filename = "";
 
-  void UpdateWindowTitle (void) {
-    wnd_name = (((title.empty()) ? "Unsaved" : title) + " - Editor" + label); // + (bChanged ? "*" : "")
-  }
+  // Functions
+  void UpdateWindowTitle (void);
+       IniWindow         (std::vector<__INI> _i, const std::string& _p = "", const std::string& _t = "");
 
 private:
   int         index = 0;

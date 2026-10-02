@@ -16,6 +16,18 @@ int window_identifier = 0;
 std::vector <IniWindow> vIniWindow;
 bool INIEditorActive = false;
 
+void
+IniWindow::UpdateWindowTitle (void)
+{
+  std::string filenameExt = "";
+
+  if (! path.empty())
+    filenameExt = std::filesystem::path(path).filename().string();
+
+  path_filename = filenameExt;
+  wnd_name      = ((title.empty() ? (path_filename.empty() ? "Unsaved" : path_filename) : title) + " - Editor" + label); // + (bChanged ? "*" : "")
+}
+
 IniWindow::IniWindow (std::vector<__INI> _i, const std::string& _p, const std::string& _t)
 {
   ini   = _i;
@@ -99,7 +111,7 @@ SKIF_ImGui_IniEditor_Save (IniWindow* iniWindow)
   }
 
   iniWindow->bChanged = false;
-  iniWindow->UpdateWindowTitle();
+  iniWindow->UpdateWindowTitle ( );
 }
 
 void
@@ -152,6 +164,7 @@ SKIF_ImGui_IniEditor_OpenFile (IniWindow* iniWindow, std::wstring path, const st
   std::string path_utf8   = SK_WideCharToUTF8 (path);
   std::string filename    = SKIF_Util_ToLower (std::filesystem::path(path).filename().replace_extension().string());
   std::string filenameExt = std::filesystem::path(path).filename().string();
+  std::string title_final = (title.empty() ? filenameExt : title);
       IniType type        = IniType_Unknown;
 
   if (     filename.find("specialk")      != std::string::npos ||
@@ -175,8 +188,6 @@ SKIF_ImGui_IniEditor_OpenFile (IniWindow* iniWindow, std::wstring path, const st
     type = IniType_Macros;
 
   std::vector <__INI> ini_parsed = SKIF_IniReader_ParseIni (path, path_utf8, type);
-
-  std::string title_final = (title.empty() ? filenameExt : title);
 
   if (iniWindow == nullptr)
     vIniWindow.push_back({ ini_parsed, path_utf8, title_final });
