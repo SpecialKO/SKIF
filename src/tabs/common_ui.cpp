@@ -429,6 +429,9 @@ void SKIF_UI_DrawShellyTheGhost (void)
 
 void SKIF_UI_TipsAndTricks (void)
 {
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static constexpr std::string _winKey = "Windows";
+
   ImGui::BeginGroup       ( );
   ImGui::Spacing          ( );
   ImGui::SameLine         ( );
@@ -450,8 +453,23 @@ void SKIF_UI_TipsAndTricks (void)
   //ImGui::Spacing          ( );
 
 
-  if (SKIF_Util_IsHDRSupported (NULL))
+  if (SKIF_Util_IsHDRSupported (NULL) && _registry.kbToggleHDRDisplay.getKeybind()->vKey != 0)
   {
+    struct {
+      SHORT       vKey;
+      std::string bind;
+
+    } static _cache;
+
+    if (_cache.vKey != _registry.kbToggleHDRDisplay.getKeybind()->vKey)
+    {
+      _cache.vKey    = _registry.kbToggleHDRDisplay.getKeybind()->vKey;
+      _cache.bind    = _registry.kbToggleHDRDisplay.getKeybind()->human_readable_utf8;
+
+      SKIF_Util_ReplaceAll (_cache.bind, "Windows", ICON_FA_WINDOWS);
+      SKIF_Util_ReplaceAll (_cache.bind, "+", " + "); // Add spaces around the plus sign for better readability (although will misfire on Numpad+ I guess...)
+    }
+
     ImGui::BeginGroup       ( );
     ImGui::Spacing          ( );
     ImGui::SameLine         ( );
@@ -463,7 +481,7 @@ void SKIF_UI_TipsAndTricks (void)
     ImGui::SameLine         ( );
     ImGui::TextColored      (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-      "Ctrl + " ICON_FA_WINDOWS " + Shift + H");
+          _cache.bind.c_str() );
     ImGui::SameLine         ( );
     ImGui::Text             ("to toggle HDR where the");
     ImGui::SameLine         ( );
@@ -473,32 +491,42 @@ void SKIF_UI_TipsAndTricks (void)
     ImGui::SameLine         ( );
     ImGui::Text             ("is.");
     ImGui::EndGroup         ( );
-
-
-    //ImGui::Spacing          ( );
-    //ImGui::Spacing          ( );
   }
 
 
-  ImGui::BeginGroup       ( );
-  ImGui::Spacing          ( );
-  ImGui::SameLine         ( );
-  ImGui::TextColored      (
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-                        (const char *)u8"\u2022 ");
-  ImGui::SameLine         ( );
-  ImGui::Text             ("Use");
-  ImGui::SameLine         ( );
-  ImGui::TextColored      (
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-    ICON_FA_WINDOWS " + Shift + Insert");
-  ImGui::SameLine         ( );
-  ImGui::Text             ("to start the injection service.");
-  ImGui::EndGroup         ( );
+  if (_registry.kbStartService.getKeybind()->vKey != 0)
+  {
+    struct {
+      SHORT       vKey;
+      std::string bind;
 
+    } static _cache;
 
-  //ImGui::Spacing          ( );
-  //ImGui::Spacing          ( );
+    if (_cache.vKey != _registry.kbStartService.getKeybind()->vKey)
+    {
+      _cache.vKey    = _registry.kbStartService.getKeybind()->vKey;
+      _cache.bind    = _registry.kbStartService.getKeybind()->human_readable_utf8;
+
+      SKIF_Util_ReplaceAll (_cache.bind, "Windows", ICON_FA_WINDOWS);
+      SKIF_Util_ReplaceAll (_cache.bind, "+", " + "); // Add spaces around the plus sign for better readability (although will misfire on Numpad+ I guess...)
+    }
+
+    ImGui::BeginGroup       ( );
+    ImGui::Spacing          ( );
+    ImGui::SameLine         ( );
+    ImGui::TextColored      (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
+                          (const char *)u8"\u2022 ");
+    ImGui::SameLine         ( );
+    ImGui::Text             ("Use");
+    ImGui::SameLine         ( );
+    ImGui::TextColored      (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+          _cache.bind.c_str() );
+    ImGui::SameLine         ( );
+    ImGui::Text             ("to start the injection service.");
+    ImGui::EndGroup         ( );
+  }
 
 
   ImGui::BeginGroup       ( );

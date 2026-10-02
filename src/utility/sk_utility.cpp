@@ -813,10 +813,10 @@ SK_ImGui_KeybindDialog (SK_KeybindMultiState* keybind)
   }
 
   if (ImGui::BeginPopupModal (keybind->bind_name.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove     | ImGuiWindowFlags_Tooltip | // ImGuiWindowFlags_Tooltip is required to work around a pesky z-order issue on first appearance
-                                                           ImGuiWindowFlags_NoCollapse       | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings))
+                                                                   ImGuiWindowFlags_NoCollapse       | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings))
   {
-		// Render over all other windows
-		//ImGui::BringWindowToDisplayFront (ImGui::GetCurrentWindow ( ));
+    // Render over all other windows
+    //ImGui::BringWindowToDisplayFront (ImGui::GetCurrentWindow ( ));
 
     // Indicate that we are assigning (this disables the keybinding while the popup is opened)
     keybind->assigning = true;
