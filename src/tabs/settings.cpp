@@ -19,45 +19,8 @@
 #include <utility/ini_editor.h>
 
 extern bool allowShortcutCtrlA;
-std::vector <__INI> vIniOSD;
 bool saveIniOSD = false;
 
-static bool
-DrawIniKeybinding (__INI* ptr)
-{
-  ImGui::PushID (ptr->section);
-  ImGui::PushID (ptr->key);
-  if (SK_ImGui_Keybinding (&ptr->_keybind))
-  {
-    // Only update the label if we are done assigning
-    if (! ptr->_keybind.assigning)
-    {
-      strncpy (ptr->value, ptr->_keybind.getKeybind()->human_readable_utf8.c_str(), MAX_PATH);
-      saveIniOSD = true;
-    }
-  }
-  ImGui::PopID ();
-  ImGui::PopID ();
-  return saveIniOSD;
-}
-
-void
-RefreshOSDIni (void)
-{
-  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
-  static std::wstring pathOSDIni = SK_FormatStringW (LR"(%ws\Global\osd.ini)", _path_cache.specialk_userdata);
-
-  vIniOSD = SKIF_IniHandler_ParseIni (pathOSDIni, SK_WideCharToUTF8 (pathOSDIni), osd_ini);
-}
-
-static void
-SaveOSDIni (void)
-{
-  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
-  static std::string pathOSDIni_utf8 = SK_FormatString (R"(%s\Global\osd.ini)", SK_WideCharToUTF8 (_path_cache.specialk_userdata).c_str());
-
-  SKIF_IniHandler_WriteIni (vIniOSD, pathOSDIni_utf8);
-}
 
 struct kb_kv_s
 {
@@ -91,7 +54,7 @@ SKIF_UI_Tab_DrawSettings (void)
       RefreshSettingsTab                                          )
   {
     SKIF_Util_IsHDRActive (NULL);
-    RefreshOSDIni ( );
+    SKIF_IniReader_ReadOSDIni ( );
     RefreshSettingsTab  = false;
     valvePlug = (SKIF_Util_GetProductName (valvePlugPath.c_str()).find(L"Valve Plug") != std::wstring::npos);
 
@@ -1531,7 +1494,9 @@ SKIF_UI_Tab_DrawSettings (void)
         ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(0.8f, 0.8f, 0.8f, 1.0f)
                               );
 
-      for (auto& trie : vIniOSD)
+      extern std::vector <__INI>
+                        g_vIniReaderOSD;
+      for (auto& trie : g_vIniReaderOSD)
       {
         if (trie._type != ParameterKeybind)
           continue;
@@ -1546,12 +1511,8 @@ SKIF_UI_Tab_DrawSettings (void)
         ImGui::SameLine        ( );
         ImGui::ItemSize        (ImVec2 (600.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine        ( );
-        trie.DrawFunction      (&trie);
-      }
-
-      if (saveIniOSD)
-      {   saveIniOSD = false;
-        SaveOSDIni ();
+        if (trie.DrawFunction (&trie))
+          SKIF_IniReader_SaveOSDIni ( );
       }
 
       ImGui::PopStyleColor  ( ); // ImGuiCol_Text

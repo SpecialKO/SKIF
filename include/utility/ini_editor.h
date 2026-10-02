@@ -10,82 +10,7 @@
 #include <vector>
 #include <limits>
 
-#include <SKIF.h>
-#include <utility/sk_utility.h>
-
-typedef unsigned int IniType;       // -> enum IniType_
-typedef unsigned int IniBitness;    // -> enum IniBitness_
-typedef unsigned int ParameterType; // -> enum ParameterType_
-
-enum IniType_
-{
-  IniType_Unknown  = 0,
-  IniType_DLL      = 1 << 0,
-  IniType_OSD      = 1 << 1,
-  IniType_Input    = 1 << 2,
-  IniType_Macros   = 1 << 3,
-  IniType_Notify   = 1 << 4,
-  IniType_Platform = 1 << 5,
-};
-
-enum IniBitness_
-{
-  IniBitness_All   = 0,
-  IniBitness_i8086 = 1 << 0,
-  IniBitness_AMD64 = 1 << 1,
-};
-
-enum ParameterType_ {
-  ParameterUnknown = 0,
-  ParameterBool    = 1 << 0,
-  ParameterInt     = 1 << 1,
-  ParameterInt64   = 1 << 2,
-  ParameterFloat   = 1 << 3,
-  ParameterStringW = 1 << 4,
-  ParameterKeybind = 1 << 5,
-};
-
-constexpr IniType dll_ini      = IniType_::IniType_DLL;
-constexpr IniType osd_ini      = IniType_::IniType_OSD;
-constexpr IniType input_ini    = IniType_::IniType_Input;
-constexpr IniType macros_ini   = IniType_::IniType_Macros;
-constexpr IniType notify_ini   = IniType_::IniType_Notify;
-constexpr IniType platform_ini = IniType_::IniType_Platform;
-
-struct ConfigEntry
-{
-  ParameterType            param_type = ParameterUnknown;
-  const char             *description;
-  IniType                    ini_type = IniType_Unknown;
-  const char                 *section;
-  const char                     *key;
-  IniBitness                     arch = IniBitness_All;
-};
-
-struct __INI {
-  char  section[MAX_PATH + 2] = { };
-  char  key    [MAX_PATH + 2] = { };
-  char  value  [MAX_PATH + 2] = { };
-  char  default[MAX_PATH + 2] = { }; // Used when resetting any unsaved changes
-  const char* description   = nullptr;
-  ParameterType _type = ParameterUnknown;
-  std::string _label_k;
-  std::string _label_v;
-  bool        _show = true;
-  bool        _ignore_if_unset = false; // Used to prevent empty and unset parameters from being populated on write
-  SK_KeybindMultiState _keybind;
-  bool (*DrawFunction)(__INI* ptr) = nullptr;
-
-  // ParameterType_Boolean
-  bool value_b   = false;
-  bool default_b = false;
-
-  // ParameterType_DropDownList
-  std::vector<std::string> _dditems = { };
-
-              __INI    (ParameterType _t, std::string _s, std::string _k, std::string _v);
-        void  Reset    (void);
-};
+#include <utility/ini_reader.h>
 
 struct IniWindow {
   std::vector <__INI> ini;
@@ -118,21 +43,7 @@ private:
 
 void                             SKIF_ImGui_IniEditor_NewFile  (IniWindow* iniWindow);
 void                             SKIF_ImGui_IniEditor_NewWindow(void);
+void                             SKIF_ImGui_IniEditor_Save     (IniWindow* iniWindow);
 void                             SKIF_ImGui_IniEditor_SaveAs   (IniWindow* iniWindow);
-void                             SKIF_ImGui_IniEditor_OpenFile (std::wstring path, const std::string& title = "", IniWindow* iniWindow = nullptr);
+void                             SKIF_ImGui_IniEditor_OpenFile (IniWindow* iniWindow = nullptr, std::wstring path = L"", const std::string& title = "");
 void                             SKIF_ImGui_IniEditor_Process  (void);
-std::vector <__INI>              SKIF_IniHandler_ParseIni      (const std::wstring& file_path, const std::string& file_path_utf8, IniType ini_type);
-void                             SKIF_IniHandler_WriteIni      (std::vector <__INI> ini,       const std::string& file_path_utf8);
-std::vector <const ConfigEntry*> SKIF_IniHandler_GetParams     (IniType ini_type);
-
-// CC BY-SA 4.0: https://stackoverflow.com/a/46711735
-static constexpr uint32_t
-SwitchHash (const std::string_view data) noexcept
-{
-  uint32_t hash = 5385;
-
-  for (const auto& e : data)
-    hash = ((hash << 5) + hash) + e;
-
-  return hash;
-}
