@@ -259,11 +259,23 @@ SKIF_Util_TrimTrailingNewlinesW (std::wstring& input)
 }
 
 void
-SKIF_Util_ReplaceAll (std::wstring& input, const std::wstring& from, const std::wstring& to)
+SKIF_Util_ReplaceAll (std::string& input, const std::string& from, const std::string& to)
 {
   // CC BY-SA 4.0: https://stackoverflow.com/a/24315631
   size_t  start_pos = 0;
-  while ((start_pos = input.find (from, start_pos)) != std::wstring::npos)
+  while ((start_pos = input.find(from, start_pos)) != std::string::npos)
+  {
+    input.replace(start_pos, from.length(), to);
+    start_pos += to.length();
+  }
+}
+
+void
+SKIF_Util_ReplaceAllW (std::wstring& input, const std::wstring& from, const std::wstring& to)
+{
+  // CC BY-SA 4.0: https://stackoverflow.com/a/24315631
+  size_t  start_pos = 0;
+  while ((start_pos = input.find(from, start_pos)) != std::wstring::npos)
   {
     input.replace(start_pos, from.length(), to);
     start_pos += to.length();
