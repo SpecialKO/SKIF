@@ -97,6 +97,7 @@ void            SKIF_Util_TrimLeadingNewlines         (std:: string&     input);
 void            SKIF_Util_TrimLeadingNewlinesW        (std::wstring&     input);
 void            SKIF_Util_TrimTrailingNewlines        (std:: string&     input);
 void            SKIF_Util_TrimTrailingNewlinesW       (std::wstring&     input);
+void            SKIF_Util_ReplaceAll                  (std::wstring&     input, const std::wstring& from, const std::wstring& to);
 std::wstring    SKIF_Util_GetErrorAsWStr              (DWORD error = GetLastError ( ), HMODULE module = NULL);
 void            SKIF_Util_GetErrorAsMsgBox            (std::wstring winTitle = L"Error detected", std::wstring preMsg = L"", DWORD error = GetLastError ( ), HMODULE module = NULL);
 DWORD           SKIF_Util_timeGetTime                 (void);

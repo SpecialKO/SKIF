@@ -258,6 +258,18 @@ SKIF_Util_TrimTrailingNewlinesW (std::wstring& input)
   input.erase (std::find_if (input.rbegin(), input.rend(), [](const       wchar_t ch) { return (ch != L'\n'); }).base(), input.end());
 }
 
+void
+SKIF_Util_ReplaceAll (std::wstring& input, const std::wstring& from, const std::wstring& to)
+{
+  // CC BY-SA 4.0: https://stackoverflow.com/a/24315631
+  size_t  start_pos = 0;
+  while ((start_pos = input.find (from, start_pos)) != std::wstring::npos)
+  {
+    input.replace(start_pos, from.length(), to);
+    start_pos += to.length();
+  }
+}
+
 
 // Handles System Error Codes, https://learn.microsoft.com/en-us/windows/win32/debug/system-error-codes#system-error-codes
 //                             https://learn.microsoft.com/en-us/windows/win32/wininet/appendix-c-handling-errors
