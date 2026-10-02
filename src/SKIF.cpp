@@ -205,11 +205,13 @@ ID3D11DeviceContext*    SKIF_pd3dDeviceContext    = nullptr;
 //ID3D11RenderTargetView* SKIF_g_mainRenderTargetView = nullptr;
 
 // Forward declarations
-bool                CreateDeviceD3D                           (HWND hWnd);
-void                CleanupDeviceD3D                          (void);
-LRESULT WINAPI      SKIF_WndProc                              (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-LRESULT WINAPI      SKIF_Notify_WndProc                       (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-void                SKIF_Initialize                           (LPWSTR lpCmdLine);
+HRESULT             SKIF_CreateDXGIFactory1 (REFIID riid, void **ppFactory);
+HRESULT             SKIF_D3D11CreateDevice  (IDXGIAdapter *pAdapter, D3D_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, const D3D_FEATURE_LEVEL *pFeatureLevels, UINT FeatureLevels, UINT SDKVersion, ID3D11Device **ppDevice, D3D_FEATURE_LEVEL *pFeatureLevel, ID3D11DeviceContext **ppImmediateContext);
+bool                CreateDeviceD3D         (HWND hWnd);
+void                CleanupDeviceD3D        (void);
+LRESULT WINAPI      SKIF_WndProc            (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+LRESULT WINAPI      SKIF_Notify_WndProc     (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+void                SKIF_Initialize         (LPWSTR lpCmdLine);
 
 CHandle hInjectAck       (0); // Signalled when injection service should be stopped
 CHandle hInjectAckEx     (0); // Signalled when a successful injection occurs (minimizes SKIF)
@@ -4387,6 +4389,56 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
 #endif
 
+
+HRESULT
+SKIF_CreateDXGIFactory1 (REFIID riid, void **ppFactory)
+{
+  using CreateDXGIFactory1_pfn =
+           HRESULT (WINAPI *)(REFIID, void **);
+
+  static CreateDXGIFactory1_pfn
+         CreateDXGIFactory1 =
+        (CreateDXGIFactory1_pfn)GetProcAddress (LoadLibraryEx (L"dxgi.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "CreateDXGIFactory1");
+
+  if (CreateDXGIFactory1 == nullptr)
+    return E_FAIL;
+
+  return CreateDXGIFactory1 (riid, ppFactory);
+}
+
+HRESULT
+SKIF_D3D11CreateDevice (
+  IDXGIAdapter            *pAdapter,
+  D3D_DRIVER_TYPE          DriverType,
+  HMODULE                  Software,
+  UINT                     Flags,
+  const D3D_FEATURE_LEVEL *pFeatureLevels,
+  UINT                     FeatureLevels,
+  UINT                     SDKVersion,
+  ID3D11Device           **ppDevice,
+  D3D_FEATURE_LEVEL       *pFeatureLevel,
+  ID3D11DeviceContext    **ppImmediateContext )
+{
+  using D3D11CreateDevice_pfn =
+           HRESULT (WINAPI *)( IDXGIAdapter *, D3D_DRIVER_TYPE, HMODULE, UINT,
+                         const D3D_FEATURE_LEVEL *, UINT, UINT,
+                               ID3D11Device **, D3D_FEATURE_LEVEL *,
+                               ID3D11DeviceContext ** );
+
+  static D3D11CreateDevice_pfn
+         D3D11CreateDevice =
+        (D3D11CreateDevice_pfn)GetProcAddress (LoadLibraryEx (L"d3d11.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "D3D11CreateDevice");
+
+  if (D3D11CreateDevice == nullptr)
+    return E_FAIL;
+
+  return D3D11CreateDevice ( pAdapter, DriverType, Software, Flags,
+                             pFeatureLevels, FeatureLevels, SDKVersion,
+                             ppDevice, pFeatureLevel, ppImmediateContext );
+}
+
 bool CreateDeviceD3D (HWND hWnd)
 {
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
@@ -4427,7 +4479,7 @@ bool CreateDeviceD3D (HWND hWnd)
 
   CComPtr <IDXGIFactory2> pFactory2;
 
-  if (FAILED (CreateDXGIFactory1 (__uuidof (IDXGIFactory2), (void **)&pFactory2.p)))
+  if (FAILED (SKIF_CreateDXGIFactory1 (__uuidof (IDXGIFactory2), (void **)&pFactory2.p)))
     return false;
 
   // Windows 7 (2013 Platform Update), or Windows 8+
@@ -4475,7 +4527,7 @@ bool CreateDeviceD3D (HWND hWnd)
   // This MUST be disabled before public release! Otherwise systems without the Windows SDK installed will crash on launch.
   //createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG; // Enable debug layer of D3D11
 
-  if (FAILED (D3D11CreateDevice ( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
+  if (FAILED (SKIF_D3D11CreateDevice ( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
                                               createDeviceFlags, featureLevelArray,
                                                          sizeof (featureLevelArray) / sizeof featureLevel,
                                                 D3D11_SDK_VERSION,
@@ -4483,12 +4535,9 @@ bool CreateDeviceD3D (HWND hWnd)
                                                                 &featureLevel,
                                                        &SKIF_pd3dDeviceContext)))
   {
-    //OutputDebugString(L"D3D11CreateDevice failed!\n");
     PLOG_ERROR << "D3D11CreateDevice failed!";
     return false;
   }
-
-  //return true; // No idea why this was left in https://github.com/SpecialKO/SKIF/commit/1c03d60642fcc62d4aa27bd440dc24115f6cf907 ... A typo probably?
 
   // We need to try creating a dummy swapchain before we actually start creating
   //   viewport windows. This is to ensure a compatible format is used from the

@@ -146,6 +146,7 @@ static DXGI_FORMAT SKIF_ImplDX11_ViewPort_GetDXGIFormat    (ImGuiViewport* viewp
 static int         SKIF_ImplDX11_ViewPort_GetHDRMode       (ImGuiViewport* viewport);
 static FLOAT       SKIF_ImplDX11_ViewPort_GetSDRWhiteLevel (ImGuiViewport* viewport);
 static FLOAT       SKIF_ImplDX11_ViewPort_GetHDRLuma       (ImGuiViewport* viewport);
+       HRESULT     SKIF_ImplDX11_CreateDXGIFactory1 (REFIID riid, void **ppFactory);
 #endif
 
 // Functions
@@ -1239,8 +1240,9 @@ void ImGui_ImplDX11_NewFrame()
     ImGuiContext& g = *ImGui::GetCurrentContext();
 
     // External declarations
-    extern bool CreateDeviceD3D    (HWND hWnd);
-    extern void CleanupDeviceD3D   (void);
+    extern HRESULT SKIF_CreateDXGIFactory1 (REFIID riid, void **ppFactory);
+    extern bool    CreateDeviceD3D         (HWND hWnd);
+    extern void    CleanupDeviceD3D        (void);
     extern HWND                    SKIF_Notify_hWnd;
     extern ID3D11Device*           SKIF_pd3dDevice;
     extern ID3D11DeviceContext*    SKIF_pd3dDeviceContext;
@@ -1285,7 +1287,7 @@ void ImGui_ImplDX11_NewFrame()
         bd->pFactory = nullptr;
 
         if (! RecreateDevice)
-          CreateDXGIFactory1 (__uuidof (IDXGIFactory2), (void **)&bd->pFactory);
+          SKIF_CreateDXGIFactory1 (__uuidof (IDXGIFactory2), (void **)&bd->pFactory);
       }
 
       if (RecreateDevice)
