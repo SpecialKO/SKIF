@@ -1835,6 +1835,7 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
     case WM_DESTROY:
       // Unregister any existing drop targets when the window is destroyed
       _drag_drop.Revoke (hWnd);
+      break;
     }
 
     if (ImGuiViewport *viewport = ImGui::FindViewportByPlatformHandle ((void *)hWnd))
