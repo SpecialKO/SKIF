@@ -136,10 +136,10 @@ LoadLibraryTexture (
   if (pApp != nullptr)
   {
     appid = pApp->id;
-  
+
     if (libTexToLoad == LibraryTexture::Cover)
       pApp->tex_cover.isCustom = pApp->tex_cover.isManaged = false;
-  
+
     if (libTexToLoad == LibraryTexture::Icon)
       pApp->tex_icon.isCustom  = pApp->tex_icon.isManaged  = false;
 
@@ -371,7 +371,7 @@ LoadLibraryTexture (
       if (! customAsset)
       {
         managedAsset = false; // Steam's user-specific custom covers are not managed
-        
+
         if      (libTexToLoad == LibraryTexture::Cover && _registry.bPCGWCoversSteam &&
                  PathFileExistsW ((SKIFCustomPath + L"-pcgw.png").c_str()))
         {
@@ -389,7 +389,7 @@ LoadLibraryTexture (
 
           // The fallback is normally managed! <%ws\Assets\Steam\%i\cover-original.jpg>
           // The only time it is not is when SKIF is in tinyCovers mode and loaded the original 300x450 cover from the Steam client
-          if (load_str.find (L"cover-original.jpg") != std::wstring::npos) 
+          if (load_str.find (L"cover-original.jpg") != std::wstring::npos)
             managedAsset = true;
         }
       }
@@ -468,7 +468,7 @@ LoadLibraryTexture (
     diff.y = (900.0f / newHeight);
     diff.y -= 1.0f;
     diff.y /= 2;
-      
+
     vCoverUv0.y = 0.f - diff.y;
     vCoverUv1.y = 1.f + diff.y;
   }

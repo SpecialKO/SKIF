@@ -20,7 +20,7 @@
 
 // Requires Windows 10, version 1703
 //        + Per Monitor v2 DPI awareness
-// 
+//
 // We use an opposite IF statement than
 //   Microsoft's to get these defined
 #if(WINVER < 0x0605)
@@ -282,7 +282,7 @@ struct SKIF_DirectoryWatch
                                     UITab waitTab        = UITab_None,
                                      BOOL bWatchSubtree  = FALSE,
                                     DWORD dwNotifyFilter = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE);
-  
+
   void reset           (void);
 
   HANDLE       _hChangeNotification = INVALID_HANDLE_VALUE; // If the FindFirstChangeNotification function fails, the return value is INVALID_HANDLE_VALUE.

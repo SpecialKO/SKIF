@@ -61,11 +61,11 @@ struct SKIF_Updater {
     //version_s* ver_local    = nullptr;
     //version_s* ver_next     = nullptr;
     //version_s* ver_previous = nullptr;
-    
+
     changelog_s release_notes_formatted;
     changelog_s history_formatted;
   };
-  
+
   // Public functions
   void                                                RefreshResults      (void);
   void                                                CheckForUpdates     (bool _forced = false, bool _rollback = false);
@@ -102,7 +102,7 @@ private:
   std::vector <std::pair<std::string, std::string>>  channels; // static
   changelog_s                          auto_updater_formatted;
   bool                                               pending = true;
-  
+
   std::atomic<int> snapshot_idx_reading = 0,
                    snapshot_idx_written = 1,
                    updater_running      = 0; // 0 = No update check has run,            1 = Update check is running,       2 = Update check has completed

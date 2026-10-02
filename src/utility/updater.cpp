@@ -25,11 +25,11 @@ This file dynamically reconfigures SKIF's behavior, and defines branches as well
   * Pushing a new update is a matter of editing the file, adding a new node beneath "Versions" with the relevant details,
       and then uploading the updated repository.json (and accompanied installer) to the CDN.
     * For information on how to build an installer, see https://github.com/SpecialKO/Installer
-  
+
   * The updater also refreshes (downloads) patrons.txt and \Assets\lc.json
     * Updates to lc.json is pushed automatically to the CDN through the GitHub workflows
         defined in https://github.com/SpecialKO/SKIF_launch_configs
- 
+
 
 The update process is performed in this way:
 
@@ -39,7 +39,7 @@ The update process is performed in this way:
     * If it was running on a temporary branch, e.g. a branch called "Discord (WIP)",
         it falls back to using the recognized parent branch (Discord, Website, or Ancient).
     * If no matching branch is found, it falls back to using the "Website" branch.
- 
+
  3. SKIF checks through the listed versions, and tries to find the first one (the top-most one) of the current branch.
 
  4. If a relevant version if found, the version number (the "Name" attribute) is compared to the file/product version of the Special K DLL files.
@@ -66,7 +66,7 @@ SKIF_Updater::SKIF_Updater (void)
 {
   InitializeConditionVariable (&UpdaterPaused);
   extern SKIF_Signals _Signal;
-  
+
   if (! _Signal.Launcher && ! _Signal.LauncherURI && ! _Signal.Quit && ! _Signal.ServiceMode)
   {
     // Clearing out old installers...
@@ -129,7 +129,7 @@ SKIF_Updater::SKIF_Updater (void)
           // Resume the update thread
           if (! SKIF_NoInternet)
             break;
-            
+
           Sleep (5000);
         } while (SKIF_NoInternet);
       }
@@ -159,7 +159,7 @@ SKIF_Updater::SKIF_Updater (void)
         parent.snapshots [currReading].results.patrons;
 
       PLOG_INFO << "Checking for updates...";
-        
+
       // Set a timer so the main UI refreshes every 15 ms
       SetTimer (SKIF_Notify_hWnd, IDT_REFRESH_UPDATER, 15, NULL);
 
@@ -263,14 +263,14 @@ SKIF_Updater::SKIF_Updater (void)
         }
 
       }
-        
+
       // Kill the timer once the update process has completed
       KillTimer (SKIF_Notify_hWnd, IDT_REFRESH_UPDATER);
 
       // Swap in the results
       lastWritten = currWriting;
       parent.snapshot_idx_written.store (lastWritten);
-        
+
       parent.updater_running.store (2);
 
       // Signal to the main thread that new results are available
@@ -350,7 +350,7 @@ SKIF_Updater::ClearOldUpdates (void)
 
   std::wstring VersionFolder = SK_FormatStringW(LR"(%ws\Version\)", _path_cache.specialk_userdata);
 
-  hFind = 
+  hFind =
     FindFirstFileExW ((VersionFolder + L"SpecialK_*.exe").c_str(), FindExInfoBasic, &ffd, FindExSearchNameMatch, NULL, NULL);
 
   if (INVALID_HANDLE_VALUE != hFind)
@@ -509,7 +509,7 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
     DeleteFile (path_repo.c_str()); // Delete any existing file
     PLOG_ERROR_IF(! SKIF_Util_GetWebResource (url_repo, path_repo)) << "Failed to download repository.json";
   }
-  
+
   std::ifstream file(path_repo);
   nlohmann::ordered_json jf = nlohmann::ordered_json::parse(file, nullptr, false);
   file.close();
@@ -524,7 +524,7 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
          std::wstring wsCurrentBranch  = _registry.wsUpdateChannel;
          std:: string   currentBranch  = SK_WideCharToUTF8 (wsCurrentBranch);
   static std::wstring wsPreviousBranch = wsCurrentBranch;
-    
+
   bool changedUpdateChannel = (wsPreviousBranch != wsCurrentBranch);
   wsPreviousBranch  = wsCurrentBranch;
 
@@ -606,7 +606,7 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
         for (auto& branch : version["Branches"])
           if (branch.get<std::string_view>()._Equal(currentBranch))
             isBranch = true;
-        
+
         if (isBranch)
         { // START IF (isBRANCH)
           std::string branchVersion = version["Name"].get<std::string>();
@@ -616,10 +616,10 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
           // to other branches as well, which means versions that are older.
 
           int versionDiff = SKIF_Util_CompareVersionStrings (branchVersion, currentVersion);
-          
+
           if (parsedFirstVersion)
             _res.history += "\n\n\n"; // Spacing between the previous version and the current one
-          
+
           if (! absoluteLatest)
           {
             absoluteLatest = true;
@@ -689,7 +689,7 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
               _res.version       = branchVersion;
               _res.filename      = filename;
               _res.description   = version["Description"] .get<std::string>();
-              
+
               // If we didn't populate the release_notes above, do so here, but only for the very latest version
               if (_res.release_notes.empty())
               {
@@ -851,7 +851,7 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
           bool        is_older;
           bool        is_branch;
         */
-        
+
         _version.version     = version["Name"]        .get<std::string>();
         _version.description = version["Description"] .get<std::string>();
         _version.changes     = version["ReleaseNotes"].get<std::string>();
@@ -909,7 +909,7 @@ SKIF_Updater::ReadPatronsFile (void)
   #pragma warning(disable : 4996)
       file.imbue (std::locale (std::locale (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
     }
-    
+
     std::vector <std::wstring> lines;
     std::wstring line;
 
@@ -986,10 +986,10 @@ SKIF_Updater::ReadChangesFile (void)
 
       // Add a newline at the end of the line
       auto_updater_formatted.notes.push_back ('\n');
-      
+
       if (line.length() > auto_updater_formatted.max_length)
         auto_updater_formatted.max_length = line.length();
-      
+
       auto_updater_formatted.lines++;
     }
 
@@ -1018,13 +1018,13 @@ SKIF_Updater::RefreshResults (void)
   int lastWritten = snapshot_idx_written.load ( );
   snapshot_idx_reading.store (lastWritten);
 
-  results = 
+  results =
     snapshots [lastWritten].results;
 
   if (channels.empty ( ) && ! results.update_channels.empty ( ))
   {
     channels = results.update_channels; // copy, because we never populate this ever again
-    
+
     // Set active channel
     for (auto& _channel : channels)
       if (_channel.first == SK_WideCharToUTF8 (_registry.wsUpdateChannel))

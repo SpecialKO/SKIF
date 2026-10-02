@@ -38,7 +38,7 @@ SKIF_Xbox_PackageFamilyNameFromFullName (IN PCWSTR packageFullName, IN OUT UINT3
 
   if (SKIF_PackageFamilyNameFromFullName == nullptr)
     return FALSE;
-  
+
   return SKIF_PackageFamilyNameFromFullName (packageFullName, packageFamilyNameLength, packageFamilyName);
 }
 
@@ -84,7 +84,7 @@ static std::string SKIF_Xbox_LoadMSResource (std::string input, std::wstring pac
       PLOG_DEBUG << "Attempting to load indirect string using package family name: " << msResourceURI;
       hr = SHLoadIndirectString (msResourceURI.c_str(), wszDisplayName, cuiBufferSize, nullptr);
     }
-    
+
     // PackageName short
     if (FAILED (hr))
     {
@@ -277,17 +277,17 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 
                       // Some games, such as Forza Motorsport, stores their display name in a .pri resource file in the install folder
                       // We need to retrieve them using a special "ms-resource" URI path along with SHLoadIndirectString()...
-                      // 
+                      //
                       // Format seems to be:
                       // @{<PackageFullName>?ms-resource://<PackageFamilyName>/resources/<ResourceName>}
-                      // 
+                      //
                       // Example URI paths that are known to work to load the display title for Forza Motorsport:
-                      // 
+                      //
                       //   Via absolute .pri resource file path:
                       //     @{H:\WindowsApps\Microsoft.ForzaMotorsport_1.522.1166.0_x64__8wekyb3d8bbwe\resources.pri?ms-resource://Microsoft.ForzaMotorsport_8wekyb3d8bbwe/resources/IDS_Title2}
                       //   Via package full name:
                       //     @{Microsoft.ForzaMotorsport_1.522.1166.0_x64__8wekyb3d8bbwe?ms-resource://Microsoft.ForzaMotorsport_8wekyb3d8bbwe/resources/IDS_Title2}
-                      // 
+                      //
                       record.names.normal   = SKIF_Xbox_LoadMSResource (record.names.normal, SK_UTF8ToWideChar(record.xbox.package_name), packageFullName, packageFamilyName);
                       record.names.original = record.names.normal;
 
@@ -397,7 +397,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                             record.names.original = record.names.normal;
                           }
                         }
-                      
+
                         lc.install_dir = record.install_dir;
                         lc.working_dir = record.install_dir;
 
@@ -507,7 +507,7 @@ SKIF_Xbox_IdentifyAssetNew (std::string PackageName, std::string StoreID)
   {
     std::wstring query = L"https://storeedgefd.dsx.mp.microsoft.com/v8.0/sdk/products?market=US&locale=en-US&deviceFamily=Windows.Desktop";
     std::string  body  = SK_FormatString(R"({ "productIds": "%s" })", StoreID.c_str());
-    
+
     PLOG_DEBUG << "Downloading platform JSON: " << query;
 
     SKIF_Util_GetWebResource (query, targetAssetPath + L"store.json", L"POST", L"Content-Type: application/json; charset=utf-8", body);
@@ -565,7 +565,7 @@ SKIF_Xbox_hasInstalledGamesChanged (void)
       appWatch ( HKEY_LOCAL_MACHINE,
                    LR"(SOFTWARE\Microsoft\GamingServices\PackageRepository\Root)",
                      L"XboxInstallNotify", TRUE, REG_NOTIFY_CHANGE_NAME, UITab_None, false, true); // UITab_Library
-  
+
     signal            = appWatch.isSignaled   ( );
     dwLastSignalCheck = SKIF_Util_timeGetTime ( );
   }

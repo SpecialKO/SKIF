@@ -1,14 +1,14 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Copyright (c) 2021, Intel Corporation
 // Permission is hereby granted, free of charge, to any person obtaining a   copy of this software and associated
-// documentation files (the "Software"), to deal in the Software without restriction, including without limitation 
+// documentation files (the "Software"), to deal in the Software without restriction, including without limitation
 // the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is    furnished to do so, subject to the following conditions:
-// The above copyright notice and this permission notice shall be included in all copies or substantial portions of 
+// The above copyright notice and this permission notice shall be included in all copies or substantial portions of
 // the Software.
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
-// THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A    PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
+// THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A    PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 // TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -79,7 +79,7 @@ namespace HybridDetect
 #define CPUID(registers, function) __cpuid((int*)registers, (int)function);
 #define CPUIDEX(registers, function, extFunction) __cpuidex((int*)registers, (int)function, (int)extFunction);
 #define XGETBV(xcrReg) _xgetbv(xcrReg)
-#else 
+#else
 // Linux Stuff
 #define CPUID(registers, function) asm volatile ("cpuid" : "=a" (registers[0]), "=b" (registers[1]), "=c" (registers[2]), "=d" (registers[3]) : "a" (function), "c" (0));
 #define CPUIDEX(registers, function, extFunction) asm volatile ("cpuid" : "=a" (registers[0]), "=b" (registers[1]), "=c" (registers[2]), "=d" (registers[3]) : "a" (function), "c" (extFunction));
@@ -90,7 +90,7 @@ namespace HybridDetect
 #define ENABLE_HYBRID_DETECT
 
 // Tells the application to treat the target system as a heterogeneous software proxy.
-//#define ENABLE_SOFTWARE_PROXY	
+//#define ENABLE_SOFTWARE_PROXY
 
 // Enables/Disables Run On API
 #define ENABLE_RUNON
@@ -310,14 +310,14 @@ typedef struct _PROCESSOR_INFO
 	std::vector<CACHE_INFO>							caches;
 	std::vector<LOGICAL_PROCESSOR_INFO>	cores;
 
-	// Store map of logical processors returned from GLPI. 
-	// short = Core Type, ULONG64 = 64-bit processor mask 
+	// Store map of logical processors returned from GLPI.
+	// short = Core Type, ULONG64 = 64-bit processor mask
 	std::map<CoreTypes, ULONG64>				coreMasks;
 #ifdef ENABLE_CPU_SETS
 
-	// Store map of logical processors returned from GetSystemCPUSetInformation. 
-	// unsined custom logical cluster key, use short to store EffeciencyClass as a key 
-	// std::vector<ULONG> = list of CPU Set IDs 
+	// Store map of logical processors returned from GetSystemCPUSetInformation.
+	// unsined custom logical cluster key, use short to store EffeciencyClass as a key
+	// std::vector<ULONG> = list of CPU Set IDs
 	std::map<CoreTypes, std::vector<ULONG>>	cpuSets;
 
 #endif
@@ -500,7 +500,7 @@ inline bool GetLogicalProcessors(PROCESSOR_INFO& procInfo)
 	// Allocate data structures based on size returned from first call.
 	auto buffer = std::make_unique<uint8_t[]>(bufferSize);
 
-	// Get all of the CPUSet elements 
+	// Get all of the CPUSet elements
 	if(!SKIF_Util_GetSystemCpuSetInformation(reinterpret_cast<PSYSTEM_CPU_SET_INFORMATION>(buffer.get()), bufferSize, &bufferSize, curProc, 0))
 	{
 		return false;
@@ -537,7 +537,7 @@ inline bool GetLogicalProcessors(PROCESSOR_INFO& procInfo)
 
 		cpuSetPtr  += nextCPUSet->Size;
 		cpuSetSize += nextCPUSet->Size;
-		
+
 	}
 	HYBRID_DETECT_TRACE(7, "<<<");
 
@@ -785,7 +785,7 @@ inline void GetProcessorInfo(PROCESSOR_INFO& procInfo)
 	CallCPUID(LEAF_EXTENDED_BRAND_STRING_3, cpuInfo);
 	memcpy(procInfo.brandString + 32, cpuInfo.data(), sizeof(cpuInfo));
 
-	// Structured Extended Feature Flags Enumeration Leaf 
+	// Structured Extended Feature Flags Enumeration Leaf
 	// (Output depends on ECX input value)
 	CallCPUID(LEAF_EXTENDED_FEATURE_FLAGS, cpuInfo);
 	{
@@ -857,7 +857,7 @@ inline void GetProcessorInfo(PROCESSOR_INFO& procInfo)
 				// Convert the oridinal position to an affinity mask.
         affinityMask = static_cast<DWORD_PTR>(IndexToMask(core));
 
-				// Thread Affinity Mask is enough to switch to current thread immediatlely. 
+				// Thread Affinity Mask is enough to switch to current thread immediatlely.
 				SetThreadAffinityMask(GetCurrentThread(), processAffinityMask & affinityMask);
 
 				logicalCore.processorMask = std::bitset<64>(affinityMask);
@@ -972,7 +972,7 @@ inline void GetProcessorInfo(PROCESSOR_INFO& procInfo)
 				//pwrInfo.clear();
 			}
 
-			
+
 
 			// Reset Group Affinity
 			SetThreadGroupAffinity(GetCurrentThread(), &prevGroup, nullptr);
@@ -1209,7 +1209,7 @@ inline short RunOnAny(PROCESSOR_INFO& procInfo, HANDLE threadHandle, const std::
 	return RunOn(procInfo, threadHandle, CoreTypes::ANY, fallbackSet);
 #else
 	return 0;
-#endif 
+#endif
 }
 
 // Run The Current Thread On Any Logical Processor
@@ -1243,7 +1243,7 @@ inline short RunOnOne(PROCESSOR_INFO& procInfo, HANDLE threadHandle, const short
 		//int iterations = 0;
 		int runningOn = -1;
 		do {
-			// Surrender time-slice 
+			// Surrender time-slice
 			Sleep(0);
 			// Where Are We?
 			runningOn = GetCurrentProcessorNumber();
@@ -1258,7 +1258,7 @@ inline short RunOnOne(PROCESSOR_INFO& procInfo, HANDLE threadHandle, const short
 
 		// Did we finish where we wanted?
 		assert(runningOn == finishedOn);
-#endif       
+#endif
 
 		return succeeded;
 	}
@@ -1469,7 +1469,7 @@ inline short RunOnAny(PROCESSOR_INFO& procInfo, HANDLE threadHandle, const ULONG
 	return RunOn(procInfo, threadHandle, CoreTypes::ANY, fallbackMask);
 #else
 	return 0;
-#endif 
+#endif
 }
 
 // Run The Current Thread On Any Logical Processor
@@ -1502,7 +1502,7 @@ inline bool RunOnOne(PROCESSOR_INFO& procInfo, HANDLE threadHandle, const short 
 		int iterations = 0;
 		int runningOn = -1;
 		do {
-			// Surrender time-slice 
+			// Surrender time-slice
 			Sleep(0);
 			// Where Are We?
 			runningOn = GetCurrentProcessorNumber();
@@ -1517,7 +1517,7 @@ inline bool RunOnOne(PROCESSOR_INFO& procInfo, HANDLE threadHandle, const short 
 
 		// Did we finish where we wanted?
 		assert(runningOn == finishedOn);
-#endif       
+#endif
 
 		return succeeded;
 	}

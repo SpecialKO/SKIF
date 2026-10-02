@@ -151,7 +151,7 @@ InsertTrieKey (std::pair <std::string, app_record_s>* app, Trie* labels)
 
   std::string all_upper = SKIF_Util_ToUpper (app->first),
               all_upper_alnum;
-          
+
   for (const char c : app->first)
   {
     if (! ( isalnum (c) || isspace (c) ))
@@ -195,7 +195,7 @@ InsertTrieKey (std::pair <std::string, app_record_s>* app, Trie* labels)
 
     labels->insert (trie_builder);
   }
-        
+
   app->second.names.normal          = app->first;
   app->second.names.all_upper       = all_upper;
   app->second.names.all_upper_alnum = all_upper_alnum;
@@ -404,7 +404,7 @@ SKIF_GamingCollection::RefreshRunningApps (std::vector <std::pair <std::string, 
           // Get exit code to filter out zombie processes
           DWORD dwExitCode = 0;
           GetExitCodeProcess (hProcess, &dwExitCode);
-          
+
           WCHAR szExePath     [MAX_PATH + 2] = { };
           DWORD szExePathLen = MAX_PATH + 2; // Specifies the size of the lpExeName buffer, in characters.
 
@@ -463,7 +463,7 @@ SKIF_GamingCollection::RefreshRunningApps (std::vector <std::pair <std::string, 
                 // One can also perform a partial match with the below OR clause in the IF statement, however from testing
                 //   PROCESS_QUERY_LIMITED_INFORMATION gives us GetExitCodeProcess() and QueryFullProcessImageName() rights
                 //     even to elevated processes, meaning the below OR clause is unnecessary.
-                // 
+                //
                 // (fullPath.empty() && ! wcscmp (pe32.szExeFile, app.second.launch_configs[0].executable.c_str()))
                 //
               }
@@ -488,7 +488,7 @@ SKIF_GamingCollection::RefreshRunningApps (std::vector <std::pair <std::string, 
               "automatically restart RTSS silently in the background.\n"
               "\n"
               "This warning will not appear again.";
-            
+
             SKIF_ImGui_InfoMessage (error_title, error_label);
           }
 
@@ -502,7 +502,7 @@ SKIF_GamingCollection::RefreshRunningApps (std::vector <std::pair <std::string, 
       lastGameRefresh = current_time;
   }
 
-  
+
   // Instant Play monitoring...
 
   for (auto& monitored_app : iPlayCache)
@@ -573,7 +573,7 @@ SKIF_GamingCollection::RefreshRunningApps (std::vector <std::pair <std::string, 
               PostMessage (SKIF_ImGui_hWnd, WM_NULL, 0x0, 0x0);
             }
           }
-          
+
           // If we cannot monitor the game process, monitor the worker thread
           if (hWorkerThread != INVALID_HANDLE_VALUE)
           {

@@ -98,7 +98,7 @@ struct app_record_s {
     // For Registry Key Watch
     static DWORD
       _TimeLastNotified;
-    
+
     DWORD                    dwTimeDelayChecks = 0; // Used to prevent the status from changing for X number of milliseconds.
     DWORD                    dwTimeLastChecked = 0;
     void invalidate (void) { dwTimeLastChecked = 0; }
@@ -121,7 +121,7 @@ struct app_record_s {
     int             iWorker     = 0;     // 0 = worker not started, 1 = worker active, 2 = worker done
     HANDLE          hWorker     = NULL;
   } tex_icon, tex_cover;
-  
+
   enum class Store {
     Steam       = 0x1,   // Initial commit
     GOG         = 0x2,   // Sep 17, 2021
@@ -285,16 +285,16 @@ struct app_record_s {
     std::wstring getExecutableFullPath      (void) const;
     std:: string getExecutableFullPathUTF8  (void);
     bool          isExecutableFullPathValid (void);
-    
+
     std::wstring getDescription             (void);
     std:: string getDescriptionUTF8         (void);
-    
+
     std::wstring getLaunchOptions           (void) const;
     std:: string getLaunchOptionsUTF8       (void);
-    
+
     std::wstring getWorkingDirectory        (void) const;
     std:: string getWorkingDirectoryUTF8    (void);
-    
+
     std::wstring getWorkOrExeDirectory      (void) const;
     std:: string getWorkOrExeDirectoryUTF8  (void);
 
@@ -363,7 +363,7 @@ struct app_record_s {
     std:: string getTimeUTF8        (void);
   };
 
-  
+
   // Cached data
   struct CloudPath
   {
@@ -408,13 +408,13 @@ struct app_record_s {
     std::set <std::string> screenshots; // utf8 path
     sk_install_state_s     injection;
   } specialk;
-  
+
   std::map <std::string, branch_record_s    > branches;
   std::map <int,         cloud_save_record_s> cloud_saves;
   std::map <int,         launch_config_s    > launch_configs;
   std::map <int,         launch_config_s    > launch_configs_custom; // Workaround for Steam games parsing original launch configs on selection
   common_config_s                             common_config;
-  
+
   uint32_t     id;
   bool         processed             =  false; // indicates if we have processed appinfo
   bool         loading               =  false; // indicates if we are processing in a background thread
@@ -446,7 +446,7 @@ struct app_record_s {
       std::string launch_option        = ""; // Holds the custom launch option set in the Steam client
       std::string launch_option_parsed = ""; // Holds a cached parsed value of the launch option set in the Steam client
     } local;
-    
+
     struct {
       int hidden   = 0; // Hidden in Steam Client (not the same as flagged as private)
       int favorite = 0; // Favorited in Steam Client

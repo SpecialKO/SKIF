@@ -145,7 +145,7 @@ SK_Generate8Dot3 (const wchar_t* wszLongFileName)
   {
     ModifyPrivilege (SE_RESTORE_NAME, TRUE);
     ModifyPrivilege (SE_BACKUP_NAME,  TRUE);
-    
+
     // When opening an existing file, the CreateFile function performs the following actions:
     // [...] and ignores any file attributes (FILE_ATTRIBUTE_*) specified by dwFlagsAndAttributes.
     CHandle hFile (

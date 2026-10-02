@@ -4,7 +4,7 @@
 
 #ifndef SKIF_Shaders
 
-cbuffer vertexBuffer : register(b0) 
+cbuffer vertexBuffer : register(b0)
 {
   float4x4 ProjectionMatrix;
 };
@@ -57,7 +57,7 @@ struct PS_INPUT
 PS_INPUT main (VS_INPUT input)
 {
   PS_INPUT output;
-  
+
   output.pos  = mul ( ProjectionMatrix,
                         float4 (input.pos.xy, 0.f, 1.f) );
   output.col = input.col;

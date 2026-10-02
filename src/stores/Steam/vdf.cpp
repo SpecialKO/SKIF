@@ -244,7 +244,7 @@ appinfo_s::getRootSection (size_t* pSize)
       runOnce = true;
   if (runOnce)
   {   runOnce = false;
-  
+
     switch (vdf_version)
     {
       case 0x29: // v41
@@ -403,7 +403,7 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
               if (pVac->enabled == -1)
                 pVac->enabled = false;
             }
-            
+
             else if (pAppRecord->extended_config.vac.enabled == -1)
               pAppRecord->extended_config.vac.enabled = false;
 
@@ -472,14 +472,14 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
               for (auto& key : finished_section.keys)
               {
                 // OS Arch? More like CPU Arch...
-                // 
+                //
                 // This key, under common_config, either:
                 //  - do not exist at all, see  23310: The Last Remnant           (what does this mean?)
                 //  -            is empty, see    480: Spacewar (or most games)   (what does this mean? x86?)
                 //  -      is set to "64", see 546560: Half-Life: Alyx
                 //
                 // This makes it utterly useless for anything reliable, lol
-                // 
+                //
                 // See SteamDB's unique values search:
                 // - https://steamdb.info/search/?a=app_keynames&type=-1&keyname=369&operator=9&keyvalue=&display_value=on
 
@@ -488,7 +488,7 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
                   pAppRecord->common_config.cpu_type =
                     _ParseOSArch (key);
                 }
-                
+
                 else if (! _stricmp (key.first, "type"))
                 {
                   if      (! _stricmp ((char *)key.second.second, "game"))
@@ -563,7 +563,7 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
               // TODO: Fix this shit -- it's a shitty workaround for stupid duplicate parsing!
               //       AND it breaks Instant Play custom options... :(
               auto& launch_cfg =
-                pAppRecord->launch_configs [launch_idx_steam]; 
+                pAppRecord->launch_configs [launch_idx_steam];
 
               launch_cfg.id       = launch_idx_skif;
               launch_cfg.id_steam = launch_idx_steam;
@@ -658,7 +658,7 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
                     std::string ((const char *)key.second.second);
                 }
               }
-              
+
               // There is a really annoying bug in SKIF where parsing the launch configs results in semi-duplicate empty entries,
               //   though I have no idea why... Maybe has to do with some "padding" between the sections in the appinfo.vdf file?
 
@@ -697,7 +697,7 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
         // Put away put away put away put away
         for ( auto& keep : pAppRecord->launch_configs )
           _cleaner.push_back (keep.second);
-        
+
         // Clean clean clean clean!
         pAppRecord->launch_configs.clear ();
 
@@ -705,7 +705,7 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
         for ( auto& launch : _cleaner )
         {
           // Reset SKIF's internal identifer for the launch configs
-          launch.id = 
+          launch.id =
             static_cast<int> (pAppRecord->launch_configs.size());
 
           // Add it back
@@ -813,15 +813,15 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
           // Flag the launch config to be added back
           _launches.push_back (launch);
         }
-        
+
         pAppRecord->launch_configs.clear ();
 
         for ( auto& launch : _launches )
         {
           // Reset SKIF's internal identifer for the launch configs
-          launch.id = 
+          launch.id =
             static_cast<int> (pAppRecord->launch_configs.size());
-          
+
 #if 0
 
           PLOG_VERBOSE << "SKIF  Launch ID   : " <<       launch.id;
@@ -1234,7 +1234,7 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
             if (! pAppRecord->install_dir.empty())
             {
               launch_cfg.second.install_dir = pAppRecord->install_dir;
-              
+
               // EA games using link2ea:// protocol handlers to launch games does not have an executable,
               //  so this ensures we do not end up testing the installation folder instead (since this has
               //   bearing on whether a launch config is deemed valid or not as part of the blacklist check)

@@ -59,7 +59,7 @@ SKIF_RegistrySettings::KeyValue<std::vector <std::wstring>>::getData (HKEY* hKey
 
   std::wstring out(dwOutLen, '\0');
 
-  if ( ERROR_SUCCESS != 
+  if ( ERROR_SUCCESS !=
     RegGetValueW ( (hKey != nullptr) ? *hKey : _desc.hKey,
                    (hKey != nullptr) ?  NULL : _desc.wszSubKey,
                         _desc.wszKeyValue,
@@ -101,7 +101,7 @@ SKIF_RegistrySettings::KeyValue<std::wstring>::getData (HKEY* hKey)
 
   std::wstring out(dwOutLen, '\0');
 
-  if ( ERROR_SUCCESS != 
+  if ( ERROR_SUCCESS !=
     RegGetValueW ( (hKey != nullptr) ? *hKey : _desc.hKey,
                    (hKey != nullptr) ?  NULL : _desc.wszSubKey,
                         _desc.wszKeyValue,
@@ -152,7 +152,7 @@ SKIF_RegistrySettings::KeyValue<std::vector <std::wstring>>::putDataMultiSZ (std
                         _desc.wszKeyValue,
                         _desc.dwType,
                   (LPBYTE) wzData.data ( ), (DWORD) stDataSize * sizeof(wchar_t));
-            
+
   RegCloseKey (hKeyToSet);
 
   return (ERROR_SUCCESS == lStat);
@@ -261,7 +261,7 @@ SKIF_RegistrySettings::isDevLogging (void) const
 
 SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 {
-  // iSDRMode defaults to 0, meaning 8 bpc (DXGI_FORMAT_R8G8B8A8_UNORM) 
+  // iSDRMode defaults to 0, meaning 8 bpc (DXGI_FORMAT_R8G8B8A8_UNORM)
   // but it seems that Windows 10 1709+ (Build 16299) also supports
   // 10 bpc (DXGI_FORMAT_R10G10B10A2_UNORM) for flip model.
   if (SKIF_Util_IsWindows10v1709OrGreater ( ))
@@ -273,7 +273,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 
   HKEY hKey        = nullptr;
   HKEY hKeySKInput = nullptr;
-  
+
   LSTATUS lsKey = RegCreateKeyW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\)", &hKey);
 
   if (lsKey != ERROR_SUCCESS)
@@ -309,7 +309,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   bInstantPlayGOG          =   regKVInstantPlayGOG         .getData (&hKey);
   bInstantPlaySteam        =   regKVInstantPlaySteam       .getData (&hKey);
   bInstantPlayXbox         =   regKVInstantPlayXbox        .getData (&hKey);
-  
+
   // UI elements that can be toggled
 
   if (regKVUIBorders.hasData(&hKey))
@@ -330,7 +330,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   // Store libraries
 
   iLibrarySort             =   regKVLibrarySort            .getData (&hKey);
-  
+
   if (regKVLibrarySteam.hasData(&hKey))
     bLibrarySteam          =   regKVLibrarySteam           .getData (&hKey);
 
@@ -362,7 +362,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   bAllowMultipleInstances  =   regKVAllowMultipleInstances .getData (&hKey);
   bAllowBackgroundService  =   regKVAllowBackgroundService .getData (&hKey);
   bAutoUpdate              =   regKVAutoUpdate             .getData (&hKey);
-  
+
   if (regKVSDRMode.hasData(&hKey))
     iSDRMode               =   regKVSDRMode                .getData (&hKey);
 
@@ -371,15 +371,15 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   if (regKVHDRBrightness.hasData(&hKey))
   {
     iHDRBrightness         =   regKVHDRBrightness          .getData (&hKey);
-    
+
     // Reset to 203 nits (the default) if outside of the acceptable range of 80-400 nits
     if (iHDRBrightness < 80 || 400 < iHDRBrightness)
       iHDRBrightness       =   203;
   }
-  
+
   if (regKVUIMode.hasData(&hKey))
     iUIMode                =   regKVUIMode                 .getData (&hKey);
-  
+
   if (regKVDiagnostics.hasData(&hKey))
     iDiagnostics           =   regKVDiagnostics            .getData (&hKey);
 
@@ -388,7 +388,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   bStopOnInjection         = ! regKVDisableStopOnInjection .getData (&hKey);
 
   /*
-  bMaximizeOnDoubleClick   = 
+  bMaximizeOnDoubleClick   =
     SKIF_Util_GetDragFromMaximized ( )         // IF the OS prerequisites are enabled
     ? regKVMaximizeOnDoubleClick.hasData (&hKey)   // AND we have data in the registry
       ? regKVMaximizeOnDoubleClick.getData (&hKey) // THEN use the data,
@@ -434,7 +434,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
     wsUpdateChannel        =   regKVUpdateChannel          .getData (&hKey);
 
   wsInstallGUID            =   regKVInstallGUID            .getData (&hKey);
-  
+
   // Remember Last Selected Game
   const int STEAM_APPID    =   1157970;
   uiLastSelectedGame       =   STEAM_APPID; // Default selected game
@@ -492,7 +492,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
     bEfficiencyMode        =   regKVEfficiencyMode         .getData (&hKey);
   else
     bEfficiencyMode        =   SKIF_Util_IsWindows11orGreater ( ); // Win10 and below: false, Win11 and above: true
-  
+
   if (regKVFadeCovers.hasData(&hKey))
     bFadeCovers            =   regKVFadeCovers             .getData (&hKey);
 

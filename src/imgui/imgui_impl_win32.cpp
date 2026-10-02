@@ -414,7 +414,7 @@ static void ImGui_ImplWin32_UpdateGamepads()
         return;
     io.BackendFlags |= ImGuiBackendFlags_HasGamepad;
 #endif // #ifndef IMGUI_IMPL_WIN32_DISABLE_GAMEPAD
-    
+
     static SKIF_GamePadInputHelper& _gamepad  = SKIF_GamePadInputHelper::GetInstance ( );
 
     ImGuiIO& io = ImGui::GetIO();
@@ -1252,7 +1252,7 @@ static void ImGui_ImplWin32_GetWin32StyleFromViewportFlags(ImGuiViewportFlags fl
     *out_style = WS_POPUP;   // Popups / Tooltips        (alternate look: WS_POPUPWINDOW, or WS_POPUP | WS_SYSMENU | WS_SIZEBOX | WS_MINIMIZEBOX)
   else {
     *out_style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_THICKFRAME | WS_MAXIMIZEBOX; // Main Window (WS_OVERLAPPEDWINDOW)
-    
+
     // WS_MAXIMIZEBOX is necessary for drag/drop snapping to the edges of the monitor to function as expected
   }
 
@@ -1347,7 +1347,7 @@ static void ImGui_ImplWin32_CreateWindow(ImGuiViewport *viewport)
   vd->HwndOwned = true;
   viewport->PlatformRequestResize = false;
   viewport->PlatformHandle = viewport->PlatformHandleRaw = vd->Hwnd;
-  
+
   // We need to store the first window in the backend / globally
   ImGui_ImplWin32_Data* bd = ImGui_ImplWin32_GetBackendData();
   if (bd->hWnd == nullptr || SKIF_ImGui_hWnd == NULL)
@@ -1563,7 +1563,7 @@ static void ImGui_ImplWin32_UpdateWindow (ImGuiViewport *viewport)
                           viewport
         );
       viewportP->LastFrameActive = 0;
-      
+
       // RecreateWin32Windows cannot be used here for some reason?
       //extern bool RecreateWin32Windows;
       //RecreateWin32Windows = true;
@@ -1597,7 +1597,7 @@ static void ImGui_ImplWin32_UpdateWindow (ImGuiViewport *viewport)
     viewport->PlatformRequestMove =
       viewport->PlatformRequestResize = true;
   }
-  
+
   // Run only once per window -- to remove the Standard Frame of DWM windows
   ///* 2023-07-31: Not needed any longer as its handled in WM_CREATE instead
   //   CORRECTION: Still needed
@@ -1816,9 +1816,9 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
     //   a bunch of other window styles to enable modern built-in features such as
     //   window moving, resizing, WinKey+Arrows, animations, etc, but we do not
     //   want the window border to actually appear around our window.
-    // 
+    //
     // See https://learn.microsoft.com/en-us/windows/win32/dwm/customframe#removing-the-standard-frame
-    // 
+    //
     // P.S: Requires the window to be resized afterwards, which is handled through
     //        the RemovedDWMBorders boolean.
     case WM_NCCALCSIZE:
@@ -1883,19 +1883,19 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
           //if (ImGui::FindWindowByName("###NavWindowingList") != nullptr &&
           //    ImGui::FindWindowByName("###NavWindowingList")->Viewport == viewport)
           //  break;
-        
+
           //LRESULT def =  DefWindowProc (hWnd, msg, wParam, lParam);
           WINDOWPOS* wp = reinterpret_cast<WINDOWPOS*> (lParam);
-        
+
           POINT ptLeftTop  = {
             wp->x,
             wp->y
           };
-        
+
           for (int monitor_n = 0; monitor_n < ImGui::GetPlatformIO().Monitors.Size; monitor_n++)
           {
             const ImGuiPlatformMonitor& targetMonitor = ImGui::GetPlatformIO().Monitors[monitor_n];
-          
+
             ImVec2 MaxWorkSize    = ImVec2 (targetMonitor.WorkPos.x + targetMonitor.WorkSize.x,
                                             targetMonitor.WorkPos.y + targetMonitor.WorkSize.y);
             ImRect targetWorkArea = ImRect (targetMonitor.WorkPos, MaxWorkSize);
@@ -1962,7 +1962,7 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
           // For systems with multiple monitors, the ptMaxSize and ptMaxPosition members describe the maximized size and position of the window on the primary monitor,
           // even if the window ultimately maximizes onto a secondary monitor. In that case, the window manager adjusts these values to compensate for differences between
           // the primary monitor and the monitor that displays the window.
-          // 
+          //
           // ImGui_ImplWin32_UpdateMonitors_EnumFunc() always pushes the primary monitor to the front of ImGui::GetPlatformIO().Monitors
 
           sizeMax.x = static_cast<long> (viewport->Size.x);
@@ -1976,11 +1976,11 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
           // The position of the left side of the maximized window (x member) and the position of the top of the maximized window (y member).
           // For top-level windows, this value is based on the position of the primary monitor.
           mmi->ptMaxPosition  = pos;
-           
+
           // The maximized width (x member) and the maximized height (y member) of the window.
           // For top-level windows, this value is based on the width of the primary monitor.
           mmi->ptMaxSize      = sizeMax; // Maximized size
-       
+
           // Informs Windows of the window sizes, so it doesn't try to resize the window when docking it to the left or right sides
           mmi->ptMinTrackSize = sizeMax; // Minimum tracking size
           mmi->ptMaxTrackSize = sizeMax; // Maximum tracking size
@@ -1991,11 +1991,11 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
         }
 
         // Windows 10, version 1703+
-        // 
+        //
         // The function returns a BOOL.
         //   - Returning TRUE indicates that a new size has been computed.
         //   - Returning FALSE indicates that the message will not be handled, and the default linear DPI scaling will apply to the window.
-        // 
+        //
         // There is no specific default handling of this message in DefWindowProc.
         //   - As for all messages it does not explicitly handle, DefWindowProc will return zero for this message.
         //   - As noted above, this return tells the system to use the default linear behavior.
@@ -2031,7 +2031,7 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
             prcNewWindow->left,
             prcNewWindow->top
           };
-      
+
           HMONITOR hMonitor =
             ::MonitorFromPoint  (ptLeftTop,    MONITOR_DEFAULTTONEAREST); // Returns the monitor we expect to end up on based on the top left position
           //::MonitorFromRect   (prcNewWindow, MONITOR_DEFAULTTONEAREST); // Returns the monitor we expect to end up on based on the suggested rect
@@ -2300,12 +2300,12 @@ SKIF_ImGui_ImplWin32_SetDWMBorders (void* hWnd)
 {
   if (! hWnd)
     return;
-  
+
   if (! SKIF_Util_IsWindows11orGreater ( ))
     return;
 
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
-  
+
   if (! _registry.bWin11Corners)
     return;
 
@@ -2314,11 +2314,11 @@ SKIF_ImGui_ImplWin32_SetDWMBorders (void* hWnd)
   COLORREF dwmBorderColor      = DWMWA_COLOR_DEFAULT; // DWMWA_COLOR_NONE
   BOOL     dwmUseDarkMode      = true;
   ImVec4   imguiBorderColor    = ImGui::GetStyleColorVec4 (ImGuiCol_Border);
-        
+
   dwmBorderColor = RGB ((255 * imguiBorderColor.x),
                         (255 * imguiBorderColor.y),
                         (255 * imguiBorderColor.z));
-  
+
   if (SKIF_ImGui_hWnd ==       NULL ||
       SKIF_ImGui_hWnd == (HWND)hWnd)
     dwmCornerPreference = DWMWCP_ROUND;      // Main window

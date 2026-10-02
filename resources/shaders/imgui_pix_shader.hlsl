@@ -172,7 +172,7 @@ expandGamut (float3 vHDRColor, float fExpandGamut = 1.0f)
 {
   const float3 AP1_RGB2Y =
     float3 (0.272229, 0.674082, 0.0536895);
-  
+
   const float3x3 AP1_2_sRGB = {
      1.70505, -0.62179, -0.08326,
     -0.13026,  1.14080, -0.01055,
@@ -204,14 +204,14 @@ expandGamut (float3 vHDRColor, float fExpandGamut = 1.0f)
   //                Green:      0.245     0.718
   //                Blue:       0.1302    0.0456
   //                White:      0.3127    0.3291 (=D65)
-  const float3x3 Wide_2_AP1_D65_MAT = 
+  const float3x3 Wide_2_AP1_D65_MAT =
   {
     0.83451690546233900, 0.1602595895494930, 0.00522350498816804,
     0.02554519357785500, 0.9731015318660700, 0.00135327455607548,
     0.00192582885428273, 0.0303727970124423, 0.96770137413327500
   };
   const float3x3
-         ExpandMat = mul (Wide_2_AP1_D65_MAT, AP1_D65_2_sRGB_MAT);   
+         ExpandMat = mul (Wide_2_AP1_D65_MAT, AP1_D65_2_sRGB_MAT);
   float3 ColorAP1  = mul (sRGB_2_AP1_D65_MAT, vHDRColor);
 
   float  LumaAP1   = dot (ColorAP1, AP1_RGB2Y);
@@ -222,13 +222,13 @@ expandGamut (float3 vHDRColor, float fExpandGamut = 1.0f)
 
   float3 ColorExpand =
     mul (ExpandMat, ColorAP1);
-  
+
   ColorAP1 =
     lerp (ColorAP1, ColorExpand, ExpandAmount);
 
   vHDRColor =
     mul (AP1_2_sRGB, ColorAP1);
-  
+
   return vHDRColor;
 }
 
@@ -265,7 +265,7 @@ float3 Clamp_scRGB_StripNaN (float3 c)
     float3 ( (! IsNan (c.r)) * (! IsInf (c.r)) * c.r,
              (! IsNan (c.g)) * (! IsInf (c.g)) * c.g,
              (! IsNan (c.b)) * (! IsInf (c.b)) * c.b );
-   
+
   return Clamp_scRGB (c);
 }
 
@@ -284,16 +284,16 @@ float4 main (PS_INPUT input) : SV_Target
   }
 
   float4 orig_col = out_col;
-  
+
               // input.lum.x        // Luminance (white point)
   bool isHDR   = input.lum.y > 0.0; // HDR (10 bpc or 16 bpc)
   bool is10bpc = input.lum.z > 0.0; // 10 bpc
   bool is16bpc = input.lum.w > 0.0; // 16 bpc (scRGB)
-  
+
   // 16 bpc scRGB (SDR/HDR)
   // ColSpace:  DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709
   // Gamma:     1.0
-  // Primaries: BT.709 
+  // Primaries: BT.709
   if (is16bpc)
   {
     // Clamp_scRGB_StripNaN ( expandGamut
@@ -310,27 +310,27 @@ float4 main (PS_INPUT input) : SV_Target
                                   saturate (out_col.rgb), 0.0333)
               );
 #endif
-    
+
     float hdr_scale = input.lum.x;
-    
+
     out_col.rgb =                 saturate (out_col.rgb) * hdr_scale;
-    
+
 #ifdef EXPAND
     out_col.r = (orig_col.r <= 0.00013 && orig_col.r >= -0.00013) ? 0.0f : out_col.r;
     out_col.g = (orig_col.g <= 0.00013 && orig_col.g >= -0.00013) ? 0.0f : out_col.g;
     out_col.b = (orig_col.b <= 0.00013 && orig_col.b >= -0.00013) ? 0.0f : out_col.b;
     out_col.a = (orig_col.a <= 0.00013 && orig_col.a >= -0.00013) ? 0.0f : out_col.a;
 #endif
-    
+
     // Manipulate the alpha channel a bit...
   //out_col.a = 1.0f - RemoveSRGBCurve (1.0f - out_col.a); // Sort of perfect alpha transparency handling, but worsens fonts (more haloing), in particular for bright fonts on dark backgrounds
   //out_col.a = out_col.a;                                 // Worse alpha transparency handling, but improves fonts (less haloing)
   //out_col.a = 1.0f - ApplySRGBCurve  (1.0f - out_col.a); // Unusable alpha transparency, and worsens dark fonts on bright backgrounds
     // No perfect solution for various reasons (ImGui not having proper subpixel font rendering or doing linear colors for example)
-    
+
     out_col.rgb *= out_col.a;
   }
-  
+
   // HDR10 (pending potential removal)
   // ColSpace:  DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020
   // Gamma:     2084
@@ -343,9 +343,9 @@ float4 main (PS_INPUT input) : SV_Target
                                   saturate (  out_col.a)  *
                                   saturate (input.col.a)
               );
-    
+
     float hdr_scale = (-input.lum.x / 10000.0);
-    
+
     out_col.rgb =
         LinearToST2084 (
           REC709toREC2020 ( saturate (out_col.rgb) ) * hdr_scale);
@@ -353,14 +353,14 @@ float4 main (PS_INPUT input) : SV_Target
     // Manipulate the alpha channel a bit... sometimes...
     if (orig_col.a < 0.5f)
       out_col.a = 1.0f - ApplySRGBCurve (1.0f - out_col.a);
-    
+
     out_col.rgb *= out_col.a;
   }
-  
+
   // 10 bpc SDR
   // ColSpace:  DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709
   // Gamma:     2.2
-  // Primaries: BT.709 
+  // Primaries: BT.709
   else if (is10bpc)
   {
     out_col =
@@ -369,16 +369,16 @@ float4 main (PS_INPUT input) : SV_Target
                                   saturate (  out_col.a)  *
                                   saturate (input.col.a)
               );
-    
+
     out_col.rgb = ApplySRGBCurve (out_col.rgb);
-    
+
     out_col.rgb *= out_col.a;
   }
-  
+
   // 8 bpc SDR (sRGB)
   else
   {
-    
+
 #ifdef _SRGB
     out_col =
       float4 (   (           input.col.rgb) *
@@ -386,28 +386,28 @@ float4 main (PS_INPUT input) : SV_Target
                                   saturate (  out_col.a)  *
                                   saturate (input.col.a)
               );
-    
+
     out_col.rgb = RemoveSRGBCurve (out_col.rgb);
-    
+
     // Manipulate the alpha channel a bit...
     out_col.a = 1.0f - RemoveSRGBCurve (1.0f - out_col.a);
 #else
-    
+
     out_col =
       float4 (  RemoveSRGBCurve (           input.col.rgb) *
                 RemoveSRGBCurve (             out_col.rgb),
                                   saturate (  out_col.a)  *
                                   saturate (input.col.a)
               );
-    
+
     out_col.rgb = ApplySRGBCurve (out_col.rgb);
-    
+
 #endif
-    
+
     out_col.rgb *= out_col.a;
-    
+
   }
-  
+
   return out_col;
 };
 

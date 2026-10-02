@@ -170,7 +170,7 @@ const float fTintMin     = 0.75f;
       float fAlphaSK     = 0.0f;
       float fAlphaPrev   = 1.0f;
       float fAlphaList   = 0.0f;
-      
+
 PopupState GameMenu            = PopupState_Closed;
 PopupState EmptySpaceMenu      = PopupState_Closed;
 PopupState CoverMenu           = PopupState_Closed;
@@ -477,7 +477,7 @@ SearchAppsList (void)
 
     // Acquire lock before iterating the global apps list
     std::scoped_lock app_lock (g_apps_mutex);
-      
+
     // Prioritize trie search first
     if (searchLabels->search (test_))
     {
@@ -517,9 +517,9 @@ SearchAppsList (void)
         if (app.second.id == 0 || app.second.filtered)
           continue;
 
-        size_t 
+        size_t
             pos  = app.second.names.all_upper.find (test_);
-        if (pos != std::string::npos ) // == 0 
+        if (pos != std::string::npos ) // == 0
         {
           result.text   = app.second.names.normal;
           result.store  = app.second.store;
@@ -535,7 +535,7 @@ SearchAppsList (void)
 
   if (! result.text.empty ())
   {
-    size_t len = 
+    size_t len =
         (result.len < result.text.length ( ))
       ? result.len : result.text.length ( );
 
@@ -1106,7 +1106,7 @@ LaunchGame (app_record_s* pApp)
         env.emplace       (L"SteamGameId",        wsSteamAppID); //   ... so let's use both of them...
       //env.emplace       (L"SteamOverlayGameId", wsSteamAppID);
       //env.emplace       (L"EnableConfiguratorSupport", L"0");
-          
+
         steamOverlay = SKIF_Steam_isSteamOverlayEnabled (uiSteamAppID, SKIF_Steam_GetCurrentUser ( ));
 
         if (! steamOverlay)
@@ -1123,7 +1123,7 @@ LaunchGame (app_record_s* pApp)
 
           if (pApp->store == app_record_s::Store::Steam)
             steamLaunchOptions = SKIF_Steam_GetLaunchOptions (uiSteamAppID, SKIF_Steam_GetCurrentUser(), pApp);
-          
+
           if (steamLaunchOptions.size() > 0)
           {
             PLOG_DEBUG << "Found additional launch options for this app in Steam: " << steamLaunchOptions;
@@ -1223,7 +1223,7 @@ LaunchGame (app_record_s* pApp)
           // and so on and so forth...
 
           std::wstring exePath;
-            
+
           // First position is a quotation mark, assume executable is surrounded in them...
           if (cmdLine.find(L"\"") == 0)
           {
@@ -1254,7 +1254,7 @@ LaunchGame (app_record_s* pApp)
             sexi.fMask        = SEE_MASK_NOCLOSEPROCESS | // We need the PID of the process that gets started
                                 SEE_MASK_NOASYNC        | // Never async since we need env variables to be set properly
                                 SEE_MASK_NOZONECHECKS;    // No zone check needs to be performed
-              
+
           PLOG_INFO                       << "Performing a ShellExecuteEx call...";
           PLOG_INFO_IF(! exePath.empty()) << "File      : " << exePath;
           PLOG_INFO_IF(! cmdLine.empty()) << "Parameters: " << cmdLine;
@@ -1307,7 +1307,7 @@ LaunchGame (app_record_s* pApp)
             iconPath,
             (! localInjection && usingSK));
         }
-        
+
         else {
           PLOG_ERROR << "Process worker creation failed ?!";
 
@@ -1349,7 +1349,7 @@ LaunchGame (app_record_s* pApp)
 
       bool launchDecision = true;
 
-      // Check localconfig.vdf if user is attempting to launch without Special K 
+      // Check localconfig.vdf if user is attempting to launch without Special K
       if (! usingSK && ! localInjection)
       {
         if (SKIF_Steam_GetLaunchOptions (pApp->id, SKIF_Steam_GetCurrentUser(), pApp).size() > 0)
@@ -1366,7 +1366,7 @@ LaunchGame (app_record_s* pApp)
                       confirmCopy.insert      (pos, R"(%)"),  // Escape the character
                       pos  = confirmCopy.find ('%', pos + 2)) // Find the next occurence
             { }
-                          
+
             SKIF_ImGui_InfoMessage ("Conflicting configuration",
                                     "Could not launch game due to conflicting launch options in Steam:\n"
                                     "\n"
@@ -1579,7 +1579,7 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
     uint32_t     appid         = 0;
     int          store         = 0;
   };
-  
+
   thread_s* data = new thread_s;
 
   data->source        = path;
@@ -1712,11 +1712,11 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
     DeleteFile(tmpPath.c_str());
 
     PLOG_ERROR_IF(! success) << "Failed to process the new cover image!";
-      
+
     PostMessage (SKIF_Notify_hWnd, WM_SKIF_REFRESHCOVER, _data->appid, _data->store); // Force a refresh when the cover has been swapped in
 
     PLOG_INFO  << "Finished updating game cover asynchronously...";
-    
+
     // Free up the memory we allocated
     delete _data;
 
@@ -1794,7 +1794,7 @@ DrawGameConfigMenu (app_record_s* pApp)
     static std::vector<Preset>  CustomPresets;
     static bool runOnceDefaultPresets = true;
     static bool runOnceCustomPresets  = true;
-      
+
     // Shared function
     auto _FindPresets = [](std::wstring folder, std::wstring find_pattern) -> std::vector<Preset>
     {
@@ -1802,7 +1802,7 @@ DrawGameConfigMenu (app_record_s* pApp)
       WIN32_FIND_DATA ffd = { };;
       std::vector<Preset> tmpPresets;
 
-      hFind = 
+      hFind =
         FindFirstFileExW ((folder + find_pattern).c_str(), FindExInfoBasic, &ffd, FindExSearchNameMatch, NULL, NULL);
 
       if (INVALID_HANDLE_VALUE != hFind)
@@ -1860,7 +1860,7 @@ DrawGameConfigMenu (app_record_s* pApp)
                 {
                   std::string string =
                     std::move (preset_data);
-                    
+
                   // Skip files only containing byte order marks
                   if (string != "\xEF\xBB\xBF"     && // UTF-8,  with BOM
                       string != "\xFF\xFE"         && // UTF-16, little endian
@@ -2035,9 +2035,9 @@ DrawGameContextMenu (app_record_s* pApp)
 
   if (firstLaunchConfig != nullptr && pApp->store == app_record_s::Store::Steam && ! pApp->_status.updating)
     SteamShortcutPossible = firstLaunchConfig->isExecutableFullPathValid ( );
-    
+
   bool playDisabled = (pApp->_status.running || pApp->_status.updating);
-  
+
   // Push styling for Disabled
   ImGui::PushStyleColor      (ImGuiCol_TextDisabled,
     ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled)  * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
@@ -2120,7 +2120,7 @@ DrawGameContextMenu (app_record_s* pApp)
 
       SKIF_ImGui_SetHoverTip  ("Skips the regular platform launch process for the game,\n"
                                 "including steps such as cloud saves synchronization.");
-          
+
       if (pApp->specialk.injection.injection.type != InjectionType::Local && _inject.bHasServlet)
       {
         ImGui::PushStyleColor      (ImGuiCol_Text,
@@ -2137,7 +2137,7 @@ DrawGameContextMenu (app_record_s* pApp)
           ImGui::EndDisabled ( );
 
         ImGui::PopStyleColor   ( );
-        
+
         SKIF_ImGui_SetHoverText (hoverText.c_str());
       }
     }
@@ -2204,7 +2204,7 @@ DrawGameContextMenu (app_record_s* pApp)
             launchConfig = &_launch_cfg.second;
             launchInstant = true;
           }
-          
+
           if (playDisabled || blacklisted)
           {
             ImGui::PopStyleColor  ( );
@@ -2232,10 +2232,10 @@ DrawGameContextMenu (app_record_s* pApp)
                ! _launch_cfg.second.custom_skif && ! _launch_cfg.second.custom_user)
               hoverText += (" " + pApp->steam.local.launch_option);
           }
-          
+
           if (! playDisabled && ! blacklisted)
             SKIF_ImGui_SetMouseCursorHand ( );
-          
+
           SKIF_ImGui_SetHoverText       (hoverText.c_str());
 
           if (blacklisted)
@@ -2298,7 +2298,7 @@ DrawGameContextMenu (app_record_s* pApp)
                               ? _launch.getExecutableFileNameUTF8().c_str ()
                               : _launch.getDescriptionUTF8().c_str (),
                             _launch.id);
-          
+
             if (playDisabled || localDisabled)
             {
               ImGui::PushItemFlag   (ImGuiItemFlags_Disabled, true);
@@ -2312,7 +2312,7 @@ DrawGameContextMenu (app_record_s* pApp)
               launchConfig = &_launch_cfg.second;
               launchInstant = launchWithoutSK = true;
             }
-          
+
             if (playDisabled || localDisabled)
             {
               ImGui::PopStyleColor  ( );
@@ -2328,7 +2328,7 @@ DrawGameContextMenu (app_record_s* pApp)
 
             if (! playDisabled && ! localDisabled)
               SKIF_ImGui_SetMouseCursorHand ( );
-          
+
             SKIF_ImGui_SetHoverText       (hoverText.c_str());
 
             if (localDisabled)
@@ -2337,7 +2337,7 @@ DrawGameContextMenu (app_record_s* pApp)
 
           ImGui::EndMenu ();
         }
-      
+
         if (! playDisabled)
           ImGui::PopStyleColor ( );
       }
@@ -2403,7 +2403,7 @@ DrawGameContextMenu (app_record_s* pApp)
           }
         );
       }
-      
+
       if (SKIF_ImGui_MenuItemEx2 ("Terminate game", ICON_FA_POWER_OFF))
       {
         static_proc.handle = hProcess;
@@ -2521,7 +2521,7 @@ DrawGameContextMenu (app_record_s* pApp)
           ImGui::PushStyleColor ( ImGuiCol_Text,
             ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) // * ImVec4(1.0f, 1.0f, 1.0f, 1.0f) //(ImVec4)ImColor::HSV (0.0f, 0.0f, 0.75f)
           );
-          
+
           if (SKIF_ImGui_MenuItemEx2 (folder.label.c_str(), ICON_FA_FOLDER_OPEN, ImColor(255, 207, 72)))
           {
             SKIF_Util_ExplorePath       (folder.path);
@@ -2644,7 +2644,7 @@ DrawGameContextMenu (app_record_s* pApp)
               static_category.newName = newCategoryName;
               static_category.change  = true;
               static_category.exists  = (std::find_if(_registry.vecCategories.begin(), _registry.vecCategories.end(), [&](const SKIF_RegistrySettings::category_s& category) { return category.name == newCategoryName; }) != _registry.vecCategories.end());
-              
+
               ImGui::CloseCurrentPopup ( );
               // It's not safe to iterate in this loop any longer
               break;
@@ -2811,7 +2811,7 @@ DrawGameContextMenu (app_record_s* pApp)
         constexpr char* info_title         = "Create desktop shortcut";
         constexpr char* info_label_success = "A desktop shortcut has been created.";
         constexpr char* info_label_failure = "Failed to create a desktop shortcut!";
-        
+
         if (SKIF_Util_CreateShortcut (
             linkPath.c_str(),
             _path_cache.skif_executable,
@@ -2831,7 +2831,7 @@ DrawGameContextMenu (app_record_s* pApp)
     constexpr char* labelUnhide = "Unhide";
 
     bool bUnhide = (pApp->skif.hidden == 1 || (pApp->skif.hidden == -1 && pApp->steam.shared.hidden == 1));
-    
+
     if (SKIF_ImGui_MenuItemEx2 ((bUnhide ? labelUnhide : labelHide), (bUnhide ? ICON_FA_EYE : ICON_FA_EYE_SLASH), ImColor(200, 200, 200, 255)))
     {
       pApp->skif.hidden = bUnhide ? 0 : 1;
@@ -2849,7 +2849,7 @@ DrawGameContextMenu (app_record_s* pApp)
 
     ImGui::EndMenu ( );
   }
-  
+
   if (pApp->store == app_record_s::Store::Steam &&
       ImGui::BeginMenuEx ("Steam", ICON_FA_STEAM))
   {
@@ -2858,14 +2858,14 @@ DrawGameContextMenu (app_record_s* pApp)
 
     SKIF_ImGui_SetMouseCursorHand ( );
     SKIF_ImGui_SetHoverText       (SKIF_Util_FormatStringRaw ("steam://nav/games/details/%lu", pApp->id));
-    
+
     if (SKIF_ImGui_MenuItemEx2 ("Steam Input", ICON_FA_GAMEPAD, (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255)))
       SKIF_Util_OpenURI ((L"steam://controllerconfig/" + std::to_wstring (pApp->id)).c_str());
 
     SKIF_ImGui_SetMouseCursorHand ( );
     SKIF_ImGui_SetHoverTip        ("A controller must be connected.");
     SKIF_ImGui_SetHoverText       (SKIF_Util_FormatStringRaw ("steam://controllerconfig/%lu", pApp->id));
-    
+
     if (SKIF_ImGui_MenuItemEx2 ("Game properties", ICON_FA_WRENCH, ImColor(200, 200, 200, 255)))
       SKIF_Util_OpenURI ((L"steam://gameproperties/" + std::to_wstring (pApp->id)).c_str());
 
@@ -2874,7 +2874,7 @@ DrawGameContextMenu (app_record_s* pApp)
 
     ImGui::EndMenu     ( );
   }
-  
+
   if (SKIF_ImGui_BeginMenuEx2 ("Websites", ICON_FA_SHARE, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)))
   {
     if (pApp->store == app_record_s::Store::GOG)
@@ -2910,7 +2910,7 @@ DrawGameContextMenu (app_record_s* pApp)
     ImGui::EndMenu ( );
   }
 
-  
+
   if (_registry.bDeveloperMode)
   {
     ImGui::Separator ( );
@@ -2943,7 +2943,7 @@ DrawGameContextMenu (app_record_s* pApp)
           if (ImGui::MenuItem ("Name",                    pApp->skif.name.c_str()))
             SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->skif.name));
         }
-        
+
         if (ImGui::MenuItem ("Category",                  pApp->skif.category.c_str()))
           SKIF_Util_SetClipboardData   (SK_UTF8ToWideChar(pApp->skif.category));
         if (ImGui::MenuItem ("Uses",               std::to_string (pApp->skif.uses).c_str()))
@@ -3097,7 +3097,7 @@ DrawGameContextMenu (app_record_s* pApp)
             );
 
             bool bExpand =
-          
+
               ImGui::BeginMenu (branch_name.c_str ());
 
             ImGui::PopStyleColor ();
@@ -3239,7 +3239,7 @@ DrawGameContextMenu (app_record_s* pApp)
               if (pApp->store == app_record_s::Store::Xbox)
               {
                 ImGui::Separator ( );
-          
+
                 ImGui::PushID       ("#Xbox");
                 ImGui::TextDisabled ("Xbox Data");
                 if (ImGui::MenuItem ("Application ID",          launch.Xbox_ApplicationId.c_str()))
@@ -3257,7 +3257,7 @@ DrawGameContextMenu (app_record_s* pApp)
         ImGui::Separator ( );
       }
 
-      
+
       if (pApp->store == app_record_s::Store::Xbox)
       {
         if (pApp->ui.numSecondaryLaunchConfigs == 0)
@@ -3363,7 +3363,7 @@ DrawSpecialKContextMenu (app_record_s* pApp)
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
-  
+
   if (! _inject.bCurrentState)
   {
     if (SKIF_ImGui_MenuItemEx2 ("Start service", ICON_FA_TOGGLE_ON,  ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success)))
@@ -3379,7 +3379,7 @@ DrawSpecialKContextMenu (app_record_s* pApp)
   }
 
   ImGui::Separator ( ); // ==============================
-  
+
   if (SKIF_ImGui_BeginMenuEx2 ("Browse", ICON_FA_FOLDER, ImColor(255, 207, 72)))
   {
     if (SKIF_ImGui_MenuItemEx2 ("Install folder", ICON_FA_FOLDER_OPEN, ImColor(255, 207, 72)))
@@ -3387,7 +3387,7 @@ DrawSpecialKContextMenu (app_record_s* pApp)
 
     SKIF_ImGui_SetMouseCursorHand ( );
     SKIF_ImGui_SetHoverText       (SK_WideCharToUTF8 (pApp->install_dir));
-    
+
     if (SKIF_ImGui_MenuItemEx2 ("Profile folders", ICON_FA_FOLDER_OPEN, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info)))
       SKIF_Util_ExplorePath (pApp->specialk.profile_dir);
 
@@ -3507,7 +3507,7 @@ GetInjectionSummary (app_record_s* pApp)
         ret = true;
       }
     }
-        
+
     return ret;
   };
 
@@ -3605,7 +3605,7 @@ GetInjectionSummary (app_record_s* pApp)
     }
 
     SKIF_ImGui_SetHoverText       (pApp->specialk.injection.dll.full_path_utf8.c_str());
-        
+
     if (openLocalMenu && ! ImGui::IsPopupOpen ("LocalDLLMenu"))
       ImGui::OpenPopup    ("LocalDLLMenu");
 
@@ -3627,7 +3627,7 @@ GetInjectionSummary (app_record_s* pApp)
 
           HKEY     hKey;
           LSTATUS ls = RegOpenKeyW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\Local)", &hKey);
-      
+
           if (ERROR_SUCCESS == ls)
           {
             ls = RegDeleteValueW (hKey, pApp->specialk.injection.dll.full_path.c_str());
@@ -3951,7 +3951,7 @@ GetInjectionSummary (app_record_s* pApp)
           std::error_code ec;
           if (! std::filesystem::exists (            root, ec))
                 std::filesystem::create_directories (root, ec);
-      
+
           static std::wstring download, filename, path;
 
           switch (_appid)
@@ -3987,13 +3987,13 @@ GetInjectionSummary (app_record_s* pApp)
               PLOG_INFO << "Downloading installer: " << download;
               SKIF_Util_GetWebResource (download, path);
             }
-        
+
             modInstalling.store (true);
 
             // Note that any new process will inherit SKIF's environment variables
             if (_registry._LoadedSteamOverlay)
               SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
-  
+
             SHELLEXECUTEINFOW
               sexi              = { };
               sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
@@ -4005,7 +4005,7 @@ GetInjectionSummary (app_record_s* pApp)
               sexi.fMask        = SEE_MASK_NOCLOSEPROCESS | // We need the PID of the process that gets started
                                   SEE_MASK_NOASYNC        | // Never async since we execute in short-lived child thread
                                   SEE_MASK_NOZONECHECKS;    // No zone check needs to be performed
-              
+
             PLOG_INFO                    << "Performing a ShellExecuteEx call...";
             PLOG_INFO_IF(! path.empty()) << "File      : " << path;
 
@@ -4019,7 +4019,7 @@ GetInjectionSummary (app_record_s* pApp)
 
             if (_registry._LoadedSteamOverlay)
               SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
-          
+
             // If the process was started successfully, wait for it to close down...
             if (sexi.hInstApp  > (HINSTANCE)32 &&
                 sexi.hProcess != NULL)
@@ -4032,7 +4032,7 @@ GetInjectionSummary (app_record_s* pApp)
 
             PLOG_INFO << "Finished installing a mod asynchronously...";
           }
-        
+
           modAppId.store (0);
           modDownloading.store (false);
 
@@ -4148,7 +4148,7 @@ GetInjectionSummary (app_record_s* pApp)
         blacklist = true;
         SKIF_ImGui_PushDisableState ( );
       }
-          
+
       if (ImGui::Checkbox (szButtonLabel,   &blacklist))
         launch_cfg.setBlacklisted (blacklist);
 
@@ -4259,7 +4259,7 @@ GetInjectionSummary (app_record_s* pApp)
 
           for ( auto& launch : pApp->launch_configs )
           {
-            if (! launch.second.valid || 
+            if (! launch.second.valid ||
                   launch.second.duplicate_exe)
               continue;
 
@@ -4324,7 +4324,7 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
       while (dwIndex > 0)
       {
         dwIndex--;
-          
+
         DWORD dwValueNameLen =
               (dwMaxValueNameLen + 2);
 
@@ -4343,7 +4343,7 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
           if (StrStrIW (pValue.get(), (pApp->install_dir + LR"(\)").c_str()) != NULL)
           {
             std::wstring dll_full_path = std::wstring(pValue.get());
-              
+
             std::wstring dll_ver =
               SKIF_Util_GetSpecialKDLLVersion (dll_full_path.c_str ());
 
@@ -4471,7 +4471,7 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
             launch.cpu_type;
         }
       }
-      
+
       if (     cpu_type == app_record_s::CPUType::x64)
         launch.injection.injection.bitness = InjectionBitness::SixtyFour;
 
@@ -4521,7 +4521,7 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
         { L"DDraw",    L"" }
       };
 
-      std::wstring test_paths[] = { 
+      std::wstring test_paths[] = {
         pApp->launch_configs.count (0) ? pApp->launch_configs.at (0).getExecutableDir() : L"",
         pApp->launch_configs.count (0) ? pApp->launch_configs.at (0).working_dir        : L""
       };
@@ -4534,7 +4534,7 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
       {
         if (test_path.empty())
           continue;
-      
+
         std::wstring test_pattern =
           test_path + LR"(\*.dll)";
 
@@ -4557,10 +4557,10 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
             {
               // Filename + extension
               dll.path = dll.name + L".dll";
-            
+
               if (StrStrIW (ffd.cFileName, dll.path.c_str()) == NULL)
                 continue;
-          
+
               // Full path
               dll.path = test_path + LR"(\)" + dll.path;
 
@@ -4670,7 +4670,7 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
     pApp->specialk.injection.config.type =
       ConfigType::Centralized;
 
-    pApp->specialk.injection.dll.shorthand      = 
+    pApp->specialk.injection.dll.shorthand      =
                                        bIs64Bit
 #ifdef _WIN64
                                                 ? L"SpecialK64.dll"
@@ -4696,7 +4696,7 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
            pApp->specialk.injection.injection.type )
   {
     LSTATUS lsKey = RegCreateKeyW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\Local)", &hKey);
-      
+
     if (ERROR_SUCCESS == lsKey)
     {
       if (ERROR_SUCCESS != RegSetValueExW (hKey, pApp->specialk.injection.dll.full_path.c_str(), 0, REG_SZ, (LPBYTE)pApp->specialk.injection.dll.version.data(), (DWORD)pApp->specialk.injection.dll.version.length() * sizeof(wchar_t)))
@@ -4817,11 +4817,11 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
   }
 
   // Refresh the context menu cached data
-  
+
   // Profile + Screenshots
   //pApp->ui.profileFolderExists     = PathFileExists (pApp->specialk.injection.config.root_dir.c_str());
   pApp->ui.wsScreenshotDir         = pApp->specialk.injection.config.root_dir + LR"(\Screenshots)";
-  pApp->ui.screenshotsFolderExists = PathFileExists (pApp->ui.wsScreenshotDir.c_str()); // (pApp->ui.profileFolderExists) ? 
+  pApp->ui.screenshotsFolderExists = PathFileExists (pApp->ui.wsScreenshotDir.c_str()); // (pApp->ui.profileFolderExists) ?
 
   // Check how many secondary launch configs are valid
   pApp->ui.numSecondaryLaunchConfigs = 0;
@@ -4842,7 +4842,7 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
     if (! _launch_cfg.second.valid ||
           _launch_cfg.second.duplicate_exe_args)
       continue;
-    
+
     pApp->ui.numSecondaryLaunchConfigs++;
   }
 
@@ -4858,7 +4858,7 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
       if (cloud.second.valid == 0)
         continue;
 
-      if (app_record_s::supports (cloud.second.platforms, app_record_s::Platform::Windows) && 
+      if (app_record_s::supports (cloud.second.platforms, app_record_s::Platform::Windows) &&
           app_record_s::Platform::Unknown != cloud.second.platforms)
         cloud.second.valid = 0;
 
@@ -4900,7 +4900,7 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
         it.second;
 
       // TODO: Maybe split sort in public v. private?
-      
+
       // Sort in descending order
       pApp->ui.branches.emplace (
         std::make_pair   (-(int64_t)branch.build_id,
@@ -4925,7 +4925,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
   static SKIF_GamingCollection& _games      = SKIF_GamingCollection::GetInstance  ( );
-  
+
   static SKIF_DirectoryWatch     SKIF_Epic_ManifestWatch;
 
   static image_s cover, cover_old, coverSK;
@@ -4964,7 +4964,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       lib_init = true;
   if (lib_init)
   {   lib_init = false;
-    
+
     app_record_s SKIF_record (SKIF_STEAM_APPID);
 
     SKIF_record.id                = SKIF_STEAM_APPID;
@@ -5007,7 +5007,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       appid    = (reset_to_skif) ? SKIF_STEAM_APPID           : 0;
       store    = (reset_to_skif) ? app_record_s::Store::Steam : app_record_s::Store::Unspecified;
       category = "";
-      
+
       if (dir_watch._hChangeNotification != INVALID_HANDLE_VALUE)
         dir_watch.reset();
     }
@@ -5049,7 +5049,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       PLOG_INFO << "[Library Pre-Processing] Epic took " << (SKIF_Util_timeGetTime1 ( ) - time_current) << " ms.";
       time_current = SKIF_Util_timeGetTime1 ( );
     }
-    
+
     // Sets up a wait object on UITab_Library
     if (SKIF_GOG_hasInstalledGamesChanged ( ) && _registry.bLibraryGOG)
       RepopulateGames = true;
@@ -5088,7 +5088,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     PopulatedGames = false;
   }
-  
+
   else if (RepopulateGames)
   {
     PLOG_VERBOSE << "RepopulateGames " << activeIconWorkers;
@@ -5131,7 +5131,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       PLOG_DEBUG << "SKIF_LibraryWorker thread started!";
 
       std::scoped_lock app_lock (g_apps_mutex);
-      
+
       DWORD pre   = 0,
             post  = 0,
             start = SKIF_Util_timeGetTime1 ( );
@@ -5217,7 +5217,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           games = _data->apps.size();
         }
       }
-    
+
       if (_registry.bLibraryXbox || _registry._LibraryHidden)
       {
         SKIF_Xbox_GetInstalledAppIDs (&_data->apps);
@@ -5369,7 +5369,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         // Regular handling for the remaining Steam games
         else if (app.second.store == app_record_s::Store::Steam)
-        { 
+        {
           app.first.clear ();
 
           if (SKIF_Steam_UpdateAppState (&app.second))
@@ -5463,7 +5463,7 @@ SKIF_UI_Tab_DrawLibrary (void)
               // Human-readable time format (local time)
               time_t          last_played    = (time_t)strtol(app.second.skif.used.c_str(), NULL, 10);
               app.second.skif.used_formatted = SK_WideCharToUTF8 (SKIF_Util_timeGetTimeAsWStr (last_played));
-                
+
               if (app.second.isInstantPlayCompatible () && key.contains ("InstantPlay"))
               {
                 app.second.skif.instant_play = key.at ("InstantPlay");
@@ -5561,7 +5561,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
           // Store the cleaned copy of the original
           app.second.names.clean = app.first;
-          
+
           // Apply any custom name
           if (! app.second.skif.name.empty())
           {
@@ -5589,7 +5589,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           // This populates install_dir for Steam games
           if (app.second.store == app_record_s::Store::Steam)
             SK_UseManifestToGetInstallDir (&app.second);
-          
+
           if (! PathFileExists (app.second.install_dir.c_str()))
           {
             PLOG_DEBUG << "App ID " << app.second.id << " (" << app.second.store_utf8 << ") has non-existent install folder; ignoring!";
@@ -5772,7 +5772,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           activeIconWorkers--;
         }
       }
-      
+
       // Cache any existing icon textures...
       if (app.second.tex_icon.texture.p != nullptr)
       {
@@ -5821,7 +5821,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     {
       if (icon.id == 0)
         continue; // Skip icons marked as 0
-      
+
       SKIF_ResourcesToFree.push(icon.tex_icon.texture.p);
       icon.tex_icon.texture.p = nullptr;
     }
@@ -5926,7 +5926,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   extern bool  coverFadeActive;
   static int   tmp_iDimCovers = _registry.iDimCovers;
-  
+
   static
     app_record_s* pApp;
 
@@ -5940,7 +5940,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // Default to primary launch config
   launchConfig = (pApp != nullptr && ! pApp->launch_configs.empty()) ? &pApp->launch_configs.begin()->second : nullptr;
-  
+
   bool isSpecialK = (pApp != nullptr && pApp->id == SKIF_STEAM_APPID && pApp->store == app_record_s::Store::Steam);
 
   // Update the injection strategy for the selected game
@@ -6017,7 +6017,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
     }
 
-    // Only run this block of code if 
+    // Only run this block of code if
     if (availableWorker != -1 && ! pApp->loading       && // We require an available worker
         (update                                        ||
          selection.dir_watch.isSignaled ( )            || // TODO: Investigate support for multiple launch configs? Right now only the "main" folder is being monitored
@@ -6061,7 +6061,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           SKIF_Lib_GameWorkerThread_s* _data = static_cast<SKIF_Lib_GameWorkerThread_s*>(var);
 
           UpdateInjectionStrategy (&_data->app, _data->apptickets);
-      
+
           // Force a refresh when the game icons have finished being streamed
           PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
 
@@ -6308,14 +6308,14 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Special handling for when a cover is being loaded in the background and selection changes from another game back to this one...
       if (tryingToSaveCover && coverRefreshAppId == pApp->id && coverRefreshStore == (int)pApp->store)
         pcstrLabel = cstrLabelLoading;
-    
+
       // A new cover is meant to be loaded, so don't do anything for now...
       else if (loadCover)
       { }
 
       else if (tryingToLoadCover)
         pcstrLabel = cstrLabelLoading;
-  
+
       else if (textureLoadQueueLength.load() == queuePosGameCover && pTexSRV.p == nullptr)
       {
         if (pApp != nullptr && pApp->id == SKIF_STEAM_APPID && pApp->store == app_record_s::Store::Steam)
@@ -6332,8 +6332,8 @@ SKIF_UI_Tab_DrawLibrary (void)
         }
       }
 
-      float fGammaCorrectedTint = 
-        ((! _registry._RendererHDREnabled && _registry.iSDRMode == 2) || 
+      float fGammaCorrectedTint =
+        ((! _registry._RendererHDREnabled && _registry.iSDRMode == 2) ||
           ( _registry._RendererHDREnabled && _registry.iHDRMode == 2))
             ? AdjustAlpha (fTint)
             : fTint;
@@ -6432,7 +6432,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   }
 
 #pragma endregion
-  
+
   //float fZ =
   //ImGui::GetCursorPosX ( );
 
@@ -6453,7 +6453,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   ImGui::SetCursorPosY   (
     ImFloor (ImGui::GetCursorPosY ( ) + 4.0f * SKIF_ImGui_GlobalDPIScale)
   );
-  
+
 
   bool showClearBtn      = (charFilter[0] != '\0');
   // Mirrors what ImGui::ButtonEx() does to calculate the height of buttons
@@ -6469,7 +6469,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                                 ImVec2 (sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f, fTopHeight),
                                 (_registry.bUIBorders ? ImGuiChildFlags_Border : ImGuiChildFlags_None),
                                 ImGuiWindowFlags_NavFlattened );
-  
+
   ImGui::PushStyleColor (ImGuiCol_Button,        ImVec4(0,0,0,0));
   ImGui::PushStyleColor (ImGuiCol_ButtonHovered, ImVec4(0,0,0,0));
   ImGui::PushStyleColor (ImGuiCol_ButtonActive,  ImVec4(0,0,0,0));
@@ -6509,7 +6509,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   }
 
   ImGui::SameLine ( );
-  
+
   //static int numPinned   = 0;
   //static int numRegular  = 0;
   //bool       resortGames = false;
@@ -6529,7 +6529,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     {
       if (app.second.id == 0)
         continue;
-      
+
       app.second.filtered = (charFilter[0] != '\0' && (StrStrIA (app.first.c_str(), charFilter) == NULL &&                // Name
                                                        StrStrIA (app.second.skif.category.c_str(), charFilter) == NULL)); // Category
 
@@ -6884,7 +6884,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (categories > 0 && ! category_opened)
         continue;
     }
-    
+
     bool selected = (selection.appid == app.second.id &&
                      selection.store == app.second.store);
     bool change   = false;
@@ -6954,7 +6954,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         item_clicked.reset ( );
         launchGame = true;
       }
-      
+
       else if (ImGui::IsMouseClicked (ImGuiMouseButton_Left) )
       {
         timeClicked        = SKIF_Util_timeGetTime ( );
@@ -7056,7 +7056,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
           if (! ImGui::IsItemVisible    (    ))
             ImGui::SetScrollHereY       (0.5f);
-          
+
           //ImGui::SetKeyboardFocusHere (    ); // Disabled after ImGui update since this set the keyboard focus on the next item
 
           // This fixes ImGui not allowing the GameContextMenu to be opened on first search
@@ -7087,7 +7087,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       activeIconWorkers++;
 
       std::wstring load_str;
-        
+
       if (app.second.id == SKIF_STEAM_APPID) // SKIF
         load_str = L"sk_icon.jpg";
       else  if (app.second.store == app_record_s::Store::Custom) // SKIF Custom
@@ -7110,7 +7110,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         app_record_s*                 app;
         std::wstring                  path;
       };
-  
+
       thread_s* data = new thread_s;
 
       data->path    =  load_str;
@@ -7136,7 +7136,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                                     _data->path,
                                       dontCare,
                                         _data->app );
-          
+
         delete _data;
 
         // Force a refresh when the game icons have finished being streamed
@@ -7144,7 +7144,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         return 0;
       }, data, 0x0, nullptr);
-        
+
       bool threadCreated = (hWorkerThread != NULL);
 
       if (threadCreated)
@@ -7193,7 +7193,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   ImGui::EndChild        ( );
   ImGui::EndGroup        ( ); // End GamesList
   ImGui::PopStyleColor   ( );
-  
+
 #pragma endregion
 
   if (_registry._LibHorizonMode)
@@ -7368,7 +7368,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         ImGui::SameLine           ( );
         ImGui::Spacing            ( );
         ImGui::SameLine           ( );
-    
+
         ImGui::PushStyleVar       (ImGuiStyleVar_FrameBorderSize, 0.0f);
         ImGui::PushStyleColor     (ImGuiCol_Text,           ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4  (0.6f, 0.6f, 0.6f, 1.0f));
         ImGui::PushStyleColor     (ImGuiCol_FrameBg,        ImColor (0, 0, 0, 0).Value);
@@ -7384,7 +7384,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         hoveredPatCredits =
         ImGui::IsItemActive       ( ) ||
         ImGui::IsItemHovered      ( );
-    
+
         if (ImGui::IsItemActive   ( ))
           allowShortcutCtrlA = false;
 
@@ -7435,7 +7435,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   SKIF_ImGui_ServiceMenu ( );
 
 #pragma endregion
-  
+
 #pragma region CoverMenu
 
   // Open the CoverMenu
@@ -7444,7 +7444,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     ImGui::OpenPopup    ("CoverMenu");
     CoverMenu = PopupState_Closed;
   }
-  
+
 
   if (pApp != nullptr)
   {
@@ -7458,13 +7458,13 @@ SKIF_UI_Tab_DrawLibrary (void)
                             pApp->store != app_record_s::Store::Custom) ||
                             pApp->tex_cover.isCustom                    ||
                             pApp->tex_cover.isManaged);
-      
+
       if (SKIF_ImGui_MenuItemEx2 ("Change", ICON_FA_FILE_IMAGE, (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255)))
       {
         LPWSTR pwszFilePath = NULL;
         HRESULT hr          =
           SKIF_Util_FileExplorer_BrowseForFile(&pwszFilePath, SKIF_ImGui_hWnd, { { L"Images", L"*.png;*.jpg;*.jpeg;*.webp;*.psd;*.bmp" } }, FOS_FILEMUSTEXIST, FOLDERID_Pictures);
-          
+
         if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED))
         {
           // If cancelled, do nothing
@@ -7479,7 +7479,7 @@ SKIF_UI_Tab_DrawLibrary (void)
             tryingToSaveCover = true;
             coverRefreshAppId = pApp->id;
             coverRefreshStore = (int)pApp->store;
-      
+
             // This sets up the current one to be released
             vecCoverRes_old = vecCoverRes;
             vecCoverRes     = ImVec2 (0, 0);
@@ -7726,7 +7726,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         DrawSpecialKContextMenu (pApp);
       else
         DrawGameContextMenu     (pApp);
-      
+
       //else if (! update)
       //  ImGui::CloseCurrentPopup ();
 
@@ -7746,7 +7746,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 #pragma endregion
 
 #pragma region GamesList::IconMenu
-  
+
   // Open the IconMenu
   if (IconMenu == PopupState_Open)
   {
@@ -7767,13 +7767,13 @@ SKIF_UI_Tab_DrawLibrary (void)
                            pApp->store != app_record_s::Store::Custom) ||
                            pApp->tex_icon.isCustom                     ||
                            pApp->tex_icon.isManaged);
-      
+
       if (SKIF_ImGui_MenuItemEx2 ("Change", ICON_FA_FILE_IMAGE, (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255)))
       {
         LPWSTR pwszFilePath = NULL;
         HRESULT hr          =
           SKIF_Util_FileExplorer_BrowseForFile (&pwszFilePath, SKIF_ImGui_hWnd, { { L"Icons", L"*.exe;*.ico;*.png;*.jpg;*.jpeg" } }, FOS_FILEMUSTEXIST, FOLDERID_Pictures);
-          
+
         if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED))
         {
           // If cancelled, do nothing
@@ -7820,7 +7820,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
             SetFileAttributes ((targetPath + ext).c_str(),
                     GetFileAttributes ((targetPath + ext).c_str()) & ~FILE_ATTRIBUTE_READONLY);
-            
+
             ImVec2 dontCare;
 
             // Reload the icon
@@ -7838,7 +7838,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       else
         SKIF_ImGui_SetMouseCursorHand ( );
-      
+
       if (resetVisible)
       {
         constexpr char* textCustom  = "Reset";
@@ -7948,7 +7948,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 #pragma endregion
 
 #pragma region GamesList::EmptySpaceMenu
-  
+
   // Open the Empty Space Menu
   if (EmptySpaceMenu == PopupState_Open)
     ImGui::OpenPopup    ("GameListEmptySpaceMenu");
@@ -7983,7 +7983,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (ImGui::MenuItem ("Alphabetical", spaces,  &bName     ))
       {
         _registry.iLibrarySort = 0;
-        
+
         bFrequently = false;
         bRecently   = false;
 
@@ -8009,7 +8009,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (ImGui::MenuItem ("Last played",  spaces, &bRecently  ))
       {
         _registry.iLibrarySort = 2;
-        
+
         bName       = false;
         bFrequently = false;
 
@@ -8102,7 +8102,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     EmptySpaceMenu = PopupState_Closed;
 
 #pragma endregion
-  
+
 #pragma region GameLaunchLogic
 
   if ((launchGame || launchGameMenu || launchInstant) &&
@@ -8119,11 +8119,11 @@ SKIF_UI_Tab_DrawLibrary (void)
   }
 
 #pragma endregion
-  
+
 #pragma region SKIF_LibCoverWorker
-  
+
   if (uiCoverVisible && loadCover && PopulatedGames && ! (tryingToSaveCover && coverRefreshAppId == pApp->id && coverRefreshStore == (int)pApp->store))
-  { // Load cover first after the window has been shown -- to fix one copy leaking of the cover 
+  { // Load cover first after the window has been shown -- to fix one copy leaking of the cover
     // 2023-03-24: Is this even needed any longer after fixing the double-loading that was going on?
     // 2023-03-25: Disabled HiddenFramesCannotSkipItems check to see if it's solved.
     // 2023-10-05: Disabled waiting for the icon thread as well
@@ -8188,7 +8188,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Epic
       else if (_pApp->store == app_record_s::Store::Epic)
       {
-        load_str = 
+        load_str =
           SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\cover-original.jpg)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(_pApp->epic.name_app).c_str());
 
         if ( ! PathFileExistsW (load_str.   c_str ()) )
@@ -8198,7 +8198,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Xbox
       else if (_pApp->store == app_record_s::Store::Xbox)
       {
-        load_str = 
+        load_str =
           SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\cover-original.png)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(_pApp->xbox.package_name).c_str());
 
         if ( ! PathFileExistsW (load_str.   c_str ()) )
@@ -8303,7 +8303,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                 SKIF_Util_GetWebResource (url, load_str_2x);
               }
             }
-          
+
             // If 600x900_x2 exists now, load it
             if (PathFileExistsW (load_str_2x.c_str ()))
               load_str_final = load_str_2x;
@@ -8312,7 +8312,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           load_str = load_str_final;
         }
       }
-    
+
       LoadLibraryTexture ( LibraryTexture::Cover,
                               _pApp->id,
                                 _pTexSRV,
@@ -8515,7 +8515,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         else {
           std::wstring productName = SKIF_Util_GetProductName (wszTarget);
-          
+
           strncpy (charPath,    SK_WideCharToUTF8 (wszTarget).c_str(),                  MAX_PATH);
           strncpy (charWorkDir, SK_WideCharToUTF8 (wszWorkingDir).c_str(),              MAX_PATH);
           strncpy (charArgs,    SK_WideCharToUTF8 (wszArguments).c_str(),               1024);
@@ -8837,7 +8837,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Fill out the current one if it is different from the pseudo one
       if (pApp->names.clean != pApp->names.normal)
         strncpy (charName, pApp->names.normal.c_str( ), MAX_PATH);
-      
+
       // Set the popup as opened after it has appeared (fixes popup not opening from other tabs)
       ImGuiWindow* window = ImGui::FindWindowByName ("###ModifyGamePopup");
       if (window != nullptr && ! window->Appearing)
@@ -8851,7 +8851,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     ImGui::TreePush    ("ModifyGameTreePush");
 
     SKIF_ImGui_Spacing ( );
-    
+
     ImVec2 vButtonSize      = ImVec2 ( 80.0f * SKIF_ImGui_GlobalDPIScale, 0.0f);
     ImVec2 vInputSize       = ImVec2 (275.0f * SKIF_ImGui_GlobalDPIScale, 0.0f);
     bool   disabled         = false;
@@ -8873,7 +8873,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         LPWSTR pwszFilePath = NULL;
         HRESULT hr          =
           SKIF_Util_FileExplorer_BrowseForFile (&pwszFilePath, SKIF_ImGui_hWnd, { { L"Executables", L"*.exe;*.bat" } }, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST);
-          
+
         if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED))
         {
           // If cancelled, do nothing
@@ -8906,7 +8906,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
             else {
               //std::wstring productName = SKIF_Util_GetProductName (wszTarget);
-          
+
               strncpy (charPath,    SK_WideCharToUTF8 (wszTarget).c_str(),                  MAX_PATH);
               strncpy (charWorkDir, SK_WideCharToUTF8 (wszWorkingDir).c_str(),              MAX_PATH);
             }
@@ -9007,7 +9007,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     }
 
     ImGui::SetCursorPosX (fInputX);
-      
+
     ImGui::InputTextEx ("###GameName", hintName, charName, MAX_PATH, vInputSize, ImGuiInputTextFlags_None);
     SKIF_ImGui_DisallowMouseDragMove ( );
     ImGui::SameLine    ( );
@@ -9084,7 +9084,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         SKIF_ImGui_SetHoverTip ("The game will always use instant play except\nwhen launched through the right click menu.");
       }
       ImGui::TreePop         ( );
-        
+
       SKIF_ImGui_Spacing     ( );
       SKIF_ImGui_Spacing     ( );
     }
@@ -9115,7 +9115,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     ImGui::EndGroup        ( );
     SKIF_ImGui_SetHoverTip ("Warning: The service will remain even\nafter the game has been closed.");
     ImGui::TreePop         ( );
-    
+
     SKIF_ImGui_Spacing     ( );
     SKIF_ImGui_Spacing     ( );
 
@@ -9123,7 +9123,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
         "Miscellaneous settings:"
     );
-    
+
     ImGui::TreePush        ("ManageGame_Miscellaneous");
     ImGui::Checkbox        ("Elevated service###ElevatedLaunch", &cached_elevate);
     ImGui::SameLine        ( );
@@ -9190,7 +9190,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         // If the name is the same as the original name, reset the custom value
         if (charName == pApp->names.clean)
           strncpy (charName, "\0", MAX_PATH);
-          
+
         pApp->skif.name = charName;
 
         if (changed_name)
@@ -9199,7 +9199,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       // Update any locally stored metadata
       JsonDB_UpdateApp (pApp, true);
-        
+
       // Clear variables
       changed_name        = false;
       error               = false;
@@ -9277,7 +9277,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         pApp->launch_failed = false;
   }
 
-  
+
 
   // End Task confirmation prompt
 
@@ -9306,7 +9306,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         PopupCategoryModify = PopupState_Opened;
 
       SKIF_ImGui_Spacing ( );
-      
+
       static char charCategoryRename[maxCategoryNameLen] = {  };
       static constexpr char* renameInputID = "###PopupCategoryModifyRename";
       static bool hasFocus    = false;
@@ -9356,7 +9356,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         ImGui::Text        ("category to?");
 
         SKIF_ImGui_Spacing ( );
-        
+
         if (ImGui::InputTextEx (renameInputID, static_category.Name.c_str(), charCategoryRename, maxCategoryNameLen,
                         ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, 0.0f), ImGuiInputTextFlags_None))
         {
@@ -9743,7 +9743,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           sexi.lpParameters = wszExtractCall.c_str ();
           sexi.nShow        = SW_HIDE;
           sexi.fMask        = SEE_MASK_NOASYNC | SEE_MASK_NOZONECHECKS;
-          
+
         SetLastError (NO_ERROR);
 
         wchar_t                         wszCurrentDir [MAX_PATH] = {};
@@ -9828,7 +9828,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       tryingToSaveCover = true;
       coverRefreshAppId = pApp->id;
       coverRefreshStore = (int)pApp->store;
-      
+
       // This sets up the current one to be released
       vecCoverRes_old = vecCoverRes;
       vecCoverRes     = ImVec2 (0, 0);
@@ -10062,12 +10062,12 @@ SKIF_UI_Tab_DrawLibrary (void)
     // Trigger a refresh of the cover
     loadCover = true;
   }
-  
+
   if (_registry.bLibrarySteam)
   {
     if (steamRunning)
       steamFallback = false;
-    
+
     else if (! steamFallback && appinfo != nullptr)
     {
       SK_RunOnce (PLOG_DEBUG << "[AppInfo Processing] Started processing games...");
@@ -10087,7 +10087,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         if (app.second.processed)
           continue;
-        
+
         //PLOG_DEBUG << "[AppInfo Processing] " << "[" << ImGui::GetFrameCount ( ) << "] Processing " << app.second.id << "...";
         appinfo->getAppInfo ( app.second.id, &g_apps );
 

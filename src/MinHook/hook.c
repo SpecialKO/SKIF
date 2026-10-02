@@ -691,7 +691,7 @@ FreezeEx (PFROZEN_THREADS pThreads, UINT pos, UINT action, UINT idx)
 
   //ULONG     ldrState  = LDR_LOCK_LOADER_LOCK_DISPOSITION_INVALID;
   //ULONG_PTR ldrCookie = 0x0;
-  
+
   //SK_NtLdr_LockLoaderLock (0x0, &ldrState, &ldrCookie);
 
   EnumerateThreads (pThreads);

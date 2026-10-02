@@ -123,7 +123,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
   if ( ImGui::Checkbox ( "Low bandwidth mode",                          &_registry.bLowBandwidthMode ) )
     _registry.regKVLowBandwidthMode.putData (                            _registry.bLowBandwidthMode );
-          
+
   ImGui::SameLine        ( );
   ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
   SKIF_ImGui_SetHoverTip (
@@ -131,17 +131,17 @@ SKIF_UI_Tab_DrawSettings (void)
     "This only affects new downloads of covers. It does not affect already downloaded covers.\n"
     "This will also disable automatic downloads of new updates to Special K."
   );
-            
+
   if ( ImGui::Checkbox ( "Minimize when launching a game",            &_registry.bMinimizeOnGameLaunch ) )
     _registry.regKVMinimizeOnGameLaunch.putData (                      _registry.bMinimizeOnGameLaunch );
-            
+
   if ( ImGui::Checkbox ( "Restore after closing a game",              &_registry.bRestoreOnGameExit ) )
     _registry.regKVRestoreOnGameExit.putData    (                      _registry.bRestoreOnGameExit );
 
   ImGui::SameLine        ( );
   ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
   SKIF_ImGui_SetHoverTip ("Requires Special K injected to work as intended.");
-  
+
   if (_registry.bAllowMultipleInstances)
   {
     ImGui::BeginGroup   ( );
@@ -164,7 +164,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
 
   if ( ImGui::Checkbox ( "Controller support", &_registry.bControllers ) )
-  {                                            
+  {
     _registry.regKVControllers.putData (        _registry.bControllers ? 1 : 0);
 
     // Ensure the gamepad input thread knows what state we are actually in
@@ -630,7 +630,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
   //if (ImGui::RadioButton ("Never",           &_registry.iAutoStopBehavior, 0))
   //  regKVAutoStopBehavior.putData (           _registry.iAutoStopBehavior);
-  // 
+  //
   //ImGui::SameLine        ( );
 
   if (ImGui::RadioButton ("Stop on injection",    &_registry.iAutoStopBehavior, 1))
@@ -775,7 +775,7 @@ SKIF_UI_Tab_DrawSettings (void)
     SKIF_ImGui_PopDisableState  ( );
 
   ImGui::Spacing       ( );
-            
+
   ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
   SKIF_ImGui_SetHoverTip ("This provides contextual notifications in Windows when the service starts or stops.");
   ImGui::SameLine        ( );
@@ -827,7 +827,7 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::SetCursorPosX (ImGui::GetCursorPosX ( ) + ImGui::GetStyle().FramePadding.x);
       ImGui::BeginGroup    ( );
     }
-  
+
     if ( ImGui::Checkbox ( "Ignore articles when sorting",                &_registry.bLibraryIgnoreArticles) )
     {
       _registry.regKVLibraryIgnoreArticles.putData (                       _registry.bLibraryIgnoreArticles);
@@ -933,7 +933,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::SameLine ( );
 
     ImGui::BeginGroup ( );
-    
+
     if (ImGui::Checkbox        ("Custom", &_registry.bLibraryCustom))
     {
       _registry.regKVLibraryCustom.putData(_registry.bLibraryCustom);
@@ -966,7 +966,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     if (ImGui::Checkbox       ("Steam",       &_registry.bInstantPlaySteam))
       _registry.regKVInstantPlaySteam.putData (_registry.bInstantPlaySteam);
-    
+
     ImGui::SameLine ( );
     ImGui::Spacing  ( );
     ImGui::SameLine ( );
@@ -1031,7 +1031,7 @@ SKIF_UI_Tab_DrawSettings (void)
     static const char*
       StyleItemsCurrent;
       StyleItemsCurrent = StyleItems[_registry.iStyle]; // Re-apply the value on every frame as it may have changed
-          
+
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
         "Color theme:"
@@ -1184,7 +1184,7 @@ SKIF_UI_Tab_DrawSettings (void)
       if ( ImGui::Checkbox ( "Win11 corners", &_registry.bWin11Corners) )
       {
         _registry.regKVWin11Corners.putData (  _registry.bWin11Corners);
-        
+
         // Force recreating the window on changes
         RecreateWin32Windows = true;
       }
@@ -1295,7 +1295,7 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
         "Color depth:"
     );
-    
+
     static int placeholder = 0;
     static int* ptrSDR = nullptr;
 
@@ -1307,7 +1307,7 @@ SKIF_UI_Tab_DrawSettings (void)
     }
     else
       ptrSDR = &_registry.iSDRMode;
-    
+
     ImGui::TreePush        ("iSDRMode");
     if (ImGui::RadioButton   ("8 bpc",        ptrSDR, 0))
     {
@@ -1332,14 +1332,14 @@ SKIF_UI_Tab_DrawSettings (void)
       RecreateSwapChains = true;
     }
     ImGui::TreePop         ( );
-    
+
     if ((_registry.iHDRMode > 0 && SKIF_Util_IsHDRActive (NULL)))
     {
       SKIF_ImGui_PopDisableState  ( );
     }
 
     ImGui::Spacing         ( );
-    
+
     if (SKIF_Util_IsHDRSupported (NULL)  )
     {
       ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
@@ -1397,7 +1397,7 @@ SKIF_UI_Tab_DrawSettings (void)
           _registry.iHDRBrightness = std::min (std::max (80, _registry.iHDRBrightness), 400);
           _registry.regKVHDRBrightness.putData (_registry.iHDRBrightness);
         }
-    
+
         if (ImGui::IsItemActive    ( ))
           allowShortcutCtrlA = false;
 
@@ -1418,7 +1418,7 @@ SKIF_UI_Tab_DrawSettings (void)
                                "HDR for the display the mouse cursor is currently located on.");
         ImGui::PopStyleColor  ( );
         */
-        
+
         ImGui::BeginGroup       ( );
         ImGui::TextDisabled     ("Use");
         ImGui::SameLine         ( );
@@ -1599,7 +1599,7 @@ SKIF_UI_Tab_DrawSettings (void)
     if (ImGui::Checkbox  ("Reposition this app to the center on double click",
                                                       &_registry.bMaximizeOnDoubleClick))
       _registry.regKVMaximizeOnDoubleClick.putData  (  _registry.bMaximizeOnDoubleClick);
-    
+
     if (! SKIF_Util_GetDragFromMaximized ( ))
     {
       SKIF_ImGui_PopDisableState ( );
@@ -1676,7 +1676,7 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::Spacing       ( );
       ImGui::Spacing       ( );
     }
-    
+
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
         ICON_FA_WRENCH "  Troubleshooting:"
@@ -1826,7 +1826,7 @@ SKIF_UI_Tab_DrawSettings (void)
         sexi.lpParameters = wsDisableCall.c_str();
         sexi.nShow        = SW_SHOWNORMAL;
         sexi.fMask        = SEE_MASK_NOASYNC | SEE_MASK_NOZONECHECKS;
-        
+
       SetLastError (NO_ERROR);
 
       bool ret = ShellExecuteExW (&sexi);
@@ -1839,11 +1839,11 @@ SKIF_UI_Tab_DrawSettings (void)
       else
         PLOG_ERROR << "The operation was unsuccessful.";
     }
-    
+
     // Prevent this call from executing on the same frame as the button is pressed
     else if (runOnceGFE)
       SKIF_ImGui_PopDisableState ( );
-    
+
     ImGui::SameLine         ( );
     ImGui::TextColored      (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
     SKIF_ImGui_SetHoverTip  ("This only needs to be used if GeForce Experience notifications\n"
@@ -2014,7 +2014,7 @@ SKIF_UI_Tab_DrawSettings (void)
                                 ImVec2 ( 700 * SKIF_ImGui_GlobalDPIScale,
                                          150 * SKIF_ImGui_GlobalDPIScale ), // 120 // 150
                                   ImGuiInputTextFlags_Multiline );
-    
+
     if (ImGui::IsItemActive    ( ))
       allowShortcutCtrlA = false;
 

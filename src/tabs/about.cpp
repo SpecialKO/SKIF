@@ -93,7 +93,7 @@ SKIF_UI_Tab_DrawAbout (void)
 
   ImGui::NewLine          ( );
   ImGui::NewLine          ( );
-  if (enableColums) 
+  if (enableColums)
     ImGui::NewLine        ( );
 
   float fY1 = ImGui::GetCursorPosY();
@@ -149,11 +149,11 @@ SKIF_UI_Tab_DrawAbout (void)
 
   ImGui::NewLine          ( );
   ImGui::NewLine          ( );
-  if (enableColums) 
+  if (enableColums)
     ImGui::NewLine        ( );
 
   float fY2 = ImGui::GetCursorPosY();
-          
+
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Failure), ICON_FA_ROCKET);
   ImGui::SameLine         ( );
   ImGui::TextColored      (
@@ -226,26 +226,26 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGui::TextWrapped      ("Your system is not set up to use this install of Special K to launch injection through Steam.");
 
     SKIF_ImGui_Spacing      ( );
-    
+
     SKIF_ImGui_Spacing      (1.0f);
     ImGui::SameLine         ( );
-    
+
     ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption));
     if (ImGui::Button       ("  Set this install as default  "))
       SKIF_Util_RegisterApp (true);
     ImGui::PopStyleColor    ( );
-    
+
     // We need som additional spacing at the bottom here to push down the Components section in the right column
     SKIF_ImGui_Spacing      (2.00f);
   }
 
   ImGui::NewLine          ( );
   ImGui::NewLine          ( );
-  if (enableColums) 
+  if (enableColums)
     ImGui::NewLine        ( );
 
   float fY3 = ImGui::GetCursorPosY();
-          
+
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_AWARD);//ICON_FA_WRENCH);
   ImGui::SameLine         ( );
   ImGui::TextColored      (
@@ -337,7 +337,7 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::EndGroup         ( );
 
   SKIF_ImGui_SetHoverTip ("In particular games where anti-cheat\nprotection might be present.");
-  
+
   if (enableColums)
   {
     ImGui::SetCursorPosY    (fY2);
@@ -359,7 +359,7 @@ SKIF_UI_Tab_DrawAbout (void)
     ImColor (25, 118, 210),
       ICON_FA_BOOK " "   );
   ImGui::SameLine         ( );
-  
+
   //if (SKIF_ImGui_MenuItemEx2 ("Wiki", ICON_FA_BOOK, ImColor(25, 118, 210)))
   if (ImGui::Selectable   ("Wiki"))
     SKIF_Util_OpenURI     (L"https://wiki.special-k.info/");
@@ -442,7 +442,7 @@ SKIF_UI_Tab_DrawAbout (void)
   SKIF_ImGui_SetMouseCursorHand ();
   SKIF_ImGui_SetHoverText ( "https://github.com/SpecialKO/SKIF/blob/master/LICENSE-3RD-PARTY");
   ImGui::EndGroup         ( );
-  
+
   if (enableColums)
   {
     ImGui::SetCursorPosY    (fY3);
@@ -451,11 +451,11 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGui::NewLine          ( );
     ImGui::NewLine          ( );
   }
-  
+
   ImGui::PushStyleColor   (
     ImGuiCol_SKIF_TextCaption, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption) * ImVec4(0.5f, 0.5f, 0.5f, 1.0f)
                             );
-    
+
   ImGui::PushStyleColor   (
     ImGuiCol_CheckMark, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption)
                             );
@@ -464,17 +464,17 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
       "Components:"
   );
-    
+
   ImGui::PushStyleColor   (
     ImGuiCol_SKIF_TextBase, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled)
                             );
-    
+
   ImGui::PushStyleColor   (
     ImGuiCol_TextDisabled, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled) * ImVec4(0.5f, 0.5f, 0.5f, 1.0f)
                             );
 
   SKIF_ImGui_Spacing      ( );
-  
+
   SKIF_UI_DrawComponentVersion ( );
 
   ImGui::PopStyleColor    (4);

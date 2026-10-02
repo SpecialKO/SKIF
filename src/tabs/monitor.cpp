@@ -218,7 +218,7 @@ using NtSuspendProcess_pfn =
 using NtQueryInformationProcess_pfn =
   NTSTATUS (NTAPI *)(
        IN  HANDLE                    Handle,
-       IN  SKIF_PROCESS_INFORMATION_CLASS ProcessInformationClass, // PROCESSINFOCLASS 
+       IN  SKIF_PROCESS_INFORMATION_CLASS ProcessInformationClass, // PROCESSINFOCLASS
        OUT PVOID                     ProcessInformation,
        IN  ULONG                     ProcessInformationLength,
        OUT PULONG                    ReturnLength OPTIONAL
@@ -324,7 +324,7 @@ typedef struct _SK_UNICODE_STRING
 } UNICODE_STRING,
 *PUNICODE_STRING;
 
-typedef const UNICODE_STRING 
+typedef const UNICODE_STRING
            *PCUNICODE_STRING;
 
 typedef struct _SK_PUBLIC_OBJECT_TYPE_INFORMATION
@@ -671,7 +671,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
     InitializeConditionVariable (&ProcRefreshPaused);
   }
-  
+
   if (SKIF_Tab_Selected != UITab_Monitor && _registry.iProcessRefreshInterval != 0)
     WakeConditionVariable (&ProcRefreshPaused);
 
@@ -736,7 +736,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
   SKIF_ImGui_SetHoverTip ("If this is enabled the below list will also include uninjected processes.\n"
                           "This is indicated by the lack of a " ICON_FA_CIRCLE " icon under the Status column.");
-  
+
   ImGui::EndGroup         ( );
 
   ImGui::SameLine         ( );
@@ -750,7 +750,7 @@ SKIF_UI_Tab_DrawMonitor (void)
                                     "High"      // 3 (0.5s; not implemented)
   };
   static const char* RefreshIntervalCurrent = RefreshInterval[_registry.iProcessRefreshInterval];
-          
+
   ImGui::TextColored (
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
       "Update speed:"
@@ -774,7 +774,7 @@ SKIF_UI_Tab_DrawMonitor (void)
         _registry.iProcessRefreshInterval = n;
         _registry.regKVProcessRefreshInterval.putData  (_registry.iProcessRefreshInterval);
         RefreshIntervalCurrent = RefreshInterval[_registry.iProcessRefreshInterval];
-        
+
         if (     _registry.iProcessRefreshInterval == 0) // Paused
           refreshIntervalInMsec.store(0);
         else if (_registry.iProcessRefreshInterval == 1) // Slow (5s)
@@ -831,21 +831,21 @@ SKIF_UI_Tab_DrawMonitor (void)
                                                             30.0f * SKIF_ImGui_GlobalDPIScale )))
     _inject._StartStopInject (false, _registry.bStopOnInjection);
   ImGui::PopStyleColor ( );
-    
+
   if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
     ServiceMenu = PopupState_Open;
 
   ImGui::SameLine   ( );
-    
+
   ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning));
   if (ImGui::Button ( ICON_FA_TOGGLE_OFF "  Force stop", ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, // ICON_FA_STOP
                                                             30.0f * SKIF_ImGui_GlobalDPIScale )))
     _inject._StartStopInject(true);
   ImGui::PopStyleColor ( );
-    
+
   if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
     ServiceMenu = PopupState_Open;
-    
+
   SKIF_ImGui_Spacing      ( );
 
 #ifdef _WIN64
@@ -866,7 +866,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
     ImGui::SameLine         ( );
   }
-    
+
   if (SKIF_ImGui_IconButton (0x97848, ICON_FA_FOLDER_OPEN, "Install folder", ImColor(255, 207, 72)))
     SKIF_Util_ExplorePath (_path_cache.specialk_userdata);
 
@@ -905,7 +905,7 @@ SKIF_UI_Tab_DrawMonitor (void)
   );
 
   SKIF_ImGui_Spacing      ( );
-    
+
   ImGui::PushStyleColor   (
     ImGuiCol_Text, ImVec4 (0.68F, 0.68F, 0.68F, 1.0f)
                             );
@@ -948,7 +948,7 @@ SKIF_UI_Tab_DrawMonitor (void)
       EnterCriticalSection      (&ProcessRefreshJob);
 
       SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_ProcessRefreshJob");
-        
+
       // Is this combo really appropriate for this thread?
       SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // Enable EcoQoS for this thread
       SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
@@ -1007,7 +1007,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
         _PerProcessHandleMap
           handles_by_process;
-          
+
         static HANDLE hProcessDst =
           SKIF_Util_GetCurrentProcess (); // Pseudo Handle
         static DWORD dwPidOfMe =
@@ -1099,7 +1099,7 @@ SKIF_UI_Tab_DrawMonitor (void)
               }
 
               if (! hProcessSrc) continue;
-                
+
               // Initialize a variable were we'll store all stuff in
               standby_record_s proc = standby_record_s{};
 
@@ -1119,7 +1119,7 @@ SKIF_UI_Tab_DrawMonitor (void)
                     std::wstring moduleName = me32.szModule;
 
                     // Special K's global DLL files
-                    if (StrStrIW (moduleName.c_str(), L"SpecialK32.dll") || 
+                    if (StrStrIW (moduleName.c_str(), L"SpecialK32.dll") ||
                         StrStrIW (moduleName.c_str(), L"SpecialK64.dll"))
                     {
                       proc.status = 254; // Stuck?
@@ -1328,7 +1328,7 @@ SKIF_UI_Tab_DrawMonitor (void)
                 NTSTATUS ntStatusInfoProc;
                 PROCESS_EXTENDED_BASIC_INFORMATION pebi{};
 
-                ntStatusInfoProc = 
+                ntStatusInfoProc =
                   NtQueryInformationProcess (
                     hProcessSrc,
                       ProcessBasicInformation,
@@ -1389,7 +1389,7 @@ SKIF_UI_Tab_DrawMonitor (void)
         if (hModSpecialK == nullptr)
         {
           static wchar_t fullPath [MAX_PATH];
-          static DWORD length = 
+          static DWORD length =
 #ifdef _WIN64
             GetFullPathNameW (L"SpecialK64.dll", MAX_PATH, fullPath, NULL);
 #else
@@ -1669,7 +1669,7 @@ SKIF_UI_Tab_DrawMonitor (void)
                             (std::max (250.0f * SKIF_ImGui_GlobalDPIScale, ImGui::GetContentRegionAvail().y))),
             ImGuiChildFlags_None,
             ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_HorizontalScrollbar); // | ImGuiWindowFlags_AlwaysVerticalScrollbar
-      
+
   ImGui::PushStyleColor (
     ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase)
                           );
@@ -1689,7 +1689,7 @@ SKIF_UI_Tab_DrawMonitor (void)
   {
     std::string pretty_str       = ICON_FA_WINDOWS,
                 pretty_str_hover = "Windows";
-        
+
     if (StrStrIA(proc.tooltip.c_str(), "SteamApps") != NULL)
     {
       pretty_str       = ICON_FA_STEAM;
@@ -1713,7 +1713,7 @@ SKIF_UI_Tab_DrawMonitor (void)
     ImVec4      colPolicy = ImGui::GetStyleColorVec4 (ImGuiCol_ChildBg);
     std::string txtPolicy = "",
                 hovPolicy = "";
-          
+
     if (proc.policy == Blacklist)
     {
       colPolicy = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Failure);
@@ -1768,7 +1768,7 @@ SKIF_UI_Tab_DrawMonitor (void)
     ImGui::TextColored     (colStatus, ICON_FA_CIRCLE);
     if (! hovStatus.empty())
       SKIF_ImGui_SetHoverTip (hovStatus.c_str());
-    ImGui::SameLine        ( );        
+    ImGui::SameLine        ( );
     ImGui::TextColored     (colPolicy, txtPolicy.c_str());
     if (! hovPolicy.empty())
       SKIF_ImGui_SetHoverTip (hovPolicy.c_str());

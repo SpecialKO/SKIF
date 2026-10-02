@@ -39,7 +39,7 @@ public:
        uint8_t sha1sum [20];
       uint32_t change_num;
   };
-  
+
   struct appinfo28_s : appinfo27_s
   {
        uint8_t sha1_sec [20]; // Added December 2022

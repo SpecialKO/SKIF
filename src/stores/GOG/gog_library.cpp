@@ -71,7 +71,7 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
         if (dwResult == ERROR_SUCCESS)
         {
           HKEY hSubKey = nullptr;
-          
+
           if (RegOpenKeyExW (HKEY_LOCAL_MACHINE, SK_FormatStringW (LR"(SOFTWARE\GOG.com\Games\%ws)", szSubKey).c_str(), 0, KEY_READ | KEY_WOW64_32KEY, &hSubKey) == ERROR_SUCCESS)
           {
             dwSize = sizeof(szData) / sizeof(WCHAR);
@@ -215,7 +215,7 @@ SKIF_GOG_hasInstalledGamesChanged (void)
       appWatch ( HKEY_LOCAL_MACHINE,
                    LR"(SOFTWARE\GOG.com\Games)",
                      L"GOGInstallNotify", TRUE, REG_NOTIFY_CHANGE_NAME | REG_NOTIFY_CHANGE_LAST_SET, UITab_None, true); // UITab_Library
-  
+
     signal            = appWatch.isSignaled   ( );
     dwLastSignalCheck = SKIF_Util_timeGetTime ( );
   }
@@ -235,7 +235,7 @@ SKIF_GOG_hasGalaxySettingsChanged (void)
       appWatch ( HKEY_CURRENT_USER,
                    LR"(SOFTWARE\GOG.com\Galaxy\settings)",
                      L"GOGGalaxyNotify", TRUE, REG_NOTIFY_CHANGE_LAST_SET, UITab_None);
-  
+
     signal            = appWatch.isSignaled   ( );
     dwLastSignalCheck = SKIF_Util_timeGetTime ( );
   }

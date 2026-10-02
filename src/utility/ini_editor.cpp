@@ -389,7 +389,7 @@ SKIF_IniHandler_WriteIni (std::vector<__INI> ini, const std::string& file_path_u
   //inih::INIWriter::write (file_path_utf8, new_ini, true);
 
 constexpr wchar_t* utf8_bom =  L"\xEF\xBB\xBF";
-  
+
   std::wofstream out{ file_path_utf8 };
   if (! out.is_open ( ))
       throw std::runtime_error ("cannot open output file: " + file_path_utf8);
@@ -455,7 +455,7 @@ SKIF_ImGui_IniEditor_SaveAs (IniWindow* iniWindow)
   LPWSTR pwszFilePath = NULL;
   HRESULT hr          =
     SKIF_Util_FileExplorer_SaveFile (&pwszFilePath, (HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, { { L"Configuration Files", L"*.ini" }, { L"All files", L"*.*" } }, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST, FOLDERID_ComputerFolder, nullptr, L"ini");
-          
+
   if (hr == HRESULT_FROM_WIN32 (ERROR_CANCELLED))
     return;
 
@@ -482,7 +482,7 @@ SKIF_ImGui_IniEditor_OpenFile (std::wstring path, const std::string& title, IniW
     LPWSTR pwszFilePath = NULL;
     HRESULT hr          =
       SKIF_Util_FileExplorer_BrowseForFile (&pwszFilePath, (HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, { { L"Configuration Files", L"*.ini" }, { L"All files", L"*.*" } }, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST);
-          
+
     if (hr == HRESULT_FROM_WIN32 (ERROR_CANCELLED))
       return;
 
@@ -625,7 +625,7 @@ SKIF_ImGui_IniEditor_Process (void)
     float fTopClearX       = (! showClearBtn ? 0.0f :  ImGui::CalcTextSize (ICON_FA_XMARK ).x           + ImGui::GetStyle().FramePadding.x * 2.0f + ImGui::GetStyle().ItemSpacing.x);
     float fTopFilterFieldX = ImGui::GetContentRegionAvail().x - fTopZoomX - fTopClearX; //  - fTopFilterX
     //static bool bFilterHovered = false;
-  
+
     ImGui::PushStyleColor (ImGuiCol_NavHighlight,  ImVec4(0,0,0,0));
     ImGui::PushStyleColor (ImGuiCol_Border,        ImVec4(0,0,0,0));
     ImGui::PushStyleColor (ImGuiCol_Button,        ImVec4(0,0,0,0));
@@ -643,7 +643,7 @@ SKIF_ImGui_IniEditor_Process (void)
     ImGui::InputTextEx ("###AppListFilterField", "", window.charFilterTmp, MAX_PATH,
                         ImVec2 (fTopFilterFieldX, 0.0f),
                         ImGuiInputTextFlags_AutoSelectAll, 0, nullptr);
-    
+
     ImGui::PopStyleColor  ( ); // ImGuiCol_FrameBg
     ImGui::PopStyleColor  ( ); // ImGuiCol_Text
 

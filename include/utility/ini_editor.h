@@ -80,7 +80,7 @@ struct __INI {
   bool value_b   = false;
   bool default_b = false;
 
-  // ParameterType_DropDownList 
+  // ParameterType_DropDownList
   std::vector<std::string> _dditems = { };
 
               __INI    (ParameterType _t, std::string _s, std::string _k, std::string _v);

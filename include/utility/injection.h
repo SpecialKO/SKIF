@@ -30,7 +30,7 @@
 
 // Singleton struct
 struct SKIF_InjectionContext {
-  
+
   UINT_PTR IDT_REFRESH_INJECTACK = 0; // Holds current timer ID
   UINT_PTR IDT_REFRESH_PENDING   = 0; // Holds current timer ID
 
@@ -42,7 +42,7 @@ struct SKIF_InjectionContext {
   bool    bHasServlet       = false;
   bool    bHasUpdatedFiles  = false;
   bool    bLogonTaskEnabled = false; // Obsolete
-  
+
   bool    bAutoStartSKIF    = false;
   bool    bAutoStartService = false;
   bool    bStartMinimized   = false;
@@ -96,7 +96,7 @@ struct SKIF_InjectionContext {
   std::string  SKSvc64_utf8 = "";
 #endif
   bool         libCacheRefresh = false; // Signals to the library that it should refresh the injection cache for a game
-  
+
   bool    isPending               (void);
   bool    _StartStopInject        (bool running_, bool autoStop = false, bool elevated = false, int autoStopBehavior = 0); // autoStopBehaviour: 0 = use global default, 1 = stop on injection,   2 = stop on game exit,  3 = never stop
   bool    _TestServletRunlevel    (bool forcedCheck); // Returns true ONLY if we transitioned over from a pending state
@@ -129,7 +129,7 @@ struct SKIF_InjectionContext {
 
   SKIF_InjectionContext (SKIF_InjectionContext const&) = delete; // Delete copy constructor
   SKIF_InjectionContext (SKIF_InjectionContext&&)      = delete; // Delete move constructor
-  
+
 private:
   SKIF_InjectionContext           (void);
   bool    AddUserListPath         (std::string fullPath,      bool whitelist_);

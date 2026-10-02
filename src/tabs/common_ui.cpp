@@ -43,7 +43,7 @@ void SKIF_UI_DrawComponentVersion (void)
   ImGui::SameLine         ( );
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),    "Special K 64-bit");
 #endif
-    
+
   ImGui::Spacing          ( );
   ImGui::SameLine         ( );
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_CheckMark), (const char *)u8"\u2022 ");
@@ -53,7 +53,7 @@ void SKIF_UI_DrawComponentVersion (void)
   ImGui::EndGroup         ( );
   ImGui::SameLine         ( );
   ImGui::BeginGroup       ( );
-    
+
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled), "v");
   ImGui::SameLine         ( );
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),    _inject.SKVer32_utf8.c_str());
@@ -63,7 +63,7 @@ void SKIF_UI_DrawComponentVersion (void)
   ImGui::SameLine         ( );
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),    _inject.SKVer64_utf8.c_str());
 #endif
-    
+
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled), "v");
   ImGui::SameLine         ( );
   ImGui::ItemSize         (ImVec2 (0.0f, ImGui::GetTextLineHeight ()));
@@ -83,14 +83,14 @@ void SKIF_UI_DrawComponentVersion (void)
   ImGui::PopStyleColor    ( );
   SKIF_ImGui_SetMouseCursorHand ( );
   ImGui::EndGroup         ( );
-  
-  static SKIF_Updater& _updater = 
+
+  static SKIF_Updater& _updater =
          SKIF_Updater::GetInstance ( );
-  
+
   if ((_updater.GetState ( ) & UpdateFlags_Available) == UpdateFlags_Available)
   {
     SKIF_ImGui_Spacing      ( );
-    
+
     ImGui::ItemSize         (ImVec2 (65.0f, 0.0f));
 
     ImGui::SameLine         ( );
@@ -327,7 +327,7 @@ void SKIF_UI_DrawPlatformStatus (void)
 
   ImGui::Text             ("Connected XInput gamepads:");
   ImGui::SameLine         ( );
-    
+
   if (! _registry.bControllers)
   {
     ImGui::TextDisabled     ("Disabled");
@@ -416,13 +416,13 @@ void SKIF_UI_DrawShellyTheGhost (void)
   float fActPos = (fMaxPos - fMinPos) * (fRelPos / 100.0f);
 
   ImGui::SameLine      (0.0f, fActPos);
-  
+
   ImGui::SetCursorPosY (
     ImGui::GetCursorPosY ( ) + fGhostYPos // (ImGui::GetStyle().FrameBorderSize)
                         );
 
   ImGui::TextColored (vGhostColor, ICON_FA_GHOST);
-    
+
   // Increase Shelly timestep for next frame
   fGhostTime += fGhostTimeStep;
 }
@@ -479,7 +479,7 @@ void SKIF_UI_TipsAndTricks (void)
     //ImGui::Spacing          ( );
   }
 
-  
+
   ImGui::BeginGroup       ( );
   ImGui::Spacing          ( );
   ImGui::SameLine         ( );

@@ -85,7 +85,7 @@ app_launch_config_s::isExecutableFullPathValid (void)
                   (! full_path.empty( )                                    &&
                      full_path.find (L"InvalidPath") == std::wstring::npos &&
     PathFileExistsW (full_path.c_str()) == TRUE);
-  
+
   valid = executable_path_valid;
 
   return executable_path_valid;
@@ -302,7 +302,7 @@ app_launch_config_s::isBlacklisted (bool refresh)
   // getBlacklistFilename ( ) can set blacklisted == 1 for
   //   invalid launch configs, requiring no duplicate testing
   if (blacklisted == -1 || refresh)
-    blacklisted = 
+    blacklisted =
       PathFileExistsW (full_path.c_str ());
 
   return blacklisted;

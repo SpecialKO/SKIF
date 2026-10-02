@@ -12,7 +12,7 @@ bool SKIF_ImGui_IsFocused (void);
 bool SKIF_ImGui_ProcessGamepadInput = false;
 
 void
-SKIF_ImGui_UpdateGamepadProcessingEligibility (void) 
+SKIF_ImGui_UpdateGamepadProcessingEligibility (void)
 {
   RECT                             rcSKIF = { };
   GetWindowRect (SKIF_ImGui_hWnd, &rcSKIF);
@@ -572,7 +572,7 @@ void
 SKIF_GamePadInputHelper::SpawnChildThread (void)
 {
   PLOG_VERBOSE << "Spawning SKIF_GamePadInputPump thread...";
-  
+
   // Start the child thread that is responsible for checking for gamepad input
   static HANDLE hWorkerThread = (HANDLE)
   _beginthreadex (nullptr, 0x0, [](void*) -> unsigned

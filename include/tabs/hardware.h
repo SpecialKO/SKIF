@@ -20,7 +20,7 @@ struct VkLayer {
     DWORD           Data        =   0; // 0 = enabled; >0 = disabled
     bool            WOW6432Node = false;
   };
-    
+
   std:: string      Name;
   std::wstring      Pattern   = L"";
   std::vector <reg> Matches   = { };

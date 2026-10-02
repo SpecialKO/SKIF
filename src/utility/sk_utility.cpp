@@ -24,8 +24,8 @@
 #include <utility/utility.h>
 #include <Windows.h>
 
-#ifndef SECURITY_WIN32 
-#define SECURITY_WIN32 
+#ifndef SECURITY_WIN32
+#define SECURITY_WIN32
 #endif
 
 #include <Security.h>
@@ -42,7 +42,7 @@ std::string
 SK_WideCharToUTF8 (const std::wstring& in)
 {
   // CC BY-SA 4.0: https://stackoverflow.com/a/59617138
-  int count = 
+  int count =
     WideCharToMultiByte (CP_UTF8, 0, in.c_str(), static_cast <int> (in.length()), NULL, 0, NULL, NULL);
   std::string out       (count, 0);
   WideCharToMultiByte   (CP_UTF8, 0, in.c_str(), -1, &out[0], count, NULL, NULL);
@@ -55,7 +55,7 @@ std::wstring
 SK_UTF8ToWideChar (const std::string& in)
 {
   // CC BY-SA 4.0: https://stackoverflow.com/a/59617138
-  int count = 
+  int count =
     MultiByteToWideChar (CP_UTF8, 0, in.c_str(), static_cast <int> (in.length()), NULL, 0);
   std::wstring out      (count, 0);
   MultiByteToWideChar   (CP_UTF8, 0, in.c_str(), static_cast <int> (in.length()), &out[0], count);
@@ -388,7 +388,7 @@ SK_MakeKeyMask ( const SHORT vKey,
                ( (super != 0) << 12 ))
     );
 }
- 
+
 char* SK_CharNextA (const char *szInput, int n = 1);
 
 static inline wchar_t*

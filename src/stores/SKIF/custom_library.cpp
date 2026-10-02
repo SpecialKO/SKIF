@@ -53,7 +53,7 @@ int SKIF_AddCustomAppID (std::wstring name, std::wstring exePath, std::wstring a
                workingDir  = (! workingPath.empty())
                               ? workingPath
                               : installDir;
-  
+
   // Strip null terminators
   //name.erase(std::find(name.begin(), name.end(), '\0'), name.end());
   //args.erase(std::find(args.begin(), args.end(), '\0'), args.end());
@@ -137,7 +137,7 @@ bool SKIF_ModifyCustomAppID (app_record_s* pApp, std::wstring_view exePath, std:
                               : installDir;
 
   std::wstring key = SK_FormatStringW(LR"(SOFTWARE\Kaldaien\Special K\Games\%lu)", pApp->id);
-  
+
   // Strip null terminators
   //args.erase(std::find(args.begin(), args.end(), '\0'), args.end());
 
@@ -216,7 +216,7 @@ void SKIF_GetCustomAppIDs (std::vector<std::pair<std::string, app_record_s>>* ap
         if (dwResult == ERROR_SUCCESS)
         {
           HKEY hSubKey = nullptr;
-          
+
           if (RegOpenKeyExW (HKEY_CURRENT_USER, SK_FormatStringW (LR"(SOFTWARE\Kaldaien\Special K\Games\%ws)", szSubKey).c_str(), 0, KEY_READ | KEY_WOW64_64KEY, &hSubKey) == ERROR_SUCCESS)
           {
             dwSize = sizeof (DWORD32);

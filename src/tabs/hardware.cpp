@@ -215,7 +215,7 @@ GetMPOSupport (void)
                    << "\n| MPO MaxYUVPlanes:| " << caps.MaxYUVPlanes
                    << "\n| MPO Stretch:     | " << caps.MaxStretchFactor << "x - " << caps.MaxShrinkFactor << "x"
                    << "\n+------------------+-------------------------------------+";
-          
+
         Monitor_MPO_Support monitor;
         monitor.Name                = SK_WideCharToUTF8 (monitorName);
         monitor.Index               = path.sourceInfo.cloneGroupId;
@@ -231,7 +231,7 @@ GetMPOSupport (void)
 
         // This is pure assumption from us based on discoveries/experiences and this line in the MSFT docs:
         // "At least one plane must support shrinking and stretching, independent from other planes that might be enabled."
-        // 
+        //
         // 2026-09-13 Update: Disabled the stretch requirement as a Discord user had functioning non-stretched MPOs still,
         //  in a scenario where having an Valve Index connected on their AMD card resulted in 3 MPO planes w/o stretching.
         if (//monitor.MaxStretchFactor != monitor.MaxShrinkFactor &&
@@ -370,7 +370,7 @@ GetDrvInstallState (DrvInstallState& ptrStatus, std::wstring svcName = L"SK_WinR
             lpsc      = (LPQUERY_SERVICE_CONFIG)LocalAlloc (LMEM_FIXED, cbBufSize);
 
             // Get the configuration information with the necessary buffer size.
-            if (lpsc != nullptr && 
+            if (lpsc != nullptr &&
                   QueryServiceConfig (
                     svcWinRing0,
                       lpsc, cbBufSize,
@@ -457,7 +457,7 @@ GetDrvInstallState (DrvInstallState& ptrStatus, std::wstring svcName = L"SK_WinR
 // Their sample Vulkan layer code, which virtually everyone used as a template to create own layers,
 //   had a bug with Vulkan instance handle leak. So it was and it is echoed in any layer based on that
 //     source code. I nailed it down myself in my layer when debugging compatibility issues with DXVK.
-// 
+//
 // Version 7.3.0 (published on 28.02.2021)
 // - Fixed Vulkan device and instance handle leak in Vulkan bootstrap layer
 
@@ -536,13 +536,13 @@ SKIF_Hardware_RefreshVulkanLayers (void)
             while (dwIndex > 0)
             {
               dwIndex--;
-          
+
               DWORD dwValueNameLen =
                     (dwMaxValueNameLen + 2);
 
               std::unique_ptr <wchar_t []> pValue =
                 std::make_unique <wchar_t []> (sizeof (wchar_t) * dwValueNameLen);
-          
+
               DWORD dwValueLen =
                     (dwMaxValueLen);
 
@@ -666,7 +666,7 @@ SKIF_UI_Tab_DrawHardware (void)
                            : SK_FormatStringW (LR"(%ws\Drivers\WinRing0\)", _path_cache.specialk_install), // fallback
             SKIFdrv       = SKIFdrvFolder + L"\\SKIFdrv.exe",
             SYSdrv        = SKIFdrvFolder + L"\\WinRing0x64.sys";
-  
+
   static SKIF_DirectoryWatch SKIF_DriverWatch;
   static bool HDRSupported = false;
 
@@ -766,7 +766,7 @@ SKIF_UI_Tab_DrawHardware (void)
 
   ImGui::Spacing ();
   ImGui::Spacing ();
-  
+
 #pragma region Section: SwapChain Presentation Monitor
   if (ImGui::CollapsingHeader ("SwapChain Presentation Monitor###SKIF_HardwareHeader-1", ImGuiTreeNodeFlags_DefaultOpen))
   {
@@ -842,7 +842,7 @@ SKIF_UI_Tab_DrawHardware (void)
 
     ImGui::Spacing();
     ImGui::Spacing();
-            
+
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
                         "Requirement:"
@@ -907,7 +907,7 @@ SKIF_UI_Tab_DrawHardware (void)
       DWORD pfuDomainNameLength = MAX_PATH,
             intDomainNameLength = MAX_PATH;
 
-      // For Windows 10+ we rely on modern PowerShell cmdlets as this 
+      // For Windows 10+ we rely on modern PowerShell cmdlets as this
       //   is the easiest way of handling non-English localizations
       if (SKIF_Util_IsWindows10OrGreater ( ))
       {
@@ -974,11 +974,11 @@ SKIF_UI_Tab_DrawHardware (void)
     ImGui::EndGroup    ();
 
     SKIF_ImGui_SetHoverTip ("Quite uncommon to see compared to the other models listed here.");
-    
+
     ImGui::TreePop     ();
 
     SKIF_ImGui_Spacing ();
-            
+
     ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), ICON_FA_THUMBS_DOWN);
     ImGui::SameLine    ();
     ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), "Undesirable latency:");
@@ -1002,7 +1002,7 @@ SKIF_UI_Tab_DrawHardware (void)
     ImGui::SameLine    ();
     ImGui::Text        ("Composed: Copy with CPU GDI");
     ImGui::TreePop     ();
-    
+
     if (enableColums)
     {
       ImGui::TreePop   ( );
@@ -1010,7 +1010,7 @@ SKIF_UI_Tab_DrawHardware (void)
     }
     else
       ImGui::EndGroup  ( );
-    
+
     ImGui::Spacing     ();
     ImGui::Spacing     ();
 
@@ -1020,7 +1020,7 @@ SKIF_UI_Tab_DrawHardware (void)
     ImGui::Spacing     ();
 
     ImVec2 mpoTop = ImGui::GetCursorScreenPos ( );
-            
+
     ImGui::TextColored (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
                         "Multi-Plane Overlay (MPO) Support"
@@ -1206,7 +1206,7 @@ SKIF_UI_Tab_DrawHardware (void)
     ImGui::EndGroup    ();
     // Official Nvidia requirement from their driver release notes is Volta and later GPUs and the Release 460 driver and later
     // As Volta only had the Titan V and Quadro GV100 models we can just say GTX 16/RTX 20 series
-    
+
     ImGui::Spacing     ();
 
     ImGui::TextWrapped ("Support depends on the GPU and display configuration. Unusual driver "
@@ -1447,7 +1447,7 @@ SKIF_UI_Tab_DrawHardware (void)
                                                 "Option is unavailable as another application have already installed a copy of the driver."
       );
       ImGui::EndGroup   ();
-    } 
+    }
 
     // Show warning about another driver being installed
     else if (ObsoleteInstalled == driverStatus)

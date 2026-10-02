@@ -148,7 +148,7 @@ SKIF_InjectionContext::_TestServletRunlevel (bool forcedCheck)
   // Perform a forced check every 500ms if we have been transitioning over for longer than half a second
   if ((runState == Starting || runState == Stopping) && dwLastSignaled + 500 < SKIF_Util_timeGetTime())
     forcedCheck = true;
-  
+
   static std::wstring servletDir = SK_FormatStringW (LR"(%ws\Servlet\)", _path_cache.specialk_install );
   static SKIF_DirectoryWatch servlet_folder;
 
@@ -255,9 +255,9 @@ SKIF_InjectionContext::_TestServletRunlevel (bool forcedCheck)
 
       dwFailed   = NULL;
       triedToFix = false;
-      
+
       _SetTaskbarOverlay (bCurrentState);
-      
+
       if (KillTimer (SKIF_Notify_hWnd, IDT_REFRESH_PENDING))
         IDT_REFRESH_PENDING = 0;
 
@@ -407,7 +407,7 @@ SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop
     return ret;
   }
 #endif
-  
+
   if (KillTimer ((IDT_REFRESH_PENDING == cIDT_REFRESH_PENDING) ? SKIF_Notify_hWnd : NULL, IDT_REFRESH_PENDING))
     IDT_REFRESH_PENDING = 0;
 
@@ -542,7 +542,7 @@ SKIF_InjectionContext::_StartStopInject (bool currentRunningState, bool autoStop
   {
     if (hInjectAckEx.m_h == 0)
       SetInjectAckEx (true);
-    
+
     if (hInjectExitAckEx.m_h == 0)
       SetInjectExitAckEx (true);
 
@@ -642,7 +642,7 @@ SKIF_InjectionContext::_DanceOfTheDLLFiles (void)
         wchar_t    wszSystemTime [64]  = { };
         wchar_t    wszSystemDate [64]  = { };
         wchar_t    wszCombinTime [128] = { };
-        
+
         GetDateFormatEx (LOCALE_NAME_USER_DEFAULT, DATE_SHORTDATE,
           NULL, NULL, wszSystemDate, 63, NULL);
         GetTimeFormatEx (LOCALE_NAME_USER_DEFAULT, TIME_NOSECONDS,
@@ -651,7 +651,7 @@ SKIF_InjectionContext::_DanceOfTheDLLFiles (void)
         StringCchCatW (wszCombinTime, 127, wszSystemDate);
         StringCchCatW (wszCombinTime, 127, L"_");
         StringCchCatW (wszCombinTime, 127, wszSystemTime);
-        
+
         std::wstring wsAltFile = std::wstring (wszFileName) + L"_" + SKIF_Util_StripInvalidFilenameChars (wszCombinTime) + L".old";
 
         // Rename it to the new "DLLName_Datestamp_Timestamp.old" name
@@ -751,7 +751,7 @@ SKIF_InjectionContext::_RefreshSKDLLVersions (void)
   SKVer64_old = SKVer64;
   SKSvc64_old = SKSvc64;
 #endif
-  
+
   if (libCacheRefresh)
   {
     PLOG_INFO << "Special K DLL files and service hosts have been refreshed..."
@@ -809,8 +809,8 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   ImGui::EndGroup        ();
 
   ImGui::SameLine        ();
-                         
-  // Column 2            
+
+  // Column 2
   ImGui::BeginGroup      ();
 #ifdef _WIN64
   if (SKVer32 == SKVer64 && ! SKVer64.empty())
@@ -854,7 +854,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 #endif
 
   ImGui::ItemSize ( ImVec2 (
-                      100.f * SKIF_ImGui_GlobalDPIScale, 
+                      100.f * SKIF_ImGui_GlobalDPIScale,
                         0.f)
                   ); // Column should have min-width 100px (scaled with the DPI)
   ImGui::EndGroup ();
@@ -946,7 +946,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
     ImGui::SetCursorPosY (
       ImGui::GetCursorPosY () -
       ImGui::GetStyle      ().FramePadding.y);
-    
+
   if (runState == Started || runState == Stopped)
   {
     const char *szStartStopLabel =
@@ -972,7 +972,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
   if ( ! bCurrentState && _registry.bAllowBackgroundService)
       SKIF_ImGui_SetHoverTip ("Service continues running after this app is closed.");
-    
+
   if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
     ServiceMenu = PopupState_Open;
 
@@ -994,7 +994,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   // Tips 'n Tricks
   auto frame_id3 =
     ImGui::GetID ("###Global_Injection_TipsNTricks");
-  
+
   ImGui::SetCursorPosY (
     ImGui::GetWindowHeight () - fBottomDist);
 
@@ -1104,7 +1104,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
   if (bLogonTaskEnabled ||
       bAutoStartServiceOnly)
     SKIF_ImGui_PushDisableState ( );
-  
+
   ImGui::BeginGroup  ();
 
   if ( ! argsChecked )
@@ -1122,7 +1122,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
 
       RegCloseKey (hKey);
     }
-    
+
     bAutoStartService = (args.find (L"Start")    != std::wstring::npos);
     bStartMinimized   = (args.find (L"Minimize") != std::wstring::npos);
   }
@@ -1183,7 +1183,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
   }
 
   ImGui::EndGroup    ();
-  
+
   if (bLogonTaskEnabled ||
       bAutoStartServiceOnly)
   {
@@ -1205,7 +1205,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
     if (bLogonTaskEnabled)
     {
       ImGui::BeginGroup ();
-  
+
       if (ImGui::Checkbox ("Start Injection Service At Logon (obsolete) " ICON_FA_USER_SHIELD, &bLogonTaskEnabled))
       {
         if (
@@ -1222,19 +1222,19 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
           bLogonTaskEnabled =
             ! bLogonTaskEnabled;
       }
-  
+
       SKIF_ImGui_SetHoverTip ("This method is obsolete, and can only be disabled.");
 
       ImGui::EndGroup      ();
     }
-    
+
     // New approach to the legacy method
     ImGui::BeginGroup ();
 
-    if ( bLogonTaskEnabled || 
+    if ( bLogonTaskEnabled ||
          bAutoStartSKIF )
       SKIF_ImGui_PushDisableState ( );
-  
+
     if (ImGui::Checkbox ("Start the injection service with Windows", &dontCare))
     {
       if (! bAutoStartServiceOnly)
@@ -1269,7 +1269,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
       else {
         DeleteFileW(SK_UTF8ToWideChar(Svc32Link).c_str());
         DeleteFileW(SK_UTF8ToWideChar(Svc64Link).c_str());
-        
+
         if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\Run)", 0, KEY_WRITE, &hKey) == ERROR_SUCCESS)
         {
           RegDeleteValueW (hKey, L"Special K 32-bit Global Injection Service Host");
@@ -1281,10 +1281,10 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
         bAutoStartServiceOnly = ! bAutoStartServiceOnly;
       }
     }
-  
+
     SKIF_ImGui_SetHoverTip ("Note that this frontend app will not start with Windows.");
-  
-    if ( bLogonTaskEnabled || 
+
+    if ( bLogonTaskEnabled ||
          bAutoStartSKIF )
     {
       SKIF_ImGui_PopDisableState  ( );
@@ -1457,7 +1457,7 @@ bool SKIF_InjectionContext::SaveUserList (bool whitelist_)
 bool SKIF_InjectionContext::LoadUserList (bool whitelist_)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
-  
+
   bool  ret = false;
   static std::wstring root_dir =
            std::wstring(_path_cache.specialk_userdata) + LR"(\Global\)";

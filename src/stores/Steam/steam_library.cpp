@@ -157,7 +157,7 @@ SK_GetManifestContentsForAppID (app_record_s *app)
 
   static AppId_t     manifest_id = 0;
   static std::string manifest;
-  
+
   if (! app->steam.manifest_data.empty())
     return app->steam.manifest_data;
 
@@ -189,7 +189,7 @@ SK_GetManifestContentsForAppID (app_record_s *app)
       swprintf ( wszManifest, MAX_PATH,
                    LR"(appmanifest_%u.acf)",
                             app->id );
-      
+
       // This will really only iterate once, over [0]...
       for (const auto& folder : pFolder->children)
       {
@@ -201,7 +201,7 @@ SK_GetManifestContentsForAppID (app_record_s *app)
           wcsncpy_s (wszManifestFullPath,  MAX_PATH,
              file->getFullPath().c_str(), _TRUNCATE
           );
-          
+
           found = true;
           break;
         }
@@ -292,7 +292,7 @@ SKIF_Steam_GetUserConfigStore (SteamId3_t userid, ConfigStore config)
 
   if (wszConfig[0] == L'\0')
     return cachedConfig[config];
-  
+
 
   // When opening an existing file, the CreateFile function performs the following actions:
   // [...] and ignores any file attributes (FILE_ATTRIBUTE_*) specified by dwFlagsAndAttributes.
@@ -369,7 +369,7 @@ SK_GetSteamDir (void)
        wszSteamPath [MAX_PATH + 2] = { };
   if (*wszSteamPath == L'\0')
   {
-    // Don't keep querying the registry if Steam is not installed   
+    // Don't keep querying the registry if Steam is not installed
     wszSteamPath [0] = L'?';
 
     DWORD     len    =      MAX_PATH;
@@ -609,7 +609,7 @@ SKIF_Steam_GetLaunchOptions (AppId_t appid, SteamId3_t userid , app_record_s *ap
       if (user_localconfig.childs.size() > 0)
       {
         // LaunchOptions is tracked at "UserLocalConfigStore" -> "Software" -> "valve" -> "Steam" -> "apps" -> "<app-id>" -> "LaunchOptions"
-        
+
         std::shared_ptr <tyti::vdf::object>
                                          apps_localconfig = SKIF_VDF_ciSearch ("Software", &user_localconfig.childs);
         if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Valve",    &apps_localconfig->childs);
@@ -697,7 +697,7 @@ SKIF_Steam_PreloadUserLocalConfig (SteamId3_t userid, std::vector <std::pair < s
       {
         // Preload LaunchOptions...
         // LaunchOptions are tracked at "UserLocalConfigStore" -> "Software" -> "valve" -> "Steam" -> "apps" -> "<app-id>" -> "LaunchOptions"
-        
+
         std::shared_ptr <tyti::vdf::object>
                                          apps_localconfig = SKIF_VDF_ciSearch ("Software", &user_localconfig.childs);
         if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Valve",    &apps_localconfig->childs);
@@ -734,7 +734,7 @@ SKIF_Steam_PreloadUserLocalConfig (SteamId3_t userid, std::vector <std::pair < s
         }
 
         // Preload DLC ownership...
-        // 
+        //
         // AppTickets are tracked at "UserLocalConfigStore" -> "apptickets" -> "<app-id>"
         // This is used to determine if a DLC related launch option should be visible
         std::shared_ptr <tyti::vdf::object>
@@ -752,7 +752,7 @@ SKIF_Steam_PreloadUserLocalConfig (SteamId3_t userid, std::vector <std::pair < s
             {
               try {
                 apptickets->emplace (child.first);
-              } 
+              }
               catch (const std::exception& e)
               {
                 UNREFERENCED_PARAMETER(e);
@@ -908,7 +908,7 @@ SKIF_Steam_isSteamOverlayEnabled (AppId_t appid, SteamId3_t userid)
           system_localconfig =
             SKIF_VDF_ciSearch ("system", &user_localconfig.childs);
           //user_localconfig.childs.at("system"); // case sensitive -- cannot be used
-          
+
 
         // If global state is disabled, don't bother checking the local state
         if (! system_localconfig->attribs.empty() && system_localconfig->attribs.count("EnableGameOverlay") > 0 && system_localconfig->attribs.at("EnableGameOverlay") == "0")
@@ -1111,7 +1111,7 @@ SKIF_Steam_areLibrariesSignaled (void)
 
     bool countFiles = (library.frame_last_scanned == 0);
 
-    // If we detect any changes, delay checking the details for a couple of seconds 
+    // If we detect any changes, delay checking the details for a couple of seconds
     if (library.watch.isSignaled (library.path)) // UITab_Library // We do not wake up when unfocused as that causes SKIF to constantly be active during downloads/updates
     {
       library.signaled = SKIF_Util_timeGetTime ( );
@@ -1133,7 +1133,7 @@ SKIF_Steam_areLibrariesSignaled (void)
       library.frame_last_scanned = SKIF_FrameCount.load();
 
       int prevCount = library.count;
-      
+
       // Clear out any existing paths
       library.manifest_vfs.clear();
 
@@ -1201,7 +1201,7 @@ SKIF_SteamInt_DiscoverInstalledApps (void)
           SK_VFS_ScanTree ( library.manifest_vfs,
                             library.path, L"appmanifest_*.acf", 0);
       }
-      
+
       SK_VirtualFS::vfsNode* pFolder =
         library.manifest_vfs;
 
@@ -1233,7 +1233,7 @@ SKIF_SteamInt_DiscoverInstalledApps (void)
 
     LeaveCriticalSection (&VFSManifestSection);
   }
-  
+
   if (bHasSpecialK)
   {
     static bool
@@ -1358,7 +1358,7 @@ SKIF_Steam_HasActiveProcessChanged (std::vector <std::pair < std::string, app_re
     {
       if (RegGetValueW (hKey, NULL, L"ActiveUser", RRF_RT_REG_DWORD, NULL, pvData, &dwSize) == ERROR_SUCCESS)
         g_SteamUserID      = *(DWORD*)pvData;
-      
+
       // Update SKIF's fallback registry value if the user is new
       if (g_SteamUserID != 0 && g_SteamUserID != _registry.uiSteamUser)
       {
