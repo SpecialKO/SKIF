@@ -4382,13 +4382,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
 //#define SKIF_D3D9_TEST
 
 #ifdef SKIF_D3D9_TEST
-
 #define D3D_DEBUG_INFO
 #pragma comment (lib, "d3d9.lib")
 #include <D3D9.h>
-
 #endif
-
 
 HRESULT
 SKIF_CreateDXGIFactory1 (REFIID riid, void **ppFactory)
