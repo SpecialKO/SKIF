@@ -871,7 +871,7 @@ SK_ImGui_KeybindDialog (SK_KeybindMultiState* keybind)
          bDelete    = (! modifierKey && // Reset to default
       ImGui::IsKeyPressed (ImGuiKey_Delete,    false)),
          bEnter     = (! modifierKey && // Confirm
-      ImGui::IsKeyPressed (ImGuiKey_Enter,     false));
+     (ImGui::IsKeyPressed (ImGuiKey_Enter,     false) || ImGui::IsKeyPressed (ImGuiKey_KeypadEnter, false)));
 
     ImGui::Text         ("Keybinding:"); //  %hs, keybind->pending.human_readable_utf8.c_str ()); // (0x%02X), keybind->vKey
     ImGui::SameLine     ( );
