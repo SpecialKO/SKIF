@@ -147,7 +147,6 @@ static DXGI_FORMAT SKIF_ImplDX11_ViewPort_GetDXGIFormat    (ImGuiViewport* viewp
 static int         SKIF_ImplDX11_ViewPort_GetHDRMode       (ImGuiViewport* viewport);
 static FLOAT       SKIF_ImplDX11_ViewPort_GetSDRWhiteLevel (ImGuiViewport* viewport);
 static FLOAT       SKIF_ImplDX11_ViewPort_GetHDRLuma       (ImGuiViewport* viewport);
-       HRESULT     SKIF_ImplDX11_CreateDXGIFactory1 (REFIID riid, void **ppFactory);
 #endif
 
 // Functions
@@ -1645,6 +1644,9 @@ static void ImGui_ImplDX11_SwapBuffers(ImGuiViewport* viewport, void*)
              _registry.iUIMode == 1  ) //            Normal Mode
       Interval    = 1; // V-Sync ON
 
+    // Overrides
+    //Interval = 0; // V-Sync OFF
+
     UINT PresentFlags = 0x0;
 
     if (swap_desc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD   ||
@@ -1656,9 +1658,6 @@ static void ImGui_ImplDX11_SwapBuffers(ImGuiViewport* viewport, void*)
       if (Interval == 0 && _registry._RendererCanAllowTearing)
         PresentFlags |= DXGI_PRESENT_ALLOW_TEARING;
     }
-
-    //if (vd->WaitHandle)
-    //  WaitForSingleObject (vd->WaitHandle, INFINITE);
 
     if (SUCCEEDED (vd->SwapChain->Present (Interval, PresentFlags)))
     {

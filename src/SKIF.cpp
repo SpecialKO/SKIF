@@ -4178,6 +4178,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
           {
             static bool bWaitTimeoutSwapChainsFallback = false;
 
+            //PLOG_VERBOSE << "Waiting on " << vActiveSwapchainWaitHandles.size() << " swapchain wait objects...";
+
             DWORD res =
               WaitForMultipleObjectsEx (static_cast<DWORD>(vActiveSwapchainWaitHandles.size()), vActiveSwapchainWaitHandles.data(), true, bWaitTimeoutSwapChainsFallback ? msSleep : 1000, true);
 
@@ -4489,11 +4491,11 @@ bool CreateDeviceD3D (HWND hWnd)
 
   // Windows 8.1+
   _registry._RendererCanWaitSwapchain      =
-    SKIF_Util_IsWindows8Point1OrGreater ();
+    SKIF_Util_IsWindows8Point1OrGreater ( );
 
   // Windows 10 1709+ (Build 16299)
   _registry._RendererCanHDR                =
-    SKIF_Util_IsHDRActive (NULL); // true
+    SKIF_Util_IsHDRActive (NULL);
 
   CComQIPtr <IDXGIFactory5>
                   pFactory5 (pFactory2.p);
@@ -4513,9 +4515,9 @@ bool CreateDeviceD3D (HWND hWnd)
   }
 
   // Overrides
-  //_registry._RendererCanAllowTearing       = false; // Allow Tearing
-  //SKIF_bCanFlip               = false; // Flip Sequential (if this is false, BitBlt Discard will be used instead)
-  //SKIF_bCanWaitSwapchain      = false; // Waitable Swapchain
+  //_registry._RendererCanWaitSwapchain = false; // Waitable Swapchain
+  //_registry._RendererCanHDR           = false; // HDR
+  //_registry._RendererCanAllowTearing  = false; // Allow Tearing
 
   // D3D11Device
   D3D_FEATURE_LEVEL featureLevel;
@@ -4562,6 +4564,21 @@ bool CreateDeviceD3D (HWND hWnd)
     return false;
   }
 
+  // What adapter do we find ourselves on?
+  CComPtr<IDXGIDevice> dxgiDevice;
+  if (SUCCEEDED (SKIF_pd3dDevice->QueryInterface(IID_PPV_ARGS(&dxgiDevice))))
+  {
+    CComPtr<IDXGIAdapter> adapter;
+    if (SUCCEEDED (dxgiDevice->GetAdapter(&adapter)))
+    {
+      DXGI_ADAPTER_DESC desc;
+      if (SUCCEEDED (adapter->GetDesc(&desc)))
+      {
+        PLOG_INFO << "D3D11 device created on adapter: " << desc.Description;
+      }
+    }
+  }
+
   // We need to try creating a dummy swapchain before we actually start creating
   //   viewport windows. This is to ensure a compatible format is used from the
   //   get go, as e.g. using WS_EX_NOREDIRECTIONBITMAP on a BitBlt window will
@@ -4600,13 +4617,13 @@ bool CreateDeviceD3D (HWND hWnd)
     // Create a dummy swapchain for the dummy viewport
     DXGI_SWAP_CHAIN_DESC1
       swap_desc                  = { };
-    swap_desc.Width              = 8;
-    swap_desc.Height             = 8;
-    swap_desc.Format             = dxgi_format;
-    swap_desc.BufferUsage        = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    swap_desc.Flags              = 0x0;
-    swap_desc.SampleDesc.Count   = 1;
-    swap_desc.SampleDesc.Quality = 0;
+      swap_desc.Width              = 8;
+      swap_desc.Height             = 8;
+      swap_desc.Format             = dxgi_format;
+      swap_desc.BufferUsage        = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+      swap_desc.Flags              = 0x0;
+      swap_desc.SampleDesc.Count   = 1;
+      swap_desc.SampleDesc.Quality = 0;
 
     // Assume flip by default
     swap_desc.BufferCount  = 3; // Must be 2-16 for flip model
