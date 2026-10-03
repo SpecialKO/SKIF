@@ -149,7 +149,7 @@ typedef struct _SKIF_MEMORY_PRIORITY_INFORMATION {
   ULONG MemoryPriority;
 } SKIF_MEMORY_PRIORITY_INFORMATION, *SKIF_PMEMORY_PRIORITY_INFORMATION;
 
-enum class AppColorMode // PreferredAppMode
+enum class PreferredAppMode //
 {
   Default,
   AllowDark,
@@ -189,6 +189,7 @@ bool            SKIF_Util_IsWindows10v1803OrGreater   (void);
 bool            SKIF_Util_IsWindows10v1903OrGreater   (void);
 bool            SKIF_Util_IsWindows11orGreater        (void);
 bool            SKIF_Util_IsWindowsVersionOrGreater   (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber);
+bool            SKIF_Util_IsWindowsVersionExactly     (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber);
 bool            SKIF_Util_IsTouchCapable              (void);
 bool            SKIF_Util_IsProcessAdmin              (DWORD PID);
 bool            SKIF_Util_IsProcessX86                (HANDLE process);
@@ -213,7 +214,9 @@ HRESULT         SKIF_Util_FileExplorer_BrowseForFolder(LPWSTR *pszPath, HWND hWn
 std::wstring    SKIF_Util_FileExplorer_BrowseForFolderXP(PCWSTR defaultPath);
 bool            SKIF_Util_Files_PruneOlderThan        (std::wstring path, ULONGLONG secondsSince);
 bool            SKIF_Util_Files_PruneToLatestN        (std::wstring path, size_t filesToRetain);
-AppColorMode    SKIF_Util_SetAppColorMode             (AppColorMode mode);
+bool            SKIF_Util_AllowDarkModeForApp         (bool allow);
+PreferredAppMode SKIF_Util_SetPreferredAppMode        (PreferredAppMode mode);
+void            SKIF_Util_UpdateAppColorMode          (void);
 std::string     SKIF_Util_GetWindowMessageAsStr       (UINT msg);
 
 

@@ -1264,6 +1264,9 @@ SKIF_ImGui_SetStyle (ImGuiStyle* dst)
     break;
   }
 
+  // Set up OS decorations
+  SKIF_Util_UpdateAppColorMode ( );
+
   // Override the style with a few tweaks of our own
   dst->DisabledAlpha   = 1.0f; // Disable the default 60% alpha transparency for disabled items
   dst->WindowRounding  = 4.0F; // style.ScrollbarRounding;

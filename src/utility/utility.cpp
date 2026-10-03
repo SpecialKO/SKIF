@@ -2075,8 +2075,33 @@ SKIF_Util_IsWindowsVersionOrGreater (DWORD dwMajorVersion, DWORD dwMinorVersion,
           ( osInfo.dwMajorVersion >  dwMajorVersion ||
           ( osInfo.dwMajorVersion == dwMajorVersion &&
             osInfo.dwMinorVersion >= dwMinorVersion &&
-            osInfo.dwBuildNumber  >= dwBuildNumber   )
-        );
+            osInfo.dwBuildNumber  >= dwBuildNumber  ));
+    }
+  }
+
+  return false;
+}
+
+bool
+SKIF_Util_IsWindowsVersionExactly (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber)
+{
+  NTSTATUS(WINAPI *SKIF_RtlGetVersion)(LPOSVERSIONINFOEXW) = nullptr;
+
+  OSVERSIONINFOEXW
+    osInfo                     = { };
+    osInfo.dwOSVersionInfoSize = sizeof (OSVERSIONINFOEXW);
+
+  *reinterpret_cast<FARPROC *>(&SKIF_RtlGetVersion) =
+    GetProcAddress (GetModuleHandleW (L"ntdll"), "RtlGetVersion");
+
+  if (SKIF_RtlGetVersion != nullptr)
+  {
+    if (NT_SUCCESS (SKIF_RtlGetVersion (&osInfo)))
+    {
+      return
+          ( osInfo.dwMajorVersion == dwMajorVersion &&
+            osInfo.dwMinorVersion == dwMinorVersion &&
+            osInfo.dwBuildNumber  == dwBuildNumber  );
     }
   }
 
@@ -3311,27 +3336,65 @@ SKIF_Util_Files_PruneToLatestN (std::wstring path, size_t filesToRetain)
   return false;
 }
 
-// Sets a new app color mode and returns the previous one
-AppColorMode
-SKIF_Util_SetAppColorMode (AppColorMode mode)
+// Allow dark mode for the app
+// Only available on Windows 10 1809
+// Replaced with SetPreferredAppMode on Windows 10 1903 and later
+bool
+SKIF_Util_AllowDarkModeForApp (bool allow)
 {
-  if (! SKIF_Util_IsWindows11orGreater ( ))
-    return AppColorMode::Default;
+  if (! SKIF_Util_IsWindowsVersionExactly (10, 0, 17763))
+    return false;
 
-  using SetAppColorMode_pfn =
-           AppColorMode (WINAPI *)(AppColorMode);
+  using AllowDarkModeForApp_pfn =
+           bool (WINAPI *)(bool);
 
-  static SetAppColorMode_pfn
-         SetAppColorMode =
-        (SetAppColorMode_pfn)GetProcAddress (LoadLibraryEx (L"uxtheme.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+  static AllowDarkModeForApp_pfn
+         AllowDarkModeForApp =
+        (AllowDarkModeForApp_pfn)GetProcAddress (LoadLibraryEx (L"uxtheme.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
         MAKEINTRESOURCEA (135)); // Ordinal 135
 
-  if (SetAppColorMode == nullptr)
-    return AppColorMode::Default;
+  if (AllowDarkModeForApp == nullptr)
+    return false;
 
-  return SetAppColorMode (mode);
+  return AllowDarkModeForApp (allow);
 }
 
+// Sets a new app color mode and returns the previous one
+// Available on Windows 10 1903 and later
+PreferredAppMode
+SKIF_Util_SetPreferredAppMode (PreferredAppMode mode)
+{
+  if (! SKIF_Util_IsWindowsVersionOrGreater (10, 0, 18362))
+    return PreferredAppMode::Default;
+
+  using SetPreferredAppMode_pfn =
+           PreferredAppMode (WINAPI *)(PreferredAppMode);
+
+  static SetPreferredAppMode_pfn
+         SetPreferredAppMode =
+        (SetPreferredAppMode_pfn)GetProcAddress (LoadLibraryEx (L"uxtheme.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        MAKEINTRESOURCEA (135)); // Ordinal 135
+
+  if (SetPreferredAppMode == nullptr)
+    return PreferredAppMode::Default;
+
+  return SetPreferredAppMode (mode);
+}
+
+// Enable Windows to use dark decorations where possible (e.g. title bar, context menus, etc)
+void
+SKIF_Util_UpdateAppColorMode (void)
+{
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
+  // Light mode
+  if (_registry._StyleLightMode)
+    SKIF_Util_SetPreferredAppMode (PreferredAppMode::ForceLight);
+
+  // Dark mode
+  else if (! SKIF_Util_AllowDarkModeForApp (true))
+    SKIF_Util_SetPreferredAppMode (PreferredAppMode::AllowDark);
+}
 
 // Effective Power Mode (Windows 10 1809+)
 typedef enum EFFECTIVE_POWER_MODE {

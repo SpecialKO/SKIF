@@ -568,4 +568,20 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   if (regKVNotificationsDuration.hasData())
     iNotificationsDuration =   regKVNotificationsDuration  .getData ( );
   iNotificationsDuration *= 1000; // Convert from seconds to milliseconds
+
+  // Are we currently using a dark or light theme?
+  switch (iStyle)
+  {
+  case 4: // UIStyle_ImGui_Dark
+  case 3: // UIStyle_ImGui_Classic
+  case 1: // UIStyle_SKIF_Dark
+    break;
+  case 2: // UIStyle_SKIF_Light
+    _StyleLightMode = true;
+    break;
+  case 0: // UIStyle_Dynamic
+  default:
+    if (regKVWindowUseLightTheme.hasData())
+      _StyleLightMode      =   regKVWindowUseLightTheme    .getData ( ) != 0;
+  }
 }

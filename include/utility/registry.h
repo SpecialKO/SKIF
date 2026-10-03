@@ -554,7 +554,7 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyI  ( LR"(Control Panel\Accessibility\)",
                          LR"(MessageDuration)" );
 
-  // Notification duration
+  // Light theme
   KeyValue <int> regKVWindowUseLightTheme =
     SKIF_MakeRegKeyI  ( LR"(Software\Microsoft\Windows\CurrentVersion\Themes\Personalize\)",
                          LR"(AppsUseLightTheme)" );

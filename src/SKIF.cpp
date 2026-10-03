@@ -1731,6 +1731,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Generate install GUID if relevant and one does not exist
   SKIF_Util_GenerateInstallGUID ( );
 
+  // Set up OS decorations
+  SKIF_Util_UpdateAppColorMode ( );
+
   PLOG_INFO << "Creating notification icon...";
 
   // Create invisible notify window (for the traybar icon and notification toasts, and for doing D3D11 tests)
@@ -1747,8 +1750,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   {
     return 0;
   }
-
-  SKIF_Util_SetAppColorMode (AppColorMode::AllowDark);
 
   SKIF_Notify_hWnd      =
     CreateWindowExW (                                            WS_EX_NOACTIVATE,
