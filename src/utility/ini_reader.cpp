@@ -647,7 +647,7 @@ SKIF_IniReader_ParseIni (const std::wstring& file_path, const std::string& file_
       }
     }
 
-    PLOG_VERBOSE << "INI item [DEFAULT]: [" << default_item->section << "] " << default_item->key << " = " << value;
+    //PLOG_VERBOSE << "INI item [DEFAULT]: [" << default_item->section << "] " << default_item->key << " = " << value;
 
     __INI item = { default_item->param_type, default_item->section, default_item->key, value };
     item.description = default_item->description;
@@ -676,7 +676,7 @@ SKIF_IniReader_ParseIni (const std::wstring& file_path, const std::string& file_
 
       if (! found)
       {
-        PLOG_VERBOSE << "INI item [UNKNOWN]: [" << section << "] " << kv.first << " = " << kv.second;
+        //PLOG_VERBOSE << "INI item [UNKNOWN]: [" << section << "] " << kv.first << " = " << kv.second;
         __INI item = { ParameterUnknown, section, kv.first, kv.second };
         item._ignore = false;
         ini_parsed.push_back(item);

@@ -85,5 +85,4 @@ std::vector <__INI>              SKIF_IniReader_ParseIni         (const std::wst
 void                             SKIF_IniReader_WriteIni         (std::vector <__INI> ini,       const std::string& file_path_utf8);
 void                             SKIF_IniReader_ReadOSDIni       (void);
 void                             SKIF_IniReader_SaveOSDIni       (void);
-std::vector <__INI>*             SKIF_IniReader_GetOSDIniVector  (void);
 std::vector <const ConfigEntry*> SKIF_IniReader_GetDefaultParams (IniType ini_type);

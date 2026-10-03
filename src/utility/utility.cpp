@@ -1133,7 +1133,7 @@ SKIF_Util_CreateProcess (
     SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // Enable EcoQoS for this thread
     SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
 
-    PLOG_DEBUG << "SKIF_CreateProcessWorker thread started!";
+    PLOG_VERBOSE << "SKIF_CreateProcessWorker thread started!";
 
     thread_s* _data = static_cast<thread_s*>(var);
 
@@ -1265,7 +1265,7 @@ SKIF_Util_CreateProcess (
     // Free up the memory we allocated
     delete _data;
 
-    PLOG_DEBUG << "SKIF_CreateProcessWorker thread stopped!";
+    PLOG_VERBOSE << "SKIF_CreateProcessWorker thread stopped!";
 
     SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
 
@@ -3613,6 +3613,8 @@ SKIF_UtilInt_UpdateMonitors (void)
       return TRUE;
   }, (LPARAM)&monitors);
 
+  bool displayConfigFallback = false;
+
   // For each active path
   for (auto& path : pathArray)
   {
@@ -3707,8 +3709,6 @@ SKIF_UtilInt_UpdateMonitors (void)
                 }
 
                 pAc->SdrWhiteLevelInNits (&monitor.sdr_whitelevel);
-
-                PLOG_DEBUG << "HDR and WCG metadata was read using WinRT calls.";
                 success = true;
 
                 pAc->Release();
@@ -3761,6 +3761,7 @@ SKIF_UtilInt_UpdateMonitors (void)
     if (! success || (! SKIF_Util_IsWindows10v1803OrGreater ( ) && SKIF_Util_IsWindows10v1709OrGreater ( )))
     {
       PLOG_DEBUG << "Reading HDR support data using DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO...";
+      displayConfigFallback = true;
 
       DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO
         getDisplayHDR                   = { };
@@ -3804,14 +3805,22 @@ SKIF_UtilInt_UpdateMonitors (void)
     g_Monitors.push_back (monitor);
   }
 
-  for (auto& monitor : g_Monitors)
+  PLOG_DEBUG_IF(! displayConfigFallback) << "HDR and WCG metadata was read using WinRT calls.";
+
+  if (! g_Monitors.empty())
   {
-    PLOG_VERBOSE << "Display        : " << monitor.gdi_devicename;
-    PLOG_VERBOSE << "HDR Support    : " << monitor.hdr.supported;
-    PLOG_VERBOSE << "HDR Active     : " << monitor.hdr.active;
-    PLOG_VERBOSE << "WCG Support    : " << monitor.wcg.supported;
-    PLOG_VERBOSE << "WCG Active     : " << monitor.wcg.active;
-    PLOG_VERBOSE << "SDR Whitepoint : " << monitor.sdr_whitelevel;
+    std::wstring
+      logEntry = L"Detected display capabilities:";
+    for (auto& monitor : g_Monitors)
+      logEntry += L"\n+------------------+-------------------------------------+"
+                  L"\n| Display          | " + std::   wstring (monitor.gdi_devicename) +
+                  L"\n| > HDR Support    | " + std::to_wstring (monitor.hdr.supported)  +
+                  L"\n| > HDR Active     | " + std::to_wstring (monitor.hdr.active)     +
+                  L"\n| > WCG Support    | " + std::to_wstring (monitor.wcg.supported)  +
+                  L"\n| > WCG Active     | " + std::to_wstring (monitor.wcg.active)     + 
+                  L"\n| > SDR Whitepoint | " + std::to_wstring (monitor.sdr_whitelevel);
+      logEntry += L"\n+------------------+-------------------------------------+";
+    PLOG_INFO << logEntry;
   }
 }
 

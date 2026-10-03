@@ -44,7 +44,7 @@ FastTextureLoading (const std::wstring& path, DirectX::TexMetadata& meta, Direct
 
   if (decoder == ImageDecoder_stbi)
   {
-    PLOG_DEBUG << "Using stbi decoder...";
+    PLOG_VERBOSE << "Using stbi decoder...";
 
     // If desired_channels is non-zero, *channels_in_file has the number of components that _would_ have been
     // output otherwise. E.g. if you set desired_channels to 4, you will always get RGBA output, but you can
@@ -86,7 +86,7 @@ FastTextureLoading (const std::wstring& path, DirectX::TexMetadata& meta, Direct
 
   if (decoder == ImageDecoder_WIC)
   {
-    PLOG_DEBUG << "Using WIC decoder...";
+    PLOG_VERBOSE << "Using WIC decoder...";
 
     if (SUCCEEDED (
         DirectX::LoadFromWICFile (
@@ -576,7 +576,7 @@ LoadLibraryTexture (
     // If everything went well
     else {
       DWORD post = SKIF_Util_timeGetTime1 ( );
-      PLOG_INFO << "[Image Processing] Processed image in " << (post - pre) << " ms.";
+      PLOG_DEBUG << "[Image Processing] Processed image in " << (post - pre) << " ms.";
 
       if (pApp != nullptr)
       {

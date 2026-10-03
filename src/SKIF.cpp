@@ -4560,7 +4560,7 @@ bool CreateDeviceD3D (HWND hWnd)
 
   if (FAILED (hr))
   {
-    PLOG_ERROR << "D3D11CreateDevice failed!";
+    PLOG_FATAL << "D3D11CreateDevice failed!";
     return false;
   }
 

@@ -108,7 +108,7 @@ SKIF_Updater::SKIF_Updater (void)
       );
     }
 
-    PLOG_DEBUG << "SKIF_UpdaterJob thread started!";
+    PLOG_VERBOSE << "SKIF_UpdaterJob thread started!";
 
     do
     {
@@ -288,7 +288,7 @@ SKIF_Updater::SKIF_Updater (void)
 
     } while (! SKIF_Shutdown.load()); // Keep thread alive until exit
 
-    PLOG_DEBUG << "SKIF_UpdaterJob thread stopped!";
+    PLOG_VERBOSE << "SKIF_UpdaterJob thread stopped!";
 
     SetThreadPriority     (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
 

@@ -1599,7 +1599,7 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
     SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // Enable EcoQoS for this thread
     SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
 
-    PLOG_DEBUG << "SKIF_UpdateCoverWorker thread started!";
+    PLOG_VERBOSE << "SKIF_UpdateCoverWorker thread started!";
 
     thread_s* _data = static_cast<thread_s*>(var);
 
@@ -1720,7 +1720,7 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
     // Free up the memory we allocated
     delete _data;
 
-    PLOG_DEBUG << "SKIF_UpdateCoverWorker thread stopped!";
+    PLOG_VERBOSE << "SKIF_UpdateCoverWorker thread stopped!";
 
     SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
 
@@ -3940,7 +3940,7 @@ GetInjectionSummary (app_record_s* pApp)
           SKIF_Util_SetThreadPowerThrottling (GetCurrentThread(), 1); // Enable EcoQoS for this thread
           SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
 
-          PLOG_DEBUG << "SKIF_LibGameModWorker thread started!";
+          PLOG_VERBOSE << "SKIF_LibGameModWorker thread started!";
 
           int _appid = appid;
           modAppId.store (_appid);
@@ -4039,7 +4039,7 @@ GetInjectionSummary (app_record_s* pApp)
           // Force a refresh when the game icons have finished being streamed
           //PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
 
-          PLOG_DEBUG << "SKIF_LibGameModWorker thread stopped!";
+          PLOG_VERBOSE << "SKIF_LibGameModWorker thread stopped!";
 
           SetThreadPriority    (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
 
@@ -5036,7 +5036,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     if (runOnce)
     {
-      PLOG_INFO << "[Library Pre-Processing] Steam took " << (SKIF_Util_timeGetTime1 ( ) - time_current) << " ms.";
+      PLOG_DEBUG << "[Library Pre-Processing] Steam took " << (SKIF_Util_timeGetTime1 ( ) - time_current) << " ms.";
       time_current = SKIF_Util_timeGetTime1 ( );
     }
 
@@ -5046,7 +5046,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     if (runOnce)
     {
-      PLOG_INFO << "[Library Pre-Processing] Epic took " << (SKIF_Util_timeGetTime1 ( ) - time_current) << " ms.";
+      PLOG_DEBUG << "[Library Pre-Processing] Epic took " << (SKIF_Util_timeGetTime1 ( ) - time_current) << " ms.";
       time_current = SKIF_Util_timeGetTime1 ( );
     }
 
@@ -5060,7 +5060,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     if (runOnce)
     {
-      PLOG_INFO << "[Library Pre-Processing] GOG took " << (SKIF_Util_timeGetTime1 ( ) - time_current) << " ms.";
+      PLOG_DEBUG << "[Library Pre-Processing] GOG took " << (SKIF_Util_timeGetTime1 ( ) - time_current) << " ms.";
       time_current = SKIF_Util_timeGetTime1 ( );
     }
 
@@ -5072,8 +5072,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     if (runOnce)
     {
-      PLOG_INFO << "[Library Pre-Processing] Xbox took " << (SKIF_Util_timeGetTime1 ( ) - time_current) << " ms.";
-      PLOG_INFO << "[Library Pre-Processing] Total process took " << (SKIF_Util_timeGetTime1 ( ) - time_preprocessing) << " ms.";
+      PLOG_DEBUG << "[Library Pre-Processing] Xbox took " << (SKIF_Util_timeGetTime1 ( ) - time_current) << " ms.";
+      PLOG_DEBUG << "[Library Pre-Processing] Total process took " << (SKIF_Util_timeGetTime1 ( ) - time_preprocessing) << " ms.";
       runOnce = false;
     }
   }
@@ -5128,7 +5128,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       //SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // Enable EcoQoS for this thread
       //SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
 
-      PLOG_DEBUG << "SKIF_LibraryWorker thread started!";
+      PLOG_VERBOSE << "SKIF_LibraryWorker thread started!";
 
       std::scoped_lock app_lock (g_apps_mutex);
 
@@ -5150,7 +5150,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (! _registry._LibraryHidden)
         {
           post = SKIF_Util_timeGetTime1 ( );
-          PLOG_INFO << "[Library Processing] Processed " << (_data->apps.size() - games) << " Steam games in " << (post - pre) << " ms.";
+          PLOG_DEBUG << "[Library Processing] Processed " << (_data->apps.size() - games) << " Steam games in " << (post - pre) << " ms.";
           pre  = post;
           games = _data->apps.size();
         }
@@ -5161,7 +5161,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (! _registry._LibraryHidden)
         {
           post = SKIF_Util_timeGetTime1 ( );
-          PLOG_INFO << "[Library Processing] Processed Steam user configs in " << (post - pre) << " ms.";
+          PLOG_DEBUG << "[Library Processing] Processed Steam user configs in " << (post - pre) << " ms.";
           pre  = post;
         }
       }
@@ -5198,7 +5198,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (! _registry._LibraryHidden)
         {
           post = SKIF_Util_timeGetTime1 ( );
-          PLOG_INFO << "[Library Processing] Processed " << (_data->apps.size() - games) << " GOG games in " << (post - pre) << " ms.";
+          PLOG_DEBUG << "[Library Processing] Processed " << (_data->apps.size() - games) << " GOG games in " << (post - pre) << " ms.";
           pre  = post;
           games = _data->apps.size();
         }
@@ -5212,7 +5212,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (! _registry._LibraryHidden)
         {
           post = SKIF_Util_timeGetTime1 ( );
-          PLOG_INFO << "[Library Processing] Processed " << (_data->apps.size() - games) << " Epic games in " << (post - pre) << " ms.";
+          PLOG_DEBUG << "[Library Processing] Processed " << (_data->apps.size() - games) << " Epic games in " << (post - pre) << " ms.";
           pre  = post;
           games = _data->apps.size();
         }
@@ -5225,7 +5225,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (! _registry._LibraryHidden)
         {
           post = SKIF_Util_timeGetTime1 ( );
-          PLOG_INFO << "[Library Processing] Processed " << (_data->apps.size() - games) << " Xbox games in " << (post - pre) << " ms.";
+          PLOG_DEBUG << "[Library Processing] Processed " << (_data->apps.size() - games) << " Xbox games in " << (post - pre) << " ms.";
           pre  = post;
           games = _data->apps.size();
         }
@@ -5239,7 +5239,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (! _registry._LibraryHidden)
         {
           post = SKIF_Util_timeGetTime1 ( );
-          PLOG_INFO << "[Library Processing] Processed " << (_data->apps.size() - games) << " custom SKIF titles in " << (post - pre) << " ms.";
+          PLOG_DEBUG << "[Library Processing] Processed " << (_data->apps.size() - games) << " custom SKIF titles in " << (post - pre) << " ms.";
           games = _data->apps.size();
         }
       }
@@ -5705,7 +5705,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       post = SKIF_Util_timeGetTime1 ( );
       games = games - 1; // Do not count Special K as a game
-      PLOG_INFO << "Finished processing " << games << " detected games in " << (post - pre) << " ms.";
+      PLOG_DEBUG << "Finished processing " << games << " detected games in " << (post - pre) << " ms.";
 
       SKIF_GamingCollection::SortApps (&_data->apps);
 
@@ -5713,7 +5713,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       PLOG_INFO << "Finished populating the library list.";
 
-      PLOG_INFO_IF(pPatTexSRV.p == nullptr) << "Loading the embedded Patreon texture...";
+      PLOG_VERBOSE_IF(pPatTexSRV.p == nullptr) << "Loading the embedded Patreon texture...";
       ImVec2 dontCare;
       if (pPatTexSRV.p == nullptr)
         LoadLibraryTexture (LibraryTexture::Patreon, SKIF_STEAM_APPID, pPatTexSRV,          L"patreon.png",         dontCare);
@@ -5725,9 +5725,9 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Force a refresh when the game icons have finished being streamed
       PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
 
-      PLOG_INFO << "Library refresh took " << (SKIF_Util_timeGetTime1 ( ) - start) << " ms.";
+      PLOG_DEBUG << "Library refresh took " << (SKIF_Util_timeGetTime1 ( ) - start) << " ms.";
 
-      PLOG_DEBUG << "SKIF_LibraryWorker thread stopped!";
+      PLOG_VERBOSE << "SKIF_LibraryWorker thread stopped!";
 
       //SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
 
@@ -6056,7 +6056,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           //SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // Enable EcoQoS for this thread
           //SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
 
-          //PLOG_DEBUG << "SKIF_GameWorker thread started!";
+          //PLOG_VERBOSE << "SKIF_GameWorker thread started!";
 
           SKIF_Lib_GameWorkerThread_s* _data = static_cast<SKIF_Lib_GameWorkerThread_s*>(var);
 
@@ -6065,7 +6065,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           // Force a refresh when the game icons have finished being streamed
           PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
 
-          //PLOG_DEBUG << "SKIF_GameWorker thread stopped!";
+          //PLOG_VERBOSE << "SKIF_GameWorker thread stopped!";
 
           //SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
 
@@ -8142,9 +8142,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       CoInitializeEx (nullptr, 0x0);
 
-      PLOG_DEBUG << "SKIF_LibCoverWorker thread started!";
+      PLOG_VERBOSE << "SKIF_LibCoverWorker thread started!";
 
-      PLOG_INFO  << "Streaming game cover asynchronously...";
+      PLOG_DEBUG  << "Streaming game cover asynchronously...";
 
       if (pApp == nullptr)
       {
@@ -8345,8 +8345,8 @@ SKIF_UI_Tab_DrawLibrary (void)
         _pTexSRV.p = nullptr;
       }
 
-      PLOG_INFO  << "Finished streaming game cover asynchronously...";
-      PLOG_DEBUG << "SKIF_LibCoverWorker thread stopped!";
+      PLOG_DEBUG << "Finished streaming game cover asynchronously...";
+      PLOG_VERBOSE << "SKIF_LibCoverWorker thread stopped!";
 
       return 0;
     }, nullptr, 0x0, nullptr);

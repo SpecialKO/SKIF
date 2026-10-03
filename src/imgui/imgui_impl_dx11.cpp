@@ -783,10 +783,10 @@ static void ImGui_ImplDX11_CreateFontsTexture()
   DWORD temp_time = SKIF_Util_timeGetTime1();
 
   if (FAILED (bd->pd3dDevice->CreateTexture2D (&staging_desc, nullptr, &pStagingTexture.p)))
-    PLOG_ERROR << "Failed creating staging texture!";
+    PLOG_FATAL << "Failed creating staging texture!";
 
   if (FAILED (bd->pd3dDevice->CreateTexture2D (&tex_desc, nullptr, &pFontTexture.p)))
-    PLOG_ERROR << "Failed creating font texture!";
+    PLOG_FATAL << "Failed creating font texture!";
 
   PLOG_DEBUG << "Operation [CreateTexture2D] took " << (SKIF_Util_timeGetTime1() - temp_time) << " ms.";
 
@@ -797,7 +797,7 @@ static void ImGui_ImplDX11_CreateFontsTexture()
         mapped_tex = { };
 
   if (FAILED (pDevCtx->Map (pStagingTexture.p, 0, D3D11_MAP_WRITE, 0, &mapped_tex)))
-    PLOG_ERROR << "Failed mapping staging texture!";
+    PLOG_FATAL << "Failed mapping staging texture!";
 
   for (int y = 0; y < height; y++)
   {
@@ -826,7 +826,7 @@ static void ImGui_ImplDX11_CreateFontsTexture()
     srvDesc.Texture2D.MostDetailedMip = 0;
 
   if (FAILED (bd->pd3dDevice->CreateShaderResourceView (pFontTexture, &srvDesc, &bd->pFontTextureView)))
-    PLOG_ERROR << "Failed creating SRV of the font texture!";
+    PLOG_FATAL << "Failed creating SRV of the font texture!";
 
   // Store our identifier
   io.Fonts->TexID =
@@ -845,7 +845,7 @@ static void ImGui_ImplDX11_CreateFontsTexture()
     sampler_desc.MaxLOD             = 0.f;
 
   if (FAILED (bd->pd3dDevice->CreateSamplerState (&sampler_desc, &bd->pFontSampler)))
-    PLOG_ERROR << "Failed creating sampler-state object of the font sampler!";
+    PLOG_FATAL << "Failed creating sampler-state object of the font sampler!";
 
   io.Fonts->ClearTexData ();
 }
@@ -1473,7 +1473,7 @@ ImGui_ImplDX11_SetWindowSize ( ImGuiViewport *viewport,
       );
 
       if (pBackBuffer == nullptr) {
-        PLOG_ERROR << "ImGui_ImplDX11_SetWindowSize() failed creating buffers";
+        PLOG_FATAL << "ImGui_ImplDX11_SetWindowSize() failed creating buffers";
         return;
       }
 
@@ -1560,7 +1560,7 @@ SKIF_ImGui_ImplDX11_LogSwapChainFormat (ImGuiViewport *viewport)
   {
     swap_prev = swap_desc;
 
-    PLOG_INFO   << "The swapchain format has been changed..."
+    PLOG_INFO   << "The swapchain format has been changed:"
                 << "\n+------------------+-------------------------------------+"
                 << "\n| Resolution       | " <<   swap_desc.Width << "x" << swap_desc.Height
                 << "\n| Dynamic Range    | " << ((vd->HDR) ? "HDR" : "SDR")
