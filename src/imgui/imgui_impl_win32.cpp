@@ -2230,7 +2230,7 @@ static void ImGui_ImplWin32_InitPlatformInterface(bool platform_has_own_dc)
     wcex.hIcon = nullptr;
     wcex.hCursor = nullptr;
 #ifdef SKIF_Win32
-    wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1); // COLOR_BACKGROUND is unsupported on Win10+
+    wcex.hbrBackground = NULL; // There is no need to define a background brush as ImGui covers the whole client area
     wcex.lpszMenuName = nullptr;
     wcex.lpszClassName = SKIF_ImGui_WindowClass;
     HMODULE hModHost =
