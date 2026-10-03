@@ -351,6 +351,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Efficiency Mode)" );
 
+  KeyValue <bool> regKVHardwareAcceleration =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Hardware Acceleration)" );
+
   KeyValue <bool> regKVFadeCovers =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Fade Covers)" );
@@ -626,6 +630,7 @@ struct SKIF_RegistrySettings {
   bool bAutoUpdate              = false; // Automatically runs downloaded installers
   bool bDeveloperMode           = false;
   bool bEfficiencyMode          =  true; // Should the main thread try to engage EcoQoS / Efficiency Mode on Windows 11 ?
+  bool bHardwareAcceleration    =  true; // D3D11 uses WARP is disabled
   bool bFadeCovers              =  true;
   bool bPCGWCoversGOG           =  true; // Should SKIF prefer covers from PCGW where available?
   bool bPCGWCoversSteam         = false; // Should SKIF prefer covers from PCGW where available?

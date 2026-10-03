@@ -1575,6 +1575,13 @@ SKIF_UI_Tab_DrawSettings (void)
 
     SKIF_ImGui_SetHoverTip ("This allows the injection service to remain running even after this app has been closed.");
 
+    if (ImGui::Checkbox  ("Use hardware acceleration",&_registry.bHardwareAcceleration))
+    {
+      _registry.regKVHardwareAcceleration.putData   (  _registry.bHardwareAcceleration);
+      extern bool RecreateD3DDevice;
+      RecreateD3DDevice = true;
+    }
+
     if (_registry.bCloseToTray)
     {
       ImGui::BeginGroup   ( );

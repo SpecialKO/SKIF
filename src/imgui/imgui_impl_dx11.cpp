@@ -69,6 +69,7 @@ extern bool    SKIF_Util_IsWindowsVersionOrGreater   (DWORD dwMajorVersion, DWOR
 extern bool    SKIF_Util_IsHDRSupported              (HMONITOR hMonitor);
 extern bool    SKIF_Util_IsHDRActive                 (HMONITOR hMonitor);
 extern float   SKIF_Util_GetSDRWhiteLevel            (HMONITOR hMonitor);
+extern bool  RecreateD3DDevice;
 extern bool  RecreateSwapChains;
 extern bool  RecreateSwapChainsPending;
 
@@ -1249,12 +1250,12 @@ void ImGui_ImplDX11_NewFrame()
     extern DWORD                   invalidatedDevice;
 
     // Check if the device have been removed for any reason
-    bool  RecreateDevice  =
-      FAILED (bd->pd3dDevice->GetDeviceRemovedReason ( ));
+    RecreateD3DDevice = (RecreateD3DDevice ||
+      FAILED (bd->pd3dDevice->GetDeviceRemovedReason ( )));
 
     // Only bother checking if the factory needs to be recreated if the device hasn't been removed
     bool  RecreateFactory =
-                ( ! RecreateDevice          &&
+                ( ! RecreateD3DDevice       &&
                     bd->pFactory != nullptr &&
                   ! bd->pFactory->IsCurrent ( ) );
 
@@ -1262,7 +1263,7 @@ void ImGui_ImplDX11_NewFrame()
 
     if (RecreateSwapChains ||
         RecreateFactory    ||
-        RecreateDevice     )
+        RecreateD3DDevice  )
     {
       RecreateSwapChains        = false;
       RecreateSwapChainsPending = true;
@@ -1280,18 +1281,20 @@ void ImGui_ImplDX11_NewFrame()
         bd->pd3dDeviceContext->Flush      ( );
       }
 
-      if (RecreateFactory || RecreateDevice)
+      if (RecreateFactory || RecreateD3DDevice)
       {
         PLOG_DEBUG << "Recreating factory...";
         bd->pFactory->Release();
         bd->pFactory = nullptr;
 
-        if (! RecreateDevice)
+        if (! RecreateD3DDevice)
           SKIF_CreateDXGIFactory1 (__uuidof (IDXGIFactory2), (void **)&bd->pFactory);
       }
 
-      if (RecreateDevice)
+      if (RecreateD3DDevice)
       {
+        RecreateD3DDevice = false;
+
         PLOG_DEBUG << "Recreating the D3D11 device...";
         ImGui_ImplDX11_InvalidateDevice ( );
         CleanupDeviceD3D                ( );

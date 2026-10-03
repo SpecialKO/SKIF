@@ -86,6 +86,7 @@
 #include <dwmapi.h>
 
 const int SKIF_STEAM_APPID      = 1157970;
+bool  RecreateD3DDevice         = false;
 bool  RecreateSwapChains        = false;
 bool  RecreateSwapChainsPending = false;
 bool  RecreateWin32Windows      = false;
@@ -4520,17 +4521,38 @@ bool CreateDeviceD3D (HWND hWnd)
     D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_10_0
   };
 
+  D3D_DRIVER_TYPE driverType =
+    (_registry.bHardwareAcceleration)
+    ? D3D_DRIVER_TYPE_HARDWARE
+    : D3D_DRIVER_TYPE_WARP;
+
+  PLOG_VERBOSE << "Creating D3D11 device with driver type: " << (driverType == D3D_DRIVER_TYPE_HARDWARE ? "Hardware" : "WARP");
+
   UINT createDeviceFlags = 0;
   // This MUST be disabled before public release! Otherwise systems without the Windows SDK installed will crash on launch.
   //createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG; // Enable debug layer of D3D11
 
-  if (FAILED (SKIF_D3D11CreateDevice ( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
-                                              createDeviceFlags, featureLevelArray,
-                                                         sizeof (featureLevelArray) / sizeof featureLevel,
-                                                D3D11_SDK_VERSION,
-                                                       &SKIF_pd3dDevice,
-                                                                &featureLevel,
-                                                       &SKIF_pd3dDeviceContext)))
+  HRESULT hr = SKIF_D3D11CreateDevice ( nullptr, driverType, nullptr,
+                                          createDeviceFlags, featureLevelArray,
+                                                      sizeof (featureLevelArray) / sizeof featureLevel,
+                                            D3D11_SDK_VERSION,
+                                                    &SKIF_pd3dDevice,
+                                                            &featureLevel,
+                                                    &SKIF_pd3dDeviceContext);
+
+  if (FAILED (hr) && driverType != D3D_DRIVER_TYPE_WARP)
+  {
+    PLOG_WARNING << "D3D11CreateDevice failed when using hardware. Attempting with WARP...";
+    hr = SKIF_D3D11CreateDevice ( nullptr, D3D_DRIVER_TYPE_WARP, nullptr,
+                                    createDeviceFlags, featureLevelArray,
+                                                sizeof (featureLevelArray) / sizeof featureLevel,
+                                      D3D11_SDK_VERSION,
+                                              &SKIF_pd3dDevice,
+                                                      &featureLevel,
+                                              &SKIF_pd3dDeviceContext);
+  }
+
+  if (FAILED (hr))
   {
     PLOG_ERROR << "D3D11CreateDevice failed!";
     return false;

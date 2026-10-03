@@ -493,6 +493,9 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   else
     bEfficiencyMode        =   SKIF_Util_IsWindows11orGreater ( ); // Win10 and below: false, Win11 and above: true
 
+  if (regKVHardwareAcceleration.hasData(&hKey))
+    bHardwareAcceleration  =   regKVHardwareAcceleration   .getData (&hKey);
+
   if (regKVFadeCovers.hasData(&hKey))
     bFadeCovers            =   regKVFadeCovers             .getData (&hKey);
 
