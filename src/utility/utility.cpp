@@ -1833,6 +1833,18 @@ SKIF_Util_SetThreadMemoryPriority (HANDLE threadHandle, ULONG memoryPriority)
   return SKIF_Util_SetThreadInformation (threadHandle, ThreadMemoryPriority, &memoryPriorityInfo, sizeof(memoryPriorityInfo));
 }
 
+// Is CPU a hybrid CPU (e.g. Intel 12th Gen or later)?
+bool
+SKIF_Util_IsHybridCPU (void)
+{
+  if (! SKIF_Util_IsWindows10OrGreater ( ))
+    return false;
+
+  return SKIF_Util_GetProcessInfoHybridDetect ( )->hybrid;
+}
+
+// Sets the default CPU set of a process to E-cores
+// This has is most noticable on E cores when using software rendering (WARP)!
 bool
 SKIF_Util_SetProcessPrefersECores (void)
 {
@@ -1858,9 +1870,43 @@ SKIF_Util_SetProcessPrefersECores (void)
     PLOG_VERBOSE_IF(succeeded) << "The default CPU set of the process was set to E-cores!";
 #else
       false; // Do not use affinity mask as this is inherited by any spawned child process!
-    (1 == HybridDetect::RunProcOn (procInfo, SKIF_Util_GetCurrentProcess(), HybridDetect::CoreTypes::INTEL_ATOM, procInfo.coreMasks [HybridDetect::CoreTypes::ANY]));
+    //(1 == HybridDetect::RunProcOn (procInfo, SKIF_Util_GetCurrentProcess(), HybridDetect::CoreTypes::INTEL_ATOM, procInfo.coreMasks [HybridDetect::CoreTypes::ANY]));
 
-    PLOG_VERBOSE_IF(succeeded) << "The affinity mask of the process was set to E-cores!";
+  //PLOG_VERBOSE_IF(succeeded) << "The affinity mask of the process was set to E-cores!";
+#endif
+  }
+
+  return succeeded;
+}
+
+bool
+SKIF_Util_SetProcessPrefersAnyCores (void)
+{
+  if (! SKIF_Util_IsWindows10OrGreater ( ))
+    return false;
+
+  HybridDetect::PROCESSOR_INFO procInfo = *SKIF_Util_GetProcessInfoHybridDetect ( );
+
+  bool succeeded = false;
+
+  // From Intel's Game Dev Guide for 12th Gen Intel® Core™ Processor:
+  //  - CPU Sets provide APIs to declare application thread affinity in a “soft” manner that is compatible with OS power management (unlike the ThreadAffinityMask APIs).
+  //  - SetThreadAffinityMask() is in the “strong” affinity class of Windows API functions.
+  //
+  // Enforcing E-core usage at the thread level using CPU sets seems pretty spotty with little effect, according to Intel VTune Profiler,
+  //   however setting it using an affinity mask means any new child process inherits the affinity mask, which we absolutely do not want!
+  if (procInfo.hybrid)
+  {
+    succeeded =
+#ifdef ENABLE_CPU_SETS
+      (1 == HybridDetect::RunProcOn (procInfo, SKIF_Util_GetCurrentProcess(), HybridDetect::CoreTypes::ANY, procInfo.cpuSets   [HybridDetect::CoreTypes::ANY]));
+
+    PLOG_VERBOSE_IF(succeeded) << "The default CPU set of the process was set to E-cores!";
+#else
+      false; // Do not use affinity mask as this is inherited by any spawned child process!
+    //(1 == HybridDetect::RunProcOn (procInfo, SKIF_Util_GetCurrentProcess(), HybridDetect::CoreTypes::ANY, procInfo.coreMasks [HybridDetect::CoreTypes::ANY]));
+
+  //PLOG_VERBOSE_IF(succeeded) << "The affinity mask of the process was set to E-cores!";
 #endif
   }
 

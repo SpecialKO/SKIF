@@ -1627,9 +1627,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   PLOG_INFO << "Max severity to log was set to " << _registry.iLogging;
 
+  // Detect if the system is running on a hybrid CPU (e.g. Intel Alder Lake)
+  _registry._ProcessorHasECores = SKIF_Util_IsHybridCPU ( );
+
   // Set process preference to E-cores using only CPU sets, :)
   //  as affinity masks are inherited by child processes... :(
-  SKIF_Util_SetProcessPrefersECores ( );
+  if (_registry._ProcessorHasECores)
+    SKIF_Util_SetProcessPrefersECores ( );
 
   // This constructs the singleton object
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( ); // Relies on SKIF_Initialize (working dir) + _path_cache (cached paths) + logging

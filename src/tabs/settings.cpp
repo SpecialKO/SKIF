@@ -1582,6 +1582,19 @@ SKIF_UI_Tab_DrawSettings (void)
       RecreateD3DDevice = true;
     }
 
+    ImGui::SameLine        ( );
+
+    if (SKIF_Util_IsHybridCPU ( ))
+    {
+      ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_TRIANGLE_EXCLAMATION);
+      SKIF_ImGui_SetHoverTip ("The app will be less responsive if disabled on hybrid CPUs.");
+    }
+
+    else {
+      ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
+      SKIF_ImGui_SetHoverTip ("The app may be less responsive if disabled.");
+    }
+
     if (_registry.bCloseToTray)
     {
       ImGui::BeginGroup   ( );

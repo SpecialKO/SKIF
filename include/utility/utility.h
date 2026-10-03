@@ -175,7 +175,9 @@ HRESULT WINAPI  SKIF_Util_SetThreadDescription        (HANDLE hThread,  PCWSTR l
 BOOL    WINAPI  SKIF_Util_SetThreadSelectedCpuSets    (HANDLE hThread,  const ULONG *CpuSetIds, ULONG CpuSetIdCount);
 bool            SKIF_Util_SetThreadPowerThrottling    (HANDLE threadHandle, INT state);
 bool            SKIF_Util_SetThreadMemoryPriority     (HANDLE threadHandle, ULONG memoryPriority);
+bool            SKIF_Util_IsHybridCPU                 (void);
 bool            SKIF_Util_SetProcessPrefersECores     (void);
+bool            SKIF_Util_SetProcessPrefersAnyCores   (void);
 BOOL    WINAPI  SKIF_Util_SetProcessDefaultCpuSets    (HANDLE hProcess, const ULONG *CpuSetIds, ULONG CpuSetIdCount);
 BOOL    WINAPI  SKIF_Util_SetProcessInformation       (HANDLE hProcess, PROCESS_INFORMATION_CLASS ProcessInformationClass, LPVOID ProcessInformation, DWORD ProcessInformationSize);
 bool            SKIF_Util_SetProcessPowerThrottling   (HANDLE processHandle, INT state);
