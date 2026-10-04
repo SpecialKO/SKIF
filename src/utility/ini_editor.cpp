@@ -451,6 +451,9 @@ SKIF_ImGui_IniEditor_Process (void)
       }
     }
 
+    // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
+    SKIF_ImGui_AutoScroll  (false, SKIF_ImGuiAxis_Y);
+
     ImGui::EndChild ( );
 
     window.bFocused = ImGui::IsWindowFocused (ImGuiFocusedFlags_ChildWindows);
