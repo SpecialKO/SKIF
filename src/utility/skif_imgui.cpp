@@ -1433,61 +1433,69 @@ SKIF_ImGui_MouseWheelScroll (SKIF_ImGuiAxis axis)
 
   static ImVec2 position;
   static bool held = false;
+  static ImGuiID activeID = NULL;
 
-  if (bAutoScrollActive && ! SKIF_ImGui_IsFocused ( ))
-    bAutoScrollActive = held = false;
-
-  else if (bAutoScrollActive &&
-     (ImGui::GetKeyData (ImGuiKey_MouseLeft  )->DownDuration == 0.0f ||
-      ImGui::GetKeyData (ImGuiKey_MouseMiddle)->DownDuration == 0.0f ||
-      ImGui::GetKeyData (ImGuiKey_MouseRight )->DownDuration == 0.0f))
-    bAutoScrollActive = held = false;
-
-  else if (bAutoScrollActive && held &&
-           ImGui::GetKeyData (ImGuiKey_MouseMiddle)->DownDuration < 0.0f)
-    bAutoScrollActive = held = false;
-
-  else if (bAutoScrollActive &&
-           ImGui::GetKeyData (ImGuiKey_MouseMiddle)->DownDuration > 0.15f) // Special handling if mouse wheel is held down for longer than 150 ms
-    held = true;
-
-//else if (! onVoid || g.HoveredId == 0) // If nothing hovered so far in the frame (not same as IsAnyItemHovered()!)
-//else if (ImGui::IsMousePosValid ( ) && ImGui::ButtonBehavior  (window->Rect(), id, &hovered, &held, ImGuiButtonFlags_AllowOverlap | ImGuiButtonFlags_MouseButtonMiddle | static_cast<ImGuiButtonFlags_> (ImGuiButtonFlags_PressedOnClick)))
-  else if (ImGui::IsMousePosValid ( ) && ImGui::GetKeyData (ImGuiKey_MouseMiddle)->DownDuration == 0.0f && ImGui::IsMouseHoveringRect (window->Rect().Min, window->Rect().Max) )
+  if (activeID == id && bAutoScrollActive && ! SKIF_ImGui_IsViewportFocused (g.CurrentViewport))
   {
-    bAutoScrollActive = true;
-    position = ImGui::GetMousePos ( );
+    bAutoScrollActive = held = false;
+    activeID = NULL;
   }
 
-  if (bAutoScrollActive && ImGui::IsMousePosValid ( ))
+  else if (SKIF_ImGui_IsViewportFocused (g.CurrentViewport))
   {
-    ImVec2 delta = position - ImGui::GetMousePos ( );
+    if (bAutoScrollActive &&
+       (ImGui::GetKeyData (ImGuiKey_MouseLeft  )->DownDuration == 0.0f ||
+        ImGui::GetKeyData (ImGuiKey_MouseMiddle)->DownDuration == 0.0f ||
+        ImGui::GetKeyData (ImGuiKey_MouseRight )->DownDuration == 0.0f))
+      bAutoScrollActive = held = false;
 
-    switch (axis)
+    else if (bAutoScrollActive && held &&
+        ImGui::GetKeyData (ImGuiKey_MouseMiddle)->DownDuration < 0.0f)
+      bAutoScrollActive = held = false;
+
+    else if (bAutoScrollActive &&
+        ImGui::GetKeyData (ImGuiKey_MouseMiddle)->DownDuration > 0.15f) // Special handling if mouse wheel is held down for longer than 150 ms
+      held = true;
+
+  //else if (! onVoid || g.HoveredId == 0) // If nothing hovered so far in the frame (not same as IsAnyItemHovered()!)
+  //else if (ImGui::IsMousePosValid ( ) && ImGui::ButtonBehavior  (window->Rect(), id, &hovered, &held, ImGuiButtonFlags_AllowOverlap | ImGuiButtonFlags_MouseButtonMiddle | static_cast<ImGuiButtonFlags_> (ImGuiButtonFlags_PressedOnClick)))
+    else if (ImGui::IsMousePosValid ( ) && ImGui::GetKeyData (ImGuiKey_MouseMiddle)->DownDuration == 0.0f && ImGui::IsMouseHoveringRect (window->Rect().Min, window->Rect().Max) )
     {
-    case SKIF_ImGuiAxis_None:
-      break;
-    case SKIF_ImGuiAxis_X:
-      ImGui::SetMouseCursor (ImGuiMouseCursor_ResizeEW);
-      break;
-    case SKIF_ImGuiAxis_Y:
-      ImGui::SetMouseCursor (ImGuiMouseCursor_ResizeNS);
-      break;
-    case SKIF_ImGuiAxis_Both:
-      ImGui::SetMouseCursor (ImGuiMouseCursor_ResizeAll);
-      break;
-    default:
-      break;
+      bAutoScrollActive = true;
+      position = ImGui::GetMousePos ( );
+      activeID = id;
     }
 
-    if ((axis & SKIF_ImGuiAxis_X) && delta.x != 0.0f) // Horizontal
-      ImGui::SetScrollX (window, window->Scroll.x - delta.x * 0.1f);
+    if (bAutoScrollActive && ImGui::IsMousePosValid ( ))
+    {
+      ImVec2 delta = position - ImGui::GetMousePos ( );
 
-    if ((axis & SKIF_ImGuiAxis_Y) && delta.y != 0.0f) // Vertical
-      ImGui::SetScrollY (window, window->Scroll.y - delta.y * 0.1f);
+      switch (axis)
+      {
+      case SKIF_ImGuiAxis_None:
+        break;
+      case SKIF_ImGuiAxis_X:
+        ImGui::SetMouseCursor (ImGuiMouseCursor_ResizeEW);
+        break;
+      case SKIF_ImGuiAxis_Y:
+        ImGui::SetMouseCursor (ImGuiMouseCursor_ResizeNS);
+        break;
+      case SKIF_ImGuiAxis_Both:
+        ImGui::SetMouseCursor (ImGuiMouseCursor_ResizeAll);
+        break;
+      default:
+        break;
+      }
 
-    extern bool SKIF_MouseDragMoveAllowed;
-    SKIF_MouseDragMoveAllowed = false;
+      if ((axis & SKIF_ImGuiAxis_X) && delta.x != 0.0f) // Horizontal
+        ImGui::SetScrollX (window, window->Scroll.x - delta.x * 0.1f);
+
+      if ((axis & SKIF_ImGuiAxis_Y) && delta.y != 0.0f) // Vertical
+        ImGui::SetScrollY (window, window->Scroll.y - delta.y * 0.1f);
+
+      extern bool SKIF_MouseDragMoveAllowed;
+      SKIF_MouseDragMoveAllowed = false;
+    }
   }
 }
 
