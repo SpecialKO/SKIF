@@ -3494,7 +3494,7 @@ GetInjectionSummary (app_record_s* pApp)
     if ((pApp->store != app_record_s::Store::Steam) ||
         (pApp->store == app_record_s::Store::Steam  && // Exclude the check for games with known older versions
          pApp->id    != 405900                      && // Disgaea PC
-         pApp->id    != 359870                      && // FFX/X-2 HD Remaster
+       //pApp->id    != 359870                      && // FFX/X-2 HD Remaster  // Not compatible with the latest version as of 2026-10-01
        //pApp->id    != 578330                      && // LEGO City Undercover // Do not exclude from the updater as its a part of mainline SK
          pApp->id    != 429660                      && // Tales of Berseria
          pApp->id    != 372360                      && // Tales of Symphonia
@@ -3819,7 +3819,7 @@ GetInjectionSummary (app_record_s* pApp)
   if (! pApp->loading &&
         pApp->store == app_record_s::Store::Steam && // Expose installer for those games with better specific mods
      (//pApp->id == 405900       || // Disgaea PC
-        pApp->id == 359870       || // FFX/X-2 HD Remaster
+      //pApp->id == 359870       || // FFX/X-2 HD Remaster  // Not compatible with the latest version as of 2026-10-01
       //pApp->id == 578330       || // LEGO City Undercover // Do not exclude from the updater as its a part of mainline SK
         pApp->id == 429660       || // Tales of Berseria
         pApp->id == 372360     //|| // Tales of Symphonia
