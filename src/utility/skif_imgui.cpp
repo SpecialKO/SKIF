@@ -1466,7 +1466,7 @@ SKIF_ImGui_MouseWheelScroll (SKIF_ImGuiAxis axis)
       activeID = id;
     }
 
-    if (bAutoScrollActive && ImGui::IsMousePosValid ( ))
+    if (bAutoScrollActive && activeID == id && ImGui::IsMousePosValid ( ))
     {
       ImVec2 delta = position - ImGui::GetMousePos ( );
 

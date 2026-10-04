@@ -2882,6 +2882,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           SKIF_UI_Tab_DrawMonitor ( );
 
+          // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
+          // Currently not possible since the Monitor tab includes another scrollable child window (the process list)
+          //SKIF_ImGui_AutoScroll  (true, SKIF_ImGuiAxis_Y);
+
           ImGui::EndChild         ( );
           ImGui::EndTabItem       ( );
         }
@@ -2931,6 +2935,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           // About Tab
           SKIF_UI_Tab_DrawAbout   ( );
+
+          // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
+          SKIF_ImGui_AutoScroll  (true, SKIF_ImGuiAxis_Y);
 
           ImGui::EndChild         ( );
           ImGui::EndTabItem       ( );
