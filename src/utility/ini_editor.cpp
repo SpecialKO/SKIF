@@ -117,9 +117,11 @@ SKIF_ImGui_IniEditor_Save (IniWindow* iniWindow)
 void
 SKIF_ImGui_IniEditor_SaveAs (IniWindow* iniWindow)
 {
+  std::wstring defaultFolderPath = (! iniWindow->path.empty() ? std::filesystem::path (SK_UTF8ToWideChar (iniWindow->path)).parent_path().wstring() : L"");
+
   LPWSTR pwszFilePath = NULL;
   HRESULT hr          =
-    SKIF_Util_FileExplorer_SaveFile (&pwszFilePath, (HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, { { L"Configuration Files", L"*.ini" }, { L"All files", L"*.*" } }, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST, FOLDERID_ComputerFolder, nullptr, L"ini");
+    SKIF_Util_FileExplorer_SaveFile (&pwszFilePath, (HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, { { L"Configuration Files", L"*.ini" }, { L"All files", L"*.*" } }, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST, FOLDERID_ComputerFolder, defaultFolderPath.c_str(), L"ini");
 
   if (hr == HRESULT_FROM_WIN32 (ERROR_CANCELLED))
     return;
@@ -140,7 +142,7 @@ SKIF_ImGui_IniEditor_SaveAs (IniWindow* iniWindow)
 }
 
 void
-SKIF_ImGui_IniEditor_OpenFile (IniWindow* iniWindow, std::wstring path, const std::string& title)
+SKIF_ImGui_IniEditor_OpenFile (IniWindow* iniWindow, std::wstring path, const std::string& title, IniType type)
 {
   if (path.empty())
   {
@@ -165,27 +167,30 @@ SKIF_ImGui_IniEditor_OpenFile (IniWindow* iniWindow, std::wstring path, const st
   std::string filename    = SKIF_Util_ToLower (std::filesystem::path(path).filename().replace_extension().string());
   std::string filenameExt = std::filesystem::path(path).filename().string();
   std::string title_final = (title.empty() ? filenameExt : title);
-      IniType type        = IniType_Unknown;
 
-  if (     filename.find("specialk")      != std::string::npos ||
-           filename.find("opengl32")      != std::string::npos ||
-           filename.find( "dinput8")      != std::string::npos ||
-           filename.find(  "dxgi"  )      != std::string::npos ||
-           filename.find(  "d3d11" )      != std::string::npos ||
-           filename.find(  "d3d9"  )      != std::string::npos ||
-           filename.find(  "d3d9"  )      != std::string::npos ||
-           filename.find(  "ddraw" )      != std::string::npos)
-    type = IniType_DLL;
-  else if (filename.find("osd")           != std::string::npos)
-    type = IniType_OSD;
-  else if (filename.find("input")         != std::string::npos)
-    type = IniType_Input;
-  else if (filename.find("notifications") != std::string::npos)
-    type = IniType_Notify;
-  else if (filename.find("platform")      != std::string::npos)
-    type = IniType_Platform;
-  else if (filename.find("macros")        != std::string::npos)
-    type = IniType_Macros;
+  if (type == IniType_Unknown)
+  {
+    if (     filename.find("specialk")      != std::string::npos ||
+             filename.find("opengl32")      != std::string::npos ||
+             filename.find( "dinput8")      != std::string::npos ||
+             filename.find(  "dxgi"  )      != std::string::npos ||
+             filename.find(  "d3d12" )      != std::string::npos ||
+             filename.find(  "d3d11" )      != std::string::npos ||
+             filename.find(  "d3d9"  )      != std::string::npos ||
+             filename.find(  "d3d8"  )      != std::string::npos ||
+             filename.find(  "ddraw" )      != std::string::npos)
+      type = IniType_DLL;
+    else if (filename.find("osd")           != std::string::npos)
+      type = IniType_OSD;
+    else if (filename.find("input")         != std::string::npos)
+      type = IniType_Input;
+    else if (filename.find("notifications") != std::string::npos)
+      type = IniType_Notify;
+    else if (filename.find("platform")      != std::string::npos)
+      type = IniType_Platform;
+    else if (filename.find("macros")        != std::string::npos)
+      type = IniType_Macros;
+  }
 
   std::vector <__INI> ini_parsed = SKIF_IniReader_ParseIni (path, path_utf8, type);
 
@@ -456,19 +461,20 @@ SKIF_ImGui_IniEditor_Process (void)
 
     ImGui::EndChild ( );
 
-    window.bFocused = ImGui::IsWindowFocused (ImGuiFocusedFlags_ChildWindows);
+    //window.bFocused = ImGui::IsWindowFocused (ImGuiFocusedFlags_ChildWindows);
+    window.bFocused = SKIF_ImGui_IsViewportFocused (ImGui::GetWindowViewport ( ));
     if (window.bFocused && ! g_activeKeybindPopup)
     {
-      // Hotkey: Escape
-      if (ImGui::IsKeyPressed (ImGuiKey_Escape))
-        show = false;
-
+      extern bool bKeepWindowAlive;
       // Hotkeys
-           if (ImGui::GetIO().KeyCtrl &&                            ImGui::GetKeyData (ImGuiKey_O)->DownDuration == 0.0f) openFile = true; // Ctrl+O
-           if (ImGui::GetIO().KeyCtrl && ImGui::GetIO().KeyShift && ImGui::GetKeyData (ImGuiKey_N)->DownDuration == 0.0f) newWnd   = true; // Ctrl+Shift+N
-      else if (ImGui::GetIO().KeyCtrl &&                            ImGui::GetKeyData (ImGuiKey_N)->DownDuration == 0.0f) newFile  = true; // Ctrl+N
-           if (ImGui::GetIO().KeyCtrl && ImGui::GetIO().KeyShift && ImGui::GetKeyData (ImGuiKey_S)->DownDuration == 0.0f) saveAs   = true; // Ctrl+Shift+S
-      else if (ImGui::GetIO().KeyCtrl &&                            ImGui::GetKeyData (ImGuiKey_S)->DownDuration == 0.0f) save     = true; // Ctrl+S
+           if (ImGui::IsKeyPressed (ImGuiKey_Escape) ||
+              (ImGui::GetIO().KeyCtrl &&                            ImGui::GetKeyData (ImGuiKey_W)->DownDuration == 0.0f))            show = false; // Escape / Ctrl+W
+           if (ImGui::GetIO().KeyCtrl &&                            ImGui::GetKeyData (ImGuiKey_O)->DownDuration == 0.0f)         openFile =  true; // Ctrl+O
+           if (ImGui::GetIO().KeyCtrl && ImGui::GetIO().KeyShift && ImGui::GetKeyData (ImGuiKey_N)->DownDuration == 0.0f)           newWnd =  true; // Ctrl+Shift+N
+      else if (ImGui::GetIO().KeyCtrl &&                            ImGui::GetKeyData (ImGuiKey_N)->DownDuration == 0.0f)          newFile =  true; // Ctrl+N
+           if (ImGui::GetIO().KeyCtrl && ImGui::GetIO().KeyShift && ImGui::GetKeyData (ImGuiKey_S)->DownDuration == 0.0f)           saveAs =  true; // Ctrl+Shift+S
+      else if (ImGui::GetIO().KeyCtrl &&                            ImGui::GetKeyData (ImGuiKey_S)->DownDuration == 0.0f)             save =  true; // Ctrl+S
+           if (ImGui::GetIO().KeyCtrl &&                            ImGui::GetKeyData (ImGuiKey_Q)->DownDuration == 0.0f) bKeepWindowAlive = false; // Ctrl+Q
     }
 
     if (reset)
@@ -502,17 +508,6 @@ SKIF_ImGui_IniEditor_Process (void)
     ImGui::End      ( );
   }
 
-  if (cleanup)
-  {
-    std::vector <IniWindow> new_vector;
-    for (auto& window : vIniWindow)
-    {
-      if (window.state != PopupState_Closed)
-        new_vector.push_back (window);
-    }
-    vIniWindow = new_vector;
-  }
-
   if (newWnd)
     SKIF_ImGui_IniEditor_NewWindow ( );
 
@@ -524,5 +519,19 @@ SKIF_ImGui_IniEditor_Process (void)
   {
     extern bool allowShortcutCtrlA;
     allowShortcutCtrlA = false;
+  }
+
+  // We need to clean up windows after setting INIEditorActive
+  //   as otherwise hotkeys such as Ctrl+W will survive the window
+  //     being closed and will close the main SKIF window instead
+  if (cleanup)
+  {
+    std::vector <IniWindow> new_vector;
+    for (auto& window : vIniWindow)
+    {
+      if (window.state != PopupState_Closed)
+        new_vector.push_back (window);
+    }
+    vIniWindow = new_vector;
   }
 }

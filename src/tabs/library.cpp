@@ -1791,6 +1791,7 @@ DrawGameConfigMenu (app_record_s* pApp)
     static SKIF_DirectoryWatch SKIF_GlobalWatch;
     static SKIF_DirectoryWatch SKIF_CustomWatch;
     static std::vector<Preset> DefaultPresets;
+    static std::vector<Preset> DefaultPresetsMissing;
     static std::vector<Preset>  CustomPresets;
     static bool runOnceDefaultPresets = true;
     static bool runOnceCustomPresets  = true;
@@ -1885,85 +1886,203 @@ DrawGameConfigMenu (app_record_s* pApp)
     };
 
     // Directory watches -- updates the vectors automatically
-    if (SKIF_GlobalWatch.isSignaled (LR"(Global)") || runOnceDefaultPresets)
+    if (SKIF_CustomWatch.isSignaled (CustomPresetsFolder)  || runOnceCustomPresets)
+    {
+      runOnceCustomPresets  = false;
+      CustomPresets         = _FindPresets (CustomPresetsFolder,  L"*.ini");
+    }
+
+    if (SKIF_GlobalWatch.isSignaled (DefaultPresetsFolder) || runOnceDefaultPresets)
     {
       runOnceDefaultPresets = false;
       DefaultPresets        = _FindPresets (DefaultPresetsFolder, L"default_*.ini");
-    }
+      DefaultPresetsMissing.clear();
 
-    if (SKIF_CustomWatch.isSignaled (LR"(Global\Custom)") || runOnceCustomPresets)
-    {
-      runOnceCustomPresets = false;
-      CustomPresets        = _FindPresets (CustomPresetsFolder, L"*.ini");
-    }
+      static std::vector<Preset> default = {
+        Preset( L"default_SpecialK.ini", (DefaultPresetsFolder + L"default_SpecialK.ini") ),
+        Preset( L"default_OpenGL32.ini", (DefaultPresetsFolder + L"default_OpenGL32.ini") ),
+        Preset( L"default_dinput8.ini",  (DefaultPresetsFolder + L"default_dinput8.ini")  ),
+        Preset( L"default_dxgi.ini",     (DefaultPresetsFolder + L"default_dxgi.ini")     ),
+        Preset( L"default_d3d12.ini",    (DefaultPresetsFolder + L"default_d3d12.ini")    ),
+        Preset( L"default_d3d11.ini",    (DefaultPresetsFolder + L"default_d3d11.ini")    ),
+        Preset( L"default_d3d9.ini",     (DefaultPresetsFolder + L"default_d3d9.ini")     ),
+        Preset( L"default_d3d8.ini",     (DefaultPresetsFolder + L"default_d3d8.ini")     ),
+        Preset( L"default_ddraw.ini",    (DefaultPresetsFolder + L"default_ddraw.ini")    ),
+      };
 
-    if (true) // _registry.bDeveloperMode
-    {
-      if (ImGui::Selectable ("Open INI editor"))
+      for (auto& preset : default)
       {
-        // If the file does not exist, create it
-        if (! PathFileExists (pApp->specialk.injection.config.full_path.c_str()))
+        auto it = std::find_if (DefaultPresets.begin(), DefaultPresets.end(),
+          [&preset](const Preset& p) -> bool
+          {
+            return (_stricmp (p.Name.c_str(), preset.Name.c_str()) == 0);
+          });
+
+        if (it == DefaultPresets.end())
+          DefaultPresetsMissing.push_back (preset);
+      }
+    }
+
+    if (ImGui::Selectable ("Open External Editor"))
+    {
+      // If the file does not exist, create it
+      if (! PathFileExists (pApp->specialk.injection.config.full_path.c_str()))
+      {
+        std::error_code ec;
+        // Create any missing directories
+        if (! std::filesystem::exists             (pApp->specialk.injection.config.root_dir, ec))
+              std::filesystem::create_directories (pApp->specialk.injection.config.root_dir, ec);
+
+        std::wofstream config_file (pApp->specialk.injection.config.full_path.c_str(), std::wofstream::out | std::wofstream::trunc);
+
+        if (config_file.is_open())
         {
+          config_file << utf8_bom;
+          config_file.close ( );
+        }
+      }
+
+      // Internal editor
+      //SKIF_ImGui_IniEditor_OpenFile (nullptr, pApp->specialk.injection.config.full_path, pApp->names.normal);
+
+      // External editor
+      SKIF_Util_OpenURI (pApp->specialk.injection.config.full_path.c_str(), SW_SHOWNORMAL, NULL);
+    }
+
+    if (ImGui::BeginMenu("Apply Preset"))
+    {
+      // Custom Presets
+      if (! CustomPresets.empty())
+      {
+        for (auto& preset : CustomPresets)
+        {
+          ImGui::PushID (preset.Name.c_str());
+
+          if (ImGui::Selectable (preset.Name.c_str()))
+          {
+            CopyFile (preset.Path.c_str(), pApp->specialk.injection.config.full_path.c_str(), FALSE);
+            PLOG_VERBOSE << "Copying " << preset.Path << " over to " << pApp->specialk.injection.config.full_path << ", overwriting any existing file in the process.";
+          }
+
+          SKIF_ImGui_SetMouseCursorHand ( );
+
+          ImGuiID editMenu = ImGui::GetID ("###editMenu");
+
+          if (! ImGui::IsPopupOpen   (editMenu, ImGuiPopupFlags_AnyPopupLevel) &&
+                ImGui::IsItemClicked (ImGuiMouseButton_Right))
+            ImGui::OpenPopup    (editMenu);
+
+          if (ImGui::BeginPopupEx (editMenu, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings))
+          {
+            if (ImGui::Selectable ("Edit"))
+              SKIF_ImGui_IniEditor_OpenFile (nullptr, preset.Path, "", IniType_DLL);
+
+            ImGui::EndPopup ( );
+          }
+
+          ImGui::PopID ( );
+        }
+      }
+
+      if (!DefaultPresets.empty())
+        ImGui::Separator ( );
+
+      // Default Presets
+      if (! DefaultPresets.empty())
+      {
+        for (auto& preset : DefaultPresets)
+        {
+          ImGui::PushID (preset.Name.c_str());
+
+          if (ImGui::Selectable (preset.Name.c_str()))
+          {
+            CopyFile (preset.Path.c_str(), pApp->specialk.injection.config.full_path.c_str(), FALSE);
+            PLOG_VERBOSE << "Copying " << preset.Path << " over to " << pApp->specialk.injection.config.full_path << ", overwriting any existing file in the process.";
+          }
+
+          SKIF_ImGui_SetMouseCursorHand ();
+
+          ImGuiID editMenu = ImGui::GetID ("###editMenu");
+
+          if (! ImGui::IsPopupOpen   (editMenu, ImGuiPopupFlags_AnyPopupLevel) &&
+                ImGui::IsItemClicked (ImGuiMouseButton_Right))
+            ImGui::OpenPopup    (editMenu);
+
+          if (ImGui::BeginPopupEx (editMenu, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings))
+          {
+            if (ImGui::Selectable ("Edit"))
+              SKIF_ImGui_IniEditor_OpenFile (nullptr, preset.Path, "", IniType_DLL);
+
+            ImGui::EndPopup ( );
+          }
+
+          ImGui::PopID ( );
+        }
+      }
+
+      if (! DefaultPresets.empty() || ! CustomPresets.empty())
+        ImGui::Separator ( );
+
+      if (ImGui::BeginMenu ("Create New"))
+      {
+        if (ImGui::Selectable ("Custom Preset..."))
+        {
+          std::wstring path = (CustomPresetsFolder + LR"(Untitled.ini)");
           std::error_code ec;
           // Create any missing directories
-          if (! std::filesystem::exists             (pApp->specialk.injection.config.root_dir, ec))
-                std::filesystem::create_directories (pApp->specialk.injection.config.root_dir, ec);
+          if (! std::filesystem::exists             (CustomPresetsFolder, ec))
+                std::filesystem::create_directories (CustomPresetsFolder, ec);
 
-          std::wofstream config_file (pApp->specialk.injection.config.full_path.c_str(), std::wofstream::out | std::wofstream::trunc);
+          std::wofstream config_file (path.c_str(), std::wofstream::out | std::wofstream::trunc);
 
           if (config_file.is_open())
           {
             config_file << utf8_bom;
             config_file.close ( );
           }
+
+          SKIF_ImGui_IniEditor_OpenFile (nullptr, path, "", IniType_DLL);
         }
 
-        SKIF_ImGui_IniEditor_OpenFile (nullptr, pApp->specialk.injection.config.full_path, pApp->names.normal);
-      }
-    }
+        SKIF_ImGui_SetMouseCursorHand ( );
 
-    if (! DefaultPresets.empty() || ! CustomPresets.empty())
-    {
-      if (ImGui::BeginMenu("Apply Preset"))
-      {
-        // Default Presets
-        if (! DefaultPresets.empty())
+        if (! DefaultPresetsMissing.empty())
+          ImGui::Separator ( );
+
+        for (auto& preset : DefaultPresetsMissing)
         {
-          for (auto& preset : DefaultPresets)
+          if (ImGui::Selectable (preset.Name.c_str()))
           {
-            if (ImGui::Selectable (preset.Name.c_str()))
+            // If the file does not exist, create it
+            if (! PathFileExists (preset.Path.c_str()))
             {
-              CopyFile (preset.Path.c_str(), pApp->specialk.injection.config.full_path.c_str(), FALSE);
-              PLOG_VERBOSE << "Copying " << preset.Path << " over to " << pApp->specialk.injection.config.full_path << ", overwriting any existing file in the process.";
+              std::error_code ec;
+              // Create any missing directories
+              if (! std::filesystem::exists             (DefaultPresetsFolder, ec))
+                    std::filesystem::create_directories (DefaultPresetsFolder, ec);
+
+              std::wofstream config_file (preset.Path.c_str(), std::wofstream::out | std::wofstream::trunc);
+
+              if (config_file.is_open())
+              {
+                config_file << utf8_bom;
+                config_file.close ( );
+              }
             }
 
-            SKIF_ImGui_SetMouseCursorHand ();
+            SKIF_ImGui_IniEditor_OpenFile (nullptr, preset.Path, "", IniType_DLL);
           }
 
-          if (! CustomPresets.empty())
-            ImGui::Separator ( );
+          SKIF_ImGui_SetMouseCursorHand ( );
         }
 
-        // Custom Presets
-        if (! CustomPresets.empty())
-        {
-          for (auto& preset : CustomPresets)
-          {
-            if (ImGui::Selectable (preset.Name.c_str()))
-            {
-              CopyFile (preset.Path.c_str(), pApp->specialk.injection.config.full_path.c_str(), FALSE);
-              PLOG_VERBOSE << "Copying " << preset.Path << " over to " << pApp->specialk.injection.config.full_path << ", overwriting any existing file in the process.";
-            }
-
-            SKIF_ImGui_SetMouseCursorHand ();
-          }
-        }
-
-        ImGui::EndMenu ( );
+        ImGui::EndMenu();
       }
 
-      ImGui::Separator ( );
+      ImGui::EndMenu ( );
     }
+
+    ImGui::Separator ( );
 
     if (ImGui::Selectable ("Apply Compatibility Config"))
     {
@@ -2500,7 +2619,11 @@ DrawGameContextMenu (app_record_s* pApp)
         }
       }
 
-      SKIF_Util_OpenURI (pApp->specialk.injection.config.full_path.c_str(), SW_SHOWNORMAL, NULL);
+      // Internal editor
+      SKIF_ImGui_IniEditor_OpenFile (nullptr, pApp->specialk.injection.config.full_path, pApp->names.normal);
+
+      // External editor
+      //SKIF_Util_OpenURI (pApp->specialk.injection.config.full_path.c_str(), SW_SHOWNORMAL, NULL);
     }
 
     SKIF_ImGui_SetMouseCursorHand ();
@@ -3687,7 +3810,11 @@ GetInjectionSummary (app_record_s* pApp)
         }
       }
 
-      SKIF_Util_OpenURI (pApp->specialk.injection.config.full_path.c_str(), SW_SHOWNORMAL, NULL);
+      // Internal editor
+      SKIF_ImGui_IniEditor_OpenFile (nullptr, pApp->specialk.injection.config.full_path, pApp->names.normal);
+
+      // External editor
+      //SKIF_Util_OpenURI (pApp->specialk.injection.config.full_path.c_str(), SW_SHOWNORMAL, NULL);
     }
 
     SKIF_ImGui_SetMouseCursorHand ();

@@ -44,5 +44,5 @@ void                             SKIF_ImGui_IniEditor_NewFile  (IniWindow* iniWi
 void                             SKIF_ImGui_IniEditor_NewWindow(void);
 void                             SKIF_ImGui_IniEditor_Save     (IniWindow* iniWindow);
 void                             SKIF_ImGui_IniEditor_SaveAs   (IniWindow* iniWindow);
-void                             SKIF_ImGui_IniEditor_OpenFile (IniWindow* iniWindow = nullptr, std::wstring path = L"", const std::string& title = "");
+void                             SKIF_ImGui_IniEditor_OpenFile (IniWindow* iniWindow = nullptr, std::wstring path = L"", const std::string& title = "", IniType type = IniType_Unknown);
 void                             SKIF_ImGui_IniEditor_Process  (void);
