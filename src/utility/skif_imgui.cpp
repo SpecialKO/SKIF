@@ -445,8 +445,17 @@ SKIF_ImGui_CloseInfoPopup (void)
 bool
 SKIF_ImGui_IsFocused (void)
 {
-  extern bool SKIF_ImGui_ImplWin32_IsFocused (void);
+  extern bool
+         SKIF_ImGui_ImplWin32_IsFocused (void);
   return SKIF_ImGui_ImplWin32_IsFocused ( );
+}
+
+bool
+SKIF_ImGui_IsViewportFocused (ImGuiViewport* viewport)
+{
+  extern bool
+         SKIF_ImGui_ImplWin32_IsFocused (ImGuiViewport* viewport);
+  return SKIF_ImGui_ImplWin32_IsFocused (viewport);
 }
 
 bool

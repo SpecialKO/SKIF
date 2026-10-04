@@ -130,7 +130,8 @@ static void ImGui_ImplWin32_UpdateMonitors();
 void    SKIF_ImGui_ImplWin32_UpdateDWMBorders (void);
 void    SKIF_ImGui_ImplWin32_SetDWMBorders    (void* hWnd);
 bool    SKIF_ImGui_ImplWin32_IsFocused        (void);
-void    SKIF_ImGui_ImplWin32_SetFocused       (bool focused);
+bool    SKIF_ImGui_ImplWin32_IsFocused        (ImGuiViewport* viewport);
+void    SKIF_ImGui_ImplWin32_SetFocused       (HWND hWnd, bool focused);
 
 struct ImGui_ImplWin32_Data
 {
@@ -1001,7 +1002,7 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARA
     }
     case WM_SETFOCUS:
     case WM_KILLFOCUS:
-        SKIF_ImGui_ImplWin32_SetFocused (msg == WM_SETFOCUS);
+        SKIF_ImGui_ImplWin32_SetFocused (hwnd, (msg == WM_SETFOCUS));
         io.AddFocusEvent                (msg == WM_SETFOCUS);
         return 0;
     case WM_INPUTLANGCHANGE:
@@ -1216,7 +1217,8 @@ struct ImGui_ImplWin32_ViewportData
     bool    HwndOwned;
     DWORD   DwStyle;
     DWORD   DwExStyle;
-    DWORD   WmSize; // WM_SIZE
+    DWORD   WmSize;  // WM_SIZE
+    bool    Focused; // WM_SETFOCUS / WM_KILLFOCUS
 
 #ifdef SKIF_Win32
     bool    RemovedDWMBorders;
@@ -2350,53 +2352,51 @@ SKIF_ImGui_ImplWin32_UpdateDWMBorders (void)
   }
 }
 
-static bool g_Focused = false; // Always assume we don't have focus on launch
-
 // Peripheral Functions
-void SKIF_ImGui_ImplWin32_SetFocused (bool focused)
+void SKIF_ImGui_ImplWin32_SetFocused (HWND hWnd, bool focused)
 {
-  g_Focused = focused;
+  if (ImGuiViewport* viewport = ImGui::FindViewportByPlatformHandle ((void*)hWnd))
+    if (ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData)
+      vd->Focused = focused;
 }
 
+// Returns true if any of the viewports are focused
 bool SKIF_ImGui_ImplWin32_IsFocused (void)
 {
-#if 0
-  // AppFocusLost can not be relied upon as it is not persistent across frames (always set to false; app has focus by ImGui::EndFrame)
-  //ImGuiContext& g = *GImGui;
-  //return ! g.IO.AppFocusLost;
-
-  // Semi-new workaround introduced in 2024-01-28
-
-  static HWND hWndLastForeground = 0;
-
   // Execute once per frame
   int newFrame   = ImGui::GetFrameCount ( );
+  static bool lastState = false;
   static int
       lastFrame  = 0;
   if (lastFrame != newFrame)
   {   lastFrame  = newFrame;
-    HWND focused_hwnd = ::GetForegroundWindow ();
 
-    // If the focused HWND has not changed, this is just burning CPU cycles for no reason
-    if (std::exchange (hWndLastForeground, focused_hwnd) != focused_hwnd)
+    ImGuiPlatformIO& platform_io =
+      ImGui::GetPlatformIO ();
+
+    lastState = false;
+
+    //// Skip the main viewport (index 0), which is always fully handled by the application!
+    for (int i = 1; i < platform_io.Viewports.Size; i++)
     {
-      DWORD
-        dwWindowOwnerPid = 0;
+      ImGuiViewport* viewport =
+         platform_io.Viewports [i];
 
-      GetWindowThreadProcessId (
-        focused_hwnd,
-          &dwWindowOwnerPid
-      );
-
-      static DWORD
-        dwPidOfMe = GetCurrentProcessId ();
-
-      g_Focused = (dwWindowOwnerPid == dwPidOfMe);
+      if (viewport->PlatformHandleRaw != NULL)
+        if (ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData)
+          if (vd->Focused)
+            lastState = true;
     }
   }
-#endif
 
-  return g_Focused;
+  return lastState;
+}
+
+bool SKIF_ImGui_ImplWin32_IsFocused (ImGuiViewport* viewport)
+{
+  if (ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData)
+    return vd->Focused;
+  return false;
 }
 
 static ImGuiPlatformMonitor*

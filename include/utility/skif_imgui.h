@@ -27,6 +27,7 @@ void     SKIF_ImGui_AdjustAppModeSize     (HMONITOR monitor);
 void     SKIF_ImGui_InfoMessage           (const std::string szTitle, const std::string szLabel);
 void     SKIF_ImGui_CloseInfoPopup        (void);
 bool     SKIF_ImGui_IsFocused             (void);
+bool     SKIF_ImGui_IsViewportFocused     (ImGuiViewport* viewport);
 bool     SKIF_ImGui_IsMouseHovered        (void);
 bool     SKIF_ImGui_IsAnyInputDown        (void);
 bool     SKIF_ImGui_IsAnyPopupOpen        (void);
