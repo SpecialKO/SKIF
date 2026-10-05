@@ -174,7 +174,7 @@ SKIF_ImGui_IniEditor_OpenFile (IniWindow* iniWindow, std::wstring path, const st
              filename.find("opengl32")      != std::string::npos ||
              filename.find( "dinput8")      != std::string::npos ||
              filename.find(  "dxgi"  )      != std::string::npos ||
-             filename.find(  "d3d12" )      != std::string::npos ||
+           //filename.find(  "d3d12" )      != std::string::npos || // Apparently Special K doesn't support being loaded as D3D12.dll
              filename.find(  "d3d11" )      != std::string::npos ||
              filename.find(  "d3d9"  )      != std::string::npos ||
              filename.find(  "d3d8"  )      != std::string::npos ||

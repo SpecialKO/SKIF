@@ -1903,7 +1903,7 @@ DrawGameConfigMenu (app_record_s* pApp)
         Preset( L"default_OpenGL32.ini", (DefaultPresetsFolder + L"default_OpenGL32.ini") ),
         Preset( L"default_dinput8.ini",  (DefaultPresetsFolder + L"default_dinput8.ini")  ),
         Preset( L"default_dxgi.ini",     (DefaultPresetsFolder + L"default_dxgi.ini")     ),
-        Preset( L"default_d3d12.ini",    (DefaultPresetsFolder + L"default_d3d12.ini")    ),
+      //Preset( L"default_d3d12.ini",    (DefaultPresetsFolder + L"default_d3d12.ini")    ), // Apparently Special K doesn't support being loaded as D3D12.dll
         Preset( L"default_d3d11.ini",    (DefaultPresetsFolder + L"default_d3d11.ini")    ),
         Preset( L"default_d3d9.ini",     (DefaultPresetsFolder + L"default_d3d9.ini")     ),
         Preset( L"default_d3d8.ini",     (DefaultPresetsFolder + L"default_d3d8.ini")     ),
