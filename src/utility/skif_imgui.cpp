@@ -1235,6 +1235,7 @@ SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
     //fontConsolas = SKIF_ImGui_LoadFont ((fontDir / L"NotoSansMono-Regular.ttf"), fontSize/* - 4.0f*/, SK_ImGui_GetGlyphRangesDefaultEx());
 }
 
+// Do not use mid-frame to change the style!
 void
 SKIF_ImGui_SetStyle (ImGuiStyle* dst)
 {
@@ -1314,7 +1315,6 @@ SKIF_ImGui_SetStyle (ImGuiStyle* dst)
   if (_registry._sRGBColors)
     for (int i=0; i < ImGuiCol_COUNT; i++)
         dst->Colors[i] = SKIF_ImGui_sRGBtoLinear (dst->Colors[i]);
-
 
   ImGui::GetStyle ( ) = *dst;
 }

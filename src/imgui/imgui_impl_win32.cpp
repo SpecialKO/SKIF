@@ -1366,10 +1366,9 @@ static void ImGui_ImplWin32_CreateWindow(ImGuiViewport *viewport)
     SKIF_ImGui_GlobalDPIScale = (_registry.bDPIScaling) ? ImGui_ImplWin32_GetDpiScaleForHwnd (vd->Hwnd) : 1.0f;
 
     // Update the style scaling to reflect the current DPI scaling
-    ImGuiStyle              newStyle;
-    extern void
-      SKIF_ImGui_SetStyle (ImGuiStyle * dst = nullptr);
-      SKIF_ImGui_SetStyle (&newStyle);
+    extern bool
+      invalidateStyle;
+      invalidateStyle = false;
   }
 
   // Add icons to the window
@@ -2017,17 +2016,20 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
           int g_dpi    = HIWORD (wParam);
           RECT* const prcNewWindow = (RECT*) lParam;
 
-          // Update the style scaling
-          SKIF_ImGui_GlobalDPIScale = (float) g_dpi / USER_DEFAULT_SCREEN_DPI;
 
-          ImGuiStyle              newStyle;
-          extern void
-            SKIF_ImGui_SetStyle (ImGuiStyle * dst = nullptr);
-            SKIF_ImGui_SetStyle (&newStyle);
+          // Update the style scaling for the main stuff
+          if (hWnd == SKIF_ImGui_hWnd)
+          {
+            SKIF_ImGui_GlobalDPIScale = (float) g_dpi / USER_DEFAULT_SCREEN_DPI;
 
-          extern bool
-            invalidateFonts;
-            invalidateFonts = true;
+            extern bool
+              invalidateFonts;
+              invalidateFonts = true;
+
+            extern bool
+              invalidateStyle;
+              invalidateStyle = true;
+          }
 
           POINT ptLeftTop = {
             prcNewWindow->left,
@@ -2049,7 +2051,7 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
               ImVec2 ( (float)( info.rcWork.right  - info.rcWork.left ),
                        (float)( info.rcWork.bottom - info.rcWork.top  ) );
 
-            ImVec2 tmpCurrentSize  = (_registry.bMiniMode) ? SKIF_vecServiceModeDefault  :
+            ImVec2 tmpCurrentSize  = (_registry.bMiniMode)    ? SKIF_vecServiceModeDefault  :
                                      (_registry.bHorizonMode) ? SKIF_vecHorizonModeAdjusted :
                                                                 SKIF_vecRegularModeAdjusted ;
 
@@ -2057,7 +2059,8 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
             //  SKIF_vecAlteredSize.y = (tmpCurrentSize.y * SKIF_ImGui_GlobalDPIScale - (WorkSize.y)); // (WorkSize.y - 50.0f);
 
             // Divide the window size with its associated DPI scale to get the base size, then multiply with the new DPI scale
-            SKIF_vecCurrentModeNext = (SKIF_vecCurrentMode / SKIF_ImGui_GlobalDPIScale_Last) * SKIF_ImGui_GlobalDPIScale;
+            if (hWnd == SKIF_ImGui_hWnd)
+              SKIF_vecCurrentModeNext = (SKIF_vecCurrentMode / SKIF_ImGui_GlobalDPIScale_Last) * SKIF_ImGui_GlobalDPIScale;
 
             if (ImGui::IsAnyMouseDown ( ))
               return 0;

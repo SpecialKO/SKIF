@@ -93,6 +93,7 @@ bool  RecreateWin32Windows      = false;
 bool  RepositionSKIF            = false;
 bool  RespectMonBoundaries      = false;
 bool  changedHiDPIScaling       = false;
+bool  invalidateStyle           = false;
 bool  invalidateFonts           = false;
 bool  failedLoadFonts           = false;
 bool  failedLoadFontsPrompt     = false;
@@ -2371,13 +2372,23 @@ wWinMain ( _In_     HINSTANCE hInstance,
         repositionToCenter   = true;
     }
 
+    // F8 to toggle UI borders
+    if (hotkeyF8)
+    {
+      _registry.bUIBorders = ! _registry.bUIBorders;
+      _registry.regKVUIBorders.putData (_registry.bUIBorders);
+
+      invalidateStyle = true;
+    }
+
     // Apply any changes to the ImGui style
     // Do it at the beginning of frames to prevent ImGui::Push... from affecting the styling
     // Note that Win11 rounded border color won't be applied until after a restart
 
     // F7 to cycle between color themes
-    if ( (_registry.iStyleTemp != _registry.iStyle) || hotkeyF7)
-    {
+    if ( invalidateStyle || (_registry.iStyleTemp != _registry.iStyle) || hotkeyF7)
+    {    invalidateStyle = false;
+
       _registry.iStyle            = (_registry.iStyleTemp != _registry.iStyle)
                                   ?  _registry.iStyleTemp
                                   : (_registry.iStyle + 1) % UIStyle_COUNT;
@@ -2391,36 +2402,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       extern void
         SKIF_ImGui_ImplWin32_UpdateDWMBorders (void);
         SKIF_ImGui_ImplWin32_UpdateDWMBorders (    );
-    }
-
-    // Registry watch to check if snapping/drag from window settings has changed in Windows
-    // No need to for SKIF to wake up on changes when unfocused, so skip having it be global
-    /*
-    static SKIF_RegistryWatch
-      dwmWatch ( HKEY_CURRENT_USER,
-                   LR"(Control Panel\Desktop)",
-                     L"WinDesktopNotify", FALSE, REG_NOTIFY_CHANGE_LAST_SET, UITab_None, false, true);
-
-    // When the registry is changed, update our internal state accordingly
-    if (dwmWatch.isSignaled ( ))
-    {
-      _registry.bMaximizeOnDoubleClick   =
-        SKIF_Util_GetDragFromMaximized (true)                // IF the OS prerequisites are enabled
-        ? _registry.regKVMaximizeOnDoubleClick.hasData ( )   // AND we have data in the registry
-          ? _registry.regKVMaximizeOnDoubleClick.getData ( ) // THEN use the data,
-          : true                                             // otherwise default to true,
-        : false;                                             // and false if OS prerequisites are disabled
-    }
-    */
-
-    // F8 to toggle UI borders
-    if (hotkeyF8)
-    {
-      _registry.bUIBorders = ! _registry.bUIBorders;
-      _registry.regKVUIBorders.putData (_registry.bUIBorders);
-
-      ImGuiStyle            newStyle;
-      SKIF_ImGui_SetStyle (&newStyle);
     }
 
     // F9 to cycle between color depths

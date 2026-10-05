@@ -1076,8 +1076,9 @@ SKIF_UI_Tab_DrawSettings (void)
     {
       _registry.regKVUIBorders.putData (_registry.bUIBorders);
 
-      ImGuiStyle            newStyle;
-      SKIF_ImGui_SetStyle (&newStyle);
+      extern bool
+        invalidateStyle;
+        invalidateStyle = false;
     }
 
     SKIF_ImGui_SetHoverTip ("Use borders around UI elements.");
@@ -1167,8 +1168,9 @@ SKIF_UI_Tab_DrawSettings (void)
     {
       _registry.regKVTouchInput.putData (  _registry.bTouchInput);
 
-      ImGuiStyle            newStyle;
-      SKIF_ImGui_SetStyle (&newStyle);
+      extern bool
+        invalidateStyle;
+        invalidateStyle = false;
     }
 
     SKIF_ImGui_SetHoverTip ("Make the UI easier to use on touch input capable devices automatically.");
