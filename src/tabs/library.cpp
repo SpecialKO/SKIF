@@ -27,6 +27,7 @@
 #include <SKIF.h>
 #include <utility/utility.h>
 #include <utility/skif_imgui.h>
+#include <ImGuiNotify.hpp>
 
 #include <utility/injection.h>
 
@@ -9682,7 +9683,9 @@ SKIF_UI_Tab_DrawLibrary (void)
                   L"SpecialK32.dll";
 
     const auto orig_ver =
-      SKIF_Util_GetFileVersion (local_path.c_str ());
+      SK_WideCharToUTF8 (
+        SKIF_Util_GetFileVersion (local_path.c_str ())
+      );
 
     const bool bWasRunning =
       (_inject.bHasServlet && _inject.bCurrentState),
@@ -9724,14 +9727,21 @@ SKIF_UI_Tab_DrawLibrary (void)
       CopyFile (src_path.c_str (),        local_path.c_str (), FALSE);
     }
 
-    std::string msg =
-      is_64_bit ? "64-bit version of Special K (" : "32-bit version of Special K (";
+    const auto new_ver =
+      SK_WideCharToUTF8 (
+        SKIF_Util_GetFileVersion (local_path.c_str ())
+      );
 
-    msg += SK_WideCharToUTF8 (orig_ver);
-    msg += ") replaced using ";
-    msg += SK_WideCharToUTF8 (SKIF_Util_GetFileVersion (local_path.c_str ()));
+    static constexpr char* str32 = "New 32-bit DLL Installed";
+    static constexpr char* str64 = "New 64-bit DLL Installed";
 
-    SKIF_ImGui_InfoMessage ("New DLL Installed", msg);
+    ImGui::InsertNotification ({
+      ImGuiToastType::Success, 5000,
+      (is_64_bit ? str64 : str32),
+      "%s -> %s",
+       orig_ver.c_str(),
+        new_ver.c_str()
+    });
 
     _inject._RefreshSKDLLVersions ();
     _inject._RefreshUIQuickToggle (bWasRunning);

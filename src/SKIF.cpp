@@ -4032,6 +4032,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       processAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If the background is currently currently undergoing a fade effect
     else if (SKIF_Tab_Selected == UITab_Library && coverFadeActive)
       processAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If the cover is currently undergoing a fade effect
+    else if (ImGui::notifications.size() > 0)
+      processAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If we have any visible notifications
     else if (addAdditionalFrames > 0)
       processAdditionalFrames = ImGui::GetFrameCount ( ) + addAdditionalFrames; // Used when the cover is currently loading in, or the update check just completed
     /*
