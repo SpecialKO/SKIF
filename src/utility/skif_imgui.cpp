@@ -845,6 +845,72 @@ bool SKIF_ImGui_IconButton (ImGuiID id, std::string icon, std::string label, con
   return ret;
 }
 
+// Button to minimize a window, based on ImGui::CloseButton()
+// Use SKIF_ImGui_TitleBarMinimizeButton() to draw it on the title bar of the current window.
+bool
+SKIF_ImGui_MinimizeButton (ImGuiID id, const ImVec2& pos)
+{
+    ImGuiContext& g = *ImGui::GetCurrentContext();
+    ImGuiWindow* window = g.CurrentWindow;
+
+    // Tweak 1: Shrink hit-testing area if button covers an abnormally large proportion of the visible region. That's in order to facilitate moving the window away. (#3825)
+    // This may better be applied as a general hit-rect reduction mechanism for all widgets to ensure the area to move window is always accessible?
+    const ImRect bb(pos, pos + ImVec2(g.FontSize, g.FontSize));
+    ImRect bb_interact = bb;
+    const float area_to_visible_ratio = window->OuterRectClipped.GetArea() / bb.GetArea();
+    if (area_to_visible_ratio < 1.5f)
+        bb_interact.Expand(ImTrunc(bb_interact.GetSize() * -0.25f));
+
+    // Tweak 2: We intentionally allow interaction when clipped so that a mechanical Alt,Right,Activate sequence can always close a window.
+    // (this isn't the common behavior of buttons, but it doesn't affect the user because navigation tends to keep items visible in scrolling layer).
+    bool is_clipped = !ImGui::ItemAdd(bb_interact, id);
+
+    bool hovered, held;
+    bool pressed = ImGui::ButtonBehavior(bb_interact, id, &hovered, &held);
+    if (is_clipped)
+        return pressed;
+
+    // Render
+    // FIXME: Clarify this mess
+    ImU32 col = ImGui::GetColorU32(held ? ImGuiCol_ButtonActive : ImGuiCol_ButtonHovered);
+    ImVec2 center = bb.GetCenter();
+    if (hovered)
+        window->DrawList->AddCircleFilled(center, ImMax(2.0f, g.FontSize * 0.5f + 1.0f), col);
+
+    float half_width = g.FontSize * 0.5f * 0.7071f;
+    float y_offset = g.FontSize * 0.25f;
+    ImU32 line_col = ImGui::GetColorU32(ImGuiCol_Text);
+    center -= ImVec2(0.5f, 0.5f);
+    window->DrawList->AddLine(ImVec2(center.x - half_width, center.y + y_offset), ImVec2(center.x + half_width, center.y + y_offset), line_col, 1.0f);
+
+    return pressed;
+}
+
+// This is a custom MINIMIZE button that is drawn on the title bar of the current window,
+// next to the built-in CLOSE button.
+bool
+SKIF_ImGui_TitleBarMinimizeButton (void)
+{
+  bool pressed = false;
+
+  const ImRect title_bar_rect = ImGui::GetCurrentWindowRead()->TitleBarRect();
+  ImGui::PushClipRect(title_bar_rect.Min, title_bar_rect.Max, false);
+
+  // Base
+  float button_sz = ImGui::GetFontSize();
+  float pad_r     =
+                  ImGui::GetStyle().FramePadding.x      // Base padding
+    + button_sz + ImGui::GetStyle().ItemInnerSpacing.x; // Spacing between the built-in CLOSE button and our custom MINIMIZE button
+  ImVec2 minimize_button_pos = ImVec2(title_bar_rect.Max.x - pad_r - button_sz, title_bar_rect.Min.y + ImGui::GetStyle().FramePadding.y);
+
+  if (SKIF_ImGui_MinimizeButton (ImGui::GetCurrentWindow()->GetID("#MINIMIZE"), minimize_button_pos))
+    pressed = true;
+
+  ImGui::PopClipRect();
+
+  return pressed;
+}
+
 void SKIF_ImGui_ServiceMenu (void)
 {
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
