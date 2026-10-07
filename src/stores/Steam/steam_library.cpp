@@ -1586,7 +1586,7 @@ std::wstring
 SKIF_Steam_GetCoverURI (uint32_t app_id, bool force_2x)
 {
   const std::string SteamCDN = "https://shared.fastly.steamstatic.com/store_item_assets/";
-  const std::vector<std::string> countryCodes = { "US", "UK", "AU", "FR", "PL", "DE", "JP", "CN", "RU" };
+  const std::initializer_list<const char*> countryCodes = { "US", "UK", "AU", "FR", "PL", "DE", "JP", "CN", "RU" };
   const std::string pattern = "${FILENAME}";
         std::string asset    = "";
 
