@@ -2102,7 +2102,7 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
 
 
         case WM_CLOSE:
-          if (viewport->ParentViewportId == ImGui::GetMainViewport ( )->ID)
+          if (hWnd == SKIF_ImGui_hWnd)
             PostQuitMessage (0x0);
           else
             viewport->PlatformRequestClose = true;
