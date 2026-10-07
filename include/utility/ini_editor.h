@@ -18,6 +18,7 @@ struct IniWindow {
   std::string       title;
   std::string    wnd_name;
   PopupState        state = PopupState_Open;
+  HWND              hwnd = nullptr;
 
   // Filter field
   char          charFilter    [MAX_PATH + 2] = { };

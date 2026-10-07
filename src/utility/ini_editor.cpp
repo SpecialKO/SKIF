@@ -168,6 +168,25 @@ SKIF_ImGui_IniEditor_OpenFile (IniWindow* iniWindow, std::wstring path, const st
   std::string filenameExt = std::filesystem::path(path).filename().string();
   std::string title_final = (title.empty() ? filenameExt : title);
 
+  // Check if the file has already been opened and if so focus that window
+  if (iniWindow == nullptr)
+  {
+    for (auto& window : vIniWindow)
+    {
+      if (window.hwnd != nullptr &&
+          window.path == path_utf8)
+      {
+        if (       IsIconic (       window.hwnd))
+                 ShowWindow (       window.hwnd, SW_RESTORE);
+        else if (! IsWindowVisible (window.hwnd))
+                 ShowWindow (       window.hwnd, SW_SHOW);
+
+        SetForegroundWindow (       window.hwnd);
+        return;
+      }
+    }
+  }
+
   if (type == IniType_Unknown)
   {
     if (     filename.find("specialk")      != std::string::npos ||
@@ -228,7 +247,8 @@ SKIF_ImGui_IniEditor_Process (void)
          openFile = false,
          save     = false,
          saveAs   = false,
-         reset    = false;
+         reset    = false,
+         minimize = false;
 
     ImGui::SetNextWindowSizeConstraints (ImVec2 (800.0f, 600.0f), ImVec2 (FLT_MAX, FLT_MAX));
     ImGui::Begin (window.wnd_name.c_str(),
@@ -242,6 +262,9 @@ SKIF_ImGui_IniEditor_Process (void)
                       ImGuiWindowFlags_MenuBar           |
  ((window.bChanged) ? ImGuiWindowFlags_UnsavedDocument : ImGuiWindowFlags_None)
     );
+
+    if (window.hwnd == nullptr && ImGui::GetWindowViewport()->PlatformHandleRaw)
+      window.hwnd = (HWND)ImGui::GetWindowViewport()->PlatformHandleRaw;
 
     // Disable blocking for now cuz of weird edge cases...
     //ImGui::DockSpaceOverViewport (ImGui::GetWindowViewport ( ));
@@ -326,7 +349,7 @@ SKIF_ImGui_IniEditor_Process (void)
     // This is required to prevent the InputTextEx from not being deselected when clicking empty space
     SKIF_ImGui_DisallowMouseDragMove ( );
 
-    window.bFilterActive = ImGui::IsItemActive ( );
+    window.bFilterActive = ImGui::IsItemActive ( ) || ImGui::IsItemFocused ( );
 
     if (ImGui::IsItemFocused ( ) && ! ImGui::IsItemHovered( ) && ImGui::IsAnyMouseDown( ))
     {
@@ -364,8 +387,6 @@ SKIF_ImGui_IniEditor_Process (void)
         }
       }
     }
-
-    //PLOG_VERBOSE << "Numbers: " << numRegular << " (regular) -- " << numPinnedOnTop << " (on top)";
 
     if (showClearBtn)
     {
@@ -461,14 +482,21 @@ SKIF_ImGui_IniEditor_Process (void)
 
     ImGui::EndChild ( );
 
+    // Minimize button
+
+    if (SKIF_ImGui_TitleBarMinimizeButton ( ))
+      minimize = true;
+
+    // Focus + Hotkeys
+
     //window.bFocused = ImGui::IsWindowFocused (ImGuiFocusedFlags_ChildWindows);
     window.bFocused = SKIF_ImGui_IsViewportFocused (ImGui::GetWindowViewport ( ));
     if (window.bFocused && ! g_activeKeybindPopup)
     {
       extern bool bKeepWindowAlive;
-      // Hotkeys
-           if (ImGui::IsKeyPressed (ImGuiKey_Escape) ||
-              (ImGui::GetIO().KeyCtrl &&                            ImGui::GetKeyData (ImGuiKey_W)->DownDuration == 0.0f))            show = false; // Escape / Ctrl+W
+           if (! window.bFilterActive &&
+              (ImGui::IsKeyPressed (ImGuiKey_Escape) ||
+              (ImGui::GetIO().KeyCtrl &&                            ImGui::GetKeyData (ImGuiKey_W)->DownDuration == 0.0f)))           show = false; // Escape / Ctrl+W
            if (ImGui::GetIO().KeyCtrl &&                            ImGui::GetKeyData (ImGuiKey_O)->DownDuration == 0.0f)         openFile =  true; // Ctrl+O
            if (ImGui::GetIO().KeyCtrl && ImGui::GetIO().KeyShift && ImGui::GetKeyData (ImGuiKey_N)->DownDuration == 0.0f)           newWnd =  true; // Ctrl+Shift+N
       else if (ImGui::GetIO().KeyCtrl &&                            ImGui::GetKeyData (ImGuiKey_N)->DownDuration == 0.0f)          newFile =  true; // Ctrl+N
@@ -476,6 +504,8 @@ SKIF_ImGui_IniEditor_Process (void)
       else if (ImGui::GetIO().KeyCtrl &&                            ImGui::GetKeyData (ImGuiKey_S)->DownDuration == 0.0f)             save =  true; // Ctrl+S
            if (ImGui::GetIO().KeyCtrl &&                            ImGui::GetKeyData (ImGuiKey_Q)->DownDuration == 0.0f) bKeepWindowAlive = false; // Ctrl+Q
     }
+
+    // Actions
 
     if (reset)
     {
@@ -497,6 +527,9 @@ SKIF_ImGui_IniEditor_Process (void)
 
     if (saveAs)
       SKIF_ImGui_IniEditor_SaveAs   (&window);
+
+    if (minimize)
+      ShowWindowAsync ((HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, SW_MINIMIZE);
 
     if (! show)
     {
