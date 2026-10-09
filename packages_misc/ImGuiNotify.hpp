@@ -113,6 +113,8 @@ private:
 	std::function<void()>						onButtonPress = nullptr; // A lambda variable, which will be executed when button in notification is pressed
 	char 										buttonLabel[NOTIFY_MAX_MSG_LENGTH];
 
+  HWND hwnd = nullptr;
+
 	static int32_t maxAssignedId;
 	       int32_t      uniqueId = 0;
 
@@ -135,6 +137,16 @@ private:
 	}
 
 public:
+
+	/**
+	 * @brief Set the HWND of the toast notification.
+	 *
+	 * @return HWND The HWND of the toast notification.
+	 */
+	inline void setHWnd(const HWND hwnd_)
+	{
+		this->hwnd = hwnd_;
+	};
 
 	/**
 	 * @brief Set the title of the toast notification.
@@ -202,6 +214,16 @@ public:
 
 public:
 	// Getters
+
+	/**
+	 * @brief Get the HWND of the toast notification.
+	 *
+	 * @return HWND The HWND of the toast notification.
+	 */
+	inline const HWND getHWND()
+	{
+		return this->hwnd;
+	};
 
 	/**
 	 * @brief Get the title of the toast notification.
@@ -552,7 +574,7 @@ namespace ImGui
 	 * Each notification is rendered as a toast window with a title, content and an optional icon.
 	 * If a notification is expired, it is removed from the vector.
 	 */
-	inline void RenderNotifications()
+	inline void RenderNotifications(HWND hwnd = nullptr)
 	{
 		const ImVec2 mainWindowSize = GetCurrentWindowRead()->Size;
 		const float  textWrapWidth  = (600.0f * SKIF_ImGui_GlobalDPIScale < mainWindowSize.x - NOTIFY_PADDING_X * 2)
@@ -563,6 +585,10 @@ namespace ImGui
 		for (unsigned int i = 0; i < notifications.size(); ++i)
 		{
 			ImGuiToast* currentToast = &notifications[i];
+
+      // Only process toasts intended for the current viewport
+      if (currentToast->getHWND() != hwnd)
+        continue;
 
 			// Remove toast if expired
 			if (currentToast->getPhase() == ImGuiToastPhase::Expired)
