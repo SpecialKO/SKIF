@@ -3017,51 +3017,58 @@ SKIF_Util_FileExplorer_DeleteFile (PCWSTR filePath, bool hideWarning)
 void
 SKIF_Util_FileExplorer_ContextMenuFile (PCWSTR filePath, HWND hWndOwner)
 {
-  // You should call this function from a background thread.
-  // Failure to do so could cause the UI to stop responding.
-  PIDLIST_ABSOLUTE iidlPtr = nullptr;
-  HRESULT hr = SHParseDisplayName (filePath, NULL, &iidlPtr, 0, nullptr);
-  // Let us take the risk since TrackPopupMenuEx() needs to be called from the UI thread
-
-  if (SUCCEEDED (hr))
+  HRESULT hr = CoInitializeEx (nullptr, COINIT_APARTMENTTHREADED);
+  
+  if (SUCCEEDED(hr))
   {
-    CComPtr<IShellFolder> parentFolder;
-    LPCITEMIDLIST child        = nullptr;
-
-    hr = SHBindToParent (iidlPtr, IID_PPV_ARGS(&parentFolder), &child);
+    // You should call this function from a background thread.
+    // Failure to do so could cause the UI to stop responding.
+    PIDLIST_ABSOLUTE iidlPtr = nullptr;
+    hr = SHParseDisplayName (filePath, NULL, &iidlPtr, 0, nullptr);
+    // Let us take the risk since TrackPopupMenuEx() needs to be called from the UI thread
 
     if (SUCCEEDED (hr))
     {
-      CComPtr<IContextMenu> ctxMenu;
-      hr = parentFolder->GetUIObjectOf (hWndOwner, 1, &child, IID_IContextMenu, nullptr, (void**)&ctxMenu);
+      CComPtr<IShellFolder> parentFolder;
+      LPCITEMIDLIST child        = nullptr;
+
+      hr = SHBindToParent (iidlPtr, IID_PPV_ARGS(&parentFolder), &child);
 
       if (SUCCEEDED (hr))
       {
-        HMENU hMenu = CreatePopupMenu();
-        ctxMenu->QueryContextMenu (hMenu, 0, 1, 0x7FFF, CMF_NORMAL);
+        CComPtr<IContextMenu> ctxMenu;
+        hr = parentFolder->GetUIObjectOf (hWndOwner, 1, &child, IID_IContextMenu, nullptr, (void**)&ctxMenu);
 
-        POINT cur = { };
-        GetCursorPos (&cur);
-
-        int cmd = TrackPopupMenuEx (hMenu, TPM_RETURNCMD, cur.x, cur.y, hWndOwner, nullptr);
-
-        if (cmd > 0)
+        if (SUCCEEDED (hr))
         {
-          CMINVOKECOMMANDINFOEX
-            info        = { sizeof(info) };
-            info.fMask  = CMIC_MASK_UNICODE;
-            info.hwnd   = hWndOwner;
-            info.lpVerb = MAKEINTRESOURCEA(cmd - 1);
-            info.nShow  = SW_SHOWNORMAL;
+          HMENU hMenu = CreatePopupMenu();
+          ctxMenu->QueryContextMenu (hMenu, 0, 1, 0x7FFF, CMF_NORMAL);
 
-          ctxMenu->InvokeCommand ((LPCMINVOKECOMMANDINFO)&info);
+          POINT cur = { };
+          GetCursorPos (&cur);
+
+          int cmd = TrackPopupMenuEx (hMenu, TPM_RETURNCMD, cur.x, cur.y, hWndOwner, nullptr);
+
+          if (cmd > 0)
+          {
+            CMINVOKECOMMANDINFOEX
+              info        = { sizeof(info) };
+              info.fMask  = CMIC_MASK_UNICODE;
+              info.hwnd   = hWndOwner;
+              info.lpVerb = MAKEINTRESOURCEA(cmd - 1);
+              info.nShow  = SW_SHOWNORMAL;
+
+            ctxMenu->InvokeCommand ((LPCMINVOKECOMMANDINFO)&info);
+          }
+
+          DestroyMenu (hMenu);
         }
-
-        DestroyMenu (hMenu);
       }
+
+      CoTaskMemFree (iidlPtr);
     }
 
-    CoTaskMemFree (iidlPtr);
+    CoUninitialize ( );
   }
 }
 
@@ -3134,7 +3141,7 @@ SKIF_Util_FileExplorer_BrowseForFile (LPWSTR *pszPath, HWND hwndOwner, std::vect
   hr = CoCreateInstance (CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
                           IID_IFileOpenDialog, reinterpret_cast<void**> (&pFileOpen));
 
-  if (SUCCEEDED(hr))
+  if (SUCCEEDED (hr))
   {
     IShellItem* psiDefaultFolder = nullptr;
 
@@ -3394,6 +3401,151 @@ SKIF_Util_UpdateAppColorMode (void)
   // Dark mode
   else if (! SKIF_Util_AllowDarkModeForApp (true))
     SKIF_Util_SetPreferredAppMode (PreferredAppMode::AllowDark);
+}
+
+static HRESULT
+SKIF_UtilInt_ExtractFileFromZip (IShellFolder* root, const std::wstring& innerPath, const std::wstring& destPath)
+{
+  auto _FindChild = [](IShellFolder* folder, PCWSTR name, PITEMID_CHILD* out) ->
+  HRESULT
+  {
+    CComPtr<IEnumIDList> en;
+    HRESULT hr = folder->EnumObjects (nullptr, SHCONTF_FOLDERS | SHCONTF_NONFOLDERS | SHCONTF_INCLUDEHIDDEN, &en);
+
+    if (hr != S_OK)
+      return (FAILED (hr) ? hr : E_FAIL);
+ 
+    PITEMID_CHILD        pidl = nullptr;
+    while (en->Next (1, &pidl,  nullptr) == S_OK)
+    {
+      STRRET sr;
+      WCHAR buf[MAX_PATH];
+      if (SUCCEEDED (folder->GetDisplayNameOf (pidl, SHGDN_INFOLDER | SHGDN_FORPARSING, &sr)) &&
+          SUCCEEDED (StrRetToBufW (&sr, pidl, buf, ARRAYSIZE (buf))) &&
+          StrCmpIW (buf, name) == 0)
+      {
+        *out = pidl;
+        return S_OK;
+      }
+
+      CoTaskMemFree (pidl);
+    }
+
+    PLOG_VERBOSE << "Could not find " << name << " in folder " << folder;
+
+    return HRESULT_FROM_WIN32 (ERROR_FILE_NOT_FOUND);
+  };
+
+  CComPtr<IShellFolder> folder = root;
+  CComPtr<IStream> src;
+  size_t pos = 0;
+  HRESULT hr;
+ 
+  while (true)
+  {
+    size_t next       = innerPath.find_first_of(L"\\/", pos);
+    bool last         = (next == std::wstring::npos);
+    std::wstring part = innerPath.substr (pos, last ? std::wstring::npos : next - pos);
+ 
+    PITEMID_CHILD child = nullptr;
+    hr = _FindChild (folder.p, part.c_str(), &child);
+
+    if (FAILED (hr))
+      return hr;
+ 
+    if (last)
+      hr = folder->BindToStorage (child, nullptr, IID_PPV_ARGS (&src));
+
+    else
+    {
+      CComPtr<IShellFolder> sub;
+      hr = folder->BindToObject  (child, nullptr, IID_PPV_ARGS (&sub));
+      if (SUCCEEDED (hr))
+        folder = sub;
+    }
+
+    CoTaskMemFree (child);
+
+    if (FAILED (hr))
+      return hr;
+
+    if (last)
+      break;
+
+    pos = next + 1;
+  }
+
+  CComPtr<IStream> dst;
+  hr = SHCreateStreamOnFileEx (destPath.c_str(),
+      STGM_CREATE | STGM_WRITE | STGM_SHARE_EXCLUSIVE,
+      FILE_ATTRIBUTE_NORMAL, TRUE, nullptr, &dst);
+
+  if (FAILED (hr))
+    return hr;
+ 
+  ULARGE_INTEGER
+    max;
+    max.QuadPart = ~0ULL;
+
+  hr = src->CopyTo (dst.p, max, nullptr, nullptr);
+
+  if (SUCCEEDED (hr))
+    hr = dst->Commit (STGC_DEFAULT);
+
+  return hr;
+}
+
+// InnerPaths is the absolute inner path of the file to extract from the archive
+//              e.g. "SpecialK32.dll" extracts from the root folder,
+//   while "Subfolder\SpecialK32.dll" extracts from said subfolder.
+HRESULT
+SKIF_Util_ExtractFromZip (PCWSTR zipPath, PCWSTR destDir, std::vector <std::pair <std::wstring, HRESULT>>* innerPaths)
+{
+  HRESULT hr = CoInitializeEx (nullptr, COINIT_APARTMENTTHREADED);
+
+  if (SUCCEEDED (hr))
+  {
+    PIDLIST_ABSOLUTE zipPidl = nullptr;
+    hr = SHParseDisplayName (zipPath, nullptr, &zipPidl, 0, nullptr);
+
+    if (FAILED (hr))
+      return hr;
+ 
+    CComPtr<IShellFolder> root;
+    hr = SHBindToObject (nullptr, zipPidl, nullptr, IID_PPV_ARGS(&root));
+    CoTaskMemFree (zipPidl);
+
+    if (FAILED (hr))
+      return hr;
+ 
+    HRESULT firstError = S_OK;
+
+    std::error_code ec;
+    // Create any missing directories
+    if (! std::filesystem::exists (            destDir, ec))
+          std::filesystem::create_directories (destDir, ec);
+
+    for (auto it = innerPaths->begin(); it != innerPaths->end(); ++it)
+    {
+      std::wstring dest = std::wstring(destDir) + LR"(\)" + it->first;
+      
+      // Normalize all paths
+      SKIF_Util_ReplaceAllW (dest, LR"(/)",  LR"(\)");
+      SKIF_Util_ReplaceAllW (dest, LR"(\\)", LR"(\)");
+
+      it->second = SKIF_UtilInt_ExtractFileFromZip (root.p, it->first, dest);
+
+      // Return the first error, or S_FALSE if the file could not be found
+      if (FAILED (it->second) && SUCCEEDED (firstError))
+        firstError = (it->second == HRESULT_FROM_WIN32 (ERROR_FILE_NOT_FOUND)) ? S_FALSE : it->second;
+    }
+
+    hr = firstError;
+
+    CoUninitialize ( );
+  }
+
+  return hr;
 }
 
 // Effective Power Mode (Windows 10 1809+)

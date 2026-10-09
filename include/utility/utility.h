@@ -217,6 +217,7 @@ bool            SKIF_Util_Files_PruneToLatestN        (std::wstring path, size_t
 bool            SKIF_Util_AllowDarkModeForApp         (bool allow);
 PreferredAppMode SKIF_Util_SetPreferredAppMode        (PreferredAppMode mode);
 void            SKIF_Util_UpdateAppColorMode          (void);
+HRESULT         SKIF_Util_ExtractFromZip              (PCWSTR zipPath, PCWSTR destDir, std::vector <std::pair <std::wstring, HRESULT>>* innerPaths);
 std::string     SKIF_Util_GetWindowMessageAsStr       (UINT msg);
 
 

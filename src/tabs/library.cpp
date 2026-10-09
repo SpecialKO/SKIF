@@ -9814,6 +9814,71 @@ SKIF_UI_Tab_DrawLibrary (void)
       UpgradeDLL (dragDroppedFilePath);
     }
 
+    else if (ext == L".zip" && (StrStrIW (dragDroppedFilePath.c_str (), L"SpecialK")))
+    {
+      CreateDirectoryW (L"Version", nullptr);
+
+      std::wstring destPath = SK_FormatStringW (LR"(%ws\Version\)",                         _path_cache.specialk_userdata);
+      std::wstring zipPath  = SK_FormatStringW (LR"(%ws\Version\SpecialK_DropInstall.zip)", _path_cache.specialk_userdata);
+
+      if (PathIsURLW (dragDroppedFilePath.c_str ()))
+        SKIF_Util_GetWebResource (dragDroppedFilePath, zipPath);
+
+      else
+        CopyFile (dragDroppedFilePath.c_str (),        zipPath.c_str(), false);
+
+      std::vector <std::pair <std::wstring, HRESULT>> targets = {
+        { L"SpecialK32.dll", S_OK },
+        { L"SpecialK64.dll", S_OK }
+      };
+
+      if (SUCCEEDED (SKIF_Util_ExtractFromZip (zipPath.c_str(), destPath.c_str(), &targets)))
+      {
+        // Wait for up to 5 seconds for the archive to extract and files to flush
+        int            retries              = 0;
+        constexpr auto retry_interval_in_ms = 50UL;
+
+        retries = 0;
+
+        while (! DeleteFileW (zipPath.c_str()))
+        {
+          Sleep (retry_interval_in_ms);
+
+          if (++retries > 50)
+          {
+            SetLastError (ERROR_FILE_INVALID);
+            break;
+          }
+        }
+
+        if (GetLastError ( ) != NO_ERROR)
+          PLOG_ERROR << "An unexpected error occurred when trying to delete the ZIP archive: " << SKIF_Util_GetErrorAsWStr ( );
+
+        bool failed = true;
+
+        for (auto& target : targets)
+        {
+          if (target.second == S_OK)
+          {
+            failed = false;
+            PLOG_INFO << "Extraction was successful.";
+            std::wstring path = LR"(Version\)" + target.first;
+
+            // Swap in the extracted files
+            UpgradeDLL  (path);
+            DeleteFileW (path.c_str());
+          }
+        }
+
+        if (failed)
+          ImGui::InsertNotification ({
+            ImGuiToastType::Error, 5000,
+            "Missing Files",
+            "Unable to extract Special K DLL files from the provided .zip file."
+          });
+      }
+    }
+
     else if (ext == L".7z" && (StrStrIW (dragDroppedFilePath.c_str (), L"SpecialK")))
     {
       int sk64_year = 0, sk64_month = 0,
@@ -9910,9 +9975,11 @@ SKIF_UI_Tab_DrawLibrary (void)
 
             if (++retries > 50)
             {
-              SKIF_ImGui_InfoMessage ( "Missing Files",
-                "Unable to extract SpecialK64.dll and SpecialK32.dll from the provided .7z file"
-              );
+              ImGui::InsertNotification ({
+                ImGuiToastType::Error, 5000,
+                "Missing Files",
+                "Unable to extract Special K DLL files from the provided .7z file."
+              });
               SetLastError (ERROR_FILE_INVALID);
               ret = false;
               break;
