@@ -284,18 +284,27 @@ struct SKIF_DirectoryWatch
                                     DWORD dwNotifyFilter = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE);
   ~SKIF_DirectoryWatch (void);
 
-  bool isSignaled      (void);
+  // Copy: creates a fresh, independent watch on the same path.
+  // The source's handle is left untouched.
+  SKIF_DirectoryWatch            (const SKIF_DirectoryWatch&  other);
+  SKIF_DirectoryWatch& operator= (const SKIF_DirectoryWatch&  other);
 
+  // Move: takes ownership of the source's handle.
+  SKIF_DirectoryWatch            (      SKIF_DirectoryWatch&& other) noexcept;
+  SKIF_DirectoryWatch& operator= (      SKIF_DirectoryWatch&& other) noexcept;
+
+  bool isSignaled      (void);
   bool isSignaled      (std::wstring_view wstrPath,
                                     UITab waitTab        = UITab_None,
                                      BOOL bWatchSubtree  = FALSE,
                                     DWORD dwNotifyFilter = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE);
-
   void reset           (void);
 
   HANDLE       _hChangeNotification = INVALID_HANDLE_VALUE; // If the FindFirstChangeNotification function fails, the return value is INVALID_HANDLE_VALUE.
   UITab        _waitTab             = UITab_None;
   std::wstring _path                = L"";
+  BOOL         _watchSubtree        = FALSE;
+  DWORD        _notifyFilter        = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE;
 
 private:
   void registerNotify  (std::wstring_view wstrPath,
@@ -319,6 +328,11 @@ struct SKIF_RegistryWatch {
 
   ~SKIF_RegistryWatch    (void);
 
+  SKIF_RegistryWatch            (const SKIF_RegistryWatch&  other);
+  SKIF_RegistryWatch& operator= (const SKIF_RegistryWatch&  other);
+  SKIF_RegistryWatch            (      SKIF_RegistryWatch&& other) noexcept;
+  SKIF_RegistryWatch& operator= (      SKIF_RegistryWatch&& other) noexcept;
+
   LSTATUS registerNotify (void);
   void reset             (void);
   bool isSignaled        (void);
@@ -326,13 +340,18 @@ struct SKIF_RegistryWatch {
   struct {
     HKEY         root        = { };
     std::wstring sub_key;
+    std::wstring event_name;
     BOOL         watch_subtree;
     DWORD        filter_mask;
     BOOL         wow64_32key; // Access a 32-bit key from either a 32-bit or 64-bit application.
     BOOL         wow64_64key; // Access a 64-bit key from either a 32-bit or 64-bit application.
   } _init;
 
-  HKEY    _hKeyBase    = NULL;
-  HANDLE  _hEvent      = NULL; // If the CreateEvent function fails, the return value is NULL.
-  UITab   _waitTab     = UITab_None;
+  HKEY         _hKeyBase    = NULL;
+  HANDLE       _hEvent      = NULL; // If the CreateEvent function fails, the return value is NULL.
+  UITab        _waitTab     = UITab_None;
+  std::wstring _eventNameActual = L"";
+
+private:
+  void swap (SKIF_RegistryWatch& other) noexcept;
 };

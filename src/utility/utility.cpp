@@ -4688,6 +4688,61 @@ SKIF_DirectoryWatch::SKIF_DirectoryWatch (std::wstring_view wstrPath, UITab wait
   registerNotify (wstrPath, waitTab, bWatchSubtree, dwNotifyFilter);
 }
 
+SKIF_DirectoryWatch::~SKIF_DirectoryWatch (void)
+{
+  reset ( );
+}
+
+SKIF_DirectoryWatch::SKIF_DirectoryWatch (SKIF_DirectoryWatch&& other) noexcept
+  : _hChangeNotification (std::exchange (other._hChangeNotification, INVALID_HANDLE_VALUE)),
+    _waitTab             (std::exchange (other._waitTab,             UITab_None)),
+    _path                (std::move     (other._path)),
+    _watchSubtree        (other._watchSubtree),
+    _notifyFilter        (other._notifyFilter)
+{
+  other._path.clear ();
+}
+
+SKIF_DirectoryWatch& SKIF_DirectoryWatch::operator= (SKIF_DirectoryWatch&& other) noexcept
+{
+  if (this != &other)
+  {
+    // Release whatever we currently own
+    if (_hChangeNotification != INVALID_HANDLE_VALUE)
+      FindCloseChangeNotification (_hChangeNotification);
+
+    _hChangeNotification = std::exchange (other._hChangeNotification, INVALID_HANDLE_VALUE);
+    _waitTab             = std::exchange (other._waitTab,             UITab_None);
+    _path                = std::move     (other._path);
+    _watchSubtree        = other._watchSubtree;
+    _notifyFilter        = other._notifyFilter;
+    other._path.clear ();
+  }
+
+  return *this;
+}
+
+SKIF_DirectoryWatch::SKIF_DirectoryWatch (const SKIF_DirectoryWatch& other)
+  : _waitTab      (other._waitTab),
+    _watchSubtree (other._watchSubtree),
+    _notifyFilter (other._notifyFilter)
+{
+  if (! other._path.empty ())
+    registerNotify (other._path, other._waitTab, other._watchSubtree, other._notifyFilter);
+}
+
+SKIF_DirectoryWatch& SKIF_DirectoryWatch::operator= (const SKIF_DirectoryWatch& other)
+{
+  if (this != &other)
+  {
+    // Copy-and-swap via move keeps this exception-safe and simple
+    SKIF_DirectoryWatch tmp (other);
+    *this = std::move (tmp);
+  }
+
+  return *this;
+}
+
 bool
 SKIF_DirectoryWatch::isSignaled (void)
 {
@@ -4727,9 +4782,8 @@ SKIF_DirectoryWatch::isSignaled (std::wstring_view wstrPath, UITab waitTab, BOOL
 void
 SKIF_DirectoryWatch::reset (void)
 {
-  if (      _hChangeNotification != INVALID_HANDLE_VALUE)
+  if (     _hChangeNotification != INVALID_HANDLE_VALUE)
     FindCloseChangeNotification (_hChangeNotification);
-
 
   if (_waitTab == UITab_ALL)
   {
@@ -4744,21 +4798,29 @@ SKIF_DirectoryWatch::reset (void)
 
   // Reset variables
   _hChangeNotification = INVALID_HANDLE_VALUE;
-  _waitTab             = UITab_None; // ?
+  _waitTab             = UITab_None;
   _path                = L"";
 }
 
 void
 SKIF_DirectoryWatch::registerNotify (std::wstring_view wstrPath, UITab waitTab, BOOL bWatchSubtree, DWORD dwNotifyFilter)
 {
-  if (! wstrPath.empty())
+  _path          = wstrPath;
+  _waitTab       = waitTab;
+  _watchSubtree  = bWatchSubtree;
+  _notifyFilter  = dwNotifyFilter;
+
+  if (! _path.empty())
   {
-    _path = wstrPath;
+    // Normalize all paths
+    SKIF_Util_ReplaceAllW (_path, LR"(/)",  LR"(\)");
+    SKIF_Util_ReplaceAllW (_path, LR"(\\)", LR"(\)");
 
     _hChangeNotification =
       FindFirstChangeNotificationW (
-        _path.c_str(), bWatchSubtree,
-        dwNotifyFilter
+        _path.c_str(),
+        _watchSubtree,
+        _notifyFilter
       );
 
     if (_hChangeNotification != INVALID_HANDLE_VALUE)
@@ -4766,8 +4828,6 @@ SKIF_DirectoryWatch::registerNotify (std::wstring_view wstrPath, UITab waitTab, 
       FindNextChangeNotification (
         _hChangeNotification
       );
-
-      _waitTab  = waitTab;
 
       if (_waitTab == UITab_ALL)
       {
@@ -4784,27 +4844,40 @@ SKIF_DirectoryWatch::registerNotify (std::wstring_view wstrPath, UITab waitTab, 
   }
 }
 
-SKIF_DirectoryWatch::~SKIF_DirectoryWatch (void)
-{
-  reset ( );
-}
-
 
 // Registry Watch
+
+static std::wstring
+SKIF_UtilInt_MakeUniqueEventName (const std::wstring& baseName)
+{
+  static std::atomic<unsigned long> counter { 0 };
+
+  // PID keeps names distinct across multiple instances of the app if the
+  // base name lives in a shared namespace (e.g. "Local\\..." / "Global\\...").
+  return baseName + L"_"
+                  + std::to_wstring (GetCurrentProcessId ()) + L"_"
+                  + std::to_wstring (++counter);
+}
 
 SKIF_RegistryWatch::SKIF_RegistryWatch ( HKEY hRootKey, const wchar_t* wszSubKey, const wchar_t* wszEventName, BOOL bWatchSubtree, DWORD dwNotifyFilter, UITab waitTab, bool bWOW6432Key, bool bWOW6464Key )
 {
   _init.root          = hRootKey;
   _init.sub_key       = wszSubKey;
+  _init.event_name    = (wszEventName) ? wszEventName : L"";
   _init.watch_subtree = bWatchSubtree;
   _init.filter_mask   = dwNotifyFilter;
   _init.wow64_32key   = bWOW6432Key;
   _init.wow64_64key   = bWOW6464Key;
   _waitTab            = waitTab;
 
+  if (! _init.event_name.empty())
+    _eventNameActual = SKIF_UtilInt_MakeUniqueEventName (_init.event_name);
+
   _hEvent             =
       CreateEvent ( nullptr, TRUE,
-                            FALSE, wszEventName );
+                            FALSE, (_eventNameActual.empty ()
+                                  ? nullptr
+                                  : _eventNameActual.c_str ()));
 
   reset ();
 
@@ -4840,6 +4913,78 @@ SKIF_RegistryWatch::~SKIF_RegistryWatch (void)
     CloseHandle (_hEvent);
     _hEvent = NULL;
   }
+}
+
+SKIF_RegistryWatch::SKIF_RegistryWatch (const SKIF_RegistryWatch& other)
+  : _init     (other._init),
+    _hKeyBase (NULL),
+    _hEvent   (NULL),
+    _waitTab  (other._waitTab)
+{
+  // Copy of an empty/moved-from object is empty
+  if (other._hEvent == NULL)
+    return;
+
+  if (! _init.event_name.empty())
+    _eventNameActual = SKIF_UtilInt_MakeUniqueEventName (_init.event_name);
+
+  _hEvent             =
+      CreateEvent ( nullptr, TRUE,
+                            FALSE, (_eventNameActual.empty ()
+                                  ? nullptr
+                                  : _eventNameActual.c_str ()));
+
+  reset ();
+
+  if (_hEvent != NULL)
+  {
+    if (_waitTab == UITab_ALL)
+    {
+      for (auto& vWatchHandle : vWatchHandles)
+        vWatchHandle.push_back (_hEvent);
+    }
+    else if (_waitTab != UITab_None)
+      vWatchHandles[_waitTab].push_back (_hEvent);
+  }
+}
+
+SKIF_RegistryWatch::SKIF_RegistryWatch (SKIF_RegistryWatch&& other) noexcept
+  : _init     (std::move     (other._init)),
+    _hKeyBase (std::exchange (other._hKeyBase, nullptr)),
+    _hEvent   (std::exchange (other._hEvent,   nullptr)),
+    _waitTab  (std::exchange (other._waitTab,  UITab_None))
+{
+  other._init.root = { };
+  // The HANDLE value is unchanged, so its entry in vWatchHandles stays valid.
+  // other._hEvent == NULL makes other's destructor a complete no-op.
+}
+
+void SKIF_RegistryWatch::swap (SKIF_RegistryWatch& other) noexcept
+{
+  std::swap (_init,     other._init);
+  std::swap (_hKeyBase, other._hKeyBase);
+  std::swap (_hEvent,   other._hEvent);
+  std::swap (_waitTab,  other._waitTab);
+}
+
+SKIF_RegistryWatch& SKIF_RegistryWatch::operator= (const SKIF_RegistryWatch& other)
+{
+  if (this != &other)
+  {
+    SKIF_RegistryWatch tmp (other);
+    swap (tmp); // tmp's destructor releases our old resources
+  }
+  return *this;
+}
+
+SKIF_RegistryWatch& SKIF_RegistryWatch::operator= (SKIF_RegistryWatch&& other) noexcept
+{
+  if (this != &other)
+  {
+    SKIF_RegistryWatch tmp (std::move (other));
+    swap (tmp);
+  }
+  return *this;
 }
 
 LSTATUS
