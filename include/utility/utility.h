@@ -107,6 +107,7 @@ std::wstring    SKIF_Util_timeGetTimeAsWStr           (time_t time);
 std::wstring    SKIF_Util_timeGetTimeAsWStr           (const std::wstring& format = L"H:M:s.m");
 int             SKIF_Util_CompareVersionStrings       (std:: string string1, std:: string string2);
 int             SKIF_Util_CompareVersionStrings       (std::wstring string1, std::wstring string2);
+int             SKIF_Util_RandomInteger               (int low = 0, int high = RAND_MAX);
 
 // Filenames
 

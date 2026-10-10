@@ -10,6 +10,7 @@
 #include <DbgHelp.h>
 #include <gdiplus.h>
 #include <regex>
+#include <random>
 
 #ifndef SECURITY_WIN32
 #define SECURITY_WIN32
@@ -505,8 +506,19 @@ SKIF_Util_CompareVersionStrings (std::wstring string1, std::wstring string2)
   return 0;
 }
 
+int
+SKIF_Util_RandomInteger (int low, int high)
+{
+  static std::mt19937 gen { std::random_device { }( ) };
+  std::uniform_int_distribution<int> dist (low, high);
+  return dist (gen);
+}
+
+
 
 // Filenames
+
+
 
 std::string
 SKIF_Util_StripInvalidFilenameChars (std::string name)
@@ -1285,7 +1297,9 @@ SKIF_Util_CreateProcess (
 }
 
 
+
 // Windows
+
 
 
 // Returns a pseudo handle interpreted as the current process handle
