@@ -92,9 +92,10 @@ SKIF_ImGui_IniEditor_NewFile (IniWindow* iniWindow)
   }
 
   iniWindow->watch.reset();
-  iniWindow->ini       = ini_parsed;
-  iniWindow->title     =  "";
+  iniWindow->title     = "";
   iniWindow->bChanged  = false;
+  iniWindow->ini       = ini_parsed;
+  iniWindow->do_action = Action::None;
   iniWindow->SetPath           (L"");
   iniWindow->UpdateWindowTitle (   );
   iniWindow->ClearFilter       (   );
@@ -132,7 +133,8 @@ SKIF_ImGui_IniEditor_Save (IniWindow* iniWindow)
     strncpy (trie.default, trie.value, MAX_PATH);
   }
 
-  iniWindow->bChanged = false;
+  iniWindow->bChanged  = false;
+  iniWindow->do_action = Action::None;
   iniWindow->UpdateWindowTitle ( );
 }
 
@@ -238,8 +240,10 @@ SKIF_ImGui_IniEditor_OpenFile (IniWindow* iniWindow, IniType type, std::wstring 
     vIniWindow.push_back({ ini_parsed, type, path, title_final });
 
   else {
+    iniWindow->bChanged  = false;
     iniWindow->ini       = ini_parsed;
     iniWindow->title     = title_final;
+    iniWindow->do_action = Action::None;
     iniWindow->SetPath           (path);
     iniWindow->UpdateWindowTitle (    );
     iniWindow->ClearFilter       (    );
@@ -320,22 +324,22 @@ SKIF_ImGui_IniEditor_Process (void)
       if (ImGui::BeginMenu ("File"))
       {
         if (ImGui::MenuItem ("New", "Ctrl+N"))
-          newFile = true;
+          newFile  = true;
 
         if (ImGui::MenuItem ("New Window", "Ctrl+Shift+N"))
-          newWnd = true;
+          newWnd   = true;
 
         if (ImGui::MenuItem ("Open", "Ctrl+O"))
           openFile = true;
 
         if (ImGui::MenuItem ("Save", "Ctrl+S"))
-          save   = true;
+          save     = true;
 
         if (ImGui::MenuItem ("Save As", "Ctrl+Shift+S"))
-          saveAs = true;
+          saveAs   = true;
 
         if (ImGui::MenuItem ("Close", "Escape"))
-          show = false;
+          show     = false;
 
         ImGui::EndMenu();
       }
@@ -442,7 +446,7 @@ SKIF_ImGui_IniEditor_Process (void)
       if (ImGui::Button (ICON_FA_XMARK))
         window.ClearFilter ( );
 
-      ImGui::PopStyleColor ( );
+      ImGui::PopStyleColor ( ); // ImGuiCol_Text
 
       btnClearHover = ImGui::IsItemHovered() || ImGui::IsItemActive();
     }
@@ -541,6 +545,115 @@ SKIF_ImGui_IniEditor_Process (void)
            if (ImGui::GetIO().KeyCtrl &&                            ImGui::GetKeyData (ImGuiKey_Q)->DownDuration == 0.0f) bKeepWindowAlive = false; // Ctrl+Q
     }
 
+    // Suppress some actions if we have unsaved changes
+    if (window.bChanged)
+    {
+
+      if (newFile)
+      {   newFile = false;
+        window.do_action = Action::New;
+      }
+
+      if (openFile)
+      {   openFile = false;
+        window.do_action = Action::Open;
+      }
+
+      if (! show)
+      {     show = true;
+        window.do_action = Action::Close;
+      }
+
+      // Handle unsaved changes
+      if (window.do_action != Action::None)
+      {
+        constexpr char* msgClose = "Do you want to save changes to the INI file?";
+        float fPopupWidth = ImGui::CalcTextSize (msgClose).x + ImGui::GetStyle().IndentSpacing * 2.0f;
+
+        if (window.prompt_save == PopupState_Closed)
+        {
+          ImGui::OpenPopup ("###SavePrompt");
+          ImGui::SetNextWindowSize (ImVec2 (fPopupWidth, 0.0f));
+          window.prompt_save = PopupState_Opened;
+        }
+
+        ImGui::SetNextWindowPos    (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
+        if (ImGui::BeginPopup ("Unsaved Changes###SavePrompt", ImGuiWindowFlags_NoResize))
+        {
+          SKIF_ImGui_Spacing ( );
+
+          ImGui::Spacing     ( );
+          ImGui::SameLine    ( );
+          ImGui::Spacing     ( );
+          ImGui::SameLine    ( );
+          ImGui::Text        (msgClose);
+
+          SKIF_ImGui_Spacing ( );
+          SKIF_ImGui_Spacing ( );
+
+          ImVec2 vButtonSize = ImVec2 (100.0f * SKIF_ImGui_GlobalDPIScale, 0.0f);
+
+          ImGui::SetCursorPosX (fPopupWidth / 2 - 3 * (vButtonSize.x + ImGui::GetStyle().ItemSpacing.x) / 2);
+
+          bool performAction = false;
+
+          if (ImGui::Button  ("Save", vButtonSize))
+          {
+            save = true;
+            performAction = true;
+          }
+
+          ImGui::SameLine ( );
+          ImGui::Spacing  ( );
+          ImGui::SameLine ( );
+
+          if (ImGui::Button  ("Don't Save", vButtonSize))
+          {
+            performAction = true;
+          }
+
+          ImGui::SameLine ( );
+          ImGui::Spacing  ( );
+          ImGui::SameLine ( );
+
+          if (ImGui::Button  ("Cancel", vButtonSize))
+          {
+            window.do_action = Action::None;
+            performAction = true;
+          }
+
+          if (performAction)
+          {
+            switch (window.do_action)
+            {
+            case Action::New:
+              newFile  = true;
+              break;
+
+            case Action::Open:
+              openFile = true;
+              break;
+
+            case Action::Close:
+              show     = false;
+              break;
+            }
+
+            window.do_action = Action::None;
+            window.prompt_save = PopupState_Closed;
+            ImGui::CloseCurrentPopup ( );
+          }
+
+          SKIF_ImGui_Spacing ( );
+
+          ImGui::EndPopup ( );
+        }
+
+        else
+          window.prompt_save = PopupState_Closed;
+      }
+    }
+
     // Actions
 
     if (reload)
@@ -560,17 +673,17 @@ SKIF_ImGui_IniEditor_Process (void)
       window.UpdateWindowTitle();
     }
 
-    if (newFile)
-      SKIF_ImGui_IniEditor_NewFile  (&window);
-
-    if (openFile)
-      SKIF_ImGui_IniEditor_OpenFile (&window, IniType_Unknown, L"", "");
-
     if (save)
       SKIF_ImGui_IniEditor_Save     (&window);
 
     if (saveAs)
       SKIF_ImGui_IniEditor_SaveAs   (&window);
+
+    if (openFile)
+      SKIF_ImGui_IniEditor_OpenFile (&window, IniType_Unknown, L"", "");
+
+    if (newFile)
+      SKIF_ImGui_IniEditor_NewFile  (&window);
 
     if (minimize)
       ShowWindowAsync ((HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, SW_MINIMIZE);

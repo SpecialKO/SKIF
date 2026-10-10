@@ -13,6 +13,17 @@
 #include <utility/ini_reader.h>
 #include <utility/utility.h>
 
+enum Action
+{
+  None,
+  New,
+  NewWindow, // Not actually used
+  Open,
+  Save,
+  SaveAs,    // Not actually used
+  Close,     // Not actually used?
+};
+
 struct IniWindow {
   std::vector <__INI>     ini;
   std::vector <__INI> history;
@@ -25,7 +36,9 @@ struct IniWindow {
   DWORD                 watchCD = NULL;
   IniType                type   = IniType_Unknown;
   PopupState            state   = PopupState_Open;
+  PopupState      prompt_save   = PopupState_Closed;
   HWND                   hwnd   = nullptr;
+  Action            do_action   = Action::None;
 
   // Filter field
   char          charFilter    [MAX_PATH + 2] = { };
