@@ -113,7 +113,7 @@ private:
 	std::function<void()>						onButtonPress = nullptr; // A lambda variable, which will be executed when button in notification is pressed
 	char 										buttonLabel[NOTIFY_MAX_MSG_LENGTH];
 
-  HWND hwnd = nullptr;
+  HWND hwnd = (HWND)ImGui::GetWindowViewport()->PlatformHandleRaw;
 
 	static int32_t maxAssignedId;
 	       int32_t      uniqueId = 0;
@@ -574,7 +574,7 @@ namespace ImGui
 	 * Each notification is rendered as a toast window with a title, content and an optional icon.
 	 * If a notification is expired, it is removed from the vector.
 	 */
-	inline void RenderNotifications(HWND hwnd = nullptr)
+	inline void RenderNotifications(HWND hwnd = (HWND)ImGui::GetWindowViewport()->PlatformHandleRaw)
 	{
 		const ImVec2 mainWindowSize = GetCurrentWindowRead()->Size;
 		const float  textWrapWidth  = (600.0f * SKIF_ImGui_GlobalDPIScale < mainWindowSize.x - NOTIFY_PADDING_X * 2)
