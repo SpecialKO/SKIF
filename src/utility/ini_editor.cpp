@@ -271,6 +271,7 @@ SKIF_ImGui_IniEditor_Process (void)
          openFile = false,
          save     = false,
          saveAs   = false,
+         reload   = false,
          reset    = false,
          minimize = false;
 
@@ -299,7 +300,6 @@ SKIF_ImGui_IniEditor_Process (void)
     if (window.watchCD != NULL && window.watchCD < SKIF_Util_timeGetTime())
     {
       window.watchCD = NULL;
-      window.ini.clear();
       window.ini = SKIF_IniReader_ParseIni (window.path, window.type);
 
       // Apply the active filter
@@ -342,6 +342,15 @@ SKIF_ImGui_IniEditor_Process (void)
 
       if (ImGui::BeginMenu ("Edit"))
       {
+        if (window.path.empty())
+          SKIF_ImGui_PushDisableState ( );
+
+        if (ImGui::MenuItem ("Reload"))
+          reload = true;
+
+        if (window.path.empty())
+          SKIF_ImGui_PopDisableState ( );
+
         if (ImGui::MenuItem ("Reset"))
           reset = true;
 
@@ -533,6 +542,14 @@ SKIF_ImGui_IniEditor_Process (void)
     }
 
     // Actions
+
+    if (reload)
+    {
+      window.ini = SKIF_IniReader_ParseIni (window.path, window.type);
+
+      // Apply the active filter
+      window.ApplyFilter ( );
+    }
 
     if (reset)
     {
