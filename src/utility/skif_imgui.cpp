@@ -353,7 +353,7 @@ SKIF_ImGui_AdjustAppModeSize (HMONITOR monitor)
       ImVec2 ( (float)( info.rcWork.right  - info.rcWork.left ),
                (float)( info.rcWork.bottom - info.rcWork.top  ) );
 
-    ImVec2 tmpCurrentSize  = (_registry.bMiniMode) ? SKIF_vecServiceModeDefault  :
+    ImVec2 tmpCurrentSize  = (_registry.bMiniMode)    ? SKIF_vecServiceModeDefault  :
                              (_registry.bHorizonMode) ? SKIF_vecHorizonModeAdjusted :
                                                         SKIF_vecRegularModeAdjusted ;
 
@@ -909,6 +909,75 @@ SKIF_ImGui_TitleBarMinimizeButton (void)
   ImGui::PopClipRect();
 
   return pressed;
+}
+
+// Call every frame while the prompt is active.
+// Returns SaveChoice::None until the user picks something.
+SaveChoice
+SKIF_ImGui_SaveChangesPrompt (const int id, bool* p_open, const char* doc_name)
+{
+  SaveChoice result =
+    SaveChoice::None;
+
+  if (! *p_open)
+    return result;
+
+  const ImGuiWindowFlags flags =
+  //ImGuiWindowFlags_NoFocusOnAppearing | // Don't steal focus when shown
+  //ImGuiWindowFlags_NoResize           |
+    ImGuiWindowFlags_AlwaysAutoResize   |
+    ImGuiWindowFlags_NoCollapse         |
+    ImGuiWindowFlags_NoScrollbar        |
+    ImGuiWindowFlags_NoDocking          |
+    ImGuiWindowFlags_NoSavedSettings;
+
+  const ImGuiViewport*          vp = ImGui::GetWindowViewport();
+
+  // Keep the window within the current viewport (disables Win32 window)
+  ImGui::SetNextWindowViewport (vp->ID);
+
+  // Center on the current viewport
+  ImGui::SetNextWindowPos      (vp->GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+
+  char title[40]; // Should fit the below base + 32-bit rand limit (up to 10 digits max)
+  snprintf (title, sizeof(title), "Save Changes?###SavePrompt_%i", id);
+
+  if (ImGui::Begin (title, nullptr, flags))
+  {
+    if (doc_name == nullptr)
+      ImGui::Text       ("Do you want to save the changes made?");
+    else
+      ImGui::Text       ("Do you want to save changes to %s?", doc_name);
+
+    ImGui::TextDisabled ("Your changes will be lost if you don't save them.");
+
+    ImGui::Separator    ( );
+
+    const ImVec2 btn(110, 0);
+
+    if (ImGui::Button ("Save", btn))
+      result = SaveChoice::Save;
+
+    ImGui::SameLine ( );
+
+    if (ImGui::Button ("Don't Save", btn))
+      result = SaveChoice::DontSave;
+
+    ImGui::SameLine ( );
+
+    if (ImGui::Button ("Cancel", btn))
+      result = SaveChoice::Cancel;
+  }
+
+  // Always bring the window to the front (prevents it being obscured by another window)
+  ImGui::BringWindowToDisplayFront (ImGui::GetCurrentWindow ( ));
+
+  ImGui::End ( );
+
+  if (result != SaveChoice::None)
+    *p_open = false;
+
+  return result;
 }
 
 void SKIF_ImGui_ServiceMenu (void)

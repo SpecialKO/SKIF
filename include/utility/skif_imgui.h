@@ -17,6 +17,13 @@ enum SKIF_ImGuiAxis {
      SKIF_ImGuiAxis_X | SKIF_ImGuiAxis_Y
 };
 
+enum class SaveChoice {
+  None,
+  Save,
+  DontSave,
+  Cancel
+};
+
 float    SKIF_ImGui_LinearTosRGB          (float col_lin);
 ImVec4   SKIF_ImGui_LinearTosRGB          (ImVec4 col);
 float    SKIF_ImGui_sRGBtoLinear          (float col_srgb);
@@ -47,6 +54,7 @@ void     SKIF_ImGui_Spacing               (float multiplier);
 void     SKIF_ImGui_Spacing               (void);
 bool     SKIF_ImGui_Selectable            (const char* label);
 bool     SKIF_ImGui_SelectableVAligned    (const char* unique_id, const char* label, bool* p_selected, ImGuiSelectableFlags flags, const ImVec2& size_arg);
+SaveChoice SKIF_ImGui_SaveChangesPrompt   (const int id, bool* p_open, const char* doc_name = nullptr);
 void     SKIF_ImGui_ServiceMenu           (void);
 ImFont*  SKIF_ImGui_LoadFont              (const std::wstring& filename, float point_size, const ImWchar* glyph_range, ImFontConfig* cfg = nullptr);
 void     SKIF_ImGui_InitFonts             (float fontSize, bool extendedCharsets = true);
