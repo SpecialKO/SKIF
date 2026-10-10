@@ -1924,7 +1924,7 @@ DrawGameConfigMenu (app_record_s* pApp)
       }
     }
 
-    if (ImGui::Selectable ("Open External Editor"))
+    if (ImGui::Selectable ("External Editor"))
     {
       // If the file does not exist, create it
       if (! PathFileExists (pApp->specialk.injection.config.full_path.c_str()))
@@ -1983,10 +1983,10 @@ DrawGameConfigMenu (app_record_s* pApp)
 
           ImGui::PopID ( );
         }
-      }
 
-      if (!DefaultPresets.empty())
-        ImGui::Separator ( );
+        if (! DefaultPresets.empty())
+          ImGui::Separator ( );
+      }
 
       // Default Presets
       if (! DefaultPresets.empty())
