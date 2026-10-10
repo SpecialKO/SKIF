@@ -1976,7 +1976,7 @@ DrawGameConfigMenu (app_record_s* pApp)
           if (ImGui::BeginPopupEx (editMenu, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings))
           {
             if (ImGui::Selectable ("Edit"))
-              SKIF_ImGui_IniEditor_OpenFile (nullptr, preset.Path, "", IniType_DLL);
+              SKIF_ImGui_IniEditor_OpenFile (nullptr, IniType_DLL, preset.Path, "");
 
             ImGui::EndPopup ( );
           }
@@ -2012,7 +2012,7 @@ DrawGameConfigMenu (app_record_s* pApp)
           if (ImGui::BeginPopupEx (editMenu, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings))
           {
             if (ImGui::Selectable ("Edit"))
-              SKIF_ImGui_IniEditor_OpenFile (nullptr, preset.Path, "", IniType_DLL);
+              SKIF_ImGui_IniEditor_OpenFile (nullptr, IniType_DLL, preset.Path, "");
 
             ImGui::EndPopup ( );
           }
@@ -2042,7 +2042,7 @@ DrawGameConfigMenu (app_record_s* pApp)
             config_file.close ( );
           }
 
-          SKIF_ImGui_IniEditor_OpenFile (nullptr, path, "", IniType_DLL);
+          SKIF_ImGui_IniEditor_OpenFile (nullptr, IniType_DLL, path, "");
         }
 
         SKIF_ImGui_SetMouseCursorHand ( );
@@ -2071,7 +2071,7 @@ DrawGameConfigMenu (app_record_s* pApp)
               }
             }
 
-            SKIF_ImGui_IniEditor_OpenFile (nullptr, preset.Path, "", IniType_DLL);
+            SKIF_ImGui_IniEditor_OpenFile (nullptr, IniType_DLL, preset.Path, "");
           }
 
           SKIF_ImGui_SetMouseCursorHand ( );
@@ -2621,7 +2621,7 @@ DrawGameContextMenu (app_record_s* pApp)
       }
 
       // Internal editor
-      SKIF_ImGui_IniEditor_OpenFile (nullptr, pApp->specialk.injection.config.full_path, pApp->names.normal);
+      SKIF_ImGui_IniEditor_OpenFile (nullptr, IniType_DLL, pApp->specialk.injection.config.full_path, pApp->names.normal);
 
       // External editor
       //SKIF_Util_OpenURI (pApp->specialk.injection.config.full_path.c_str(), SW_SHOWNORMAL, NULL);
@@ -3812,7 +3812,7 @@ GetInjectionSummary (app_record_s* pApp)
       }
 
       // Internal editor
-      SKIF_ImGui_IniEditor_OpenFile (nullptr, pApp->specialk.injection.config.full_path, pApp->names.normal);
+      SKIF_ImGui_IniEditor_OpenFile (nullptr, IniType_DLL, pApp->specialk.injection.config.full_path, pApp->names.normal);
 
       // External editor
       //SKIF_Util_OpenURI (pApp->specialk.injection.config.full_path.c_str(), SW_SHOWNORMAL, NULL);

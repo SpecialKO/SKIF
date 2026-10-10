@@ -8,34 +8,72 @@
 #include <utility/skif_imgui.h>
 #include <utility/sk_utility.h>
 #include <utility/utility.h>
+#include <ImGuiNotify.hpp>
 
 #include <fonts/fa_621.h>
 #include <fonts/fa_621b.h>
 
-int window_identifier = 0;
+unsigned int window_identifier = 0;
 std::vector <IniWindow> vIniWindow;
 bool INIEditorActive = false;
+
+void
+IniWindow::ApplyFilter (void)
+{
+  bool default = (strlen (charFilter) == 0);
+
+  for (auto& trie : ini)
+  {
+    trie._show = default;
+
+    if (! default)
+      trie._show = (StrStrIA (trie.section, charFilter) != NULL) ||
+                   (StrStrIA (trie.key,     charFilter) != NULL) ||
+                   (StrStrIA (trie.value,   charFilter) != NULL);
+  }
+}
+
+void
+IniWindow::ClearFilter (void)
+{
+  strncpy (charFilter,    "\0", MAX_PATH);
+  strncpy (charFilterTmp, "\0", MAX_PATH);
+  ApplyFilter ( );
+}
 
 void
 IniWindow::UpdateWindowTitle (void)
 {
   std::string filenameExt = "";
 
-  if (! path.empty())
-    filenameExt = std::filesystem::path(path).filename().string();
+  if (! path_utf8.empty())
+    filenameExt = std::filesystem::path(path_utf8).filename().string();
 
   path_filename = filenameExt;
   wnd_name      = ((title.empty() ? (path_filename.empty() ? "Unsaved" : path_filename) : title) + " - Editor" + label); // + (bChanged ? "*" : "")
 }
 
-IniWindow::IniWindow (std::vector<__INI> _i, const std::string& _p, const std::string& _t)
+void
+IniWindow::SetPath (const std::wstring& _p)
 {
-  ini   = _i;
-  path  = _p;
-  title = _t;
-  label = ("###IniEditor-" + std::to_string (window_identifier));
+  path        = _p;
+  path_utf8   = SK_WideCharToUTF8 (path);
+
+  if (! path.empty())
+    path_parent = std::filesystem::path(path).parent_path().wstring(); // full path to parent folder
+  else
+    path_parent = L"";
+}
+
+IniWindow::IniWindow (std::vector<__INI> _i, IniType _ty, const std::wstring& _p, const std::string& _ti)
+{
+  ini       = _i;
+  type      = _ty;
+  title     = _ti;
+  label     = ("###IniEditor-" + std::to_string (window_identifier));
   window_identifier++;
-  UpdateWindowTitle ( );
+  SetPath           (_p);
+  UpdateWindowTitle (  );
 }
 
 void
@@ -53,11 +91,13 @@ SKIF_ImGui_IniEditor_NewFile (IniWindow* iniWindow)
     ini_parsed.push_back (item);
   }
 
-  iniWindow->ini   = ini_parsed;
-  iniWindow->path  = "";
-  iniWindow->title = "";
-  iniWindow->bChanged = false;
-  iniWindow->UpdateWindowTitle ( );
+  iniWindow->watch.reset();
+  iniWindow->ini       = ini_parsed;
+  iniWindow->title     =  "";
+  iniWindow->bChanged  = false;
+  iniWindow->SetPath           (L"");
+  iniWindow->UpdateWindowTitle (   );
+  iniWindow->ClearFilter       (   );
 }
 
 void
@@ -75,32 +115,14 @@ SKIF_ImGui_IniEditor_NewWindow (void)
     ini_parsed.push_back (item);
   }
 
-  vIniWindow.push_back({ ini_parsed });
+  vIniWindow.push_back({ ini_parsed, dll_ini });
 }
 
 void
 SKIF_ImGui_IniEditor_Save (IniWindow* iniWindow)
 {
   if (iniWindow->path.empty())
-  {
-    LPWSTR pwszFilePath = NULL;
-    HRESULT hr          =
-      SKIF_Util_FileExplorer_SaveFile (&pwszFilePath, (HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, { { L"Configuration Files", L"*.ini" }, { L"All files", L"*.*" } }, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST, FOLDERID_ComputerFolder, nullptr, L"ini");
-
-    if (hr == HRESULT_FROM_WIN32 (ERROR_CANCELLED))
-      return;
-
-    else if (SUCCEEDED (hr))
-    {
-      iniWindow->path = SK_WideCharToUTF8 (pwszFilePath);
-    }
-
-    else
-    {
-      MessageBoxW ((HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, L"Unknown error attempting to retrieve file path!", L"Error", MB_OK | MB_ICONEXCLAMATION);
-      return;
-    }
-  }
+    return SKIF_ImGui_IniEditor_SaveAs (iniWindow);
 
   SKIF_IniReader_WriteIni (iniWindow->ini, iniWindow->path);
 
@@ -117,7 +139,7 @@ SKIF_ImGui_IniEditor_Save (IniWindow* iniWindow)
 void
 SKIF_ImGui_IniEditor_SaveAs (IniWindow* iniWindow)
 {
-  std::wstring defaultFolderPath = (! iniWindow->path.empty() ? std::filesystem::path (SK_UTF8ToWideChar (iniWindow->path)).parent_path().wstring() : L"");
+  std::wstring defaultFolderPath = (! iniWindow->path.empty() ? std::filesystem::path (iniWindow->path).parent_path().wstring() : L"");
 
   LPWSTR pwszFilePath = NULL;
   HRESULT hr          =
@@ -127,22 +149,22 @@ SKIF_ImGui_IniEditor_SaveAs (IniWindow* iniWindow)
     return;
 
   else if (SUCCEEDED (hr))
-  {
-    iniWindow->path = SK_WideCharToUTF8 (pwszFilePath);
-    SKIF_IniReader_WriteIni (iniWindow->ini, iniWindow->path);
-    iniWindow->bChanged = false;
-    iniWindow->UpdateWindowTitle();
-  }
+    iniWindow->SetPath (pwszFilePath);
 
   else
   {
     MessageBoxW ((HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, L"Unknown error attempting to retrieve file path!", L"Error", MB_OK | MB_ICONEXCLAMATION);
     return;
   }
+
+  // Save As should reset any custom titles set
+  iniWindow->title.clear();
+
+  SKIF_ImGui_IniEditor_Save (iniWindow);
 }
 
 void
-SKIF_ImGui_IniEditor_OpenFile (IniWindow* iniWindow, std::wstring path, const std::string& title, IniType type)
+SKIF_ImGui_IniEditor_OpenFile (IniWindow* iniWindow, IniType type, std::wstring path, const std::string& title)
 {
   if (path.empty())
   {
@@ -163,10 +185,9 @@ SKIF_ImGui_IniEditor_OpenFile (IniWindow* iniWindow, std::wstring path, const st
     }
   }
 
-  std::string path_utf8   = SK_WideCharToUTF8 (path);
-  std::string filename    = SKIF_Util_ToLower (std::filesystem::path(path).filename().replace_extension().string());
-  std::string filenameExt = std::filesystem::path(path).filename().string();
-  std::string title_final = (title.empty() ? filenameExt : title);
+  std::wstring filename    = SKIF_Util_ToLowerW (std::filesystem::path(path).filename().replace_extension().wstring());
+  std::wstring filenameExt = std::filesystem::path(path).filename().wstring();
+  std:: string title_final = (title.empty() ? SK_WideCharToUTF8 (filenameExt) : title);
 
   // Check if the file has already been opened and if so focus that window
   if (iniWindow == nullptr)
@@ -174,7 +195,7 @@ SKIF_ImGui_IniEditor_OpenFile (IniWindow* iniWindow, std::wstring path, const st
     for (auto& window : vIniWindow)
     {
       if (window.hwnd != nullptr &&
-          window.path == path_utf8)
+          window.path == path)
       {
         if (       IsIconic (       window.hwnd))
                  ShowWindow (       window.hwnd, SW_RESTORE);
@@ -189,38 +210,39 @@ SKIF_ImGui_IniEditor_OpenFile (IniWindow* iniWindow, std::wstring path, const st
 
   if (type == IniType_Unknown)
   {
-    if (     filename.find("specialk")      != std::string::npos ||
-             filename.find("opengl32")      != std::string::npos ||
-             filename.find( "dinput8")      != std::string::npos ||
-             filename.find(  "dxgi"  )      != std::string::npos ||
-           //filename.find(  "d3d12" )      != std::string::npos || // Apparently Special K doesn't support being loaded as D3D12.dll
-             filename.find(  "d3d11" )      != std::string::npos ||
-             filename.find(  "d3d9"  )      != std::string::npos ||
-             filename.find(  "d3d8"  )      != std::string::npos ||
-             filename.find(  "ddraw" )      != std::string::npos)
+    if (     filename.find(L"specialk")      != std::wstring::npos ||
+             filename.find(L"opengl32")      != std::wstring::npos ||
+             filename.find( L"dinput8")      != std::wstring::npos ||
+             filename.find(  L"dxgi"  )      != std::wstring::npos ||
+           //filename.find(  L"d3d12" )      != std::wstring::npos || // Apparently Special K doesn't support being loaded as D3D12.dll
+             filename.find(  L"d3d11" )      != std::wstring::npos ||
+             filename.find(  L"d3d9"  )      != std::wstring::npos ||
+             filename.find(  L"d3d8"  )      != std::wstring::npos ||
+             filename.find(  L"ddraw" )      != std::wstring::npos)
       type = IniType_DLL;
-    else if (filename.find("osd")           != std::string::npos)
+    else if (filename.find(L"osd")           != std::wstring::npos)
       type = IniType_OSD;
-    else if (filename.find("input")         != std::string::npos)
+    else if (filename.find(L"input")         != std::wstring::npos)
       type = IniType_Input;
-    else if (filename.find("notifications") != std::string::npos)
+    else if (filename.find(L"notifications") != std::wstring::npos)
       type = IniType_Notify;
-    else if (filename.find("platform")      != std::string::npos)
+    else if (filename.find(L"platform")      != std::wstring::npos)
       type = IniType_Platform;
-    else if (filename.find("macros")        != std::string::npos)
+    else if (filename.find(L"macros")        != std::wstring::npos)
       type = IniType_Macros;
   }
 
-  std::vector <__INI> ini_parsed = SKIF_IniReader_ParseIni (path, path_utf8, type);
+  std::vector <__INI> ini_parsed = SKIF_IniReader_ParseIni (path, type);
 
   if (iniWindow == nullptr)
-    vIniWindow.push_back({ ini_parsed, path_utf8, title_final });
+    vIniWindow.push_back({ ini_parsed, type, path, title_final });
 
   else {
-    iniWindow->ini   = ini_parsed;
-    iniWindow->path  = path_utf8;
-    iniWindow->title = title_final;
-    iniWindow->UpdateWindowTitle ( );
+    iniWindow->ini       = ini_parsed;
+    iniWindow->title     = title_final;
+    iniWindow->SetPath           (path);
+    iniWindow->UpdateWindowTitle (    );
+    iniWindow->ClearFilter       (    );
   }
 }
 
@@ -230,8 +252,10 @@ SKIF_ImGui_IniEditor_Process (void)
   bool cleanup  = false,
        newWnd   = false;
 
-  for (auto& window : vIniWindow)
+  for (size_t i = 0; i < vIniWindow.size(); ++i)
   {
+    IniWindow& window = vIniWindow[i];
+
     if (window.state == PopupState_Open)
     {
       ImGui::SetNextWindowSize (ImVec2 (950.0f, 750.0f) * SKIF_ImGui_GlobalDPIScale);
@@ -242,7 +266,7 @@ SKIF_ImGui_IniEditor_Process (void)
       window.state = PopupState_Opened;
     }
 
-    bool show     = true,
+    bool show     =  true,
          newFile  = false,
          openFile = false,
          save     = false,
@@ -265,6 +289,28 @@ SKIF_ImGui_IniEditor_Process (void)
 
     if (window.hwnd == nullptr && ImGui::GetWindowViewport()->PlatformHandleRaw)
       window.hwnd = (HWND)ImGui::GetWindowViewport()->PlatformHandleRaw;
+
+    if (window.hwnd != nullptr && window.watch._path.empty() && ! window.path_parent.empty())
+      window.watch = SKIF_DirectoryWatch (window.path_parent, UITab_None, FALSE, FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE);
+
+    if (! window.bChanged && window.watch.isSignaled())
+      window.watchCD = SKIF_Util_timeGetTime() + 50;
+
+    if (window.watchCD != NULL && window.watchCD < SKIF_Util_timeGetTime())
+    {
+      window.watchCD = NULL;
+      window.ini.clear();
+      window.ini = SKIF_IniReader_ParseIni (window.path, window.type);
+
+      // Apply the active filter
+      window.ApplyFilter ( );
+
+      ImGui::InsertNotification ({
+        ImGuiToastType::Info, 1000,
+        "File was reloaded.",
+        ""
+      });
+    }
 
     // Disable blocking for now cuz of weird edge cases...
     //ImGui::DockSpaceOverViewport (ImGui::GetWindowViewport ( ));
@@ -359,32 +405,13 @@ SKIF_ImGui_IniEditor_Process (void)
     }
 
     // Preprocess filtered entries
-
-    auto _ClearCharFilter = [&](void) -> void
-    {
-      strncpy (window.charFilter,    "\0", MAX_PATH);
-      strncpy (window.charFilterTmp, "\0", MAX_PATH);
-      // do more stuff ?
-
-      for (auto& trie : window.ini)
-        trie._show = true;
-    };
-
-    // Update some stuff if filter query has changed
     if (strncmp (window.charFilter, window.charFilterTmp, MAX_PATH) != 0)
     {
       if (strlen (window.charFilterTmp) == 0)
-        _ClearCharFilter ( );
+        window.ClearFilter ( );
       else {
         strncpy (window.charFilter, window.charFilterTmp, MAX_PATH);
-
-        for (auto& trie : window.ini)
-        {
-          trie._show = false;
-          trie._show = (trie._show || (StrStrIA (trie.section, window.charFilter) != NULL));
-          trie._show = (trie._show || (StrStrIA (trie.key,     window.charFilter) != NULL));
-          trie._show = (trie._show || (StrStrIA (trie.value,   window.charFilter) != NULL));
-        }
+        window.ApplyFilter ( );
       }
     }
 
@@ -404,7 +431,7 @@ SKIF_ImGui_IniEditor_Process (void)
         ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase));
 
       if (ImGui::Button (ICON_FA_XMARK))
-        _ClearCharFilter ( );
+        window.ClearFilter ( );
 
       ImGui::PopStyleColor ( );
 
@@ -520,7 +547,7 @@ SKIF_ImGui_IniEditor_Process (void)
       SKIF_ImGui_IniEditor_NewFile  (&window);
 
     if (openFile)
-      SKIF_ImGui_IniEditor_OpenFile (&window, L"", "");
+      SKIF_ImGui_IniEditor_OpenFile (&window, IniType_Unknown, L"", "");
 
     if (save)
       SKIF_ImGui_IniEditor_Save     (&window);
@@ -536,6 +563,9 @@ SKIF_ImGui_IniEditor_Process (void)
       window.state = PopupState_Closed;
       cleanup = true;
     }
+
+    // Process notifications for this window
+    ImGui::RenderNotifications ();
 
     // End Editor window
     ImGui::End      ( );
