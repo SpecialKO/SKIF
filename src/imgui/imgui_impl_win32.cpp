@@ -1953,8 +1953,11 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
 
           // The minimum tracking size is the smallest window size that can be produced by using the borders to size the window.
           // For SKIF that's the service/mini mode size.
-          mmi->ptMinTrackSize.x = static_cast<long> (SKIF_vecServiceMode.x);
-          mmi->ptMinTrackSize.y = static_cast<long> (SKIF_vecServiceMode.y);
+          if (hWnd == SKIF_ImGui_hWnd)
+          {
+            mmi->ptMinTrackSize.x = static_cast<long> (SKIF_vecServiceMode.x);
+            mmi->ptMinTrackSize.y = static_cast<long> (SKIF_vecServiceMode.y);
+          }
 
 //#define SKIF_Win32_CenterMaximize
 #ifdef SKIF_Win32_CenterMaximize
