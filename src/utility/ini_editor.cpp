@@ -50,7 +50,8 @@ IniWindow::UpdateWindowTitle (void)
     filenameExt = std::filesystem::path(path_utf8).filename().string();
 
   path_filename = filenameExt;
-  wnd_name      = ((title.empty() ? (path_filename.empty() ? "Unsaved" : path_filename) : title) + " - Editor" + label); // + (bChanged ? "*" : "")
+  doc_name      = (title.empty() ? (path_filename.empty() ? "Untitled" : path_filename) : title);
+  wnd_name      = (doc_name + " - Editor" + label); // + (bChanged ? "*" : "")
 }
 
 void
@@ -67,10 +68,11 @@ IniWindow::SetPath (const std::wstring& _p)
 
 IniWindow::IniWindow (std::vector<__INI> _i, IniType _ty, const std::wstring& _p, const std::string& _ti)
 {
-  ini       = _i;
-  type      = _ty;
-  title     = _ti;
-  label     = ("###IniEditor-" + std::to_string (window_identifier));
+  ini         = _i;
+  type        = _ty;
+  title       = _ti;
+  public_seed = SKIF_Util_RandomInteger ( );
+  label       = ("###IniEditor-" + std::to_string (window_identifier));
   window_identifier++;
   SetPath           (_p);
   UpdateWindowTitle (  );
@@ -92,10 +94,10 @@ SKIF_ImGui_IniEditor_NewFile (IniWindow* iniWindow)
   }
 
   iniWindow->watch.reset();
-  iniWindow->title     = "";
-  iniWindow->bChanged  = false;
-  iniWindow->ini       = ini_parsed;
-  iniWindow->do_action = Action::None;
+  iniWindow->title       = "";
+  iniWindow->bChanged    = false;
+  iniWindow->ini         = ini_parsed;
+  iniWindow->want_action = EditorAction::None;
   iniWindow->SetPath           (L"");
   iniWindow->UpdateWindowTitle (   );
   iniWindow->ClearFilter       (   );
@@ -133,8 +135,8 @@ SKIF_ImGui_IniEditor_Save (IniWindow* iniWindow)
     strncpy (trie.default, trie.value, MAX_PATH);
   }
 
-  iniWindow->bChanged  = false;
-  iniWindow->do_action = Action::None;
+  iniWindow->bChanged    = false;
+  iniWindow->want_action = EditorAction::None;
   iniWindow->UpdateWindowTitle ( );
 }
 
@@ -240,14 +242,34 @@ SKIF_ImGui_IniEditor_OpenFile (IniWindow* iniWindow, IniType type, std::wstring 
     vIniWindow.push_back({ ini_parsed, type, path, title_final });
 
   else {
-    iniWindow->bChanged  = false;
-    iniWindow->ini       = ini_parsed;
-    iniWindow->title     = title_final;
-    iniWindow->do_action = Action::None;
+    iniWindow->bChanged    = false;
+    iniWindow->ini         = ini_parsed;
+    iniWindow->title       = title_final;
+    iniWindow->want_action = EditorAction::None;
     iniWindow->SetPath           (path);
     iniWindow->UpdateWindowTitle (    );
     iniWindow->ClearFilter       (    );
   }
+}
+
+void
+SKIF_ImGui_IniEditor_Reload (IniWindow* iniWindow)
+{
+  iniWindow->ini         = SKIF_IniReader_ParseIni (iniWindow->path, iniWindow->type);
+  iniWindow->bChanged    = false;
+  iniWindow->want_action = EditorAction::None;
+  iniWindow->ApplyFilter ( );
+}
+
+void
+SKIF_ImGui_IniEditor_Reset (IniWindow* iniWindow)
+{
+  for (auto& trie : iniWindow->ini)
+    trie.Reset();
+
+  iniWindow->bChanged    = false;
+  iniWindow->want_action = EditorAction::None;
+  iniWindow->UpdateWindowTitle ( );
 }
 
 void
@@ -259,6 +281,8 @@ SKIF_ImGui_IniEditor_Process (void)
   for (size_t i = 0; i < vIniWindow.size(); ++i)
   {
     IniWindow& window = vIniWindow[i];
+
+    ImGui::PushID (window.public_seed);
 
     if (window.state == PopupState_Open)
     {
@@ -346,17 +370,39 @@ SKIF_ImGui_IniEditor_Process (void)
 
       if (ImGui::BeginMenu ("Edit"))
       {
+        if (! window.bChanged)
+          SKIF_ImGui_PushDisableState ( );
+
+        if (ImGui::MenuItem ("Undo Changes"))
+          reset = true;
+
+        if (! window.bChanged)
+          SKIF_ImGui_PopDisableState ( );
+
+        ImGui::Separator ( );
+
         if (window.path.empty())
           SKIF_ImGui_PushDisableState ( );
 
-        if (ImGui::MenuItem ("Reload"))
+        if (ImGui::MenuItem ("Reload File"))
           reload = true;
 
         if (window.path.empty())
           SKIF_ImGui_PopDisableState ( );
 
-        if (ImGui::MenuItem ("Reset"))
-          reset = true;
+        ImGui::EndMenu();
+      }
+
+      if (ImGui::BeginMenu ("Tools"))
+      {
+        if (window.path.empty())
+          SKIF_ImGui_PushDisableState ( );
+
+        if (ImGui::MenuItem ("External Editor"))
+          SKIF_Util_OpenURI (window.path.c_str(), SW_SHOWNORMAL, NULL);
+
+        if (window.path.empty())
+          SKIF_ImGui_PopDisableState ( );
 
         ImGui::EndMenu();
       }
@@ -528,12 +574,12 @@ SKIF_ImGui_IniEditor_Process (void)
       minimize = true;
 
     // Focus + Hotkeys
+    extern bool bKeepWindowAlive;
 
     //window.bFocused = ImGui::IsWindowFocused (ImGuiFocusedFlags_ChildWindows);
     window.bFocused = SKIF_ImGui_IsViewportFocused (ImGui::GetWindowViewport ( ));
     if (window.bFocused && ! g_activeKeybindPopup)
     {
-      extern bool bKeepWindowAlive;
            if (! window.bFilterActive &&
               (ImGui::IsKeyPressed (ImGuiKey_Escape) ||
               (ImGui::GetIO().KeyCtrl &&                            ImGui::GetKeyData (ImGuiKey_W)->DownDuration == 0.0f)))           show = false; // Escape / Ctrl+W
@@ -548,130 +594,91 @@ SKIF_ImGui_IniEditor_Process (void)
     // Suppress some actions if we have unsaved changes
     if (window.bChanged)
     {
-
       if (newFile)
       {   newFile = false;
-        window.do_action = Action::New;
+        window.want_action = EditorAction::New;
+        window.prompt_save = true;
       }
 
       if (openFile)
       {   openFile = false;
-        window.do_action = Action::Open;
+        window.want_action = EditorAction::Open;
+        window.prompt_save = true;
+      }
+
+      if (reload)
+      {   reload = false;
+        window.want_action = EditorAction::Reload;
+        window.prompt_save = true;
       }
 
       if (! show)
       {     show = true;
-        window.do_action = Action::Close;
+        window.want_action = EditorAction::Close;
+        window.prompt_save = true;
+      }
+
+      if (! bKeepWindowAlive)
+      {     bKeepWindowAlive = true;
+        window.want_action = EditorAction::Exit;
+        window.prompt_save = true;
       }
 
       // Handle unsaved changes
-      if (window.do_action != Action::None)
+      if (window.want_action != EditorAction::None)
       {
-        constexpr char* msgClose = "Do you want to save changes to the INI file?";
-        float fPopupWidth = ImGui::CalcTextSize (msgClose).x + ImGui::GetStyle().IndentSpacing * 2.0f;
-
-        if (window.prompt_save == PopupState_Closed)
+        auto _PerformAction = [&]() -> void
         {
-          ImGui::OpenPopup ("###SavePrompt");
-          ImGui::SetNextWindowSize (ImVec2 (fPopupWidth, 0.0f));
-          window.prompt_save = PopupState_Opened;
-        }
-
-        ImGui::SetNextWindowPos    (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
-        if (ImGui::BeginPopup ("Unsaved Changes###SavePrompt", ImGuiWindowFlags_NoResize))
-        {
-          SKIF_ImGui_Spacing ( );
-
-          ImGui::Spacing     ( );
-          ImGui::SameLine    ( );
-          ImGui::Spacing     ( );
-          ImGui::SameLine    ( );
-          ImGui::Text        (msgClose);
-
-          SKIF_ImGui_Spacing ( );
-          SKIF_ImGui_Spacing ( );
-
-          ImVec2 vButtonSize = ImVec2 (100.0f * SKIF_ImGui_GlobalDPIScale, 0.0f);
-
-          ImGui::SetCursorPosX (fPopupWidth / 2 - 3 * (vButtonSize.x + ImGui::GetStyle().ItemSpacing.x) / 2);
-
-          bool performAction = false;
-
-          if (ImGui::Button  ("Save", vButtonSize))
+          switch (window.want_action)
           {
-            save = true;
-            performAction = true;
-          }
-
-          ImGui::SameLine ( );
-          ImGui::Spacing  ( );
-          ImGui::SameLine ( );
-
-          if (ImGui::Button  ("Don't Save", vButtonSize))
-          {
-            performAction = true;
-          }
-
-          ImGui::SameLine ( );
-          ImGui::Spacing  ( );
-          ImGui::SameLine ( );
-
-          if (ImGui::Button  ("Cancel", vButtonSize))
-          {
-            window.do_action = Action::None;
-            performAction = true;
-          }
-
-          if (performAction)
-          {
-            switch (window.do_action)
-            {
-            case Action::New:
-              newFile  = true;
+            case EditorAction::New:
+              newFile  =  true;
               break;
 
-            case Action::Open:
-              openFile = true;
+            case EditorAction::Open:
+              openFile =  true;
               break;
 
-            case Action::Close:
+            case EditorAction::Close:
               show     = false;
               break;
-            }
 
-            window.do_action = Action::None;
-            window.prompt_save = PopupState_Closed;
-            ImGui::CloseCurrentPopup ( );
+            case EditorAction::Reload:
+              reload   =  true;
+              break;
+
+            case EditorAction::Exit:
+              bKeepWindowAlive = false;
+              break;
           }
 
-          SKIF_ImGui_Spacing ( );
+          window.want_action = EditorAction::None;
+        };
 
-          ImGui::EndPopup ( );
+        switch (SKIF_ImGui_SaveChangesPrompt (window.public_seed, &window.prompt_save, window.doc_name.c_str()))
+        {
+          case SaveChoice::Save:
+            _PerformAction ( );
+            save = true;
+            break;
+          case SaveChoice::DontSave:
+            _PerformAction ( );
+            break;
+          case SaveChoice::Cancel:
+            window.want_action = EditorAction::None;
+            _PerformAction ( );
+            break;
         }
-
-        else
-          window.prompt_save = PopupState_Closed;
       }
     }
 
     // Actions
 
     if (reload)
-    {
-      window.ini = SKIF_IniReader_ParseIni (window.path, window.type);
-
-      // Apply the active filter
-      window.ApplyFilter ( );
-    }
+      SKIF_ImGui_IniEditor_Reload   (&window);
 
     if (reset)
-    {
-      for (auto& trie : window.ini)
-        trie.Reset();
-
-      window.bChanged = false;
-      window.UpdateWindowTitle();
-    }
+      SKIF_ImGui_IniEditor_Reset    (&window);
 
     if (save)
       SKIF_ImGui_IniEditor_Save     (&window);
@@ -698,7 +705,9 @@ SKIF_ImGui_IniEditor_Process (void)
     ImGui::RenderNotifications ();
 
     // End Editor window
-    ImGui::End      ( );
+    ImGui::End   ( );
+
+    ImGui::PopID ( );
   }
 
   if (newWnd)

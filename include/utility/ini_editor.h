@@ -13,7 +13,7 @@
 #include <utility/ini_reader.h>
 #include <utility/utility.h>
 
-enum Action
+enum EditorAction
 {
   None,
   New,
@@ -22,6 +22,8 @@ enum Action
   Save,
   SaveAs,    // Not actually used
   Close,     // Not actually used?
+  Reload,
+  Exit,
 };
 
 struct IniWindow {
@@ -31,14 +33,16 @@ struct IniWindow {
   std:: string           path_utf8;
   std::wstring           path_parent;
   std:: string          title;
+  std:: string       doc_name;
   std:: string       wnd_name;
   SKIF_DirectoryWatch   watch;
   DWORD                 watchCD = NULL;
   IniType                type   = IniType_Unknown;
   PopupState            state   = PopupState_Open;
-  PopupState      prompt_save   = PopupState_Closed;
+  bool            prompt_save   = false;
   HWND                   hwnd   = nullptr;
-  Action            do_action   = Action::None;
+  EditorAction    want_action   = EditorAction::None;
+  int             public_seed   = 0;
 
   // Filter field
   char          charFilter    [MAX_PATH + 2] = { };
@@ -65,7 +69,6 @@ struct IniWindow {
    IniWindow& operator= (      IniWindow&&) noexcept = default;
 
 private:
-  int         index = 0;
   std::string label;
 };
 
@@ -74,4 +77,6 @@ void                             SKIF_ImGui_IniEditor_NewWindow(void);
 void                             SKIF_ImGui_IniEditor_Save     (IniWindow* iniWindow);
 void                             SKIF_ImGui_IniEditor_SaveAs   (IniWindow* iniWindow);
 void                             SKIF_ImGui_IniEditor_OpenFile (IniWindow* iniWindow = nullptr, IniType type = IniType_Unknown, std::wstring path = L"", const std::string& title = "");
+void                             SKIF_ImGui_IniEditor_Reload   (IniWindow* iniWindow);
+void                             SKIF_ImGui_IniEditor_Reset    (IniWindow* iniWindow);
 void                             SKIF_ImGui_IniEditor_Process  (void);
