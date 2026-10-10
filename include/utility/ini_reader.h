@@ -81,8 +81,8 @@ struct __INI {
               __INI    (ParameterType _t, std::string _s, std::string _k, std::string _v);
 };
 
-std::vector <__INI>              SKIF_IniReader_ParseIni         (const std::wstring& file_path, const std::string& file_path_utf8, IniType ini_type);
-void                             SKIF_IniReader_WriteIni         (std::vector <__INI> ini,       const std::string& file_path_utf8);
+std::vector <__INI>              SKIF_IniReader_ParseIni         (const std::wstring& file_path, IniType ini_type);
+void                             SKIF_IniReader_WriteIni         (std::vector <__INI> ini,       const std::wstring& file_path);
 void                             SKIF_IniReader_ReadOSDIni       (void);
 void                             SKIF_IniReader_SaveOSDIni       (void);
 std::vector <const ConfigEntry*> SKIF_IniReader_GetDefaultParams (IniType ini_type);

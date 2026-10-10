@@ -606,9 +606,9 @@ __INI::__INI (ParameterType _t, std::string _s, std::string _k, std::string _v)
 }
 
 std::vector <__INI>
-SKIF_IniReader_ParseIni (const std::wstring& file_path, const std::string& file_path_utf8, IniType ini_type)
+SKIF_IniReader_ParseIni (const std::wstring& file_path, IniType ini_type)
 {
-  PLOG_VERBOSE << "Parsing INI file: " << file_path_utf8;
+  PLOG_VERBOSE << "Parsing INI file: " << file_path;
 
   inih::INIReader ini;
 
@@ -698,7 +698,7 @@ SKIF_IniReader_ParseIni (const std::wstring& file_path, const std::string& file_
 }
 
 void
-SKIF_IniReader_WriteIni (std::vector<__INI> ini, const std::string& file_path_utf8)
+SKIF_IniReader_WriteIni (std::vector<__INI> ini, const std::wstring& file_path)
 {
   inih::INIReader new_ini = { };
 
@@ -722,20 +722,23 @@ SKIF_IniReader_WriteIni (std::vector<__INI> ini, const std::string& file_path_ut
 
   constexpr wchar_t* utf8_bom =  L"\xEF\xBB\xBF";
 
-  std::wofstream out{ file_path_utf8 };
-  if (! out.is_open ( ))
-      throw std::runtime_error ("cannot open output file: " + file_path_utf8);
+  std::wofstream out{ file_path };
+  if (! out.is_open())
+  {
+    PLOG_FATAL << "cannot open output file: " << file_path;
+    return;
+  }
 
   out << utf8_bom;
 
   for (const auto& section : new_ini.Sections ( ))
   {
-      out << L"[" << SK_UTF8ToWideChar (section) << L"]\n";
+    out << L"[" << SK_UTF8ToWideChar (section) << L"]\n";
 
-      for (const auto& key : new_ini.Keys (section))
-          out << SK_UTF8ToWideChar (key) << L"=" << SK_UTF8ToWideChar (new_ini.Get (section, key)) << L"\n";
+    for (const auto& key : new_ini.Keys (section))
+      out << SK_UTF8ToWideChar (key) << L"=" << SK_UTF8ToWideChar (new_ini.Get (section, key)) << L"\n";
 
-      out << L"\n";
+    out << L"\n";
   }
 
   out.close ( );
@@ -747,16 +750,16 @@ SKIF_IniReader_ReadOSDIni (void)
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static std::wstring pathOSDIni = SK_FormatStringW (LR"(%ws\Global\osd.ini)", _path_cache.specialk_userdata);
 
-  g_vIniReaderOSD = SKIF_IniReader_ParseIni (pathOSDIni, SK_WideCharToUTF8 (pathOSDIni), osd_ini);
+  g_vIniReaderOSD = SKIF_IniReader_ParseIni (pathOSDIni, osd_ini);
 }
 
 void
 SKIF_IniReader_SaveOSDIni (void)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
-  static std::string pathOSDIni_utf8 = SK_FormatString (R"(%s\Global\osd.ini)", SK_WideCharToUTF8 (_path_cache.specialk_userdata).c_str());
+  static std::wstring pathOSDIni = SK_FormatStringW (LR"(%s\Global\osd.ini)", _path_cache.specialk_userdata);
 
-  SKIF_IniReader_WriteIni (g_vIniReaderOSD, pathOSDIni_utf8);
+  SKIF_IniReader_WriteIni (g_vIniReaderOSD, pathOSDIni);
 }
 
 #define Keybind ConfigEntry
