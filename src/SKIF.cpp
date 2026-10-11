@@ -3794,9 +3794,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       windowRect.Min = ImGui::GetWindowPos ( );
       windowRect.Max = ImGui::GetWindowPos ( ) + ImGui::GetWindowSize ( );
 
-      if (! HoverTipActive)
-        HoverTipDuration = 0;
-
       // This allows us to ensure the window gets set within the workspace on the second frame after launch
       SK_RunOnce (
         RespectMonBoundaries = true
@@ -3816,8 +3813,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
 #endif
 
-      //OutputDebugString((L"Hidden frames: " + std::to_wstring(ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems) + L"\n").c_str());
-
       // Main rendering function
       ImGui::RenderNotifications ( );
 
@@ -3830,11 +3825,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
       // Process any INI editor windows
       extern void
         SKIF_UI_IniEditor_Process (void);
-      SKIF_UI_IniEditor_Process ( );
+        SKIF_UI_IniEditor_Process (    );
 
-      // Test
-      static SKIF_LocalManager& _local  = SKIF_LocalManager::GetInstance ( );
-      _local.Process ( );
+      // Local Manager
+      static SKIF_LocalManager&
+        _local  = SKIF_LocalManager::GetInstance ( );
+        _local.Process ( );
+
+      // Needs to be processed after all ImGui windows have run
+      if (! HoverTipActive)
+        HoverTipDuration = 0;
+
     } // ImGui::NewFrame
 
 #pragma endregion
