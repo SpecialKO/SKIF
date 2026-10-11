@@ -1685,6 +1685,10 @@ SKIF_UI_Tab_DrawMonitor (void)
   if (! processes.empty ( ) && (processes[0].sortedBy != _registry.iProcessSort || processes[0].sortedAsc != _registry.bProcessSortAscending))
     SortProcesses (processes);
 
+  DWORD hovered = NULL;
+
+  SKIF_ImGui_BeginHighlightLine ( );
+
   for ( auto& proc : processes )
   {
     std::string pretty_str       = ICON_FA_WINDOWS,
@@ -1703,13 +1707,6 @@ SKIF_UI_Tab_DrawMonitor (void)
 
     ImGui::PushID (proc.pid);
 
-    ImVec2 curPos = ImGui::GetCursorPos ( );
-    ImGui::Selectable   ("", (hoveredPID == proc.pid), ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap);
-    _ProcessMenu (proc);
-    if (ImGui::IsItemHovered ( ))
-      hoveredPID = proc.pid;
-    ImGui::SetCursorPos (curPos);
-
     ImVec4      colPolicy = ImGui::GetStyleColorVec4 (ImGuiCol_ChildBg);
     std::string txtPolicy = "",
                 hovPolicy = "";
@@ -1726,6 +1723,8 @@ SKIF_UI_Tab_DrawMonitor (void)
       txtPolicy = ICON_FA_CHECK;
       hovPolicy = "Process is whitelisted";
     }
+
+    PLOG_VERBOSE << "Hovered PID: " << hoveredPID;
 
     ImVec4 colText         =    (hoveredPID == proc.pid)    ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption) :
                                                               ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase)    ;
@@ -1764,6 +1763,10 @@ SKIF_UI_Tab_DrawMonitor (void)
     case 255: // Default / Unknown / Uninjected processes
       break;
     }
+
+    SKIF_ImGui_PushHighlightLineLine ( );
+
+    ImGui::BeginGroup      ( );
 
     ImGui::TextColored     (colStatus, ICON_FA_CIRCLE);
     if (! hovStatus.empty())
@@ -1806,15 +1809,31 @@ SKIF_UI_Tab_DrawMonitor (void)
     ImGui::ItemSize        (ImVec2 (640.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
     ImGui::SameLine        ( );
     ImGui::TextColored     (colText, "%s", proc.details.c_str());
-    if (proc.details.length() > 73)
-      SKIF_ImGui_SetHoverTip (proc.details);
-    else if (proc.details == "<access denied>")
-      SKIF_ImGui_SetHoverTip ("Injection status cannot be determined due to a lack of permissions.");
+    if (ImGui::IsItemHovered ( ))
+    {
+      if (proc.details.length() > 73)
+        SKIF_ImGui_SetHoverTip (proc.details);
+      else if (proc.details.find("<access denied>") != std::string::npos)
+        SKIF_ImGui_SetHoverTip ("Injection status cannot be determined due to a lack of permissions.");
+    }
+    ImGui::SameLine        ( );
+    ImGui::ItemSize        (ImVec2 (ImGui::GetContentRegionAvail().x, ImGui::GetTextLineHeight()));
+
+    ImGui::EndGroup        ( );
+
+    if (ImGui::IsItemHovered ( ))
+      hoveredPID = hovered = proc.pid;
+
+    SKIF_ImGui_PopHighlightLineLine ( );
+
+    _ProcessMenu (proc);
 
     ImGui::PopID  ( );
   }
 
-  if (! ImGui::IsAnyItemHovered ( ))
+  SKIF_ImGui_EndHighlightLine ( );
+
+  if (! hovered)
     hoveredPID = 0;
 
   ImGui::PopStyleColor ( );

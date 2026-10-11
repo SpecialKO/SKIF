@@ -555,11 +555,18 @@ SKIF_UI_IniEditor_Process (void)
       ImGuiWindowFlags_NavFlattened
     );
 
+    SKIF_ImGui_BeginHighlightLine ( );
+
     for (auto& trie : window.ini)
     {
       if (! trie._show)
         continue;
 
+      ImGui::PushID (&trie);
+
+      SKIF_ImGui_PushHighlightLineLine ( );
+      
+      ImGui::BeginGroup      ( );
       ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), trie.section);
       ImGui::SameLine        ( );
       ImGui::ItemSize        (ImVec2 (200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
@@ -570,13 +577,19 @@ SKIF_UI_IniEditor_Process (void)
       ImGui::SameLine        ( );
       ImGui::ItemSize        (ImVec2 (600.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine        ( );
-
       if (trie.DrawFunction != nullptr && trie.DrawFunction (&trie))
       {
         window.bChanged = true;
         window.UpdateWindowTitle();
       }
+      ImGui::EndGroup        ( );
+
+      SKIF_ImGui_PopHighlightLineLine ( );
+
+      ImGui::PopID ( );
     }
+
+    SKIF_ImGui_EndHighlightLine ( );
 
     // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
     SKIF_ImGui_AutoScroll  (false, SKIF_ImGuiAxis_Y);
