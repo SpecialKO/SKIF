@@ -1870,9 +1870,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_AppWindow.ViewportFlagsOverrideSet |= ImGuiViewportFlags_NoAutoMerge;
 
   // Enable ImGui's debug logging output, except InputRouting as that is insanely spammy...
-  ImGui::GetCurrentContext()->DebugLogFlags = ImGuiDebugLogFlags_OutputToTTY | ((_registry.isDevLogging())
-                                            ? ImGuiDebugLogFlags_EventActiveId | ImGuiDebugLogFlags_EventFocus | ImGuiDebugLogFlags_EventPopup | ImGuiDebugLogFlags_EventNav | ImGuiDebugLogFlags_EventClipper | ImGuiDebugLogFlags_EventSelection | ImGuiDebugLogFlags_EventIO | /* ImGuiDebugLogFlags_EventInputRouting |*/ ImGuiDebugLogFlags_EventDocking | ImGuiDebugLogFlags_EventViewport
-                                            : ImGuiDebugLogFlags_EventViewport);
+  ImGui::GetCurrentContext()->DebugLogFlags =  ImGuiDebugLogFlags_OutputToTTY | ((_registry.isDevLogging())
+                                            ? (ImGuiDebugLogFlags_EventMask_ & ~ImGuiDebugLogFlags_EventInputRouting)
+                                            :  ImGuiDebugLogFlags_EventViewport);
 
   // Setup Dear ImGui style
   ImGuiStyle& style =

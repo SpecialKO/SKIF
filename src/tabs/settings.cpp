@@ -1688,9 +1688,9 @@ SKIF_UI_Tab_DrawSettings (void)
           LogSeverityCurrent = LogSeverity[_registry.iLogging];
           plog::get()->setMaxSeverity((plog::Severity)_registry.iLogging);
 
-          ImGui::GetCurrentContext()->DebugLogFlags = ImGuiDebugLogFlags_OutputToTTY | ((_registry.isDevLogging())
-                                                    ? ImGuiDebugLogFlags_EventMask_
-                                                    : ImGuiDebugLogFlags_EventViewport);
+          ImGui::GetCurrentContext()->DebugLogFlags =  ImGuiDebugLogFlags_OutputToTTY | ((_registry.isDevLogging())
+                                                    ? (ImGuiDebugLogFlags_EventMask_ & ~ImGuiDebugLogFlags_EventInputRouting)
+                                                    :  ImGuiDebugLogFlags_EventViewport);
         }
         if (is_selected)
           ImGui::SetItemDefaultFocus ( );
@@ -1704,9 +1704,9 @@ SKIF_UI_Tab_DrawSettings (void)
       {
         _registry.regKVLoggingDeveloper.putData                     (_registry.bLoggingDeveloper);
 
-        ImGui::GetCurrentContext()->DebugLogFlags = ImGuiDebugLogFlags_OutputToTTY | ((_registry.isDevLogging())
-                                                  ? ImGuiDebugLogFlags_EventMask_
-                                                  : ImGuiDebugLogFlags_EventViewport);
+        ImGui::GetCurrentContext()->DebugLogFlags =  ImGuiDebugLogFlags_OutputToTTY | ((_registry.isDevLogging())
+                                                  ? (ImGuiDebugLogFlags_EventMask_ & ~ImGuiDebugLogFlags_EventInputRouting)
+                                                  :  ImGuiDebugLogFlags_EventViewport);
       }
     }
 
@@ -1754,9 +1754,9 @@ SKIF_UI_Tab_DrawSettings (void)
     {
       _registry.regKVDeveloperMode.putData   (_registry.bDeveloperMode);
 
-      ImGui::GetCurrentContext()->DebugLogFlags = ImGuiDebugLogFlags_OutputToTTY | ((_registry.isDevLogging())
-                                                ? ImGuiDebugLogFlags_EventMask_
-                                                : ImGuiDebugLogFlags_EventViewport);
+      ImGui::GetCurrentContext()->DebugLogFlags =  ImGuiDebugLogFlags_OutputToTTY | ((_registry.isDevLogging())
+                                                ? (ImGuiDebugLogFlags_EventMask_ & ~ImGuiDebugLogFlags_EventInputRouting)
+                                                :  ImGuiDebugLogFlags_EventViewport);
     }
 
     SKIF_ImGui_SetHoverTip  ("Exposes additional information and context menu items that may be of interest for developers.");
