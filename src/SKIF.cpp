@@ -67,6 +67,7 @@
 #include <tabs/hardware.h>
 #include <tabs/settings.h>
 #include <tabs/about.h>
+#include <tabs/local.h>
 
 #include <utility/registry.h>
 #include <utility/updater.h>
@@ -1991,6 +1992,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
          hotkeyCtrl4      = (hotkeysEnabled && io.KeyCtrl &&                ImGui::GetKeyData (ImGuiKey_4  )->DownDuration == 0.0f), // Switch to Settings
          hotkeyCtrl5      = (hotkeysEnabled && io.KeyCtrl &&                ImGui::GetKeyData (ImGuiKey_5  )->DownDuration == 0.0f), // Switch to About
          hotkeyCtrlShiftN = (hotkeysEnabled && io.KeyCtrl && io.KeyShift && ImGui::GetKeyData (ImGuiKey_N  )->DownDuration == 0.0f), // Minimize app // 2026-09-22: Changed to open INI Editor instead
+         hotkeyCtrlShiftM = (hotkeysEnabled && io.KeyCtrl && io.KeyShift && ImGui::GetKeyData (ImGuiKey_M  )->DownDuration == 0.0f), // Local Manager
          hotkeyCtrlShiftD = (hotkeysEnabled && io.KeyCtrl && io.KeyShift && ImGui::GetKeyData (ImGuiKey_D  )->DownDuration == 0.0f); // ImGui Debug + Demo
     bool minimizeWindow = false; // Replaced old Ctrl+N boolean
 
@@ -3240,6 +3242,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SKIF_UI_IniEditor_NewWindow (    );
       }
 
+      // Open Local Manager
+      if (hotkeyCtrlShiftM)
+      {
+        static SKIF_LocalManager& _local  = SKIF_LocalManager::GetInstance ( );
+        _local.ShowWindow ( );
+      }
+
       // Font warning
       if (failedLoadFontsPrompt && !HiddenFramesContinueProcessing)
       {
@@ -3823,6 +3832,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
         SKIF_UI_IniEditor_Process (void);
       SKIF_UI_IniEditor_Process ( );
 
+      // Test
+      static SKIF_LocalManager& _local  = SKIF_LocalManager::GetInstance ( );
+      _local.Process ( );
     } // ImGui::NewFrame
 
 #pragma endregion

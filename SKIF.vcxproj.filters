@@ -261,6 +261,9 @@
     <ClInclude Include="include\utility\ini_reader.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
+    <ClInclude Include="include\tabs\local.h">
+      <Filter>Header Files\UI Tabs</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\imgui\imgui.cpp">
@@ -379,6 +382,9 @@
     </ClCompile>
     <ClCompile Include="src\utility\ini_reader.cpp">
       <Filter>Source Files\Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tabs\local.cpp">
+      <Filter>Source Files\UI Tabs</Filter>
     </ClCompile>
     <ClCompile Include="src\imgui\imgui_demo.cpp">
       <Filter>Source Files\ImGui</Filter>
