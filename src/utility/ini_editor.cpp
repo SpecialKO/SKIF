@@ -135,6 +135,7 @@ SKIF_ImGui_IniEditor_Save (IniWindow* iniWindow)
     strncpy (trie.default, trie.value, MAX_PATH);
   }
 
+  iniWindow->saved       = SKIF_Util_timeGetTime ( );
   iniWindow->bChanged    = false;
   iniWindow->want_action = EditorAction::None;
   iniWindow->UpdateWindowTitle ( );
@@ -278,6 +279,9 @@ SKIF_ImGui_IniEditor_Process (void)
   bool cleanup  = false,
        newWnd   = false;
 
+  // Grace period after a user-initiated save (ms)
+  static constexpr DWORD SAVE_GRACE_MS = 500;
+
   for (size_t i = 0; i < vIniWindow.size(); ++i)
   {
     IniWindow& window = vIniWindow[i];
@@ -322,26 +326,30 @@ SKIF_ImGui_IniEditor_Process (void)
     if (window.hwnd != nullptr && window.watch._path.empty() && ! window.path_parent.empty())
       window.watch = SKIF_DirectoryWatch (window.path_parent, UITab_None, FALSE, FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE);
 
-    if (! window.bChanged && window.watch.isSignaled())
-      window.watchCD = SKIF_Util_timeGetTime() + 50;
+    if (window.watch.isSignaled())
+    {
+      if (! window.bChanged && ! (window.saved != NULL && (SKIF_Util_timeGetTime() - window.saved) < SAVE_GRACE_MS))
+        window.watchCD = SKIF_Util_timeGetTime() + 50;
+    }
 
     if (window.watchCD != NULL && window.watchCD < SKIF_Util_timeGetTime())
     {
       window.watchCD = NULL;
-      window.ini = SKIF_IniReader_ParseIni (window.path, window.type);
 
-      // Apply the active filter
-      window.ApplyFilter ( );
+      if (! (window.saved != NULL && (SKIF_Util_timeGetTime() - window.saved) < SAVE_GRACE_MS))
+      {
+        window.ini = SKIF_IniReader_ParseIni (window.path, window.type);
 
-      ImGui::InsertNotification ({
-        ImGuiToastType::Info, 1000,
-        "File was reloaded.",
-        ""
-      });
+        // Apply the active filter
+        window.ApplyFilter ( );
+
+        ImGui::InsertNotification ({
+          ImGuiToastType::Info, 1000,
+          "File was reloaded.",
+          ""
+        });
+      }
     }
-
-    // Disable blocking for now cuz of weird edge cases...
-    //ImGui::DockSpaceOverViewport (ImGui::GetWindowViewport ( ));
 
     if (ImGui::BeginMenuBar())
     {

@@ -36,7 +36,8 @@ struct IniWindow {
   std:: string       doc_name;
   std:: string       wnd_name;
   SKIF_DirectoryWatch   watch;
-  DWORD                 watchCD = NULL;
+  DWORD                 watchCD = NULL; // Time
+  DWORD                 saved   = NULL; // Time
   IniType                type   = IniType_Unknown;
   PopupState            state   = PopupState_Open;
   bool            prompt_save   = false;
