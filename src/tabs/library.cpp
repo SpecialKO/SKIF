@@ -7343,7 +7343,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   //ImGuiContext& g = *ImGui::GetCurrentContext();
   //if (g.HoveredId == 0) // If nothing hovered so far in the frame (not same as IsAnyItemHovered()!)
 
-  if (EmptySpaceMenu == PopupState_Closed              &&
+  if (SKIF_ImGui_IsViewportFocused ( ) &&
+      EmptySpaceMenu == PopupState_Closed              &&
       IconMenu != PopupState_Open                      &&
     ! ImGui::IsAnyItemHovered ( )                      &&
       ImGui::IsMouseClicked   (ImGuiMouseButton_Right) &&
