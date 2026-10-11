@@ -720,9 +720,9 @@ SKIF_IniReader_WriteIni (std::vector<__INI> ini, const std::wstring& file_path)
     }
   }
 
-  constexpr wchar_t* utf8_bom =  L"\xEF\xBB\xBF";
+  constexpr char* utf8_bom = "\xEF\xBB\xBF"; // UTF-8 BOM: EF BB BF
 
-  std::wofstream out{ file_path };
+  std::ofstream out{ file_path };
   if (! out.is_open())
   {
     PLOG_FATAL << "cannot open output file: " << file_path;
@@ -731,14 +731,15 @@ SKIF_IniReader_WriteIni (std::vector<__INI> ini, const std::wstring& file_path)
 
   out << utf8_bom;
 
-  for (const auto& section : new_ini.Sections ( ))
+  for (std::size_t i = 0; const auto& section : new_ini.Sections ( ))
   {
-    out << L"[" << SK_UTF8ToWideChar (section) << L"]\n";
+    out << "[" << section << "]\n";
 
     for (const auto& key : new_ini.Keys (section))
-      out << SK_UTF8ToWideChar (key) << L"=" << SK_UTF8ToWideChar (new_ini.Get (section, key)) << L"\n";
+      out << key << "=" << new_ini.Get  (section, key) << "\n";
 
-    out << L"\n";
+    if (++i < new_ini.Sections ( ).size ( ))
+      out << "\n";
   }
 
   out.close ( );
