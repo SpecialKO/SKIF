@@ -130,7 +130,7 @@ static void ImGui_ImplWin32_UpdateMonitors();
 void    SKIF_ImGui_ImplWin32_UpdateDWMBorders (void);
 void    SKIF_ImGui_ImplWin32_SetDWMBorders    (void* hWnd);
 bool    SKIF_ImGui_ImplWin32_IsFocused        (void);
-bool    SKIF_ImGui_ImplWin32_IsFocused        (ImGuiViewport* viewport);
+bool    SKIF_ImGui_ImplWin32_IsFocused        (const ImGuiViewport* viewport);
 void    SKIF_ImGui_ImplWin32_SetFocused       (HWND hWnd, bool focused);
 
 struct ImGui_ImplWin32_Data
@@ -2406,7 +2406,7 @@ bool SKIF_ImGui_ImplWin32_IsFocused (void)
   return lastState.load();
 }
 
-bool SKIF_ImGui_ImplWin32_IsFocused (ImGuiViewport* viewport)
+bool SKIF_ImGui_ImplWin32_IsFocused (const ImGuiViewport* viewport)
 {
   if (ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData)
     return vd->Focused;
