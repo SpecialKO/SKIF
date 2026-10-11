@@ -1869,9 +1869,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // ... which works around a pesky bug that occurs on OS snapping/resizing...
   SKIF_AppWindow.ViewportFlagsOverrideSet |= ImGuiViewportFlags_NoAutoMerge;
 
-  // Enable ImGui's debug logging output
+  // Enable ImGui's debug logging output, except InputRouting as that is insanely spammy...
   ImGui::GetCurrentContext()->DebugLogFlags = ImGuiDebugLogFlags_OutputToTTY | ((_registry.isDevLogging())
-                                            ? ImGuiDebugLogFlags_EventMask_
+                                            ? ImGuiDebugLogFlags_EventActiveId | ImGuiDebugLogFlags_EventFocus | ImGuiDebugLogFlags_EventPopup | ImGuiDebugLogFlags_EventNav | ImGuiDebugLogFlags_EventClipper | ImGuiDebugLogFlags_EventSelection | ImGuiDebugLogFlags_EventIO | /* ImGuiDebugLogFlags_EventInputRouting |*/ ImGuiDebugLogFlags_EventDocking | ImGuiDebugLogFlags_EventViewport
                                             : ImGuiDebugLogFlags_EventViewport);
 
   // Setup Dear ImGui style
@@ -3845,7 +3845,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
     }
 
     // If there is any popups opened when SKIF is unfocused and not hovered, close them.
-    // This can probably mistakenly bug out, seeing how the focus state isn't tracked reliable at times
+    // 2024-01-28: This can probably mistakenly bug out, seeing how the focus state isn't tracked reliable at times
+    // 2026-10-11: This shouldn't misfire any longer after the move to WM_KILLFOCUS/WM_SETFOCUS and making SKIF_ImGui_IsFocused() atomic.
     if (! SKIF_ImGui_IsFocused ( ) && ! ImGui::IsAnyItemHovered ( ) && SKIF_ImGui_IsAnyPopupOpen ( ))
     {
       // But don't close those of interest
@@ -3863,7 +3864,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
                HistoryPopup != PopupState_Opened &&
             AutoUpdatePopup != PopupState_Open   &&
             AutoUpdatePopup != PopupState_Opened)
-        ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead ( ), false);
+      {
+        PLOG_DEBUG << "Closing unwanted opened popups because SKIF lost focus...";
+        ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead ( ), false); // CurrentWindow == Debug##Default at this point
+      }
     }
 
     // Actual rendering is conditional, this just processes input and ends the ImGui frame.

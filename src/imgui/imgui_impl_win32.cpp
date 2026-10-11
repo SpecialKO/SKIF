@@ -2369,18 +2369,22 @@ void SKIF_ImGui_ImplWin32_SetFocused (HWND hWnd, bool focused)
 // Returns true if any of the viewports are focused
 bool SKIF_ImGui_ImplWin32_IsFocused (void)
 {
+  // These needs to be atomic since the function is called across threads
+  // If these aren't atomic the call might misfire at times.
+  static std::atomic<bool> lastState(false);
+  static std::atomic<int>  lastFrame(0);
+
   // Execute once per frame
-  int newFrame   = ImGui::GetFrameCount ( );
-  static bool lastState = false;
-  static int
-      lastFrame  = 0;
-  if (lastFrame != newFrame)
-  {   lastFrame  = newFrame;
+  int prevFrame = lastFrame.load();
+  int newFrame  = ImGui::GetFrameCount ( );
+
+  if (prevFrame   !=  newFrame)
+  {   lastFrame.store(newFrame);
 
     ImGuiPlatformIO& platform_io =
       ImGui::GetPlatformIO ();
 
-    lastState = false;
+    bool newState = false;
 
     //// Skip the main viewport (index 0), which is always fully handled by the application!
     for (int i = 1; i < platform_io.Viewports.Size; i++)
@@ -2391,11 +2395,15 @@ bool SKIF_ImGui_ImplWin32_IsFocused (void)
       if (viewport->PlatformHandleRaw != NULL)
         if (ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData)
           if (vd->Focused)
-            lastState = true;
+            newState = true;
     }
+
+    lastState.store(newState);
+
+    //PLOG_VERBOSE.printf("[%i] IsFocused: %i (prevFrame: %i)", newFrame, newState, prevFrame);
   }
 
-  return lastState;
+  return lastState.load();
 }
 
 bool SKIF_ImGui_ImplWin32_IsFocused (ImGuiViewport* viewport)
