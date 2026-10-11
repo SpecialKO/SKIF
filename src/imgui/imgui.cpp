@@ -15415,6 +15415,16 @@ void ImGui::UpdatePlatformWindows()
         destroy_platform_window |= (viewport->Window && !IsWindowActiveAndVisible(viewport->Window));
         if (destroy_platform_window)
         {
+          /*
+            PLOGV.printf ("destroy_platform_window=%s LastFrameActive=%d FrameCount=%d "
+                          "(stale=%s) Window=%p active_and_visible=%s\n",
+                          destroy_platform_window                                           ? "true" : "false",
+                          viewport->LastFrameActive,
+                          g.FrameCount,
+                          (viewport->LastFrameActive < g.FrameCount - 1)                    ? "true" : "false",
+                          (void*)viewport->Window,
+                          (viewport->Window && IsWindowActiveAndVisible (viewport->Window)) ? "true" : "false");
+          */
             DestroyPlatformWindow(viewport);
             continue;
         }
