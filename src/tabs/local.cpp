@@ -75,6 +75,19 @@ SKIF_LocalManager::UpdateInstall (install_s* install)
     if (CopyFile (wsPathToGlobalDLL.c_str(), install->path.c_str(), FALSE))
     {
       PLOG_INFO << "Successfully updated " << install->path << " from v " << install->version << " to v " << _inject.SKVer32;
+
+      HKEY    hKey = nullptr;
+      LSTATUS res  = RegOpenKeyExW (HKEY_CURRENT_USER, LocalRegPath, 0,
+                                    KEY_SET_VALUE, &hKey);
+
+      if (res == ERROR_SUCCESS)
+      {
+        if (ERROR_SUCCESS != RegSetValueExW (hKey, install->path.c_str(), 0, REG_SZ, (LPBYTE)_inject.SKVer32.data(), (DWORD)_inject.SKVer32.length() * sizeof(wchar_t)))
+          PLOG_ERROR << "Failed adding local install (" << _inject.SKVer32 << ") to registry value: " << install->path;
+
+        RegCloseKey (hKey);
+      }
+
       install->version      = _inject.SKVer32;
       install->version_utf8 = SK_WideCharToUTF8 (install->version);
     }
