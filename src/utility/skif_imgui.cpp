@@ -451,11 +451,11 @@ SKIF_ImGui_IsFocused (void)
 }
 
 bool
-SKIF_ImGui_IsViewportFocused (ImGuiViewport* viewport)
+SKIF_ImGui_IsViewportFocused (const ImGuiViewport* vp)
 {
   extern bool
-         SKIF_ImGui_ImplWin32_IsFocused (ImGuiViewport* viewport);
-  return SKIF_ImGui_ImplWin32_IsFocused (viewport);
+         SKIF_ImGui_ImplWin32_IsFocused (const ImGuiViewport* viewport);
+  return SKIF_ImGui_ImplWin32_IsFocused (vp);
 }
 
 bool
@@ -524,7 +524,7 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText, bool ignoreDisabledToolt
       ImGui::PushStyleColor (ImGuiCol_Text,     ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg));
       HoverTipActive = true;
 
-      if ( HoverTipDuration == 0)
+      if (HoverTipDuration == 0)
       {
         HoverTipDuration = SKIF_Util_timeGetTime ( );
 
@@ -536,7 +536,7 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText, bool ignoreDisabledToolt
         );
       }
 
-      else if ( HoverTipDuration + 500 < SKIF_Util_timeGetTime() )
+      else if (HoverTipDuration + 500 < SKIF_Util_timeGetTime ( ))
       {
         ImGui::SetTooltip (
           "%hs", szText.data ()
@@ -1817,6 +1817,78 @@ SKIF_ImGui_InvalidateFonts (void)
   }
 
   ImGui_ImplDX11_InvalidateDeviceObjects ( );
+}
+
+struct {
+  ImDrawList*        drawList = nullptr;
+  ImDrawListSplitter drawListSplitter;
+  ImVec2             rowMin;
+  float              width;
+  ImU32              hoverCol;
+
+  // Asserts
+  int _Begin = 0,
+      _Push  = 0;
+} static _highlightLine;
+
+// ImGui helper to highlight the full line of a list
+// 
+// Usage:
+//        SKIF_ImGui_BeginHighlightLine ( );
+//        for (auto& item : array)
+//        {
+//          SKIF_ImGui_PushHighlightLineLine ( );
+//          [...]
+//          SKIF_ImGui_PopHighlightLineLine  ( );
+//        }
+//        SKIF_ImGui_EndHighlightLine ( );
+void
+SKIF_ImGui_BeginHighlightLine (ImU32 hover_color)
+{
+  _highlightLine._Begin++;
+  _highlightLine.drawList = ImGui::GetWindowDrawList();
+  _highlightLine.drawListSplitter.Split(_highlightLine.drawList, 2); // 0 = background, 1 = foreground
+  _highlightLine.hoverCol = hover_color;
+}
+
+void
+SKIF_ImGui_PushHighlightLineLine (void)
+{
+  IM_ASSERT(_highlightLine._Begin == 1 && drawList != nullptr);
+  _highlightLine._Push++;
+
+  // Row bounds: full width of the content area
+  _highlightLine.rowMin = ImGui::GetCursorScreenPos    ( );
+  _highlightLine.width  = ImGui::GetContentRegionAvail ( ).x;
+
+  _highlightLine.drawListSplitter.SetCurrentChannel    (_highlightLine.drawList, 1); // foreground: row content
+}
+
+void
+SKIF_ImGui_PopHighlightLineLine (void)
+{
+  IM_ASSERT(_highlightLine._Begin == 1 && _highlightLine._Push == 1 && drawList != nullptr);
+  _highlightLine._Push--;
+
+  // Pad the rect by half the item spacing so adjacent rows touch
+  float  pad =  ImGui::GetStyle ( ).ItemSpacing.y * 0.5f;
+  ImVec2 rMin (_highlightLine.rowMin.x,  _highlightLine.rowMin.y - pad);
+  ImVec2 rMax (_highlightLine.rowMin.x + _highlightLine.width, ImGui::GetItemRectMax ( ).y + pad);
+
+  if (ImGui::IsMouseHoveringRect (rMin, rMax) && ImGui::IsWindowHovered ( ))
+  {
+    _highlightLine.drawListSplitter.SetCurrentChannel  (_highlightLine.drawList, 0); // background
+    _highlightLine.drawList->AddRectFilled (rMin, rMax, _highlightLine.hoverCol);
+  }
+}
+
+void
+SKIF_ImGui_EndHighlightLine (void)
+{
+  IM_ASSERT(_highlightLine._Begin == 1 && drawList != nullptr);
+  _highlightLine._Begin--;
+  _highlightLine.drawListSplitter.Merge (_highlightLine.drawList);
+  _highlightLine.drawListSplitter.ClearFreeMemory ( );
 }
 
 bool

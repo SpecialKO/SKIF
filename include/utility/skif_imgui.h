@@ -43,7 +43,7 @@ void     SKIF_ImGui_AdjustAppModeSize     (HMONITOR monitor);
 void     SKIF_ImGui_InfoMessage           (const std::string szTitle, const std::string szLabel);
 void     SKIF_ImGui_CloseInfoPopup        (void);
 bool     SKIF_ImGui_IsFocused             (void);
-bool     SKIF_ImGui_IsViewportFocused     (ImGuiViewport* viewport);
+bool     SKIF_ImGui_IsViewportFocused     (const ImGuiViewport* vp = ImGui::GetWindowViewport ( ));
 bool     SKIF_ImGui_IsMouseHovered        (void);
 bool     SKIF_ImGui_IsAnyInputDown        (void);
 bool     SKIF_ImGui_IsAnyPopupOpen        (void);
@@ -85,6 +85,10 @@ void     SKIF_ImGui_UpdateScrollbarState  (void); // Update the internal state t
 bool     SKIF_ImGui_IsScrollbarX          (void); // Helper function returning true if a horizontal scrollbar is visible
 bool     SKIF_ImGui_IsScrollbarY          (void); // Helper function returning true if a vertical scrollbar is visible
 void     SKIF_ImGui_InvalidateFonts       (void);
+void     SKIF_ImGui_BeginHighlightLine    (ImU32 hover_color = ImGui::GetColorU32 (ImVec4 (1.0f, 1.0f, 1.0f, 0.05f)));
+void     SKIF_ImGui_PushHighlightLineLine (void);
+void     SKIF_ImGui_PopHighlightLineLine  (void);
+void     SKIF_ImGui_EndHighlightLine      (void);
 ImGuiKey SKIF_ImGui_CharToImGuiKey        (char c);
 
 bool     SKIF_ImGui_IsViewportHDR         (HWND hWnd);
