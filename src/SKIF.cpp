@@ -1918,6 +1918,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   bool repositionToCenter = false;
 
+  // Toggle ImGui Debug + Demo windows
+  bool showImGuiDebugDemo = false;
+
   // Do final checks and actions if we are expected to live longer than a few seconds
   if (! _Signal.Launcher && ! _Signal.LauncherURI && ! _Signal.Quit && ! _Signal.ServiceMode)
   {
@@ -1969,24 +1972,25 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     // Various hotkeys that SKIF supports (resets on every frame)
     extern bool INIEditorActive;
-    bool hotkeysEnabled = ! (INIEditorActive || g_activeKeybindPopup);
-    bool hotkeyF5    = (hotkeysEnabled &&               ImGui::GetKeyData (ImGuiKey_F5 )->DownDuration == 0.0f), // Library/About: Refresh data
-         hotkeyF6    = (hotkeysEnabled &&               ImGui::GetKeyData (ImGuiKey_F6 )->DownDuration == 0.0f), // Appearance: Toggle DPI scaling
-         hotkeyF7    = (hotkeysEnabled &&               ImGui::GetKeyData (ImGuiKey_F7 )->DownDuration == 0.0f), // Appearance: Cycle between color themes
-         hotkeyF8    = (hotkeysEnabled &&               ImGui::GetKeyData (ImGuiKey_F8 )->DownDuration == 0.0f), // Appearance: Toggle UI borders
-         hotkeyF9    = (hotkeysEnabled &&               ImGui::GetKeyData (ImGuiKey_F9 )->DownDuration == 0.0f), // Appearance: Toggle color depth
-         hotkeyF11   = (hotkeysEnabled &&               ImGui::GetKeyData (ImGuiKey_F11)->DownDuration == 0.0f), // Appearance: Toggle app mode (Library/Service)
-         hotkeyCtrlQ = (hotkeysEnabled && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_Q  )->DownDuration == 0.0f), // Close the app
-         hotkeyCtrlW = (hotkeysEnabled && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_W  )->DownDuration == 0.0f), // Close the app
-         hotkeyCtrlR = (hotkeysEnabled && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_R  )->DownDuration == 0.0f), // Library/About: Refresh data
-         hotkeyCtrlT = (hotkeysEnabled && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_T  )->DownDuration == 0.0f), // Appearance: Toggle app mode (Library/Service)
-         hotkeyCtrlA = (hotkeysEnabled && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_A  )->DownDuration == 0.0f), // Library: Add game
-         hotkeyCtrl1 = (hotkeysEnabled && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_1  )->DownDuration == 0.0f), // Switch to Library
-         hotkeyCtrl2 = (hotkeysEnabled && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_2  )->DownDuration == 0.0f), // Switch to Monitor
-         hotkeyCtrl3 = (hotkeysEnabled && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_3  )->DownDuration == 0.0f), // Switch to Hardware
-         hotkeyCtrl4 = (hotkeysEnabled && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_4  )->DownDuration == 0.0f), // Switch to Settings
-         hotkeyCtrl5 = (hotkeysEnabled && io.KeyCtrl && ImGui::GetKeyData (ImGuiKey_5  )->DownDuration == 0.0f), // Switch to About
-         hotkeyCtrlShiftN = (hotkeysEnabled && io.KeyCtrl && io.KeyShift && ImGui::GetKeyData (ImGuiKey_N  )->DownDuration == 0.0f); // Minimize app // 2026-09-22: Changed to open INI Editor instead
+    bool hotkeysEnabled   = ! (INIEditorActive || g_activeKeybindPopup);
+    bool hotkeyF5         = (hotkeysEnabled &&                              ImGui::GetKeyData (ImGuiKey_F5 )->DownDuration == 0.0f), // Library/About: Refresh data
+         hotkeyF6         = (hotkeysEnabled &&                              ImGui::GetKeyData (ImGuiKey_F6 )->DownDuration == 0.0f), // Appearance: Toggle DPI scaling
+         hotkeyF7         = (hotkeysEnabled &&                              ImGui::GetKeyData (ImGuiKey_F7 )->DownDuration == 0.0f), // Appearance: Cycle between color themes
+         hotkeyF8         = (hotkeysEnabled &&                              ImGui::GetKeyData (ImGuiKey_F8 )->DownDuration == 0.0f), // Appearance: Toggle UI borders
+         hotkeyF9         = (hotkeysEnabled &&                              ImGui::GetKeyData (ImGuiKey_F9 )->DownDuration == 0.0f), // Appearance: Toggle color depth
+         hotkeyF11        = (hotkeysEnabled &&                              ImGui::GetKeyData (ImGuiKey_F11)->DownDuration == 0.0f), // Appearance: Toggle app mode (Library/Service)
+         hotkeyCtrlQ      = (hotkeysEnabled && io.KeyCtrl &&                ImGui::GetKeyData (ImGuiKey_Q  )->DownDuration == 0.0f), // Close the app
+         hotkeyCtrlW      = (hotkeysEnabled && io.KeyCtrl &&                ImGui::GetKeyData (ImGuiKey_W  )->DownDuration == 0.0f), // Close the app
+         hotkeyCtrlR      = (hotkeysEnabled && io.KeyCtrl &&                ImGui::GetKeyData (ImGuiKey_R  )->DownDuration == 0.0f), // Library/About: Refresh data
+         hotkeyCtrlT      = (hotkeysEnabled && io.KeyCtrl &&                ImGui::GetKeyData (ImGuiKey_T  )->DownDuration == 0.0f), // Appearance: Toggle app mode (Library/Service)
+         hotkeyCtrlA      = (hotkeysEnabled && io.KeyCtrl &&                ImGui::GetKeyData (ImGuiKey_A  )->DownDuration == 0.0f), // Library: Add game
+         hotkeyCtrl1      = (hotkeysEnabled && io.KeyCtrl &&                ImGui::GetKeyData (ImGuiKey_1  )->DownDuration == 0.0f), // Switch to Library
+         hotkeyCtrl2      = (hotkeysEnabled && io.KeyCtrl &&                ImGui::GetKeyData (ImGuiKey_2  )->DownDuration == 0.0f), // Switch to Monitor
+         hotkeyCtrl3      = (hotkeysEnabled && io.KeyCtrl &&                ImGui::GetKeyData (ImGuiKey_3  )->DownDuration == 0.0f), // Switch to Hardware
+         hotkeyCtrl4      = (hotkeysEnabled && io.KeyCtrl &&                ImGui::GetKeyData (ImGuiKey_4  )->DownDuration == 0.0f), // Switch to Settings
+         hotkeyCtrl5      = (hotkeysEnabled && io.KeyCtrl &&                ImGui::GetKeyData (ImGuiKey_5  )->DownDuration == 0.0f), // Switch to About
+         hotkeyCtrlShiftN = (hotkeysEnabled && io.KeyCtrl && io.KeyShift && ImGui::GetKeyData (ImGuiKey_N  )->DownDuration == 0.0f), // Minimize app // 2026-09-22: Changed to open INI Editor instead
+         hotkeyCtrlShiftD = (hotkeysEnabled && io.KeyCtrl && io.KeyShift && ImGui::GetKeyData (ImGuiKey_D  )->DownDuration == 0.0f); // ImGui Debug + Demo
     bool minimizeWindow = false; // Replaced old Ctrl+N boolean
 
     auto _TranslateAndDispatch = [&](void) -> bool
@@ -3868,6 +3872,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
         PLOG_DEBUG << "Closing unwanted opened popups because SKIF lost focus...";
         ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead ( ), false); // CurrentWindow == Debug##Default at this point
       }
+    }
+
+    if (hotkeyCtrlShiftD)
+      showImGuiDebugDemo = ! showImGuiDebugDemo;
+
+    if (showImGuiDebugDemo)
+    {
+      ImGui::SetNextWindowSizeConstraints (ImVec2 (900.0f, 400.0f) * SKIF_ImGui_GlobalDPIScale, ImVec2 (FLT_MAX, FLT_MAX));
+      ImGui::ShowDebugLogWindow ( );
+
+      ImGui::SetNextWindowSizeConstraints (ImVec2 (800.0f, 600.0f) * SKIF_ImGui_GlobalDPIScale, ImVec2 (FLT_MAX, FLT_MAX));
+      ImGui::ShowDemoWindow     ( );
     }
 
     // Actual rendering is conditional, this just processes input and ends the ImGui frame.
