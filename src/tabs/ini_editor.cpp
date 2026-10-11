@@ -79,7 +79,7 @@ IniWindow::IniWindow (std::vector<__INI> _i, IniType _ty, const std::wstring& _p
 }
 
 void
-SKIF_ImGui_IniEditor_NewFile (IniWindow* iniWindow)
+SKIF_UI_IniEditor_NewFile (IniWindow* iniWindow)
 {
   std::vector<const ConfigEntry*> ini_params = SKIF_IniReader_GetDefaultParams (dll_ini);
   std::vector <__INI> ini_parsed;
@@ -104,7 +104,7 @@ SKIF_ImGui_IniEditor_NewFile (IniWindow* iniWindow)
 }
 
 void
-SKIF_ImGui_IniEditor_NewWindow (void)
+SKIF_UI_IniEditor_NewWindow (void)
 {
   std::vector<const ConfigEntry*> ini_params = SKIF_IniReader_GetDefaultParams (dll_ini);
   std::vector <__INI> ini_parsed;
@@ -122,10 +122,10 @@ SKIF_ImGui_IniEditor_NewWindow (void)
 }
 
 void
-SKIF_ImGui_IniEditor_Save (IniWindow* iniWindow)
+SKIF_UI_IniEditor_Save (IniWindow* iniWindow)
 {
   if (iniWindow->path.empty())
-    return SKIF_ImGui_IniEditor_SaveAs (iniWindow);
+    return SKIF_UI_IniEditor_SaveAs (iniWindow);
 
   SKIF_IniReader_WriteIni (iniWindow->ini, iniWindow->path);
 
@@ -142,7 +142,7 @@ SKIF_ImGui_IniEditor_Save (IniWindow* iniWindow)
 }
 
 void
-SKIF_ImGui_IniEditor_SaveAs (IniWindow* iniWindow)
+SKIF_UI_IniEditor_SaveAs (IniWindow* iniWindow)
 {
   std::wstring defaultFolderPath = (! iniWindow->path.empty() ? std::filesystem::path (iniWindow->path).parent_path().wstring() : L"");
 
@@ -165,11 +165,11 @@ SKIF_ImGui_IniEditor_SaveAs (IniWindow* iniWindow)
   // Save As should reset any custom titles set
   iniWindow->title.clear();
 
-  SKIF_ImGui_IniEditor_Save (iniWindow);
+  SKIF_UI_IniEditor_Save (iniWindow);
 }
 
 void
-SKIF_ImGui_IniEditor_OpenFile (IniWindow* iniWindow, IniType type, std::wstring path, const std::string& title)
+SKIF_UI_IniEditor_OpenFile (IniWindow* iniWindow, IniType type, std::wstring path, const std::string& title)
 {
   if (path.empty())
   {
@@ -254,7 +254,7 @@ SKIF_ImGui_IniEditor_OpenFile (IniWindow* iniWindow, IniType type, std::wstring 
 }
 
 void
-SKIF_ImGui_IniEditor_Reload (IniWindow* iniWindow)
+SKIF_UI_IniEditor_Reload (IniWindow* iniWindow)
 {
   iniWindow->ini         = SKIF_IniReader_ParseIni (iniWindow->path, iniWindow->type);
   iniWindow->bChanged    = false;
@@ -263,7 +263,7 @@ SKIF_ImGui_IniEditor_Reload (IniWindow* iniWindow)
 }
 
 void
-SKIF_ImGui_IniEditor_Reset (IniWindow* iniWindow)
+SKIF_UI_IniEditor_Reset (IniWindow* iniWindow)
 {
   for (auto& trie : iniWindow->ini)
     trie.Reset();
@@ -274,7 +274,7 @@ SKIF_ImGui_IniEditor_Reset (IniWindow* iniWindow)
 }
 
 void
-SKIF_ImGui_IniEditor_Process (void)
+SKIF_UI_IniEditor_Process (void)
 {
   bool cleanup  = false,
        newWnd   = false;
@@ -683,22 +683,22 @@ SKIF_ImGui_IniEditor_Process (void)
     // Actions
 
     if (reload)
-      SKIF_ImGui_IniEditor_Reload   (&window);
+      SKIF_UI_IniEditor_Reload   (&window);
 
     if (reset)
-      SKIF_ImGui_IniEditor_Reset    (&window);
+      SKIF_UI_IniEditor_Reset    (&window);
 
     if (save)
-      SKIF_ImGui_IniEditor_Save     (&window);
+      SKIF_UI_IniEditor_Save     (&window);
 
     if (saveAs)
-      SKIF_ImGui_IniEditor_SaveAs   (&window);
+      SKIF_UI_IniEditor_SaveAs   (&window);
 
     if (openFile)
-      SKIF_ImGui_IniEditor_OpenFile (&window, IniType_Unknown, L"", "");
+      SKIF_UI_IniEditor_OpenFile (&window, IniType_Unknown, L"", "");
 
     if (newFile)
-      SKIF_ImGui_IniEditor_NewFile  (&window);
+      SKIF_UI_IniEditor_NewFile  (&window);
 
     if (minimize)
       ShowWindowAsync ((HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, SW_MINIMIZE);
@@ -719,7 +719,7 @@ SKIF_ImGui_IniEditor_Process (void)
   }
 
   if (newWnd)
-    SKIF_ImGui_IniEditor_NewWindow ( );
+    SKIF_UI_IniEditor_NewWindow ( );
 
   INIEditorActive = false;
   for (auto& window : vIniWindow)

@@ -3231,8 +3231,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if (hotkeyCtrlShiftN)
       {
         extern void
-          SKIF_ImGui_IniEditor_NewWindow (void);
-          SKIF_ImGui_IniEditor_NewWindow (    );
+          SKIF_UI_IniEditor_NewWindow (void);
+          SKIF_UI_IniEditor_NewWindow (    );
       }
 
       // Font warning
@@ -3312,8 +3312,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       // Process any INI editor windows
       extern void
-        SKIF_ImGui_IniEditor_Process (void);
-      SKIF_ImGui_IniEditor_Process ( );
+        SKIF_UI_IniEditor_Process (void);
+      SKIF_UI_IniEditor_Process ( );
 
 
       // Handle the update popup
