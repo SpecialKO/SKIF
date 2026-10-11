@@ -198,6 +198,8 @@ SKIF_LocalManager::RefreshInstalls (void)
   }
 
   RegCloseKey (hKey);
+
+  SetAnyOutdated ( );
 }
 
 void
@@ -358,29 +360,33 @@ SKIF_LocalManager::Process (void)
 
     if (ImGui::BeginPopup ("##LocalInstallsCtx"))
     {
-      if (ImGui::MenuItem ("Select Outdated", nullptr, false, anyOutdated))
+      SKIF_ImGui_PushDisableState (! anyOutdated);
+      if (ImGui::MenuItem ("Select Outdated"))
       {
         for (auto& install : installs)
           install.selected = install.outdated;
         action = LocalAction::AnySelected;
       }
-
-      if (ImGui::MenuItem ("Deselect All", nullptr, false, anyOutdated))
+      SKIF_ImGui_PopDisableState  (! anyOutdated);
+      
+      SKIF_ImGui_PushDisableState (! anySelected);
+      if (ImGui::MenuItem ("Deselect All"))
       {
         for (auto& install : installs)
           install.selected = false;
         action = LocalAction::AnySelected;
       }
+      SKIF_ImGui_PopDisableState  (! anySelected);
 
       ImGui::Separator ();
 
       SKIF_ImGui_PushDisableState (! anySelected);
-      if (ImGui::MenuItem ("Update", nullptr, false, anySelected))
+      if (ImGui::MenuItem ("Update"))
         action = LocalAction::Update;
       SKIF_ImGui_PopDisableState  (! anySelected);
 
       SKIF_ImGui_PushDisableState (! anySelected);
-      if (ImGui::MenuItem ("Delete", nullptr, false, anySelected))
+      if (ImGui::MenuItem ("Delete"))
         action = LocalAction::Delete;
       SKIF_ImGui_PopDisableState  (! anySelected);
 
