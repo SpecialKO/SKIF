@@ -430,7 +430,6 @@ void SKIF_UI_DrawShellyTheGhost (void)
 void SKIF_UI_TipsAndTricks (void)
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
-  static constexpr std::string _winKey = "Windows";
 
   ImGui::BeginGroup       ( );
   ImGui::Spacing          ( );
