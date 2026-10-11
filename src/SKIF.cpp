@@ -1853,20 +1853,21 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   // Viewports
   io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
-  io.ConfigViewportsNoAutoMerge      = false;
+  io.ConfigViewportsNoAutoMerge      =  true; // Having this set to false can cause child windows to break unless using ImGuiWindowClass { .ViewportFlagsOverrideSet |= ImGuiViewportFlags_NoAutoMerge }
   io.ConfigViewportsNoTaskBarIcon    = false;
   io.ConfigViewportsNoDecoration     = false; // We want decoration (OS-provided animations etc)
   io.ConfigViewportsNoDefaultParent  = false;
 
   // Docking
-  io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
-  io.ConfigDockingAlwaysTabBar       = false;
-  io.ConfigDockingTransparentPayload =  true;
+//io.ConfigFlags |= ImGuiConfigFlags_DockingEnable; // Enable Docking
+//io.ConfigDockingAlwaysTabBar       = false;
+//io.ConfigDockingTransparentPayload =  true;
 
   // Main window override flags
   ImGuiWindowClass SKIF_AppWindow;
   // This prevents the main window from ever being merged into the implicit Debug##Default fallback window...
   // ... which works around a pesky bug that occurs on OS snapping/resizing...
+  // ... which was caused by io.ConfigViewportsNoAutoMerge being set to false...
   SKIF_AppWindow.ViewportFlagsOverrideSet |= ImGuiViewportFlags_NoAutoMerge;
 
   // Enable ImGui's debug logging output, except InputRouting as that is insanely spammy...
@@ -3314,12 +3315,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
         SKIF_ImGui_InfoMessage_Process (void);
       SKIF_ImGui_InfoMessage_Process ( );
 
-      // Process any INI editor windows
-      extern void
-        SKIF_UI_IniEditor_Process (void);
-      SKIF_UI_IniEditor_Process ( );
-
-
       // Handle the update popup
 
       static std::wstring updateRoot = SK_FormatStringW (LR"(%ws\Version\)", _path_cache.specialk_userdata);
@@ -3822,7 +3817,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       // End the main ImGui window
       ImGui::End ( );
-    }
+
+      // Process any INI editor windows
+      extern void
+        SKIF_UI_IniEditor_Process (void);
+      SKIF_UI_IniEditor_Process ( );
+
+    } // ImGui::NewFrame
 
 #pragma endregion
 
