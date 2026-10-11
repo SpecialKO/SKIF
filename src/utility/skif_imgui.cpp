@@ -911,15 +911,58 @@ SKIF_ImGui_TitleBarMinimizeButton (void)
   return pressed;
 }
 
-// Call every frame while the prompt is active.
-// Returns SaveChoice::None until the user picks something.
-SaveChoice
-SKIF_ImGui_SaveChangesPrompt (const int id, bool* p_open, const char* doc_name)
+void
+SKIF_ImGui_DimBackgroundViewport (const ImGuiViewport* vp)
 {
-  SaveChoice result =
-    SaveChoice::None;
+  if (! vp)
+    vp = ImGui::GetMainViewport ( );
+
+  const ImGuiWindowFlags dim_flags =
+    ImGuiWindowFlags_NoDecoration       |
+    ImGuiWindowFlags_NoBackground       |
+    ImGuiWindowFlags_NoMove             |
+    ImGuiWindowFlags_NoSavedSettings    |
+    ImGuiWindowFlags_NoFocusOnAppearing |
+    ImGuiWindowFlags_NoDocking          |
+  //ImGuiWindowFlags_NoInputs           | // Never hovered/focused; clicks pass through
+    ImGuiWindowFlags_NoNav;               // Eat input from the background window
+
+  char dim_name[50];
+  snprintf (dim_name, sizeof(dim_name), "##SKIFDimBackground_%u", vp->ID);
+
+  ImGui::SetNextWindowPos      (vp->Pos);
+  ImGui::SetNextWindowSize     (vp->Size);
+  ImGui::SetNextWindowViewport (vp->ID);
+
+  ImGui::PushStyleVar (ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+  ImGui::PushStyleVar (ImGuiStyleVar_WindowBorderSize, 0.0f);
+
+  if (ImGui::Begin (dim_name, nullptr, dim_flags))
+  {
+    ImGui::GetWindowDrawList ( )->AddRectFilled (
+      vp->Pos, vp->Pos + vp->Size,
+      ImGui::GetColorU32 (ImGuiCol_ModalWindowDimBg)
+    );
+  }
+
+  // Raise above all other windows (display order only, no focus change)
+  ImGui::BringWindowToDisplayFront (ImGui::GetCurrentWindow ( ));
+  ImGui::End ( );
+  ImGui::PopStyleVar (2);
+}
+
+// Call every frame while the prompt is active.
+// Returns Choice::None until the user picks something.
+DChoice
+SKIF_ImGui_DialogPrompt (const char* name, bool* p_open, DChoice choices, const char* message, const char* description)
+{
+  DChoice result =
+    DChoice_None;
 
   if (! *p_open)
+    return result;
+
+  if (! choices)
     return result;
 
   const ImGuiWindowFlags flags =
@@ -931,7 +974,10 @@ SKIF_ImGui_SaveChangesPrompt (const int id, bool* p_open, const char* doc_name)
     ImGuiWindowFlags_NoDocking          |
     ImGuiWindowFlags_NoSavedSettings;
 
-  const ImGuiViewport*          vp = ImGui::GetWindowViewport();
+  const ImGuiViewport* vp = ImGui::GetWindowViewport();
+
+  // Dim the background
+  SKIF_ImGui_DimBackgroundViewport (vp);
 
   // Keep the window within the current viewport (disables Win32 window)
   ImGui::SetNextWindowViewport (vp->ID);
@@ -939,34 +985,61 @@ SKIF_ImGui_SaveChangesPrompt (const int id, bool* p_open, const char* doc_name)
   // Center on the current viewport
   ImGui::SetNextWindowPos      (vp->GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
 
-  char title[40]; // Should fit the below base + 32-bit rand limit (up to 10 digits max)
-  snprintf (title, sizeof(title), "Save Changes?###SavePrompt_%i", id);
-
-  if (ImGui::Begin (title, nullptr, flags))
+  if (ImGui::Begin (name, nullptr, flags))
   {
-    if (doc_name == nullptr)
-      ImGui::Text       ("Do you want to save the changes made?");
-    else
-      ImGui::Text       ("Do you want to save changes to %s?", doc_name);
+    if (message != nullptr)
+      ImGui::Text         (message);
 
-    ImGui::TextDisabled ("Your changes will be lost if you don't save them.");
+    if (description != nullptr)
+      ImGui::TextDisabled (description);
 
-    ImGui::Separator    ( );
+    if (message || description)
+    ImGui::Separator ( );
 
-    const ImVec2 btn(110, 0);
+    static constexpr ImVec2 btn(110, 0);
 
-    if (ImGui::Button ("Save", btn))
-      result = SaveChoice::Save;
+    if (choices & DChoice_Yes)
+    {
+      if (ImGui::Button ("Yes", btn))
+        result = DChoice_Yes;
 
-    ImGui::SameLine ( );
+      ImGui::SameLine ( );
+    }
 
-    if (ImGui::Button ("Don't Save", btn))
-      result = SaveChoice::DontSave;
+    if (choices & DChoice_No)
+    {
+      if (ImGui::Button ("No", btn))
+        result = DChoice_No;
 
-    ImGui::SameLine ( );
+      ImGui::SameLine ( );
+    }
 
-    if (ImGui::Button ("Cancel", btn))
-      result = SaveChoice::Cancel;
+    if (choices & DChoice_Save)
+    {
+      if (ImGui::Button ("Save", btn))
+        result = DChoice_Save;
+
+      ImGui::SameLine ( );
+    }
+
+    if (choices & DChoice_DontSave)
+    {
+      if (ImGui::Button ("Don't Save", btn))
+        result = DChoice_DontSave;
+
+      ImGui::SameLine ( );
+    }
+
+    if (choices & DChoice_Cancel)
+    {
+      if (ImGui::Button ("Cancel", btn))
+        result = DChoice_Cancel;
+
+      ImGui::SameLine ( );
+    }
+
+    // Empty spacing to eat the trailing SameLine ( )
+    ImGui::Spacing ( );
   }
 
   // Always bring the window to the front (prevents it being obscured by another window)
@@ -974,10 +1047,44 @@ SKIF_ImGui_SaveChangesPrompt (const int id, bool* p_open, const char* doc_name)
 
   ImGui::End ( );
 
-  if (result != SaveChoice::None)
+  if (result != DChoice_None)
     *p_open = false;
 
   return result;
+}
+
+// Call every frame while the prompt is active.
+// Returns Choice::None until the user picks something.
+DChoice
+SKIF_ImGui_ConfirmPrompt (const char* name, bool* p_open, const char* message, const char* description)
+{
+  static constexpr char* default_message =
+    "Are you sure you want to continue?";
+
+  return SKIF_ImGui_DialogPrompt (
+    name,
+    p_open,
+    DChoice_Yes | DChoice_No | DChoice_Cancel,
+    (message == nullptr ? default_message : message),
+    description
+  );
+}
+
+// Call every frame while the prompt is active.
+// Returns Choice::None until the user picks something.
+DChoice
+SKIF_ImGui_SaveChangesPrompt (const char* name, bool* p_open, const char* message, const char* description)
+{
+  static constexpr char* default_msg  = "Do you want to save the changes made?";
+  static constexpr char* default_desc = "Your changes will be lost if you don't save them.";
+
+  return SKIF_ImGui_DialogPrompt (
+    name,
+    p_open,
+    DChoice_Save | DChoice_DontSave | DChoice_Cancel,
+    (message == nullptr ? default_msg : message),
+    (description == nullptr ? default_desc : description)
+  );
 }
 
 void SKIF_ImGui_ServiceMenu (void)
@@ -1469,12 +1576,26 @@ SKIF_ImGui_PushDisableState (void)
 }
 
 void
+SKIF_ImGui_PushDisableState (bool disabled)
+{
+  if (disabled)
+    SKIF_ImGui_PushDisableState ( );
+}
+
+void
 SKIF_ImGui_PopDisableState (void)
 {
   // Pop the states in the reverse order that we pushed them in
   ImGui::PopStyleColor (4); // ImGuiCol_FrameBg, ImGuiCol_CheckMark, ImGuiCol_SliderGrab, ImGuiCol_Text
   //ImGui::PopStyleVar ( ); // ImGuiStyleVar_Alpha [UNUSED]
   ImGui::PopItemFlag   ( ); // ImGuiItemFlags_Disabled
+}
+
+void
+SKIF_ImGui_PopDisableState (bool disabled)
+{
+  if (disabled)
+    SKIF_ImGui_PopDisableState ( );
 }
 
 void

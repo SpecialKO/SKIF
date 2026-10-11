@@ -40,7 +40,8 @@ struct IniWindow {
   DWORD                 saved   = NULL; // Time
   IniType                type   = IniType_Unknown;
   PopupState            state   = PopupState_Open;
-  bool            prompt_save   = false;
+  std:: string    prompt_name;
+  bool            prompt_show   = false;
   HWND                   hwnd   = nullptr;
   EditorAction    want_action   = EditorAction::None;
   int             public_seed   = 0;

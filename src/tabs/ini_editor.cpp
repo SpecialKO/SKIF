@@ -72,6 +72,7 @@ IniWindow::IniWindow (std::vector<__INI> _i, IniType _ty, const std::wstring& _p
   type        = _ty;
   title       = _ti;
   public_seed = SKIF_Util_RandomInteger ( );
+  prompt_name = SK_FormatString ("Save Changes?###SavePrompt_%i", public_seed);
   label       = ("###IniEditor-" + std::to_string (window_identifier));
   window_identifier++;
   SetPath           (_p);
@@ -307,7 +308,13 @@ SKIF_UI_IniEditor_Process (void)
          reset    = false,
          minimize = false;
 
-    ImGui::SetNextWindowSizeConstraints (ImVec2 (800.0f, 600.0f), ImVec2 (FLT_MAX, FLT_MAX));
+    ImGuiWindowClass
+      wc;
+      wc.ClassId = ImGui::GetID ("IniEditorClass");
+      wc.ViewportFlagsOverrideSet = ImGuiViewportFlags_NoAutoMerge; // Work around a pesky bug where the viewport tries to merge into the... debug fallback window?
+    ImGui::SetNextWindowClass (&wc);
+    ImGui::SetNextWindowSizeConstraints (ImVec2 (800.0f, 600.0f) * SKIF_ImGui_GlobalDPIScale, ImVec2 (FLT_MAX, FLT_MAX));
+
     ImGui::Begin (window.wnd_name.c_str(),
                       &show,
                     //ImGuiWindowFlags_NoResize          |
@@ -605,31 +612,31 @@ SKIF_UI_IniEditor_Process (void)
       if (newFile)
       {   newFile = false;
         window.want_action = EditorAction::New;
-        window.prompt_save = true;
+        window.prompt_show = true;
       }
 
       if (openFile)
       {   openFile = false;
         window.want_action = EditorAction::Open;
-        window.prompt_save = true;
+        window.prompt_show = true;
       }
 
       if (reload)
       {   reload = false;
         window.want_action = EditorAction::Reload;
-        window.prompt_save = true;
+        window.prompt_show = true;
       }
 
       if (! show)
       {     show = true;
         window.want_action = EditorAction::Close;
-        window.prompt_save = true;
+        window.prompt_show = true;
       }
 
       if (! bKeepWindowAlive)
       {     bKeepWindowAlive = true;
         window.want_action = EditorAction::Exit;
-        window.prompt_save = true;
+        window.prompt_show = true;
       }
 
       // Handle unsaved changes
@@ -663,16 +670,17 @@ SKIF_UI_IniEditor_Process (void)
           window.want_action = EditorAction::None;
         };
 
-        switch (SKIF_ImGui_SaveChangesPrompt (window.public_seed, &window.prompt_save, window.doc_name.c_str()))
+        std::string message = "Do you want to save changed to " + window.doc_name + "?";
+        switch (SKIF_ImGui_SaveChangesPrompt (window.prompt_name.c_str(), &window.prompt_show, message.c_str()))
         {
-          case SaveChoice::Save:
+          case DChoice_Save:
             _PerformAction ( );
             save = true;
             break;
-          case SaveChoice::DontSave:
+          case DChoice_DontSave:
             _PerformAction ( );
             break;
-          case SaveChoice::Cancel:
+          case DChoice_Cancel:
             window.want_action = EditorAction::None;
             _PerformAction ( );
             break;
