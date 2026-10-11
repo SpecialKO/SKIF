@@ -722,7 +722,7 @@ SKIF_IniReader_WriteIni (std::vector<__INI> ini, const std::wstring& file_path)
 
   constexpr char* utf8_bom = "\xEF\xBB\xBF"; // UTF-8 BOM: EF BB BF
 
-  std::ofstream out{ file_path };
+  std::ofstream out{ SK_WideCharToUTF8 (file_path) };
   if (! out.is_open())
   {
     PLOG_FATAL << "cannot open output file: " << file_path;
