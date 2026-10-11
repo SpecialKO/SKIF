@@ -61,7 +61,7 @@
 
 #include <utility/registry.h>
 #include <utility/updater.h>
-#include <utility/ini_editor.h>
+#include <tabs/ini_editor.h>
 #include <stores/Steam/steam_library.h>
 
 constexpr char         spaces[]          = { "\u0020\u0020\u0020\u0020" };

@@ -16,7 +16,7 @@
 #include <utility/injection.h>
 #include <utility/updater.h>
 #include <utility/gamepad.h>
-#include <utility/ini_editor.h>
+#include <utility/ini_reader.h>
 
 extern bool allowShortcutCtrlA;
 bool saveIniOSD = false;
