@@ -85,7 +85,7 @@ void     SKIF_ImGui_UpdateScrollbarState  (void); // Update the internal state t
 bool     SKIF_ImGui_IsScrollbarX          (void); // Helper function returning true if a horizontal scrollbar is visible
 bool     SKIF_ImGui_IsScrollbarY          (void); // Helper function returning true if a vertical scrollbar is visible
 void     SKIF_ImGui_InvalidateFonts       (void);
-void     SKIF_ImGui_BeginHighlightLine    (ImU32 hover_color = ImGui::GetColorU32 (ImVec4 (1.0f, 1.0f, 1.0f, 0.05f)));
+void     SKIF_ImGui_BeginHighlightLine    (ImU32 hover_color = ImGui::GetColorU32 (ImGuiCol_SKIF_HighlightLineBg));
 void     SKIF_ImGui_PushHighlightLineLine (void);
 void     SKIF_ImGui_PopHighlightLineLine  (void);
 void     SKIF_ImGui_EndHighlightLine      (void);

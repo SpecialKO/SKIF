@@ -189,6 +189,7 @@ SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst)
   colors[ImGuiCol_SKIF_Info]              = ImVec4(0.26f, 0.59f, 0.98f, 1.00f); // colors[ImGuiCol_CheckMark];
   colors[ImGuiCol_SKIF_Yellow]            = ImColor::HSV(0.11F, 1.F, 1.F);
   colors[ImGuiCol_SKIF_Icon]              = colors[ImGuiCol_Text];
+  colors[ImGuiCol_SKIF_HighlightLineBg]   = ImVec4(1.00f, 1.00f, 1.00f, 0.05f);
 }
 
 void
@@ -300,6 +301,7 @@ SKIF_ImGui_StyleColorsLight (ImGuiStyle* dst)
   colors[ImGuiCol_SKIF_Info]              = colors[ImGuiCol_CheckMark];
   colors[ImGuiCol_SKIF_Yellow]            = ImColor::HSV(0.11F, 1.F, 1.F);
   colors[ImGuiCol_SKIF_Icon]              = colors[ImGuiCol_Text];
+  colors[ImGuiCol_SKIF_HighlightLineBg]   = ImVec4(0.00f, 0.00f, 0.00f, 0.05f);
 }
 
 void

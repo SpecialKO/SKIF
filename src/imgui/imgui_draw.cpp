@@ -244,6 +244,7 @@ void ImGui::StyleColorsDark(ImGuiStyle* dst)
     colors[ImGuiCol_SKIF_Info]              = ImColor::HSV(0.55F, 0.99F, 1.F);
     colors[ImGuiCol_SKIF_Yellow]            = ImColor::HSV(0.11F, 1.F, 1.F);
     colors[ImGuiCol_SKIF_Icon]              = colors[ImGuiCol_Text];
+    colors[ImGuiCol_SKIF_HighlightLineBg]   = ImVec4(1.00f, 1.00f, 1.00f, 0.05f);
 }
 
 void ImGui::StyleColorsClassic(ImGuiStyle* dst)
@@ -317,6 +318,7 @@ void ImGui::StyleColorsClassic(ImGuiStyle* dst)
     colors[ImGuiCol_SKIF_Info]              = ImColor::HSV(0.55F, 0.99F, 1.F);
     colors[ImGuiCol_SKIF_Yellow]            = ImColor::HSV(0.11F, 1.F, 1.F);
     colors[ImGuiCol_SKIF_Icon]              = colors[ImGuiCol_Text];
+    colors[ImGuiCol_SKIF_HighlightLineBg]   = ImVec4(1.00f, 1.00f, 1.00f, 0.05f);
 }
 
 // Those light colors are better suited with a thicker font than the default one + FrameBorder
@@ -391,6 +393,7 @@ void ImGui::StyleColorsLight(ImGuiStyle* dst)
     colors[ImGuiCol_SKIF_Info]              = colors[ImGuiCol_CheckMark];
     colors[ImGuiCol_SKIF_Yellow]            = ImColor::HSV(0.11F, 1.F, 1.F);
     colors[ImGuiCol_SKIF_Icon]              = colors[ImGuiCol_Text];
+    colors[ImGuiCol_SKIF_HighlightLineBg]   = ImVec4(0.00f, 0.00f, 0.00f, 0.05f);
 }
 
 //-----------------------------------------------------------------------------
