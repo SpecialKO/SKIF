@@ -956,7 +956,7 @@ SKIF_ImGui_DimBackgroundViewport (const ImGuiViewport* vp)
 // Call every frame while the prompt is active.
 // Returns Choice::None until the user picks something.
 DChoice
-SKIF_ImGui_DialogPrompt (const char* name, bool* p_open, DChoice choices, const char* message, const char* description)
+SKIF_ImGui_DialogPrompt (const char* name, bool* p_open, const char* message, const char* description, std::vector<DChoice> choices)
 {
   DChoice result =
     DChoice_None;
@@ -964,7 +964,7 @@ SKIF_ImGui_DialogPrompt (const char* name, bool* p_open, DChoice choices, const 
   if (! *p_open)
     return result;
 
-  if (! choices)
+  if (choices.empty())
     return result;
 
   const ImGuiWindowFlags flags =
@@ -998,44 +998,34 @@ SKIF_ImGui_DialogPrompt (const char* name, bool* p_open, DChoice choices, const 
     if (message || description)
     ImGui::Separator ( );
 
-    static constexpr ImVec2 btn(110, 0);
+    static constexpr ImVec2
+      btn (110, 0);
+    static const std::vector<std::pair<const DChoice, const char*>>
+      btnTxtVec = {
+        // Generic
+        { DChoice_None,     "None"       },
+        { DChoice_Cancel,   "Cancel"     },
+        // Confirm
+        { DChoice_Yes,      "Yes"        },
+        { DChoice_No,       "No"         },
+        // Save
+        { DChoice_Save,     "Save"       },
+        { DChoice_DontSave, "Don't Save" },
+        // CPU bitness
+        { DChoice_32bit,    "32-bit"     },
+        { DChoice_64bit,    "64-bit"     },
+    };
 
-    if (choices & DChoice_Yes)
+    for (auto& choice : choices)
     {
-      if (ImGui::Button ("Yes", btn))
-        result = DChoice_Yes;
+      auto it = std::find_if (btnTxtVec.begin(), btnTxtVec.end(),
+        [choice](const auto& p) { return p.first == choice; });
 
-      ImGui::SameLine ( );
-    }
+      if (it == btnTxtVec.end())
+        continue;
 
-    if (choices & DChoice_No)
-    {
-      if (ImGui::Button ("No", btn))
-        result = DChoice_No;
-
-      ImGui::SameLine ( );
-    }
-
-    if (choices & DChoice_Save)
-    {
-      if (ImGui::Button ("Save", btn))
-        result = DChoice_Save;
-
-      ImGui::SameLine ( );
-    }
-
-    if (choices & DChoice_DontSave)
-    {
-      if (ImGui::Button ("Don't Save", btn))
-        result = DChoice_DontSave;
-
-      ImGui::SameLine ( );
-    }
-
-    if (choices & DChoice_Cancel)
-    {
-      if (ImGui::Button ("Cancel", btn))
-        result = DChoice_Cancel;
+      if (ImGui::Button (it->second, btn))
+        result = it->first;
 
       ImGui::SameLine ( );
     }
@@ -1066,9 +1056,9 @@ SKIF_ImGui_ConfirmPrompt (const char* name, bool* p_open, const char* message, c
   return SKIF_ImGui_DialogPrompt (
     name,
     p_open,
-    DChoice_Yes | DChoice_No | DChoice_Cancel,
     (message == nullptr ? default_message : message),
-    description
+    description,
+    { DChoice_Yes, DChoice_No, DChoice_Cancel }
   );
 }
 
@@ -1083,9 +1073,24 @@ SKIF_ImGui_SaveChangesPrompt (const char* name, bool* p_open, const char* messag
   return SKIF_ImGui_DialogPrompt (
     name,
     p_open,
-    DChoice_Save | DChoice_DontSave | DChoice_Cancel,
-    (message == nullptr ? default_msg : message),
-    (description == nullptr ? default_desc : description)
+    (message     == nullptr ? default_msg  : message    ),
+    (description == nullptr ? default_desc : description),
+    { DChoice_Save, DChoice_DontSave, DChoice_Cancel }
+  );
+}
+
+DChoice
+SKIF_ImGui_6432bitnessPrompt (const char* name, bool* p_open, const char* message, const char* description)
+{
+  static constexpr char* default_msg  = "Should 64-bit or 32-bit be used?";
+  static constexpr char* default_desc = "Processes can only load DLL files of the same bitness.";
+
+  return SKIF_ImGui_DialogPrompt (
+    name,
+    p_open,
+    (message     == nullptr ? default_msg  : message    ),
+    (description == nullptr ? default_desc : description),
+    { DChoice_64bit, DChoice_32bit, DChoice_Cancel }
   );
 }
 

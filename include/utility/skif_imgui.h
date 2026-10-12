@@ -21,16 +21,18 @@ typedef unsigned int DChoice;  // -> enum DChoice_
 
 enum DChoice_
 {
+  // Generic
   DChoice_None     = 0,
   DChoice_Cancel   = 1 << 0,
-
   // Confirm
   DChoice_Yes      = 1 << 1,
   DChoice_No       = 1 << 2,
-
   // Save
   DChoice_Save     = 1 << 3,
   DChoice_DontSave = 1 << 4,
+  // CPU bitness
+  DChoice_32bit    = 1 << 5,
+  DChoice_64bit    = 1 << 6,
 };
 
 float    SKIF_ImGui_LinearTosRGB          (float col_lin);
@@ -64,9 +66,10 @@ void     SKIF_ImGui_Spacing               (void);
 bool     SKIF_ImGui_Selectable            (const char* label);
 bool     SKIF_ImGui_SelectableVAligned    (const char* unique_id, const char* label, bool* p_selected, ImGuiSelectableFlags flags, const ImVec2& size_arg);
 void     SKIF_ImGui_DimBackgroundViewport (const ImGuiViewport* vp = ImGui::GetWindowViewport ( ));
-DChoice  SKIF_ImGui_DialogPrompt          (const char* name, bool* p_open, DChoice choices, const char* message = nullptr, const char* description = nullptr);
-DChoice  SKIF_ImGui_ConfirmPrompt         (const char* name, bool* p_open,                  const char* message = nullptr, const char* description = nullptr);
-DChoice  SKIF_ImGui_SaveChangesPrompt     (const char* name, bool* p_open,                  const char* message = nullptr, const char* description = nullptr);
+DChoice  SKIF_ImGui_DialogPrompt          (const char* name, bool* p_open, const char* message = nullptr, const char* description = nullptr, std::vector<DChoice> choices = { DChoice_None });
+DChoice  SKIF_ImGui_ConfirmPrompt         (const char* name, bool* p_open, const char* message = nullptr, const char* description = nullptr);
+DChoice  SKIF_ImGui_SaveChangesPrompt     (const char* name, bool* p_open, const char* message = nullptr, const char* description = nullptr);
+DChoice  SKIF_ImGui_6432bitnessPrompt     (const char* name, bool* p_open, const char* message = nullptr, const char* description = nullptr);
 bool     SKIF_ImGui_CheckboxHoverPreview  (const char* label, bool* v, float preview_alpha = 0.45f);
 void     SKIF_ImGui_ServiceMenu           (void);
 ImFont*  SKIF_ImGui_LoadFont              (const std::wstring& filename, float point_size, const ImWchar* glyph_range, ImFontConfig* cfg = nullptr);
