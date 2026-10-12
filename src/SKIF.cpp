@@ -2957,26 +2957,33 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (SKIF_Tab_Selected == UITab_Library)
           ImGui::PushItemFlag   (ImGuiItemFlags_NoNav, true);
 
-        static bool btnHovered  = false;
+        static bool btnHoveredAddGame      = false,
+                    btnHoveredLocalManager = false;
         ImGui::PushStyleColor (ImGuiCol_Button,        ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg));
         ImGui::PushStyleColor (ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg)); //ImColor (64,  69,  82).Value);
         ImGui::PushStyleColor (ImGuiCol_ButtonActive,  ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg)); //ImColor (56, 60, 74).Value);
 
-        if (btnHovered)
-          ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption)); //ImVec4(1, 1, 1, 1));
-        else
-          ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)); //ImVec4(0.5f, 0.5f, 0.5f, 1.f));
-
-        if (ImGui::Button   (ICON_FA_SQUARE_PLUS " Add Game"))
+        ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (btnHoveredAddGame ? ImGuiCol_SKIF_TextCaption : ImGuiCol_SKIF_TextBase));
+        if (ImGui::Button     (ICON_FA_SQUARE_PLUS " Add Game"))
         {
           AddGamePopup = PopupState_Open;
           if (SKIF_Tab_Selected != UITab_Library)
             SKIF_Tab_ChangeTo = UITab_Library;
         }
+        ImGui::PopStyleColor  ( ); // ImGuiCol_Text
 
-        btnHovered = ImGui::IsItemHovered() || ImGui::IsItemActive();
+        btnHoveredAddGame = ImGui::IsItemHovered() || ImGui::IsItemActive();
 
-        ImGui::PopStyleColor   (4); // ImGuiCol_Text, ImGuiCol_ButtonActive, ImGuiCol_ButtonHovered, ImGuiCol_Button
+        ImGui::SameLine ( );
+
+        ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (btnHoveredLocalManager ? ImGuiCol_SKIF_TextCaption : ImGuiCol_SKIF_TextBase));
+        if (ImGui::Button     (ICON_FA_CIRCLE_NODES " Local Manager"))
+          hotkeyCtrlShiftM = true;
+        ImGui::PopStyleColor  ( ); // ImGuiCol_Text
+
+        btnHoveredLocalManager = ImGui::IsItemHovered() || ImGui::IsItemActive();
+
+        ImGui::PopStyleColor   (3); // ImGuiCol_ButtonActive, ImGuiCol_ButtonHovered, ImGuiCol_Button
 
         if (SKIF_Tab_Selected == UITab_Library)
           ImGui::PopItemFlag     ( );
@@ -3246,7 +3253,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if (hotkeyCtrlShiftM)
       {
         static SKIF_LocalManager& _local  = SKIF_LocalManager::GetInstance ( );
-        _local.ShowWindow ( );
+        _local.Show ( );
       }
 
       // Font warning
