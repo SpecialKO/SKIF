@@ -1724,8 +1724,6 @@ SKIF_UI_Tab_DrawMonitor (void)
       hovPolicy = "Process is whitelisted";
     }
 
-    PLOG_VERBOSE << "Hovered PID: " << hoveredPID;
-
     ImVec4 colText         =    (hoveredPID == proc.pid)    ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption) :
                                                               ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase)    ;
 
