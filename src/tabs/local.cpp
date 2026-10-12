@@ -40,9 +40,14 @@ SKIF_LocalManager::SetAnyOutdated (void)
 void
 SKIF_LocalManager::SetAnySelected (void)
 {
-  anySelected  = false;
+  anySelected         = false;
+  anyOutdatedSelected = false;
   for (auto& install : installs)
-    anySelected |= install.selected;
+  {
+    anySelected           |= install.selected;
+    if (install.selected)
+      anyOutdatedSelected |= install.outdated;
+  }
 }
 
 void
@@ -216,12 +221,23 @@ SKIF_LocalManager::RefreshInstalls (void)
 }
 
 void
-SKIF_LocalManager::ShowWindow (void)
+SKIF_LocalManager::Show (void)
 {
   static int id = 0;
 
-  this->label = "Local Installs###LocalManager-" + std::to_string(id++);
-  this->showWindow = true;
+  if (this->showWindow && this->hwnd)
+  {
+    if (       IsIconic (       this->hwnd))
+             ShowWindow (       this->hwnd, SW_RESTORE);
+    else if (! IsWindowVisible (this->hwnd))
+             ShowWindow (       this->hwnd, SW_SHOW);
+
+    SetForegroundWindow (       this->hwnd);
+  } else {
+    this->label      = "Local Installs###LocalManager-" + std::to_string (id++);
+    this->hwnd       = nullptr;
+    this->showWindow = true;
+  }
 }
 
 void
@@ -256,9 +272,43 @@ SKIF_LocalManager::Process (void)
     static LocalAction action =
            LocalAction::None;
 
+    if (this->hwnd == nullptr && ImGui::GetWindowViewport()->PlatformHandleRaw)
+      this->hwnd = (HWND)ImGui::GetWindowViewport()->PlatformHandleRaw;
+
     if (installs.empty ())
     {
-      ImGui::TextDisabled ("No local installs found.");
+      ImGui::TextDisabled     ("No local installs found.");
+
+      SKIF_ImGui_Spacing      ( );
+      SKIF_ImGui_Spacing      ( );
+
+      ImGui::TextDisabled     ("To perform a local install of Special K:");
+
+      ImGui::BeginGroup       ( );
+      ImGui::Spacing          ( );
+      ImGui::SameLine         ( );
+      ImGui::TextColored      (
+        ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
+                            (const char *)u8"\u2022 ");
+      ImGui::SameLine         ( );
+      ImGui::TextDisabled     ("While in-game, use");
+      ImGui::SameLine         ( );
+      ImGui::Text             (ICON_FA_FLOPPY_DISK " File -> Install Wrapper DLL.");
+      ImGui::EndGroup         ( );
+
+      ImGui::BeginGroup       ( );
+      ImGui::Spacing          ( );
+      ImGui::SameLine         ( );
+      ImGui::TextColored      (
+        ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
+                            (const char *)u8"\u2022 ");
+      ImGui::SameLine         ( );
+      ImGui::TextDisabled     ("During launch, hold down");
+      ImGui::SameLine         ( );
+      ImGui::Text             ("Ctrl + Shift");
+      ImGui::SameLine         ( );
+      ImGui::TextDisabled     ("to access the compatibility options.");
+      ImGui::EndGroup         ( );
     }
 
     else if (ImGui::BeginTable ("##LocalInstalls", 6,
@@ -393,10 +443,10 @@ SKIF_LocalManager::Process (void)
 
       ImGui::Separator ();
 
-      SKIF_ImGui_PushDisableState (! anySelected);
+      SKIF_ImGui_PushDisableState (! anyOutdatedSelected);
       if (ImGui::MenuItem ("Update"))
         action = LocalAction::Update;
-      SKIF_ImGui_PopDisableState  (! anySelected);
+      SKIF_ImGui_PopDisableState  (! anyOutdatedSelected);
 
       SKIF_ImGui_PushDisableState (! anySelected);
       if (ImGui::MenuItem ("Delete"))

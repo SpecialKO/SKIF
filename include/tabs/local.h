@@ -32,7 +32,7 @@ struct SKIF_LocalManager {
     return instance;
   }
 
-         void ShowWindow        (void);
+         void Show              (void);
          void Process           (void);
 
 private:
@@ -47,9 +47,11 @@ private:
          void RefreshInstalls   (void);
 
 
-  bool                   showWindow  = false;
-  bool                   anyOutdated = false;
-  bool                   anySelected = false;
+  bool                   showWindow          = false;
+  bool                   anyOutdated         = false;
+  bool                   anySelected         = false;
+  bool                   anyOutdatedSelected = false;
+  HWND                   hwnd  = nullptr;
   std:: string           label;
   std::wstring           latest_version;
   std::vector<install_s> installs;
