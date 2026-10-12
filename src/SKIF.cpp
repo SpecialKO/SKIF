@@ -184,8 +184,6 @@ HMENU hMenu;
 SKIF_Signals _Signal;
 
 PopupState UpdatePromptPopup = PopupState_Closed;
-PopupState HistoryPopup      = PopupState_Closed;
-PopupState AutoUpdatePopup   = PopupState_Closed;
 UITab SKIF_Tab_Selected      = UITab_Library,
       SKIF_Tab_ChangeTo      = UITab_None;
 
@@ -2323,12 +2321,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (AddGamePopup == PopupState_Opened)
           AddGamePopup = PopupState_Open;
 
-        if (UpdatePromptPopup == PopupState_Opened)
-          UpdatePromptPopup = PopupState_Open;
-
-        if (HistoryPopup == PopupState_Opened)
-          HistoryPopup = PopupState_Open;
-
         // If SKIF was used as a launcher, initialize stuff that we did not set up while in the small mode
         if (_Signal.Launcher || _Signal.LauncherURI || _Signal.Quit || _Signal.ServiceMode)
         {   _Signal.Launcher =  _Signal.LauncherURI =  _Signal.Quit =  _Signal.ServiceMode = false;
@@ -2744,16 +2736,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (AddGamePopup        != PopupState_Closed ||
             ModifyGamePopup     != PopupState_Closed ||
             PopupCategoryModify != PopupState_Closed ||
-            RemoveGamePopup     != PopupState_Closed ||
-            UpdatePromptPopup   != PopupState_Closed ||
-            HistoryPopup        != PopupState_Closed  )
+            RemoveGamePopup     != PopupState_Closed  )
         {
           AddGamePopup         = PopupState_Closed;
           ModifyGamePopup      = PopupState_Closed;
           PopupCategoryModify  = PopupState_Closed;
           RemoveGamePopup      = PopupState_Closed;
-          UpdatePromptPopup    = PopupState_Closed;
-          HistoryPopup         = PopupState_Closed;
 
           ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead ( ), false);
         }
@@ -3333,435 +3321,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
         SKIF_ImGui_InfoMessage_Process (void);
       SKIF_ImGui_InfoMessage_Process ( );
 
-      // Handle the update popup
-
-      static std::wstring updateRoot = SK_FormatStringW (LR"(%ws\Version\)", _path_cache.specialk_userdata);
-      static float  UpdateAvailableWidth = 0.0f;
-
-      // Only open the update prompt after the library has appeared (fixes the popup weirdly closing for some unknown reason)
-      if (PopulatedGames && UpdatePromptPopup == PopupState_Open && ! _registry.bMiniMode && ! HiddenFramesContinueProcessing && ! SKIF_ImGui_IsAnyPopupOpen ( ) && ! ImGui::IsMouseDragging (ImGuiMouseButton_Left))
-      {
-        //UpdateAvailableWidth = ImGui::CalcTextSize ((SK_WideCharToUTF8 (newVersion.description) + " is ready to be installed.").c_str()).x + 3 * ImGui::GetStyle().ItemSpacing.x;
-        UpdateAvailableWidth = 360.0f;
-
-        // 8.0f  per character
-        // 25.0f for the scrollbar
-        float calculatedWidth = static_cast<float>(_updater.GetResults().release_notes_formatted.max_length) * 8.0f + 25.0f;
-
-        if (calculatedWidth > UpdateAvailableWidth)
-          UpdateAvailableWidth = calculatedWidth;
-
-        UpdateAvailableWidth = std::min<float> (UpdateAvailableWidth, SKIF_vecCurrentMode.x * 0.9f);
-
-        ImGui::OpenPopup ("###UpdatePrompt");
-      }
-
-      // Update Available prompt
-      // 730px    - Full popup width
-      // 715px    - Release Notes width
-      //  15px    - Approx. scrollbar width
-      //   7.78px - Approx. character width (700px / 90 characters)
-      ImGui::SetNextWindowSize (ImVec2 (UpdateAvailableWidth * SKIF_ImGui_GlobalDPIScale, 0.0f));
-      ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
-
-      if (ImGui::BeginPopupModal ( "Version Available###UpdatePrompt", nullptr,
-                                     ImGuiWindowFlags_NoResize         |
-                                     ImGuiWindowFlags_NoMove           |
-                                     ImGuiWindowFlags_AlwaysAutoResize )
-         )
-      {
-#ifdef _WIN64
-        std::string currentVersion = _inject.SKVer64_utf8;
-#else
-        std::string currentVersion = _inject.SKVer32_utf8;
-#endif
-        std::string compareLabel;
-        ImVec4      compareColor;
-        bool        compareNewer = (SKIF_Util_CompareVersionStrings (_updater.GetResults().version, currentVersion) > 0);
-
-        if (UpdatePromptPopup == PopupState_Open)
-        {
-          // Set the popup as opened after it has appeared (fixes popup not opening from other tabs)
-          ImGuiWindow* window = ImGui::FindWindowByName ("###UpdatePrompt");
-          if (window != nullptr && ! window->Appearing)
-            UpdatePromptPopup = PopupState_Opened;
-        }
-
-        if (compareNewer)
-        {
-          compareLabel = "This version is newer than the currently installed.";
-          compareColor = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success);
-        }
-        else
-        {
-          compareLabel = "WARNING: You are about to roll back Special K as this version is older than the currently installed!";
-          compareColor = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning);
-        }
-
-        SKIF_ImGui_Spacing ();
-
-        std::string updateTxt = "is ready to be installed.";
-
-        if ((_updater.GetState ( ) & UpdateFlags_Downloaded) != UpdateFlags_Downloaded)
-          updateTxt = "is available for download.";
-
-        float fX = (ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(((_updater.GetResults().description) + updateTxt).c_str()).x + (((compareNewer) ? 2 : 1) * ImGui::GetStyle().ItemSpacing.x)) / 2;
-
-        ImGui::SetCursorPosX(fX);
-
-        ImGui::TextColored (compareColor, (_updater.GetResults().description).c_str());
-        ImGui::SameLine ( );
-        ImGui::Text (updateTxt.c_str());
-
-        SKIF_ImGui_Spacing ();
-
-        if ((_updater.GetState ( ) & UpdateFlags_Failed) == UpdateFlags_Failed)
-        {
-          ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning));
-          ImGui::TextWrapped ("A failed download was detected! Click Download below to try again.");
-          ImGui::Text        ("In case of continued errors, consult SKIF.log for more details.");
-          ImGui::PopStyleColor  ( );
-
-          SKIF_ImGui_Spacing ();
-        }
-
-        ImGui::Text     ("Target Folder:");
-        ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info));
-        ImGui::TextWrapped    (SK_WideCharToUTF8 (_path_cache.specialk_install).c_str());
-        ImGui::PopStyleColor  ( );
-
-        SKIF_ImGui_Spacing ();
-
-        if (!_updater.GetResults().release_notes_formatted.notes.empty())
-        {
-          if (! _updater.GetResults().description_installed.empty())
-          {
-            ImGui::Text           ("Changes from");
-            ImGui::SameLine       ( );
-            ImGui::TextColored    (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), (_updater.GetResults().description_installed + ":").c_str());
-          }
-          else {
-            ImGui::Text           ("Changes:");
-          }
-
-          ImGui::PushStyleColor (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
-          ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
-          ImGui::PushFont       (fontConsolas);
-          ImGui::InputTextEx    ( "###UpdatePromptChanges", "The update does not contain any release notes...",
-                                    _updater.GetResults().release_notes_formatted.notes.data(),
-                                      static_cast<int>(_updater.GetResults().release_notes_formatted.notes.size()),
-                                        ImVec2 ( (UpdateAvailableWidth - 15.0f) * SKIF_ImGui_GlobalDPIScale,
-                                          std::min<float>(
-                                            std::min<float>(_updater.GetResults().history_formatted.lines, 40.0f) * fontConsolas->FontSize,
-                                              SKIF_vecCurrentMode.y * 0.5f)
-                                               ), ImGuiInputTextFlags_ReadOnly | static_cast<ImGuiInputTextFlags_>(ImGuiInputTextFlags_Multiline));
-
-          SKIF_ImGui_DisallowMouseDragMove ( );
-
-          ImGui::PopFont        ( );
-          ImGui::PopStyleColor  ( );
-          ImGui::PopStyleColor  ( );
-
-          SKIF_ImGui_Spacing ();
-        }
-
-        fX = (ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(compareLabel.c_str()).x + (((compareNewer) ? 2 : 1) * ImGui::GetStyle().ItemSpacing.x)) / 2;
-
-        ImGui::SetCursorPosX(fX);
-
-        ImGui::TextColored (compareColor, compareLabel.c_str());
-
-        SKIF_ImGui_Spacing ();
-
-        fX = (ImGui::GetContentRegionAvail().x - (((compareNewer) ? 3 : 2) * 100 * SKIF_ImGui_GlobalDPIScale) - (((compareNewer) ? 2 : 1) * ImGui::GetStyle().ItemSpacing.x)) / 2;
-
-        ImGui::SetCursorPosX(fX);
-
-        std::string btnLabel = (compareNewer) ? "Update" : "Rollback";
-
-        if ((_updater.GetState ( ) & UpdateFlags_Downloaded) != UpdateFlags_Downloaded)
-          btnLabel = "Download";
-
-        if (ImGui::Button (btnLabel.c_str(), ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
-                                                       25 * SKIF_ImGui_GlobalDPIScale )))
-        {
-          if (btnLabel == "Download")
-          {
-            _registry.wsIgnoreUpdate = L"";
-            _registry.regKVIgnoreUpdate.putData (_registry.wsIgnoreUpdate);
-
-            // Trigger a new check for updates (which should download the installer)
-            _updater.CheckForUpdates (false, ! compareNewer);
-          }
-
-          else {
-            std::wstring args = SK_FormatStringW (LR"(/VerySilent /NoRestart /Shortcuts=false /StartService=%d /DIR="%ws")",
-                                                 (_inject.bCurrentState && ! _inject.bAckInj), _path_cache.specialk_install);
-
-            if (_inject.bCurrentState)
-              _inject._StartStopInject (true);
-
-            SKIF_Util_OpenURI (updateRoot + _updater.GetResults().filename, SW_SHOWNORMAL, L"OPEN", args.c_str());
-
-            //bExitOnInjection = true; // Used to close SKIF once the service had been stopped
-
-            //Sleep(50);
-            //bKeepProcessAlive = false;
-          }
-
-          UpdatePromptPopup = PopupState_Closed;
-          ImGui::CloseCurrentPopup ();
-        }
-
-        SKIF_ImGui_DisallowMouseDragMove ( );
-
-        ImGui::SameLine ();
-        ImGui::Spacing  ();
-        ImGui::SameLine ();
-
-        if (compareNewer)
-        {
-          if (ImGui::Button ("Ignore", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
-                                                 25 * SKIF_ImGui_GlobalDPIScale )))
-          {
-            _updater.SetIgnoredUpdate (SK_UTF8ToWideChar(_updater.GetResults().version));
-
-            UpdatePromptPopup = PopupState_Closed;
-            ImGui::CloseCurrentPopup ();
-          }
-
-          SKIF_ImGui_SetHoverTip ("SKIF will not prompt about this version again.");
-
-          ImGui::SameLine ();
-          ImGui::Spacing  ();
-          ImGui::SameLine ();
-        }
-
-        SKIF_ImGui_DisallowMouseDragMove ( );
-
-        if (ImGui::Button ("Cancel", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
-                                               25 * SKIF_ImGui_GlobalDPIScale )))
-        {
-          UpdatePromptPopup = PopupState_Closed;
-          ImGui::CloseCurrentPopup ();
-        }
-
-        SKIF_ImGui_DisallowMouseDragMove ( );
-
-        ImGui::EndPopup ();
-      }
-
-      static float  HistoryPopupWidth          = 0.0f;
-      static std::string HistoryPopupTitle;
-
-      if (HistoryPopup == PopupState_Open && ! HiddenFramesContinueProcessing && ! SKIF_ImGui_IsAnyPopupOpen ( ))
-      {
-        HistoryPopupWidth = 360.0f;
-
-        // 8.0f  per character
-        // 25.0f for the scrollbar
-        float calcHistoryPopupWidth = static_cast<float> (_updater.GetResults().history_formatted.max_length) * 8.0f + 25.0f;
-
-        if (calcHistoryPopupWidth > HistoryPopupWidth)
-          HistoryPopupWidth = calcHistoryPopupWidth;
-
-        HistoryPopupWidth = std::min<float> (HistoryPopupWidth, SKIF_vecCurrentMode.x * 0.9f);
-
-        HistoryPopupTitle = "Changelog";
-
-        if (! _updater.GetChannel()->first.empty())
-          HistoryPopupTitle += " (" + _updater.GetChannel()->first + ")";
-
-        HistoryPopupTitle += "###History";
-
-        ImGui::OpenPopup ("###History");
-
-        ImGui::SetNextWindowSize (ImVec2 (HistoryPopupWidth * SKIF_ImGui_GlobalDPIScale, 0.0f));
-      }
-
-      ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
-      if (ImGui::BeginPopupModal (HistoryPopupTitle.c_str(), nullptr,
-                                  ImGuiWindowFlags_NoResize |
-                                  ImGuiWindowFlags_NoMove |
-                                  ImGuiWindowFlags_AlwaysAutoResize )
-         )
-      {
-        if (HistoryPopup == PopupState_Open)
-        {
-          // Set the popup as opened after it has appeared (fixes popup not opening from other tabs)
-          ImGuiWindow* window = ImGui::FindWindowByName ("###History");
-          if (window != nullptr && ! window->Appearing)
-            HistoryPopup = PopupState_Opened;
-        }
-
-        /*
-        SKIF_ImGui_Spacing ();
-
-        float fX = (ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(updateTxt.c_str()).x + ImGui::GetStyle().ItemSpacing.x) / 2;
-
-        ImGui::SetCursorPosX(fX);
-
-        ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success), updateTxt.c_str());
-        */
-
-        ImGui::Text        ("You are currently using");
-        ImGui::SameLine    ( );
-#ifdef _WIN64
-        ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), ("Special K v " + _inject.SKVer64_utf8).c_str());
-#else
-        ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), ("Special K v " + _inject.SKVer32_utf8).c_str());
-#endif
-
-        SKIF_ImGui_Spacing ();
-
-        if (! _updater.GetResults().history_formatted.notes.empty())
-        {
-          ImGui::PushStyleColor (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
-          ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
-          ImGui::PushFont       (fontConsolas);
-          ImGui::InputTextEx    ( "###HistoryChanges", "No historical changes detected...",
-                                    _updater.GetResults().history_formatted.notes.data(),
-                                      static_cast<int>(_updater.GetResults().history_formatted.notes.size()),
-                                        ImVec2 ( (HistoryPopupWidth - 15.0f) * SKIF_ImGui_GlobalDPIScale,
-                                          std::min<float> (
-                                              std::min<float>(_updater.GetResults().history_formatted.lines, 40.0f) * fontConsolas->FontSize,
-                                              SKIF_vecCurrentMode.y * 0.6f)
-                                               ), ImGuiInputTextFlags_ReadOnly | static_cast<ImGuiInputTextFlags_>(ImGuiInputTextFlags_Multiline));
-
-          SKIF_ImGui_DisallowMouseDragMove ( );
-
-          ImGui::PopFont        ( );
-          ImGui::PopStyleColor  ( );
-          ImGui::PopStyleColor  ( );
-
-          SKIF_ImGui_Spacing ();
-        }
-
-        SKIF_ImGui_Spacing ();
-
-        float fX = (ImGui::GetContentRegionAvail().x - 100 * SKIF_ImGui_GlobalDPIScale) / 2;
-
-        ImGui::SetCursorPosX(fX);
-
-        if (ImGui::Button ("Close", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
-                                              25 * SKIF_ImGui_GlobalDPIScale )))
-        {
-          HistoryPopup = PopupState_Closed;
-          ImGui::CloseCurrentPopup ();
-        }
-
-        SKIF_ImGui_DisallowMouseDragMove ( );
-
-        ImGui::EndPopup ();
-      }
-
-      static float       AutoUpdatePopupWidth          = 0.0f;
-      static std::string AutoUpdatePopupTitle;
-      static bool        AutoUpdateChanges = (_updater.GetAutoUpdateNotes().max_length > 0 && ! _inject.SKVer32.empty() && _inject.SKVer32 == _registry.wsAutoUpdateVersion);
-
-      if (AutoUpdateChanges && SKIF_ImGui_IsFocused ())
-      {
-        AutoUpdateChanges = false;
-        AutoUpdatePopup = PopupState_Open;
-      }
-
-      // Only open the popup prompt after the library has appeared (fixes the popup weirdly closing for some unknown reason)
-      if (PopulatedGames && AutoUpdatePopup == PopupState_Open && ! HiddenFramesContinueProcessing && ! SKIF_ImGui_IsAnyPopupOpen ( ))
-      {
-        AutoUpdatePopupWidth = 360.0f;
-
-        // 8.0f  per character
-        // 25.0f for the scrollbar
-        float calcAutoUpdatePopupWidth = static_cast<float> (_updater.GetAutoUpdateNotes().max_length) * 8.0f + 25.0f;
-
-        if (calcAutoUpdatePopupWidth > AutoUpdatePopupWidth)
-          AutoUpdatePopupWidth = calcAutoUpdatePopupWidth;
-
-        AutoUpdatePopupWidth = std::min<float> (AutoUpdatePopupWidth, SKIF_vecCurrentMode.x * 0.9f);
-
-        AutoUpdatePopupTitle = "An update was installed automatically###AutoUpdater";
-
-        ImGui::OpenPopup ("###AutoUpdater");
-
-        ImGui::SetNextWindowSize (ImVec2 (AutoUpdatePopupWidth* SKIF_ImGui_GlobalDPIScale, 0.0f));
-      }
-
-      ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
-      if (ImGui::BeginPopupModal (AutoUpdatePopupTitle.c_str(), nullptr,
-                                  ImGuiWindowFlags_NoResize |
-                                  ImGuiWindowFlags_NoMove |
-                                  ImGuiWindowFlags_AlwaysAutoResize )
-         )
-      {
-        if (AutoUpdatePopup == PopupState_Open)
-        {
-          // Set the popup as opened after it has appeared (fixes popup not opening from other tabs)
-          ImGuiWindow* window = ImGui::FindWindowByName ("###AutoUpdater");
-          if (window != nullptr && ! window->Appearing)
-            AutoUpdatePopup = PopupState_Opened;
-        }
-
-        /*
-        SKIF_ImGui_Spacing ();
-
-        float fX = (ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(updateTxt.c_str()).x + ImGui::GetStyle().ItemSpacing.x) / 2;
-
-        ImGui::SetCursorPosX(fX);
-
-        ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success), updateTxt.c_str());
-        */
-
-        ImGui::Text        ("You are now using");
-        ImGui::SameLine    ( );
-#ifdef _WIN64
-        ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), ("Special K v " + _inject.SKVer64_utf8).c_str());
-#else
-        ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), ("Special K v " + _inject.SKVer32_utf8).c_str());
-#endif
-
-        SKIF_ImGui_Spacing ();
-
-        if (! _updater.GetAutoUpdateNotes().notes.empty())
-        {
-          ImGui::PushStyleColor (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
-          ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
-          ImGui::PushFont       (fontConsolas);
-          ImGui::InputTextEx    ( "###AutoUpdaterChanges", "No changes detected...",
-                                    _updater.GetAutoUpdateNotes().notes.data(),
-                                      static_cast<int>(_updater.GetAutoUpdateNotes().notes.size()),
-                                        ImVec2 ( (AutoUpdatePopupWidth - 15.0f) * SKIF_ImGui_GlobalDPIScale,
-                                          std::min<float> (
-                                              std::min<float>(_updater.GetAutoUpdateNotes().lines, 40.0f) * fontConsolas->FontSize,
-                                              SKIF_vecCurrentMode.y * 0.6f)
-                                               ), ImGuiInputTextFlags_ReadOnly | static_cast<ImGuiInputTextFlags_>(ImGuiInputTextFlags_Multiline));
-
-          SKIF_ImGui_DisallowMouseDragMove ( );
-
-          ImGui::PopFont        ( );
-          ImGui::PopStyleColor  ( );
-          ImGui::PopStyleColor  ( );
-
-          SKIF_ImGui_Spacing ();
-        }
-
-        SKIF_ImGui_Spacing ();
-
-        float fX = (ImGui::GetContentRegionAvail().x - 100 * SKIF_ImGui_GlobalDPIScale) / 2;
-
-        ImGui::SetCursorPosX(fX);
-
-        if (ImGui::Button ("Close", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
-                                              25 * SKIF_ImGui_GlobalDPIScale )))
-        {
-          _registry.regKVAutoUpdateVersion.putData(L"");
-          AutoUpdatePopup = PopupState_Closed;
-          ImGui::CloseCurrentPopup ();
-        }
-
-        SKIF_ImGui_DisallowMouseDragMove ( );
-
-        ImGui::EndPopup ();
-      }
+      // Only open the update prompt after the library has appeared
+      if (PopulatedGames && UpdatePromptPopup == PopupState_Open && ! _registry.bMiniMode && ! HiddenFramesContinueProcessing && ! ImGui::IsMouseDragging (ImGuiMouseButton_Left))
+        _updater.Show (SKIF_Updater::WindowType::Updater);
 
       /* 2023-08-04: Disabled due to having been replaced by a new
       // Special handling to allow the main window to be moved when some popups are opened
@@ -3770,9 +3332,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           (      AddGamePopup == PopupState_Opened ||
              PopupMessageInfo == PopupState_Opened ||
               ModifyGamePopup == PopupState_Opened ||
-              RemoveGamePopup == PopupState_Opened ||
-            UpdatePromptPopup == PopupState_Opened ||
-                 HistoryPopup == PopupState_Opened ))
+              RemoveGamePopup == PopupState_Opened ))
       {
         ImGui::StartMouseMovingWindow (ImGui::GetCurrentWindowRead());
 
@@ -3784,10 +3344,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
                    ModifyGamePopup  = PopupState_Open;
         else if (  RemoveGamePopup == PopupState_Opened)
                    RemoveGamePopup  = PopupState_Open;
-        else if (UpdatePromptPopup == PopupState_Opened)
-                 UpdatePromptPopup  = PopupState_Open;
-        else if (     HistoryPopup == PopupState_Opened)
-                      HistoryPopup  = PopupState_Open;
       }
       */
 
@@ -3835,6 +3391,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
       extern void
         SKIF_UI_IniEditor_Process (void);
         SKIF_UI_IniEditor_Process (    );
+
+      // Process any Updater windows
+      _updater.ProcessWindows ( );
 
       // Local Manager
       static SKIF_LocalManager&
@@ -3884,13 +3443,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             ModifyGamePopup != PopupState_Open   &&
             ModifyGamePopup != PopupState_Opened &&
         PopupCategoryModify != PopupState_Open   &&
-        PopupCategoryModify != PopupState_Opened &&
-          UpdatePromptPopup != PopupState_Open   &&
-          UpdatePromptPopup != PopupState_Opened &&
-               HistoryPopup != PopupState_Open   &&
-               HistoryPopup != PopupState_Opened &&
-            AutoUpdatePopup != PopupState_Open   &&
-            AutoUpdatePopup != PopupState_Opened)
+        PopupCategoryModify != PopupState_Opened)
       {
         PLOG_DEBUG << "Closing unwanted opened popups because SKIF lost focus...";
         ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead ( ), false); // CurrentWindow == Debug##Default at this point
@@ -4082,9 +3635,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     /*
     else if (  AddGamePopup == PopupState_Open ||
                ConfirmPopup == PopupState_Open ||
-            ModifyGamePopup == PopupState_Open ||
-          UpdatePromptPopup == PopupState_Open ||
-               HistoryPopup == PopupState_Open )
+            ModifyGamePopup == PopupState_Open )
       processAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If a popup is transitioning to an opened state
     */
     else if (ImGui::GetFrameCount ( ) > processAdditionalFrames)

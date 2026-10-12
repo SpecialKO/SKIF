@@ -998,8 +998,9 @@ SKIF_ImGui_DialogPrompt (const char* name, bool* p_open, const char* message, co
     if (message || description)
     ImGui::Separator ( );
 
-    static constexpr ImVec2
-      btn (110, 0);
+    extern float SKIF_ImGui_GlobalDPIScale;
+    ImVec2
+      btn       = ImVec2(110, 0) * SKIF_ImGui_GlobalDPIScale;
     static const std::vector<std::pair<const DChoice, const char*>>
       btnTxtVec = {
         // Generic
@@ -1032,10 +1033,10 @@ SKIF_ImGui_DialogPrompt (const char* name, bool* p_open, const char* message, co
 
     // Empty spacing to eat the trailing SameLine ( )
     ImGui::Spacing ( );
-  }
 
-  // Always bring the window to the front (prevents it being obscured by another window)
-  ImGui::BringWindowToDisplayFront (ImGui::GetCurrentWindow ( ));
+    // Always bring the window to the front (prevents it being obscured by another window)
+    ImGui::BringWindowToDisplayFront (ImGui::GetCurrentWindow ( ));
+  }
 
   ImGui::End ( );
 
@@ -1678,10 +1679,7 @@ SKIF_ImGui_CanMouseDragMove (void)
           PopupMessageInfo    == PopupState_Opened || //   which are actually aligned to
            ModifyGamePopup    == PopupState_Opened || //   the center of the app window
           PopupCategoryModify == PopupState_Opened ||
-           RemoveGamePopup    == PopupState_Opened ||
-         UpdatePromptPopup    == PopupState_Opened ||
-              HistoryPopup    == PopupState_Opened ||
-           AutoUpdatePopup    == PopupState_Opened ));
+           RemoveGamePopup    == PopupState_Opened ));
 }
 
 // Based on https://github.com/ocornut/imgui/issues/3379#issuecomment-1678718752

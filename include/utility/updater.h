@@ -3,6 +3,9 @@
 #include <string>
 #include <memory>
 
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+
 typedef unsigned int UpdateFlags;  // -> enum UpdateFlags_
 
 enum UpdateFlags_
@@ -19,6 +22,12 @@ enum UpdateFlags_
 
 // Singleton struct
 struct SKIF_Updater {
+
+  enum class WindowType {
+    ChangesFull,
+    ChangesAutoUpdate,
+    Updater,
+  };
 
   struct version_s {
     std::string version;
@@ -39,6 +48,11 @@ struct SKIF_Updater {
     std::vector<char> notes;
     float lines         = 0;
     size_t max_length   = 0;
+
+    struct imgui_cache_s {
+      float font_size = 0.0f;
+      float max_w     = 0.0f;
+    } imgui_cache;
   };
 
   // Public variables
@@ -80,6 +94,8 @@ struct SKIF_Updater {
   void                                                SetIgnoredUpdate    (std::wstring update);
   UpdateFlags                                         GetState            (void);
   results_s&                                          GetResults          (void);
+  void                                                Show                (WindowType type);
+  void                                                ProcessWindows      (void);
 
   static SKIF_Updater& GetInstance (void)
   {
@@ -110,6 +126,20 @@ private:
   std::atomic<bool> forced   = false; // Only used internally for forced updates
   std::atomic<bool> rollback = false; // Only used internally when triggering a rollback
   std::atomic<bool> awake    = false; // Used to protect against sporadic wake-ups
+
+  struct Window {
+    HWND         hwnd = nullptr;
+    bool         show = false;
+    std:: string label;
+  } wndChangesFull, wndChangesAU, wndUpdater;
+
+  // Separate windows
+  void         DrawWindowChanges  (Window* wnd, WindowType type);
+  void         DrawWindowUpdater  (Window* wnd);
+
+  // Overlay on top of the main window
+  void         DrawOverlayChanges (Window* wnd, WindowType type);
+  void         DrawOverlayUpdater (Window* wnd);
 
                SKIF_Updater       (void);
   void         ClearOldUpdates    (void);

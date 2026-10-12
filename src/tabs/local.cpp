@@ -233,26 +233,6 @@ SKIF_LocalManager::RefreshInstalls (void)
   needs_sort = true;
 }
 
-void
-SKIF_LocalManager::Show (void)
-{
-  static int id = 0;
-
-  if (this->showWindow && this->hwnd)
-  {
-    if (       IsIconic (       this->hwnd))
-             ShowWindow (       this->hwnd, SW_RESTORE);
-    else if (! IsWindowVisible (this->hwnd))
-             ShowWindow (       this->hwnd, SW_SHOW);
-
-    SetForegroundWindow (       this->hwnd);
-  } else {
-    this->label      = "Local Installs###LocalManager-" + std::to_string (id++);
-    this->hwnd       = nullptr;
-    this->showWindow = true;
-  }
-}
-
 // 0 = exists + outdated, 1 = does not exist, 2 = exists + up to date
 static int
 EvalStatus (const SKIF_LocalManager::install_s& i)
@@ -303,13 +283,32 @@ SKIF_LocalManager::SortInstalls (const ImGuiTableSortSpecs* specs)
 }
 
 void
+SKIF_LocalManager::Show (void)
+{
+  static int id = 0;
+
+  if (this->showWindow && this->hwnd)
+  {
+    if (       IsIconic (       this->hwnd))
+             ShowWindow (       this->hwnd, SW_RESTORE);
+    else if (! IsWindowVisible (this->hwnd))
+             ShowWindow (       this->hwnd, SW_SHOW);
+    SetForegroundWindow (       this->hwnd);
+  } else {
+    this->label      = "Local Installs###LocalManager-" + std::to_string (id++);
+    this->hwnd       = nullptr;
+    this->showWindow = true;
+  }
+}
+
+void
 SKIF_LocalManager::Process (void)
 {
   // Refresh if the registry key changed since last frame
   if (watch.isSignaled ())
     RefreshInstalls ();
 
-  if (! showWindow)
+  if (! this->showWindow)
     return;
 
   // Custom TableHeadersRow() that draws a checkbox toggle in one of the columns

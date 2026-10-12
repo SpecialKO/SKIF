@@ -17,6 +17,10 @@
 #include <utility/injection.h>
 #include <netlistmgr.h>
 
+#include <imgui/imgui.h>
+#include <utility/skif_imgui.h>
+#include <../packages_misc/ImGuiNotify.hpp>
+
 /*
 
 SKIF's auto-updater relies on the JSON file located at https://sk-data.special-k.info/repository.json
@@ -197,35 +201,51 @@ SKIF_Updater::SKIF_Updater (void)
         local.release_notes_formatted.lines += 3.5f;
       }
 
+      auto&
+        fmt = local.history_formatted;
+        fmt.notes.clear();
+        fmt.lines      = 0;
+        fmt.max_length = 0;
+
       // Format the historical changes
       if (! local.history.empty ( ))
       {
-        std::string strHistory = local.history;
+        // Strip '\r' so CRLF doesn't leak into the buffer or the measurements
+        std::string src = local.history;
+        src.erase (std::remove (src.begin (), src.end (), '\r'), src.end ());
 
-        // Ensure the text wraps at every 110 character (longest line used yet, in v0.8.32)
-        strHistory = TextFlow::Column(strHistory).width(110).toString();
+        // Wrap at 110 columns (longest line used so far, in v0.8.32)
+        const std::string wrapped = TextFlow::Column (src).width (110).toString ();
 
-        // Calc longest line and number of lines
-        std::istringstream iss(strHistory);
-        for (std::string line; std::getline(iss, line); local.history_formatted.lines++)
-          if (line.length() > local.history_formatted.max_length)
-            local.history_formatted.max_length = line.length();
+        // One pass: line count and longest line
+        size_t line_len = 0;
+        for (const char c : wrapped)
+        {
+          if (c == '\n')
+          {
+            fmt.max_length = std::max (fmt.max_length, line_len);
+            ++fmt.lines;
+            line_len = 0;
+          }
+          else
+            ++line_len;
+        }
+        if (line_len > 0) // last line without a trailing '\n'
+        {
+          fmt.max_length = std::max (fmt.max_length, line_len);
+          ++fmt.lines;
+        }
 
-        // Populate the vector
-        local.history_formatted.notes.push_back ('\n');
+        // Build the buffer with a single allocation
+        fmt.notes.reserve   (wrapped.size () + 4);
+        fmt.notes.push_back ('\n'); // top padding
+        fmt.notes.insert    (fmt.notes.end (), wrapped.begin (), wrapped.end ());
+        fmt.notes.push_back ('\n'); // bottom padding
+        fmt.notes.push_back ('\0'); // terminator for InputTextEx
+        fmt.notes.push_back ('\0'); // second NUL, only if something else needs it
 
-        for (size_t i = 0; i < strHistory.length(); i++)
-          local.history_formatted.notes.push_back(strHistory[i]);
-
-        local.history_formatted.notes.push_back ('\n');
-
-        // Ensure the vector array is double null terminated
-        local.history_formatted.notes.push_back ('\0');
-        local.history_formatted.notes.push_back ('\0');
-
-        // Increase NumLines by 3, two from vecHistory.push_back and
-        //  two from ImGui's love of having one and a half empty line below content
-        local.history_formatted.lines += 3.5f;
+        // Account for the two padding newlines
+        fmt.lines += 2;
       }
 
       // Save the changes in a local file
@@ -530,11 +550,7 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
 
   PLOG_INFO << "Update Channel: " << wsCurrentBranch;
 
-#ifdef _WIN64
-  std::string currentVersion = _inject.SKVer64_utf8;
-#else
-  std::string currentVersion = _inject.SKVer32_utf8;
-#endif
+  std::string currentVersion = (SK_GetBitness() == 64 ? _inject.SKVer64_utf8 : _inject.SKVer32_utf8);
 
   PLOG_INFO << "Installed version: " << currentVersion;
 
@@ -1128,4 +1144,435 @@ SKIF_Updater::results_s&
 SKIF_Updater::GetResults(void)
 {
   return results;
+}
+
+void
+SKIF_Updater::Show (WindowType type)
+{
+  static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
+
+  static int id = 0;
+
+  SKIF_Updater::Window* ptr =
+    type == WindowType::ChangesFull       ? &wndChangesFull :
+    type == WindowType::ChangesAutoUpdate ? &wndChangesAU   :
+    type == WindowType::Updater           ? &wndUpdater     :
+                                      nullptr;
+
+  if (ptr == nullptr)
+    return;
+
+  if (ptr->show && ptr->hwnd)
+  {
+    if (       IsIconic (       ptr->hwnd))
+             ShowWindow (       ptr->hwnd, SW_RESTORE);
+    else if (! IsWindowVisible (ptr->hwnd))
+             ShowWindow (       ptr->hwnd, SW_SHOW);
+    SetForegroundWindow (       ptr->hwnd);
+  }
+
+  else
+  {
+    switch (type)
+    {
+    case WindowType::ChangesFull:
+      ptr->label = "Changelog"
+                 + (! channel->first.empty() ? " (" + channel->first + ")" : "")
+                 + "###Changelog-"  + std::to_string (id++);
+      break;
+    case WindowType::ChangesAutoUpdate:
+      ptr->label = "An update was installed automatically"
+                 + (! channel->first.empty() ? " (" + channel->first + ")" : "")
+                 + "###AutoUpdate-" + std::to_string (id++);
+      break;
+    case WindowType::Updater:
+      ptr->label = ((SKIF_Util_CompareVersionStrings (results.version, (SK_GetBitness() == 64 ? _inject.SKVer64_utf8 : _inject.SKVer32_utf8)) > 0)
+                 ? "Version Available" : "Rollback Available")
+                 + (! channel->first.empty() ? " (" + channel->first + ")" : "")
+                 + "###Updater-" + std::to_string (id++);
+      break;
+    }
+
+    ptr->hwnd = nullptr;
+    ptr->show = true;
+  }
+}
+
+static void
+DrawInputTextEx (SKIF_Updater::changelog_s* fmt, SKIF_Updater::WindowType type, const ImVec2 avail = ImGui::GetContentRegionAvail ( ))
+{
+  if (! fmt)
+    return;
+
+  if (fmt->notes.empty())
+  {
+    ImGui::TextDisabled ((type == SKIF_Updater::WindowType::ChangesFull       ? "No historical changes detected..."                :
+                          type == SKIF_Updater::WindowType::ChangesAutoUpdate ? "No changes detected..."                           :
+                          type == SKIF_Updater::WindowType::Updater           ? "The update does not contain any release notes..." :
+                                                                                "This should not be poss... What did you do?! ;)"));
+    return;
+  }
+
+  auto&       cache      = fmt->imgui_cache;
+  const float font_size  = ImGui::GetFontSize ( );
+  if (  cache.font_size != font_size)
+  {
+    cache.font_size = font_size;
+    cache.max_w     = 0.0f;
+
+    const char* end = fmt->notes.data() + fmt->notes.size();
+    for (const char* p   = fmt->notes.data(); p < end; )
+    {
+      const char* eol = (const char*)memchr (p, '\n', end - p);
+      const char* le  = eol ? eol : end;
+      cache.max_w = ImMax (cache.max_w, ImGui::CalcTextSize (p, le).x);
+      p     = eol ? eol + 1 : end;
+    }
+  }
+
+  const ImGuiStyle& style= ImGui::GetStyle ( );
+  const float         sb = style.ScrollbarSize;
+  const float  content_w = cache.max_w + style.FramePadding.x * 2.0f;
+  const float  content_h = fmt->lines * ImGui::GetTextLineHeight() + style.FramePadding.y * 2.0f;
+
+  // Adding a scrollbar only ever removes space, so this converges in two steps
+  bool needY = content_h > avail.y;
+  bool needX = content_w > avail.x - (needY ? sb : 0.0f);
+       needY = content_h > avail.y - (needX ? sb : 0.0f); // an X bar can force a Y bar
+       needX = content_w > avail.x - (needY ? sb : 0.0f); // and back
+
+  const ImVec2 input_size (ImMax (avail.x - (needY ? sb : 0.0f), content_w),
+                           ImMax (avail.y - (needX ? sb : 0.0f), content_h));
+
+  ImGuiWindowFlags wf  = ImGuiWindowFlags_HorizontalScrollbar;
+  if (needX)       wf |= ImGuiWindowFlags_AlwaysHorizontalScrollbar;
+  if (needY)       wf |= ImGuiWindowFlags_AlwaysVerticalScrollbar;
+
+  ImGui::BeginChild     ((type == SKIF_Updater::WindowType::ChangesFull       ? "##ScrollChangelog"  :
+                          type == SKIF_Updater::WindowType::ChangesAutoUpdate ? "##ScrollAutoUpdate" :
+                          type == SKIF_Updater::WindowType::Updater           ? "##ScrollUpdater"    :
+                                                                                "##ScrollFallback"),
+                         avail, ImGuiChildFlags_None,
+                         wf);
+
+  ImGui::InputTextEx    ((type == SKIF_Updater::WindowType::ChangesFull       ? "##ChangesChangelog"  :
+                          type == SKIF_Updater::WindowType::ChangesAutoUpdate ? "##ChangesAutoUpdate" :
+                          type == SKIF_Updater::WindowType::Updater           ? "##ChangesUpdater"    :
+                                                                                "##ChangesFallback"),
+                         nullptr,
+                         fmt->notes.data(), static_cast<int>(fmt->notes.size()),
+                         input_size,
+                        (ImGuiInputTextFlags)ImGuiInputTextFlags_ReadOnly  |
+                        (ImGuiInputTextFlags)ImGuiInputTextFlags_Multiline |
+                        (ImGuiInputTextFlags)ImGuiInputTextFlags_NoHorizontalScroll);
+
+  // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
+  SKIF_ImGui_AutoScroll (true, SKIF_ImGuiAxis_Y);
+
+  ImGui::EndChild       ( );
+}
+
+void
+SKIF_Updater::DrawWindowChanges (Window* wnd, WindowType type)
+{
+  if (! wnd)
+    return;
+
+  if (! wnd->show)
+    return;
+
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
+
+  ImGuiWindowClass
+    wc;
+    wc.ClassId = ImGui::GetID ("SKIF_ChangelogClass");
+    wc.ViewportFlagsOverrideSet = ImGuiViewportFlags_NoAutoMerge; // Work around a pesky bug where the viewport tries to merge into the... debug fallback window?
+  ImGui::SetNextWindowClass (&wc);
+  ImGui::SetNextWindowSizeConstraints (ImVec2 (500.0f, 300.0f) * SKIF_ImGui_GlobalDPIScale, ImVec2 (FLT_MAX, FLT_MAX));
+  extern ImRect windowRect;
+  ImGui::SetNextWindowPos  (windowRect.GetCenter(), ImGuiCond_Appearing, ImVec2 (0.5f, 0.5f));
+  ImGui::SetNextWindowSize (ImVec2 (900.0f, 600.0f) * SKIF_ImGui_GlobalDPIScale, ImGuiCond_Appearing);
+
+  bool cache_show = wnd->show;
+
+  static float fY = 0.0f;
+
+  if (ImGui::Begin (wnd->label.c_str(), &wnd->show,
+                      ImGuiWindowFlags_NoCollapse        |
+                      ImGuiWindowFlags_NoSavedSettings   ))
+  {
+    if (wnd->hwnd == nullptr && ImGui::GetWindowViewport()->PlatformHandleRaw)
+      wnd->hwnd = (HWND)ImGui::GetWindowViewport()->PlatformHandleRaw;
+
+    ImGui::Text        ("You are currently using");
+    ImGui::SameLine    ( );
+    ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info),
+      ("Special K v " + (SK_GetBitness() == 64 ? _inject.SKVer64_utf8 : _inject.SKVer32_utf8)
+      ).c_str()
+    );
+
+    SKIF_ImGui_Spacing ();
+
+    ImGui::PushStyleColor (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
+    ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
+    ImGui::PushFont       (fontConsolas);
+
+    ImVec2 child_size = ImVec2 (ImGui::GetContentRegionAvail().x,
+                                ImGui::GetContentRegionAvail().y - fY);
+    DrawInputTextEx (type == WindowType::ChangesFull       ? &results.history_formatted :
+                     type == WindowType::ChangesAutoUpdate ? &auto_updater_formatted    :
+                                                                nullptr,
+                     type, child_size);
+
+    fY = ImGui::GetCursorPosY ();
+
+    ImGui::PopFont        ( ); // fontConsolas
+    ImGui::PopStyleColor  ( ); // ImGuiCol_Text
+    ImGui::PopStyleColor  ( ); // ImGuiCol_NavHighlight
+
+    if (SKIF_ImGui_TitleBarMinimizeButton ( ))
+      ShowWindowAsync ((HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, SW_MINIMIZE);
+
+    SKIF_ImGui_Spacing ();
+
+    float fX = (ImGui::GetContentRegionAvail().x - 100 * SKIF_ImGui_GlobalDPIScale) / 2;
+
+    ImGui::SetCursorPosX (fX);
+
+    if (ImGui::Button ("Close", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
+                                          25 * SKIF_ImGui_GlobalDPIScale )))
+    {
+      wnd->show = false;
+    }
+
+    SKIF_ImGui_DisallowMouseDragMove ( );
+
+    SKIF_ImGui_Spacing ( );
+
+    fY = ImGui::GetCursorPosY ( ) - fY;
+  }
+
+  ImGui::End ( );
+
+  if (type == WindowType::ChangesAutoUpdate)
+  {
+    // If we closed the window on this frame, update the registry
+    if (cache_show == true && cache_show != wnd->show)
+      _registry.regKVAutoUpdateVersion.putData (L"");
+  }
+}
+
+void
+SKIF_Updater::DrawWindowUpdater (Window* wnd)
+{
+  if (! wnd)
+    return;
+
+  if (! wnd->show)
+    return;
+
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
+
+  ImGuiWindowClass
+    wc;
+    wc.ClassId = ImGui::GetID ("SKIF_UpdaterClass");
+    wc.ViewportFlagsOverrideSet = ImGuiViewportFlags_NoAutoMerge; // Work around a pesky bug where the viewport tries to merge into the... debug fallback window?
+  ImGui::SetNextWindowClass (&wc);
+  ImGui::SetNextWindowSizeConstraints (ImVec2 (500.0f, 300.0f) * SKIF_ImGui_GlobalDPIScale, ImVec2 (FLT_MAX, FLT_MAX));
+  extern ImRect windowRect;
+  ImGui::SetNextWindowPos  (windowRect.GetCenter(), ImGuiCond_Appearing, ImVec2 (0.5f, 0.5f));
+  ImGui::SetNextWindowSize (ImVec2 (900.0f, 600.0f) * SKIF_ImGui_GlobalDPIScale, ImGuiCond_Appearing);
+
+  bool cache_show = wnd->show;
+
+  if (ImGui::Begin (wnd->label.c_str(), &wnd->show,
+                      ImGuiWindowFlags_NoCollapse        |
+                      ImGuiWindowFlags_NoSavedSettings   ))
+  {
+    if (wnd->hwnd == nullptr && ImGui::GetWindowViewport()->PlatformHandleRaw)
+      wnd->hwnd = (HWND)ImGui::GetWindowViewport()->PlatformHandleRaw;
+
+    if (UpdatePromptPopup == PopupState_Open)
+        UpdatePromptPopup  = PopupState_Opened;
+
+    std::string currentVersion = (SK_GetBitness() == 64 ? _inject.SKVer64_utf8 : _inject.SKVer32_utf8);
+    std::string compareLabel;
+    ImVec4      compareColor;
+    bool        compareNewer = (SKIF_Util_CompareVersionStrings (results.version, currentVersion) > 0);
+
+    if (compareNewer)
+    {
+      compareLabel = "This version is newer than the currently installed.";
+      compareColor = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success);
+    }
+    else
+    {
+      compareLabel = "WARNING: You are about to roll back Special K as this version is older than the currently installed!";
+      compareColor = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning);
+    }
+
+    SKIF_ImGui_Spacing ();
+
+    std::string updateTxt = "is ready to be installed.";
+
+    if ((results.state & UpdateFlags_Downloaded) != UpdateFlags_Downloaded)
+      updateTxt = "is available for download.";
+
+    float fX = (ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(((results.description) + updateTxt).c_str()).x + (((compareNewer) ? 2 : 1) * ImGui::GetStyle().ItemSpacing.x)) / 2;
+
+    ImGui::SetCursorPosX(fX);
+
+    ImGui::TextColored (compareColor, (results.description).c_str());
+    ImGui::SameLine ( );
+    ImGui::Text (updateTxt.c_str());
+
+    SKIF_ImGui_Spacing ();
+
+    if ((results.state & UpdateFlags_Failed) == UpdateFlags_Failed)
+    {
+      ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning));
+      ImGui::TextWrapped ("A failed download was detected! Click Download below to try again.");
+      ImGui::Text        ("In case of continued errors, consult SKIF.log for more details.");
+      ImGui::PopStyleColor  ( );
+
+      SKIF_ImGui_Spacing ();
+    }
+
+    ImGui::Text     ("Target Folder:");
+    ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info));
+    ImGui::TextWrapped    (SK_WideCharToUTF8 (_path_cache.specialk_install).c_str());
+    ImGui::PopStyleColor  ( );
+
+    SKIF_ImGui_Spacing ();
+
+    static float fY = 0.0f;
+
+    if (! results.release_notes_formatted.notes.empty())
+    {
+      if (results.description_installed.empty())
+        ImGui::Text           ("Changes:");
+
+      else {
+        ImGui::Text           ("Changes from");
+        ImGui::SameLine       ( );
+        ImGui::TextColored    (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), (results.description_installed + ":").c_str());
+      }
+
+      ImVec2 child_size = ImVec2 (ImGui::GetContentRegionAvail().x,
+                                  ImGui::GetContentRegionAvail().y - fY);
+      DrawInputTextEx (&results.release_notes_formatted, WindowType::Updater, child_size);
+
+      fY = ImGui::GetCursorPosY ();
+
+      SKIF_ImGui_Spacing ();
+    }
+
+    fX = (ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(compareLabel.c_str()).x + (((compareNewer) ? 2 : 1) * ImGui::GetStyle().ItemSpacing.x)) / 2;
+
+    ImGui::SetCursorPosX(fX);
+
+    ImGui::TextColored (compareColor, compareLabel.c_str());
+
+    SKIF_ImGui_Spacing ();
+
+    fX = (ImGui::GetContentRegionAvail().x - (((compareNewer) ? 3 : 2) * 100 * SKIF_ImGui_GlobalDPIScale) - (((compareNewer) ? 2 : 1) * ImGui::GetStyle().ItemSpacing.x)) / 2;
+
+    ImGui::SetCursorPosX(fX);
+
+    std::string btnLabel = (compareNewer) ? "Update" : "Rollback";
+
+    if ((results.state & UpdateFlags_Downloaded) != UpdateFlags_Downloaded)
+      btnLabel = "Download";
+
+    if (ImGui::Button (btnLabel.c_str(), ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
+                                                   25 * SKIF_ImGui_GlobalDPIScale )))
+    {
+      if (btnLabel == "Download")
+      {
+        _registry.wsIgnoreUpdate = L"";
+        _registry.regKVIgnoreUpdate.putData (_registry.wsIgnoreUpdate);
+
+        // Trigger a new check for updates (which should download the installer)
+        CheckForUpdates (false, ! compareNewer);
+      }
+
+      else {
+        std::wstring args = SK_FormatStringW (LR"(/VerySilent /NoRestart /Shortcuts=false /StartService=%d /DIR="%ws")",
+                                              (_inject.bCurrentState && ! _inject.bAckInj), _path_cache.specialk_install);
+
+        if (_inject.bCurrentState)
+          _inject._StartStopInject (true);
+
+        static std::wstring updateRoot = SK_FormatStringW (LR"(%ws\Version\)", _path_cache.specialk_userdata);
+        SKIF_Util_OpenURI ( updateRoot + results.filename, SW_SHOWNORMAL, L"OPEN", args.c_str() );
+      }
+
+      wnd->show = false;
+    }
+
+    SKIF_ImGui_DisallowMouseDragMove ( );
+
+    ImGui::SameLine ();
+    ImGui::Spacing  ();
+    ImGui::SameLine ();
+
+    if (compareNewer)
+    {
+      if (ImGui::Button ("Ignore", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
+                                             25 * SKIF_ImGui_GlobalDPIScale )))
+      {
+        SetIgnoredUpdate (SK_UTF8ToWideChar (results.version));
+
+        wnd->show = false;
+      }
+
+      SKIF_ImGui_SetHoverTip ("SKIF will not prompt about this version again.");
+
+      ImGui::SameLine ();
+      ImGui::Spacing  ();
+      ImGui::SameLine ();
+    }
+
+    SKIF_ImGui_DisallowMouseDragMove ( );
+
+    if (ImGui::Button ("Cancel", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
+                                           25 * SKIF_ImGui_GlobalDPIScale )))
+    {
+      wnd->show = false;
+    }
+
+    SKIF_ImGui_DisallowMouseDragMove ( );
+
+    SKIF_ImGui_Spacing ( );
+
+    fY = ImGui::GetCursorPosY ( ) - fY;
+  }
+
+  ImGui::End ( );
+
+  // If we closed the window on this frame, update the registry
+  if (cache_show == true && cache_show != wnd->show)
+    UpdatePromptPopup = PopupState_Closed;
+}
+
+void
+SKIF_Updater::ProcessWindows (void)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
+
+  static bool showAutoUpdate = (auto_updater_formatted.max_length > 0 && ! _inject.SKVer32.empty() && _inject.SKVer32 == _registry.wsAutoUpdateVersion);
+  
+  if (showAutoUpdate && SKIF_ImGui_IsFocused ())
+  {
+    showAutoUpdate = false;
+    Show (WindowType::ChangesAutoUpdate);
+  }
+
+  DrawWindowChanges (&wndChangesFull, WindowType::ChangesFull);
+  DrawWindowChanges (&wndChangesAU,   WindowType::ChangesAutoUpdate);
+  DrawWindowUpdater (&wndUpdater);
 }

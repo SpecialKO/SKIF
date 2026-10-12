@@ -24,9 +24,9 @@
 void SKIF_UI_DrawComponentVersion (void)
 {
   static SKIF_InjectionContext& _inject   = SKIF_InjectionContext::GetInstance ( );
+  static SKIF_Updater&          _updater  = SKIF_Updater::GetInstance ( );
 
   extern PopupState UpdatePromptPopup;
-  extern PopupState HistoryPopup;
 
   ImGui::BeginGroup       ( );
 
@@ -79,13 +79,10 @@ void SKIF_UI_DrawComponentVersion (void)
   ImGui::SameLine         ( );
   ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
   if (SKIF_ImGui_Selectable ("View release notes..."))
-    HistoryPopup = PopupState_Open;
+    _updater.Show         (SKIF_Updater::WindowType::ChangesFull);
   ImGui::PopStyleColor    ( );
   SKIF_ImGui_SetMouseCursorHand ( );
   ImGui::EndGroup         ( );
-
-  static SKIF_Updater& _updater =
-         SKIF_Updater::GetInstance ( );
 
   if ((_updater.GetState ( ) & UpdateFlags_Available) == UpdateFlags_Available)
   {
