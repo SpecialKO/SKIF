@@ -49,17 +49,18 @@ private:
          void SetAnyOutdated    (void);
          void SetAnySelected    (void);
          void SetLatestVersion  (std::wstring_view v);
-         void UpdateInstall     (install_s* install);
+         void UpdateInstall     (install_s* install, PEBitness iBinaryType = PEBitness_Invalid);
          void DeleteInstall     (install_s* install);
          void RefreshInstalls   (void);
          void SortInstalls      (const ImGuiTableSortSpecs* specs);
-
-  bool                   needs_sort          =  true;
-  bool                   showWindow          = false;
-  bool                   anyOutdated         = false;
-  bool                   anySelected         = false;
-  bool                   anyOutdatedSelected = false;
-  HWND                   hwnd  = nullptr;
+         
+  HWND                   hwnd                = nullptr;
+  install_s*             want_install        = nullptr;
+  bool                   needs_sort          =    true;
+  bool                   showWindow          =   false;
+  bool                   anyOutdated         =   false;
+  bool                   anySelected         =   false;
+  bool                   anyOutdatedSelected =   false;
   std:: string           label;
   std::wstring           latest_version;
   std::vector<install_s> installs;

@@ -63,20 +63,29 @@ SKIF_LocalManager::SetLatestVersion (std::wstring_view v)
 }
 
 void
-SKIF_LocalManager::UpdateInstall (install_s* install)
+SKIF_LocalManager::UpdateInstall (install_s* install, PEBitness iBinaryType)
 {
   if (install == nullptr)
     return;
 
+  // Make sure the pointer actually refers to an element of our vector
+  const install_s* first =         installs.data ();
+  const install_s* last  = first + installs.size ();
+
+  if (install < first || install >= last)
+    return;
+
+  if (iBinaryType == PEBitness_Invalid && !install->path.empty())
+    iBinaryType = SKIF_Util_GetBinaryType (install->path.c_str());
+
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
 
-  int iBinaryType = SKIF_Util_GetBinaryType (install->path.c_str());
-  if (iBinaryType > 0)
+  if (iBinaryType > PEBitness_Invalid)
   {
     std::wstring folderPath = std::filesystem::path(install->path).parent_path().wstring();
 
-    std::wstring  wsPathToGlobalDLL = SK_FormatStringW (LR"(%ws\%ws)", _path_cache.specialk_install, (iBinaryType == 2) ? L"SpecialK64.dll" : L"SpecialK32.dll");
+    std::wstring  wsPathToGlobalDLL = SK_FormatStringW (LR"(%ws\%ws)", _path_cache.specialk_install, (iBinaryType == PEBitness_64bit) ? L"SpecialK64.dll" : L"SpecialK32.dll");
     if (CopyFile (wsPathToGlobalDLL.c_str(), install->path.c_str(), FALSE))
     {
       PLOG_INFO << "Successfully updated " << install->path << " from v " << install->version << " to v " << _inject.SKVer32;
@@ -160,6 +169,7 @@ SKIF_LocalManager::RefreshInstalls (void)
   for (auto& install : installs)
     wasSelected [install.path] = install.selected;
 
+  want_install = nullptr;
   installs.clear ();
 
   HKEY hKey = nullptr;
@@ -513,22 +523,32 @@ SKIF_LocalManager::Process (void)
         }
 
         // Column 3: Updater
-        if (ImGui::TableNextColumn ( ))
+        if (ImGui::TableNextColumn ( ) && install.exists_parent && install.outdated)
         {
-          // TODO: Implement support for re-installing a local DLL file
-          if (install.exists && install.outdated) // exists_parent
+          if (install.exists)
           {
             ImGui::PushStyleColor  (ImGuiCol_Button, ImVec4 (.1f, .1f, .1f, .5f));
-            if (ImGui::SmallButton (install.exists ? ICON_FA_ARROW_UP : ICON_FA_ARROW_DOWN))
+            if (ImGui::SmallButton (ICON_FA_ARROW_UP))
               UpdateInstall (&install);
             ImGui::PopStyleColor ( );
 
             if (ImGui::IsItemHovered ())
-              ImGui::SetTooltip ((install.exists
-                              ? ("The local DLL file is outdated.\n"
-                                 "Click to update it to v %s.")
-                              : ("The local DLL file could not be found.\n"
-                                 "Click to reinstall it as v %s.")),
+              ImGui::SetTooltip ("The local DLL file is outdated.\n"
+                                 "Click to update it to v %s.",
+                                 _inject.SKVer32_utf8.c_str());
+          }
+
+          // Reinstall
+          else
+          {
+            ImGui::PushStyleColor  (ImGuiCol_Button, ImVec4 (.1f, .1f, .1f, .5f));
+            if (ImGui::SmallButton (ICON_FA_ARROW_DOWN))
+              want_install = &install;
+            ImGui::PopStyleColor ( );
+
+            if (ImGui::IsItemHovered ())
+              ImGui::SetTooltip ("The local DLL file could not be found.\n"
+                                 "Click to reinstall it as v %s.",
                                  _inject.SKVer32_utf8.c_str());
           }
         }
@@ -621,12 +641,12 @@ SKIF_LocalManager::Process (void)
       ImGui::Separator ();
 
       SKIF_ImGui_PushDisableState (! anyOutdatedSelected);
-      if (ImGui::MenuItem ("Update"))
+      if (ImGui::MenuItem ("Update Selected"))
         action = LocalAction::Update;
       SKIF_ImGui_PopDisableState  (! anyOutdatedSelected);
 
       SKIF_ImGui_PushDisableState (! anySelected);
-      if (ImGui::MenuItem ("Delete"))
+      if (ImGui::MenuItem ("Delete Selected"))
         action = LocalAction::Delete;
       SKIF_ImGui_PopDisableState  (! anySelected);
 
@@ -644,7 +664,26 @@ SKIF_LocalManager::Process (void)
     // Process notifications for this window
     ImGui::RenderNotifications ();
 
-    if (action == LocalAction::AnySelected)
+    if (want_install)
+    {
+      bool dontCare = true;
+      switch (SKIF_ImGui_6432bitnessPrompt ("Select the bitness to install", &dontCare, nullptr, "Or while ingame, use " ICON_FA_FLOPPY_DISK " File -> Install Wrapper DLL."))
+      {
+      case DChoice_32bit:
+        UpdateInstall (want_install, PEBitness_32bit);
+        want_install = nullptr;
+        break;
+      case DChoice_64bit:
+        UpdateInstall (want_install, PEBitness_64bit);
+        want_install = nullptr;
+        break;
+      case DChoice_Cancel:
+        want_install = nullptr;
+        break;
+      }
+    }
+
+    else if (action == LocalAction::AnySelected)
     {
       SetAnySelected ( );
       action = LocalAction::None;
