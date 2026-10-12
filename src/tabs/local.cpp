@@ -209,7 +209,8 @@ SKIF_LocalManager::RefreshInstalls (void)
       auto it = wasSelected.find (install.path);
       install.selected = install.outdated &&
                   (it != wasSelected.end ()) && it->second;
-      install.exists   = GetFileAttributesW (install.path.c_str()) != INVALID_FILE_ATTRIBUTES;
+      install.exists        = GetFileAttributesW (install.path.c_str()) != INVALID_FILE_ATTRIBUTES;
+      install.exists_parent = GetFileAttributesW (std::filesystem::path(install.path).parent_path().wstring().c_str()) != INVALID_FILE_ATTRIBUTES;
 
       installs.push_back (std::move (install));
     }
@@ -218,6 +219,7 @@ SKIF_LocalManager::RefreshInstalls (void)
   RegCloseKey (hKey);
 
   SetAnyOutdated ( );
+  needs_sort = true;
 }
 
 void
@@ -240,6 +242,55 @@ SKIF_LocalManager::Show (void)
   }
 }
 
+// 0 = exists + outdated, 1 = does not exist, 2 = exists + up to date
+static int
+EvalStatus (const SKIF_LocalManager::install_s& i)
+{
+  if (! i.exists_parent) return 2;
+  if (! i.exists)        return 1;
+  if (  i.outdated)      return 0;
+  return 3;
+}
+
+void
+SKIF_LocalManager::SortInstalls (const ImGuiTableSortSpecs* specs)
+{
+  std::stable_sort (installs.begin (), installs.end (),
+  [specs](const install_s& a, const install_s& b)
+  {
+    for (int n = 0; n < specs->SpecsCount; ++n)
+    {
+      const ImGuiTableColumnSortSpecs& s = specs->Specs [n];
+
+      int delta = 0;
+
+      switch (s.ColumnUserID)
+      {
+        case Col_Path:
+          delta = _wcsicmp (a.path.c_str (), b.path.c_str ());
+          break;
+        case Col_Version:
+          delta = SKIF_Util_CompareVersionStrings (a.version, b.version);
+          break;
+        case Col_Updater:
+          delta = static_cast<int>(a.outdated) - static_cast<int>(b.outdated);
+          break;
+        case Col_Status:
+          delta = EvalStatus (a) - EvalStatus (b);
+          break;
+        default:
+          break;
+      }
+
+      if (delta != 0)
+        return (s.SortDirection == ImGuiSortDirection_Ascending) ? (delta < 0)
+                                                                 : (delta > 0);
+    }
+
+    return false;
+  });
+}
+
 void
 SKIF_LocalManager::Process (void)
 {
@@ -250,7 +301,84 @@ SKIF_LocalManager::Process (void)
   if (! showWindow)
     return;
 
-  static SKIF_InjectionContext& _inject = SKIF_InjectionContext::GetInstance ( );
+  // Custom TableHeadersRow() that draws a checkbox toggle in one of the columns
+  auto _CustomTableHeadersRow = [&](void) -> void
+  {
+    ImGui::TableNextRow (ImGuiTableRowFlags_Headers);
+
+    for (int column_n = 0; column_n < ImGui::TableGetColumnCount (); ++column_n)
+    {
+      if (! ImGui::TableSetColumnIndex (column_n))
+          continue;
+
+      const char* name = (ImGui::TableGetColumnFlags (column_n) & ImGuiTableColumnFlags_NoHeaderLabel) ? "" : ImGui::TableGetColumnName (column_n);
+      ImGui::PushID (column_n);
+
+      if (column_n == SKIF_LocalManager::ColumnID_::Col_Select)
+      {
+        // Only outdated installs should be selected
+        int outdated = 0,
+            selected = 0;
+
+        for (auto& i : installs)
+        {
+          if (! i.outdated || ! i.exists) continue;
+          ++outdated;
+          if (  i.selected) ++selected;
+        }
+
+        bool all = (outdated > 0 && selected == outdated);
+
+        ImGui::BeginDisabled  (outdated == 0);
+        ImGui::PushStyleVar   (ImGuiStyleVar_FramePadding, ImVec2 (0.0f, 0.0f)); // Shrinks the checkbox
+        ImGui::PushStyleColor (ImGuiCol_FrameBg,           IM_COL32_DISABLE);
+        ImGui::PushStyleColor (ImGuiCol_FrameBgActive,     IM_COL32_DISABLE);
+        ImGui::PushStyleColor (ImGuiCol_FrameBgHovered,    IM_COL32_DISABLE);
+
+        // Center it, same as the row checkboxes
+        float offset = (ImGui::GetContentRegionAvail ().x - ImGui::GetFrameHeight ()) * 0.5f;
+        if (offset > 0.0f)
+          ImGui::SetCursorPosX (ImGui::GetCursorPosX () + offset);
+
+        // 'all' holds the new state after a click: check if not all were
+        // selected, uncheck if they all were
+        if (SKIF_ImGui_CheckboxHoverPreview ("##selectall", &all))
+        {
+          for (auto& i : installs)
+            if (i.outdated && i.exists)
+              i.selected = all;
+          SetAnySelected ( );
+        }
+
+        ImGui::PopStyleColor ( ); // ImGuiCol_FrameBgHovered
+        ImGui::PopStyleColor ( ); // ImGuiCol_FrameBgActive
+        ImGui::PopStyleColor ( ); // ImGuiCol_FrameBg
+        ImGui::PopStyleVar   ( ); // ImGuiStyleVar_FramePadding
+        ImGui::EndDisabled   ( );
+      }
+
+      else
+        ImGui::TableHeader (name);
+
+      ImGui::PopID ();
+    }
+  };
+
+  static           SKIF_InjectionContext& _inject = SKIF_InjectionContext::GetInstance ( );
+  static constexpr ImGuiTableColumnFlags  _colFlagsPath    =
+    ImGuiTableColumnFlags_WidthStretch;
+  static constexpr ImGuiTableColumnFlags  _colFlagsVersion =
+    ImGuiTableColumnFlags_WidthFixed    |
+    ImGuiTableColumnFlags_NoResize;
+  static constexpr ImGuiTableColumnFlags  _colFlagsStatus  =
+    ImGuiTableColumnFlags_WidthFixed    |
+    ImGuiTableColumnFlags_NoResize      |
+    ImGuiTableColumnFlags_DefaultSort;
+  static constexpr ImGuiTableColumnFlags  _colFlagsMisc    =
+    ImGuiTableColumnFlags_WidthFixed    |
+    ImGuiTableColumnFlags_NoResize      |
+    ImGuiTableColumnFlags_NoHeaderLabel |
+    ImGuiTableColumnFlags_NoSort;
 
   if (_inject.SKVer32 != this->latest_version)
     SetLatestVersion (_inject.SKVer32);
@@ -312,39 +440,64 @@ SKIF_LocalManager::Process (void)
     }
 
     else if (ImGui::BeginTable ("##LocalInstalls", 6,
-                                ImGuiTableFlags_Borders     |
-                                ImGuiTableFlags_RowBg       |
-                              //ImGuiTableFlags_Resizable   |
-                                ImGuiTableFlags_ScrollY))
+                                ImGuiTableFlags_RowBg         |
+                                ImGuiTableFlags_ScrollY       |
+                                ImGuiTableFlags_Sortable))
     {
-      ImGui::TableSetupColumn ("Select",  ImGuiTableColumnFlags_WidthFixed |
-                                          ImGuiTableColumnFlags_NoResize,    50.0f * SKIF_ImGui_GlobalDPIScale);
-      ImGui::TableSetupColumn ("Path",    ImGuiTableColumnFlags_WidthStretch);
-      ImGui::TableSetupColumn ("Version", ImGuiTableColumnFlags_WidthFixed |
-                                          ImGuiTableColumnFlags_NoResize,   100.0f * SKIF_ImGui_GlobalDPIScale);
-      ImGui::TableSetupColumn ("##Status",ImGuiTableColumnFlags_WidthFixed |
-                                          ImGuiTableColumnFlags_NoResize,    20.0f * SKIF_ImGui_GlobalDPIScale);
-      ImGui::TableSetupColumn ("##Update",ImGuiTableColumnFlags_WidthFixed |
-                                          ImGuiTableColumnFlags_NoResize,    20.0f * SKIF_ImGui_GlobalDPIScale);
-      ImGui::TableSetupColumn ("##Folder",ImGuiTableColumnFlags_WidthFixed |
-                                          ImGuiTableColumnFlags_NoResize,    20.0f * SKIF_ImGui_GlobalDPIScale);
-      ImGui::TableHeadersRow  ();
+      ImGui::TableSetupColumn ("Select",    _colFlagsMisc,     30.0f * SKIF_ImGui_GlobalDPIScale, Col_Select);
+      ImGui::TableSetupColumn ("Path",      _colFlagsPath,      0.0f,                             Col_Path);
+      ImGui::TableSetupColumn ("Version",   _colFlagsVersion, 100.0f * SKIF_ImGui_GlobalDPIScale, Col_Version);
+      ImGui::TableSetupColumn ("Updater",   _colFlagsMisc,     20.0f * SKIF_ImGui_GlobalDPIScale, Col_Updater);
+      ImGui::TableSetupColumn ("Status",    _colFlagsStatus,   20.0f * SKIF_ImGui_GlobalDPIScale, Col_Status);
+      ImGui::TableSetupColumn ("Folder",    _colFlagsMisc,     40.0f * SKIF_ImGui_GlobalDPIScale, Col_Folder);
+      
+      ImGui::PushStyleColor   (ImGuiCol_TableHeaderBg, ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg));
+      ImGui::PushStyleColor   (ImGuiCol_HeaderHovered, IM_COL32_DISABLE);
+      ImGui::PushStyleColor   (ImGuiCol_HeaderActive,  IM_COL32_DISABLE);
+      ImGui::PushStyleColor   (ImGuiCol_Text,          ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4(0.8f, 0.8f, 0.8f, 1.0f));
+    //ImGui::TableHeadersRow  ( );
+      _CustomTableHeadersRow  ( );
+      ImGui::PopStyleColor    ( ); // ImGuiCol_Text
+      ImGui::PopStyleColor    ( ); // ImGuiCol_HeaderActive
+      ImGui::PopStyleColor    ( ); // ImGuiCol_HeaderHovered
+      ImGui::PopStyleColor    ( ); // ImGuiCol_TableHeaderBg
 
+      if (ImGuiTableSortSpecs* specs = ImGui::TableGetSortSpecs ())
+      {
+        if (specs->SpecsDirty || needs_sort)
+        {
+          if (specs->SpecsCount > 0)
+            SortInstalls (specs);
+
+          specs->SpecsDirty = false;
+          needs_sort        = false;
+        }
+      }
+
+      ImGui::PushStyleColor   (ImGuiCol_Text,          ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
       int id = 0;
       for (auto& install : installs)
       {
         ImGui::PushID (id++);
         ImGui::TableNextRow ();
 
-        // Column 0: Checkbox
+        // Column 0: Select
         if (ImGui::TableNextColumn ( ))
         {
           float offset = (ImGui::GetContentRegionAvail ().x - ImGui::GetFrameHeight ()) * 0.5f;
           if (offset > 0.0f)
             ImGui::SetCursorPosX (ImGui::GetCursorPosX () + offset);
 
-          if (ImGui::Checkbox ("##select", &install.selected))
+          ImGui::PushStyleColor (ImGuiCol_FrameBg,        IM_COL32_DISABLE);
+          ImGui::PushStyleColor (ImGuiCol_FrameBgActive,  IM_COL32_DISABLE);
+          ImGui::PushStyleColor (ImGuiCol_FrameBgHovered, IM_COL32_DISABLE);
+
+          if (SKIF_ImGui_CheckboxHoverPreview ("##checkbox", &install.selected))
             SetAnySelected ( );
+
+          ImGui::PopStyleColor ( ); // ImGuiCol_FrameBgHovered
+          ImGui::PopStyleColor ( ); // ImGuiCol_FrameBgActive
+          ImGui::PopStyleColor ( ); // ImGuiCol_FrameBg
         }
 
         // Column 1: Path
@@ -362,51 +515,75 @@ SKIF_LocalManager::Process (void)
         // Column 3: Updater
         if (ImGui::TableNextColumn ( ))
         {
-          if (install.outdated)
+          // TODO: Implement support for re-installing a local DLL file
+          if (install.exists && install.outdated) // exists_parent
           {
             ImGui::PushStyleColor  (ImGuiCol_Button, ImVec4 (.1f, .1f, .1f, .5f));
-            if (ImGui::SmallButton (ICON_FA_ARROW_UP))
+            if (ImGui::SmallButton (install.exists ? ICON_FA_ARROW_UP : ICON_FA_ARROW_DOWN))
               UpdateInstall (&install);
             ImGui::PopStyleColor ( );
 
             if (ImGui::IsItemHovered ())
-              ImGui::SetTooltip ("The local DLL file is outdated.\n"
-                                 "Click to update it to v %s.",
+              ImGui::SetTooltip ((install.exists
+                              ? ("The local DLL file is outdated.\n"
+                                 "Click to update it to v %s.")
+                              : ("The local DLL file could not be found.\n"
+                                 "Click to reinstall it as v %s.")),
                                  _inject.SKVer32_utf8.c_str());
           }
         }
 
-        // Column 4: Icon
+        // Column 4: Status (icon)
         if (ImGui::TableNextColumn ( ))
         {
-          if (install.outdated)
+          if (! install.exists_parent)
           {
-            ImGui::TextColored (ImVec4 (1.0f, 0.75f, 0.0f, 1.0f),
+            ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Failure),
+                                ICON_FA_CIRCLE_XMARK);
+
+            if (ImGui::IsItemHovered ())
+              ImGui::SetTooltip ("Folder no longer exists");
+          }
+
+          else if (! install.exists)
+          {
+            ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Failure),
+                                ICON_FA_CIRCLE_XMARK);
+
+            if (ImGui::IsItemHovered ())
+              ImGui::SetTooltip ("Local DLL file no longer exists");
+          }
+
+          else if (install.outdated)
+          {
+            ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Yellow),
                                 ICON_FA_TRIANGLE_EXCLAMATION);
 
             if (ImGui::IsItemHovered ())
               ImGui::SetTooltip ("Outdated (latest: %s)",
                                  _inject.SKVer32_utf8.c_str ());
-          } else {
+          }
+
+          else
+          {
             ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success),
                                 ICON_FA_CIRCLE_CHECK);
           }
         }
 
         // Column 5: Folder
-        if (ImGui::TableNextColumn ( ))
+        if (ImGui::TableNextColumn ( ) && install.exists_parent)
         {
-          ImGui::BeginDisabled (! install.exists);
           if (ImGui::Button (ICON_FA_FOLDER_OPEN))
-            SKIF_Util_FileExplorer_SelectFile (install.path.c_str());
-          ImGui::EndDisabled ();
-
-          if (! install.exists && ImGui::IsItemHovered (ImGuiHoveredFlags_AllowWhenDisabled))
-            ImGui::SetTooltip ("Path no longer exists");
+            if (install.exists)
+              SKIF_Util_FileExplorer_SelectFile (install.path.c_str());
+            else
+              SKIF_Util_ExplorePath (std::filesystem::path(install.path).parent_path().wstring().c_str());
         }
 
         ImGui::PopID ();
       }
+      ImGui::PopStyleColor    ( ); // ImGuiCol_Text
 
       // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
       SKIF_ImGui_AutoScroll  (false, SKIF_ImGuiAxis_Y);
@@ -427,7 +604,7 @@ SKIF_LocalManager::Process (void)
       if (ImGui::MenuItem ("Select Outdated"))
       {
         for (auto& install : installs)
-          install.selected = install.outdated;
+          install.selected = install.outdated && install.exists;
         action = LocalAction::AnySelected;
       }
       SKIF_ImGui_PopDisableState  (! anyOutdated);
@@ -481,7 +658,7 @@ SKIF_LocalManager::Process (void)
         {
         case LocalAction::Update:
           for (auto& install : installs)
-            if (install.outdated && install.selected)
+            if (install.selected && install.outdated)
               UpdateInstall (&install);
           break;
 

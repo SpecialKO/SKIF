@@ -11,9 +11,14 @@
 #include <limits>
 
 #include <utility/utility.h>
+#include <imgui/imgui.h>
 
 // Singleton struct
 struct SKIF_LocalManager {
+
+  enum ColumnID_ : ImGuiID {
+    Col_Select, Col_Path, Col_Version, Col_Updater, Col_Status, Col_Folder
+  };
 
   struct install_s {
     std::wstring path;        // == Name  in registry
@@ -24,6 +29,7 @@ struct SKIF_LocalManager {
     bool         selected = false; // UI state: user wants to perform an action on this install
     bool         deleted  = false;
     bool         exists   = false;
+    bool         exists_parent = false;
   };
 
   static SKIF_LocalManager& GetInstance (void)
@@ -36,6 +42,7 @@ struct SKIF_LocalManager {
          void Process           (void);
 
 private:
+
               SKIF_LocalManager (void);
               SKIF_LocalManager (SKIF_LocalManager const&) = delete;
               SKIF_LocalManager (SKIF_LocalManager&&)      = delete;
@@ -45,8 +52,9 @@ private:
          void UpdateInstall     (install_s* install);
          void DeleteInstall     (install_s* install);
          void RefreshInstalls   (void);
+         void SortInstalls      (const ImGuiTableSortSpecs* specs);
 
-
+  bool                   needs_sort          =  true;
   bool                   showWindow          = false;
   bool                   anyOutdated         = false;
   bool                   anySelected         = false;
