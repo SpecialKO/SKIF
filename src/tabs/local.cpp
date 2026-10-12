@@ -137,7 +137,8 @@ SKIF_LocalManager::DeleteInstall (install_s* install)
   if (! bDelete)
   {
     DWORD dwLastError  = GetLastError ( );
-    if (  dwLastError != ERROR_FILE_NOT_FOUND)
+    if (  dwLastError != ERROR_FILE_NOT_FOUND &&
+          dwLastError != ERROR_PATH_NOT_FOUND)
     {
       PLOG_ERROR << "Deletion of the local DLL file failed with error: [" << dwLastError << "] " << SKIF_Util_GetErrorAsWStr (dwLastError);
       return;
