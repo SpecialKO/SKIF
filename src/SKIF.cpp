@@ -2202,8 +2202,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       // Divide the window size with its associated DPI scale to get the base size, then multiply with the new DPI scale
       SKIF_vecCurrentModeNext = (SKIF_vecCurrentMode / SKIF_ImGui_GlobalDPIScale_Last) * SKIF_ImGui_GlobalDPIScale;
 
-      ImGuiStyle              newStyle;
-      SKIF_ImGui_SetStyle   (&newStyle);
+      ImGuiStyle            newStyle;
+      SKIF_ImGui_SetStyle (&newStyle);
 
       SKIF_ImGui_AdjustAppModeSize (monitor);
 
@@ -2396,15 +2396,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if ( invalidateStyle || (_registry.iStyleTemp != _registry.iStyle) || hotkeyF7)
     {    invalidateStyle = false;
 
-      _registry.iStyle            = (_registry.iStyleTemp != _registry.iStyle)
-                                  ?  _registry.iStyleTemp
-                                  : (_registry.iStyle + 1) % UIStyle_COUNT;
-      _registry.regKVStyle.putData  (_registry.iStyle);
+      if ((_registry.iStyleTemp != _registry.iStyle) || hotkeyF7)
+      {
+        _registry.iStyle            = (_registry.iStyleTemp != _registry.iStyle)
+                                    ?  _registry.iStyleTemp
+                                    : (_registry.iStyle + 1) % UIStyle_COUNT;
+        _registry.regKVStyle.putData  (_registry.iStyle);
+        _registry.iStyleTemp        =  _registry.iStyle;
+      }
 
       ImGuiStyle            newStyle;
       SKIF_ImGui_SetStyle (&newStyle);
-
-      _registry.iStyleTemp = _registry.iStyle;
 
       extern void
         SKIF_ImGui_ImplWin32_UpdateDWMBorders (void);
