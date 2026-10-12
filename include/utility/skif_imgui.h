@@ -67,6 +67,7 @@ void     SKIF_ImGui_DimBackgroundViewport (const ImGuiViewport* vp = ImGui::GetW
 DChoice  SKIF_ImGui_DialogPrompt          (const char* name, bool* p_open, DChoice choices, const char* message = nullptr, const char* description = nullptr);
 DChoice  SKIF_ImGui_ConfirmPrompt         (const char* name, bool* p_open,                  const char* message = nullptr, const char* description = nullptr);
 DChoice  SKIF_ImGui_SaveChangesPrompt     (const char* name, bool* p_open,                  const char* message = nullptr, const char* description = nullptr);
+bool     SKIF_ImGui_CheckboxHoverPreview  (const char* label, bool* v, float preview_alpha = 0.45f);
 void     SKIF_ImGui_ServiceMenu           (void);
 ImFont*  SKIF_ImGui_LoadFont              (const std::wstring& filename, float point_size, const ImWchar* glyph_range, ImFontConfig* cfg = nullptr);
 void     SKIF_ImGui_InitFonts             (float fontSize, bool extendedCharsets = true);

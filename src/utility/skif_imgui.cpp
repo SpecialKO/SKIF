@@ -1089,6 +1089,28 @@ SKIF_ImGui_SaveChangesPrompt (const char* name, bool* p_open, const char* messag
   );
 }
 
+// Renders a faded checkmark when hovering over the checkbox
+// Works best when disabling ImGuiCol_FrameBg, ImGuiCol_FrameBgActive, ImGuiCol_FrameBgHovered
+bool SKIF_ImGui_CheckboxHoverPreview (const char* label, bool* v, float preview_alpha)
+{
+  bool pressed = ImGui::Checkbox(label, v);
+
+  if (!*v && ImGui::IsItemHovered())
+  {
+    const float  square_sz   = ImGui::GetFrameHeight();
+    const ImVec2 check_bbMin = ImGui::GetItemRectMin();
+    const float  pad         = ImMax(1.0f, IM_TRUNC(square_sz / 6.0f));
+    const ImU32  check_col   = ImGui::ColorConvertFloat4ToU32 (
+      ImGui::GetStyleColorVec4(ImGuiCol_CheckMark) * ImVec4(1.0f, 1.0f, 1.0f, ImGui::GetStyle().Alpha * preview_alpha)
+    );
+
+    // Mirrors what ImGui::Checkbox() does natively
+    ImGui::RenderCheckMark(ImGui::GetWindowDrawList(), check_bbMin + ImVec2(pad, pad), check_col, square_sz - pad * 2.0f);
+  }
+
+  return pressed;
+}
+
 void SKIF_ImGui_ServiceMenu (void)
 {
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
