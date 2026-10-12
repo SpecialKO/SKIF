@@ -3642,9 +3642,9 @@ GetInjectionSummary (app_record_s* pApp)
   auto _UpdateLocalDLLFile = [&](void) -> void
   {
     int iBinaryType = SKIF_Util_GetBinaryType (pApp->specialk.injection.dll.full_path.c_str());
-    if (iBinaryType > 0)
+    if (iBinaryType > PEBitness_Invalid)
     {
-      std::wstring  wsPathToGlobalDLL = SK_FormatStringW (LR"(%ws\%ws)", _path_cache.specialk_install, (iBinaryType == 2) ? L"SpecialK64.dll" : L"SpecialK32.dll");
+      std::wstring  wsPathToGlobalDLL = SK_FormatStringW (LR"(%ws\%ws)", _path_cache.specialk_install, (iBinaryType == PEBitness_64bit) ? L"SpecialK64.dll" : L"SpecialK32.dll");
       if (CopyFile (wsPathToGlobalDLL.c_str(), pApp->specialk.injection.dll.full_path.c_str(), FALSE))
       {
         PLOG_INFO << "Successfully updated " << pApp->specialk.injection.dll.full_path << " from v " << pApp->specialk.injection.dll.version << " to v " << _inject.SKVer32;

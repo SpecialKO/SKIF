@@ -150,6 +150,16 @@ typedef struct _SKIF_MEMORY_PRIORITY_INFORMATION {
   ULONG MemoryPriority;
 } SKIF_MEMORY_PRIORITY_INFORMATION, *SKIF_PMEMORY_PRIORITY_INFORMATION;
 
+typedef int PEBitness;  // -> enum PEBitness_
+
+enum PEBitness_
+{
+  PEBitness_Unknown = -1,
+  PEBitness_Invalid =  0,
+  PEBitness_32bit   =  1,
+  PEBitness_64bit   =  2,
+};
+
 enum class PreferredAppMode //
 {
   Default,
@@ -167,7 +177,7 @@ BOOL    WINAPI  SKIF_Util_TerminateProcess            (HANDLE  hProcess,   UINT 
 std::wstring    SKIF_Util_GetFileVersion              (const wchar_t* wszName);
 std::wstring    SKIF_Util_GetSpecialKDLLVersion       (const wchar_t* wszName);
 std::wstring    SKIF_Util_GetProductName              (const wchar_t* wszName);
-int             SKIF_Util_GetBinaryType               (const LPCTSTR pszPathToBinary);
+PEBitness       SKIF_Util_GetBinaryType               (const LPCTSTR pszPathToBinary);
 BOOL    WINAPI  SKIF_Util_CompactWorkingSet           (void);
 BOOL    WINAPI  SKIF_Util_GetSystemCpuSetInformation  (PSYSTEM_CPU_SET_INFORMATION Information, ULONG BufferLength, PULONG ReturnedLength, HANDLE Process, ULONG Flags);
 bool            SKIF_Util_SetThreadPrefersECores      (void);

@@ -1639,10 +1639,10 @@ SKIF_Util_GetProductName (const wchar_t* wszName)
 /*
   Returns 0 for errors, 1 for x86, 2 for x64, and -1 for unknown types
 */
-int
+PEBitness
 SKIF_Util_GetBinaryType (const LPCTSTR pszPathToBinary)
 {
-  int arch = 0;
+  PEBitness arch = PEBitness_Invalid;
 
   EnterCriticalSection (&CriticalSectionDbgHelp);
 
@@ -1664,13 +1664,13 @@ SKIF_Util_GetBinaryType (const LPCTSTR pszPathToBinary)
           switch (peHdr->FileHeader.Machine)
           {
             case IMAGE_FILE_MACHINE_I386:
-              arch = 1;
+              arch = PEBitness_32bit;
               break;
             case IMAGE_FILE_MACHINE_AMD64:
-              arch = 2;
+              arch = PEBitness_64bit;
               break;
             default:
-              arch = -1;
+              arch = PEBitness_Unknown;
           }
         }
         UnmapViewOfFile (addrHeader);
