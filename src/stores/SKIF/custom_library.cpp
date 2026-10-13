@@ -609,7 +609,7 @@ SKIF_Custom_RemoveGame (uint32_t appid)
 
   bool ret      = false;
   bool dontCare =  true;
-  switch (SKIF_ImGui_ConfirmPrompt ("Remove Game?###RemoveGamePopup", &dontCare, "Do you want to remove this game from the app?"))
+  switch (SKIF_ImGui_ConfirmPrompt ("Remove Game?###RemoveGamePopup", &dontCare, "Are you sure you want to remove the game from the library?", "No changes will be made to the game files."))
   {
     case DChoice_Yes:
       if (SKIF_RemoveCustomAppID (appid))
