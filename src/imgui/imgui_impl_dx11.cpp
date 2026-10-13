@@ -518,8 +518,8 @@ void ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
         // scRGB HDR 16 bpc
         if (SKIF_ImplDX11_ViewPort_GetHDRMode (vp) == 2)
         {
-          constant_buffer->luminance_scale [0] =       (_registry.iHDRBrightness / 80.0f); // Org: data->SKIF_GetHDRWhiteLuma    ( ) / 80.0f
-          constant_buffer->luminance_scale [3] = 1.0f;
+          constant_buffer->luminance_scale [0] =       ( _registry.iHDRBrightness / 80.0f);   // Org: data->SKIF_GetHDRWhiteLuma    ( ) / 80.0f
+          constant_buffer->luminance_scale [3] =       ( _registry.bLinearFontAlpha ? 2.0f : 1.0f);
         }
 
         // HDR10
@@ -537,7 +537,7 @@ void ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
           constant_buffer->luminance_scale [0] = (SKIF_ImplDX11_ViewPort_GetSDRWhiteLevel (vp) / 80.0f);
 
         // SDR 16 bpc on SDR display
-        constant_buffer->luminance_scale [3] = 1.0f;
+        constant_buffer->luminance_scale [3]   = (_registry.bLinearFontAlpha ? 2.0f : 1.0f);
       }
 
       else if (SKIF_ImplDX11_ViewPort_GetDXGIFormat (vp) == DXGI_FORMAT_R10G10B10A2_UNORM)

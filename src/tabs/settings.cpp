@@ -1302,6 +1302,17 @@ SKIF_UI_Tab_DrawSettings (void)
     {
       SKIF_ImGui_PopDisableState  ( );
     }
+    
+    ImGui::TreePush        ("bLinearFontAlpha");
+    if (*ptrSDR == 2)
+    {
+      if (ImGui::Checkbox ("Linear font alpha blending", &_registry.bLinearFontAlpha))
+        _registry.regKVLinearFontAlpha.putData           (_registry.bLinearFontAlpha);
+
+      SKIF_ImGui_SetHoverTip ("Disables the correction that makes text blend\n"
+                              "like they do in 8 bpc and 10 bpc modes.");
+    }
+    ImGui::TreePop         ( );
 
     ImGui::Spacing         ( );
 

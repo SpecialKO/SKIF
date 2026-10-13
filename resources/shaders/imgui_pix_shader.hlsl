@@ -295,10 +295,13 @@ float4 main (PS_INPUT input) : SV_Target
 
   float4 orig_col = out_col;
 
-              // input.lum.x        // Luminance (white point)
-  bool isHDR   = input.lum.y > 0.0; // HDR (10 bpc or 16 bpc)
-  bool is10bpc = input.lum.z > 0.0; // 10 bpc
-  bool is16bpc = input.lum.w > 0.0; // 16 bpc (scRGB)
+                     // input.lum.x        // Luminance (white point)
+  bool isHDR           = input.lum.y > 0.0; // HDR (10 bpc or 16 bpc)
+  bool is10bpc         = input.lum.z > 0.0; // 10 bpc
+  bool is16bpc         = input.lum.w > 0.0; // 16 bpc (scRGB)
+  // luminance_scale.w: 1.0 = corrected alpha everywhere, 2.0 = legacy glyph coverage
+  bool linearFontAlpha = input.lum.w > 1.5;
+  bool isFontDraw      = (font_dims.x + font_dims.y) > 0.0f;
 
   // 16 bpc scRGB (SDR/HDR)
   // ColSpace:  DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709
@@ -306,10 +309,15 @@ float4 main (PS_INPUT input) : SV_Target
   // Primaries: BT.709
   if (is16bpc)
   {
-    float3 fg_gamma = input.col.rgb * out_col.rgb;   // gamma-encoded source color
-    float  alpha    = saturate (out_col.a) * saturate (input.col.a);
+    float3 fg_gamma = input.col.rgb * out_col.rgb; // gamma-encoded source color
+    float  tex_a    = saturate (out_col.a);        // glyph coverage (1.0 for solid geometry)
+    float  vtx_a    = saturate (input.col.a);      // actual transparency
+    float  alpha;
 
-    alpha = GammaMatchedAlpha (alpha, fg_gamma);
+    if (linearFontAlpha && isFontDraw)
+      alpha = tex_a * GammaMatchedAlpha (vtx_a, fg_gamma); // old coverage, corrected opacity
+    else
+      alpha = GammaMatchedAlpha (tex_a * vtx_a, fg_gamma); // fully corrected
 
     out_col =
       float4 ( RemoveSRGBCurve (input.col.rgb) *

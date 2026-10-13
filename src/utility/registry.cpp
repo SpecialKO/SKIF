@@ -507,6 +507,8 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 
   bLoggingDeveloper        =   regKVLoggingDeveloper       .getData (&hKey);
 
+  bLinearFontAlpha         =   regKVLinearFontAlpha        .getData (&hKey);
+
   if (regKVPatreon.hasData(&hKey))
     bPatreon               =   regKVPatreon                .getData (&hKey);
 

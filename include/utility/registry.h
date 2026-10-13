@@ -391,6 +391,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Logging Developer)" );
 
+  KeyValue <bool> regKVLinearFontAlpha =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Linear Font Alpha)" );
+
   KeyValue <bool> regKVPatreon =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Patreon)" );
@@ -636,6 +640,7 @@ struct SKIF_RegistrySettings {
   bool bPCGWCoversSteam         = false; // Should SKIF prefer covers from PCGW where available?
   bool bControllers             =  true; // Should SKIF support controller input ?
   bool bLoggingDeveloper        = false; // This is a log level "above" verbose logging that also includes stuff like window messages. Only useable for SKIF developers
+  bool bLinearFontAlpha         = false; // Only applicable to 16 bpc; restores the original linear alpha blending
   bool bPatreon                 =  true; // Should the Patreon button/kudos be shown when Special K is selected in the game list?
 
   struct {
