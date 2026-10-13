@@ -358,6 +358,8 @@ SKIF_UI_IniEditor_Process (void)
       }
     }
 
+    window.bFocused = SKIF_ImGui_IsViewportFocused ( );
+
     if (ImGui::BeginMenuBar())
     {
       if (ImGui::BeginMenu ("File"))
@@ -460,7 +462,7 @@ SKIF_UI_IniEditor_Process (void)
     ImGui::PopStyleColor  ( ); // ImGuiCol_Text
 
     // Ctrl+F should focus filter field
-    if (ImGui::GetIO().KeyCtrl && ImGui::GetKeyData(ImGuiKey_F)->DownDuration == 0.0f)
+    if (window.bFocused && ImGui::GetIO().KeyCtrl && ImGui::GetKeyData (ImGuiKey_F)->DownDuration == 0.0f)
     {
       ImGui::ActivateItemByID (ImGui::GetID("###AppListFilterField"));
       ImGui::SetFocusID       (ImGui::GetID("###AppListFilterField"), ImGui::GetCurrentWindow());
@@ -604,8 +606,6 @@ SKIF_UI_IniEditor_Process (void)
     // Focus + Hotkeys
     extern bool bKeepWindowAlive;
 
-    //window.bFocused = ImGui::IsWindowFocused (ImGuiFocusedFlags_ChildWindows);
-    window.bFocused = SKIF_ImGui_IsViewportFocused (ImGui::GetWindowViewport ( ));
     if (window.bFocused && ! g_activeKeybindPopup)
     {
            if (! window.bFilterActive &&
