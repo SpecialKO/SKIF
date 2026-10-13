@@ -8505,10 +8505,10 @@ SKIF_UI_Tab_DrawLibrary (void)
 
 #pragma region Popups::KeyboardSearch
 
-  if (AddGamePopup    == PopupState_Closed &&
-      ModifyGamePopup == PopupState_Closed &&
+  if (AddGamePopup        == PopupState_Closed &&
+      ModifyGamePopup     == PopupState_Closed &&
       PopupCategoryModify == PopupState_Closed &&
-      RemoveGamePopup == PopupState_Closed &&
+      RemoveGamePopup     == PopupState_Closed &&
       ! io.KeyCtrl)
   {
     extern bool
@@ -8521,83 +8521,27 @@ SKIF_UI_Tab_DrawLibrary (void)
 
 #pragma region Popups
 
-  if (RemoveGamePopup == PopupState_Open)
+  // Popup: Remove Game
+  if (SKIF_Custom_RemoveGame (selection.appid))
   {
-    ImGui::OpenPopup("###RemoveGamePopup");
-    RemoveGamePopup = PopupState_Opened;
-  }
+    // Hide entry
+    pApp->id = 0;
 
-
-  float fRemoveGamePopupWidth = 360.0f * SKIF_ImGui_GlobalDPIScale;
-  ImGui::SetNextWindowSize (ImVec2 (fRemoveGamePopupWidth, 0.0f));
-  ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
-
-  if (ImGui::BeginPopupModal ("Remove Game###RemoveGamePopup", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize))
-  {
-    ImGui::TreePush    ("RemoveGameTreePush");
-
-    SKIF_ImGui_Spacing ( );
-
-    ImGui::Text        ("Do you want to remove this game from the app?");
-
-    SKIF_ImGui_Spacing ( );
-    SKIF_ImGui_Spacing ( );
-
-    ImVec2 vButtonSize = ImVec2(80.0f * SKIF_ImGui_GlobalDPIScale, 0.0f);
-
-    ImGui::SetCursorPosX (fRemoveGamePopupWidth / 2 - vButtonSize.x - 20.0f * SKIF_ImGui_GlobalDPIScale);
-
-    if (ImGui::Button  ("Yes", vButtonSize))
+    // Release the icon texture (the cover will be handled by LoadLibraryTexture on next frame
+    if (pApp->tex_icon.texture.p != nullptr)
     {
-      if (SKIF_RemoveCustomAppID(selection.appid))
-      {
-        // Hide entry
-        pApp->id = 0;
-
-        // Release the icon texture (the cover will be handled by LoadLibraryTexture on next frame
-        if (pApp->tex_icon.texture.p != nullptr)
-        {
-          PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << pApp->tex_icon.texture.p << " to be released";
-          SKIF_ResourcesToFree.push(pApp->tex_icon.texture.p);
-          pApp->tex_icon.texture.p = nullptr;
-        }
-
-        // Reset selection to Special K
-        selection.reset ( );
-
-        update = true;
-      }
-
-      RemoveGamePopup = PopupState_Closed;
-      ImGui::CloseCurrentPopup ( );
+      PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << pApp->tex_icon.texture.p << " to be released";
+      SKIF_ResourcesToFree.push(pApp->tex_icon.texture.p);
+      pApp->tex_icon.texture.p = nullptr;
     }
 
-    SKIF_ImGui_DisallowMouseDragMove ( );
+    // Reset selection to Special K
+    selection.reset ( );
 
-    ImGui::SameLine    ( );
-
-    ImGui::SetCursorPosX (fRemoveGamePopupWidth / 2 + 20.0f * SKIF_ImGui_GlobalDPIScale);
-
-    if (ImGui::Button  ("No", vButtonSize))
-    {
-      RemoveGamePopup = PopupState_Closed;
-      ImGui::CloseCurrentPopup ( );
-    }
-
-    SKIF_ImGui_DisallowMouseDragMove ( );
-
-    SKIF_ImGui_Spacing ( );
-
-    ImGui::TreePop     ( );
-
-    ImGui::EndPopup ( );
-  }
-  else {
-    RemoveGamePopup = PopupState_Closed;
+    update = true;
   }
 
-
-  // Process Add Game
+  // Popup: Add Game
   if (SKIF_Custom_AddGame ( ))
   {
     // Unload any current cover on success
@@ -8609,7 +8553,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     }
   }
 
-
+  // Popup: Properties / Manage Game
   if (ModifyGamePopup != PopupState_Closed)
   {
     const bool failure_induced_popup =
@@ -8617,7 +8561,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     const char* title =
         failure_induced_popup ? "Standard Game Launch Failed - Instant Play Was Used Instead###ModifyGamePopup"
-                              : "Manage Game###ModifyGamePopup";
+                              : "Properties###ModifyGamePopup";
 
     // Always use same size
     float fModifyGamePopupWidth = 560.0f * SKIF_ImGui_GlobalDPIScale;

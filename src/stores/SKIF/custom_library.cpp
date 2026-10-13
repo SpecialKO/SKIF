@@ -597,3 +597,29 @@ SKIF_Custom_AddGame (void)
 
   return ret;
 }
+
+bool
+SKIF_Custom_RemoveGame (uint32_t appid)
+{
+  if (RemoveGamePopup == PopupState_Closed)
+    return false;
+
+  if (appid == 0)
+    return false;
+
+  bool ret      = false;
+  bool dontCare =  true;
+  switch (SKIF_ImGui_ConfirmPrompt ("Remove Game?###RemoveGamePopup", &dontCare, "Do you want to remove this game from the app?"))
+  {
+    case DChoice_Yes:
+      if (SKIF_RemoveCustomAppID (appid))
+        ret = true;
+
+    case DChoice_No:
+    case DChoice_Cancel:
+      RemoveGamePopup = PopupState_Closed;
+      break;
+  }
+
+  return ret;
+}
