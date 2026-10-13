@@ -298,10 +298,9 @@ SKIF_Custom_AddGame (void)
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
   // Always use same size
-  float fAddGamePopupWidth = 544.0f * SKIF_ImGui_GlobalDPIScale;
-  ImGui::SetNextWindowSize (ImVec2 (fAddGamePopupWidth, 0.0f));
+  float fAddGamePopupWidth = 560.0f * SKIF_ImGui_GlobalDPIScale;
 
-  if (SKIF_ImGui_BeginPopup ("Add Game###AddGamePopup"))
+  if (SKIF_ImGui_BeginPopup ("Add Game###AddGamePopup", nullptr, ImVec2 (fAddGamePopupWidth, 0.0f)))
   {
     /*
       name          - String -- Title/Name

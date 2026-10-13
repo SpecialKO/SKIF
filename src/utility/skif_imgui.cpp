@@ -958,24 +958,26 @@ SKIF_ImGui_DimBackgroundViewport (const ImGuiViewport* vp)
 // Always call SKIF_ImGui_EndModalWindow () for both true/false from this
 // This is a custom, but also simplified, window that acts much like a modal popup
 // without actually being one.
+// 
+// Not compatible with ImGui::SetNextWindowSize() as the dimmed background eats it
 bool
-SKIF_ImGui_BeginPopup (const char* name, bool* p_open, const ImGuiWindowFlags flags)
+SKIF_ImGui_BeginPopup (const char* name, bool* p_open, ImVec2 size, ImGuiWindowFlags flags)
 {
   // Use same background color as real model popups
   ImGui::PushStyleColor (ImGuiCol_WindowBg, ImGui::GetStyleColorVec4 (ImGuiCol_PopupBg));
 
-  const ImGuiWindowFlags default_flags =
-  //ImGuiWindowFlags_NoFocusOnAppearing | // Don't steal focus when shown
-  //ImGuiWindowFlags_NoResize           |
-    ImGuiWindowFlags_AlwaysAutoResize   |
-    ImGuiWindowFlags_NoCollapse         |
-    ImGuiWindowFlags_NoScrollbar        |
-    ImGuiWindowFlags_NoDocking          |
-    ImGuiWindowFlags_NoSavedSettings;
+  if (flags == ImGuiWindowFlags_None)
+    flags = ImGuiWindowFlags_AlwaysAutoResize;
+
+  flags |= ImGuiWindowFlags_NoCollapse         |
+           ImGuiWindowFlags_NoResize           |
+         //ImGuiWindowFlags_NoScrollbar        |
+           ImGuiWindowFlags_NoDocking          |
+           ImGuiWindowFlags_NoSavedSettings;
 
   const ImGuiViewport* vp = ImGui::GetWindowViewport();
 
-  // Dim the background
+  // Dim the background, also eats up ImGui::SetNextWindowSize()
   SKIF_ImGui_DimBackgroundViewport (vp);
 
   // Keep the window within the current viewport (disables Win32 window)
@@ -984,8 +986,11 @@ SKIF_ImGui_BeginPopup (const char* name, bool* p_open, const ImGuiWindowFlags fl
   // Center on the current viewport
   ImGui::SetNextWindowPos      (vp->GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
 
+  if (size.x != 0.0f || size.y != 0.0f)
+    ImGui::SetNextWindowSize (size);
+
   bool ret =
-    ImGui::Begin (name, p_open, (flags != ImGuiWindowFlags_None ? flags : default_flags));
+    ImGui::Begin (name, p_open, flags);
 
   // Raise above all other windows (display order only, no focus change)
   if (ret)
