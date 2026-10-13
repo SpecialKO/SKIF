@@ -1406,10 +1406,12 @@ SKIF_UI_Tab_DrawSettings (void)
 
 //#define COLORPICKER
 #ifdef COLORPICKER
+    // 2026-10-13: sRGBtoLinear isn't really relevant any longer after the recent changes in imgui_pix_shader.hlsl
     if (ImGui::Checkbox     ("sRGBtoLinear colors", &_registry._sRGBColors))
     {
-      ImGuiStyle            newStyle;
-      SKIF_ImGui_SetStyle (&newStyle);
+      extern bool
+        invalidateStyle;
+        invalidateStyle = true;
     }
 
     static float col3[3];

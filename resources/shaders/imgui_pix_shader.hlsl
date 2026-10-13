@@ -269,6 +269,16 @@ float3 Clamp_scRGB_StripNaN (float3 c)
   return Clamp_scRGB (c);
 }
 
+// Remap alpha so that blending in the (linear) scRGB framebuffer looks like
+// the gamma-space blending ImGui assumes. Exact for black/white sources over
+// any background (the color picker SV overlay, most text), approximate otherwise.
+float GammaMatchedAlpha (float alpha, float3 fg_gamma)
+{
+  float t       = saturate (Luma (fg_gamma));
+  float a_light = RemoveSRGBCurve (alpha);                // light source
+  float a_dark  = 1.0f - RemoveSRGBCurve (1.0f - alpha);  // dark source
+  return lerp (a_dark, a_light, t);
+}
 
 
 float4 main (PS_INPUT input) : SV_Target
@@ -296,13 +306,15 @@ float4 main (PS_INPUT input) : SV_Target
   // Primaries: BT.709
   if (is16bpc)
   {
-    // Clamp_scRGB_StripNaN ( expandGamut
+    float3 fg_gamma = input.col.rgb * out_col.rgb;   // gamma-encoded source color
+    float  alpha    = saturate (out_col.a) * saturate (input.col.a);
+
+    alpha = GammaMatchedAlpha (alpha, fg_gamma);
+
     out_col =
-      float4 (  RemoveSRGBCurve (           input.col.rgb) *
-                RemoveSRGBCurve (             out_col.rgb),
-                                  saturate (  out_col.a)  *
-                                  saturate (input.col.a)
-              );
+      float4 ( RemoveSRGBCurve (input.col.rgb) *
+               RemoveSRGBCurve (out_col.rgb),
+               alpha );
 
 //#def EXPAND
 #ifdef EXPAND
