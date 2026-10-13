@@ -953,21 +953,19 @@ SKIF_ImGui_DimBackgroundViewport (const ImGuiViewport* vp)
   ImGui::PopStyleVar (2);
 }
 
-// Call every frame while the prompt is active.
-// Returns Choice::None until the user picks something.
-DChoice
-SKIF_ImGui_DialogPrompt (const char* name, bool* p_open, const char* message, const char* description, std::vector<DChoice> choices)
+// Always call SKIF_ImGui_EndModalWindow () for both true/false from this
+// This is a custom, but also simplified, window that acts much like a modal popup
+// without actually being one.
+bool
+SKIF_ImGui_BeginPopup (const char* name, bool* p_open, const ImGuiWindowFlags flags)
 {
-  DChoice result =
-    DChoice_None;
+  // Use same background color as real model popups
+  ImGui::PushStyleColor (ImGuiCol_WindowBg, ImGui::GetStyleColorVec4 (ImGuiCol_PopupBg));
 
-  if (! *p_open)
-    return result;
+  if (p_open != nullptr && ! *p_open)
+    return false;
 
-  if (choices.empty())
-    return result;
-
-  const ImGuiWindowFlags flags =
+  const ImGuiWindowFlags default_flags =
   //ImGuiWindowFlags_NoFocusOnAppearing | // Don't steal focus when shown
   //ImGuiWindowFlags_NoResize           |
     ImGuiWindowFlags_AlwaysAutoResize   |
@@ -987,7 +985,31 @@ SKIF_ImGui_DialogPrompt (const char* name, bool* p_open, const char* message, co
   // Center on the current viewport
   ImGui::SetNextWindowPos      (vp->GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
 
-  if (ImGui::Begin (name, nullptr, flags))
+  return (ImGui::Begin (name, p_open, (flags != ImGuiWindowFlags_None ? flags : default_flags)));
+}
+
+void
+SKIF_ImGui_EndPopup (void)
+{
+  ImGui::PopStyleColor ( ); // ImGuiCol_WindowBg, from SKIF_ImGui_BeginModalWindow()
+  ImGui::End ( );
+}
+
+// Call every frame while the prompt is active.
+// Returns Choice::None until the user picks something.
+DChoice
+SKIF_ImGui_DialogPrompt (const char* name, bool* p_open, const char* message, const char* description, std::vector<DChoice> choices)
+{
+  DChoice result =
+    DChoice_None;
+
+  if (! *p_open)
+    return result;
+
+  if (choices.empty())
+    return result;
+  
+  if (SKIF_ImGui_BeginPopup (name))
   {
     if (message != nullptr)
       ImGui::Text         (message);
@@ -1038,7 +1060,7 @@ SKIF_ImGui_DialogPrompt (const char* name, bool* p_open, const char* message, co
     ImGui::BringWindowToDisplayFront (ImGui::GetCurrentWindow ( ));
   }
 
-  ImGui::End ( );
+  SKIF_ImGui_EndPopup ( );
 
   if (result != DChoice_None)
     *p_open = false;
