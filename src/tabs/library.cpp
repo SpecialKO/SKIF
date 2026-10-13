@@ -183,6 +183,7 @@ PopupState AddGamePopup        = PopupState_Closed;
 PopupState RemoveGamePopup     = PopupState_Closed;
 PopupState ModifyGamePopup     = PopupState_Closed;
 PopupState PopupCategoryModify = PopupState_Closed;
+PopupState KeyboardHint        = PopupState_Closed;
 
 constexpr int maxCategoryNameLen = 50;
 struct change_category_s {
@@ -546,12 +547,18 @@ SearchAppsList (void)
                             ?  result.text.substr (result.pos + len, std::string::npos)
                             :  "";
 
-    ImGui::OpenPopup         ("###KeyboardHint");
+    KeyboardHint = PopupState_Open;
 
-    ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-
-    if (ImGui::BeginPopupModal("###KeyboardHint", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize))
+    if (SKIF_ImGui_BeginPopup ("###KeyboardHint", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize))
     {
+      if (KeyboardHint == PopupState_Open)
+      {
+        // Set the popup as opened after it has appeared (fixes popup not opening from other tabs)
+        ImGuiWindow* window = ImGui::FindWindowByName ("###KeyboardHint");
+        if (window != nullptr && ! window->Appearing)
+          KeyboardHint = PopupState_Opened;
+      }
+
       if (! preSearch.empty ())
       {
         ImGui::TextDisabled ("%s", preSearch.c_str ());
@@ -567,10 +574,16 @@ SearchAppsList (void)
         ImGui::SameLine     (0.0f, 0.0f);
         ImGui::TextDisabled ("%s", postSearch.c_str ());
       }
-
-      ImGui::EndPopup ( );
     }
+
+    else
+      KeyboardHint = PopupState_Closed;
+
+    SKIF_ImGui_EndPopup ( );
   }
+
+  else
+    KeyboardHint = PopupState_Closed;
 }
 
 #pragma endregion

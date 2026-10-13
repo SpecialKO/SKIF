@@ -3614,8 +3614,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
                    (uiLastMsg >= WM_KEYFIRST   && uiLastMsg <= WM_KEYLAST  );
 
     // We want SKIF to continue rendering in some specific scenarios
-    ImGuiWindow* wnd = ImGui::FindWindowByName ("###KeyboardHint");
-    if (wnd != nullptr && wnd->Active)
+    if (KeyboardHint != PopupState_Closed)
       processAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If the keyboard hint/search is active
     else if (uiLastMsg == WM_SETCURSOR  || uiLastMsg == WM_TIMER   ||
              uiLastMsg == WM_SETFOCUS   || uiLastMsg == WM_KILLFOCUS)
