@@ -945,12 +945,14 @@ SKIF_ImGui_DimBackgroundViewport (const ImGuiViewport* vp)
       vp->Pos, vp->Pos + vp->Size,
       ImGui::GetColorU32 (ImGuiCol_ModalWindowDimBg)
     );
+
+    // Raise above all other windows (display order only, no focus change)
+    ImGui::BringWindowToDisplayFront (ImGui::GetCurrentWindow ( ));
   }
 
-  // Raise above all other windows (display order only, no focus change)
-  ImGui::BringWindowToDisplayFront (ImGui::GetCurrentWindow ( ));
   ImGui::End ( );
-  ImGui::PopStyleVar (2);
+  ImGui::PopStyleVar ( ); // ImGuiStyleVar_WindowBorderSize
+  ImGui::PopStyleVar ( ); // ImGuiStyleVar_WindowPadding
 }
 
 // Always call SKIF_ImGui_EndModalWindow () for both true/false from this
@@ -961,9 +963,6 @@ SKIF_ImGui_BeginPopup (const char* name, bool* p_open, const ImGuiWindowFlags fl
 {
   // Use same background color as real model popups
   ImGui::PushStyleColor (ImGuiCol_WindowBg, ImGui::GetStyleColorVec4 (ImGuiCol_PopupBg));
-
-  if (p_open != nullptr && ! *p_open)
-    return false;
 
   const ImGuiWindowFlags default_flags =
   //ImGuiWindowFlags_NoFocusOnAppearing | // Don't steal focus when shown
@@ -985,14 +984,21 @@ SKIF_ImGui_BeginPopup (const char* name, bool* p_open, const ImGuiWindowFlags fl
   // Center on the current viewport
   ImGui::SetNextWindowPos      (vp->GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
 
-  return (ImGui::Begin (name, p_open, (flags != ImGuiWindowFlags_None ? flags : default_flags)));
+  bool ret =
+    ImGui::Begin (name, p_open, (flags != ImGuiWindowFlags_None ? flags : default_flags));
+
+  // Raise above all other windows (display order only, no focus change)
+  if (ret)
+    ImGui::BringWindowToDisplayFront (ImGui::GetCurrentWindow ( ));
+
+  return ret;
 }
 
 void
 SKIF_ImGui_EndPopup (void)
 {
-  ImGui::PopStyleColor ( ); // ImGuiCol_WindowBg, from SKIF_ImGui_BeginModalWindow()
   ImGui::End ( );
+  ImGui::PopStyleColor ( ); // ImGuiCol_WindowBg, from SKIF_ImGui_BeginModalWindow()
 }
 
 // Call every frame while the prompt is active.
@@ -1055,9 +1061,6 @@ SKIF_ImGui_DialogPrompt (const char* name, bool* p_open, const char* message, co
 
     // Empty spacing to eat the trailing SameLine ( )
     ImGui::Spacing ( );
-
-    // Always bring the window to the front (prevents it being obscured by another window)
-    ImGui::BringWindowToDisplayFront (ImGui::GetCurrentWindow ( ));
   }
 
   SKIF_ImGui_EndPopup ( );

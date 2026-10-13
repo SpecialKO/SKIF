@@ -588,9 +588,6 @@ SKIF_Custom_AddGame (void)
     SKIF_ImGui_Spacing ( );
 
     ImGui::TreePop     ( );
-
-    // Always bring the window to the front (prevents it being obscured by another window)
-    ImGui::BringWindowToDisplayFront (ImGui::GetCurrentWindow ( ));
   }
 
   else {
