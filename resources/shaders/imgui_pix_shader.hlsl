@@ -272,11 +272,12 @@ float3 Clamp_scRGB_StripNaN (float3 c)
 // Remap alpha so that blending in the (linear) scRGB framebuffer looks like
 // the gamma-space blending ImGui assumes. Exact for black/white sources over
 // any background (the color picker SV overlay, most text), approximate otherwise.
-float GammaMatchedAlpha (float alpha, float3 fg_gamma)
+//
+// t: 1 = light source / dark background, 0 = dark source / light background
+float GammaMatchedAlpha (float alpha, float t)
 {
-  float t       = saturate (Luma (fg_gamma));
-  float a_light = RemoveSRGBCurve (alpha);                // light source
-  float a_dark  = 1.0f - RemoveSRGBCurve (1.0f - alpha);  // dark source
+  float a_light = RemoveSRGBCurve (alpha);
+  float a_dark  = 1.0f - RemoveSRGBCurve (1.0f - alpha);
   return lerp (a_dark, a_light, t);
 }
 
@@ -299,8 +300,11 @@ float4 main (PS_INPUT input) : SV_Target
   bool isHDR           = input.lum.y > 0.0; // HDR (10 bpc or 16 bpc)
   bool is10bpc         = input.lum.z > 0.0; // 10 bpc
   bool is16bpc         = input.lum.w > 0.0; // 16 bpc (scRGB)
-  // luminance_scale.w: 1.0 = corrected alpha everywhere, 2.0 = legacy glyph coverage
-  bool linearFontAlpha = input.lum.w > 1.5;
+  
+  // luminance_scale.w: 1.0 = corrected alpha (base), +1.0 = linear glyph coverage, +2.0 = light background
+  uint flags           = is16bpc ? (uint)(input.lum.w + 0.5f) - 1u : 0u;
+  bool linearFontAlpha = (flags & 1u) != 0;
+  bool lightBackground = (flags & 2u) != 0;
   bool isFontDraw      = (font_dims.x + font_dims.y) > 0.0f;
 
   // 16 bpc scRGB (SDR/HDR)
@@ -309,15 +313,20 @@ float4 main (PS_INPUT input) : SV_Target
   // Primaries: BT.709
   if (is16bpc)
   {
-    float3 fg_gamma = input.col.rgb * out_col.rgb; // gamma-encoded source color
-    float  tex_a    = saturate (out_col.a);        // glyph coverage (1.0 for solid geometry)
-    float  vtx_a    = saturate (input.col.a);      // actual transparency
-    float  alpha;
+    float3 fg_gamma = input.col.rgb * out_col.rgb;
+    float  tex_a    = saturate (out_col.a);
+    float  vtx_a    = saturate (input.col.a);
 
+    // Text and solid UI geometry (the font-atlas white pixel): the source color decides.
+    // Real images (covers, icons): the window background decides.
+    float t = isFontDraw ? saturate (Luma (fg_gamma))
+                         : (lightBackground ? 0.0f : 1.0f);
+
+    float alpha;
     if (linearFontAlpha && isFontDraw)
-      alpha = tex_a * GammaMatchedAlpha (vtx_a, fg_gamma); // old coverage, corrected opacity
+      alpha = tex_a * GammaMatchedAlpha (vtx_a, t);
     else
-      alpha = GammaMatchedAlpha (tex_a * vtx_a, fg_gamma); // fully corrected
+      alpha = GammaMatchedAlpha (tex_a * vtx_a, t);
 
     out_col =
       float4 ( RemoveSRGBCurve (input.col.rgb) *
@@ -341,12 +350,6 @@ float4 main (PS_INPUT input) : SV_Target
     out_col.b = (orig_col.b <= 0.00013 && orig_col.b >= -0.00013) ? 0.0f : out_col.b;
     out_col.a = (orig_col.a <= 0.00013 && orig_col.a >= -0.00013) ? 0.0f : out_col.a;
 #endif
-
-    // Manipulate the alpha channel a bit...
-  //out_col.a = 1.0f - RemoveSRGBCurve (1.0f - out_col.a); // Sort of perfect alpha transparency handling, but worsens fonts (more haloing), in particular for bright fonts on dark backgrounds
-  //out_col.a = out_col.a;                                 // Worse alpha transparency handling, but improves fonts (less haloing)
-  //out_col.a = 1.0f - ApplySRGBCurve  (1.0f - out_col.a); // Unusable alpha transparency, and worsens dark fonts on bright backgrounds
-    // No perfect solution for various reasons (ImGui not having proper subpixel font rendering or doing linear colors for example)
 
     out_col.rgb *= out_col.a;
   }

@@ -237,12 +237,6 @@ extern void SKIF_Shell_AddJumpList (std::wstring name, std::wstring path, std::w
 
 // Functions / Structs
 
-static float
-AdjustAlpha (float a)
-{
-  return std::pow (a, 1.0f / 2.2f );
-}
-
 static std::string
 GetEffectiveCategory (app_record_s* app)
 {
@@ -6475,11 +6469,13 @@ SKIF_UI_Tab_DrawLibrary (void)
         }
       }
 
-      float fGammaCorrectedTint =
-        ((! _registry._RendererHDREnabled && _registry.iSDRMode == 2) ||
-          ( _registry._RendererHDREnabled && _registry.iHDRMode == 2))
-            ? AdjustAlpha (fTint)
-            : fTint;
+      // No gamma pre-correction on the CPU: the pixel shader gamma-matches vertex alpha in 16 bpc,
+      // and the light/dark curve is chosen from the background polarity flag (luminance_scale.w).
+      auto CoverTint = [&](float fFade) -> ImVec4
+      {
+        return (_registry._StyleLightMode) ? ImVec4 (1.0f,  1.0f,  1.0f,  fTint * fFade)
+                                           : ImVec4 (fTint, fTint, fTint,         fFade);
+      };
 
       vecPosCover = ImGui::GetCursorPos ( );
 
@@ -6510,8 +6506,8 @@ SKIF_UI_Tab_DrawLibrary (void)
                                                             cover_old.size, //sizeCoverFloored_old,
                                                             ImVec2 (0, 0),  // Top Left coordinates
                                                             ImVec2 (1, 1),  // Bottom Right coordinates
-                                          (_registry._StyleLightMode) ? ImVec4 (1.0f, 1.0f, 1.0f, fGammaCorrectedTint * AdjustAlpha (fAlphaPrev))  : ImVec4 (fTint, fTint, fTint, fAlphaPrev), // Alpha transparency
-                                            ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Never use a border
+                                                            CoverTint (fAlphaPrev),
+                                                            ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Never use a border
           );
 
           ImGui::SetCursorPos (vecPosCoverInner);
@@ -6525,8 +6521,8 @@ SKIF_UI_Tab_DrawLibrary (void)
                                                           cover.size,     //sizeCoverFloored,
                                                           ImVec2 (0, 0),  // Top Left coordinates
                                                           ImVec2 (1, 1),  // Bottom Right coordinates
-                                        (_registry._StyleLightMode) ? ImVec4 (1.0f, 1.0f, 1.0f, fGammaCorrectedTint * AdjustAlpha (fAlpha))  : ImVec4 (fTint, fTint, fTint, fAlpha), // Alpha transparency (2024-01-01, removed fGammaCorrectedTint * fAlpha for the light style)
-                                          ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Never use a border
+                                                          CoverTint (fAlpha),
+                                                          ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Never use a border
         );
 
         ImGui::SetCursorPos (vecPosCoverInner);
@@ -6544,7 +6540,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                                                           coverSK.size,
                                                           ImVec2 (0, 0),                  // Top Left coordinates
                                                           ImVec2 (1, 1),                  // Bottom Right coordinates
-                                                          ImVec4 (1.0f, 1.0f, 1.0f, fAlphaSK),  // Tint for Special K's logo
+                                                          CoverTint (fAlphaSK),           // Tint for Special K's logo
                                                           ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Never use a border
           );
         }
