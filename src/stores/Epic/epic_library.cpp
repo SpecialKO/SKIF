@@ -44,6 +44,18 @@ it's enough to launch the game through Epic like the start menu shortcuts does, 
 
 std::wstring SKIF_Epic_AppDataPath;
 
+constexpr wchar_t* v1DefaultPath = LR"(C:\ProgramData\Epic\EpicGamesLauncher\Data\Manifests\)";
+constexpr wchar_t* v2DefaultPath = LR"(C:\Users\%USERNAME%\AppData\Local\com.epicgames.eglv2\)";
+
+int SKIF_Epic_LauncherVersion = -1; // -1 unchecked, 0 uninstalled, 1 v1, 2 v2
+
+struct EpicInstall
+{
+  std::string dir;
+  std::string ns;      // "namespace" is a reserved word in C++
+  std::string itemId;
+};
+
 void
 SKIF_Epic_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s > > *apps)
 {
@@ -57,13 +69,12 @@ SKIF_Epic_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
   bool  registrySuccess  = false;
 
   // See if we can retrieve the launcher's appdata path from registry
-  if (RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Epic Games\EpicGamesLauncher\)", 0, KEY_READ | KEY_WOW64_32KEY, &hKey) == ERROR_SUCCESS)
+  if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Epic Games\EpicGamesLauncher\)", 0, KEY_READ | KEY_WOW64_32KEY, &hKey) == ERROR_SUCCESS)
   {
     dwSize = sizeof(szData) / sizeof(WCHAR);
     if (RegGetValueW (hKey, NULL, L"AppDataPath", RRF_RT_REG_SZ, NULL, szData, &dwSize) == ERROR_SUCCESS)
     {
-      SKIF_Epic_AppDataPath  = szData; // C:\ProgramData\Epic\EpicGamesLauncher\Data
-      SKIF_Epic_AppDataPath += LR"(\Manifests\)";
+      SKIF_Epic_AppDataPath  = szData; // C:\ProgramData\Epic\EpicGamesLauncher\Data or %LOCALAPPDATA%\com.epicgames.eglv2
 
       registrySuccess = true;
 
@@ -75,26 +86,217 @@ SKIF_Epic_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
   if (! registrySuccess)
   {
     PLOG_WARNING << "Failed to read Epic manifest location from the registry!";
-    SKIF_Epic_AppDataPath = LR"(C:\ProgramData\Epic\EpicGamesLauncher\Data\Manifests\)";
   }
 
-  PLOG_INFO << "Epic manifest location: " << SKIF_Epic_AppDataPath;
+  struct      Candidate { std::wstring path; int version; };
+  std::vector<Candidate>
+              candidates;
 
-  // Abort if the folder does not exist
-  if (! PathFileExists (SKIF_Epic_AppDataPath.c_str()))
+  if (SKIF_Epic_AppDataPath.empty ())
   {
-    PLOG_WARNING << "Folder does not exist!";
+    // Default locations
+    candidates = {
+      { SK_FormatStringW (LR"(%ws\com.epicgames.eglv2\installations.jsonl)",
+                          _path_cache.app_data_local.path),            2 },
+      { LR"(C:\ProgramData\Epic\EpicGamesLauncher\Data\Manifests)",    1 }
+    };
+  }
 
-    SKIF_Epic_AppDataPath = L"";
+  else {
+    // User-supplied base path
+    candidates = {
+      { SKIF_Epic_AppDataPath + LR"(\installations.jsonl)", 2 },
+      { SKIF_Epic_AppDataPath + LR"(\Manifests)",           1 }
+    };
+  }
+
+  SKIF_Epic_LauncherVersion = 0;
+  SKIF_Epic_AppDataPath.clear();
+
+  // Probe v2 first, then v1
+  for (const auto& c : candidates)
+  {
+    if (PathFileExists (c.path.c_str ()))
+    {
+      SKIF_Epic_AppDataPath     = c.path;
+      SKIF_Epic_LauncherVersion = c.version;
+      break;
+    }
+  }
+
+  if (SKIF_Epic_LauncherVersion == 0)
+  {
+    PLOG_WARNING << "Could not find Epic installed on the system!";
     return;
   }
+
+  if (SKIF_Epic_LauncherVersion == 2)
+    SKIF_Epic_FindInstalledGames2 (apps);
+  else
+    SKIF_Epic_FindInstalledGames1 (apps);
+}
+
+bool
+SKIF_Epic_FindInstalledGames2 (std::vector<std::pair<std::string, app_record_s>>* apps)
+{
+  if (SKIF_Epic_LauncherVersion != 2)
+    return false;
+
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
+  bool ret = false;
+
+  std::ifstream file (SKIF_Epic_AppDataPath);
+  if (! file.is_open ())
+  {
+    PLOG_ERROR << "Failed to open " << SKIF_Epic_AppDataPath;
+    return false;
+  }
+
+  std::string line;
+  size_t      lineNo            = 0;
+  size_t      expectedEntries   = 0;
+  size_t      discoveredEntries = 0;
+
+  while (std::getline (file, line))
+  {
+    ++lineNo;
+    PLOG_VERBOSE << line;
+
+    // Strip trailing CR (Windows line endings) and skip blank lines
+    if (! line.empty () && line.back () == '\r')
+      line.pop_back ();
+    if (line.empty ())
+      continue;
+
+    try
+    {
+      // Parse without exceptions; a bad line is skipped, not fatal
+      nlohmann::json jf = nlohmann::json::parse (line, nullptr, /*allow_exceptions=*/false);
+
+      if (jf.is_discarded () || ! jf.is_object ())
+      {
+        PLOG_WARNING << "Line " << lineNo << ": invalid JSON, skipping";
+        continue;
+      }
+
+      // Header line: {"version":1,"writtenAt":"...","entries":4}
+      if (lineNo == 1 && jf.contains ("entries") && ! jf.contains ("installationId"))
+      {
+        expectedEntries = jf.value ("entries", 0);
+        continue;
+      }
+
+      PLOG_VERBOSE << "Line " << lineNo << ": " << jf.dump();
+
+      // Entry line: require the three fields we care about
+      if (! jf.value ("complete", false))
+      {
+        PLOG_WARNING << "Line " << lineNo << ": missing or false 'complete', skipping";
+        continue;
+      }
+
+      // -------------------------------------
+
+      std::string CatalogNamespace    = jf.at("namespace"),
+                  CatalogItemId       = jf.at("itemId"),
+                  AppName             = jf.at("installationId"); // Not actually the AppName but this is unique enough
+
+      // Hash the AppName into a unique integer we use for internal tracking purposes
+      std::hash <std::string> stoi_hasher;
+      size_t int_hash = stoi_hasher (AppName);
+
+      app_record_s record(static_cast<uint32_t>(int_hash));
+
+      //record.install_dir.erase(std::find(record.install_dir.begin(), record.install_dir.end(), '\0'), record.install_dir.end());
+
+      record.store                = app_record_s::Store::Epic;
+      record.store_utf8           = "Epic";
+      record._status.installed    = true;
+      record.install_dir          = SK_UTF8ToWideChar (jf.at ("dir"));
+      record.install_dir          = std::filesystem::path (record.install_dir).lexically_normal();
+      record.names.normal         = jf.value ("launchExecutable", std::string());
+      SKIF_Util_ReplaceAll         (record.names.normal, ".exe", "");
+      record.names.original       = record.names.normal;
+
+      app_record_s::launch_config_s lc;
+      lc.id                       = 0;
+      lc.valid                    = 1;
+      lc.executable               = SK_UTF8ToWideChar(jf.at("launchExecutable")); // record.install_dir + L"\\" +
+      lc.executable_path          = record.install_dir + LR"(\)" + lc.executable;
+      lc.install_dir              = record.install_dir;
+      std::replace(lc.executable_path.begin(), lc.executable_path.end(), '/', '\\'); // Replaces all / with \
+
+      // Strip out the subfolders from the executable variable
+      std::wstring
+          substr = lc.executable;
+      auto npos = substr.find_last_of(L"/\\");
+      if (npos != std::wstring::npos)
+        substr  = substr.substr(npos + 1);
+      if (! substr.empty() )
+        lc.executable = substr;
+
+      lc.working_dir               = record.install_dir;
+      //lc.launch_options = SK_UTF8ToWideChar(app.at("LaunchCommand"));
+
+      // com.epicgames.launcher://apps/CatalogNamespace%3ACatalogItemId%3AAppName?action=launch&silent=true
+      lc.launch_options = SK_UTF8ToWideChar(CatalogNamespace + "%3A" + CatalogItemId + "%3A" + AppName);
+      lc.launch_options.erase(std::find(lc.launch_options.begin(), lc.launch_options.end(), '\0'), lc.launch_options.end());
+
+      record.launch_configs.emplace (0, lc);
+
+      record.epic.catalog_namespace = CatalogNamespace;
+      record.epic.catalog_item_id   = CatalogItemId;
+      record.epic.name_app          = AppName;
+      record.epic.name_display      = record.names.normal;
+
+      record.specialk.injection.injection.type = InjectionType::Global;
+
+      // Strip invalid filename characters
+      record.specialk.profile_dir_utf8 = SKIF_Util_StripInvalidFilenameChars (record.epic.name_display);
+      record.specialk.profile_dir      = SK_UTF8ToWideChar (record.specialk.profile_dir_utf8);
+
+      std::pair <std::string, app_record_s>
+        Epic(record.names.normal, record);
+
+      discoveredEntries++;
+
+      apps->emplace_back(Epic);
+
+      // -------------------------------------
+    }
+    catch (const std::exception&)
+    {
+
+    }
+  }
+
+  if (expectedEntries != 0 && expectedEntries != discoveredEntries)
+  {
+    PLOG_WARNING << "Note: header says " << expectedEntries
+                 << " entries, parsed " << discoveredEntries;
+  }
+
+  return ret;
+}
+
+bool
+SKIF_Epic_FindInstalledGames1 (std::vector <std::pair < std::string, app_record_s > >* apps)
+{
+  if (SKIF_Epic_LauncherVersion != 1)
+    return false;
+
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
+  bool ret = false;
 
   for (const auto& entry : std::filesystem::directory_iterator(SKIF_Epic_AppDataPath))
   {
     if (entry.is_directory()               == false    &&
         entry.path().extension().wstring() == L".item" )
     {
-      try {
+      try
+      {
         PLOG_DEBUG << "Parsing " << entry.path();
 
         std::ifstream file(entry.path());
@@ -202,6 +404,7 @@ SKIF_Epic_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 
           // Copy manifest to AppCache directory
           CopyFile (entry.path().c_str(), (AppCacheDir + LR"(\manifest.json)").c_str(), false);
+          ret = true;
         }
       }
       catch (const std::exception&)
@@ -210,8 +413,9 @@ SKIF_Epic_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
       }
     }
   }
-}
 
+  return ret;
+}
 
 void
 SKIF_Epic_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogItemId, std::string AppName, std::string DisplayName)
