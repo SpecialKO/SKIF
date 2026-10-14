@@ -160,9 +160,13 @@ SKIF_Epic_FindInstalledGames2 (std::vector<std::pair<std::string, app_record_s>>
       catalog_cache_file (SKIF_Epic_AppDataPath + LR"(\cache\prod\catalog-cache.json)");
   if (catalog_cache_file.is_open())
   {
-    PLOG_VERBOSE << "Read catalog-cache.json successfully.";
     catalog_cache = nlohmann::json::parse (catalog_cache_file, nullptr);
     catalog_cache_file.close();
+
+    if (catalog_cache.is_discarded ( ) || ! catalog_cache.is_object ( ))
+      PLOG_WARNING << "catalog_cache is discarded or not an object";
+    else
+      PLOG_VERBOSE << "Read catalog-cache.json successfully.";
   }
 
   std::string line;
@@ -174,7 +178,6 @@ SKIF_Epic_FindInstalledGames2 (std::vector<std::pair<std::string, app_record_s>>
   while (std::getline (file, line))
   {
     ++lineNo;
-    PLOG_VERBOSE << line;
 
     // Strip trailing CR (Windows line endings) and skip blank lines
     if (! line.empty () && line.back () == '\r')
@@ -183,36 +186,53 @@ SKIF_Epic_FindInstalledGames2 (std::vector<std::pair<std::string, app_record_s>>
       continue;
 
     nlohmann::json
-        jf = nlohmann::json::parse (line, nullptr, false);
-    if (jf.is_discarded () || ! jf.is_object ())
+        jl = nlohmann::json::parse (line, nullptr, false);
+    if (jl.is_discarded () || ! jl.is_object ())
     {
-      PLOG_WARNING << "Line " << lineNo << ": invalid JSON, skipping";
+      PLOG_DEBUG << "Line " << lineNo << ": invalid JSON; skipping...";
       continue;
     }
 
     // Header line: {"version":1,"writtenAt":"...","entries":4}
-    if (lineNo == 1 && jf.contains ("entries") && ! jf.contains ("installationId"))
+    if (lineNo == 1 && jl.contains ("entries") && ! jl.contains ("installationId"))
     {
-      expectedEntries = jf.value ("entries", 0);
+      expectedEntries = jl.value ("entries", 0);
       continue;
     }
 
     // Filter out incomplete installs
-    if (! jf.value ("complete", false))
+    if (! jl.value ("complete", false))
     {
-      PLOG_WARNING << "Line " << lineNo << ": missing or false 'complete', skipping";
+      PLOG_DEBUG << "Line " << lineNo << ": 'complete' missing or false; skipping...";
       continue;
     }
 
-    auto [it, inserted] = indexById.try_emplace (jf.at ("installationId"), lineNo);
+    std::string CatalogNamespace    = jl.at ("namespace"),
+                CatalogItemId       = jl.at ("itemId"),
+                AppName             = jl.at ("artifactId"); // artifactId == appName
+
+    std::wstring egsstore_manifest =
+      SK_FormatStringW  (LR"(%ws\.egstore\%ws.manifest)",
+      SK_UTF8ToWideChar (jl.at ("dir")).c_str(),
+      SK_UTF8ToWideChar (jl.at ("installationId")).c_str()
+    );
+    SKIF_Util_ReplaceAllW (egsstore_manifest, LR"(\\)", LR"(\)");
+
+    // Skip if a corresponding manifest file does not reside in the expected .egstore folder
+    if (! PathFileExists (egsstore_manifest.c_str()))
+    {
+      PLOG_DEBUG << "Line " << lineNo << ": .egstore manifest file not found; skipping...";
+      continue;
+    }
+
+    auto [it, inserted] = indexById.try_emplace (jl.at ("installationId"), lineNo);
 
     // Skip already processed installs
     if (! inserted)
+    {
+      PLOG_DEBUG << "Line " << lineNo << ": installationId already processed; skipping...";
       continue;
-
-    std::string CatalogNamespace    = jf.at ("namespace"),
-                CatalogItemId       = jf.at ("itemId"),
-                AppName             = jf.at ("artifactId"); // artifactId == appName
+    }
 
     // Hash the AppName into a unique integer we use for internal tracking purposes
     std::hash <std::string> stoi_hasher;
@@ -225,15 +245,14 @@ SKIF_Epic_FindInstalledGames2 (std::vector<std::pair<std::string, app_record_s>>
     record.store                = app_record_s::Store::Epic;
     record.store_utf8           = "Epic";
     record._status.installed    = true;
-    record.install_dir          = SK_UTF8ToWideChar (jf.at ("dir"));
+    record.install_dir          = SK_UTF8ToWideChar (jl.at ("dir"));
     record.install_dir          = std::filesystem::path (record.install_dir).lexically_normal();
 
     // Fallback
     if (catalog_cache.is_discarded ( ) || ! catalog_cache.is_object ( ))
     {
-      record.names.normal       = jf.value ("launchExecutable", std::string());
+      record.names.normal       = jl.value ("launchExecutable", std::string());
       SKIF_Util_ReplaceAll       (record.names.normal, ".exe", "");
-      PLOG_WARNING << "catalog_cache is discarded or not an object";
     }
 
     else {
@@ -241,7 +260,10 @@ SKIF_Epic_FindInstalledGames2 (std::vector<std::pair<std::string, app_record_s>>
         catalog_cache.at ("items").at (CatalogItemId).at ("item");
 
       if (item.contains ("mainGameItem") && ! item["mainGameItem"].is_null ( ))
+      {
+        PLOG_DEBUG << "Line " << lineNo << ": item not a parent; skipping...";
         continue;
+      }
 
       record.names.normal       = item.at ("title").get<std::string> ();
 
@@ -260,7 +282,7 @@ SKIF_Epic_FindInstalledGames2 (std::vector<std::pair<std::string, app_record_s>>
     app_record_s::launch_config_s lc;
     lc.id                       = 0;
     lc.valid                    = 1;
-    lc.executable               = SK_UTF8ToWideChar(jf.at("launchExecutable")); // record.install_dir + L"\\" +
+    lc.executable               = SK_UTF8ToWideChar (jl.at("launchExecutable")); // record.install_dir + L"\\" +
     lc.executable_path          = record.install_dir + LR"(\)" + lc.executable;
     lc.install_dir              = record.install_dir;
     std::replace(lc.executable_path.begin(), lc.executable_path.end(), '/', '\\'); // Replaces all / with \
