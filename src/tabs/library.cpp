@@ -3147,6 +3147,8 @@ DrawGameContextMenu (app_record_s* pApp)
             SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->epic.catalog_namespace));
           if (ImGui::MenuItem ("Catalog Item ID",         pApp->epic.catalog_item_id.c_str()))
             SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->epic.catalog_item_id));
+          if (ImGui::MenuItem ("DieselGameBoxTall",       pApp->epic.gamebox_tall.c_str()))
+            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->epic.gamebox_tall));
           ImGui::PopID        ( );
         }
 
@@ -8334,7 +8336,12 @@ SKIF_UI_Tab_DrawLibrary (void)
           SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\cover-original.jpg)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(_pApp->epic.name_app).c_str());
 
         if ( ! PathFileExistsW (load_str.   c_str ()) )
-          SKIF_Epic_IdentifyAssetNew (_pApp->epic.catalog_namespace, _pApp->epic.catalog_item_id, _pApp->epic.name_app, _pApp->epic.name_display);
+        {
+          if (! _pApp->epic.gamebox_tall.empty())
+            SKIF_Util_GetWebResource (SK_UTF8ToWideChar (_pApp->epic.gamebox_tall), load_str);
+          else
+            SKIF_Epic_IdentifyAssetNew (_pApp->epic.catalog_namespace, _pApp->epic.catalog_item_id, _pApp->epic.name_app, _pApp->epic.name_display);
+        }
       }
 
       // Xbox

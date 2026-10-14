@@ -472,6 +472,7 @@ struct app_record_s {
     std::string  catalog_item_id   =  ""; // CatalogItemId
     std::string  name_app          =  ""; // AppName
     std::string  name_display      =  ""; // DisplayName; Used for asset retrieval
+    std::string  gamebox_tall      =  "";
   } epic;
 
   struct {
