@@ -233,13 +233,19 @@ SKIF_Epic_FindInstalledGames2 (std::vector<std::pair<std::string, app_record_s>>
     {
       record.names.normal       = jf.value ("launchExecutable", std::string());
       SKIF_Util_ReplaceAll       (record.names.normal, ".exe", "");
+      PLOG_WARNING << "catalog_cache is discarded or not an object";
     }
 
     else {
-      nlohmann::json::json_pointer ptr ("/items/" + CatalogItemId + "/item/title");
-      record.names.normal       =  catalog_cache.value (ptr, std::string ());
+      const nlohmann::json& item =
+        catalog_cache.at ("items").at (CatalogItemId).at ("item");
 
-      for (const auto& img : catalog_cache.at ("items").at (CatalogItemId).at ("item").at ("keyImages"))
+      if (item.contains ("mainGameItem") && ! item["mainGameItem"].is_null ( ))
+        continue;
+
+      record.names.normal       = item.at ("title").get<std::string> ();
+
+      for (const auto& img : item.at ("keyImages"))
       {
         if (img.at ("type") == "DieselGameBoxTall")
         {
