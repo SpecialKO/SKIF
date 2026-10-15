@@ -2065,6 +2065,16 @@ SKIF_Util_IsWindows11orGreater (void)
   return bResult;
 }
 
+// Windows 11 24H2 (Build 26100) or newer
+bool
+SKIF_Util_IsWindows11v24H2orGreater (void)
+{
+  static bool bResult =
+    SKIF_Util_IsWindowsVersionOrGreater (10, 0, 26100);
+
+  return bResult;
+}
+
 #ifndef NT_SUCCESS
 #define NT_SUCCESS(Status) (((NTSTATUS)(Status)) >= 0)
 #endif
