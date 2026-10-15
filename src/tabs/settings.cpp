@@ -1483,59 +1483,59 @@ SKIF_UI_Tab_DrawSettings (void)
 #pragma endregion
 
 #pragma region Section: Keybindings (In-game)
-  if (_registry.bDeveloperMode)
+  if (ImGui::CollapsingHeader ("Keybindings (In-Game)###SKIF_SettingsHeader-3b"))
   {
-    if (ImGui::CollapsingHeader ("Keybindings (In-Game)###SKIF_SettingsHeader-3b"))
+    SKIF_ImGui_Spacing      ( );
+
+    // Headers
+
+    ImGui::ItemSize        (ImVec2 (0.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+    ImGui::SameLine        ( );
+    ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption), "[Section]");
+    ImGui::SameLine        ( );
+    ImGui::ItemSize        (ImVec2 (200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+    ImGui::SameLine        ( );
+    ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption), "Key=");
+    ImGui::SameLine        ( );
+    ImGui::ItemSize        (ImVec2 (600.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+    ImGui::SameLine        ( );
+    ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption), "Value");
+
+    ImGui::Separator   ( );
+
+    ImGui::PushStyleColor (
+      ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(0.8f, 0.8f, 0.8f, 1.0f)
+                            );
+
+    extern std::vector <__INI>
+                      g_vIniReaderOSD;
+    for (auto& trie : g_vIniReaderOSD)
     {
-      SKIF_ImGui_Spacing      ( );
+      if (trie._type != ParameterKeybind)
+        continue;
 
-      // Headers
-
-      ImGui::ItemSize        (ImVec2 (0.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-      ImGui::SameLine        ( );
-      ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption), "[Section]");
+      ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), trie.section);
       ImGui::SameLine        ( );
       ImGui::ItemSize        (ImVec2 (200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine        ( );
-      ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption), "Key=");
+      ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), trie.key);
+      if (trie.description != nullptr)
+        SKIF_ImGui_SetHoverTip (trie.description);
       ImGui::SameLine        ( );
       ImGui::ItemSize        (ImVec2 (600.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine        ( );
-      ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption), "Value");
-
-      ImGui::Separator   ( );
-
-      ImGui::PushStyleColor (
-        ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(0.8f, 0.8f, 0.8f, 1.0f)
-                              );
-
-      extern std::vector <__INI>
-                        g_vIniReaderOSD;
-      for (auto& trie : g_vIniReaderOSD)
-      {
-        if (trie._type != ParameterKeybind)
-          continue;
-
-        ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), trie.section);
-        ImGui::SameLine        ( );
-        ImGui::ItemSize        (ImVec2 (200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-        ImGui::SameLine        ( );
-        ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), trie.key);
-        if (trie.description != nullptr)
-          SKIF_ImGui_SetHoverTip (trie.description);
-        ImGui::SameLine        ( );
-        ImGui::ItemSize        (ImVec2 (600.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-        ImGui::SameLine        ( );
-        if (trie.DrawFunction (&trie))
-          SKIF_IniReader_SaveOSDIni ( );
-      }
-
-      ImGui::PopStyleColor  ( ); // ImGuiCol_Text
+      if (trie.DrawFunction (&trie))
+        SKIF_IniReader_SaveOSDIni ( );
     }
 
-    ImGui::Spacing ();
-    ImGui::Spacing ();
+    if (g_vIniReaderOSD.empty())
+      ImGui::TextUnformatted ("Launch a game with Special K at least once to populate this section.");
+
+    ImGui::PopStyleColor  ( ); // ImGuiCol_Text
   }
+
+  ImGui::Spacing ();
+  ImGui::Spacing ();
 
 #pragma endregion
 
