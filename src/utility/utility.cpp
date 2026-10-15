@@ -3893,7 +3893,6 @@ SKIF_UtilInt_UpdateMonitors (void)
     monitor.path_targetInfo.id        = path.targetInfo.id;
     monitor.path_targetInfo.adapterId = path.targetInfo.adapterId;
 
-#if 0
     // Windows 10 1803+ (Build 17134) or newer
     if (SKIF_Util_IsWindows10v1803OrGreater ( ))
     {
@@ -3917,7 +3916,7 @@ SKIF_UtilInt_UpdateMonitors (void)
         if (SUCCEEDED (SK_WindowsCreateStringReference (name, len, &header, &hClassName)) && hClassName != nullptr)
         {
           IDisplayInformationStaticsInterop* pStatics = nullptr;
-          if (SUCCEEDED (SK_RoGetActivationFactory (hClassName, __uuidof (IDisplayInformationStaticsInterop), reinterpret_cast<void**>(&pStatics)) && pStatics != nullptr))
+          if (SUCCEEDED (SK_RoGetActivationFactory (hClassName, __uuidof (IDisplayInformationStaticsInterop), reinterpret_cast<void**>(&pStatics))) && pStatics != nullptr)
           {
             IDisplayInformation5* pDisp = nullptr;
             if (SUCCEEDED (pStatics->GetForMonitor (monitor.handle, IID_IDisplayInformation5, reinterpret_cast<void**>(&pDisp))) && pDisp != nullptr)
@@ -3988,7 +3987,6 @@ SKIF_UtilInt_UpdateMonitors (void)
 #endif
 
     }
-#endif
 
     // Windows 10 1709+ (Build 16299) fallback
     if (! success || (! SKIF_Util_IsWindows10v1803OrGreater ( ) && SKIF_Util_IsWindows10v1709OrGreater ( )))
