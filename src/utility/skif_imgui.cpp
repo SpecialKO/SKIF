@@ -32,8 +32,7 @@ std::vector <ImWchar> vFontAwesome;
 std::vector <ImWchar> vFontAwesomeBrands;
 
 PopupState PopupMessageInfo = PopupState_Closed;
-std::vector <std::string> vInfoMessage_Titles;
-std::vector <std::string> vInfoMessage_Labels;
+std::vector <std::pair <std::string, std::string> > vInfoMessages;
 
 float
 SKIF_ImGui_sRGBtoLinear (float col_srgb)
@@ -367,30 +366,25 @@ SKIF_ImGui_AdjustAppModeSize (HMONITOR monitor)
 void
 SKIF_ImGui_InfoMessage (const std::string szTitle, const std::string szLabel)
 {
-  vInfoMessage_Titles.push_back (szTitle);
-  vInfoMessage_Labels.push_back (szLabel);
+  vInfoMessages.emplace_back ( szTitle, szLabel );
 }
 
 // Internal; processes any existing info messages
 void
 SKIF_ImGui_InfoMessage_Process (void)
 {
-  if (! vInfoMessage_Labels.empty())
+  if (! vInfoMessages.empty())
   {
-    static float fPopupWidth;
-    fPopupWidth = ImGui::CalcTextSize (vInfoMessage_Labels.back().c_str()).x + ImGui::GetStyle().IndentSpacing * 3.0f; // 60.0f * SKIF_ImGui_GlobalDPIScale
-    ImGui::OpenPopup ("###PopupMessageInfo");
-    ImGui::SetNextWindowSize (ImVec2 (fPopupWidth, 0.0f));
-
     if (PopupMessageInfo == PopupState_Closed)
       PopupMessageInfo = PopupState_Open;
 
-    ImGui::SetNextWindowPos    (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
-    if (ImGui::BeginPopupModal ((vInfoMessage_Titles.back() + "###PopupMessageInfo").c_str(), nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
+    static float fPopupWidth;
+    fPopupWidth = ImGui::CalcTextSize (vInfoMessages.back().second.c_str()).x + ImGui::GetStyle().IndentSpacing * 3.0f;
+
+    if (SKIF_ImGui_BeginPopup ((vInfoMessages.back().first + "###PopupMessageInfo").c_str(), nullptr, ImVec2(fPopupWidth, 0.0f)))
     {
       if (PopupMessageInfo == PopupState_Open)
       {
-        // Set the popup as opened after it has appeared (fixes popup not opening from other tabs)
         ImGuiWindow* window = ImGui::FindWindowByName ("###PopupMessageInfo");
         if (window != nullptr && ! window->Appearing)
           PopupMessageInfo = PopupState_Opened;
@@ -400,7 +394,7 @@ SKIF_ImGui_InfoMessage_Process (void)
 
       SKIF_ImGui_Spacing ( );
 
-      ImGui::Text        (vInfoMessage_Labels.back().c_str());
+      ImGui::Text        (vInfoMessages.back().second.c_str());
 
       SKIF_ImGui_Spacing ( );
       SKIF_ImGui_Spacing ( );
@@ -411,10 +405,9 @@ SKIF_ImGui_InfoMessage_Process (void)
 
       if (ImGui::Button  ("OK", vButtonSize))
       {
-        vInfoMessage_Labels.pop_back();
-        vInfoMessage_Titles.pop_back();
+        vInfoMessages.pop_back();
 
-        if (vInfoMessage_Labels.empty())
+        if (vInfoMessages.empty())
           PopupMessageInfo = PopupState_Closed;
 
         ImGui::CloseCurrentPopup ( );
@@ -425,9 +418,9 @@ SKIF_ImGui_InfoMessage_Process (void)
       SKIF_ImGui_Spacing ( );
 
       ImGui::TreePop     ( );
-
-      ImGui::EndPopup ( );
     }
+
+    SKIF_ImGui_EndPopup  ( );
   }
 }
 
@@ -436,11 +429,8 @@ SKIF_ImGui_CloseInfoPopup (void)
 {
   if (PopupMessageInfo != PopupState_Closed)
   {
-    vInfoMessage_Labels.clear();
-    vInfoMessage_Titles.clear();
+    vInfoMessages.clear();
     PopupMessageInfo = PopupState_Closed;
-
-    ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead(), true);
   }
 }
 
