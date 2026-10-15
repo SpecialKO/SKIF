@@ -3691,7 +3691,77 @@ void SKIF_Util_SetEffectivePowerModeNotifications (bool enable)
 
 // High Dynamic Range (HDR)
 
+#if (NTDDI_VERSION < NTDDI_WIN11_GA)
 
+typedef enum _DISPLAYCONFIG_ADVANCED_COLOR_MODE
+{
+    DISPLAYCONFIG_ADVANCED_COLOR_MODE_SDR,          // RGB888 composition, display-referred color, display-referred luminance
+    DISPLAYCONFIG_ADVANCED_COLOR_MODE_WCG,          // Advanced color (FP16 scRGB composition), scene-referred color, display-referred luminance
+    DISPLAYCONFIG_ADVANCED_COLOR_MODE_HDR,          // Advanced color (FP16 scRGB composition), scene-referred color, scene-referred luminance
+} DISPLAYCONFIG_ADVANCED_COLOR_MODE;
+
+typedef struct _DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO_2
+{
+    DISPLAYCONFIG_DEVICE_INFO_HEADER header;
+    union
+    {
+        struct
+        {
+          UINT32 advancedColorSupported        :1;    // A type of advanced color is supported
+          UINT32 advancedColorActive           :1;    // A type of advanced color is active (see currentColorMode for the specific advanced color mode)
+          UINT32 reserved1                     :1;
+          UINT32 advancedColorLimitedByPolicy  :1;    // System/OS policy is limiting advanced color options (see currentColorMode for the current mode)
+
+          UINT32 highDynamicRangeSupported     :1;    // HDR is supported
+          UINT32 highDynamicRangeUserEnabled   :1;    // HDR is enabled by the user (but may not be active)
+
+          UINT32 wideColorSupported            :1;    // Wide color gamut is supported
+          UINT32 wideColorUserEnabled          :1;    // Wide color gamut is enabled by the user (but may not be active)
+
+          UINT32 reserved                      :24;
+        } DUMMYSTRUCTNAME;
+
+        UINT32 value;
+    } DUMMYUNIONNAME;
+
+    DISPLAYCONFIG_COLOR_ENCODING colorEncoding;
+    UINT32 bitsPerColorChannel;
+
+    DISPLAYCONFIG_ADVANCED_COLOR_MODE activeColorMode; // The active color mode for this monitor
+
+} DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO_2;
+
+typedef struct _DISPLAYCONFIG_SET_HDR_STATE
+{
+    DISPLAYCONFIG_DEVICE_INFO_HEADER header;
+    union
+    {
+        struct
+        {
+          UINT32 enableHdr  :1;
+          UINT32 reserved  :31;
+        } DUMMYSTRUCTNAME;
+
+        UINT32 value;
+    }DUMMYUNIONNAME;
+} DISPLAYCONFIG_SET_HDR_STATE;
+
+typedef struct _DISPLAYCONFIG_SET_WCG_STATE
+{
+    DISPLAYCONFIG_DEVICE_INFO_HEADER header;
+    union
+    {
+        struct
+        {
+          UINT32 enableWcg  :1;
+          UINT32 reserved  :31;
+        } DUMMYSTRUCTNAME;
+
+        UINT32 value;
+    }DUMMYUNIONNAME;
+} DISPLAYCONFIG_SET_WCG_STATE;
+
+#endif // (NTDDI_VERSION < NTDDI_WIN11_GA)
 
 // WinRT stuff, used by SKIF_UtilInt_UpdateMonitors() to allow
 // using WinRT calls without linking to them and breaking Win7/8 compatibility
@@ -3772,17 +3842,8 @@ struct IDisplayInformationStaticsInterop : IInspectable
   virtual HRESULT STDMETHODCALLTYPE GetForMonitor (HMONITOR monitor, REFIID riid, void** ppvObject) = 0; // IDisplayInformation5
 };
 
-// This is just some old stuff required for the native WinRT path.
-// No longer relevant after the WinRT stuff got dynamically handled.
-//#undef NTDDI_VERSION
-//#define NTDDI_VERSION NTDDI_WIN10_NI
-#if (NTDDI_VERSION >= NTDDI_WIN10_NI)
-#pragma comment(lib, "RuntimeObject.lib")
-//#pragma comment(lib, "mincore.lib")
-#include <winrt/Windows.Graphics.Display.h>
-#include <winrt/Windows.Devices.Display.Core.h>
-#include <Windows.Graphics.Display.Interop.h>
-#endif
+// End stupid declarations
+
 
 // This actually updates the underlying vector
 static void
@@ -3850,11 +3911,12 @@ SKIF_UtilInt_UpdateMonitors (void)
       mi.cbSize = sizeof(MONITORINFOEX);
       GetMonitorInfo(hmon, &mi);
       auto monitors = (std::vector<std::tuple<HMONITOR, std::wstring>>*)lp;
-      monitors->push_back({ hmon, mi.szDevice });
+      monitors->emplace_back( hmon, mi.szDevice );
       return TRUE;
   }, (LPARAM)&monitors);
 
-  bool displayConfigFallback = false;
+  enum ReaderVersion { RV_Unknown, RV_Win32v1, RV_WinRT, RV_Win32v2, };
+  ReaderVersion readerVersion = RV_Unknown;
 
   // For each active path
   for (auto& path : pathArray)
@@ -3888,8 +3950,6 @@ SKIF_UtilInt_UpdateMonitors (void)
     if (ERROR_SUCCESS != DisplayConfigGetDeviceInfo ((DISPLAYCONFIG_DEVICE_INFO_HEADER*)&sourceName))
         continue;
 
-    bool success = false;
-
     // Find the monitor handle with the same device name
     auto tup_mon = std::find_if (monitors.begin(), monitors.end(), [&sourceName](std::tuple<HMONITOR, std::wstring> t)
     {
@@ -3903,14 +3963,55 @@ SKIF_UtilInt_UpdateMonitors (void)
     monitor.path_targetInfo.id        = path.targetInfo.id;
     monitor.path_targetInfo.adapterId = path.targetInfo.adapterId;
 
-    // Windows 10 1803+ (Build 17134) or newer
-    if (SKIF_Util_IsWindows10v1803OrGreater ( ))
+    // Windows 11 24H2+ (Build 26100) or newer
+    if (SKIF_Util_IsWindows11v24H2orGreater ( ))
     {
+      DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO_2
+        getDisplayHDR                   = { };
+        getDisplayHDR.header.adapterId  = path.targetInfo.adapterId;
+        getDisplayHDR.header.id         = path.targetInfo.id;
+        getDisplayHDR.header.type       = DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO_2;
+        getDisplayHDR.header.size       = sizeof (getDisplayHDR);
 
-#if (NTDDI_VERSION < NTDDI_WIN10_NI)
+      if (ERROR_SUCCESS == DisplayConfigGetDeviceInfo (&getDisplayHDR.header))
+      {
+        readerVersion = RV_Win32v2;
 
+        monitor.hdr.supported = getDisplayHDR.highDynamicRangeSupported &&
+                             (! getDisplayHDR.advancedColorLimitedByPolicy);
+
+        monitor.hdr.active    = true;
+        monitor.hdr.active    = getDisplayHDR.advancedColorActive         &&
+                                getDisplayHDR.highDynamicRangeUserEnabled &&
+                                getDisplayHDR.activeColorMode == DISPLAYCONFIG_ADVANCED_COLOR_MODE_HDR;
+      }
+
+      if (monitor.hdr.supported)
+      {
+        DISPLAYCONFIG_SDR_WHITE_LEVEL
+          getSDRWhiteLevel                  = { };
+          getSDRWhiteLevel.header.adapterId = path.targetInfo.adapterId;
+          getSDRWhiteLevel.header.id        = path.targetInfo.id;
+          getSDRWhiteLevel.header.type      = DISPLAYCONFIG_DEVICE_INFO_GET_SDR_WHITE_LEVEL;
+          getSDRWhiteLevel.header.size      =         sizeof (DISPLAYCONFIG_SDR_WHITE_LEVEL);
+
+        if (ERROR_SUCCESS == DisplayConfigGetDeviceInfo (&getSDRWhiteLevel.header))
+        {
+          // SDRWhiteLevel represents a multiplier for standard SDR white
+          // peak value i.e. 80 nits represented as fixed point.
+          // To get value in nits use the following conversion
+          // SDRWhiteLevel in nits = (SDRWhiteLevel / 1000) * 80
+          if (getSDRWhiteLevel.SDRWhiteLevel)
+            monitor.sdr_whitelevel = (static_cast<float> (getSDRWhiteLevel.SDRWhiteLevel) / 1000.0f) * 80.0f;
+        }
+      }
+    }
+
+    // Windows 10 1803+ (Build 17134) or newer
+    if (readerVersion == RV_Unknown && SKIF_Util_IsWindows10v1803OrGreater ( ))
+    {
       // Dynamically interface with WinRT functions through combase.dll
-      // Compatible with Windows 7 and 8
+      // Does not inhibit backwards compatible with Windows 7 and 8
       HRESULT hr = CoInitializeEx (nullptr, COINIT_APARTMENTTHREADED);
       bool needUninit = (SUCCEEDED (hr) && hr != S_FALSE);
 
@@ -3934,6 +4035,8 @@ SKIF_UtilInt_UpdateMonitors (void)
               IAdvancedColorInfo* pAc = nullptr;
               if (SUCCEEDED (pDisp->GetAdvancedColorInfo(&pAc)) && pAc != nullptr)
               {
+                readerVersion = RV_WinRT;
+
                 BOOLEAN available = FALSE;
 
                 if (SUCCEEDED (pAc->IsAdvancedColorKindAvailable (AdvancedColorKind_HighDynamicRange, &available)))
@@ -3950,7 +4053,6 @@ SKIF_UtilInt_UpdateMonitors (void)
                 }
 
                 pAc->SdrWhiteLevelInNits (&monitor.sdr_whitelevel);
-                success = true;
 
                 pAc->Release();
               }
@@ -3963,47 +4065,11 @@ SKIF_UtilInt_UpdateMonitors (void)
         FreeLibrary (hCombase);
       }
       if (needUninit) CoUninitialize();
-
-#else // (NTDDI_VERSION >= NTDDI_WIN10_NI)
-
-      // Native WinRT calls
-      // Breaks Windows 8 and 7 compatibility
-      using namespace winrt::Windows::Devices::Display::Core;
-      using namespace winrt::Windows::Graphics::Display;
-
-      if (auto pDisplayInfoFactory { winrt::try_get_activation_factory <DisplayInformation, IDisplayInformationStaticsInterop> () })
-      {
-        IDisplayInformation5 display_info = nullptr;
-
-        if (SUCCEEDED (pDisplayInfoFactory->GetForMonitor (monitor.handle, winrt::guid_of <IDisplayInformation5>(), winrt::put_abi (display_info))))
-        {
-          auto acinfo = display_info.GetAdvancedColorInfo ();
-
-          monitor.hdr.supported = (acinfo.IsAdvancedColorKindAvailable  (AdvancedColorKind::HighDynamicRange));
-          monitor.wcg.supported = (acinfo.IsAdvancedColorKindAvailable  (AdvancedColorKind::WideColorGamut  ));
-
-          if (monitor.hdr.supported)
-            monitor.hdr.active  = (acinfo.CurrentAdvancedColorKind () == AdvancedColorKind::HighDynamicRange );
-
-          if (monitor.wcg.supported)
-            monitor.wcg.active  = (acinfo.CurrentAdvancedColorKind () == AdvancedColorKind::WideColorGamut   );
-
-          monitor.sdr_whitelevel = acinfo.SdrWhiteLevelInNits ( );
-
-          success = true;
-        }
-      }
-
-#endif
-
     }
 
     // Windows 10 1709+ (Build 16299) fallback
-    if (! success || (! SKIF_Util_IsWindows10v1803OrGreater ( ) && SKIF_Util_IsWindows10v1709OrGreater ( )))
+    if (readerVersion == RV_Unknown && SKIF_Util_IsWindows10v1709OrGreater ( ))
     {
-      PLOG_DEBUG << "Reading HDR support data using DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO...";
-      displayConfigFallback = true;
-
       DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO
         getDisplayHDR                   = { };
         getDisplayHDR.header.adapterId  = path.targetInfo.adapterId;
@@ -4013,6 +4079,8 @@ SKIF_UtilInt_UpdateMonitors (void)
 
       if (ERROR_SUCCESS == DisplayConfigGetDeviceInfo (&getDisplayHDR.header))
       {
+        readerVersion = RV_Win32v1;
+
         // Technically incomplete since this also returns true
         //   for WCG capable SDR displays!
         if (getDisplayHDR.advancedColorSupported)
@@ -4046,7 +4114,9 @@ SKIF_UtilInt_UpdateMonitors (void)
     g_Monitors.push_back (monitor);
   }
 
-  PLOG_DEBUG_IF(! displayConfigFallback) << "HDR and WCG metadata was read using WinRT calls.";
+  PLOG_DEBUG_IF(readerVersion == RV_Win32v2) << "HDR and WCG metadata was read using DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO_2.";
+  PLOG_DEBUG_IF(readerVersion == RV_Win32v1) << "HDR and WCG metadata was read using DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO.";
+  PLOG_DEBUG_IF(readerVersion == RV_WinRT)   << "HDR and WCG metadata was read using WinRT.";
 
   if (! g_Monitors.empty())
   {
