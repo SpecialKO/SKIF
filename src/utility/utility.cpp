@@ -3778,6 +3778,8 @@ struct IDisplayInformationStaticsInterop : IInspectable
 static void
 SKIF_UtilInt_UpdateMonitors (void)
 {
+  SK_RunOnce (PLOG_INFO << "SKIF_UtilInt_UpdateMonitors (...), First Call");
+
   if (! g_WantUpdateMonitors)
     return;
 
@@ -3891,6 +3893,7 @@ SKIF_UtilInt_UpdateMonitors (void)
     monitor.path_targetInfo.id        = path.targetInfo.id;
     monitor.path_targetInfo.adapterId = path.targetInfo.adapterId;
 
+#if 0
     // Windows 10 1803+ (Build 17134) or newer
     if (SKIF_Util_IsWindows10v1803OrGreater ( ))
     {
@@ -3985,6 +3988,7 @@ SKIF_UtilInt_UpdateMonitors (void)
 #endif
 
     }
+#endif
 
     // Windows 10 1709+ (Build 16299) fallback
     if (! success || (! SKIF_Util_IsWindows10v1803OrGreater ( ) && SKIF_Util_IsWindows10v1709OrGreater ( )))
