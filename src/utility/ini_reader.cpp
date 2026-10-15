@@ -1,5 +1,6 @@
 #include <utility/ini_reader.h>
 #include <utility/fsutil.h>
+#include <utility/skif_imgui.h>
 
 #include <imgui/imgui.h>
 
@@ -616,7 +617,7 @@ SKIF_IniReader_ParseIni (const std::wstring& file_path, IniType ini_type)
     ini.ParseContent (SK_WideCharToUTF8 (ReadTextFile (file_path)));
   } catch (const std::exception&) {
     PLOG_ERROR << "Failed to parse INI file!";
-    MessageBoxW ((HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, L"Failed to parse INI file!", L"Error", MB_OK | MB_ICONEXCLAMATION);
+    SKIF_ImGui_InfoMessage ("INI Reader", "Could not parse ini: " + SK_WideCharToUTF8 (file_path));
     return std::vector <__INI>();
   };
 
