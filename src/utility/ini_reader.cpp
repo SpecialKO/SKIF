@@ -751,8 +751,8 @@ SKIF_IniReader_ReadOSDIni (void)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static std::wstring pathOSDIni = SK_FormatStringW (LR"(%ws\Global\osd.ini)", _path_cache.specialk_userdata);
-
-  g_vIniReaderOSD = SKIF_IniReader_ParseIni (pathOSDIni, osd_ini);
+  if (PathFileExists (pathOSDIni.c_str()))
+    g_vIniReaderOSD = SKIF_IniReader_ParseIni (pathOSDIni, osd_ini);
 }
 
 void
