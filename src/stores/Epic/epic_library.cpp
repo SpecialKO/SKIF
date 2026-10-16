@@ -96,24 +96,24 @@ SKIF_Epic_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
   {
     // Default locations
     candidates = {
+      { LR"(C:\ProgramData\Epic\EpicGamesLauncher\Data\Manifests)",    1 },
       { SK_FormatStringW (LR"(%ws\com.epicgames.eglv2)",
-                          _path_cache.app_data_local.path),            2 },
-      { LR"(C:\ProgramData\Epic\EpicGamesLauncher\Data\Manifests)",    1 }
+                          _path_cache.app_data_local.path),            2 }
     };
   }
 
   else {
     // User-supplied base path
     candidates = {
-      { SKIF_Epic_AppDataPath + LR"()", 2 },
-      { SKIF_Epic_AppDataPath + LR"(\Manifests)",           1 }
+      { SKIF_Epic_AppDataPath + LR"(\Manifests)", 1 },
+      { SKIF_Epic_AppDataPath + LR"()",           2 }
     };
   }
 
   SKIF_Epic_LauncherVersion = 0;
   SKIF_Epic_AppDataPath.clear();
 
-  // Probe v2 first, then v1
+  // Probe v1 first, then v2
   for (const auto& c : candidates)
   {
     if (PathFileExists (c.path.c_str ()))
@@ -132,7 +132,8 @@ SKIF_Epic_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
 
   if (SKIF_Epic_LauncherVersion == 2)
     SKIF_Epic_FindInstalledGames2 (apps);
-  else
+
+  if (SKIF_Epic_LauncherVersion == 1)
     SKIF_Epic_FindInstalledGames1 (apps);
 }
 
