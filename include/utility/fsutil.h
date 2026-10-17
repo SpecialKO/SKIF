@@ -65,6 +65,10 @@ struct SKIF_CommonPathsCache {
   {                  FOLDERID_RoamingAppData,
     L"%USERPROFILE%\\AppData\\Roaming"
   };
+  win_path_s program_data       =
+  {                  FOLDERID_ProgramData,
+    L"%SYSTEMDRIVE%\\ProgramData"
+  };
   win_path_s win_saved_games    =
   {          FOLDERID_SavedGames,
     L"%USERPROFILE%\\Saved Games"

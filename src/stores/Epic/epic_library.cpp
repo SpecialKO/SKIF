@@ -42,123 +42,122 @@ it's enough to launch the game through Epic like the start menu shortcuts does, 
 
 */
 
-std::wstring SKIF_Epic_AppDataPath;
 
-constexpr wchar_t* v1DefaultPath = LR"(C:\ProgramData\Epic\EpicGamesLauncher\Data\Manifests\)";
-constexpr wchar_t* v2DefaultPath = LR"(C:\Users\%USERNAME%\AppData\Local\com.epicgames.eglv2\)";
-
-int SKIF_Epic_LauncherVersion = -1; // -1 unchecked, 0 uninstalled, 1 v1, 2 v2
-
-struct EpicInstall
+bool
+SKIF_EpicCollection::isSignaled (void)
 {
-  std::string dir;
-  std::string ns;      // "namespace" is a reserved word in C++
-  std::string itemId;
-};
+  RefreshInstallState ( );
+
+  return this->watch.isSignaled ( );
+}
 
 void
-SKIF_Epic_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s > > *apps)
+SKIF_EpicCollection::RefreshInstallState (void)
 {
-  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
-
-  PLOG_INFO << "Detecting Epic games...";
-
-  HKEY  hKey;
-  DWORD dwSize = 0;
-  WCHAR szData[MAX_PATH] = { };
-  bool  registrySuccess  = false;
-
-  // See if we can retrieve the launcher's appdata path from registry
-  if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Epic Games\EpicGamesLauncher\)", 0, KEY_READ | KEY_WOW64_32KEY, &hKey) == ERROR_SUCCESS)
+  if (this->appdatapath.empty())
   {
-    dwSize = sizeof(szData) / sizeof(WCHAR);
-    if (RegGetValueW (hKey, NULL, L"AppDataPath", RRF_RT_REG_SZ, NULL, szData, &dwSize) == ERROR_SUCCESS)
+    PLOG_INFO << "Detecting Epic AppData path...";
+
+    HKEY  hKey;
+    DWORD dwSize = 0;
+    WCHAR szData[MAX_PATH] = { };
+    struct       Candidate { int version; std::wstring path_root; std::wstring path_child; };
+    std::vector <Candidate>
+                 candidates;
+
+    // See if we can retrieve the launcher's appdata path from registry
+    if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Epic Games\EpicGamesLauncher\)", 0, KEY_READ | KEY_WOW64_32KEY, &hKey) == ERROR_SUCCESS)
     {
-      SKIF_Epic_AppDataPath  = szData; // C:\ProgramData\Epic\EpicGamesLauncher\Data or %LOCALAPPDATA%\com.epicgames.eglv2
+      dwSize = sizeof(szData) / sizeof(WCHAR);
+      if (RegGetValueW (hKey, NULL, L"AppDataPath", RRF_RT_REG_SZ, NULL, szData, &dwSize) == ERROR_SUCCESS)
+      {
+        std::wstring appdata_path;
 
-      registrySuccess = true;
+        // One of either:
+        //   %LOCALAPPDATA%\com.epicgames.eglv2
+        //   %PROGRAMDATA%\Epic\EpicGamesLauncher\Data
+        appdata_path = szData;
+        RegCloseKey (hKey);
 
-      RegCloseKey (hKey);
+        // User-supplied base path
+        if (! appdata_path.empty ( ))
+        {
+          candidates = {
+            { 2, appdata_path,  LR"(\installations.jsonl)" },
+            { 1, appdata_path + LR"(\Manifests)",   LR"()" },
+          };
+        }
+      }
+    }
+
+    // Fallback: If the registry value does not exist (which happens surprisingly often) assume the default path is used
+    if (candidates.empty())
+    {
+      PLOG_WARNING << "Failed to read Epic manifest location from the registry!";
+
+      static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
+      candidates = {
+        { 2, SK_FormatStringW (LR"(%ws\com.epicgames.eglv2)",                   _path_cache.app_data_local.path), LR"(\installations.jsonl)" },
+        { 1, SK_FormatStringW (LR"(%ws\Epic\EpicGamesLauncher\Data\Manifests)", _path_cache.program_data.path  ),                     LR"()" },
+      };
+    }
+
+    // Probe v2 first, then v1
+    for (const auto& c : candidates)
+    {
+      if (PathFileExists ((c.path_root + c.path_child).c_str ()))
+      {
+        this->version     = c.version;
+        this->appdatapath = c.path_root;
+
+        watch.reset();
+        watch.isSignaled (c.path_root, UITab_Library);
+
+        PLOG_VERBOSE << "Epic v" << c.version << " AppData path detected at : " << c.path_root;
+        break;
+      }
     }
   }
+}
 
-  // Fallback: If the registry value does not exist (which happens surprisingly often) assume the default path is used
-  if (! registrySuccess)
-  {
-    PLOG_WARNING << "Failed to read Epic manifest location from the registry!";
-  }
-
-  struct      Candidate { std::wstring path; int version; };
-  std::vector<Candidate>
-              candidates;
-
-  if (SKIF_Epic_AppDataPath.empty ())
-  {
-    // Default locations
-    candidates = {
-      { LR"(C:\ProgramData\Epic\EpicGamesLauncher\Data\Manifests)",    1 },
-      { SK_FormatStringW (LR"(%ws\com.epicgames.eglv2)",
-                          _path_cache.app_data_local.path),            2 }
-    };
-  }
-
-  else {
-    // User-supplied base path
-    candidates = {
-      { SKIF_Epic_AppDataPath + LR"(\Manifests)", 1 },
-      { SKIF_Epic_AppDataPath + LR"()",           2 }
-    };
-  }
-
-  SKIF_Epic_LauncherVersion = 0;
-  SKIF_Epic_AppDataPath.clear();
-
-  // Probe v1 first, then v2
-  for (const auto& c : candidates)
-  {
-    if (PathFileExists (c.path.c_str ()))
-    {
-      SKIF_Epic_AppDataPath     = c.path;
-      SKIF_Epic_LauncherVersion = c.version;
-      break;
-    }
-  }
-
-  if (SKIF_Epic_LauncherVersion == 0)
+void
+SKIF_EpicCollection::GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s > > *apps) const
+{
+  if (this->version == 0)
   {
     PLOG_WARNING << "Could not find Epic installed on the system!";
     return;
   }
 
-  if (SKIF_Epic_LauncherVersion == 2)
-    SKIF_Epic_FindInstalledGames2 (apps);
+  PLOG_INFO << "Detecting Epic games...";
 
-  if (SKIF_Epic_LauncherVersion == 1)
-    SKIF_Epic_FindInstalledGames1 (apps);
+  if (this->version == 2)
+    this->FindInstalledGames2 (apps);
+
+  if (this->version == 1)
+    this->FindInstalledGames1 (apps);
 }
 
 bool
-SKIF_Epic_FindInstalledGames2 (std::vector<std::pair<std::string, app_record_s>>* apps)
+SKIF_EpicCollection::FindInstalledGames2 (std::vector<std::pair<std::string, app_record_s>>* apps) const
 {
-  if (SKIF_Epic_LauncherVersion != 2)
-    return false;
-
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
   bool ret = false;
 
   std::ifstream
-        file (SKIF_Epic_AppDataPath + LR"(\installations.jsonl)");
+        file (this->appdatapath + LR"(\installations.jsonl)");
   if (! file.is_open ())
   {
-    PLOG_ERROR << "Failed to open " << (SKIF_Epic_AppDataPath + LR"(\installations.jsonl)");
-    return false;
+    PLOG_ERROR << "Failed to open " << (this->appdatapath + LR"(\installations.jsonl)");
+    return ret;
   }
 
   nlohmann::json
       catalog_cache;
   std::ifstream
-      catalog_cache_file (SKIF_Epic_AppDataPath + LR"(\cache\prod\catalog-cache.json)");
+      catalog_cache_file (this->appdatapath + LR"(\cache\prod\catalog-cache.json)");
   if (catalog_cache_file.is_open())
   {
     catalog_cache = nlohmann::json::parse (catalog_cache_file, nullptr);
@@ -323,6 +322,7 @@ SKIF_Epic_FindInstalledGames2 (std::vector<std::pair<std::string, app_record_s>>
     discoveredEntries++;
 
     apps->emplace_back(Epic);
+    ret = true;
   }
 
   PLOG_VERBOSE_IF(expectedEntries != 0 && expectedEntries != discoveredEntries) << "Header listed " << expectedEntries << "; only parsed " << discoveredEntries;
@@ -331,16 +331,13 @@ SKIF_Epic_FindInstalledGames2 (std::vector<std::pair<std::string, app_record_s>>
 }
 
 bool
-SKIF_Epic_FindInstalledGames1 (std::vector <std::pair < std::string, app_record_s > >* apps)
+SKIF_EpicCollection::FindInstalledGames1 (std::vector <std::pair < std::string, app_record_s > >* apps) const
 {
-  if (SKIF_Epic_LauncherVersion != 1)
-    return false;
-
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
   bool ret = false;
 
-  for (const auto& entry : std::filesystem::directory_iterator(SKIF_Epic_AppDataPath))
+  for (const auto& entry : std::filesystem::directory_iterator (this->appdatapath))
   {
     if (entry.is_directory()               == false    &&
         entry.path().extension().wstring() == L".item" )
@@ -443,6 +440,7 @@ SKIF_Epic_FindInstalledGames1 (std::vector <std::pair < std::string, app_record_
             Epic(record.names.normal, record);
 
           apps->emplace_back(Epic);
+          ret = true;
 
           // Documents\My Mods\SpecialK\Profiles\AppCache\#EpicApps\<AppName>
           std::wstring AppCacheDir = SK_FormatStringW(LR"(%ws\Profiles\AppCache\#EpicApps\%ws)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(AppName).c_str());
@@ -454,7 +452,6 @@ SKIF_Epic_FindInstalledGames1 (std::vector <std::pair < std::string, app_record_
 
           // Copy manifest to AppCache directory
           CopyFile (entry.path().c_str(), (AppCacheDir + LR"(\manifest.json)").c_str(), false);
-          ret = true;
         }
       }
       catch (const std::exception&)
@@ -468,15 +465,12 @@ SKIF_Epic_FindInstalledGames1 (std::vector <std::pair < std::string, app_record_
 }
 
 void
-SKIF_Epic_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogItemId, std::string AppName, std::string DisplayName)
+SKIF_EpicCollection::IdentifyAssetNew (const app_record_s::epic_s& epic)
 {
-  std::ignore = CatalogItemId;
-  std::ignore = DisplayName;
-
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
-  std::wstring targetAssetPath = SK_FormatStringW(LR"(%ws\Assets\Epic\%ws\)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(AppName).c_str());
+  std::wstring targetAssetPath = SK_FormatStringW(LR"(%ws\Assets\Epic\%ws\)", _path_cache.specialk_userdata, SK_UTF8ToWideChar (epic.name_app).c_str());
 
   std::error_code ec;
   // Create any missing directories
@@ -499,7 +493,7 @@ SKIF_Epic_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogIte
     // graphql. stopped working sometime in 2025, so use launcher.store. instead
     std::wstring query = SK_FormatStringW (
       LR"(https://launcher.store.epicgames.com/graphql?operationName=searchStoreQuery&variables={"country":"US", "category": "games/edition/base", "namespace": "%ws"}&extensions={"persistedQuery":{"version":1,"sha256Hash":"%ws"}})",
-      SK_UTF8ToWideChar(CatalogNamespace).c_str(),
+      SK_UTF8ToWideChar (epic.catalog_namespace).c_str(),
       L"7d58e12d9dd8cb14c84a3ff18d360bf9f0caa96bf218f2c5fda68ba88d68a437" // sha256Hash
     );
 
@@ -511,9 +505,9 @@ SKIF_Epic_IdentifyAssetNew (std::string CatalogNamespace, std::string CatalogIte
 
   std::wstring query = SK_FormatStringW (
     LR"(https://launcher-public-service-prod06.ol.epicgames.com/launcher/api/public/assets/v2/platform/Windows/namespace/%ws/catalogItem/%ws/app/%ws/label/Live)",
-    SK_UTF8ToWideChar(CatalogNamespace).c_str(),
-    SK_UTF8ToWideChar(CatalogItemId).c_str(),
-    SK_UTF8ToWideChar(AppName).c_str(),
+    SK_UTF8ToWideChar (epic.catalog_namespace).c_str(),
+    SK_UTF8ToWideChar (epic.catalog_item_id).c_str(),
+    SK_UTF8ToWideChar (epic.name_app).c_str(),
     L"7d58e12d9dd8cb14c84a3ff18d360bf9f0caa96bf218f2c5fda68ba88d68a437" // sha256Hash
   );
 

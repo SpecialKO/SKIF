@@ -206,7 +206,6 @@ extern float           SKIF_ImGui_GlobalDPIScale;
 extern float           SKIF_ImGui_GlobalDPIScale_Last;
 extern std::string     SKIF_StatusBarHelp;
 extern std::string     SKIF_StatusBarText;
-extern std::wstring    SKIF_Epic_AppDataPath;
 extern DWORD           invalidatedDevice;
 extern bool            GOGGalaxy_Installed;
 extern std::wstring    GOGGalaxy_Path;
@@ -5063,9 +5062,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
-  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::GetInstance  ( );
-
-  static SKIF_DirectoryWatch     SKIF_Epic_ManifestWatch;
+  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::GetInstance ( );
+  static SKIF_EpicCollection&   _epic       = SKIF_EpicCollection  ::GetInstance ( );
 
   static image_s cover, cover_old, coverSK;
 
@@ -5180,7 +5178,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     }
 
     // Sets up a wait object on UITab_Library
-    if (SKIF_Epic_ManifestWatch.isSignaled (SKIF_Epic_AppDataPath) && _registry.bLibraryEpic)
+    if (_epic.isSignaled ( ) && _registry.bLibraryEpic)
       RepopulateGames = true;
 
     if (runOnce)
@@ -5346,7 +5344,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Load Epic titles from disk
       if (_registry.bLibraryEpic || _registry._LibraryHidden)
       {
-        SKIF_Epic_GetInstalledAppIDs (&_data->apps);
+        SKIF_EpicCollection::GetInstance ( ).GetInstalledAppIDs (&_data->apps);
 
         if (! _registry._LibraryHidden)
         {
@@ -8340,7 +8338,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           if (! _pApp->epic.gamebox_tall.empty())
             SKIF_Util_GetWebResource (SK_UTF8ToWideChar (_pApp->epic.gamebox_tall), load_str);
           else
-            SKIF_Epic_IdentifyAssetNew (_pApp->epic.catalog_namespace, _pApp->epic.catalog_item_id, _pApp->epic.name_app, _pApp->epic.name_display);
+            _epic.IdentifyAssetNew (_pApp->epic);
         }
       }
 

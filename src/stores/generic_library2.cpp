@@ -196,7 +196,7 @@ LoadLibraryTexture (
     // Epic
     else if (pApp->store == app_record_s::Store::Epic)
     {
-      std::wstring EpicAssetPath = SK_FormatStringW(LR"(%ws\Assets\Epic\%ws\)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->epic.name_app).c_str());
+      std::wstring EpicAssetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)", _path_cache.specialk_userdata, SK_UTF8ToWideChar (pApp->epic.name_app).c_str());
       SKIFCustomPath = std::wstring(EpicAssetPath);
 
       if (libTexToLoad == LibraryTexture::Cover)

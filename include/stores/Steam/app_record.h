@@ -441,7 +441,7 @@ struct app_record_s {
     int              pinned = -1; // Is app favorited? (-1 = unset;   0 = no;   1 = yes;   51 = yes (on top);   99 = Special K)
   } skif;
 
-  struct {
+  struct steam_s {
     struct {
       std::string launch_option        = ""; // Holds the custom launch option set in the Steam client
       std::string launch_option_parsed = ""; // Holds a cached parsed value of the launch option set in the Steam client
@@ -467,15 +467,15 @@ struct app_record_s {
     std::string  branch           = "public"; // Holds the current "beta" branch set in the Steam client (default: public)
   } steam;
 
-  struct {
+  struct epic_s {
     std::string  catalog_namespace =  ""; // CatalogNamespace
     std::string  catalog_item_id   =  ""; // CatalogItemId
-    std::string  name_app          =  ""; // AppName
+    std::string  name_app          =  ""; // AppName (v1) / ArtifactId (v2)
     std::string  name_display      =  ""; // DisplayName; Used for asset retrieval
     std::string  gamebox_tall      =  "";
   } epic;
 
-  struct {
+  struct xbox_s {
     std::string  package_name            =  ""; // PackageName
     std::string  package_name_full       =  ""; // PackageFullName
     std::string  package_name_family     =  ""; // PackageFamilyName

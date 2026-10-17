@@ -340,6 +340,7 @@ SKIF_CommonPathsCache::SKIF_CommonPathsCache (void)
   SKIF_GetFolderPath ( &app_data_local     );
   SKIF_GetFolderPath ( &app_data_local_low );
   SKIF_GetFolderPath ( &app_data_roaming   );
+  SKIF_GetFolderPath ( &program_data       );
   SKIF_GetFolderPath ( &win_saved_games    );
   SKIF_GetFolderPath ( &desktop            );
 
