@@ -469,26 +469,12 @@ IniEntry::IniEntry (ParameterType _t, std::string _s, std::string _k, std::strin
     case ParameterInt:
     case ParameterInt64:
     case ParameterFloat:
-    case ParameterStringW:
     {
       DrawFunction = DrawInputBox;
       break;
     }
 
-    case ParameterBool:
-    {
-      _BuildBoolean ( );
-      break;
-    }
-
-    case ParameterKeybind:
-    {
-      _BuildKeybind ( );
-      break;
-    }
-
-    // ParameterUnknown
-    default:
+    case ParameterStringW:
     {
       switch (SwitchHash (_k))
       {
@@ -534,6 +520,29 @@ IniEntry::IniEntry (ParameterType _t, std::string _s, std::string _k, std::strin
           break;
         }
 
+        default:
+        DrawFunction = DrawInputBox;
+      }
+      break;
+    }
+
+    case ParameterBool:
+    {
+      _BuildBoolean ( );
+      break;
+    }
+
+    case ParameterKeybind:
+    {
+      _BuildKeybind ( );
+      break;
+    }
+
+    // ParameterUnknown
+    default:
+    {
+      switch (SwitchHash (_k))
+      {
         // Keybindings (Keyboard)
 
         // OSD [Game.HUD]
