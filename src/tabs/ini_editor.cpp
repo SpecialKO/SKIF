@@ -410,6 +410,14 @@ SKIF_UI_IniEditor_Process (void)
         ImGui::EndMenu();
       }
 
+      if (ImGui::BeginMenu ("View"))
+      {
+        if (ImGui::MenuItem ("Unused", "", window.bViewUnused))
+          window.bViewUnused = ! window.bViewUnused;
+
+        ImGui::EndMenu();
+      }
+
       if (ImGui::BeginMenu ("Tools"))
       {
         if (window.path.empty())
@@ -434,9 +442,9 @@ SKIF_UI_IniEditor_Process (void)
 
     bool showClearBtn      = (window.charFilter[0] != '\0');
     // Mirrors what ImGui::ButtonEx() does to calculate the height of buttons
-    ImVec2 fTopFilterSize  =                           ImGui::CalcTextSize (ICON_FA_FILTER);
     float fTopZoomX        =                           ImGui::CalcTextSize (ICON_FA_MAGNIFYING_GLASS).x + ImGui::GetStyle().FramePadding.x * 2.0f + ImGui::GetStyle().ItemSpacing.x * 2.0f;
     float fTopClearX       = (! showClearBtn ? 0.0f :  ImGui::CalcTextSize (ICON_FA_XMARK ).x           + ImGui::GetStyle().FramePadding.x * 2.0f + ImGui::GetStyle().ItemSpacing.x);
+  //float fTopFilterX      =                           ImGui::CalcTextSize (ICON_FA_FILTER).x           + ImGui::GetStyle().FramePadding.x * 2.0f + ImGui::GetStyle().ItemSpacing.x * 2.0f;
     float fTopFilterFieldX = ImGui::GetContentRegionAvail().x - fTopZoomX - fTopClearX; //  - fTopFilterX
     //static bool bFilterHovered = false;
 
@@ -457,7 +465,6 @@ SKIF_UI_IniEditor_Process (void)
     ImGui::InputTextEx ("###AppListFilterField", "", window.charFilterTmp, MAX_PATH,
                         ImVec2 (fTopFilterFieldX, 0.0f),
                         ImGuiInputTextFlags_AutoSelectAll, 0, nullptr);
-
     ImGui::PopStyleColor  ( ); // ImGuiCol_FrameBg
     ImGui::PopStyleColor  ( ); // ImGuiCol_Text
 
@@ -493,7 +500,7 @@ SKIF_UI_IniEditor_Process (void)
 
     if (showClearBtn)
     {
-      ImGui::SameLine ( );
+      ImGui::SameLine       ( );
 
       // Needed to stop flickering on the same frame as the field is emptied
       bool justCleared = (window.charFilter[0] == '\0');
@@ -564,6 +571,9 @@ SKIF_UI_IniEditor_Process (void)
       if (! trie._show)
         continue;
 
+      if (trie._ignore && ! window.bViewUnused)
+        continue;
+
       ImGui::PushID (&trie);
 
       SKIF_ImGui_PushHighlightLineLine ( );
@@ -592,6 +602,31 @@ SKIF_UI_IniEditor_Process (void)
     }
 
     SKIF_ImGui_EndHighlightLine ( );
+
+    if (! window.bViewUnused)
+    {
+      SKIF_ImGui_Spacing ( );
+      SKIF_ImGui_Spacing ( );
+
+      static constexpr char* szText   = "Unused settings are hidden by default. Do you want to include them?";
+      static constexpr char* szButton = "   View unused parameters   ";
+
+      ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f));
+
+      SKIF_ImGui_CenterNextItem (ImGui::CalcTextSize (szText).x);
+      ImGui::TextUnformatted    (szText);
+
+      ImGui::PopStyleColor ( ); // ImGuiCol_Text
+
+      SKIF_ImGui_Spacing ( );
+
+      SKIF_ImGui_CenterNextItem (ImGui::CalcTextSize (szButton).x + ImGui::GetStyle ().FramePadding.x * 2.0f);
+      if (ImGui::Button         (szButton))
+        window.bViewUnused = ! window.bViewUnused;
+
+      SKIF_ImGui_Spacing ( );
+      SKIF_ImGui_Spacing ( );
+    }
 
     // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
     SKIF_ImGui_AutoScroll  (false, SKIF_ImGuiAxis_Y);

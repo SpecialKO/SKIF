@@ -65,7 +65,7 @@ struct IniEntry {
   ParameterType _type = ParameterUnknown;
   std::string _label_k;
   std::string _label_v;
-  bool        _show = true;
+  bool        _show   =  true;
   bool        _ignore = false; // Used to prevent empty and unset parameters from being populated on write
   SK_KeybindMultiState _keybind;
   bool (*DrawFunction)(IniEntry* ptr) = nullptr;

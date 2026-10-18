@@ -51,10 +51,12 @@ struct IniWindow {
   char          charFilterTmp [MAX_PATH + 2] = { };
   bool          bFilterActive = false;
 
-  // Focused state
+  // Focused state?
   bool          bFocused = false;
   // Changed anything?
   bool          bChanged = false;
+  // Should unused settings be visible
+  bool          bViewUnused = false;
 
   std::string   path_filename = "";
 
