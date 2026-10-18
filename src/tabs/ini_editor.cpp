@@ -313,7 +313,7 @@ SKIF_UI_IniEditor_Process (void)
       wc.ClassId = ImGui::GetID ("IniEditorClass");
       wc.ViewportFlagsOverrideSet = ImGuiViewportFlags_NoAutoMerge; // Work around a pesky bug where the viewport tries to merge into the... debug fallback window?
     ImGui::SetNextWindowClass (&wc);
-    ImGui::SetNextWindowSizeConstraints (ImVec2 (800.0f, 600.0f) * SKIF_ImGui_GlobalDPIScale, ImVec2 (FLT_MAX, FLT_MAX));
+    ImGui::SetNextWindowSizeConstraints (ImVec2 (640.0f, 480.0f) * SKIF_ImGui_GlobalDPIScale, ImVec2 (FLT_MAX, FLT_MAX));
 
     ImGui::Begin (window.wnd_name.c_str(),
                       &show,
