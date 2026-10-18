@@ -903,6 +903,27 @@ SKIF_ImGui_TitleBarMinimizeButton (void)
   return pressed;
 }
 
+bool
+SKIF_ImGui_FrameButton (const char* label, const ImVec2& size)
+{
+    ImGuiStyle& style = ImGui::GetStyle();
+
+    ImGui::PushStyleColor (ImGuiCol_Button,        style.Colors[ImGuiCol_FrameBg]);
+    ImGui::PushStyleColor (ImGuiCol_ButtonHovered, style.Colors[ImGuiCol_FrameBgHovered]);
+    ImGui::PushStyleColor (ImGuiCol_ButtonActive,  style.Colors[ImGuiCol_FrameBgActive]);
+    ImGui::PushStyleVar   (ImGuiStyleVar_ButtonTextAlign, ImVec2 (0.0f, 0.0f));
+
+    bool pressed =
+      ImGui::Button (label, ImVec2 (size.x > 0 ? size.x : ImGui::CalcItemWidth(), size.y));
+
+    ImGui::PopStyleVar    ( ); // ImGuiStyleVar_ButtonTextAlign
+    ImGui::PopStyleColor  ( ); // ImGuiCol_ButtonActive
+    ImGui::PopStyleColor  ( ); // ImGuiCol_ButtonHovered
+    ImGui::PopStyleColor  ( ); // ImGuiCol_Button
+
+    return pressed;
+}
+
 void
 SKIF_ImGui_DimBackgroundViewport (const ImGuiViewport* vp)
 {
@@ -1944,32 +1965,6 @@ SKIF_ImGui_CenterNextItem (const float item_width)
     ImGui::SetCursorPosX (ImGui::GetCursorPosX () + offset);
 }
 
-bool
-SKIF_ImGui_IsViewportHDR (HWND hWnd)
-{
-  if (ImGuiViewport *vp = ImGui::FindViewportByPlatformHandle ((void *)hWnd))
-  {
-    extern bool
-           SKIF_ImplDX11_ViewPort_IsHDR (ImGuiViewport* viewport);
-    return SKIF_ImplDX11_ViewPort_IsHDR (vp);
-  }
-
-  return false;
-}
-
-bool
-SKIF_ImGui_IsViewportHDRCapable (HWND hWnd)
-{
-  if (ImGuiViewport *vp = ImGui::FindViewportByPlatformHandle ((void *)hWnd))
-  {
-    extern bool
-           SKIF_ImplDX11_ViewPort_IsHDRCapable (ImGuiViewport* viewport);
-    return SKIF_ImplDX11_ViewPort_IsHDRCapable (vp);
-  }
-
-  return false;
-}
-
 // This helper function maps char to ImGuiKey_xxx
 // For use with e.g. ImGui::GetKeyData ( )
 ImGuiKey
@@ -2023,4 +2018,30 @@ SKIF_ImGui_CharToImGuiKey (char c)
     case 'Z':  return ImGuiKey_Z;
     default:   return ImGuiKey_None;
   }
+}
+
+bool
+SKIF_ImGui_IsViewportHDR (HWND hWnd)
+{
+  if (ImGuiViewport *vp = ImGui::FindViewportByPlatformHandle ((void *)hWnd))
+  {
+    extern bool
+           SKIF_ImplDX11_ViewPort_IsHDR (ImGuiViewport* viewport);
+    return SKIF_ImplDX11_ViewPort_IsHDR (vp);
+  }
+
+  return false;
+}
+
+bool
+SKIF_ImGui_IsViewportHDRCapable (HWND hWnd)
+{
+  if (ImGuiViewport *vp = ImGui::FindViewportByPlatformHandle ((void *)hWnd))
+  {
+    extern bool
+           SKIF_ImplDX11_ViewPort_IsHDRCapable (ImGuiViewport* viewport);
+    return SKIF_ImplDX11_ViewPort_IsHDRCapable (vp);
+  }
+
+  return false;
 }

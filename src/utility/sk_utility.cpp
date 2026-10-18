@@ -35,6 +35,8 @@
 #include <imgui/imgui_internal.h>
 #include <unordered_map>
 
+#include <utility/skif_imgui.h>
+
 #pragma comment(lib, "Secur32.lib")
 #pragma comment(lib, "Userenv.lib")
 
@@ -776,13 +778,13 @@ SK_ImGui_KeybindSelect (SK_Keybind* keybind)
     return false;
 
   ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase)); //ImVec4 (0.667f, 0.667f, 0.667f, 1.0f));
-  ImGui::PushItemWidth  (ImGui::GetContentRegionAvail ().x);
+  ImGui::PushStyleColor (ImGuiCol_Header, ImGui::GetStyleColorVec4 (ImGuiCol_FrameBg));
 
   bool ret =
-    ImGui::Selectable (keybind->human_readable_utf8.c_str(), false);
+    SKIF_ImGui_FrameButton (keybind->human_readable_utf8.c_str());
 
-  ImGui::PopItemWidth  ();
-  ImGui::PopStyleColor ();
+  ImGui::PopStyleColor (); // ImGuiCol_Header
+  ImGui::PopStyleColor (); // ImGuiCol_Text
 
   return ret;
 }

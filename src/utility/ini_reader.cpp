@@ -353,7 +353,7 @@ SwitchHash (const std::string_view data) noexcept
 static bool
 DrawCheckbox (IniEntry* ptr)
 {
-  //ImGui::SetNextItemWidth(300.0f);
+  //ImGui::SetNextItemWidth (300.0f * SKIF_ImGui_GlobalDPIScale);
   if (ImGui::Checkbox (ptr->_label_v.c_str(), &ptr->value_b))
   {
     strncpy (ptr->value, ((ptr->value_b) ? "true" : "false"), MAX_PATH);
@@ -366,7 +366,7 @@ DrawCheckbox (IniEntry* ptr)
 static bool
 DrawInputBox (IniEntry* ptr)
 {
-  ImGui::SetNextItemWidth(300.0f);
+  ImGui::SetNextItemWidth (300.0f * SKIF_ImGui_GlobalDPIScale);
   if (ImGui::InputText (ptr->_label_v.c_str(), ptr->value, MAX_PATH))
     ptr->_ignore = false;
 
@@ -376,7 +376,7 @@ DrawInputBox (IniEntry* ptr)
 static bool
 DrawDropDown (IniEntry* ptr)
 {
-  ImGui::SetNextItemWidth(150.0f);
+  ImGui::SetNextItemWidth (150.0f * SKIF_ImGui_GlobalDPIScale);
   if (ImGui::BeginCombo  (ptr->_label_k.c_str(), ptr->value))
   {
     for (auto& item : ptr->_dditems)
@@ -403,6 +403,7 @@ DrawKeybinding (IniEntry* ptr)
 
   ImGui::PushID (ptr->section);
   ImGui::PushID (ptr->key);
+  ImGui::SetNextItemWidth (300.0f * SKIF_ImGui_GlobalDPIScale);
   if (SK_ImGui_Keybinding (&ptr->_keybind))
   {
     // Only update the label if we are done assigning

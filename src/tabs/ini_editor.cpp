@@ -412,7 +412,7 @@ SKIF_UI_IniEditor_Process (void)
 
       if (ImGui::BeginMenu ("View"))
       {
-        if (ImGui::MenuItem ("Unused", "", window.bViewUnused))
+        if (ImGui::MenuItem ("Unused Settings", "", window.bViewUnused))
           window.bViewUnused = ! window.bViewUnused;
 
         ImGui::EndMenu();
@@ -543,13 +543,14 @@ SKIF_UI_IniEditor_Process (void)
 
     ImGui::ItemSize        (ImVec2 (5.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
     ImGui::SameLine        ( );
-    ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), "[Section]");
-    ImGui::SameLine        ( );
-    ImGui::ItemSize        (ImVec2 (208.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-    ImGui::SameLine        ( );
+    //ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), "[Section]");
+    //ImGui::SameLine        ( );
+    //ImGui::ItemSize        (ImVec2 (208.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+    //ImGui::SameLine        ( );
     ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), "Key=");
     ImGui::SameLine        ( );
-    ImGui::ItemSize        (ImVec2 (611.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+    //ImGui::ItemSize        (ImVec2 (611.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+    ImGui::ItemSize        (ImVec2 (308.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
     ImGui::SameLine        ( );
     ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), "Value");
 
@@ -566,6 +567,8 @@ SKIF_UI_IniEditor_Process (void)
 
     SKIF_ImGui_BeginHighlightLine ( );
 
+    std::string section;
+
     for (auto& trie : window.ini)
     {
       if (! trie._show)
@@ -574,20 +577,29 @@ SKIF_UI_IniEditor_Process (void)
       if (trie._ignore && ! window.bViewUnused)
         continue;
 
+      if (section != trie.section)
+      {
+        section = trie.section;
+
+        SKIF_ImGui_Spacing   ( );
+        ImGui::SeparatorText (trie.section);
+      }
+
       ImGui::PushID (&trie);
 
       SKIF_ImGui_PushHighlightLineLine ( );
       
       ImGui::BeginGroup      ( );
-      ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), trie.section);
-      ImGui::SameLine        ( );
-      ImGui::ItemSize        (ImVec2 (200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-      ImGui::SameLine        ( );
+      //ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), trie.section);
+      //ImGui::SameLine        ( );
+      //ImGui::ItemSize        (ImVec2 (200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      //ImGui::SameLine        ( );
       ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), trie.key);
       if (trie.description != nullptr)
         SKIF_ImGui_SetHoverTip (trie.description);
       ImGui::SameLine        ( );
-      ImGui::ItemSize        (ImVec2 (600.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      //ImGui::ItemSize        (ImVec2 (600.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::ItemSize        (ImVec2 (300.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine        ( );
       if (trie.DrawFunction != nullptr && trie.DrawFunction (&trie))
       {
@@ -608,8 +620,8 @@ SKIF_UI_IniEditor_Process (void)
       SKIF_ImGui_Spacing ( );
       SKIF_ImGui_Spacing ( );
 
-      static constexpr char* szText   = "Unused settings are hidden by default. Do you want to include them?";
-      static constexpr char* szButton = "   View unused parameters   ";
+      static constexpr char* szText   = "Unused settings are hidden by default.";
+      static constexpr char* szButton = "   View unused settings   ";
 
       ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f));
 

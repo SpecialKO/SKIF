@@ -1449,23 +1449,16 @@ SKIF_UI_Tab_DrawSettings (void)
   {
     SKIF_ImGui_Spacing      ( );
 
-    ImGui::BeginGroup ();
     for (auto& keybind : keybinds)
     {
       if (! keybind._show())
         continue;
 
-      ImGui::Text          ( "%s:  ",
-                            keybind._key->bind_name.c_str() );
-    }
-    ImGui::EndGroup   ();
-    ImGui::SameLine   ();
-    ImGui::BeginGroup ();
-    for (auto& keybind : keybinds)
-    {
-      if (! keybind._show())
-        continue;
-
+      ImGui::TextColored      (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), keybind._key->bind_name.c_str());
+      ImGui::SameLine         ( );
+      ImGui::ItemSize         (ImVec2 (200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::SameLine         ( );
+      ImGui::SetNextItemWidth (300.0f * SKIF_ImGui_GlobalDPIScale);
       if (SK_ImGui_Keybinding (keybind._key))
       {
         // Only update the registry if we are done assigning
@@ -1475,7 +1468,6 @@ SKIF_UI_Tab_DrawSettings (void)
         keybind._callback (keybind._key);
       }
     }
-    ImGui::EndGroup   ();
   }
 
   ImGui::Spacing ();
@@ -1487,25 +1479,36 @@ SKIF_UI_Tab_DrawSettings (void)
   {
     SKIF_ImGui_Spacing      ( );
 
-    // Headers
+    auto _DrawKeybindRow = [](IniEntry* trie) -> void
+    {
+      static std::string section;
 
-    ImGui::ItemSize        (ImVec2 (0.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-    ImGui::SameLine        ( );
-    ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption), "[Section]");
-    ImGui::SameLine        ( );
-    ImGui::ItemSize        (ImVec2 (200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-    ImGui::SameLine        ( );
-    ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption), "Key=");
-    ImGui::SameLine        ( );
-    ImGui::ItemSize        (ImVec2 (600.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-    ImGui::SameLine        ( );
-    ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption), "Value");
+      if (section != trie->section)
+      {
+        section = trie->section;
+        SKIF_ImGui_Spacing   ( );
+        ImGui::SeparatorText (trie->section);
+      }
 
-    ImGui::Separator   ( );
+      ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), trie->key);
+      if (trie->description != nullptr)
+        SKIF_ImGui_SetHoverTip (trie->description);
+      ImGui::SameLine        ( );
+      ImGui::ItemSize        (ImVec2 (200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::SameLine        ( );
+      if (trie->DrawFunction (trie))
+        SKIF_IniReader_SaveOSDIni ( );
+    };
 
     ImGui::PushStyleColor (
       ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(0.8f, 0.8f, 0.8f, 1.0f)
                             );
+
+    char* order[] = {
+      "ImGui.Global",
+      "Screenshot.System",
+      "Game.HUD"
+    };
 
     extern std::vector <IniEntry>
                       g_vIniReaderOSD;
@@ -1514,18 +1517,20 @@ SKIF_UI_Tab_DrawSettings (void)
       if (trie._type != ParameterKeybind)
         continue;
 
-      ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), trie.section);
-      ImGui::SameLine        ( );
-      ImGui::ItemSize        (ImVec2 (200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-      ImGui::SameLine        ( );
-      ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), trie.key);
-      if (trie.description != nullptr)
-        SKIF_ImGui_SetHoverTip (trie.description);
-      ImGui::SameLine        ( );
-      ImGui::ItemSize        (ImVec2 (600.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-      ImGui::SameLine        ( );
-      if (trie.DrawFunction (&trie))
-        SKIF_IniReader_SaveOSDIni ( );
+      if (strcmp (trie.key, "ControlPanelToggle"))
+        continue;
+
+      _DrawKeybindRow (&trie);
+    }
+    for (auto& trie : g_vIniReaderOSD)
+    {
+      if (trie._type != ParameterKeybind)
+        continue;
+
+      if (! strcmp (trie.key, "ControlPanelToggle"))
+        continue;
+
+      _DrawKeybindRow (&trie);
     }
 
     if (g_vIniReaderOSD.empty())

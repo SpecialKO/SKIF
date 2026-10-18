@@ -342,8 +342,8 @@ SKIF_LocalManager::Process (void)
         ImGui::BeginDisabled  (outdated == 0);
         ImGui::PushStyleVar   (ImGuiStyleVar_FramePadding, ImVec2 (0.0f, 0.0f)); // Shrinks the checkbox
         ImGui::PushStyleColor (ImGuiCol_FrameBg,           IM_COL32_DISABLE);
-        ImGui::PushStyleColor (ImGuiCol_FrameBgActive,     IM_COL32_DISABLE);
         ImGui::PushStyleColor (ImGuiCol_FrameBgHovered,    IM_COL32_DISABLE);
+        ImGui::PushStyleColor (ImGuiCol_FrameBgActive,     IM_COL32_DISABLE);
 
         // Center it, same as the row checkboxes
         float offset = (ImGui::GetContentRegionAvail ().x - ImGui::GetFrameHeight ()) * 0.5f;
@@ -359,9 +359,9 @@ SKIF_LocalManager::Process (void)
               i.selected = all;
           SetAnySelected ( );
         }
-
-        ImGui::PopStyleColor ( ); // ImGuiCol_FrameBgHovered
+        
         ImGui::PopStyleColor ( ); // ImGuiCol_FrameBgActive
+        ImGui::PopStyleColor ( ); // ImGuiCol_FrameBgHovered
         ImGui::PopStyleColor ( ); // ImGuiCol_FrameBg
         ImGui::PopStyleVar   ( ); // ImGuiStyleVar_FramePadding
         ImGui::EndDisabled   ( );
@@ -499,14 +499,14 @@ SKIF_LocalManager::Process (void)
             ImGui::SetCursorPosX (ImGui::GetCursorPosX () + offset);
 
           ImGui::PushStyleColor (ImGuiCol_FrameBg,        IM_COL32_DISABLE);
-          ImGui::PushStyleColor (ImGuiCol_FrameBgActive,  IM_COL32_DISABLE);
           ImGui::PushStyleColor (ImGuiCol_FrameBgHovered, IM_COL32_DISABLE);
+          ImGui::PushStyleColor (ImGuiCol_FrameBgActive,  IM_COL32_DISABLE);
 
           if (SKIF_ImGui_CheckboxHoverPreview ("##checkbox", &install.selected))
             SetAnySelected ( );
 
-          ImGui::PopStyleColor ( ); // ImGuiCol_FrameBgHovered
           ImGui::PopStyleColor ( ); // ImGuiCol_FrameBgActive
+          ImGui::PopStyleColor ( ); // ImGuiCol_FrameBgHovered
           ImGui::PopStyleColor ( ); // ImGuiCol_FrameBg
         }
 
