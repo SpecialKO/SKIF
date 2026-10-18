@@ -95,6 +95,7 @@ void     SKIF_ImGui_BeginHighlightLine    (ImU32 hover_color = ImGui::GetColorU3
 void     SKIF_ImGui_PushHighlightLineLine (void);
 void     SKIF_ImGui_PopHighlightLineLine  (void);
 void     SKIF_ImGui_EndHighlightLine      (void);
+void     SKIF_ImGui_CenterNextItem        (const float item_width);
 ImGuiKey SKIF_ImGui_CharToImGuiKey        (char c);
 
 bool     SKIF_ImGui_IsViewportHDR         (HWND hWnd);

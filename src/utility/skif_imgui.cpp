@@ -1935,6 +1935,15 @@ SKIF_ImGui_EndHighlightLine (void)
   _highlightLine.drawListSplitter.ClearFreeMemory ( );
 }
 
+void
+SKIF_ImGui_CenterNextItem (const float item_width)
+{
+  float offset = (ImGui::GetContentRegionAvail ().x - item_width) * 0.5f;
+
+  if (offset > 0.0f)
+    ImGui::SetCursorPosX (ImGui::GetCursorPosX () + offset);
+}
+
 bool
 SKIF_ImGui_IsViewportHDR (HWND hWnd)
 {
