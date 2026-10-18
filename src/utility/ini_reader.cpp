@@ -775,45 +775,62 @@ SKIF_IniReader_GetDefaultParams (IniType ini_type)
   {
     ConfigEntry (ParameterFloat,    "How long to display version info at startup, 0=disable)",                                                                        osd_ini,       "SpecialK.VersionBanner",  "Duration"                            ),
     ConfigEntry (ParameterBool,     "OSD Visibility",                                                                                                                 osd_ini,       "SpecialK.OSD",            "Show"                                ),
+
     ConfigEntry (ParameterInt,      "OSD Color (Red)",                                                                                                                osd_ini,       "SpecialK.OSD",            "TextColorRed"                        ),
     ConfigEntry (ParameterInt,      "OSD Color (Green)",                                                                                                              osd_ini,       "SpecialK.OSD",            "TextColorGreen"                      ),
     ConfigEntry (ParameterInt,      "OSD Color (Blue)",                                                                                                               osd_ini,       "SpecialK.OSD",            "TextColorBlue"                       ),
+
     ConfigEntry (ParameterInt,      "OSD Position (X)",                                                                                                               osd_ini,       "SpecialK.OSD",            "PositionX"                           ),
     ConfigEntry (ParameterInt,      "OSD Position (Y)",                                                                                                               osd_ini,       "SpecialK.OSD",            "PositionY"                           ),
+
     ConfigEntry (ParameterFloat,    "OSD Scale",                                                                                                                      osd_ini,       "SpecialK.OSD",            "Scale"                               ),
+
     ConfigEntry (ParameterBool,     "Remember status monitoring state",                                                                                               osd_ini,       "SpecialK.OSD",            "RememberMonitoringState"             ),
     ConfigEntry (ParameterFloat,    "OSD's Luminance (cd.m^-2) in HDR games",                                                                                         osd_ini,       "SpecialK.OSD",            "HDRLuminance"                        ),
+
     ConfigEntry (ParameterBool,     "Show SLI Monitoring",                                                                                                            osd_ini,       "Monitor.SLI",             "Show"                                ),
+
     ConfigEntry (ParameterFloat,    "Make the uPlay Overlay visible in HDR mode!",                                                                                    osd_ini,       "uPlay.Overlay",           "Luminance_scRGB"                     ),
     ConfigEntry (ParameterFloat,    "Make the RTSS Overlay visible in HDR mode!",                                                                                     osd_ini,       "RTSS.Overlay",            "Luminance_scRGB"                     ),
     ConfigEntry (ParameterFloat,    "Make the ReShade Overlay visible in HDR mode!",                                                                                  osd_ini,       "ReShade.Overlay",         "Luminance_scRGB"                     ),
     ConfigEntry (ParameterFloat,    "Make the Galaxy Overlay visible in HDR mode!",                                                                                   osd_ini,       "Galaxy.Overlay",          "Luminance_scRGB"                     ),
     ConfigEntry (ParameterFloat,    "Make the Discord Overlay visible in HDR mode!",                                                                                  osd_ini,       "Discord.Overlay",         "Luminance_scRGB"                     ),
     ConfigEntry (ParameterBool,     "Allow Discord to composite a Win32 window over the game?",                                                                       osd_ini,       "Discord.Overlay",         "AllowWindowedMode"                   ),
+
     ConfigEntry (ParameterBool,     "Show Confirmation Dialog when Changing Display Modes",                                                                           osd_ini,       "Display.Settings",        "ConfirmChanges"                      ),
     ConfigEntry (ParameterBool,     "Remember Monitor Preferences for the Current Game",                                                                              dll_ini,       "Display.Monitor",         "RememberPreference"                  ),
     ConfigEntry (ParameterBool,     "Remember Monitor Resolution for the Current Game" ,                                                                              dll_ini,       "Display.Monitor",         "RememberResolution"                  ),
-    ConfigEntry (ParameterBool,     "Apply Resolution Override for the Current Game",                                                                                 dll_ini,       "Display.Monitor",         "ResolutionForMonitor"                ),
-    ConfigEntry (ParameterBool,     "Apply Refresh Override for the Current Game",                                                                                    dll_ini,       "Display.Monitor",         "RefreshRateForMonitor"               ),
+    ConfigEntry (ParameterStringW,  "Apply Resolution Override for the Current Game",                                                                                 dll_ini,       "Display.Monitor",         "ResolutionForMonitor"                ),
+    ConfigEntry (ParameterFloat,    "Apply Refresh Override for the Current Game",                                                                                    dll_ini,       "Display.Monitor",         "RefreshRateForMonitor"               ),
     ConfigEntry (ParameterBool,     "Warn user if Multiplane Overlays support is missing",                                                                            dll_ini,       "Display.Monitor",         "WarnIfNoOverlayPlanes"               ),
+
+    // Performance Monitoring  (Global Settings)
+    //////////////////////////////////////////////////////////////////////////
+
     ConfigEntry (ParameterBool,     "Show IO Monitoring",                                                                                                             osd_ini,       "Monitor.IO",              "Show"                                ),
     ConfigEntry (ParameterFloat,    "IO Monitoring Interva",                                                                                                          osd_ini,       "Monitor.IO",              "Interval"                            ),
+
     ConfigEntry (ParameterBool,     "Show Disk Monitoring",                                                                                                           osd_ini,       "Monitor.Disk",            "Show"                                ),
     ConfigEntry (ParameterFloat,    "Disk Monitoring Interval",                                                                                                       osd_ini,       "Monitor.Disk",            "Interval"                            ),
     ConfigEntry (ParameterInt,      "Disk Monitoring Type (0 = Physical, 1 = Logical)",                                                                               osd_ini,       "Monitor.Disk",            "Type"                                ),
+
     ConfigEntry (ParameterBool,     "Show CPU Monitoring",                                                                                                            osd_ini,       "Monitor.CPU",             "Show"                                ),
     ConfigEntry (ParameterFloat,    "CPU Monitoring Interval (seconds)",                                                                                              osd_ini,       "Monitor.CPU",             "Interval"                            ),
     ConfigEntry (ParameterBool,     "Minimal CPU Info",                                                                                                               osd_ini,       "Monitor.CPU",             "Simple"                              ),
+
     ConfigEntry (ParameterBool,     "Show GPU Monitoring",                                                                                                            osd_ini,       "Monitor.GPU",             "Show"                                ),
     ConfigEntry (ParameterFloat,    "GPU Monitoring Interval (msecs)",                                                                                                osd_ini,       "Monitor.GPU",             "Interval"                            ),
     ConfigEntry (ParameterBool,     "Print GPU Slowdown Reason (NVIDA GPUs)",                                                                                         osd_ini,       "Monitor.GPU",             "PrintSlowdown"                       ),
+
     ConfigEntry (ParameterBool,     "Show Pagefile Monitoring",                                                                                                       osd_ini,       "Monitor.Pagefile",        "Show"                                ),
     ConfigEntry (ParameterFloat,    "Pagefile Monitoring Interval (seconds)",                                                                                         osd_ini,       "Monitor.Pagefile",        "Interval"                            ),
+
     ConfigEntry (ParameterBool,     "Show DLSS Resolution Information",                                                                                               osd_ini,       "Monitor.DLSS",            "Show"                                ),
     ConfigEntry (ParameterBool,     "Print DLSS Output Resolution",                                                                                                   osd_ini,       "Monitor.DLSS",            "ShowOutputResolution"                ),
     ConfigEntry (ParameterBool,     "Print DLSS Quality Level",                                                                                                       osd_ini,       "Monitor.DLSS",            "ShowQuality"                         ),
     ConfigEntry (ParameterBool,     "Print DLSS Preset",                                                                                                              osd_ini,       "Monitor.DLSS",            "ShowPreset"                          ),
     ConfigEntry (ParameterBool,     "Print DLSS Frame Generation Status",                                                                                             osd_ini,       "Monitor.DLSS",            "ShowFrameGeneration"                 ),
+
     ConfigEntry (ParameterBool,     "Show Memory Monitoring",                                                                                                         osd_ini,       "Monitor.Memory",          "Show"                                ),
     ConfigEntry (ParameterBool,     "Show Framerate Monitoring",                                                                                                      osd_ini,       "Monitor.FPS",             "Show"                                ),
     ConfigEntry (ParameterBool,     "Show Frametime in Framerate Counter",                                                                                            osd_ini,       "Monitor.FPS",             "DisplayFrametime"                    ),
@@ -824,7 +841,9 @@ SKIF_IniReader_GetDefaultParams (IniType ini_type)
     ConfigEntry (ParameterInt,      "How to measure frame intervals for the framepacing widget.",                                                                     osd_ini,       "Monitor.FPS",             "FrametimeMethod"                     ),
     ConfigEntry (ParameterBool,     "Show System Clock",                                                                                                              osd_ini,       "Monitor.Time",            "Show"                                ),
     ConfigEntry (ParameterBool,     "Show Special K Title",                                                                                                           osd_ini,       "Monitor.Title",           "Show"                                ),
+
     ConfigEntry (ParameterBool,     "Prefer Fahrenheit Units",                                                                                                        osd_ini,       "SpecialK.OSD",            "PreferFahrenheit"                    ),
+
     ConfigEntry (ParameterFloat,    "ImGui Scale",                                                                                                                    osd_ini,       "ImGui.Global",            "FontScale"                           ),
     ConfigEntry (ParameterBool,     "Display Playing Time in Config UI",                                                                                              osd_ini,       "ImGui.Global",            "ShowPlaytime"                        ),
     ConfigEntry (ParameterBool,     "Show G-Sync Status on Control Panel",                                                                                            osd_ini,       "ImGui.Global",            "ShowGSyncStatus"                     ),
@@ -832,6 +851,7 @@ SKIF_IniReader_GetDefaultParams (IniType ini_type)
     ConfigEntry (ParameterBool,     "Show Input APIs currently in-use",                                                                                               osd_ini,       "ImGui.Global",            "ShowActiveInputAPIs"                 ),
     ConfigEntry (ParameterBool,     "Center the mouse cursor when opening SK's overlay",                                                                              osd_ini,       "ImGui.Global",            "CenterCursorOnOverlayToggle"         ),
     ConfigEntry (ParameterBool,     "Keyboard/Gamepad selection changes move the mouse cursor",                                                                       osd_ini,       "ImGui.Global",            "NavigationMovesMouseCursor"          ),
+
     ConfigEntry (ParameterBool,     "Keep a .PNG compressed copy of each screenshot?",                                                                                osd_ini,       "Screenshot.System",       "KeepLosslessPNG"                     ),
     ConfigEntry (ParameterBool,     "Play a Sound when triggering Screenshot Capture",                                                                                osd_ini,       "Screenshot.System",       "PlaySoundOnCapture"                  ),
     ConfigEntry (ParameterBool,     "Copy an LDR/HDR copy to the Windows Clipboard",                                                                                  osd_ini,       "Screenshot.System",       "CopyToClipboard"                     ),
@@ -850,6 +870,7 @@ SKIF_IniReader_GetDefaultParams (IniType ini_type)
     ConfigEntry (ParameterBool,     "Use HDR for Windows Clipboard screenshots",                                                                                      osd_ini,       "Screenshot.HDR",          "AllowClipboardHDR"                   ),
     ConfigEntry (ParameterInt,      "Use n-bit Quantization to save Disk Space",                                                                                      osd_ini,       "Screenshot.HDR",          "MaxST2084QuantizedBits"              ),
     ConfigEntry (ParameterInt,      "Use PNG or AVIF for HDR clipboard screenshots",                                                                                  osd_ini,       "Screenshot.HDR",          "HDRClipboardFormat"                  ),
+
         Keybind (ParameterKeybind,  "Toggle Game's HUD",                                                                                                              osd_ini,       "Game.HUD",                "HUDToggle"                           ),
         Keybind (ParameterKeybind,  "Toggle SK's Command Console",                                                                                                    osd_ini,       "OSD.System",              "ConsoleToggle"                       ),
         Keybind (ParameterKeybind,  "Take a screenshot without the HUD",                                                                                              osd_ini,       "Screenshot.System",       "HUDFree"                             ),
@@ -874,28 +895,35 @@ SKIF_IniReader_GetDefaultParams (IniType ini_type)
         Keybind (ParameterKeybind,  "Toggle ReShade Overlay (Add-On version)",                                                                                        osd_ini,       "ReShade.AddOn",           "ToggleReShadeOverlay"                ),
         Keybind (ParameterKeybind,  "Inject ReShade (6.0+) as a Global PlugIn",                                                                                       osd_ini,       "ReShade.AddOn",           "InjectReShade"                       ),
         Keybind (ParameterKeybind,  "Toggle Special K's Control Panel",                                                                                               osd_ini,       "ImGui.Global",            "ControlPanelToggle"                  ),
+
+    // Input
+    //////////////////////////////////////////////////////////////////////////
+
     ConfigEntry (ParameterBool,     "If the game does not handle Alt+F4, offer a replacement",                                                                        dll_ini,       "Input.Keyboard",          "CatchAltF4"                          ),
     ConfigEntry (ParameterBool,     "Forcefully disable a game's Alt+F4 handler",                                                                                     dll_ini,       "Input.Keyboard",          "BypassAltF4Handler"                  ),
-    ConfigEntry (ParameterBool,     "Completely stop all keyboard input from reaching the Game",                                                                      dll_ini,       "Input.Keyboard",          "DisabledToGame"                      ),
-    ConfigEntry (ParameterBool,     "Block, Unblock or use Game Behavior for Alt-Tab key",                                                                            dll_ini,       "Input.Keyboard",          "EnableAltTab"                        ),
-    ConfigEntry (ParameterBool,     "Block, Unblock or use Game Behavior for Windows key",                                                                            dll_ini,       "Input.Keyboard",          "EnableWinKey"                        ),
+    ConfigEntry (ParameterInt,      "Completely stop all keyboard input from reaching the Game",                                                                      dll_ini,       "Input.Keyboard",          "DisabledToGame"                      ),
+    ConfigEntry (ParameterInt,      "Block, Unblock or use Game Behavior for Alt-Tab key",                                                                            dll_ini,       "Input.Keyboard",          "EnableAltTab"                        ),
+    ConfigEntry (ParameterInt,      "Block, Unblock or use Game Behavior for Windows key",                                                                            dll_ini,       "Input.Keyboard",          "EnableWinKey"                        ),
     ConfigEntry (ParameterInt,      "Minimum time, in milliseconds, between Alt-Tab usage",                                                                           dll_ini,       "Input.Keyboard",          "AltTabPacing"                        ),
     ConfigEntry (ParameterBool,     "Disable IME input services for the game",                                                                                        dll_ini,       "Input.Keyboard",          "DisableIME"                          ),
     ConfigEntry (ParameterBool,     "Prevent games from disabling legacy keyboard messages",                                                                          dll_ini,       "Input.Keyboard",          "PreventRawInputNoLegacy"             ),
     ConfigEntry (ParameterBool,     "Prevent games from disabling hotkeys",                                                                                           dll_ini,       "Input.Keyboard",          "PreventRawInputNoHotkeys"            ),
     ConfigEntry (ParameterBool,     "Enable ImGui control panel keybinding",                                                                                          dll_ini,       "Input.Keyboard",          "EnableImGuiToggle"                   ),
-    ConfigEntry (ParameterBool,     "Completely stop all mouse input from reaching the Game",                                                                         dll_ini,       "Input.Mouse",             "DisabledToGame"                      ),
+
+    ConfigEntry (ParameterInt,      "Completely stop all mouse input from reaching the Game",                                                                         dll_ini,       "Input.Mouse",             "DisabledToGame"                      ),
     ConfigEntry (ParameterBool,     "Prevent games from disabling legacy mouse messages",                                                                             dll_ini,       "Input.Mouse",             "PreventRawInputNoLegacy"             ),
     ConfigEntry (ParameterBool,     "Prevent games from blocking external window activation",                                                                         dll_ini,       "Input.Mouse",             "PreventRawInputCapture"              ),
+
     ConfigEntry (ParameterBool,     "Manage Cursor Visibility (due to inactivity)",                                                                                   dll_ini,       "Input.Cursor",            "Manage"                              ),
     ConfigEntry (ParameterBool,     "Keyboard Input Activates Cursor",                                                                                                dll_ini,       "Input.Cursor",            "KeyboardActivates"                   ),
     ConfigEntry (ParameterBool,     "Gamepad Input Deactivates Cursor",                                                                                               dll_ini,       "Input.Cursor",            "GamepadDeactivates"                  ),
-    ConfigEntry (ParameterInt,      "Inactivity Timeout (in milliseconds)",                                                                                           dll_ini,       "Input.Cursor",            "Timeout"                             ),
+    ConfigEntry (ParameterFloat,    "Inactivity Timeout (in milliseconds)",                                                                                           dll_ini,       "Input.Cursor",            "Timeout"                             ),
     ConfigEntry (ParameterBool,     "Forcefully Capture Mouse Cursor in UI Mode",                                                                                     dll_ini,       "Input.Cursor",            "ForceCaptureInUI"                    ),
     ConfigEntry (ParameterBool,     "Use a Hardware Cursor for Special K's UI Features",                                                                              dll_ini,       "Input.Cursor",            "UseHardwareCursor"                   ),
     ConfigEntry (ParameterBool,     "Block Mouse Input if Hardware Cursor is Invisible",                                                                              dll_ini,       "Input.Cursor",            "BlockInvisibleCursorInput"           ),
     ConfigEntry (ParameterBool,     "Fix Synaptic Touchpad Scroll",                                                                                                   dll_ini,       "Input.Cursor",            "FixSynapticsTouchpadScroll"          ),
-    ConfigEntry (ParameterBool,     "Disable ALL Gamepad Input (across all APIs)",                                                                                    dll_ini,       "Input.Gamepad",           "DisabledToGame"                      ),
+
+    ConfigEntry (ParameterInt,      "Disable ALL Gamepad Input (across all APIs)",                                                                                    dll_ini,       "Input.Gamepad",           "DisabledToGame"                      ),
     ConfigEntry (ParameterBool,     "Disable HID Input (prevent double-input if XInput is used)",                                                                     dll_ini,       "Input.Gamepad",           "DisableHID"                          ),
     ConfigEntry (ParameterBool,     "Disable WinMM Joystick Input",                                                                                                   dll_ini,       "Input.Gamepad",           "DisableWinMM"                        ),
     ConfigEntry (ParameterBool,     "Hide Windows.Gaming.Input Support from the game",                                                                                dll_ini,       "Input.Gamepad",           "HideWindowsGamingInput"              ),
@@ -919,6 +947,7 @@ SKIF_IniReader_GetDefaultParams (IniType ini_type)
     ConfigEntry (ParameterFloat,    "Ratio of Left Trigger pull before resistance applies",                                                                           dll_ini,       "Input.Gamepad",           "LeftTriggerResistsAt"                ),
     ConfigEntry (ParameterBool,     "Prevent Bluetooth Output (PlayStation DirectInput compat.)",                                                                     dll_ini,       "Input.Gamepad",           "BluetoothInputOnly"                  ),
     ConfigEntry (ParameterInt,      "Maximum allowed HID buffers,. 32=NS default, 8=SK default, this will lower latency at the expense of possibly missed inputs...", dll_ini,       "Input.Gamepad",           "MaxHIDPollingBuffers"                ),
+
     ConfigEntry (ParameterBool,     "Install hooks for XInput",                                                                                                       dll_ini,       "Input.XInput",            "Enable"                              ),
     ConfigEntry (ParameterBool,     "Re-install XInput hooks if hookchain is modified",                                                                               dll_ini,       "Input.XInput",            "Rehook"                              ),
     ConfigEntry (ParameterInt,      "XInput Controller that owns the config UI",                                                                                      dll_ini,       "Input.XInput",            "UISlot"                              ),
@@ -941,6 +970,7 @@ SKIF_IniReader_GetDefaultParams (IniType ini_type)
     ConfigEntry (ParameterBool,     "Prevent game from seeing DirectInput mice",                                                                                      dll_ini,       "Input.DInput",            "HideMice"                            ),
     ConfigEntry (ParameterBool,     "Prevent game from seeing DirectInput keyboards",                                                                                 dll_ini,       "Input.DInput",            "HideKeyboards"                       ),
     ConfigEntry (ParameterBool,     "Prevent Steam Input from utterly destroying performance",                                                                        dll_ini,       "Input.DInput",            "PreventEnumDevices"                  ),
+
     ConfigEntry (ParameterBool,     "Install hooks for libScePad",                                                                                                    dll_ini,       "Input.libScePad",         "Enable"                              ),
     ConfigEntry (ParameterBool,     "Disable Touchpad Input",                                                                                                         dll_ini,       "Input.libScePad",         "DisableTouchpad"                     ),
     ConfigEntry (ParameterBool,     "Share Button can be used as Touchpad Click",                                                                                     input_ini,     "Input.libScePad",         "ShareClicksTouchpad"                 ),
@@ -961,14 +991,29 @@ SKIF_IniReader_GetDefaultParams (IniType ini_type)
     ConfigEntry (ParameterStringW,  "Keyboard Input to Generate when Right Paddle is Pressed",                                                                        dll_ini,       "Input.libScePad",         "RightPaddle"                         ),
     ConfigEntry (ParameterStringW,  "Keyboard Input to Generate when Touch Pad is Clicked",                                                                           dll_ini,       "Input.libScePad",         "TouchpadClick"                       ),
     ConfigEntry (ParameterFloat,    "Intensity of emulated rumble on DualSense controllers",                                                                          dll_ini,       "Input.libScePad",         "RumbleStrength"                      ),
-    ConfigEntry (ParameterBool,     "Use Advanced Rumble on DualSense controllers (PS5 Compat)",                                                                      dll_ini,       "Input.libScePad",         "UseEmuRumbleImprovement"             ),
-    ConfigEntry (ParameterBool,     "Install hooks for Steam Input",                                                                                                  dll_ini,       "Input.Steam",             "Enable"                              ),
-    ConfigEntry (ParameterBool,     "Block Steam Input from interfering with other input APIs",                                                                       dll_ini,       "Input.Steam",             "BlockSteamInput"                     ),
-    ConfigEntry (ParameterBool,     "Install hooks for HID (Human Interface Device)",                                                                                 dll_ini,       "Input.HID",               "Enable"                              ),
-    ConfigEntry (ParameterInt,      "Limit the maximum number of simultaneous HID connections",                                                                       dll_ini,       "Input.HID",               "MaxAllowedBuffers"                   ),
-    ConfigEntry (ParameterBool,     "Always show attach/detach notifications for HID devices",                                                                        dll_ini,       "Input.HID",               "AlwaysShowAttachNotif"               ),
+    ConfigEntry (ParameterBool,     "Whether to use SONY's improved rumble on DualSense",                                                                             dll_ini,       "Input.libScePad",         "UseEmuRumbleImprovement"             ),
+
+    ConfigEntry (ParameterBool,     "Show HID Attach Notifications if no Conflicts are Detected",                                                                     input_ini,     "Input.HID",               "AlwaysShowAttachNotifications"       ),
+    ConfigEntry (ParameterFloat,    "Percentage when SK will warn controller batteries are low",                                                                      input_ini,     "Input.Battery",           "WarnIfPercentIsBelow"                ),
+
+    ConfigEntry (ParameterBool,     "Disable Steam Input Always (only works for flat API)",                                                                           dll_ini,       "Input.Steam",             "Disable"                             ),
+
+    // Where the fuck do these come from?!
+  //ConfigEntry (ParameterBool,     "Install hooks for Steam Input",                                                                                                  dll_ini,       "Input.Steam",             "Enable"                              ),
+  //ConfigEntry (ParameterBool,     "Block Steam Input from interfering with other input APIs",                                                                       dll_ini,       "Input.Steam",             "BlockSteamInput"                     ),
+  //ConfigEntry (ParameterBool,     "Install hooks for HID (Human Interface Device)",                                                                                 dll_ini,       "Input.HID",               "Enable"                              ),
+  //ConfigEntry (ParameterInt,      "Limit the maximum number of simultaneous HID connections",                                                                       dll_ini,       "Input.HID",               "MaxAllowedBuffers"                   ),
+  //ConfigEntry (ParameterBool,     "Always show attach/detach notifications for HID devices",                                                                        dll_ini,       "Input.HID",               "AlwaysShowAttachNotif"               ),
+
+    // Thread Monitoring
+    //////////////////////////////////////////////////////////////////////////
+
     ConfigEntry (ParameterBool,     "Trace per-Thread Memory Allocation in Threads Widget",                                                                           dll_ini,       "Threads.Analyze",         "MemoryAllocation"                    ),
     ConfigEntry (ParameterBool,     "Trace per-Thread File I/O Activity in Threads Widget",                                                                           dll_ini,       "Threads.Analyze",         "FileActivity"                        ),
+
+    // Window Management
+    //////////////////////////////////////////////////////////////////////////
+
     ConfigEntry (ParameterBool,     "Borderless Window Mode",                                                                                                         dll_ini,       "Window.System",           "Borderless"                          ),
     ConfigEntry (ParameterBool,     "Center the Window",                                                                                                              dll_ini,       "Window.System",           "Center"                              ),
     ConfigEntry (ParameterBool,     "Render While Window is in Background",                                                                                           dll_ini,       "Window.System",           "RenderInBackground"                  ),
@@ -996,6 +1041,10 @@ SKIF_IniReader_GetDefaultParams (IniType ini_type)
     ConfigEntry (ParameterBool,     "Allow Special K to install a drag-n-drop handler for D3D11 texture mods and INI-related functionality.",                         dll_ini,       "Window.System",           "AllowDragNDrop"                      ),
     ConfigEntry (ParameterBool,     "Allow Special K to handle file drops for the game window.",                                                                      dll_ini,       "Window.System",           "AllowFileDrops"                      ),
     ConfigEntry (ParameterBool,     "Controls whether unresponsive apps use Window Ghosting.",                                                                        dll_ini,       "Window.System",           "AllowGhosting"                       ),
+
+    // Compatibility
+    //////////////////////////////////////////////////////////////////////////
+
     ConfigEntry (ParameterBool,     "Disable All NVIDIA BloatWare (GeForce Experience)",                                                                              dll_ini,       "Compatibility.General",   "DisableBloatWare_NVIDIA"             ),
     ConfigEntry (ParameterBool,     "Rehook LoadLibrary When RTSS/Steam/ReShade hook it",                                                                             dll_ini,       "Compatibility.General",   "RehookLoadLibrary"                   ),
     ConfigEntry (ParameterBool,     "Disable Functionality Not Compatible With WINE",                                                                                 dll_ini,       "Compatibility.General",   "UsingWINE"                           ),
@@ -1005,27 +1054,41 @@ SKIF_IniReader_GetDefaultParams (IniType ini_type)
     ConfigEntry (ParameterBool,     "Initializes hooks in a way that ReShade will not interfere",                                                                     dll_ini,       "Compatibility.General",   "ReShadeMode"                         ),
     ConfigEntry (ParameterInt,      "Debug Level (0=Most debug code OFF, >0=Normal behavior)",                                                                        dll_ini,       "Compatibility.General",   "DebugLevel"                          ),
     ConfigEntry (ParameterInt,      "Set Default (1) or Override (2) SDL input/window behavior.",                                                                     dll_ini,       "Compatibility.General",   "SDLSanityLevel"                      ),
-    ConfigEntry (ParameterBool,     "SDL_JOYSTICK_WGI",                                                                                                               dll_ini,       "Compatibility.SDL",       "SDL_JOYSTICK_WGI"                    ),
-    ConfigEntry (ParameterBool,     "SDL_JOYSTICK_RAWINPUT",                                                                                                          dll_ini,       "Compatibility.SDL",       "SDL_JOYSTICK_RAWINPUT"               ),
-    ConfigEntry (ParameterBool,     "SDL_DIRECTINPUT_ENABLED",                                                                                                        dll_ini,       "Compatibility.SDL",       "SDL_DIRECTINPUT_ENABLED"             ),
-    ConfigEntry (ParameterBool,     "SDL_XINPUT_ENABLED",                                                                                                             dll_ini,       "Compatibility.SDL",       "SDL_XINPUT_ENABLED"                  ),
-    ConfigEntry (ParameterBool,     "SDL_JOYSTICK_HIDAPI",                                                                                                            dll_ini,       "Compatibility.SDL",       "SDL_JOYSTICK_HIDAPI"                 ),
-    ConfigEntry (ParameterBool,     "SDL_JOYSTICK_HIDAPI_PS4_RUMBLE",                                                                                                 dll_ini,       "Compatibility.SDL",       "FullPlayStationBluetoothSupport"     ),
-    ConfigEntry (ParameterBool,     "SDL_JOYSTICK_HIDAPI_JOYCON_HOME_LED",                                                                                            dll_ini,       "Compatibility.SDL",       "SDL_JOYSTICK_HIDAPI_JOYCON_HOME_LED" ),
-    ConfigEntry (ParameterBool,     "SDL_JOYSTICK_THREAD",                                                                                                            dll_ini,       "Compatibility.SDL",       "SDL_JOYSTICK_THREAD"                 ),
-    ConfigEntry (ParameterBool,     "SDL_POLL_SENTINEL",                                                                                                              dll_ini,       "Compatibility.SDL",       "SDL_POLL_SENTINEL"                   ),
-    ConfigEntry (ParameterStringW,  "Last Known Render API",                                                                                                          dll_ini,       "API.Hook",                "LastKnown"                           ),
+    // Refer to SDL_hints.h, only the most useful options are exposed here...
+    ConfigEntry (ParameterInt,      "SDL_JOYSTICK_WGI",                                                                                                               dll_ini,       "Compatibility.SDL",       "SDL_JOYSTICK_WGI"                    ),
+    ConfigEntry (ParameterInt,      "SDL_JOYSTICK_RAWINPUT",                                                                                                          dll_ini,       "Compatibility.SDL",       "SDL_JOYSTICK_RAWINPUT"               ),
+    ConfigEntry (ParameterInt,      "SDL_DIRECTINPUT_ENABLED",                                                                                                        dll_ini,       "Compatibility.SDL",       "SDL_DIRECTINPUT_ENABLED"             ),
+    ConfigEntry (ParameterInt,      "SDL_XINPUT_ENABLED",                                                                                                             dll_ini,       "Compatibility.SDL",       "SDL_XINPUT_ENABLED"                  ),
+    ConfigEntry (ParameterInt,      "SDL_JOYSTICK_HIDAPI",                                                                                                            dll_ini,       "Compatibility.SDL",       "SDL_JOYSTICK_HIDAPI"                 ),
+    ConfigEntry (ParameterInt,      "SDL_JOYSTICK_HIDAPI_PS4_RUMBLE",                                                                                                 dll_ini,       "Compatibility.SDL",       "FullPlayStationBluetoothSupport"     ),
+    ConfigEntry (ParameterFloat,    "SDL_JOYSTICK_HIDAPI_JOYCON_HOME_LED",                                                                                            dll_ini,       "Compatibility.SDL",       "SDL_JOYSTICK_HIDAPI_JOYCON_HOME_LED" ),
+    ConfigEntry (ParameterInt,      "SDL_JOYSTICK_THREAD",                                                                                                            dll_ini,       "Compatibility.SDL",       "SDL_JOYSTICK_THREAD"                 ),
+    ConfigEntry (ParameterInt,      "SDL_POLL_SENTINEL",                                                                                                              dll_ini,       "Compatibility.SDL",       "SDL_POLL_SENTINEL"                   ),
+
+    ConfigEntry (ParameterInt,      "Last Known Render API",                                                                                                          dll_ini,       "API.Hook",                "LastKnown"                           ),
+
     ConfigEntry (ParameterBool,     "Enable DirectDraw Hooking",                                                                                                      dll_ini,       "API.Hook",                "ddraw",                              IniBitness_i8086 ),
     ConfigEntry (ParameterBool,     "Enable Direct3D 8 Hooking",                                                                                                      dll_ini,       "API.Hook",                "d3d8",                               IniBitness_i8086 ),
+
     ConfigEntry (ParameterBool,     "Enable Direct3D 9 Hooking",                                                                                                      dll_ini,       "API.Hook",                "d3d9"                                ),
     ConfigEntry (ParameterBool,     "Enable Direct3D 9Ex Hooking",                                                                                                    dll_ini,       "API.Hook",                "d3d9ex"                              ),
     ConfigEntry (ParameterInt,      "Enable Native DXVK (D3D9)",                                                                                                      dll_ini,       "API.Hook",                "dxvk9"                               ),
     ConfigEntry (ParameterBool,     "Enable Direct3D 11 Hooking",                                                                                                     dll_ini,       "API.Hook",                "d3d11"                               ),
     ConfigEntry (ParameterBool,     "Enable Direct3D 12 Hooking",                                                                                                     dll_ini,       "API.Hook",                "d3d12"                               ),
+
     ConfigEntry (ParameterBool,     "Enable Vulkan Hooking",                                                                                                          dll_ini,       "API.Hook",                "Vulkan",                             IniBitness_AMD64 ),
+
     ConfigEntry (ParameterBool,     "Enable OpenGL Hooking",                                                                                                          dll_ini,       "API.Hook",                "OpenGL"                              ),
-  //ConfigEntry (ParameterBool,     "Enable OpenGL Debugging",                                                                                                        dll_ini,       "OpenGL.System",           "EnableDebug"                         ), // Duplicate key
+
+    // Misc.
+    //////////////////////////////////////////////////////////////////////////
+
+    // Hidden setting (it will be read, but not written -- setting this is discouraged and I intend to phase it out)
     ConfigEntry (ParameterFloat,    "Memory Reserve Percentage",                                                                                                      dll_ini,       "Manage.Memory",           "ReservePercent"                      ),
+
+    // General Mod System Settings
+    //////////////////////////////////////////////////////////////////////////
+
     ConfigEntry (ParameterBool,     "Log Silence",                                                                                                                    dll_ini,       "SpecialK.System",         "Silent"                              ),
     ConfigEntry (ParameterBool,     "Trace DLL Loading (needed for dynamic API detection)",                                                                           dll_ini,       "SpecialK.System",         "TraceLoadLibrary"                    ),
     ConfigEntry (ParameterInt,      "Log Verbosity (0=General, 5=Insane Debug)",                                                                                      dll_ini,       "SpecialK.System",         "LogLevel"                            ),
@@ -1037,13 +1100,31 @@ SKIF_IniReader_GetDefaultParams (IniType ini_type)
     ConfigEntry (ParameterBool,     "Log Application's Debug Output",                                                                                                 dll_ini,       "SpecialK.System",         "GameOutput"                          ),
     ConfigEntry (ParameterFloat,    "Delay Global Injection Initialization for x-many Seconds",                                                                       dll_ini,       "SpecialK.System",         "GlobalInjectDelay"                   ),
     ConfigEntry (ParameterBool,     "At Application Exit, make SKIF the new Foreground Window",                                                                       dll_ini,       "SpecialK.System",         "ReturnToSKIF"                        ),
-    ConfigEntry (ParameterBool,     "Load ASI Plug-ins \u2013 Restart the Game After Changing",                                                                       dll_ini,       "SpecialK.System",         "AutoLoadASIGlobal"                   ),
-    ConfigEntry (ParameterBool,     "Perform Clean Exit from Application",                                                                                            dll_ini,       "SpecialK.System",         "CleanExit"                           ),
-    ConfigEntry (ParameterInt,      "Show Tearing & Latency Measurements",                                                                                            osd_ini,       "Render.Latency",          "ShowLatencyMonitor"                  ),
-    ConfigEntry (ParameterFloat,    "Target Framerate (0.0 = Unlimited)",                                                                                             dll_ini,       "Render.FrameRate",        "TargetFPS"                           ),
-    ConfigEntry (ParameterFloat,    "Target Framerate (Background)",                                                                                                  dll_ini,       "Render.FrameRate",        "TargetFPS_Background"                ),
-    ConfigEntry (ParameterInt,      "Present Interval (0 = Unfreeze Clock)\u0022",                                                                                    dll_ini,       "Render.FrameRate",        "PresentInterval"                     ),
-    ConfigEntry (ParameterInt,      "Sync Interval Clamping (minimum if vsync enabled)",                                                                              dll_ini,       "Render.FrameRate",        "SyncIntervalClamp"                   ),
+    ConfigEntry (ParameterBool,     "Automatically load .asi files from the game's directory",                                                                        dll_ini,       "SpecialK.System",         "AutoLoadASIGlobal"                   ),
+    ConfigEntry (ParameterBool,     "Did the game exit cleanly the last time it ran?",                                                                                dll_ini,       "SpecialK.System",         "CleanExit"                           ),
+    ConfigEntry (ParameterStringW,  "The last version that wrote the config file",                                                                                    dll_ini,       "SpecialK.System",         "Version"                             ),
+
+    ConfigEntry (ParameterBool,     "Force Fullscreen Mode",                                                                                                          dll_ini,       "Display.Output",          "ForceFullscreen"                     ),
+    ConfigEntry (ParameterBool,     "Force Windowed Mode",                                                                                                            dll_ini,       "Display.Output",          "ForceWindowed"                       ),
+    ConfigEntry (ParameterBool,     "Force 10-bpc (SDR) Output",                                                                                                      dll_ini,       "Display.Output",          "Force10bpcSDR"                       ),
+    ConfigEntry (ParameterBool,     "Fill monitor background (eg. black bars) in windowed mode",                                                                      dll_ini,       "Display.Output",          "AspectRatioStretch"                  ),
+    ConfigEntry (ParameterBool,     "Displays black background on all except the game's monitor",                                                                     dll_ini,       "Display.Output",          "MultiMonitorADHDRelief"              ),
+    ConfigEntry (ParameterBool,     "Whenever the game loses input focus, ADHD mode turns off",                                                                       osd_ini,       "Display.Monitor",         "MultiMonitorFocusIsFocused"          ),
+    ConfigEntry (ParameterBool,     "Allow Current Game to change Refresh Rate",                                                                                      dll_ini,       "Display.Output",          "AllowRefreshRateChanges"             ),
+    ConfigEntry (ParameterBool,     "Dump Raw EDID data from NVAPI if supported",                                                                                     dll_ini,       "Display.Output",          "DumpRawEDID"                         ),
+
+    // Framerate Limiter
+    //////////////////////////////////////////////////////////////////////////
+
+    ConfigEntry (ParameterStringW,  "Framerate Target (negative signed values are non-limiting)",                                                                     dll_ini,       "Render.FrameRate",        "TargetFPS"                           ),
+    ConfigEntry (ParameterStringW,  "Framerate Target (window in background;  0.0 = same as fg)",                                                                     dll_ini,       "Render.FrameRate",        "BackgroundFPS"                       ),
+    ConfigEntry (ParameterFloat,    "Refresh rate the last time framerate limit was configured.",                                                                     dll_ini,       "Render.FrameRate",        "LastRefreshRate"                     ),
+    ConfigEntry (ParameterStringW,  "The monitor the last time framerate limit was configured.",                                                                      dll_ini,       "Render.FrameRate",        "LastMonitorPath"                     ),
+    ConfigEntry (ParameterBool,     "Limiter Will Wait for VBLANK",                                                                                                   dll_ini,       "Render.FrameRate",        "WaitForVBLANK"                       ),
+    ConfigEntry (ParameterInt,      "Number of (Back)Buffers in the Swapchain",                                                                                       dll_ini,       "Render.FrameRate",        "BackBufferCount"                     ),
+    ConfigEntry (ParameterInt,      "Number of (Back)Buffers in the Swapchain",                                                                                       dll_ini,       "Render.FrameRate",        "BufferCount"                         ),
+    ConfigEntry (ParameterInt,      "Presentation Interval (VSYNC)",                                                                                                  dll_ini,       "Render.FrameRate",        "PresentationInterval"                ),
+    ConfigEntry (ParameterInt,      "Maximum Sync Interval (Clamp VSYNC)",                                                                                            dll_ini,       "Render.FrameRate",        "SyncIntervalClamp"                   ),
     ConfigEntry (ParameterInt,      "Tearing Mode (Always On/Off or Adaptive)",                                                                                       dll_ini,       "Render.FrameRate",        "TearingMode"                         ),
     ConfigEntry (ParameterInt,      "Latency reduction behavior (Smooth or Aggressive)",                                                                              dll_ini,       "Render.FrameRate",        "LatencyMode"                         ),
     ConfigEntry (ParameterInt,      "Max Render Latency for LowLatency/Adaptive Tearing Mode",                                                                        dll_ini,       "Render.FrameRate",        "RenderQueue"                         ),
@@ -1053,6 +1134,7 @@ SKIF_IniReader_GetDefaultParams (IniType ini_type)
     ConfigEntry (ParameterBool,     "Enable Multimedia Class Scheduling for FPS Limiter Sleep",                                                                       dll_ini,       "Render.FrameRate",        "EnableMMCSS"                         ),
     ConfigEntry (ParameterFloat,    "Fullscreen Refresh Rate",                                                                                                        dll_ini,       "Render.FrameRate",        "RefreshRate"                         ),
     ConfigEntry (ParameterStringW,  "Fullscreen Rational Scan Rate (precise refresh rate)",                                                                           dll_ini,       "Render.FrameRate",        "RescanRatio"                         ),
+
     ConfigEntry (ParameterInt,      "Place Framerate Limiter Wait Before/After Present, etc.",                                                                        dll_ini,       "Render.FrameRate",        "LimitEnforcementPolicy"              ),
     ConfigEntry (ParameterBool,     "Use ETW tracing (PresentMon) for extra latency/flip info",                                                                       dll_ini,       "Render.FrameRate",        "EnableETWTracing"                    ),
     ConfigEntry (ParameterBool,     "Use AMD Power-Saving Instructions for Busy-Wait",                                                                                dll_ini,       "Render.FrameRate",        "UseAMDMWAITX"                        ),
@@ -1062,8 +1144,9 @@ SKIF_IniReader_GetDefaultParams (IniType ini_type)
     ConfigEntry (ParameterBool,     "Boost Compositor Clock on Windows 11+ (Dynamic Refresh)",                                                                        dll_ini,       "Render.FrameRate",        "BoostCompositorClock"                ),
     ConfigEntry (ParameterFloat,    "Minimum percentage of limiter time spent busy-waiting.",                                                                         dll_ini,       "Render.FrameRate",        "BusyWaitPercent"                     ),
     ConfigEntry (ParameterFloat,    "How aggressively (scale of 0-10) to switch to busy-wait for wait durations exceeding the scheduler's resolution.",               dll_ini,       "Render.FrameRate",        "BusyWaitBias"                        ),
+
     ConfigEntry (ParameterInt,      "Maximum number of CPU-side frames to work ahead of GPU.",                                                                        dll_ini,       "FrameRate.Engine",        "MaxRenderAheadFrames"                ),
-    ConfigEntry (ParameterBool,     "Allow the game to use a Latency Waitable SwapChain.",                                                                            dll_ini,       "FrameRate.Engine",        "AllowDXGILatencyWait"                ),
+    ConfigEntry (ParameterInt,      "Allow the game to use a Latency Waitable SwapChain.",                                                                            dll_ini,       "FrameRate.Engine",        "AllowDXGILatencyWait"                ),
     ConfigEntry (ParameterInt,      "Number of CPU cores to tell the game about",                                                                                     dll_ini,       "FrameRate.Engine",        "OverrideCPUCoreCount"                ),
     ConfigEntry (ParameterBool,     "Set the process timer resolution to the maximum supported",                                                                      dll_ini,       "FrameRate.Engine",        "UseMaxTimerResolution"               ),
     ConfigEntry (ParameterBool,     "Force Waitable Timer code to use Win10 High-Res Timers",                                                                         dll_ini,       "FrameRate.Engine",        "ForceHighResTimers"                  ),
@@ -1075,6 +1158,7 @@ SKIF_IniReader_GetDefaultParams (IniType ini_type)
     ConfigEntry (ParameterStringW,  "Target input latency (in milliseconds or %) for auto-bias",                                                                      dll_ini,       "FrameRate.LatentSync",    "AutoBiasTarget"                      ),
     ConfigEntry (ParameterFloat,    "Maximum percentage to bias towards low input latency",                                                                           dll_ini,       "FrameRate.LatentSync",    "MaxAutoBias"                         ),
     ConfigEntry (ParameterBool,     "Enable __SK_LatentSyncSkip in 2x.. mode",                                                                                        dll_ini,       "FrameRate.LatentSync",    "SkipFrames"                          ),
+
     ConfigEntry (ParameterBool,     "Force Vulkan to use Mailbox Presentation Mode",                                                                                  dll_ini,       "Render.Vulkan",           "ForceMailboxPresent"                 ),
     ConfigEntry (ParameterBool,     "Force Vulkan to use FIFO Relaxed Presentation Mode",                                                                             dll_ini,       "Render.Vulkan",           "ForceAdaptiveVSYNC"                  ),
     ConfigEntry (ParameterBool,     "Enable DWM Tearing (Windows 10+)",                                                                                               dll_ini,       "Render.DXGI",             "AllowTearingInDWM"                   ),
@@ -1084,6 +1168,7 @@ SKIF_IniReader_GetDefaultParams (IniType ini_type)
     ConfigEntry (ParameterBool,     "Auto Low-Latency Mode may add stutter to get lower latency",                                                                     input_ini,     "Input.AutoLowLatency",    "UltraLowLatency"                     ),
     ConfigEntry (ParameterBool,     "Global policy applied when starting a game the first time",                                                                      input_ini,     "Input.AutoLowLatency",    "DefaultPolicy"                       ),
     ConfigEntry (ParameterBool,     "Global policy to reapply AutoVRR if display/refresh change",                                                                     input_ini,     "Input.AutoLowLatency",    "AutoReapply"                         ),
+
     ConfigEntry (ParameterBool,     "Enable NVIDIA Reflex Integration w/ SK's limiter",                                                                               dll_ini,       "NVIDIA.Reflex",           "Enable"                              ),
     ConfigEntry (ParameterBool,     "Low Latency Mode",                                                                                                               dll_ini,       "NVIDIA.Reflex",           "LowLatency"                          ),
     ConfigEntry (ParameterBool,     "Reflex Boost (lower-latency power scaling)",                                                                                     dll_ini,       "NVIDIA.Reflex",           "LowLatencyBoost"                     ),
@@ -1095,6 +1180,7 @@ SKIF_IniReader_GetDefaultParams (IniType ini_type)
     ConfigEntry (ParameterBool,     "Disable a game's native Reflex implementation",                                                                                  dll_ini,       "NVIDIA.Reflex",           "DisableNative"                       ),
     ConfigEntry (ParameterBool,     "Show detailed stage timing pipeline diagram on widget",                                                                          osd_ini,       "NVIDIA.Reflex",           "ShowDetailsInWidget"                 ),
     ConfigEntry (ParameterBool,     "Allow game to use new undocumented Reflex Sync API",                                                                             dll_ini,       "NVIDIA.Reflex",           "AllowReflexSync"                     ),
+
     ConfigEntry (ParameterBool,     "Force DLAA in games that do not normally support it",                                                                            dll_ini,       "NVIDIA.DLSS",             "ForceDLAA"                           ),
     ConfigEntry (ParameterInt,      "Override DLSS Sharpening Mode",                                                                                                  dll_ini,       "NVIDIA.DLSS",             "UseSharpening"                       ),
     ConfigEntry (ParameterFloat,    "Sharpness Value to Use",                                                                                                         dll_ini,       "NVIDIA.DLSS",             "ForcedSharpness"                     ),
@@ -1120,29 +1206,49 @@ SKIF_IniReader_GetDefaultParams (IniType ini_type)
     ConfigEntry (ParameterBool,     "Report all NGX (D3D11/D3D12) features supported on all HW.",                                                                     dll_ini,       "NVIDIA.DLSS",             "SpoofFeatureSupport"                 ),
     ConfigEntry (ParameterBool,     "Output Streamline Framework's Debug to game_output.log.",                                                                        dll_ini,       "NVIDIA.DLSS",             "UseStreamlineDebugLog"               ),
     ConfigEntry (ParameterBool,     "Prevent DLSS5 from being used.",                                                                                                 dll_ini,       "NVIDIA.DLSS",             "SlopStop5000"                        ),
+    ConfigEntry (ParameterFloat,    "Framerate Limit to apply in menus in DLSS FG games.",                                                                            dll_ini,       "NVIDIA.DLSS",             "FrameGenMenuFPS"                     ),
+
     ConfigEntry (ParameterBool,     "Experimental - Use 32bpc for HDR",                                                                                               dll_ini,       "SpecialK.HDR",            "Enable128BitPipeline"                ),
     ConfigEntry (ParameterBool,     "Do not use Floating-Point RTs when re-mastering 8-bpc+ RTs",                                                                     dll_ini,       "SpecialK.HDR",            "Keep8BpcRemastersUNORM"              ),
     ConfigEntry (ParameterBool,     "Do not use FP RTs when re-mastering reduced resolution RTS",                                                                     dll_ini,       "SpecialK.HDR",            "KeepSubnativeRemastersUNORM"         ),
-    ConfigEntry (ParameterStringW,  "Last Used DXGI Colorspace,. auto-enables HDR features...",                                                                       dll_ini,       "SpecialK.HDR",            "LastUsedColorSpace"                  ),
+    ConfigEntry (ParameterInt,      "Last Used DXGI Colorspace,. auto-enables HDR features...",                                                                       dll_ini,       "SpecialK.HDR",            "LastUsedColorSpace"                  ),
+
     ConfigEntry (ParameterBool,     "Changes hook order in order to allow recording the OSD.",                                                                        dll_ini,       "Render.OSD",              "ShowInVideoCapture"                  ),
+
+    // OpenGL
+    //////////////////////////////////////////////////////////////////////////
+
     ConfigEntry (ParameterBool,     "Enable OpenGL Debug Output (in legacy OpenGL games)",                                                                            dll_ini,       "OpenGL.System",           "EnableDebug"                         ),
     ConfigEntry (ParameterBool,     "Use 10-bpc in SDR if the game's pixel type allow",                                                                               dll_ini,       "OpenGL.System",           "Prefer10BitColor"                    ),
+    ConfigEntry (ParameterBool,     "Use the most precise Z-buffer possible (usually 24-bit)",                                                                        dll_ini,       "OpenGL.System",           "UpgradeZBuffer"                      ),
+
+    // D3D9
+    //////////////////////////////////////////////////////////////////////////
+      
+    ConfigEntry (ParameterBool,     "Force D3D9Ex Context",                                                                                                           dll_ini,       "Render.D3D9",             "ForceD3D9Ex"                         ),
     ConfigEntry (ParameterBool,     "Force PURE device off",                                                                                                          dll_ini,       "Render.D3D9",             "ForceImpure"                         ),
     ConfigEntry (ParameterBool,     "Enable Texture Modding Support",                                                                                                 dll_ini,       "Render.D3D9",             "EnableTextureMods"                   ),
     ConfigEntry (ParameterBool,     "Enable D3D9Ex FlipEx SwapEffect",                                                                                                dll_ini,       "Render.D3D9",             "EnableFlipEx"                        ),
     ConfigEntry (ParameterBool,     "Use D3D9On12 instead of normal driver",                                                                                          dll_ini,       "Render.D3D9",             "UseD3D9On12"                         ),
-    ConfigEntry (ParameterFloat,    "Maximum Frame Delta Time",                                                                                                       dll_ini,       "Render.DXGI",             "MaxDeltaTime"                        ),
+
+    // D3D10/11/12
+    //////////////////////////////////////////////////////////////////////////
+
+    ConfigEntry (ParameterInt,      "Maximum Frame Delta Time",                                                                                                       dll_ini,       "Render.DXGI",             "MaxDeltaTime"                        ),
     ConfigEntry (ParameterBool,     "Use Flip Discard - Windows 10+",                                                                                                 dll_ini,       "Render.DXGI",             "UseFlipDiscard"                      ),
     ConfigEntry (ParameterBool,     "Force Sequential (requires UseFlipDiscard or native Flip)",                                                                      dll_ini,       "Render.DXGI",             "ForceFlipSequential"                 ),
     ConfigEntry (ParameterBool,     "Disable Flip Model - Fix AMD Drivers in Yakuza0",                                                                                dll_ini,       "Render.DXGI",             "DisableFlipModel"                    ),
+
     ConfigEntry (ParameterInt,      "Override DXGI Adapter",                                                                                                          dll_ini,       "Render.DXGI",             "AdapterOverride"                     ),
     ConfigEntry (ParameterStringW,  "Maximum Resolution To Report",                                                                                                   dll_ini,       "Render.DXGI",             "MaxRes"                              ),
     ConfigEntry (ParameterStringW,  "Minimum Resolution To Report",                                                                                                   dll_ini,       "Render.DXGI",             "MinRes"                              ),
     ConfigEntry (ParameterFloat,    "Maximum Refresh To Report",                                                                                                      dll_ini,       "Render.DXGI",             "MaxRefresh"                          ),
     ConfigEntry (ParameterFloat,    "Minimum Refresh To Report",                                                                                                      dll_ini,       "Render.DXGI",             "MinRefresh"                          ),
+
     ConfigEntry (ParameterInt,      "Time to wait in msec. for SwapChain",                                                                                            dll_ini,       "Render.DXGI",             "SwapChainWait"                       ),
     ConfigEntry (ParameterStringW,  "Scaling Preference (DontCare | Centered | Stretched | Unspecified)",                                                             dll_ini,       "Render.DXGI",             "Scaling"                             ),
     ConfigEntry (ParameterStringW,  "D3D11 Exception Handling (DontCare | Raise | Ignore)",                                                                           dll_ini,       "Render.DXGI",             "ExceptionMode"                       ),
+
     ConfigEntry (ParameterBool,     "DXGI Debug Layer Support",                                                                                                       dll_ini,       "Render.DXGI",             "EnableDebugLayer"                    ),
     ConfigEntry (ParameterStringW,  "Scanline Order (DontCare | Progressive | LowerFieldFirst | UpperFieldFirst )",                                                   dll_ini,       "Render.DXGI",             "ScanlineOrder"                       ),
     ConfigEntry (ParameterStringW,  "Screen Rotation (DontCare | Identity | 90 | 180 | 270 )",                                                                        dll_ini,       "Render.DXGI",             "Rotation"                            ),
@@ -1160,13 +1266,15 @@ SKIF_IniReader_GetDefaultParams (IniType ini_type)
     ConfigEntry (ParameterBool,     "Temporarily Enable DWM-based HDR while the game runs",                                                                           dll_ini,       "Render.DXGI",             "TemporaryDesktopHDRMode"             ),
     ConfigEntry (ParameterBool,     "Disable Dynamic Refresh Rate (VBLANK Virtualization)",                                                                           dll_ini,       "Render.DXGI",             "DisableVirtualizedBlanking"          ),
     ConfigEntry (ParameterBool,     "Clear the SwapChain Backbuffer every frame",                                                                                     dll_ini,       "Render.DXGI",             "ClearFlipModelBackbuffers"           ),
-    ConfigEntry (ParameterInt,      "Warn if VRAM used exceeds this % of available VRAM",                                                                             dll_ini,       "Render.DXGI",             "WarnIfUsedVRAMPercentExceeds"        ),
+    ConfigEntry (ParameterFloat,    "Warn if VRAM used exceeds this % of available VRAM",                                                                             dll_ini,       "Render.DXGI",             "WarnIfUsedVRAMPercentExceeds"        ),
     ConfigEntry (ParameterBool,     "Feel like shooting your foot with unsafe d3d12 settings..?",                                                                     dll_ini,       "Render.DXGI",             "AllowD3D12FootGuns"                  ),
     ConfigEntry (ParameterBool,     "Lie to games and tell them they're in FSE, all the while, they are actually running a fullscreen borderless window.",            dll_ini,       "Render.DXGI",             "FakeFullscreenMode"                  ),
     ConfigEntry (ParameterFloat,    "Multiplier for reported VRAM budget for D3D12 era engines.",                                                                     dll_ini,       "Render.DXGI",             "VRAMBudgetScale"                     ),
+
     ConfigEntry (ParameterInt,      "Maximum Anisotropic Filter Level",                                                                                               dll_ini,       "Render.D3D12",            "MaxAnisotropy"                       ),
     ConfigEntry (ParameterBool,     "Forced Anisotropic Filtering",                                                                                                   dll_ini,       "Render.D3D12",            "ForceAnisotropic"                    ),
     ConfigEntry (ParameterFloat,    "Forced LOD Bias",                                                                                                                dll_ini,       "Render.D3D12",            "ForceLODBias"                        ),
+
     ConfigEntry (ParameterBool,     "Disable DirectStorage BypassIO",                                                                                                 dll_ini,       "Render.DStorage",         "DisableBypassIO"                     ),
     ConfigEntry (ParameterBool,     "Disable DirectStorage Telemetry",                                                                                                dll_ini,       "Render.DStorage",         "DisableTelemetry"                    ),
     ConfigEntry (ParameterBool,     "Disable DirectStorage (1.2) GPU Decompression",                                                                                  dll_ini,       "Render.DStorage",         "DisableGPUDecompression"             ),
@@ -1179,6 +1287,7 @@ SKIF_IniReader_GetDefaultParams (IniType ini_type)
     ConfigEntry (ParameterBool,     "Cache Textures",                                                                                                                 dll_ini,       "Textures.D3D11",          "Cache"                               ),
     ConfigEntry (ParameterBool,     "Adds L3 to Hierarchical Cache: L3=Fmt, L2=Mips, L1=Res",                                                                         dll_ini,       "Textures.D3D11",          "CacheUsingL3Hash"                    ),
     ConfigEntry (ParameterBool,     "Precise Hash Generation",                                                                                                        dll_ini,       "Textures.D3D11",          "PreciseHash"                         ),
+
     ConfigEntry (ParameterBool,     "Inject Textures",                                                                                                                dll_ini,       "Textures.D3D11",          "Inject"                              ),
     ConfigEntry (ParameterBool,     "Allow image format to change during texture injection",                                                                          dll_ini,       "Textures.D3D11",          "InjectionKeepsFormat"                ),
     ConfigEntry (ParameterBool,     "Create complete mipmap chain for textures without them",                                                                         dll_ini,       "Textures.D3D11",          "GenerateMipmaps"                     ),
@@ -1190,35 +1299,54 @@ SKIF_IniReader_GetDefaultParams (IniType ini_type)
     ConfigEntry (ParameterInt,      "Maximum Textures to Evict",                                                                                                      dll_ini,       "Textures.Cache",          "MaxEvict"                            ),
     ConfigEntry (ParameterInt,      "Minimum Data Size to Evict",                                                                                                     dll_ini,       "Textures.Cache",          "MinSizeInMiB"                        ),
     ConfigEntry (ParameterInt,      "Maximum Data Size to Evict",                                                                                                     dll_ini,       "Textures.Cache",          "MaxSizeInMiB"                        ),
+
     ConfigEntry (ParameterBool,     "Ignore textures without mipmaps?",                                                                                               dll_ini,       "Textures.Cache",          "IgnoreNonMipmapped"                  ),
     ConfigEntry (ParameterBool,     "Enable texture caching/dumping/injecting staged textures",                                                                       dll_ini,       "Textures.Cache",          "AllowStaging"                        ),
     ConfigEntry (ParameterBool,     "For games with broken resource reference counting, allow textures to be cached anyway (needed for injection).",                  dll_ini,       "Textures.Cache",          "AllowUnsafeRefCounting"              ),
     ConfigEntry (ParameterBool,     "Actively manage D3D11 teture residency",                                                                                         dll_ini,       "Textures.Cache",          "ManageResidency"                     ),
+
     ConfigEntry (ParameterBool,     "Disable NvAPI",                                                                                                                  dll_ini,       "NVIDIA.API",              "Disable"                             ),
     ConfigEntry (ParameterBool,     "Prevent Game from Using NvAPI HDR Features",                                                                                     dll_ini,       "NVIDIA.API",              "DisableHDR"                          ),
-    ConfigEntry (ParameterBool,     "Enable/Disable Vulkan DXGI Layer",                                                                                               dll_ini,       "NVIDIA.API",              "EnableVulkanBridge"                  ),
+    ConfigEntry (ParameterInt,      "Enable/Disable Vulkan DXGI Layer",                                                                                               dll_ini,       "NVIDIA.API",              "EnableVulkanBridge"                  ),
     ConfigEntry (ParameterBool,     "By default, Special K disables Ansel at first launch, but users have an option under 'Help|..' to turn it back on.",             dll_ini,       "NVIDIA.Bugs",             "AnselSleepsWithFishes"               ),
     ConfigEntry (ParameterBool,     "Forcefully block nvcamera{64}.dll",                                                                                              dll_ini,       "NVIDIA.Bugs",             "DisableAnselShimLoader"              ),
     ConfigEntry (ParameterBool,     "Alternate DXGI/D3D11/D3D12 Hook Implementation for NV BUG",                                                                      dll_ini,       "NVIDIA.Bugs",             "StreamlineCompatibilityMode"         ),
     ConfigEntry (ParameterBool,     "Compat hack for games that use DLSS FrameGen without Reflex",                                                                    dll_ini,       "NVIDIA.Bugs",             "DisableReflexSleep"                  ),
+
+    ConfigEntry (ParameterStringW,  "SLI Compatibility Bits",                                                                                                         dll_ini,       "NVIDIA.SLI",              "CompatibilityBits"                   ),
+    ConfigEntry (ParameterStringW,  "SLI GPU Count",                                                                                                                  dll_ini,       "NVIDIA.SLI",              "NumberOfGPUs"                        ),
+    ConfigEntry (ParameterStringW,  "SLI Mode",                                                                                                                       dll_ini,       "NVIDIA.SLI",              "Mode"                                ),
+    ConfigEntry (ParameterBool,     "Override Driver Defaults",                                                                                                       dll_ini,       "NVIDIA.SLI",              "Override"                            ),
+
+    ConfigEntry (ParameterBool,     "Disable AMD's ADL library",                                                                                                      dll_ini,       "AMD.ADL",                 "Disable"                             ),
+    ConfigEntry (ParameterBool,     "Disable Microsoft's D3DKMT Performance Data",                                                                                    dll_ini,       "Microsoft.D3DKMT",        "DisablePerfData"                     ),
+
+    ConfigEntry (ParameterInt,      "Corner to display notifications, 0=Top-Left,1=Top-Right,"
+                                                                     "2=Bottom-Left,3=Bottom-Right",                                                                  notify_ini,    "Notification.System",     "Location"                            ),
     ConfigEntry (ParameterBool,     "Will not draw notifications until user requests them.",                                                                          notify_ini,    "Notification.System",     "Silent"                              ),
+
     ConfigEntry (ParameterBool,     "Draw ReShade before SK's overlay in AddOn capable versions",                                                                     dll_ini,       "ReShade.System",          "DrawFirst"                           ),
     ConfigEntry (ParameterBool,     "Supress warnings for incompatible ReShade AddOns",                                                                               dll_ini,       "ReShade.System",          "UnsafeAddOns"                        ),
     ConfigEntry (ParameterBool,     "Enable Special K's ReShade Add-On when RenoDX is in use.",                                                                       dll_ini,       "ReShade.System",          "AllowSKAddOnWithRenoDX"              ),
     ConfigEntry (ParameterBool,     "Respond to creation and destruction of ReShade runtimes.",                                                                       dll_ini,       "ReShade.System",          "AllowRuntimeTracking"                ),
     ConfigEntry (ParameterBool,     "Add a second framerate limiter to compensate for ReShade.",                                                                      dll_ini,       "ReShade.System",          "RequireFrameGenPacingFix"            ),
+
     ConfigEntry (ParameterBool,     "Show Software EULA",                                                                                                             dll_ini,       "SpecialK.System",         "ShowEULA"                            ),
     ConfigEntry (ParameterBool,     "Disable Alpha Transparency (reduce flicker)",                                                                                    dll_ini,       "ImGui.Render",            "DisableAlpha"                        ),
     ConfigEntry (ParameterBool,     "Reduce Aliasing on (but dim) Line Edges",                                                                                        dll_ini,       "ImGui.Render",            "AntialiasLines"                      ),
     ConfigEntry (ParameterBool,     "Reduce Aliasing on (but widen) Window Borders",                                                                                  dll_ini,       "ImGui.Render",            "AntialiasContours"                   ),
+
     ConfigEntry (ParameterBool,     "Disable DPI Scaling",                                                                                                            dll_ini,       "DPI.Scaling",             "Disable"                             ),
     ConfigEntry (ParameterBool,     "Windows 8.1+ Monitor DPI Awareness (needed for UE4)",                                                                            dll_ini,       "DPI.Scaling",             "PerMonitorAware"                     ),
     ConfigEntry (ParameterBool,     "Further fixes required for UE4",                                                                                                 dll_ini,       "DPI.Scaling",             "MonitorAwareOnAllThreads"            ),
+
     ConfigEntry (ParameterBool,     "Log file read activity to logs/file_read.log",                                                                                   dll_ini,       "FileIO.Trace",            "LogReads"                            ),
     ConfigEntry (ParameterStringW,  "Don't log activity for files in this list",                                                                                      dll_ini,       "FileIO.Trace",            "IgnoreReads"                         ),
     ConfigEntry (ParameterBool,     "Log file write activity to logs/file_write.log",                                                                                 dll_ini,       "FileIO.Trace",            "LogWrites"                           ),
     ConfigEntry (ParameterStringW,  "Don't log activity for files in this list",                                                                                      dll_ini,       "FileIO.Trace",            "IgnoreWrites"                        ),
+
     ConfigEntry (ParameterStringW,  "Power Policy (GUID) to Apply At Application Start",                                                                              dll_ini,       "CPU.Power",               "PowerSchemeGUID"                     ),
+
     ConfigEntry (ParameterBool,     "Always boost process priority to Above Normal",                                                                                  dll_ini,       "Scheduler.Boost",         "AlwaysRaisePriority"                 ),
     ConfigEntry (ParameterBool,     "Boost process priority to Above Normal in Background",                                                                           dll_ini,       "Scheduler.Boost",         "RaisePriorityInBackground"           ),
     ConfigEntry (ParameterBool,     "Boost process priority to Above Normal in Foreground",                                                                           dll_ini,       "Scheduler.Boost",         "RaisePriorityInForeground"           ),
@@ -1227,8 +1355,14 @@ SKIF_IniReader_GetDefaultParams (IniType ini_type)
     ConfigEntry (ParameterInt,      "Minimum priority for a game's render thread",                                                                                    dll_ini,       "Scheduler.Boost",         "MinimumRenderThreadPriority"         ),
     ConfigEntry (ParameterInt64,    "Mask of CPU cores the process is eligible for scheduling.",                                                                      dll_ini,       "Scheduler.System",        "ProcessorAffinityMask"               ),
     ConfigEntry (ParameterBool,     "Limit the scheduler to Intel P-Cores",                                                                                           dll_ini,       "Scheduler.System",        "PerformanceCoresOnly"                ),
+
     ConfigEntry (ParameterBool,     "Minimize Audio Latency while Game is Running",                                                                                   dll_ini,       "Sound.Mixing",            "MinimizeLatency"                     ),
+
+      // Control the behavior of SKIF rather than the other way around
     ConfigEntry (ParameterInt,      "Control when SKIF auto-stops, 0=Never, 1=AtStart, 2=AtExit",                                                                     platform_ini,  "SKIF.System",             "AutoStopBehavior"                    ),
+
+    // Steam Achievement Enhancements  (Global Settings)
+    //////////////////////////////////////////////////////////////////////////
     ConfigEntry (ParameterStringW,  "Achievement Sound File",                                                                                                         platform_ini,  "Platform.Achievements",   "SoundFile"                           ),
     ConfigEntry (ParameterBool,     "Silence is Bliss?",                                                                                                              platform_ini,  "Platform.Achievements",   "PlaySound"                           ),
     ConfigEntry (ParameterBool,     "Precious Memories",                                                                                                              platform_ini,  "Platform.Achievements",   "TakeScreenshot"                      ),
@@ -1240,10 +1374,12 @@ SKIF_IniReader_GetDefaultParams (IniType ini_type)
     ConfigEntry (ParameterInt,      "Achievement Popup Duration (in ms)",                                                                                             platform_ini,  "Platform.Achievements",   "PopupDuration"                       ),
     ConfigEntry (ParameterInt,      "Maximum columns to fill if achievement popups do not fit",                                                                       platform_ini,  "Platform.Achievements",   "MaxPopupColumns"                     ),
     ConfigEntry (ParameterInt,      "Maximum number of achievement popups visible at once",                                                                           platform_ini,  "Platform.Achievements",   "MaxPopupsOnScreen"                   ),
+
     ConfigEntry (ParameterStringW,  "Overlay Notification Position (non-Big Picture Mode)",                                                                           dll_ini,       "Platform.System",         "NotifyCorner"                        ),
     ConfigEntry (ParameterBool,     "Pause Overlay Aware games when control panel is visible",                                                                        dll_ini,       "Platform.System",         "ReuseOverlayPause"                   ),
     ConfigEntry (ParameterInt,      "The Steam AppID for this non-Steam game if it exists",                                                                           dll_ini,       "Platform.System",         "EquivalentSteamApp"                  ),
     ConfigEntry (ParameterStringW,  "String identifying the detected store for this game",                                                                            dll_ini,       "Platform.System",         "Type"                                ),
+
     ConfigEntry (ParameterInt64,    "Steam AppID",                                                                                                                    dll_ini,       "Steam.System",            "AppID"                               ),
     ConfigEntry (ParameterInt,      "Delay SteamAPI initialization if the game doesn't do it",                                                                        dll_ini,       "Steam.System",            "AutoInitDelay"                       ),
     ConfigEntry (ParameterBool,     "Should we force the game to run Steam callbacks?",                                                                               dll_ini,       "Steam.System",            "AutoPumpCallbacks"                   ),
@@ -1257,11 +1393,20 @@ SKIF_IniReader_GetDefaultParams (IniType ini_type)
     ConfigEntry (ParameterInt,      "-1=Unlimited, 0-oo=Upper bound limit to SteamAPI rate",                                                                          dll_ini,       "Steam.System",            "CallbackThrottle"                    ),
     ConfigEntry (ParameterBool,     "Disable Steam Overlay using 'SteamNoOverlayUIDrawing'",                                                                          dll_ini,       "Steam.System",            "NoDrawOverlay"                       ),
     ConfigEntry (ParameterBool,     "Special mode to workaround CAPCOM DRM without memory leaks",                                                                     dll_ini,       "Steam.System",            "BypassCRAPCOM"                       ),
+
+      // This option is per-game, since it has potential compatibility issues...
     ConfigEntry (ParameterBool,     "Enhanced screenshot speed and HUD options,. D3D11-only.",                                                                        dll_ini,       "Steam.Screenshots",       "EnableSmartCapture"                  ),
     ConfigEntry (ParameterBool,     "Should a screenshot triggered BY Steam include SK's OSD?",                                                                       platform_ini,  "Steam.Screenshots",       "DefaultKeybindCapturesOSD"           ),
+
     ConfigEntry (ParameterBool,     "Start GalaxyCommunication.exe if Galaxy is not running.",                                                                        dll_ini,       "Galaxy.System",           "SpawnGalaxyCommunication"            ),
     ConfigEntry (ParameterBool,     "Enable if the current game is unsuitable for offline-only.",                                                                     dll_ini,       "Galaxy.System",           "RequireOnlineGalaxyMode"             ),
+
+      // These are all system-wide for all Steam games
     ConfigEntry (ParameterFloat,    "Make the Steam Overlay visible in HDR mode!",                                                                                    platform_ini,  "Platform.Overlay",        "Luminance_scRGB"                     ),
+
+    // Swashbucklers pay attention
+    //////////////////////////////////////////////////////////////////////////
+
     ConfigEntry (ParameterBool,     "Makes steam_api.log go away [DISABLES STEAMAPI FEATURES]",                                                                       dll_ini,       "Steam.Log",               "Silent"                              ),
     ConfigEntry (ParameterStringW,  "CSV list of files to block from cloud sync.",                                                                                    dll_ini,       "Steam.Cloud",             "FilesNotToSync"                      ),
     ConfigEntry (ParameterBool,     "Fix For Stupid Games That Don't Know How DRM Works",                                                                             dll_ini,       "Steam.DRMWorks",          "SpoofBLoggedOn"                      ),
