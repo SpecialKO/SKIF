@@ -27,8 +27,8 @@ enum EditorAction
 };
 
 struct IniWindow {
-  std::vector <__INI>     ini;
-  std::vector <__INI> history;
+  std::vector <IniEntry>     ini;
+  std::vector <IniEntry> history;
   std::wstring           path;
   std:: string           path_utf8;
   std::wstring           path_parent;
@@ -63,7 +63,7 @@ struct IniWindow {
   void ClearFilter       (void);
   void UpdateWindowTitle (void);
   void SetPath           (const std::wstring& _p);
-       IniWindow         (std::vector<__INI> _i, IniType _ty, const std::wstring& _p = L"", const std::string& _ti = "");
+       IniWindow         (std::vector<IniEntry> _i, IniType _ty, const std::wstring& _p = L"", const std::string& _ti = "");
 
    IniWindow            (const IniWindow& )          = default;
    IniWindow& operator= (const IniWindow& )          = default;

@@ -11,7 +11,7 @@
 #include <windows.h>
 #include <stringapiset.h>
 
-std::vector <__INI> g_vIniReaderOSD;
+std::vector <IniEntry> g_vIniReaderOSD;
 
 enum class Encoding
 {
@@ -351,7 +351,7 @@ SwitchHash (const std::string_view data) noexcept
 }
 
 static bool
-DrawCheckbox (__INI* ptr)
+DrawCheckbox (IniEntry* ptr)
 {
   //ImGui::SetNextItemWidth(300.0f);
   if (ImGui::Checkbox (ptr->_label_v.c_str(), &ptr->value_b))
@@ -364,7 +364,7 @@ DrawCheckbox (__INI* ptr)
 }
 
 static bool
-DrawInputBox (__INI* ptr)
+DrawInputBox (IniEntry* ptr)
 {
   ImGui::SetNextItemWidth(300.0f);
   if (ImGui::InputText (ptr->_label_v.c_str(), ptr->value, MAX_PATH))
@@ -374,7 +374,7 @@ DrawInputBox (__INI* ptr)
 }
 
 static bool
-DrawDropDown (__INI* ptr)
+DrawDropDown (IniEntry* ptr)
 {
   ImGui::SetNextItemWidth(150.0f);
   if (ImGui::BeginCombo  (ptr->_label_k.c_str(), ptr->value))
@@ -397,7 +397,7 @@ DrawDropDown (__INI* ptr)
 }
 
 static bool
-DrawKeybinding (__INI* ptr)
+DrawKeybinding (IniEntry* ptr)
 {
   SHORT vKey = ptr->_keybind.saved.vKey;
 
@@ -420,13 +420,13 @@ DrawKeybinding (__INI* ptr)
 }
 
 void
-__INI::Reset (void)
+IniEntry::Reset (void)
 {
   value_b = default_b;
   strncpy (value, default, MAX_PATH);
 }
 
-__INI::__INI (ParameterType _t, std::string _s, std::string _k, std::string _v)
+IniEntry::IniEntry (ParameterType _t, std::string _s, std::string _k, std::string _v)
 {
   // Build helpers
 
@@ -606,7 +606,7 @@ __INI::__INI (ParameterType _t, std::string _s, std::string _k, std::string _v)
   }
 }
 
-std::vector <__INI>
+std::vector <IniEntry>
 SKIF_IniReader_ParseIni (const std::wstring& file_path, IniType ini_type)
 {
   PLOG_VERBOSE << "Parsing INI file: " << file_path;
@@ -618,10 +618,10 @@ SKIF_IniReader_ParseIni (const std::wstring& file_path, IniType ini_type)
   } catch (const std::exception&) {
     PLOG_ERROR << "Failed to parse INI file!";
     SKIF_ImGui_InfoMessage ("INI Reader", "Could not parse ini: " + SK_WideCharToUTF8 (file_path));
-    return std::vector <__INI>();
+    return std::vector <IniEntry>();
   };
 
-  std::vector <__INI> ini_parsed;
+  std::vector <IniEntry> ini_parsed;
   std::vector<const ConfigEntry*> default_params = SKIF_IniReader_GetDefaultParams (ini_type);
 
   // Add all default parameters first...
@@ -650,7 +650,7 @@ SKIF_IniReader_ParseIni (const std::wstring& file_path, IniType ini_type)
 
     //PLOG_VERBOSE << "INI item [DEFAULT]: [" << default_item->section << "] " << default_item->key << " = " << value;
 
-    __INI item = { default_item->param_type, default_item->section, default_item->key, value };
+    IniEntry item = { default_item->param_type, default_item->section, default_item->key, value };
     item.description = default_item->description;
     item._ignore = ! found;
 
@@ -678,7 +678,7 @@ SKIF_IniReader_ParseIni (const std::wstring& file_path, IniType ini_type)
       if (! found)
       {
         //PLOG_VERBOSE << "INI item [UNKNOWN]: [" << section << "] " << kv.first << " = " << kv.second;
-        __INI item = { ParameterUnknown, section, kv.first, kv.second };
+        IniEntry item = { ParameterUnknown, section, kv.first, kv.second };
         item._ignore = false;
         ini_parsed.push_back(item);
       }
@@ -687,7 +687,7 @@ SKIF_IniReader_ParseIni (const std::wstring& file_path, IniType ini_type)
 
   // Sort it all!
 
-  std::sort (ini_parsed.begin(), ini_parsed.end(), [](const __INI& a, const __INI& b)
+  std::sort (ini_parsed.begin(), ini_parsed.end(), [](const IniEntry& a, const IniEntry& b)
     {
       return (_stricmp (a.section, b.section)  < 0  ||
              (_stricmp (a.section, b.section) == 0 &&
@@ -699,7 +699,7 @@ SKIF_IniReader_ParseIni (const std::wstring& file_path, IniType ini_type)
 }
 
 void
-SKIF_IniReader_WriteIni (std::vector<__INI> ini, const std::wstring& file_path)
+SKIF_IniReader_WriteIni (std::vector<IniEntry> ini, const std::wstring& file_path)
 {
   inih::INIReader new_ini = { };
 

@@ -66,7 +66,7 @@ IniWindow::SetPath (const std::wstring& _p)
     path_parent = L"";
 }
 
-IniWindow::IniWindow (std::vector<__INI> _i, IniType _ty, const std::wstring& _p, const std::string& _ti)
+IniWindow::IniWindow (std::vector<IniEntry> _i, IniType _ty, const std::wstring& _p, const std::string& _ti)
 {
   ini         = _i;
   type        = _ty;
@@ -83,11 +83,11 @@ void
 SKIF_UI_IniEditor_NewFile (IniWindow* iniWindow)
 {
   std::vector<const ConfigEntry*> ini_params = SKIF_IniReader_GetDefaultParams (dll_ini);
-  std::vector <__INI> ini_parsed;
+  std::vector <IniEntry> ini_parsed;
 
   for (auto& default_item : ini_params)
   {
-    __INI item = { default_item->param_type, default_item->section, default_item->key, "" };
+    IniEntry item = { default_item->param_type, default_item->section, default_item->key, "" };
     item.description = default_item->description;
     item._ignore = true;
 
@@ -108,11 +108,11 @@ void
 SKIF_UI_IniEditor_NewWindow (void)
 {
   std::vector<const ConfigEntry*> ini_params = SKIF_IniReader_GetDefaultParams (dll_ini);
-  std::vector <__INI> ini_parsed;
+  std::vector <IniEntry> ini_parsed;
 
   for (auto& default_item : ini_params)
   {
-    __INI item = { default_item->param_type, default_item->section, default_item->key, "" };
+    IniEntry item = { default_item->param_type, default_item->section, default_item->key, "" };
     item.description = default_item->description;
     item._ignore = true;
 
@@ -238,7 +238,7 @@ SKIF_UI_IniEditor_OpenFile (IniWindow* iniWindow, IniType type, std::wstring pat
       type = IniType_Macros;
   }
 
-  std::vector <__INI> ini_parsed = SKIF_IniReader_ParseIni (path, type);
+  std::vector <IniEntry> ini_parsed = SKIF_IniReader_ParseIni (path, type);
 
   if (iniWindow == nullptr)
     vIniWindow.push_back({ ini_parsed, type, path, title_final });

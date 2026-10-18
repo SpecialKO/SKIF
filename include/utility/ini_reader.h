@@ -56,7 +56,7 @@ struct ConfigEntry
   IniBitness                     arch = IniBitness_All;
 };
 
-struct __INI {
+struct IniEntry {
   char  section[MAX_PATH + 2] = { };
   char  key    [MAX_PATH + 2] = { };
   char  value  [MAX_PATH + 2] = { };
@@ -68,7 +68,7 @@ struct __INI {
   bool        _show = true;
   bool        _ignore = false; // Used to prevent empty and unset parameters from being populated on write
   SK_KeybindMultiState _keybind;
-  bool (*DrawFunction)(__INI* ptr) = nullptr;
+  bool (*DrawFunction)(IniEntry* ptr) = nullptr;
 
   // ParameterType_Boolean
   bool value_b   = false;
@@ -78,11 +78,11 @@ struct __INI {
   std::vector<std::string> _dditems = { };
   
         void  Reset    (void);
-              __INI    (ParameterType _t, std::string _s, std::string _k, std::string _v);
+              IniEntry (ParameterType _t, std::string _s, std::string _k, std::string _v);
 };
 
-std::vector <__INI>              SKIF_IniReader_ParseIni         (const std::wstring& file_path, IniType ini_type);
-void                             SKIF_IniReader_WriteIni         (std::vector <__INI> ini,       const std::wstring& file_path);
+std::vector <IniEntry>           SKIF_IniReader_ParseIni         (const std::wstring& file_path, IniType ini_type);
+void                             SKIF_IniReader_WriteIni         (std::vector <IniEntry> ini, const std::wstring& file_path);
 void                             SKIF_IniReader_ReadOSDIni       (void);
 void                             SKIF_IniReader_SaveOSDIni       (void);
 std::vector <const ConfigEntry*> SKIF_IniReader_GetDefaultParams (IniType ini_type);

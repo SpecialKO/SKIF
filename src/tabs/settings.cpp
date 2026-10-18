@@ -1507,7 +1507,7 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(0.8f, 0.8f, 0.8f, 1.0f)
                             );
 
-    extern std::vector <__INI>
+    extern std::vector <IniEntry>
                       g_vIniReaderOSD;
     for (auto& trie : g_vIniReaderOSD)
     {
