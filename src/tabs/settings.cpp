@@ -1454,6 +1454,8 @@ SKIF_UI_Tab_DrawSettings (void)
       if (! keybind._show())
         continue;
 
+      ImGui::Spacing          ( );
+      ImGui::SameLine         ( );
       ImGui::TextColored      (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), keybind._key->bind_name.c_str());
       ImGui::SameLine         ( );
       ImGui::ItemSize         (ImVec2 (200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
@@ -1490,6 +1492,8 @@ SKIF_UI_Tab_DrawSettings (void)
         ImGui::SeparatorText (trie->section);
       }
 
+      ImGui::Spacing         ( );
+      ImGui::SameLine        ( );
       ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), trie->key);
       if (trie->description != nullptr)
         SKIF_ImGui_SetHoverTip (trie->description);

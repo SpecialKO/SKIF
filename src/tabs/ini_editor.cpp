@@ -590,10 +590,8 @@ SKIF_UI_IniEditor_Process (void)
       SKIF_ImGui_PushHighlightLineLine ( );
       
       ImGui::BeginGroup      ( );
-      //ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), trie.section);
-      //ImGui::SameLine        ( );
-      //ImGui::ItemSize        (ImVec2 (200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
-      //ImGui::SameLine        ( );
+      ImGui::Spacing         ( );
+      ImGui::SameLine        ( );
       ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), trie.key);
       if (trie.description != nullptr)
         SKIF_ImGui_SetHoverTip (trie.description);
