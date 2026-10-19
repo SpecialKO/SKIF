@@ -536,6 +536,7 @@ SKIF_UI_IniEditor_Process (void)
 
     // End top options
 
+#if 0
     // Headers
     ImGui::PushStyleColor (
       ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(0.8f, 0.8f, 0.8f, 1.0f)
@@ -557,6 +558,7 @@ SKIF_UI_IniEditor_Process (void)
     ImGui::PopStyleColor  ( ); // ImGuiCol_Text
 
     ImGui::Separator   ( );
+#endif
 
     SKIF_ImGui_BeginChildFrame (
       ImGui::GetID ("###SKIE_CONTENT_AREA"),
