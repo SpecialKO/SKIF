@@ -360,6 +360,8 @@ SKIF_UI_IniEditor_Process (void)
 
     window.bFocused = SKIF_ImGui_IsViewportFocused ( );
 
+    bool collapseAll = false;
+
     if (ImGui::BeginMenuBar())
     {
       if (ImGui::BeginMenu ("File"))
@@ -412,6 +414,16 @@ SKIF_UI_IniEditor_Process (void)
 
       if (ImGui::BeginMenu ("View"))
       {
+        if (ImGui::MenuItem ("Collapse/Expand"))
+        {
+          if (window.collapsed_sections.empty())
+            collapseAll = true;
+          else
+            window.collapsed_sections.clear();
+        }
+
+        ImGui::Separator ( );
+
         if (ImGui::MenuItem ("Unused Settings", "", window.bViewUnused))
           window.bViewUnused = ! window.bViewUnused;
 
@@ -579,13 +591,26 @@ SKIF_UI_IniEditor_Process (void)
       if (trie._ignore && ! window.bViewUnused)
         continue;
 
+      const ImGuiID section_id = ImGui::GetID (trie.section);
+      const bool    collapsed  = window.collapsed_sections.contains (section_id);
+
       if (section != trie.section)
       {
         section = trie.section;
 
-        SKIF_ImGui_Spacing   ( );
-        ImGui::SeparatorText (trie.section);
+        SKIF_ImGui_Spacing                ( );
+        if (SKIF_ImGui_SeparatorTextClickable (trie.section, &collapsed))
+        {
+          if (! window.collapsed_sections.insert (section_id).second)
+                window.collapsed_sections.erase  (section_id);
+        }
       }
+
+      if (collapseAll && ! collapsed)
+        window.collapsed_sections.insert (ImGui::GetID (trie.section));
+
+      if (collapsed)
+        continue;
 
       ImGui::PushID (&trie);
 

@@ -9,9 +9,12 @@
 #include <string>
 #include <vector>
 #include <limits>
+#include <unordered_set>
 
 #include <utility/ini_reader.h>
 #include <utility/utility.h>
+
+#include <imgui/imgui.h>
 
 enum EditorAction
 {
@@ -45,6 +48,8 @@ struct IniWindow {
   HWND                   hwnd   = nullptr;
   EditorAction    want_action   = EditorAction::None;
   int             public_seed   = 0;
+  std::unordered_set
+    <ImGuiID> collapsed_sections;
 
   // Filter field
   char          charFilter    [MAX_PATH + 2] = { };
