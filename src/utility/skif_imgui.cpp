@@ -134,8 +134,8 @@ SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst)
   // Separators
   colors[ImGuiCol_Separator]              = (_registry.bUIBorders) ? colors[ImGuiCol_Border]
                                                                    : ImVec4(0.15f, 0.15f, 0.15f, 1.00f); // colors[ImGuiCol_WindowBg];
-  colors[ImGuiCol_SeparatorHovered]       = ImVec4(0.10f, 0.40f, 0.75f, 0.78f);
-  colors[ImGuiCol_SeparatorActive]        = ImVec4(0.10f, 0.40f, 0.75f, 1.00f);
+  colors[ImGuiCol_SeparatorHovered]       = ImVec4(0.68f, 0.68f, 0.68f, 1.00f);
+  colors[ImGuiCol_SeparatorActive]        = ImVec4(0.45f, 0.45f, 0.45f, 1.00f);
 
   // Resize Grip
   colors[ImGuiCol_ResizeGrip]             = ImVec4(0.13f, 0.13f, 0.13f, 1.00f); // 0.26f, 0.59f, 0.98f, 0.25f
@@ -656,6 +656,101 @@ SKIF_ImGui_SelectableVAligned (const char* unique_id, const char* label, bool* p
 
   ImGui::SetCursorPos    (cursor_post);
   return ret;
+}
+
+bool
+SKIF_ImGui_SeparatorTextClickable (const char* label, const bool* collapsed, bool hand_cursor)
+{
+  const ImGuiStyle& style = ImGui::GetStyle ();
+
+  // Reserve room for the arrow by prefixing spaces
+  //  - the part after "###" is the ID, so it never changes with the arrow state
+  char        display [256];
+  const char* shown = label;
+
+  if (collapsed != nullptr)
+  {
+    const float arrow_w = ImGui::GetFontSize ();
+    const float gap     = style.ItemInnerSpacing.x;
+    const float space_w = ImGui::CalcTextSize (" ").x;
+    const int   n       = ImClamp ((int)ImCeil ((arrow_w + gap) / ImMax (space_w, 1.0f)), 1, 16);
+
+    char spaces [17];
+    memset (spaces, ' ', n);
+    spaces [n] = '\0';
+
+    ImFormatString (display, IM_ARRAYSIZE (display), "%s%s###%s", spaces, label, label);
+    shown = display;
+  }
+
+  // Mirror SeparatorTextEx()'s layout to find where the text lands
+  const ImVec2 label_size = ImGui::CalcTextSize (shown, nullptr, true);
+  const ImVec2 pos        = ImGui::GetCursorScreenPos ();
+  const ImVec2 padding    = style.SeparatorTextPadding;
+  const float  row_w      = ImGui::GetContentRegionAvail ().x;
+  const float  row_h      = ImMax (label_size.y + padding.y * 2.0f,
+                                   style.SeparatorTextBorderSize);
+
+  const float  avail_w    = ImMax (0.0f, row_w - padding.x * 2.0f);
+  const ImVec2 text_pos   (pos.x + padding.x +
+                             ImMax (0.0f, (avail_w - label_size.x) * style.SeparatorTextAlign.x),
+                           pos.y + ImFloor ((row_h - label_size.y) * style.SeparatorTextAlign.y + 0.5f));
+
+  // Button covering the arrow + text only
+  ImGui::PushID (label);
+  ImGui::SetCursorScreenPos (text_pos);
+  const bool activated = ImGui::InvisibleButton ("##clickable_sep", label_size);
+  ImGui::PopID ();
+
+  const ImGuiID id      = ImGui::GetItemID ();
+  const ImRect  bb      = ImRect (ImGui::GetItemRectMin (), ImGui::GetItemRectMax ());
+  const bool    hovered = ImGui::IsItemHovered ();
+  const bool    held    = ImGui::IsItemActive  ();
+
+  if (hovered && hand_cursor)
+    ImGui::SetMouseCursor (ImGuiMouseCursor_Hand);
+
+  ImGui::RenderNavHighlight (bb, id);
+
+  // Draw the separator row (also advances the cursor by one row)
+  ImGui::SetCursorScreenPos (pos);
+
+  const ImVec4 text_col = (hovered || held)
+                        ? ImGui::GetStyleColorVec4 (held ? ImGuiCol_SeparatorActive
+                                                         : ImGuiCol_SeparatorHovered)
+                        : ImGui::GetStyleColorVec4 (ImGuiCol_Text);
+
+  ImGui::PushStyleColor (ImGuiCol_Text, text_col);
+  ImGui::SeparatorText  (shown);
+  ImGui::PopStyleColor  ();
+
+  // Arrow, drawn as a triangle centered on the horizontal lines
+  if (collapsed != nullptr)
+  {
+    const float font_size = ImGui::GetFontSize ();
+    const float r         = font_size * 0.32f;                       // triangle "radius"
+    const float cx        = text_pos.x + font_size * 0.5f;           // center of reserved box
+    const float cy        = ImFloor (pos.y + row_h * 0.5f + 1.0f);   // Y of the lines
+
+    ImVec2 a, b, c;
+
+    if (*collapsed) // pointing right
+    {
+      a = ImVec2 (cx + 0.750f * r, cy);
+      b = ImVec2 (cx - 0.750f * r, cy + 0.866f * r);
+      c = ImVec2 (cx - 0.750f * r, cy - 0.866f * r);
+    }
+    else            // pointing down
+    {
+      a = ImVec2 (cx,              cy + 0.750f * r);
+      b = ImVec2 (cx - 0.866f * r, cy - 0.750f * r);
+      c = ImVec2 (cx + 0.866f * r, cy - 0.750f * r);
+    }
+
+    ImGui::GetWindowDrawList ()->AddTriangleFilled (a, b, c, ImGui::GetColorU32 (text_col));
+  }
+
+  return activated;
 }
 
 // Difference to regular BeginChildFrame? No ImGuiWindowFlags_NoMove!

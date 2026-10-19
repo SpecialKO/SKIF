@@ -66,6 +66,7 @@ void     SKIF_ImGui_Spacing               (float multiplier);
 void     SKIF_ImGui_Spacing               (void);
 bool     SKIF_ImGui_Selectable            (const char* label);
 bool     SKIF_ImGui_SelectableVAligned    (const char* unique_id, const char* label, bool* p_selected, ImGuiSelectableFlags flags, const ImVec2& size_arg);
+bool     SKIF_ImGui_SeparatorTextClickable(const char* label, const bool* collapsed = nullptr, bool hand_cursor = false);
 void     SKIF_ImGui_DimBackgroundViewport (const ImGuiViewport* vp = ImGui::GetWindowViewport ( ));
 bool     SKIF_ImGui_BeginPopup            (const char* name, bool* p_open = nullptr, ImVec2 size = ImVec2(0, 0), ImGuiWindowFlags flags = ImGuiWindowFlags_None);
 void     SKIF_ImGui_EndPopup              (void);
