@@ -456,9 +456,9 @@ SKIF_Epic_FindInstalledGames1 (std::vector <std::pair < std::string, app_record_
           ret = true;
         }
       }
-      catch (const std::exception&)
+      catch (const std::exception& e)
       {
-        PLOG_ERROR << "Failed to parse manifest: " << entry.path();
+        PLOG_ERROR << "Failed to parse manifest: " << entry.path() << ": " << e.what ();
       }
     }
   }

@@ -598,9 +598,9 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
         currentBranch = SK_WideCharToUTF8 (wsCurrentBranch);
       }
     }
-    catch (const std::exception&)
+    catch (const std::exception& e)
     {
-      PLOG_ERROR << "Failed when parsing update channels!";
+      PLOG_ERROR << "Failed when parsing update channels! " << e.what ();
     }
   }
 
@@ -892,9 +892,9 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
 #pragma endregion
 
     }
-    catch (const std::exception&)
+    catch (const std::exception& e)
     {
-      PLOG_ERROR << "Failed when parsing versions!";
+      PLOG_ERROR << "Failed when parsing versions! " << e.what ();
     }
   }
 

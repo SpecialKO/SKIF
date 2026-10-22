@@ -5438,9 +5438,9 @@ SKIF_UI_Tab_DrawLibrary (void)
             }
           }
         }
-        catch (const std::exception&)
+        catch (const std::exception& e)
         {
-          PLOG_ERROR << "Error occurred when trying to parse " << ((lc_file.first) ? "online-based" : "user-specified") << " launch configs";
+          PLOG_ERROR << "Error occurred when trying to parse " << ((lc_file.first) ? "online-based" : "user-specified") << " launch configs: " << e.what ();
         }
       }
 
@@ -5623,9 +5623,9 @@ SKIF_UI_Tab_DrawLibrary (void)
               if (app.second.isInstantPlayCompatible ())
                 key += { "InstantPlay", app.second.skif.instant_play };
             }
-            catch (const std::exception&)
+            catch (const std::exception& e)
             {
-              PLOG_ERROR << "Error occurred when trying to parse " << item << " (" << (int)app.second.store << ") from " << file_metadata;
+              PLOG_ERROR << "Error occurred when trying to parse " << item << " (" << (int)app.second.store << ") from " << file_metadata << ": " << e.what ();
             }
           }
 
