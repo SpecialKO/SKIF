@@ -454,9 +454,9 @@ SKIF_EpicCollection::FindInstalledGames1 (std::vector <std::pair < std::string, 
           CopyFile (entry.path().c_str(), (AppCacheDir + LR"(\manifest.json)").c_str(), false);
         }
       }
-      catch (const std::exception&)
+      catch (const std::exception& e)
       {
-        PLOG_ERROR << "Failed to parse manifest: " << entry.path();
+        PLOG_ERROR << "Failed to parse manifest: " << entry.path() << ": " << e.what ();
       }
     }
   }

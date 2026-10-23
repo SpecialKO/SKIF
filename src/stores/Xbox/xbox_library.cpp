@@ -543,9 +543,9 @@ SKIF_Xbox_IdentifyAssetNew (std::string PackageName, std::string StoreID)
       }
     }
   }
-  catch (const std::exception&)
+  catch (const std::exception& e)
   {
-
+    PLOG_ERROR << "Error parsing Xbox store JSON! " << e.what ();
   }
 
   // Delete the JSON file when we are done

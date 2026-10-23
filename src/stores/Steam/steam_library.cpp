@@ -770,9 +770,7 @@ SKIF_Steam_PreloadUserLocalConfig (SteamId3_t userid, std::vector <std::pair < s
     //     - Aemony
     catch (const std::exception& e)
     {
-      UNREFERENCED_PARAMETER(e);
-
-      PLOG_ERROR << "Unknown error occurred when trying to parse localconfig.vdf";
+      PLOG_ERROR << "Unknown error occurred when trying to parse localconfig.vdf: " << e.what ();
     }
   }
 
@@ -870,9 +868,7 @@ SKIF_Steam_PreloadUserSharedConfig (SteamId3_t userid, std::vector <std::pair < 
     //     - Aemony
     catch (const std::exception& e)
     {
-      UNREFERENCED_PARAMETER(e);
-
-      PLOG_ERROR << "Unknown error occurred when trying to parse sharedconfig.vdf";
+      PLOG_ERROR << "Unknown error occurred when trying to parse sharedconfig.vdf: " << e.what ();
     }
   }
 
@@ -1570,9 +1566,9 @@ SKIF_Steam_IdentifyAssetPCGW (uint32_t app_id)
           }
         }
       }
-      catch (const std::exception&)
+      catch (const std::exception& e)
       {
-        PLOG_ERROR << "Error parsing PCGW JSON!";
+        PLOG_ERROR << "Error parsing PCGW JSON! " << e.what ();
       }
 
       // Delete the JSON file when we are done
@@ -1643,9 +1639,9 @@ SKIF_Steam_GetCoverURI (uint32_t app_id, bool force_2x)
         break;
       }
     }
-    catch (const std::exception&)
+    catch (const std::exception& e)
     {
-      PLOG_ERROR << "Error parsing Steam GetItems v1 JSON!";
+      PLOG_ERROR << "Error parsing Steam GetItems v1 JSON! " << e.what ();
       continue;
     }
   }

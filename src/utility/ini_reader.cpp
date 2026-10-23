@@ -625,8 +625,8 @@ SKIF_IniReader_ParseIni (const std::wstring& file_path, IniType ini_type)
 
   try {
     ini.ParseContent (SK_WideCharToUTF8 (ReadTextFile (file_path)));
-  } catch (const std::exception&) {
-    PLOG_ERROR << "Failed to parse INI file!";
+  } catch (const std::exception& e) {
+    PLOG_ERROR << "Failed to parse INI file! Error: " << e.what ();
     SKIF_ImGui_InfoMessage ("INI Reader", "Could not parse ini: " + SK_WideCharToUTF8 (file_path));
     return std::vector <IniEntry>();
   };
