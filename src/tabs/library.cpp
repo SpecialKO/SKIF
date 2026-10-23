@@ -152,12 +152,6 @@ struct SKIF_Lib_GameWorkerThread_s {
 SKIF_Lib_GameWorkerThread_s aGameWorkers[MAX_GAMEWORKER] = { };
 
 
-std::vector <
-  std::pair < std::string, app_record_s >
-            >        g_apps;
-std::recursive_mutex g_apps_mutex; // More specifically, this is intended to guard access to the run state of games.
-//std::shared_mutex    g_apps_mutex; // More specifically, this is intended to guard access to the run state of games.
-
 std::set    < std::string >
               g_apptickets;
 
@@ -237,7 +231,7 @@ extern void SKIF_Shell_AddJumpList (std::wstring name, std::wstring path, std::w
 // Functions / Structs
 
 static std::string
-GetEffectiveCategory (app_record_s* app)
+GetEffectiveCategory (const app_record_s* app)
 {
   return (    app->skif.pinned > 0 || (app->skif.pinned == -1 && app->steam.shared.favorite == 1))
          ?   "Favorites"
@@ -430,6 +424,9 @@ SearchAppsList (void)
     size_t      len           = 0;
   } static result;
 
+  static SKIF_GamingCollection& _games =
+         SKIF_GamingCollection::Get ( );
+
   // We need to select any match and clear variables before we do a search,
   //   as otherwise SKIF's conditional rendering can cause a search query
   //     to not end within the properly allocated time frame
@@ -471,12 +468,12 @@ SearchAppsList (void)
     Trie* searchLabels = (charFilter[0] != '\0') ? &labelsFiltered : &labels;
 
     // Acquire lock before iterating the global apps list
-    std::scoped_lock app_lock (g_apps_mutex);
+    std::scoped_lock app_lock (_games.GetMutex());
 
     // Prioritize trie search first
     if (searchLabels->search (test_))
     {
-      for (auto& app : g_apps)
+      for (const auto& app : _games.GetApps())
       {
         // Skip invalid/hidden and filtered ones
         if (app.second.id == 0 || app.second.filtered)
@@ -506,7 +503,7 @@ SearchAppsList (void)
     // Fall back to using free text search when the trie fails us
     else
     {
-      for (auto& app : g_apps)
+      for (auto& app : _games.GetApps())
       {
         // Skip invalid/hidden and filtered ones
         if (app.second.id == 0 || app.second.filtered)
@@ -744,6 +741,7 @@ LaunchGame (app_record_s* pApp)
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
+  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
 
   if (launchConfig == nullptr)
     return;
@@ -882,7 +880,7 @@ LaunchGame (app_record_s* pApp)
       std::wstring launchOptions = SK_FormatStringW(LR"(com.epicgames.launcher://apps/%ws?action=launch&silent=true)", launchConfig->getLaunchOptions().c_str());
       if (SKIF_Util_OpenURI (launchOptions) != 0)
       {
-        std::scoped_lock app_lock (g_apps_mutex);
+        std::scoped_lock app_lock (_games.GetMutex());
 
         // Don't check the running state for at least 7.5 seconds
         pApp->_status.dwTimeDelayChecks = current_time + 7500;
@@ -954,7 +952,7 @@ LaunchGame (app_record_s* pApp)
 
       else if (SKIF_Util_CreateProcess (launchConfig->executable_helper, L"", L"", nullptr, proc))
       {
-        std::scoped_lock app_lock (g_apps_mutex);
+        std::scoped_lock app_lock (_games.GetMutex());
 
         launch_proc = proc;
 
@@ -1339,7 +1337,7 @@ LaunchGame (app_record_s* pApp)
       //SKIF_Util_OpenURI (GOGGalaxy_Path, SW_SHOWDEFAULT, L"OPEN", launchOptions.c_str());
       if (SKIF_Util_CreateProcess (GOGGalaxy_Path, launchOptions.c_str(), L""))
       {
-        std::scoped_lock app_lock (g_apps_mutex);
+        std::scoped_lock app_lock (_games.GetMutex());
 
         // Don't check the running state for at least 7.5 seconds
         pApp->_status.dwTimeDelayChecks = current_time + 7500;
@@ -1393,7 +1391,7 @@ LaunchGame (app_record_s* pApp)
         std::wstring launchOptions = SK_FormatStringW (LR"(steam://launch/%d/dialog)", pApp->id);
         if (SKIF_Util_OpenURI (launchOptions) != 0)
         {
-          std::scoped_lock app_lock (g_apps_mutex);
+          std::scoped_lock app_lock (_games.GetMutex());
 
           // Don't check the running state for at least 7.5 seconds
           pApp->_status.dwTimeDelayChecks = current_time + 7500;
@@ -1418,7 +1416,7 @@ LaunchGame (app_record_s* pApp)
     JsonDB_UpdateApp (pApp, true);
 
     // Ensure the sort order is updated as well
-    SKIF_GamingCollection::SortApps (&g_apps);
+    SKIF_GamingCollection::SortApps (&_games.GetApps());
     sort_changed = true;
   }
 }
@@ -2148,6 +2146,7 @@ DrawGameContextMenu (app_record_s* pApp)
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
+  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
 
   // TODO: Many of the below options needs to be adjusted to indicate if the primary launch option
   //         is even available (or if "without Special K" is the only option available)
@@ -2692,7 +2691,7 @@ DrawGameContextMenu (app_record_s* pApp)
 
         JsonDB_UpdateApp  ( pApp, true);
 
-        SKIF_GamingCollection::SortApps (&g_apps);
+        SKIF_GamingCollection::SortApps (&_games.GetApps());
         sort_changed = true;
       }
     }
@@ -2710,7 +2709,7 @@ DrawGameContextMenu (app_record_s* pApp)
 
       JsonDB_UpdateApp   (pApp, true);
 
-      SKIF_GamingCollection::SortApps (&g_apps);
+      SKIF_GamingCollection::SortApps (&_games.GetApps());
       sort_changed = true;
     }
 
@@ -2732,7 +2731,7 @@ DrawGameContextMenu (app_record_s* pApp)
         pApp->skif.pinned = isFavorite ? 0 : 1;
         JsonDB_UpdateApp (pApp, true);
 
-        SKIF_GamingCollection::SortApps (&g_apps);
+        SKIF_GamingCollection::SortApps (&_games.GetApps());
         sort_changed = true;
       }
 
@@ -2843,7 +2842,7 @@ DrawGameContextMenu (app_record_s* pApp)
         pApp->skif.category = newCategoryName;
         JsonDB_UpdateApp (pApp, true);
 
-        SKIF_GamingCollection::SortApps (&g_apps);
+        SKIF_GamingCollection::SortApps (&_games.GetApps());
         //sort_changed = true; // Disabled as this causes a noticable flicker on the menu when the game goes out and in of visibility
       }
 
@@ -2892,7 +2891,7 @@ DrawGameContextMenu (app_record_s* pApp)
 
         JsonDB_UpdateApp (pApp, true);
 
-        SKIF_GamingCollection::SortApps (&g_apps);
+        SKIF_GamingCollection::SortApps (&_games.GetApps());
         sort_changed = true;
       }
 
@@ -3495,6 +3494,7 @@ DrawSpecialKContextMenu (app_record_s* pApp)
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
+  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
 
   if (! _inject.bCurrentState)
   {
@@ -3597,7 +3597,7 @@ DrawSpecialKContextMenu (app_record_s* pApp)
 
     JsonDB_UpdateApp  ( pApp, true);
 
-    SKIF_GamingCollection::SortApps (&g_apps);
+    SKIF_GamingCollection::SortApps (&_games.GetApps());
     sort_changed = true;
   }
 }
@@ -4445,6 +4445,7 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
+  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
 
   bool registry_local = false;
 
@@ -5062,7 +5063,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
-  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::GetInstance ( );
+  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
   static SKIF_EpicCollection&   _epic       = SKIF_EpicCollection  ::GetInstance ( );
 
   static image_s cover, cover_old, coverSK;
@@ -5267,7 +5268,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       PLOG_VERBOSE << "SKIF_LibraryWorker thread started!";
 
-      std::scoped_lock app_lock (g_apps_mutex);
+      std::scoped_lock app_lock (_games.GetMutex());
 
       DWORD pre   = 0,
             post  = 0,
@@ -5897,7 +5898,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     std::vector<IconCache> icon_cache;
 
     // Clear up any unacknowledged icon workers
-    for (auto& app : g_apps)
+    for (auto& app : _games.GetApps())
     {
       if (app.second.tex_icon.iWorker == 1)
       {
@@ -5924,21 +5925,21 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
     }
 
-    std::scoped_lock app_lock (g_apps_mutex);
+    std::scoped_lock app_lock (_games.GetMutex());
 
     // Clear current data
-    g_apps         = { };
-    g_apptickets   = { };
-    labels         = { };
-    labelsFiltered = { };
+    _games.GetApps() = {};
+    g_apptickets     = { };
+    labels           = { };
+    labelsFiltered   = { };
 
     // Insert new data
-    g_apps       = library_worker->apps;
-    g_apptickets = library_worker->apptickets;
-    labels       = library_worker->labels;
+    _games.GetApps() = library_worker->apps;
+    g_apptickets     = library_worker->apptickets;
+    labels           = library_worker->labels;
 
     // Move cached icons over
-    for (auto& app : g_apps)
+    for (auto& app : _games.GetApps())
     {
       for (auto& icon : icon_cache)
       {
@@ -5975,7 +5976,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     int tmpPinnedOnTop = 0;
 
     // Do other misc stuff
-    for (auto& app : g_apps)
+    for (auto& app : _games.GetApps())
     {
       if (app.second.id == 0)
         continue;
@@ -6022,7 +6023,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     if (resortGames)
     {
-      SKIF_GamingCollection::SortApps (&g_apps);
+      SKIF_GamingCollection::SortApps (&_games.GetApps());
       sort_changed = true;
     }
 
@@ -6030,7 +6031,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     numRegular       = 0;
     numPinnedOnTop   = 0;
 
-    for (auto& app : g_apps)
+    for (auto& app : _games.GetApps())
     {
       if (app.second.id == 0 || app.second.filtered)
         continue;
@@ -6071,7 +6072,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // Ensure pApp points to the current selected game
   // This should be the only place where pApp changes during the whole frame!
-  for (auto& app : g_apps)
+  for (auto& app : _games.GetApps())
     if (app.second.id == selection.appid && app.second.store == selection.store)
       pApp = &app.second;
 
@@ -6112,9 +6113,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       if (WaitForSingleObject (worker.hWorker, 0) == WAIT_OBJECT_0)
       {
-        std::scoped_lock app_lock (g_apps_mutex);
+        std::scoped_lock app_lock (_games.GetMutex());
 
-        for (auto& app : g_apps)
+        for (auto& app : _games.GetApps())
         {
           if (app.second.id    == worker.app.id &&
               app.second.store == worker.app.store)
@@ -6158,7 +6159,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     if (availableWorker != -1 && ! pApp->loading       && // We require an available worker
         (update                                        ||
          selection.dir_watch.isSignaled ( )            || // TODO: Investigate support for multiple launch configs? Right now only the "main" folder is being monitored
-        (_registry.bLibrarySteam && SKIF_Steam_HasActiveProcessChanged (&g_apps, &g_apptickets)) || // If Steam user signed in / out
+        (_registry.bLibrarySteam && SKIF_Steam_HasActiveProcessChanged (&_games.GetApps(), &g_apptickets)) || // If Steam user signed in / out
         _inject.libCacheRefresh                       )) // If the global DLL files have been changed
     {
       _inject.libCacheRefresh = false;
@@ -6170,7 +6171,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         // Parse appinfo data for the current game
         // This must be done from the main thread since it also manipulates the g_apps array
         if (! pApp->processed)
-          appinfo->getAppInfo ( pApp->id, &g_apps );
+          appinfo->getAppInfo ( pApp->id, &_games.GetApps() );
       }
 
       // Only run a worker if we're not dealing with Special K
@@ -6664,7 +6665,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     numPinnedOnTop = 0;
     numRegular     = 0;
 
-    for (auto& app : g_apps)
+    for (auto& app : _games.GetApps())
     {
       if (app.second.id == 0)
         continue;
@@ -6696,7 +6697,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     numPinnedOnTop = 0;
     numRegular     = 0;
 
-    for (auto& app : g_apps)
+    for (auto& app : _games.GetApps())
     {
       app.second.filtered = false;
 
@@ -6847,7 +6848,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // Start populating the list
 
-  if (g_apps.empty())
+  if (_games.GetApps().empty())
     ImGui::Selectable      ("Loading games...###GamesCurrentlyLoading", false, ImGuiSelectableFlags_Disabled);
 
   std::string current_category = "";
@@ -6864,7 +6865,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   bool categoryMenuOpened = false;
 
   // Populate the list of games with all recognized games
-  for (auto& app : g_apps)
+  for (auto& app : _games.GetApps())
   {
     // ID = 0 is assigned to corrupted entries, do not list these.
     if (app.second.id == 0)
@@ -7237,7 +7238,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         load_str = app.second.install_dir + L"\\goggame-" + std::to_wstring(app.second.id) + L".ico";
       else if (app.second.store  == app_record_s::Store::Steam)  // Steam
       {
-        appinfo->getAppInfo ( app.second.id, &g_apps );
+        appinfo->getAppInfo ( app.second.id, &_games.GetApps() );
         load_str = SK_FormatStringW(LR"(%ws\appcache\librarycache\%i\%hs.jpg)", _path_cache.steam_install, app.second.id, app.second.common_config.icon_hash.c_str ()); //L"_icon.jpg"
       }
       else if (app.second.store  == app_record_s::Store::Xbox)  // Xbox
@@ -7562,7 +7563,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       while (WaitForSingleObject (hRefreshSignal, INFINITE) == WAIT_OBJECT_0)
       {
-        SKIF_GamingCollection::RefreshRunningApps (&g_apps);
+        SKIF_GamingCollection::RefreshRunningApps (&_games.GetApps());
       }
 
       return 0;
@@ -8052,7 +8053,7 @@ SKIF_UI_Tab_DrawLibrary (void)
               ImVec2 dontCare;
 
               if (pApp->store == app_record_s::Store::Steam)
-                appinfo->getAppInfo ( pApp->id, &g_apps );
+                appinfo->getAppInfo ( pApp->id, &_games.GetApps() );
 
               // Reload the icon
               LoadLibraryTexture (LibraryTexture::Icon,
@@ -8130,7 +8131,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         bRecently   = false;
 
         _registry.regKVLibrarySort.putData (_registry.iLibrarySort);
-        SKIF_GamingCollection::SortApps (&g_apps);
+        SKIF_GamingCollection::SortApps (&_games.GetApps());
         sort_changed = true;
       }
 
@@ -8142,7 +8143,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         bRecently   = false;
 
         _registry.regKVLibrarySort.putData (_registry.iLibrarySort);
-        SKIF_GamingCollection::SortApps (&g_apps);
+        SKIF_GamingCollection::SortApps (&_games.GetApps());
         sort_changed = true;
       }
 
@@ -8156,7 +8157,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         bFrequently = false;
 
         _registry.regKVLibrarySort.putData (_registry.iLibrarySort);
-        SKIF_GamingCollection::SortApps (&g_apps);
+        SKIF_GamingCollection::SortApps (&_games.GetApps());
         sort_changed = true;
       }
 
@@ -9012,7 +9013,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         else if (resort)
         {
-          SKIF_GamingCollection::SortApps (&g_apps);
+          SKIF_GamingCollection::SortApps (&_games.GetApps());
           sort_changed = true;
         }
 
@@ -9196,13 +9197,13 @@ SKIF_UI_Tab_DrawLibrary (void)
           JsonDB_SetCategoryName (static_category.Name, static_category.newName);
 
           // Update g_apps
-          for (auto& app : g_apps)
+          for (auto& app : _games.GetApps())
           {
             if (app.second.skif.category == static_category.Name)
               app.second.skif.category    = static_category.newName;
           }
 
-          SKIF_GamingCollection::SortApps (&g_apps);
+          SKIF_GamingCollection::SortApps (&_games.GetApps());
 
           // If the category is being removed, or merged, delete the existing entry
           if (static_category.newName.empty() || static_category.exists)
@@ -9915,7 +9916,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       pSKLogoTexSRV_small.p = nullptr;
     }
 
-    for (auto& app : g_apps)
+    for (auto& app : _games.GetApps())
     {
       if (app.second.tex_icon.texture.p != nullptr)
       {
@@ -9942,7 +9943,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       bool fallbackAvailable = true;
 
-      for (auto& app : g_apps)
+      for (auto& app : _games.GetApps())
       {
         if (app.second.store != app_record_s::Store::Steam)
           continue;
@@ -9957,7 +9958,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           continue;
 
         //PLOG_DEBUG << "[AppInfo Processing] " << "[" << ImGui::GetFrameCount ( ) << "] Processing " << app.second.id << "...";
-        appinfo->getAppInfo ( app.second.id, &g_apps );
+        appinfo->getAppInfo ( app.second.id, &_games.GetApps());
 
         fallbackAvailable = false;
         break;

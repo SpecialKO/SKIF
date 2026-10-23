@@ -205,13 +205,12 @@ InsertTrieKey (std::pair <std::string, app_record_s>* app, Trie* labels)
 #pragma endregion
 
 
-extern std::recursive_mutex g_apps_mutex;
 
 // This sorts the app vector
 void
 SKIF_GamingCollection::SortApps (std::vector <std::pair <std::string, app_record_s> > *apps)
 {
-  std::scoped_lock app_lock (g_apps_mutex);
+  std::scoped_lock app_lock (SKIF_GamingCollection::Get().GetMutex());
 
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
@@ -330,7 +329,7 @@ SKIF_GamingCollection::RefreshRunningApps (std::vector <std::pair <std::string, 
 
   if (forced || (current_time > lastGameRefresh + 666 * focus_multiplier && current_time > last_checked + 333UL * focus_multiplier && (! ImGui::IsAnyMouseDown ( ))))
   {
-    std::scoped_lock app_lock (g_apps_mutex);
+    std::scoped_lock app_lock (SKIF_GamingCollection::Get().GetMutex());
 
     if (! forced)
       last_checked = current_time;
@@ -592,7 +591,7 @@ SKIF_GamingCollection::RefreshRunningApps (std::vector <std::pair <std::string, 
   }
 
   {
-    std::scoped_lock app_lock (g_apps_mutex);
+    std::scoped_lock app_lock (SKIF_GamingCollection::Get().GetMutex());
 
     // Push staging changes to actual state
     for (auto& app : *apps)

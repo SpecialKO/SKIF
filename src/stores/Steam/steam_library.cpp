@@ -34,6 +34,8 @@
 #include <utility/injection.h>
 #include <nlohmann/json.hpp>
 
+#include <utility/games.h>
+
 std::unique_ptr <skValveDataFile> appinfo = nullptr;
 
 SteamId3_t g_SteamUserID      = 0;
@@ -1456,8 +1458,7 @@ SKIF_Steam_UpdateAppState (app_record_s *pApp)
 
   if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_CURRENT_USER, SK_FormatStringW (LR"(SOFTWARE\Valve\Steam\Apps\%lu)", pApp->id).c_str(), 0, KEY_READ | KEY_WOW64_64KEY, &hKey))
   {
-    extern std::recursive_mutex g_apps_mutex;
-    std::scoped_lock app_lock  (g_apps_mutex);
+    std::scoped_lock app_lock  (SKIF_GamingCollection::Get().GetMutex());
 
     SKIF_Steam_GetAppStateDWORD (
       &hKey,   L"Installed",
