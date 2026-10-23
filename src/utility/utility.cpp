@@ -1689,8 +1689,32 @@ BOOL
 WINAPI
 SKIF_Util_CompactWorkingSet (void)
 {
+  using EmptyWorkingSet_pfn =
+    BOOL (WINAPI *)(HANDLE hProcess);
+
+  static EmptyWorkingSet_pfn
+    SKIF_EmptyWorkingSet =
+        (EmptyWorkingSet_pfn)GetProcAddress (LoadLibraryEx (L"kernel32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+     "K32EmptyWorkingSet");
+
+  static bool
+      runOnce = true;
+  if (runOnce)
+  {   runOnce = false;
+    // Windows Vista fallback
+    if (SKIF_EmptyWorkingSet == nullptr)
+    {
+      SKIF_EmptyWorkingSet =
+          (EmptyWorkingSet_pfn)GetProcAddress (LoadLibraryEx (L"psapi.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+       "K32EmptyWorkingSet");
+    }
+  }
+
+  if (SKIF_EmptyWorkingSet == nullptr)
+    return FALSE;
+
   return
-    EmptyWorkingSet (
+    SKIF_EmptyWorkingSet (
       SKIF_Util_GetCurrentProcess ()
     );
 }
@@ -1711,6 +1735,42 @@ SKIF_Util_GetProcessInfoHybridDetect (void)
   }
 
   return &procInfo;
+}
+
+BOOL
+WINAPI
+SKIF_Util_GetLogicalProcessorInformation (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION Buffer, PDWORD ReturnedLength)
+{
+  using GetLogicalProcessorInformation_pfn =
+    BOOL (WINAPI *)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION Buffer, PDWORD ReturnedLength);
+
+  static GetLogicalProcessorInformation_pfn
+    SKIF_GetLogicalProcessorInformation =
+        (GetLogicalProcessorInformation_pfn)GetProcAddress (LoadLibraryEx (L"kernel32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "GetLogicalProcessorInformation");
+
+  if (SKIF_GetLogicalProcessorInformation == nullptr)
+    return FALSE;
+
+  return SKIF_GetLogicalProcessorInformation (Buffer, ReturnedLength);
+}
+
+BOOL
+WINAPI
+SKIF_Util_GetLogicalProcessorInformationEx (LOGICAL_PROCESSOR_RELATIONSHIP RelationshipType, PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX Buffer, PDWORD ReturnedLength)
+{
+  using GetLogicalProcessorInformationEx_pfn =
+    BOOL (WINAPI *)(LOGICAL_PROCESSOR_RELATIONSHIP RelationshipType, PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX Buffer, PDWORD ReturnedLength);
+
+  static GetLogicalProcessorInformationEx_pfn
+    SKIF_GetLogicalProcessorInformationEx =
+        (GetLogicalProcessorInformationEx_pfn)GetProcAddress (LoadLibraryEx (L"kernel32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "GetLogicalProcessorInformationEx");
+
+  if (SKIF_GetLogicalProcessorInformationEx == nullptr)
+    return FALSE;
+
+  return SKIF_GetLogicalProcessorInformationEx (RelationshipType, Buffer, ReturnedLength);
 }
 
 BOOL
@@ -1741,9 +1801,9 @@ SKIF_Util_SetThreadPrefersECores (void)
 
   bool succeeded = false;
 
-  // From Intel's Game Dev Guide for 12th Gen Intel® Core™ Processor:
-  //  - CPU Sets provide APIs to declare application thread affinity in a “soft” manner that is compatible with OS power management (unlike the ThreadAffinityMask APIs).
-  //  - SetThreadAffinityMask() is in the “strong” affinity class of Windows API functions.
+  // From Intel's Game Dev Guide for 12th Gen Intel Core Processor:
+  //  - CPU Sets provide APIs to declare application thread affinity in a "soft" manner that is compatible with OS power management (unlike the ThreadAffinityMask APIs).
+  //  - SetThreadAffinityMask() is in the "strong" affinity class of Windows API functions.
   //
   // Enforcing E-core usage at the thread level using CPU sets seems pretty spotty with little effect, according to Intel VTune Profiler,
   //   however setting it using an affinity mask means any new child process inherits the affinity mask, which we absolutely do not want!
@@ -1820,6 +1880,24 @@ SKIF_Util_SetThreadSelectedCpuSets (HANDLE hThread, const ULONG* CpuSetIds, ULON
   return SKIF_SetThreadSelectedCpuSets (hThread, CpuSetIds, CpuSetIdCount);
 }
 
+BOOL
+WINAPI
+SKIF_Util_SetThreadGroupAffinity (HANDLE hThread, const GROUP_AFFINITY* GroupAffinity, PGROUP_AFFINITY PreviousGroupAffinity)
+{
+  using SetThreadGroupAffinity_pfn =
+    BOOL (WINAPI *)(HANDLE hThread, const GROUP_AFFINITY* GroupAffinity, PGROUP_AFFINITY PreviousGroupAffinity);
+
+  static SetThreadGroupAffinity_pfn
+    SKIF_SetThreadGroupAffinity =
+        (SetThreadGroupAffinity_pfn)GetProcAddress (LoadLibraryEx(L"kernel32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "SetThreadGroupAffinity");
+
+  if (SKIF_SetThreadGroupAffinity == nullptr)
+    return 0;
+
+  return SKIF_SetThreadGroupAffinity (hThread, GroupAffinity, PreviousGroupAffinity);
+}
+
 // Sets the power throttling execution speed (EcoQoS) of a thread
 //   1 = enable; 0 = disable; -1 = auto-managed
 bool
@@ -1869,9 +1947,9 @@ SKIF_Util_SetProcessPrefersECores (void)
 
   bool succeeded = false;
 
-  // From Intel's Game Dev Guide for 12th Gen Intel® Core™ Processor:
-  //  - CPU Sets provide APIs to declare application thread affinity in a “soft” manner that is compatible with OS power management (unlike the ThreadAffinityMask APIs).
-  //  - SetThreadAffinityMask() is in the “strong” affinity class of Windows API functions.
+  // From Intel's Game Dev Guide for 12th Gen Intel Core Processor:
+  //  - CPU Sets provide APIs to declare application thread affinity in a "soft" manner that is compatible with OS power management (unlike the ThreadAffinityMask APIs).
+  //  - SetThreadAffinityMask() is in the "strong" affinity class of Windows API functions.
   //
   // Enforcing E-core usage at the thread level using CPU sets seems pretty spotty with little effect, according to Intel VTune Profiler,
   //   however setting it using an affinity mask means any new child process inherits the affinity mask, which we absolutely do not want!
@@ -1903,9 +1981,9 @@ SKIF_Util_SetProcessPrefersAnyCores (void)
 
   bool succeeded = false;
 
-  // From Intel's Game Dev Guide for 12th Gen Intel® Core™ Processor:
-  //  - CPU Sets provide APIs to declare application thread affinity in a “soft” manner that is compatible with OS power management (unlike the ThreadAffinityMask APIs).
-  //  - SetThreadAffinityMask() is in the “strong” affinity class of Windows API functions.
+  // From Intel's Game Dev Guide for 12th Gen Intel Core Processor:
+  //  - CPU Sets provide APIs to declare application thread affinity in a "soft" manner that is compatible with OS power management (unlike the ThreadAffinityMask APIs).
+  //  - SetThreadAffinityMask() is in the "strong" affinity class of Windows API functions.
   //
   // Enforcing E-core usage at the thread level using CPU sets seems pretty spotty with little effect, according to Intel VTune Profiler,
   //   however setting it using an affinity mask means any new child process inherits the affinity mask, which we absolutely do not want!
@@ -1989,6 +2067,55 @@ SKIF_Util_SetProcessMemoryPriority (HANDLE processHandle, ULONG memoryPriority)
   memoryPriorityInfo.MemoryPriority = memoryPriority;
 
   return SKIF_Util_SetProcessInformation (processHandle, ProcessMemoryPriority, &memoryPriorityInfo, sizeof(memoryPriorityInfo));
+}
+
+DWORD
+WINAPI
+SKIF_Util_GetProcessImageFileNameW (HANDLE hProcess, LPWSTR lpImageFileName, DWORD nSize)
+{
+  using GetProcessImageFileNameW_pfn =
+    BOOL (WINAPI *)(HANDLE hProcess, LPWSTR lpImageFileName, DWORD nSize);
+
+  static GetProcessImageFileNameW_pfn
+    SKIF_GetProcessImageFileNameW =
+        (GetProcessImageFileNameW_pfn)GetProcAddress (LoadLibraryEx (L"kernel32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+     "K32GetProcessImageFileNameW");
+
+  static bool
+      runOnce = true;
+  if (runOnce)
+  {   runOnce = false;
+    // Windows Vista fallback
+    if (SKIF_GetProcessImageFileNameW == nullptr)
+    {
+      SKIF_GetProcessImageFileNameW =
+          (GetProcessImageFileNameW_pfn)GetProcAddress (LoadLibraryEx (L"psapi.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+          "GetProcessImageFileNameW");
+    }
+  }
+
+  if (SKIF_GetProcessImageFileNameW == nullptr)
+    return 0;
+
+  return SKIF_GetProcessImageFileNameW (hProcess, lpImageFileName, nSize);
+}
+
+HRESULT
+WINAPI
+SKIF_Util_SetCurrentProcessExplicitAppUserModelID (PCWSTR AppID)
+{
+  using SetCurrentProcessExplicitAppUserModelID_pfn =
+    HRESULT (WINAPI *)(PCWSTR AppID);
+
+  static SetCurrentProcessExplicitAppUserModelID_pfn
+    SKIF_SetCurrentProcessExplicitAppUserModelID =
+        (SetCurrentProcessExplicitAppUserModelID_pfn)GetProcAddress (LoadLibraryEx (L"shell32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "SetCurrentProcessExplicitAppUserModelID");
+
+  if (SKIF_SetCurrentProcessExplicitAppUserModelID == nullptr)
+    return E_NOTIMPL;
+
+  return SKIF_SetCurrentProcessExplicitAppUserModelID (AppID);
 }
 
 bool
@@ -2586,7 +2713,7 @@ SKIF_Util_SaveExtractExeIcon (std::wstring sourcePath, std::wstring targetPath)
 bool
 SKIF_Util_GetDragFromMaximized (bool refresh)
 {
-  // DragFromMaximize and WindowArrangementActive regístry keys are used since at least Windows 7
+  // DragFromMaximize and WindowArrangementActive registry keys are used since at least Windows 7
   // For some bloody reason these are _string_ registry values that holds a '1' or a '0'... WTF?!
 
   static int state = -1;
@@ -3572,6 +3699,24 @@ SKIF_Util_ExtractFromZip (PCWSTR zipPath, PCWSTR destDir, std::vector <std::pair
   return hr;
 }
 
+HRESULT
+WINAPI
+SKIF_Util_SHGetKnownFolderItem (REFKNOWNFOLDERID rfid, KNOWN_FOLDER_FLAG flags, HANDLE hToken, REFIID riid, void** ppv)
+{
+  using SHGetKnownFolderItem_pfn =
+    HRESULT (WINAPI *)(REFKNOWNFOLDERID rfid, KNOWN_FOLDER_FLAG flags, HANDLE hToken, REFIID riid, void** ppv);
+
+  static SHGetKnownFolderItem_pfn
+    SKIF_SHGetKnownFolderItem =
+        (SHGetKnownFolderItem_pfn)GetProcAddress (LoadLibraryEx (L"shell32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "SHGetKnownFolderItem");
+
+  if (SKIF_SHGetKnownFolderItem == nullptr)
+    return E_NOTIMPL;
+
+  return SKIF_SHGetKnownFolderItem (rfid, flags, hToken, riid, ppv);
+}
+
 // Effective Power Mode (Windows 10 1809+)
 typedef enum EFFECTIVE_POWER_MODE {
     EffectivePowerModeNone    = -1,   // Used as default value if querying failed
@@ -3844,6 +3989,77 @@ struct IDisplayInformationStaticsInterop : IInspectable
 
 // End stupid declarations
 
+LONG
+WINAPI
+SKIF_Util_DisplayConfigSetDeviceInfo (DISPLAYCONFIG_DEVICE_INFO_HEADER * setPacket)
+{
+  using DisplayConfigSetDeviceInfo_pfn =
+    HRESULT (WINAPI *)(DISPLAYCONFIG_DEVICE_INFO_HEADER* setPacket);
+
+  static DisplayConfigSetDeviceInfo_pfn
+    SKIF_DisplayConfigSetDeviceInfo =
+        (DisplayConfigSetDeviceInfo_pfn)GetProcAddress (LoadLibraryEx (L"user32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "DisplayConfigSetDeviceInfo");
+
+  if (SKIF_DisplayConfigSetDeviceInfo == nullptr)
+    return E_NOTIMPL;
+
+  return SKIF_DisplayConfigSetDeviceInfo (setPacket);
+}
+
+LONG
+WINAPI
+SKIF_Util_DisplayConfigGetDeviceInfo (DISPLAYCONFIG_DEVICE_INFO_HEADER *getPacket)
+{
+  using DisplayConfigGetDeviceInfo_pfn =
+    HRESULT (WINAPI *)(DISPLAYCONFIG_DEVICE_INFO_HEADER* getPacket);
+
+  static DisplayConfigGetDeviceInfo_pfn
+    SKIF_DisplayConfigGetDeviceInfo =
+        (DisplayConfigGetDeviceInfo_pfn)GetProcAddress (LoadLibraryEx (L"user32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "DisplayConfigGetDeviceInfo");
+
+  if (SKIF_DisplayConfigGetDeviceInfo == nullptr)
+    return E_NOTIMPL;
+
+  return SKIF_DisplayConfigGetDeviceInfo (getPacket);
+}
+
+LONG
+WINAPI
+SKIF_Util_GetDisplayConfigBufferSizes (UINT32 flags, UINT32 *numPathArrayElements, UINT32 *numModeInfoArrayElements)
+{
+  using GetDisplayConfigBufferSizes_pfn =
+    HRESULT (WINAPI *)(UINT32 flags, UINT32 *numPathArrayElements, UINT32 *numModeInfoArrayElements);
+
+  static GetDisplayConfigBufferSizes_pfn
+    SKIF_GetDisplayConfigBufferSizes =
+        (GetDisplayConfigBufferSizes_pfn)GetProcAddress (LoadLibraryEx (L"user32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "GetDisplayConfigBufferSizes");
+
+  if (SKIF_GetDisplayConfigBufferSizes == nullptr)
+    return E_NOTIMPL;
+
+  return SKIF_GetDisplayConfigBufferSizes (flags, numPathArrayElements, numModeInfoArrayElements);
+}
+
+LONG
+WINAPI
+SKIF_Util_QueryDisplayConfig (UINT32 flags, UINT32 *numPathArrayElements, DISPLAYCONFIG_PATH_INFO *pathArray, UINT32 *numModeInfoArrayElements, DISPLAYCONFIG_MODE_INFO *modeInfoArray, DISPLAYCONFIG_TOPOLOGY_ID *currentTopologyId)
+{
+  using QueryDisplayConfig_pfn =
+    HRESULT (WINAPI *)(UINT32 flags, UINT32* numPathArrayElements, DISPLAYCONFIG_PATH_INFO* pathArray, UINT32* numModeInfoArrayElements, DISPLAYCONFIG_MODE_INFO* modeInfoArray, DISPLAYCONFIG_TOPOLOGY_ID* currentTopologyId);
+
+  static QueryDisplayConfig_pfn
+    SKIF_QueryDisplayConfig =
+        (QueryDisplayConfig_pfn)GetProcAddress (LoadLibraryEx (L"user32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "QueryDisplayConfig");
+
+  if (SKIF_QueryDisplayConfig == nullptr)
+    return E_NOTIMPL;
+
+  return SKIF_QueryDisplayConfig (flags, numPathArrayElements, pathArray, numModeInfoArrayElements, modeInfoArray, currentTopologyId);
+}
 
 // This actually updates the underlying vector
 static void
@@ -3870,7 +4086,7 @@ SKIF_UtilInt_UpdateMonitors (void)
   {
     // Determine how many path and mode structures to allocate
     UINT32 pathCount, modeCount;
-    result = GetDisplayConfigBufferSizes (QDC_ONLY_ACTIVE_PATHS, &pathCount, &modeCount);
+    result = SKIF_Util_GetDisplayConfigBufferSizes (QDC_ONLY_ACTIVE_PATHS, &pathCount, &modeCount);
 
     if (result != ERROR_SUCCESS)
     {
@@ -3883,7 +4099,7 @@ SKIF_UtilInt_UpdateMonitors (void)
     modeArray.resize(modeCount);
 
     // Get all active paths and their modes
-    result = QueryDisplayConfig ( QDC_ONLY_ACTIVE_PATHS, &pathCount, pathArray.data(),
+    result = SKIF_Util_QueryDisplayConfig ( QDC_ONLY_ACTIVE_PATHS, &pathCount, pathArray.data(),
                                                          &modeCount, modeArray.data(), nullptr);
 
     // The function may have returned fewer paths/modes than estimated
@@ -3947,7 +4163,7 @@ SKIF_UtilInt_UpdateMonitors (void)
       sourceName.header.type      = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
       sourceName.header.size      =  sizeof (DISPLAYCONFIG_SOURCE_DEVICE_NAME);
 
-    if (ERROR_SUCCESS != DisplayConfigGetDeviceInfo ((DISPLAYCONFIG_DEVICE_INFO_HEADER*)&sourceName))
+    if (ERROR_SUCCESS != SKIF_Util_DisplayConfigGetDeviceInfo ((DISPLAYCONFIG_DEVICE_INFO_HEADER*)&sourceName))
         continue;
 
     // Find the monitor handle with the same device name
@@ -3973,7 +4189,7 @@ SKIF_UtilInt_UpdateMonitors (void)
         getDisplayHDR.header.type       = DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO_2;
         getDisplayHDR.header.size       = sizeof (getDisplayHDR);
 
-      if (ERROR_SUCCESS == DisplayConfigGetDeviceInfo (&getDisplayHDR.header))
+      if (ERROR_SUCCESS == SKIF_Util_DisplayConfigGetDeviceInfo (&getDisplayHDR.header))
       {
         readerVersion = RV_Win32v2;
 
@@ -3995,7 +4211,7 @@ SKIF_UtilInt_UpdateMonitors (void)
           getSDRWhiteLevel.header.type      = DISPLAYCONFIG_DEVICE_INFO_GET_SDR_WHITE_LEVEL;
           getSDRWhiteLevel.header.size      =         sizeof (DISPLAYCONFIG_SDR_WHITE_LEVEL);
 
-        if (ERROR_SUCCESS == DisplayConfigGetDeviceInfo (&getSDRWhiteLevel.header))
+        if (ERROR_SUCCESS == SKIF_Util_DisplayConfigGetDeviceInfo (&getSDRWhiteLevel.header))
         {
           // SDRWhiteLevel represents a multiplier for standard SDR white
           // peak value i.e. 80 nits represented as fixed point.
@@ -4077,7 +4293,7 @@ SKIF_UtilInt_UpdateMonitors (void)
         getDisplayHDR.header.type       = DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO;
         getDisplayHDR.header.size       = sizeof (getDisplayHDR);
 
-      if (ERROR_SUCCESS == DisplayConfigGetDeviceInfo (&getDisplayHDR.header))
+      if (ERROR_SUCCESS == SKIF_Util_DisplayConfigGetDeviceInfo (&getDisplayHDR.header))
       {
         readerVersion = RV_Win32v1;
 
@@ -4099,7 +4315,7 @@ SKIF_UtilInt_UpdateMonitors (void)
           getSDRWhiteLevel.header.type      = DISPLAYCONFIG_DEVICE_INFO_GET_SDR_WHITE_LEVEL;
           getSDRWhiteLevel.header.size      =         sizeof (DISPLAYCONFIG_SDR_WHITE_LEVEL);
 
-        if (ERROR_SUCCESS == DisplayConfigGetDeviceInfo (&getSDRWhiteLevel.header))
+        if (ERROR_SUCCESS == SKIF_Util_DisplayConfigGetDeviceInfo (&getSDRWhiteLevel.header))
         {
           // SDRWhiteLevel represents a multiplier for standard SDR white
           // peak value i.e. 80 nits represented as fixed point.
@@ -4232,11 +4448,11 @@ SKIF_Util_EnableHDROutput (void)
         setHDRState.header.type         = DISPLAYCONFIG_DEVICE_INFO_SET_ADVANCED_COLOR_STATE;
         setHDRState.header.size         =     sizeof (DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE);
 
-      result = DisplayConfigSetDeviceInfo ((DISPLAYCONFIG_DEVICE_INFO_HEADER*)&setHDRState);
+      result = SKIF_Util_DisplayConfigSetDeviceInfo ((DISPLAYCONFIG_DEVICE_INFO_HEADER*)&setHDRState);
 
       if (ERROR_SUCCESS != result)
       {
-        PLOG_ERROR << "DisplayConfigGetDeviceInfo failed: " << SKIF_Util_GetErrorAsWStr (result);
+        PLOG_ERROR << "DisplayConfigSetDeviceInfo failed: " << SKIF_Util_GetErrorAsWStr (result);
         break;
       }
 
@@ -4253,6 +4469,9 @@ SKIF_Util_UpdateMonitors (void)
 {
   g_WantUpdateMonitors = true;
 }
+
+
+// Global hotkeys
 
 // Register a hotkey for toggling HDR on a per-display basis (WinKey + Ctrl + Shift + H)
 bool
@@ -5228,7 +5447,7 @@ SKIF_Util_ResolveShortcut (HWND hwnd, LPCWSTR lpszLinkFile, LPWSTR lpszTarget, L
 
           // Get the arguments of the target.
           // In the case of a Unicode string, there is no limitation on maximum string length.
-          // In the case of an ANSI string, the maximum length of the returned string varies depending on the version of Windows—MAX_PATH prior to Windows 2000 and INFOTIPSIZE (defined in Commctrl.h) in Windows 2000 and later.
+          // In the case of an ANSI string, the maximum length of the returned string varies depending on the version of Windows; MAX_PATH prior to Windows 2000 and INFOTIPSIZE (defined in Commctrl.h) in Windows 2000 and later.
           if (SUCCEEDED (psl->GetArguments (szArguments, 1024)))
             StringCbCopy (lpszArguments, iPathBufferSize, szArguments);
         }
@@ -5701,7 +5920,7 @@ SKIF_Util_GetWindowMessageAsStr (UINT msg)
   // Some remaining reserved undefined system messages...
   // And then the end of the 0-1023 system messages (0 - (WM_USER-1)).
 
-  //       0 - (WM_USER – 1)  Messages reserved for use by the system.
+  //       0 - (WM_USER ï¿½ 1)  Messages reserved for use by the system.
   // WM_USER -  0x7FFF        Integer messages for use by private window classes.
   //  WM_APP -  0xBFFF        Messages available for use by applications.
   //  0xC000 -  0xFFFF        String messages for use by applications.

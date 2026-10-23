@@ -407,14 +407,14 @@ public:
 		: m_pinfoBase(nullptr), m_pinfoCurrent(nullptr), m_cbRemaining(0)
 	{
 		DWORD cb = 0;
-		if (GetLogicalProcessorInformationEx(Relationship,
+		if (SKIF_Util_GetLogicalProcessorInformationEx(Relationship,
 			nullptr, &cb)) return;
 		if (GetLastError() != ERROR_INSUFFICIENT_BUFFER) return;
 		m_pinfoBase =
 			reinterpret_cast<SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*>
 			(LocalAlloc(LMEM_FIXED, cb));
 		if (!m_pinfoBase) return;
-		if (!GetLogicalProcessorInformationEx(Relationship,
+		if (!SKIF_Util_GetLogicalProcessorInformationEx(Relationship,
 			m_pinfoBase, &cb)) return;
 		m_pinfoCurrent = m_pinfoBase;
 		m_cbRemaining = cb;
@@ -550,7 +550,7 @@ inline bool GetLogicalProcessors(PROCESSOR_INFO& procInfo)
 
 	while (true)
 	{
-		if (!GetLogicalProcessorInformation(procInfoStart, &length))
+		if (!SKIF_Util_GetLogicalProcessorInformation(procInfoStart, &length))
 		{
 			if (GetLastError() == ERROR_INSUFFICIENT_BUFFER)
 			{
@@ -834,7 +834,7 @@ inline void GetProcessorInfo(PROCESSOR_INFO& procInfo)
 			nextGroup.Group          = (WORD)group;
 			nextGroup.Mask           = 0xffffffff;
 
-			SetThreadGroupAffinity(GetCurrentThread(), &nextGroup, &prevGroup);
+      SKIF_Util_SetThreadGroupAffinity(GetCurrentThread(), &nextGroup, &prevGroup);
 
 			HYBRID_DETECT_TRACE(5, "=== group = %d, procInfo.groups[group].maximumProcessorCount = %d, procInfo.groups[group].activeProcessorCount = %d", group,
 				procInfo.groups[group].maximumProcessorCount, procInfo.groups[group].activeProcessorCount);
@@ -975,7 +975,7 @@ inline void GetProcessorInfo(PROCESSOR_INFO& procInfo)
 
 
 			// Reset Group Affinity
-			SetThreadGroupAffinity(GetCurrentThread(), &prevGroup, nullptr);
+      SKIF_Util_SetThreadGroupAffinity(GetCurrentThread(), &prevGroup, nullptr);
 		}
 
 		// Reset Process Affinity Mask

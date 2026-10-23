@@ -1273,8 +1273,8 @@ SKIF_UI_Tab_DrawMonitor (void)
               // If some form of injection was detected, add it to the list
               if (_registry.bProcessIncludeAll || proc.status != 255)
               {
-                wchar_t                                wszProcessName [MAX_PATH + 2] = { };
-                GetProcessImageFileNameW (hProcessSrc, wszProcessName, MAX_PATH);
+                wchar_t                                          wszProcessName [MAX_PATH + 2] = { };
+                SKIF_Util_GetProcessImageFileNameW (hProcessSrc, wszProcessName, MAX_PATH);
 
                 std::wstring friendlyPath = std::wstring(wszProcessName);
 

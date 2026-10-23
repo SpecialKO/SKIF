@@ -151,7 +151,7 @@ GetMPOSupport (void)
     targetName.header.type                 = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME;
     targetName.header.size                 = sizeof (targetName);
 
-    result = DisplayConfigGetDeviceInfo (&targetName.header);
+    result = SKIF_Util_DisplayConfigGetDeviceInfo (&targetName.header);
 
     std::wstring monitorName = (targetName.flags.friendlyNameFromEdid ? targetName.monitorFriendlyDeviceName
                                                                       : L"Unknown");
@@ -168,7 +168,7 @@ GetMPOSupport (void)
     adapterName.header.type                = DISPLAYCONFIG_DEVICE_INFO_GET_ADAPTER_NAME;
     adapterName.header.size                = sizeof (adapterName);
 
-    result = DisplayConfigGetDeviceInfo (&adapterName.header);
+    result = SKIF_Util_DisplayConfigGetDeviceInfo (&adapterName.header);
 
     if (result != ERROR_SUCCESS)
     {
@@ -183,7 +183,7 @@ GetMPOSupport (void)
     sourceName.header.type                 = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
     sourceName.header.size                 = sizeof (sourceName);
 
-    result = DisplayConfigGetDeviceInfo (&sourceName.header);
+    result = SKIF_Util_DisplayConfigGetDeviceInfo (&sourceName.header);
 
     if (result != ERROR_SUCCESS)
     {

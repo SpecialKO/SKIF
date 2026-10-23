@@ -15,6 +15,7 @@
 #include <shobjidl_core.h>
 #include <KnownFolders.h>
 #include <utility/sk_utility.h>
+#include <shlobj_core.h>
 
 #pragma comment(lib, "wininet.lib")
 
@@ -178,12 +179,15 @@ std::wstring    SKIF_Util_GetFileVersion              (const wchar_t* wszName);
 std::wstring    SKIF_Util_GetSpecialKDLLVersion       (const wchar_t* wszName);
 std::wstring    SKIF_Util_GetProductName              (const wchar_t* wszName);
 PEBitness       SKIF_Util_GetBinaryType               (const LPCTSTR pszPathToBinary);
+BOOL    WINAPI  SKIF_Util_GetLogicalProcessorInformation   (                                                 PSYSTEM_LOGICAL_PROCESSOR_INFORMATION    Buffer, PDWORD ReturnedLength);
+BOOL    WINAPI  SKIF_Util_GetLogicalProcessorInformationEx (LOGICAL_PROCESSOR_RELATIONSHIP RelationshipType, PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX Buffer, PDWORD ReturnedLength);
 BOOL    WINAPI  SKIF_Util_CompactWorkingSet           (void);
 BOOL    WINAPI  SKIF_Util_GetSystemCpuSetInformation  (PSYSTEM_CPU_SET_INFORMATION Information, ULONG BufferLength, PULONG ReturnedLength, HANDLE Process, ULONG Flags);
 bool            SKIF_Util_SetThreadPrefersECores      (void);
 BOOL    WINAPI  SKIF_Util_SetThreadInformation        (HANDLE hThread,  THREAD_INFORMATION_CLASS ThreadInformationClass, LPVOID ThreadInformation, DWORD ThreadInformationSize);
 HRESULT WINAPI  SKIF_Util_SetThreadDescription        (HANDLE hThread,  PCWSTR lpThreadDescription);
 BOOL    WINAPI  SKIF_Util_SetThreadSelectedCpuSets    (HANDLE hThread,  const ULONG *CpuSetIds, ULONG CpuSetIdCount);
+BOOL    WINAPI  SKIF_Util_SetThreadGroupAffinity      (HANDLE hThread, const GROUP_AFFINITY* GroupAffinity, PGROUP_AFFINITY PreviousGroupAffinity);
 bool            SKIF_Util_SetThreadPowerThrottling    (HANDLE threadHandle, INT state);
 bool            SKIF_Util_SetThreadMemoryPriority     (HANDLE threadHandle, ULONG memoryPriority);
 bool            SKIF_Util_IsHybridCPU                 (void);
@@ -193,6 +197,8 @@ BOOL    WINAPI  SKIF_Util_SetProcessDefaultCpuSets    (HANDLE hProcess, const UL
 BOOL    WINAPI  SKIF_Util_SetProcessInformation       (HANDLE hProcess, PROCESS_INFORMATION_CLASS ProcessInformationClass, LPVOID ProcessInformation, DWORD ProcessInformationSize);
 bool            SKIF_Util_SetProcessPowerThrottling   (HANDLE processHandle, INT state);
 bool            SKIF_Util_SetProcessMemoryPriority    (HANDLE processHandle, ULONG memoryPriority);
+DWORD   WINAPI  SKIF_Util_GetProcessImageFileNameW    (HANDLE hProcess, LPWSTR lpImageFileName, DWORD nSize);
+HRESULT WINAPI  SKIF_Util_SetCurrentProcessExplicitAppUserModelID (PCWSTR AppID);
 bool            SKIF_Util_IsWindows8Point1OrGreater   (void);
 bool            SKIF_Util_IsWindows10OrGreater        (void);
 bool            SKIF_Util_IsWindows10v1709OrGreater   (void);
@@ -229,6 +235,7 @@ bool            SKIF_Util_AllowDarkModeForApp         (bool allow);
 PreferredAppMode SKIF_Util_SetPreferredAppMode        (PreferredAppMode mode);
 void            SKIF_Util_UpdateAppColorMode          (void);
 HRESULT         SKIF_Util_ExtractFromZip              (PCWSTR zipPath, PCWSTR destDir, std::vector <std::pair <std::wstring, HRESULT>>* innerPaths);
+HRESULT WINAPI  SKIF_Util_SHGetKnownFolderItem        (REFKNOWNFOLDERID rfid, KNOWN_FOLDER_FLAG flags, HANDLE hToken, REFIID riid, void** ppv);
 std::string     SKIF_Util_GetWindowMessageAsStr       (UINT msg);
 
 
@@ -240,11 +247,19 @@ void            SKIF_Util_SetEffectivePowerModeNotifications (bool enable);
 
 // High Dynamic Range (HDR)
 
+LONG    WINAPI  SKIF_Util_DisplayConfigSetDeviceInfo  (DISPLAYCONFIG_DEVICE_INFO_HEADER *setPacket);
+LONG    WINAPI  SKIF_Util_DisplayConfigGetDeviceInfo  (DISPLAYCONFIG_DEVICE_INFO_HEADER *getPacket);
+LONG    WINAPI  SKIF_Util_GetDisplayConfigBufferSizes (UINT32 flags, UINT32 *numPathArrayElements, UINT32 *numModeInfoArrayElements);
+LONG    WINAPI  SKIF_Util_QueryDisplayConfig          (UINT32 flags, UINT32 *numPathArrayElements, DISPLAYCONFIG_PATH_INFO *pathArray, UINT32 *numModeInfoArrayElements, DISPLAYCONFIG_MODE_INFO *modeInfoArray, DISPLAYCONFIG_TOPOLOGY_ID *currentTopologyId);
 bool            SKIF_Util_IsHDRSupported              (HMONITOR hMonitor);
 bool            SKIF_Util_IsHDRActive                 (HMONITOR hMonitor);
 float           SKIF_Util_GetSDRWhiteLevel            (HMONITOR hMonitor);
 bool            SKIF_Util_EnableHDROutput             (void);
 void            SKIF_Util_UpdateMonitors              (void); // Triggers a refresh of the data that feeds all of the above; called by WM_DISPLAYCHANGE
+
+
+// Global hotkeys
+
 bool            SKIF_Util_RegisterHotKeyHDRToggle     (const SK_Keybind* binding);
 bool            SKIF_Util_UnregisterHotKeyHDRToggle   (void);
 bool            SKIF_Util_GetHotKeyStateHDRToggle     (void);

@@ -1,4 +1,4 @@
-﻿//
+//
 // Copyright 2020 - 2026  Andon "Kaldaien" Coleman and Aemony
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -1665,8 +1665,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   }
 
   // Sets the current process app user model ID (used for jump lists and the like)
-  if (FAILED (SetCurrentProcessExplicitAppUserModelID (SKIF_AppUserModelID)))
-    PLOG_ERROR << "Call to SetCurrentProcessExplicitAppUserModelID failed!";
+  if (FAILED (SKIF_Util_SetCurrentProcessExplicitAppUserModelID (SKIF_AppUserModelID)))
+    PLOG_ERROR << "Call to SKIF_Util_SetCurrentProcessExplicitAppUserModelID failed!";
 
   // Load the SKIF.exe module (used to populate the icon here and there)
   hModSKIF =
