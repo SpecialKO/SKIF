@@ -107,6 +107,19 @@ SKIF_LibraryArtwork::StartCoverWorker (app_record_s* pApp)
   // Counted until the thread no longer uses the record (IsUsingRecords)
   m_coverWorkers++;
 
+  struct thread_s {
+    app_record_s* app;
+    bool          queryPCGW; // Look up a PCGamingWiki cover: decided (and marked on the record) here, on the main thread
+  };
+
+  thread_s* data = new thread_s { pApp, false };
+
+  if (pApp != nullptr && pApp->WantsPCGWCover ( ) && ! pApp->tex_cover.queriedPCGW)
+  {
+    pApp->tex_cover.queriedPCGW = true; // Reset by a cover reset (DeleteStoreCoverFiles), which re-queries
+    data->queryPCGW             = true;
+  }
+
   // We're going to stream the cover in asynchronously on this thread
   //   The record is passed in, rather than read from the selection once the thread runs
   HANDLE hWorkerThread = (HANDLE)
@@ -120,8 +133,12 @@ SKIF_LibraryArtwork::StartCoverWorker (app_record_s* pApp)
 
     PLOG_DEBUG  << "Streaming game cover asynchronously...";
 
-    app_record_s*        _pApp = static_cast <app_record_s*> (var);
-    SKIF_LibraryArtwork& self  = SKIF_LibraryArtwork::Get ( );
+    thread_s*            _data      = static_cast <thread_s*> (var);
+    app_record_s*        _pApp      = _data->app;
+    bool                 _queryPCGW = _data->queryPCGW;
+    SKIF_LibraryArtwork& self       = SKIF_LibraryArtwork::Get ( );
+
+    delete _data;
 
     if (_pApp == nullptr)
     {
@@ -138,7 +155,7 @@ SKIF_LibraryArtwork::StartCoverWorker (app_record_s* pApp)
     //PLOG_VERBOSE << "queuePos = " << result.queuePos;
 
     // Store-specific: fetch or download the store's cover (Steam, Epic, Xbox, PCGamingWiki)
-    std::wstring load_str = _pApp->PrepareCoverSource ( );
+    std::wstring load_str = _pApp->PrepareCoverSource (_queryPCGW);
 
     LoadLibraryTextureEx ( LibraryTexture::Cover,
                               _pApp->id,
@@ -161,7 +178,7 @@ SKIF_LibraryArtwork::StartCoverWorker (app_record_s* pApp)
     PostMessage (SKIF_Notify_hWnd, WM_SKIF_COVER, 0x0, 0x0);
 
     return 0;
-  }, pApp, 0x0, nullptr);
+  }, data, 0x0, nullptr);
 
   if (hWorkerThread != NULL)
     CloseHandle (hWorkerThread);
@@ -169,6 +186,7 @@ SKIF_LibraryArtwork::StartCoverWorker (app_record_s* pApp)
   else // Something went wrong during thread creation: nothing is loading
   {
     PLOG_ERROR << "Failed to start the cover worker thread!";
+    delete data;
     m_coverWorkers--;
     m_coverLoading.store (false);
     m_tryingToLoadCover = false;

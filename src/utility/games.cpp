@@ -261,8 +261,6 @@ SKIF_GamingCollection::RefreshRunningApps (app_list_t *apps, bool forced)
   static DWORD lastGameRefresh = 0;
   static std::wstring exeSteam = L"steam.exe";
 
-  extern bool steamRunning;
-  extern bool steamFallback;
 
   DWORD        current_time = SKIF_Util_timeGetTime ( );
   static DWORD last_checked = 0;

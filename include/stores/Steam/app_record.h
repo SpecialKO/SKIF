@@ -507,7 +507,8 @@ struct app_record_s {
   //   The source hint comes from PrepareCoverSource ( ) / GetIconSource ( ) and is passed through LoadLibraryTexture.
   std::wstring         FindCustomArtwork       (LibraryTexture type) const;                    // app_record.cpp: the user's custom cover / icon, or empty
   virtual std::wstring ResolveArtwork          (LibraryTexture type, const std::wstring& source, bool& isCustom, bool& isManaged); // File for LoadLibraryTexture to load. Base: custom, else the executable's icon
-  virtual std::wstring PrepareCoverSource      (void)       { return L""; }                    // Cover worker thread: fetch / download the store cover; returns the source hint
+  virtual std::wstring PrepareCoverSource      (bool queryPCGW) { UNREFERENCED_PARAMETER (queryPCGW); return L""; } // Cover worker thread: fetch / download the store cover; returns the source hint. queryPCGW: also look up a PCGamingWiki cover
+  virtual bool         WantsPCGWCover          (void) const { return false; }                  // PCGamingWiki covers are enabled for this store (Settings: Steam, GOG)
   virtual std::wstring GetIconSource           (void) const { return L"icon"; }                // Icon source hint (Steam: library cache icon; GOG: goggame-<id>.ico)
   virtual void         PrepareIconSource       (void)       { }                                // Main thread, before loading the icon (Steam: icon hash from appinfo.vdf)
   virtual bool         HasStoreCover           (void) const { return ! IsSpecialK ( ); }       // A default cover exists, so the cover menu offers Refresh / Reset

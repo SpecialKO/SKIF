@@ -67,8 +67,6 @@
 #include "library/library_ui.h" // Shared with the other library/*.cpp files
 
 bool                   SKIF_STEAM_OWNER  = false;
-bool                   steamRunning      = false;
-bool                   steamFallback     = false;
 std::atomic<bool>      modDownloading    = false;
 std::atomic<bool>      modInstalling     = false;
 std::atomic<bool>      gameWorkerRunning = false;
@@ -965,13 +963,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   bool          isCoverHovered     = false;
   ImVec2        vecPosCover        = ImVec2 (0, 0);
 
-  bool alternateCoverPlacement = true;
-
-  if (true)
-  {
-    DrawGameCover (true, isCoverHovered, vecPosCover);
-    alternateCoverPlacement = false;
-  }
+  DrawGameCover (true, isCoverHovered, vecPosCover);
 
 #pragma endregion
 
@@ -1189,14 +1181,6 @@ SKIF_UI_Tab_DrawLibrary (void)
     SKIF_MouseDragMoveAllowed = false;
   }
 
-  if (alternateCoverPlacement)
-  {
-    ImGui::BeginGroup ( );
-
-    sizeCover = ImVec2 (0, ImFloor (tab_ContentRegionAvail.y - sizeDetails.y - ImGui::GetStyle().ScrollbarSize));
-    DrawGameCover (false, isCoverHovered, vecPosCover);
-  }
-
 #pragma region GameDetails
 
   if (uiDetailsVisible)
@@ -1237,9 +1221,6 @@ SKIF_UI_Tab_DrawLibrary (void)
     ImGui::EndGroup     ( );
     ImGui::EndChild     ( );
   }
-
-  if (alternateCoverPlacement)
-    ImGui::EndGroup ( );
 
 #pragma endregion
 

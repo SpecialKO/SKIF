@@ -697,11 +697,11 @@ DrawLibraryPopups (void)
         {
           std::scoped_lock jsonLock (_games.GetMetaDBMutex ( ));
 
-          // Go through the whole metadata DB (db.json) (even entries that is not a part of g_apps)
+          // Go through the whole metadata DB (db.json) (even entries that is not a part of the app list)
           //   and update/clear out the entries where the current category that we are working with is set
           SKIF_GamingCollection::Get ( ).MetaDB_SetCategoryName (static_category.Name, static_category.newName);
 
-          // Update g_apps
+          // Update the app list
           for (auto& app : _games.GetApps())
           {
             if (app.second->skif.category == static_category.Name)

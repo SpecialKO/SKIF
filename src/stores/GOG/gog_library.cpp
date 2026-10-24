@@ -473,21 +473,25 @@ app_record_gog_s::ResolveArtwork (LibraryTexture type, const std::wstring& sourc
 
 // Cover worker thread: GOG Galaxy's web cache cover (pattern), and the PCGamingWiki cover if enabled
 std::wstring
-app_record_gog_s::PrepareCoverSource (void)
+app_record_gog_s::PrepareCoverSource (bool queryPCGW)
 {
-  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
-
   std::wstring load_str;
 
   load_str = L"*_glx_vertical_cover.webp"; // Fallback
 
-  if (_registry.bPCGWCoversGOG && ! tex_cover.queriedPCGW)
-  {
-    tex_cover.queriedPCGW = true;
+  // Decided on the main thread (SKIF_LibraryArtwork::StartCoverWorker), which also marks tex_cover.queriedPCGW
+  if (queryPCGW)
     SKIF_GOG_IdentifyAssetPCGW (id);
-  }
 
   return load_str;
+}
+
+bool
+app_record_gog_s::WantsPCGWCover (void) const
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  return _registry.bPCGWCoversGOG;
 }
 
 // We may also store a PCGW cover that we must reset

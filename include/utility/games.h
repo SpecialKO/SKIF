@@ -10,9 +10,6 @@
 #include <stores/generic_library2.h>
 #include <nlohmann/json.hpp>
 
-// define character size
-#define CHAR_SIZE 128
-
 // Prefix tree of the library's game names (upper-case ASCII letters, digits and spaces), used by the keyboard hint search.
 //   Owns its nodes (freed with the tree); move-only. Characters outside 0-127 are never stored or found.
 class Trie
@@ -26,6 +23,8 @@ public:
 
   void insert (const std::string& key);       // Adds key; a key with a character outside 0-127 is not added
   bool search (const std::string& key) const; // True if key was added
+
+  static constexpr int CHAR_SIZE = 128; // ASCII
 
 private:
   bool                   isLeaf = false;

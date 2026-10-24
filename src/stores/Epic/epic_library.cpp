@@ -659,8 +659,10 @@ app_record_epic_s::ResolveArtwork (LibraryTexture type, const std::wstring& sour
 
 // Cover worker thread: the downloaded cover, else download it (known URL) or look it up in the Epic store
 std::wstring
-app_record_epic_s::PrepareCoverSource (void)
+app_record_epic_s::PrepareCoverSource (bool queryPCGW)
 {
+  UNREFERENCED_PARAMETER (queryPCGW);
+
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_EpicCollection&   _epic       = SKIF_EpicCollection  ::GetInstance ( );
 

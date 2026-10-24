@@ -247,6 +247,10 @@ int                          SK_VFS_ScanTree (SK_VirtualFS::vfsNode* pVFSRoot,
 int                          SK_Steam_GetLibraries               (steam_library_t **ppLibraries);
 struct app_record_steam_s;
 
+// Steam client state (steam_library.cpp), updated by the library tab
+extern bool                  steamRunning;  // The Steam client is running
+extern bool                  steamFallback; // Registry monitoring is unavailable: running state comes from the process scan
+
 std::string                  SK_GetManifestContentsForAppID      (app_record_steam_s *app);
 const wchar_t *              SK_GetSteamDir                      (void);
 const  char   *              SK_GetSteamDirUTF8                  (void);
@@ -334,7 +338,8 @@ struct app_record_steam_s : app_record_store_s <app_record_steam_s, app_record_s
 
   // Artwork (steam_library.cpp)
   std::wstring ResolveArtwork          (LibraryTexture type, const std::wstring& source, bool& isCustom, bool& isManaged) override;
-  std::wstring PrepareCoverSource      (void) override;
+  std::wstring PrepareCoverSource      (bool queryPCGW) override;
+  bool         WantsPCGWCover          (void) const override;
   std::wstring GetIconSource           (void) const override;
   void         PrepareIconSource       (void) override;
   bool         DeleteStoreCoverFiles   (const std::wstring& assetDir) override;

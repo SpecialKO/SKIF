@@ -40,6 +40,10 @@
 #include <fonts/fa_621.h>
 #include <fonts/fa_621b.h>
 
+// Steam client state (declared in steam_library.h)
+bool steamRunning  = false;
+bool steamFallback = false;
+
 // Steam-store entries in the app list are always app_record_steam_s
 static app_record_steam_s*
 AsSteamRecord (app_entry_t& app)
@@ -1736,8 +1740,6 @@ SKIF_SteamWebAPI_ISteamUserStats_GetNumberOfCurrentPlayers1 (uint32_t app_id)
 void
 app_record_steam_s::RefreshClientState (DWORD dwTimeNow)
 {
-  extern bool steamRunning; // tabs/library.cpp
-
   if (! steamRunning)
     return;
 
@@ -2054,7 +2056,7 @@ app_record_steam_s::ResolveStoreDetails (void)
 }
 
 // Parse appinfo data for the current game
-// This must be done from the main thread since it also manipulates the g_apps array
+// This must be done from the main thread since it also manipulates the app list (SKIF_GamingCollection)
 void
 app_record_steam_s::LoadStoreDetails (void)
 {
@@ -2082,8 +2084,6 @@ app_record_steam_s::CanLaunchExecutableDirectly (void)
 app_record_s::ProcessMatch
 app_record_steam_s::MatchProcess (const wchar_t* wszExeFile, const wchar_t* wszExePath, DWORD dwExePathLen)
 {
-  extern bool steamFallback; // tabs/library.cpp
-
   UNREFERENCED_PARAMETER (wszExeFile);
 
   if (dwExePathLen != 0 && _wcsnicmp (launch_configs[0].getExecutableFullPath ( ).c_str(), wszExePath, dwExePathLen) == 0)
@@ -2098,18 +2098,12 @@ app_record_steam_s::MatchProcess (const wchar_t* wszExeFile, const wchar_t* wszE
 bool
 app_record_steam_s::KeepsRunningStateDuringScan (void) const
 {
-  extern bool steamRunning;  // tabs/library.cpp
-  extern bool steamFallback; // tabs/library.cpp
-
   return (steamRunning || ! steamFallback);
 }
 
 bool
 app_record_steam_s::IsRunningStateFromClient (void) const
 {
-  extern bool steamRunning;  // tabs/library.cpp
-  extern bool steamFallback; // tabs/library.cpp
-
   return (steamRunning && ! steamFallback);
 }
 
@@ -2253,7 +2247,7 @@ app_record_steam_s::ResolveArtwork (LibraryTexture type, const std::wstring& sou
 
 // Cover worker thread: library cache cover, upgraded to the 600x900 cover from the CDN when available
 std::wstring
-app_record_steam_s::PrepareCoverSource (void)
+app_record_steam_s::PrepareCoverSource (bool queryPCGW)
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
@@ -2279,11 +2273,9 @@ app_record_steam_s::PrepareCoverSource (void)
     std::to_wstring (id)                +
                             L"/" + SK_FormatStringW (L"%hs", common_config.boxart_hash.c_str ());
 
-  if (_registry.bPCGWCoversSteam && ! tex_cover.queriedPCGW)
-  {
-    tex_cover.queriedPCGW = true;
+  // Decided on the main thread (SKIF_LibraryArtwork::StartCoverWorker), which also marks tex_cover.queriedPCGW
+  if (queryPCGW)
     SKIF_Steam_IdentifyAssetPCGW (id);
-  }
 
   // Regular files only: with an unknown boxart hash, load_str is just the app's librarycache folder
   auto _IsFile = [](const std::wstring& path) -> bool
@@ -2417,6 +2409,14 @@ app_record_steam_s::PrepareIconSource (void)
 
   if (! IsSpecialK ( ))
     appinfo->getAppInfo ( id, &_games.GetApps() );
+}
+
+bool
+app_record_steam_s::WantsPCGWCover (void) const
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  return (_registry.bPCGWCoversSteam && ! IsSpecialK ( ));
 }
 
 // We may also store a PCGW cover that we must reset

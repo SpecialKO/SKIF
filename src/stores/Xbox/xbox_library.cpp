@@ -712,7 +712,7 @@ app_record_xbox_s::Launch (const launch_context_s& ctx)
       app_record_s *pApp =
         (app_record_s *)pUser;
 
-      SKIF_GamingCollection::RefreshRunningApps (&g_apps, true);
+      SKIF_GamingCollection::RefreshRunningApps (&SKIF_GamingCollection::Get ( ).GetApps ( ), true);
 
       const DWORD dwTimeToCheck   = pApp->_status.dwTimeDelayChecks;
       const DWORD dwTimeToReCheck = pApp->_status.dwTimeDelayChecks + 7500UL;
@@ -721,7 +721,7 @@ app_record_xbox_s::Launch (const launch_context_s& ctx)
       {
         SleepEx (250, FALSE);
 
-        SKIF_GamingCollection::RefreshRunningApps (&g_apps, true);
+        SKIF_GamingCollection::RefreshRunningApps (&SKIF_GamingCollection::Get ( ).GetApps ( ), true);
 
         if (pApp->_status.running_pid != 0)
           break;
@@ -746,7 +746,7 @@ app_record_xbox_s::Launch (const launch_context_s& ctx)
           {
             SleepEx (500, FALSE);
 
-            SKIF_GamingCollection::RefreshRunningApps (&g_apps, true);
+            SKIF_GamingCollection::RefreshRunningApps (&SKIF_GamingCollection::Get ( ).GetApps ( ), true);
 
             if (pApp->_status.running_pid != 0)
             {
@@ -954,8 +954,10 @@ app_record_xbox_s::ResolveArtwork (LibraryTexture type, const std::wstring& sour
 
 // Cover worker thread: the downloaded cover, else look it up in the Microsoft Store
 std::wstring
-app_record_xbox_s::PrepareCoverSource (void)
+app_record_xbox_s::PrepareCoverSource (bool queryPCGW)
 {
+  UNREFERENCED_PARAMETER (queryPCGW);
+
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
   std::wstring load_str;
