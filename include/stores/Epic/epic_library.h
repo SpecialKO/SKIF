@@ -62,11 +62,12 @@ private:
   SKIF_EpicCollection (SKIF_EpicCollection const&) = delete;
   SKIF_EpicCollection (SKIF_EpicCollection&&)      = delete;
 
-  void RefreshInstallState (void);
+  bool RefreshInstallState (void); // Main thread; true if Epic was found now after not having been found before
   bool FindInstalledGames2 (app_list_t *apps) const;
   bool FindInstalledGames1 (app_list_t *apps) const;
 
   SKIF_DirectoryWatch watch;
   std::wstring  appdatapath;
   int               version = -1; // -1 unchecked, 0 uninstalled, 1 v1, 2 v2
+  DWORD             lastCheck = 0;  // SKIF_Util_timeGetTime ( ) of the last detection while not installed
 };

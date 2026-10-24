@@ -51,17 +51,34 @@ it's enough to launch the game through Epic like the start menu shortcuts does, 
 bool
 SKIF_EpicCollection::isSignaled (void)
 {
-  RefreshInstallState ( );
+  // Epic was installed since the last check: refresh the library
+  const bool found = RefreshInstallState ( );
 
-  return this->watch.isSignaled ( );
+  return this->watch.isSignaled ( ) || found;
 }
 
-void
+// Called every frame the library is shown (see isSignaled). If Epic isn't found, the detection is retried at most every
+//   10 seconds (it was retried, and logged, every frame), and only the first attempt is logged. Not while the library
+//   is being populated, as its worker reads version and appdatapath (GetInstalledAppIDs).
+bool
 SKIF_EpicCollection::RefreshInstallState (void)
 {
-  if (this->appdatapath.empty())
+  if (! this->appdatapath.empty())
+    return false;
+
+  const DWORD dwNow = SKIF_Util_timeGetTime ( );
+
+  if (this->version == 0 && dwNow - this->lastCheck < 10000)
+    return false;
+
+  if (this->version != -1 && SKIF_GamingCollection::Get ( ).IsPopulating ( ))
+    return false;
+
+  const bool firstCheck = (this->version == -1);
+  this->lastCheck       = dwNow;
+
   {
-    PLOG_INFO << "Detecting Epic AppData path...";
+    PLOG_INFO_IF (firstCheck) << "Detecting Epic AppData path...";
 
     HKEY  hKey;
     DWORD dwSize = 0;
@@ -82,7 +99,6 @@ SKIF_EpicCollection::RefreshInstallState (void)
         //   %LOCALAPPDATA%\com.epicgames.eglv2
         //   %PROGRAMDATA%\Epic\EpicGamesLauncher\Data
         appdata_path = szData;
-        RegCloseKey (hKey);
 
         // User-supplied base path
         if (! appdata_path.empty ( ))
@@ -93,12 +109,15 @@ SKIF_EpicCollection::RefreshInstallState (void)
           };
         }
       }
+
+      // Also when the value couldn't be read (the key used to be left open then, which leaked a handle every frame)
+      RegCloseKey (hKey);
     }
 
     // Fallback: If the registry value does not exist (which happens surprisingly often) assume the default path is used
     if (candidates.empty())
     {
-      PLOG_WARNING << "Failed to read Epic manifest location from the registry!";
+      PLOG_WARNING_IF (firstCheck) << "Failed to read Epic manifest location from the registry!";
 
       static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
@@ -124,6 +143,14 @@ SKIF_EpicCollection::RefreshInstallState (void)
       }
     }
   }
+
+  if (! this->appdatapath.empty ( ))
+    return (! firstCheck); // Found now, after not having been found before
+
+  PLOG_INFO_IF (firstCheck) << "Epic does not appear to be installed (will check again every 10 seconds).";
+  this->version = 0;
+
+  return false;
 }
 
 void
