@@ -156,49 +156,6 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
   std::wstring extTarget  = ext;
   bool isImage = false;
 
-#if 0
-
-  if (ext == L".jpeg")
-    extTarget = L".jpg";
-
-  if (ext == L".webp")
-    extTarget = L".png";
-
-  if (ext == L".bmp")
-    extTarget = L".jpg";
-
-  if (ext == L".psd")
-    extTarget = L".png";
-
-  bool isImage =
-    (ext == L".jpg"  ||
-     ext == L".jpeg" ||
-   //ext == L".jxr"  ||
-     ext == L".png"  ||
-     ext == L".webp" ||
-   //ext == L".tga"  ||
-     ext == L".bmp"  ||
-     ext == L".psd"  );
-   //ext == L".gif"  ||
-   //ext == L".tif"  );
-
-  constexpr char* error_title =
-    "Unsupported image format";
-  constexpr char* error_label =
-    "Please use one of these image formats:\n"
-    "   *.jpg\n"
-  //"   *.jxr\n"
-    "   *.png\n"
-    "   *.webp\n"
-  //"   *.tga\n"
-    "   *.bmp\n"
-    "   *.psd\n"
-  //"   *.gif\n"
-  //"   *.tif\n"
-    "\n"
-    "Note that the app has no support for animated images.";
-#endif
-
   if (! isURL)
   {
     // For local files, check if they do. in fact, exist and are local files

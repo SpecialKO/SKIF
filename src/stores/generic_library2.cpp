@@ -185,43 +185,6 @@ LoadLibraryTexture (
   DirectX::ScratchImage* pImg  =   &img;
   DirectX::ScratchImage   converted_img;
 
-  // Start aspect ratio
-#if 0
-  vCoverUv0 = ImVec2(0.f, 0.f); // Top left corner
-  vCoverUv1 = ImVec2(1.f, 1.f); // Bottom right corner
-  ImVec2 vecTex2D = ImVec2(600.f, 900.f);
-
-  vecTex2D.x = static_cast<float>(meta.width);
-  vecTex2D.y = static_cast<float>(meta.height);
-
-  ImVec2 diff = ImVec2(0.0f, 0.0f);
-
-  // Crop wider aspect ratios by their width
-  if ((vecTex2D.x / vecTex2D.y) > (600.f / 900.f))
-  {
-    float newWidth = vecTex2D.x / vecTex2D.y * 900.0f;
-    diff.x = (600.0f / newWidth);
-    diff.x -= 1.0f;
-    diff.x /= 2;
-
-    vCoverUv0.x = 0.f - diff.x;
-    vCoverUv1.x = 1.f + diff.x;
-  }
-
-  // Crop thinner aspect ratios by their height
-  else if ((vecTex2D.x / vecTex2D.y) < (600.f / 900.f))
-  {
-    float newHeight = vecTex2D.y / vecTex2D.x * 600.0f;
-    diff.y = (900.0f / newHeight);
-    diff.y -= 1.0f;
-    diff.y /= 2;
-
-    vCoverUv0.y = 0.f - diff.y;
-    vCoverUv1.y = 1.f + diff.y;
-  }
-#endif
-  // End aspect ratio
-
   // We don't want single-channel icons, so convert to RGBA
   if (meta.format == DXGI_FORMAT_R8_UNORM)
   {
