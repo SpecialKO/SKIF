@@ -1,5 +1,6 @@
 #include <tabs/local.h>
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <unordered_set>
@@ -30,21 +31,18 @@ SKIF_LocalManager::SKIF_LocalManager (void)
 }
 
 void
-SKIF_LocalManager::SetAnyOutdated (void)
+SKIF_LocalManager::UpdateAnyStates (void)
 {
-  anyOutdated = false;
-  for (auto& install : installs)
-    anyOutdated |= install.outdated;
-}
-
-void
-SKIF_LocalManager::SetAnySelected (void)
-{
+  anyMissing          = false;
   anySelected         = false;
+  anyOutdated         = false;
   anyOutdatedSelected = false;
+
   for (auto& install : installs)
   {
+    anyMissing            |= ! install.exists;
     anySelected           |= install.selected;
+    anyOutdated           |= install.outdated;
     if (install.selected)
       anyOutdatedSelected |= install.outdated;
   }
@@ -59,7 +57,7 @@ SKIF_LocalManager::SetLatestVersion (std::wstring_view v)
     install.outdated = (! latest_version.empty ()) &&
       SKIF_Util_CompareVersionStrings (install.version, latest_version) < 0;
 
-  SetAnyOutdated ( );
+  UpdateAnyStates ( );
 }
 
 void
@@ -229,7 +227,7 @@ SKIF_LocalManager::RefreshInstalls (void)
 
   RegCloseKey (hKey);
 
-  SetAnyOutdated ( );
+  UpdateAnyStates ( );
   needs_sort = true;
 }
 
@@ -282,6 +280,146 @@ SKIF_LocalManager::SortInstalls (const ImGuiTableSortSpecs* specs)
   });
 }
 
+int
+SKIF_LocalManager::FindInstall (const std::wstring& path) const
+{
+  if (path.empty ())
+    return -1;
+
+  for (size_t i = 0; i < installs.size (); ++i)
+    if (installs [i].path == path)
+      return static_cast<int> (i);
+
+  return -1;
+}
+
+void
+SKIF_LocalManager::HandleRowClick (int idx, bool fromCheckbox)
+{
+  if (idx < 0 || idx >= static_cast<int> (installs.size ()))
+    return;
+
+  const ImGuiIO& io     = ImGui::GetIO ();
+  const int      anchor = FindInstall (anchor_path);
+
+  // Shift+Click: select everything between the anchor and the clicked row
+  if (io.KeyShift && anchor != -1)
+  {
+    // Plain Shift replaces the selection; Ctrl+Shift or Shift on a checkbox adds to it
+    if (! io.KeyCtrl && ! fromCheckbox)
+      for (auto& install : installs)
+        install.selected = false;
+
+    const int lo = std::min (anchor, idx),
+              hi = std::max (anchor, idx);
+
+    for (int i = lo; i <= hi; ++i)
+      installs [i].selected = true;
+
+    // Anchor intentionally stays put so the range can be grown/shrunk with further Shift+Clicks
+  }
+
+  // Ctrl+Click, or a plain checkbox click: toggle
+  else if (io.KeyCtrl || fromCheckbox)
+  {
+    if (! fromCheckbox) // Checkbox() already flipped the bool
+      installs [idx].selected = ! installs [idx].selected;
+
+    anchor_path = installs [idx].path;
+  }
+
+  // Plain click on the row: select only this one
+  else
+  {
+    for (auto& install : installs)
+      install.selected = false;
+
+    installs [idx].selected = true;
+    anchor_path             = installs [idx].path;
+  }
+
+  UpdateAnyStates ( );
+}
+
+// Select-all cycle shared by the header checkbox and Ctrl+A:
+//   1. Select all outdated (existing) rows
+//   2. If all outdated are selected (or there are none) -> select all rows
+//   3. If all rows are selected -> deselect all (only when allowDeselect)
+void
+SKIF_LocalManager::CycleSelectAll (bool allowDeselect)
+{
+  if (installs.empty ())
+    return;
+
+  int outdated         = 0,
+      outdatedSelected = 0,
+      selected         = 0;
+
+  for (const auto& i : installs)
+  {
+    if (i.selected)
+      ++selected;
+
+    if (i.outdated && i.exists)
+    {
+      ++outdated;
+      if (i.selected)
+        ++outdatedSelected;
+    }
+  }
+
+  const bool allRowsSelected     = (selected == static_cast<int> (installs.size ()));
+  const bool allOutdatedSelected = (outdated > 0 && outdatedSelected == outdated);
+
+  if (allRowsSelected)
+  {
+    if (! allowDeselect)
+      return; // Ctrl+A: stay on "all rows"
+
+    for (auto& i : installs)
+      i.selected = false;
+
+    anchor_path.clear ();
+  }
+
+  else if (allOutdatedSelected || outdated == 0)
+  {
+    for (auto& i : installs)
+      i.selected = true;
+  }
+
+  else
+  {
+    for (auto& i : installs)
+      i.selected = (i.outdated && i.exists);
+  }
+
+  UpdateAnyStates ( );
+}
+
+void
+SKIF_LocalManager::HandleRowRightClick (int idx)
+{
+  if (idx < 0 || idx >= static_cast<int> (installs.size ()))
+    return;
+
+  int selected = 0;
+  for (const auto& install : installs)
+    if (install.selected)
+      ++selected;
+
+  // With zero or one row selected, behave like a plain left click (replace).
+  // With a multi-selection, keep it and just make sure this row is part of it.
+  if (selected <= 1)
+    for (auto& install : installs)
+      install.selected = false;
+
+  installs [idx].selected = true;
+  anchor_path             = installs [idx].path;
+
+  UpdateAnyStates ( );
+}
+
 void
 SKIF_LocalManager::Show (void)
 {
@@ -308,8 +446,14 @@ SKIF_LocalManager::Process (void)
   if (watch.isSignaled ())
     RefreshInstalls ();
 
+  // Set again below once the window is drawn
+  focused = false;
+
   if (! this->showWindow)
     return;
+
+  static LocalAction action =
+          LocalAction::None;
 
   // Custom TableHeadersRow() that draws a checkbox toggle in one of the columns
   auto _CustomTableHeadersRow = [&](void) -> void
@@ -326,20 +470,43 @@ SKIF_LocalManager::Process (void)
 
       if (column_n == SKIF_LocalManager::ColumnID_::Col_Select)
       {
-        // Only outdated installs should be selected
-        int outdated = 0,
-            selected = 0;
+        // Three-state cycle:
+        //   1. Select all outdated (existing) rows
+        //   2. If all outdated are selected  -> select all rows
+        //   3. If all rows are selected      -> deselect all rows
+        int outdated         = 0,
+            outdatedSelected = 0,
+            selected         = 0;
 
         for (auto& i : installs)
         {
-          if (! i.outdated || ! i.exists) continue;
-          ++outdated;
-          if (  i.selected) ++selected;
+          if (i.selected)
+            ++selected;
+
+          if (i.outdated && i.exists)
+          {
+            ++outdated;
+            if (i.selected)
+              ++outdatedSelected;
+          }
         }
 
-        bool all = (outdated > 0 && selected == outdated);
+        const bool allRowsSelected     = (! installs.empty () && selected == static_cast<int> (installs.size ()));
+        const bool allOutdatedSelected = (outdated > 0 && outdatedSelected == outdated);
 
-        ImGui::BeginDisabled  (outdated == 0);
+        // Checked = all rows, mixed = all outdated but not all rows, unchecked = anything else
+        const SKIF_ImGuiCheckState state =
+          allRowsSelected                        ? SKIF_ImGuiCheckState_Checked :
+          allOutdatedSelected                    ? SKIF_ImGuiCheckState_Mixed   :
+                                                   SKIF_ImGuiCheckState_Unchecked;
+
+        // What the next click leads to (mirrors CycleSelectAll)
+        const SKIF_ImGuiCheckState next  =
+          allRowsSelected                        ? SKIF_ImGuiCheckState_Unchecked :
+          (allOutdatedSelected || outdated == 0) ? SKIF_ImGuiCheckState_Checked   :
+                                                   SKIF_ImGuiCheckState_Mixed;
+
+        ImGui::BeginDisabled  (installs.empty ());
         ImGui::PushStyleVar   (ImGuiStyleVar_FramePadding, ImVec2 (0.0f, 0.0f)); // Shrinks the checkbox
         ImGui::PushStyleColor (ImGuiCol_FrameBg,           IM_COL32_DISABLE);
         ImGui::PushStyleColor (ImGuiCol_FrameBgHovered,    IM_COL32_DISABLE);
@@ -350,16 +517,14 @@ SKIF_LocalManager::Process (void)
         if (offset > 0.0f)
           ImGui::SetCursorPosX (ImGui::GetCursorPosX () + offset);
 
-        // 'all' holds the new state after a click: check if not all were
-        // selected, uncheck if they all were
-        if (SKIF_ImGui_CheckboxHoverPreview ("##selectall", &all))
-        {
-          for (auto& i : installs)
-            if (i.outdated && i.exists)
-              i.selected = all;
-          SetAnySelected ( );
-        }
-        
+        if (SKIF_ImGui_CheckboxTriState ("##selectall", state, next))
+          CycleSelectAll (true);
+
+        if (ImGui::IsItemHovered ())
+          ImGui::SetTooltip ("%s", allRowsSelected                     ? "Deselect all"    :
+                                   (allOutdatedSelected || outdated == 0) ? "Select all"      :
+                                                                          "Select outdated");
+
         ImGui::PopStyleColor ( ); // ImGuiCol_FrameBgActive
         ImGui::PopStyleColor ( ); // ImGuiCol_FrameBgHovered
         ImGui::PopStyleColor ( ); // ImGuiCol_FrameBg
@@ -372,6 +537,52 @@ SKIF_LocalManager::Process (void)
 
       ImGui::PopID ();
     }
+  };
+
+  auto _SelectionMenu = [&](void) -> void
+  {
+    SKIF_ImGui_PushDisableState (! anyOutdated);
+    if (ImGui::MenuItem ("Select Outdated"))
+    {
+      for (auto& install : installs)
+        install.selected = install.outdated && install.exists;
+      action = LocalAction::AnySelected;
+    }
+    SKIF_ImGui_PopDisableState  (! anyOutdated);
+
+    if (anyMissing && ImGui::MenuItem ("Select Missing"))
+    {
+      for (auto& install : installs)
+        install.selected = ! install.exists;
+      action = LocalAction::AnySelected;
+    }
+      
+    SKIF_ImGui_PushDisableState (! anySelected);
+    if (ImGui::MenuItem ("Deselect All"))
+    {
+      for (auto& install : installs)
+        install.selected = false;
+      anchor_path.clear ();
+      action = LocalAction::AnySelected;
+    }
+    SKIF_ImGui_PopDisableState  (! anySelected);
+
+    ImGui::Separator ();
+
+    SKIF_ImGui_PushDisableState (! anyOutdatedSelected);
+    if (ImGui::MenuItem ("Update Selected"))
+      action = LocalAction::Update;
+    SKIF_ImGui_PopDisableState  (! anyOutdatedSelected);
+
+    SKIF_ImGui_PushDisableState (! anySelected);
+    if (ImGui::MenuItem ("Delete Selected"))
+      action = LocalAction::Delete;
+    SKIF_ImGui_PopDisableState  (! anySelected);
+
+    ImGui::Separator ();
+
+    if (ImGui::MenuItem ("Refresh"))
+      RefreshInstalls ();
   };
 
   static           SKIF_InjectionContext& _inject = SKIF_InjectionContext::GetInstance ( );
@@ -405,13 +616,45 @@ SKIF_LocalManager::Process (void)
   if (ImGui::Begin (this->label.c_str(), &showWindow,
                       ImGuiWindowFlags_NoCollapse        |
                       ImGuiWindowFlags_NoScrollbar       |
+                      ImGuiWindowFlags_MenuBar           |
                       ImGuiWindowFlags_NoSavedSettings   ))
   {
-    static LocalAction action =
-           LocalAction::None;
-
     if (this->hwnd == nullptr && ImGui::GetWindowViewport()->PlatformHandleRaw)
       this->hwnd = (HWND)ImGui::GetWindowViewport()->PlatformHandleRaw;
+
+    // Read by SKIF.cpp next frame so the global Ctrl+A (Add game) stays out of the way
+    focused = ImGui::IsWindowFocused (ImGuiFocusedFlags_RootAndChildWindows);
+
+    // Ctrl+A: select outdated, then all rows; never deselects.
+    // Not while a popup/menu of ours has focus or a text field wants the keyboard.
+    const ImGuiIO& io = ImGui::GetIO ( );
+    if (focused && ! io.WantTextInput &&
+        io.KeyCtrl && ! io.KeyShift && ! io.KeyAlt &&
+        ImGui::IsKeyPressed (ImGuiKey_A, false))
+      CycleSelectAll (false);
+
+    if (ImGui::BeginMenuBar ( ))
+    {
+      if (ImGui::BeginMenu ("File"))
+      {
+        if (ImGui::MenuItem ("New", "Ctrl+N"))
+          void;
+
+        if (ImGui::MenuItem ("Close", "Escape"))
+          void;
+
+        ImGui::EndMenu();
+      }
+
+      if (ImGui::BeginMenu ("Selection"))
+      {
+        _SelectionMenu ( );
+
+        ImGui::EndMenu ( );
+      }
+
+      ImGui::EndMenuBar ( );
+    }
 
     if (installs.empty ())
     {
@@ -484,16 +727,66 @@ SKIF_LocalManager::Process (void)
         }
       }
 
+      // Shift range preview colour, grabbed before the softened Header colours below are pushed
+      const ImU32 previewCol = ImGui::GetColorU32 (ImGuiCol_HeaderHovered, 0.35f);
+
       ImGui::PushStyleColor   (ImGuiCol_Text,          ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
-      int id = 0;
-      for (auto& install : installs)
+
+      // Softer row highlight for the full-row Selectable, so it doesn't overpower RowBg
+      ImGui::PushStyleColor   (ImGuiCol_Header,        ImGui::GetStyleColorVec4 (ImGuiCol_Header)        * ImVec4 (1.0f, 1.0f, 1.0f, 0.6f));
+      ImGui::PushStyleColor   (ImGuiCol_HeaderHovered, ImGui::GetStyleColorVec4 (ImGuiCol_HeaderHovered) * ImVec4 (1.0f, 1.0f, 1.0f, 0.3f));
+      ImGui::PushStyleColor   (ImGuiCol_HeaderActive,  ImGui::GetStyleColorVec4 (ImGuiCol_HeaderActive)  * ImVec4 (1.0f, 1.0f, 1.0f, 0.5f));
+
+      // Rows a Shift+Click would select, using last frame's hovered row
+      int preview_lo = -1,
+          preview_hi = -1;
+
+      if (ImGui::GetIO ().KeyShift && hovered_row != -1)
       {
-        ImGui::PushID (id++);
+        const int anchor = FindInstall (anchor_path);
+        if (anchor != -1)
+        {
+          preview_lo = std::min (anchor, hovered_row);
+          preview_hi = std::max (anchor, hovered_row);
+        }
+      }
+
+      int hovered_now = -1;
+
+      for (int idx = 0; idx < static_cast<int> (installs.size ()); ++idx)
+      {
+        auto& install = installs [idx];
+
+        ImGui::PushID (idx);
         ImGui::TableNextRow ();
+
+        if (idx >= preview_lo && idx <= preview_hi && ! install.selected)
+          ImGui::TableSetBgColor (ImGuiTableBgTarget_RowBg1, previewCol);
 
         // Column 0: Select
         if (ImGui::TableNextColumn ( ))
         {
+          const ImVec2 cellPos = ImGui::GetCursorPos ( );
+
+          // Invisible full-row hit target. It is submitted first, so the checkbox and
+          // buttons drawn over it with AllowOverlap still get their own clicks.
+          if (ImGui::Selectable ("##row", install.selected,
+                                 ImGuiSelectableFlags_SpanAllColumns |
+                                 ImGuiSelectableFlags_AllowOverlap,
+                                 ImVec2 (0.0f, ImGui::GetFrameHeight ())))
+            HandleRowClick (idx, false);
+
+          if (ImGui::IsItemHovered (ImGuiHoveredFlags_AllowWhenOverlappedByItem))
+          {
+            hovered_now = idx;
+
+            // Select the row before the context menu opens (the popup itself opens on release further down)
+            if (ImGui::IsMouseReleased (ImGuiMouseButton_Right))
+              HandleRowRightClick (idx);
+          }
+
+          ImGui::SetCursorPos (cellPos);
+
           float offset = (ImGui::GetContentRegionAvail ().x - ImGui::GetFrameHeight ()) * 0.5f;
           if (offset > 0.0f)
             ImGui::SetCursorPosX (ImGui::GetCursorPosX () + offset);
@@ -503,7 +796,7 @@ SKIF_LocalManager::Process (void)
           ImGui::PushStyleColor (ImGuiCol_FrameBgActive,  IM_COL32_DISABLE);
 
           if (SKIF_ImGui_CheckboxHoverPreview ("##checkbox", &install.selected))
-            SetAnySelected ( );
+            HandleRowClick (idx, true);
 
           ImGui::PopStyleColor ( ); // ImGuiCol_FrameBgActive
           ImGui::PopStyleColor ( ); // ImGuiCol_FrameBgHovered
@@ -603,6 +896,10 @@ SKIF_LocalManager::Process (void)
 
         ImGui::PopID ();
       }
+      hovered_row = hovered_now;
+      ImGui::PopStyleColor    ( ); // ImGuiCol_HeaderActive
+      ImGui::PopStyleColor    ( ); // ImGuiCol_HeaderHovered
+      ImGui::PopStyleColor    ( ); // ImGuiCol_Header
       ImGui::PopStyleColor    ( ); // ImGuiCol_Text
 
       // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
@@ -620,40 +917,7 @@ SKIF_LocalManager::Process (void)
 
     if (ImGui::BeginPopup ("##LocalInstallsCtx"))
     {
-      SKIF_ImGui_PushDisableState (! anyOutdated);
-      if (ImGui::MenuItem ("Select Outdated"))
-      {
-        for (auto& install : installs)
-          install.selected = install.outdated && install.exists;
-        action = LocalAction::AnySelected;
-      }
-      SKIF_ImGui_PopDisableState  (! anyOutdated);
-      
-      SKIF_ImGui_PushDisableState (! anySelected);
-      if (ImGui::MenuItem ("Deselect All"))
-      {
-        for (auto& install : installs)
-          install.selected = false;
-        action = LocalAction::AnySelected;
-      }
-      SKIF_ImGui_PopDisableState  (! anySelected);
-
-      ImGui::Separator ();
-
-      SKIF_ImGui_PushDisableState (! anyOutdatedSelected);
-      if (ImGui::MenuItem ("Update Selected"))
-        action = LocalAction::Update;
-      SKIF_ImGui_PopDisableState  (! anyOutdatedSelected);
-
-      SKIF_ImGui_PushDisableState (! anySelected);
-      if (ImGui::MenuItem ("Delete Selected"))
-        action = LocalAction::Delete;
-      SKIF_ImGui_PopDisableState  (! anySelected);
-
-      ImGui::Separator ();
-
-      if (ImGui::MenuItem ("Refresh"))
-        RefreshInstalls ();
+      _SelectionMenu ( );
 
       ImGui::EndPopup ();
     }
@@ -685,7 +949,7 @@ SKIF_LocalManager::Process (void)
 
     else if (action == LocalAction::AnySelected)
     {
-      SetAnySelected ( );
+      UpdateAnyStates ( );
       action = LocalAction::None;
     }
 
@@ -706,6 +970,7 @@ SKIF_LocalManager::Process (void)
             if (install.selected)
               DeleteInstall (&install);
           installs.erase (std::remove_if (installs.begin(), installs.end(), [](const install_s& i) { return i.deleted; }), installs.end());
+          anchor_path.clear ();
           break;
         }
         action = LocalAction::None;

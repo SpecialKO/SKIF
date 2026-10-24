@@ -2720,7 +2720,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
           }
         }
 
-        if (hotkeyCtrlA && allowShortcutCtrlA)
+        // Ctrl+A belongs to the Local Installs window (select all) while it has focus
+        if (hotkeyCtrlA && allowShortcutCtrlA && ! SKIF_LocalManager::GetInstance ( ).IsFocused ( ))
         {
           if (SKIF_Tab_Selected != UITab_Library)
               SKIF_Tab_ChangeTo  = UITab_Library;
