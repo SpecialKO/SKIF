@@ -122,7 +122,12 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
   // Start populating the list
 
   if (_games.GetApps().empty())
+  {
+    // Faded in, like the games list once it is loaded
+    ImGui::PushStyleVar    (ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * LibraryFadeIn (fadeLoadingList));
     ImGui::Selectable      ("Loading games...###GamesCurrentlyLoading", false, ImGuiSelectableFlags_Disabled);
+    ImGui::PopStyleVar     ( );
+  }
 
   std::string current_category = "";
   int         categories       = 0;

@@ -200,6 +200,17 @@ extern std::atomic<uint32_t>  modAppId;
 extern bool                   bCategoryMgnt;
 extern int                    numRegular;
 extern float                  fAlphaList;
+
+// Fade-in of a label shown while something loads (the list's "Loading games...", the cover's "..."). It starts over
+//   whenever the label wasn't shown the frame before, and is stepped along with the other fades (see "Fade in/out
+//   transition" in library.cpp). Like them, only if covers are set to fade (bFadeCovers).
+struct library_fade_in_s {
+  float alpha     =  0.0f;
+  int   lastFrame = -2;     // Last frame the label was shown
+};
+extern library_fade_in_s      fadeLoadingList;   // "Loading games..."
+extern library_fade_in_s      fadeLoadingCover;  // "..."
+float                         LibraryFadeIn (library_fade_in_s& fade); // Call when drawing the label: returns its alpha
 extern float                  fTint;             // Cover dimming
 extern library_search_selection_s
                               search_selection;

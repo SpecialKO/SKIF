@@ -111,6 +111,25 @@ const float fTintMin     = 0.75f;
       float fTint        = 1.0f;
       float fAlphaList   = 0.0f;
 
+library_fade_in_s fadeLoadingList;  // library_ui.h
+library_fade_in_s fadeLoadingCover; // library_ui.h
+
+float
+LibraryFadeIn (library_fade_in_s& fade)
+{
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
+  const int frame = ImGui::GetFrameCount ( );
+
+  // Not shown the frame before: start over
+  if (fade.lastFrame != frame && fade.lastFrame != frame - 1)
+    fade.alpha = 0.0f;
+
+  fade.lastFrame = frame;
+
+  return (_registry.bFadeCovers) ? fade.alpha : 1.0f;
+}
+
 PopupState GameMenu            = PopupState_Closed;
 PopupState EmptySpaceMenu      = PopupState_Closed;
 PopupState CoverMenu           = PopupState_Closed;
@@ -1743,6 +1762,21 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
 
       coverFadeActive = true;
+    }
+
+    // Fade in the loading labels while they are shown ("Loading games...", the cover's "...")
+    for (library_fade_in_s* fade : { &fadeLoadingList, &fadeLoadingCover })
+    {
+      if (fade->lastFrame == ImGui::GetFrameCount ( ) && fade->alpha < 1.0f)
+      {
+        if (current_time - timeLastTick > 15)
+        {
+          fade->alpha = ImMin (1.0f, fade->alpha + 0.05f);
+          incTick     = true;
+        }
+
+        coverFadeActive = true;
+      }
     }
   }
 

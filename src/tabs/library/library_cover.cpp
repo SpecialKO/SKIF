@@ -217,7 +217,17 @@ DrawGameCover (bool sameLine, bool& isCoverHovered, ImVec2& vecPosCover)
         ImGui::SetCursorPos (ImFloor (ImVec2 (
             (vecContentRegionAvail.x - labelSize.x) / 2,
             (vecContentRegionAvail.y - labelSize.y) / 2)));
+
+        // The loading label ("...") is faded in, like the cover once it is loaded
+        const bool isLoadingLabel = (pcstrLabel == cstrLabelLoading);
+        if (isLoadingLabel)
+          ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * LibraryFadeIn (fadeLoadingCover));
+
         ImGui::TextDisabled (pcstrLabel);
+
+        if (isLoadingLabel)
+          ImGui::PopStyleVar ( );
+
         ImGui::SetCursorPos (vecPosCoverInner);
       }
 
