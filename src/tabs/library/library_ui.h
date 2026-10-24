@@ -113,6 +113,8 @@ BypassAltF4Handler=false
 [Textures.D3D11]
 Cache=false)";
 
+constexpr char         spaces[]          = { "\u0020\u0020\u0020\u0020" };
+
 constexpr int maxCategoryNameLen = 50;
 
 // Types
@@ -132,6 +134,44 @@ struct terminate_process_s {
   std::string  name = "";
 };
 
+// Keyboard hint search result
+struct library_search_selection_s {
+  uint32_t            id = 0;
+  app_record_s::Store store;
+  std::string         category = "";
+};
+
+// A game in the library tab: the selected one, the last one clicked
+struct library_selection_s {
+  uint32_t                    appid = SKIF_STEAM_APPID;
+  app_record_s::Store         store = app_record_s::Store::Steam;
+  SKIF_DirectoryWatch     dir_watch;
+  bool                reset_to_skif = true;
+  std::string              category = "";
+
+  void reset ()
+  {
+    appid    = (reset_to_skif) ? SKIF_STEAM_APPID           : 0;
+    store    = (reset_to_skif) ? app_record_s::Store::Steam : app_record_s::Store::Unspecified;
+    category = "";
+
+    if (dir_watch._hChangeNotification != INVALID_HANDLE_VALUE)
+      dir_watch.reset();
+  }
+};
+
+// State of SKIF_UI_Tab_DrawLibrary ( ) shared with the functions it calls (GetLibraryTab ( ), library.cpp).
+//   Functions bind same-named static references, e.g. static app_record_s*& pApp = GetLibraryTab ( ).pApp;
+struct library_tab_s {
+  library_selection_s selection;                 // The selected game
+  library_selection_s item_clicked;              // The game last clicked in the list
+  app_record_s*       pApp     = nullptr;        // Record of the selected game; set once per frame, at the top of SKIF_UI_Tab_DrawLibrary ( )
+  bool                update   = true;           // The selection changed; refresh what depends on it
+  ImVec2              sizeList = ImVec2 (0, 0);  // Size of the games list (DPI-aware, recalculated when the tab area changes)
+};
+
+library_tab_s& GetLibraryTab (void);
+
 // Globals defined in library.cpp
 
 extern bool                   SKIF_STEAM_OWNER;
@@ -139,6 +179,14 @@ extern std::atomic<bool>      modDownloading;
 extern std::atomic<bool>      modInstalling;
 extern std::atomic<uint32_t>  modAppId;
 extern bool                   bCategoryMgnt;
+extern int                    numRegular;
+extern float                  fAlphaList;
+extern library_search_selection_s
+                              search_selection;
+extern PopupState             CoverMenu;
+extern PopupState             IconMenu;
+extern PopupState             CategoryMenu;
+extern PopupState             PopupCategoryModify;
 extern bool                   sort_changed;
 extern app_record_s::launch_config_s*
                               launchConfig;      // Used to launch games. Defaults to primary launch config.
@@ -161,6 +209,13 @@ extern float                  lib_column2_width; // Holds the width of column2 (
 
 extern bool                   allowShortcutCtrlA;
 extern float                  SKIF_ImGui_GlobalDPIScale;
+extern float                  SKIF_ImGui_GlobalDPIScale_Last;
+extern concurrency::concurrent_queue <IUnknown *> SKIF_ResourcesToFree;
+
+// library.cpp
+std::string GetEffectiveCategory (const app_record_s* app);
+void ShowLargeIconToggle     (void);                 // Shared between the Icon menu and the Filter menu
+void ClearCharFilter         (void);
 
 // library/library_launch.cpp
 void LaunchGame              (app_record_s* pApp);
@@ -170,6 +225,15 @@ bool SaveGameCover           (app_record_s* pApp, std::wstring_view path); // Co
 void DrawGameConfigMenu      (app_record_s* pApp);
 void DrawGameContextMenu     (app_record_s* pApp);
 void DrawSpecialKContextMenu (app_record_s* pApp);
+void DrawCoverMenu           (void);
+void DrawIconMenu            (void);
+void DrawEmptySpaceMenu      (bool showClearBtn);
+
+// library/library_list.cpp
+void DrawGamesList           (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop3, ImVec2& fTop3ScreenPos);
+
+// library/library_popups.cpp
+void DrawLibraryPopups       (void);
 
 // library/library_details.cpp
 void GetInjectionSummary     (app_record_s* pApp);

@@ -487,7 +487,9 @@
     <ClCompile Include="src\tabs\library.cpp" />
     <ClCompile Include="src\tabs\library\library_details.cpp" />
     <ClCompile Include="src\tabs\library\library_launch.cpp" />
+    <ClCompile Include="src\tabs\library\library_list.cpp" />
     <ClCompile Include="src\tabs\library\library_menus.cpp" />
+    <ClCompile Include="src\tabs\library\library_popups.cpp" />
     <ClCompile Include="src\tabs\settings.cpp" />
     <ClCompile Include="src\utility\updater.cpp" />
     <ClCompile Include="src\utility\vfs.cpp" />

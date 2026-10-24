@@ -299,6 +299,12 @@
     <ClCompile Include="src\tabs\library\library_menus.cpp">
       <Filter>Source Files\UI Tabs</Filter>
     </ClCompile>
+    <ClCompile Include="src\tabs\library\library_popups.cpp">
+      <Filter>Source Files\UI Tabs</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tabs\library\library_list.cpp">
+      <Filter>Source Files\UI Tabs</Filter>
+    </ClCompile>
     <ClCompile Include="src\stores\Steam\vdf.cpp">
       <Filter>Source Files\Stores\Steam</Filter>
     </ClCompile>

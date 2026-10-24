@@ -1622,3 +1622,581 @@ DrawSpecialKContextMenu (app_record_s* pApp)
 }
 
 #pragma endregion
+
+// Context menu for the selected game's cover (moved verbatim from SKIF_UI_Tab_DrawLibrary)
+void
+DrawCoverMenu (void)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_LibraryArtwork&   _art        = SKIF_LibraryArtwork  ::Get ( );
+
+  static app_record_s*&       pApp         = GetLibraryTab ( ).pApp;
+  static bool&                update       = GetLibraryTab ( ).update;
+
+  bool isSpecialK = (pApp != nullptr && pApp->IsSpecialK ( )); // pApp only changes once per frame, at the top of SKIF_UI_Tab_DrawLibrary ( )
+
+#pragma region CoverMenu
+
+  // Open the CoverMenu
+  if (CoverMenu == PopupState_Open)
+  {
+    ImGui::OpenPopup    ("CoverMenu");
+    CoverMenu = PopupState_Closed;
+  }
+
+
+  if (pApp != nullptr)
+  {
+    if (ImGui::BeginPopup   ("CoverMenu", ImGuiWindowFlags_NoMove))
+    {
+      ImGui::PushStyleColor (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
+
+      // Preparations
+
+      bool resetVisible = (pApp->HasStoreCover ( )   || // Not for Special K or custom games, unless they have custom / managed covers
+                           pApp->tex_cover.isCustom ||
+                           pApp->tex_cover.isManaged);
+
+      if (SKIF_ImGui_MenuItemEx2 ("Change", ICON_FA_FILE_IMAGE, (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255)))
+      {
+        LPWSTR pwszFilePath = NULL;
+        HRESULT hr          =
+          SKIF_Util_FileExplorer_BrowseForFile(&pwszFilePath, SKIF_ImGui_hWnd, { { L"Images", L"*.png;*.jpg;*.jpeg;*.webp;*.psd;*.bmp" } }, FOS_FILEMUSTEXIST, FOLDERID_Pictures);
+
+        if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED))
+        {
+          // If cancelled, do nothing
+        }
+
+        else if (SUCCEEDED(hr))
+        {
+          std::wstring filePath = std::wstring(pwszFilePath);
+          if (SaveGameCover (pApp, filePath))
+          {
+            // Shows the "..." loading dots, and sets up the current cover to be released
+            _art.BeginSavingCover (pApp);
+          }
+        }
+      }
+
+      else
+        SKIF_ImGui_SetMouseCursorHand ( );
+
+      if (resetVisible)
+      {
+        constexpr char* textCustom1 = "Clear";
+        constexpr char* textCustom2 = "Reset";
+        constexpr char* textDefault = "Refresh";
+        char*           textPtr     = textDefault;
+        constexpr char* iconCustom  = ICON_FA_ROTATE_LEFT;
+        constexpr char* iconDefault = ICON_FA_ROTATE;
+        char*           iconPtr     = iconDefault;
+        ImColor         iconColor   = (_registry._StyleLightMode) ? ImColor (128, 128, 128) : ImColor (128, 128, 128); // If neither custom nor managed (aka disabled)
+
+        if (pApp->tex_cover.isCustom)
+        {
+          iconColor = (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255);
+          iconPtr   = iconCustom;
+          textPtr   = ((pApp->IsUserAdded ( )) ? textCustom1 : textCustom2);
+        }
+
+        else if (pApp->tex_cover.isManaged)
+        {
+          iconColor = (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255);
+        }
+
+        bool enabled = (pApp->tex_cover.isCustom || pApp->tex_cover.isManaged);
+
+        // We use a group otherwise SKIF_ImGui_SetHoverTip() would not appear when disabled
+        if (! enabled)
+          ImGui::BeginGroup ( );
+
+        bool doReset = SKIF_ImGui_MenuItemEx2 (textPtr, iconPtr, iconColor, 0, nullptr, enabled);
+
+        if (! enabled)
+        {
+          ImGui::EndGroup ( );
+          SKIF_ImGui_SetHoverTip ("Managed by the platform client.");
+        }
+
+        else
+          SKIF_ImGui_SetMouseCursorHand ( );
+
+        if (doReset)
+        {
+          std::wstring targetPath = L"";
+
+          targetPath = pApp->GetAssetDirectory ( );
+
+          if (PathFileExists (targetPath.c_str()))
+          {
+            std::wstring fileName = (pApp->tex_cover.isCustom) ? L"cover" : L"cover-original";
+
+            // Will fail on read-only marked files
+            bool d1 = DeleteFile ((targetPath + fileName + L".png").c_str()),
+                 d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
+                 d3 = false;
+
+            // Store-managed fallback covers (PCGamingWiki covers for GOG and Steam, Xbox fallback cover)
+            if (! pApp->tex_cover.isCustom)
+              d3 = pApp->DeleteStoreCoverFiles (targetPath);
+
+            // If any file was removed
+            if (d1 || d2 || d3)
+            {
+              update    = true;
+              _art.ForgetCover ( ); // Needed as otherwise SKIF would not reload the cover
+            }
+          }
+        }
+      }
+
+      ImGui::Separator ( );
+
+      // Image scaling
+      ImGui::PushID ("#ImageScaling");
+
+      if (SKIF_ImGui_BeginMenuEx2 ("Scaling", ICON_FA_PANORAMA))
+      {
+        static bool bDefault = (_registry.iCoverScaling == 0) ? true : false;
+        static bool bFill    = (_registry.iCoverScaling == 1) ? true : false;
+        static bool bFit     = (_registry.iCoverScaling == 2) ? true : false;
+        static bool bNone    = (_registry.iCoverScaling == 3) ? true : false;
+        static bool bStretch = (_registry.iCoverScaling == 4) ? true : false;
+
+        // We use a group otherwise SKIF_ImGui_SetHoverTip() would not appear when disabled
+        ImGui::BeginGroup ( );
+
+        if (ImGui::MenuItem ("Default", spaces,  &bDefault, ! bDefault))
+        {
+          _registry.iCoverScaling = 0;
+
+        //bDefault = false;
+          bFill    = false;
+          bFit     = false;
+          bNone    = false;
+          bStretch = false;
+
+          _registry.regKVCoverScaling.putData (_registry.iCoverScaling);
+        }
+
+        ImGui::EndGroup ( );
+
+        SKIF_ImGui_SetHoverTip ("Scales the cover to a maximum height of 600px");
+
+        if (ImGui::MenuItem ("Fill",  spaces, &bFill, ! bFill))
+        {
+          _registry.iCoverScaling = 1;
+
+          bDefault = false;
+        //bFill    = false;
+          bFit     = false;
+          bNone    = false;
+          bStretch = false;
+
+          _registry.regKVCoverScaling.putData (_registry.iCoverScaling);
+        }
+
+        if (ImGui::MenuItem ("Fit",  spaces, &bFit, ! bFit))
+        {
+          _registry.iCoverScaling = 2;
+
+          bDefault = false;
+          bFill    = false;
+        //bFit     = false;
+          bNone    = false;
+          bStretch = false;
+
+          _registry.regKVCoverScaling.putData (_registry.iCoverScaling);
+        }
+
+        if (ImGui::MenuItem ("None",  spaces, &bNone, ! bNone))
+        {
+          _registry.iCoverScaling = 3;
+
+          bDefault = false;
+          bFill    = false;
+          bFit     = false;
+        //bNone    = false;
+          bStretch = false;
+
+          _registry.regKVCoverScaling.putData (_registry.iCoverScaling);
+        }
+
+        /*
+        if (ImGui::MenuItem ("Stretch",  spaces, &bStretch, ! bStretch))
+        {
+          _registry.iCoverScaling = 4;
+
+          bDefault = false;
+          bFill    = false;
+          bFit     = false;
+          bNone    = false;
+        //bStretch = false;
+
+          _registry.regKVCoverScaling.putData (_registry.iCoverScaling);
+        }
+        */
+
+        ImGui::EndMenu ( );
+      }
+
+      if (isSpecialK)
+      {
+        if (SKIF_ImGui_MenuItemEx2 ("Patreon", ICON_FA_PATREON, ImColor (249, 104, 84), spaces, &_registry.bPatreon))
+          _registry.regKVPatreon.putData (_registry.bPatreon);
+      }
+
+      ImGui::PopID ( );
+
+      ImGui::Separator ( );
+
+      if (SKIF_ImGui_MenuItemEx2 ("Open SteamGridDB", ICON_FA_UP_RIGHT_FROM_SQUARE, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)))
+        SKIF_Util_OpenURI (SK_UTF8ToWideChar (pApp->ui.sgdbGrids).c_str());
+      else
+      {
+        SKIF_ImGui_SetMouseCursorHand ( );
+        SKIF_ImGui_SetHoverText       (pApp->ui.sgdbGrids);
+      }
+
+      ImGui::PopStyleColor ( );
+      ImGui::EndPopup      ( );
+    }
+  }
+
+#pragma endregion
+}
+
+// Context menu for the selected game's icon (moved verbatim from SKIF_UI_Tab_DrawLibrary)
+void
+DrawIconMenu (void)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_LibraryArtwork&   _art        = SKIF_LibraryArtwork  ::Get ( );
+
+  static app_record_s*&       pApp         = GetLibraryTab ( ).pApp;
+
+#pragma region GamesList::IconMenu
+
+  // Open the IconMenu
+  if (IconMenu == PopupState_Open)
+  {
+    ImGui::OpenPopup    ("IconMenu");
+    IconMenu = PopupState_Closed;
+  }
+
+  if (pApp != nullptr)
+  {
+    if (ImGui::BeginPopup   ("IconMenu", ImGuiWindowFlags_NoMove))
+    {
+      ImGui::PushStyleColor (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
+
+      // Preparations
+
+      bool resetVisible = (! pApp->IsSpecialK ( )    ||
+                           pApp->tex_icon.isCustom ||
+                           pApp->tex_icon.isManaged);
+
+      if (SKIF_ImGui_MenuItemEx2 ("Change", ICON_FA_FILE_IMAGE, (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255)))
+      {
+        LPWSTR pwszFilePath = NULL;
+        HRESULT hr          =
+          SKIF_Util_FileExplorer_BrowseForFile (&pwszFilePath, SKIF_ImGui_hWnd, { { L"Icons", L"*.exe;*.ico;*.png;*.jpg;*.jpeg" } }, FOS_FILEMUSTEXIST, FOLDERID_Pictures);
+
+        if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED))
+        {
+          // If cancelled, do nothing
+        }
+
+        else if (SUCCEEDED(hr))
+        {
+          std::wstring targetPath = L"";
+          std::wstring ext        = SKIF_Util_ToLowerW (std::filesystem::path(pwszFilePath).extension().wstring());
+
+          targetPath = pApp->GetAssetDirectory ( );
+
+          if (targetPath != L"")
+          {
+            std::error_code ec;
+            // Create any missing directories
+            if (! std::filesystem::exists (            targetPath, ec))
+                  std::filesystem::create_directories (targetPath, ec);
+
+            targetPath += L"icon";
+
+            DeleteFile ((targetPath + L".png").c_str());
+            DeleteFile ((targetPath + L".jpg").c_str());
+            DeleteFile ((targetPath + L".ico").c_str());
+
+            if (ext == L".jpeg")
+              ext = L".jpg";
+
+            if (ext == L".exe")
+              SKIF_Util_SaveExtractExeIcon (pwszFilePath, (targetPath + L".png"));
+            else
+              CopyFile (pwszFilePath, (targetPath + ext).c_str(), false);
+
+            SetFileAttributes ((targetPath + ext).c_str(),
+                    GetFileAttributes ((targetPath + ext).c_str()) & ~FILE_ATTRIBUTE_READONLY);
+
+            // Reload the icon
+            _art.ReloadIcon (pApp);
+          }
+        }
+      }
+
+      else
+        SKIF_ImGui_SetMouseCursorHand ( );
+
+      if (resetVisible)
+      {
+        constexpr char* textCustom  = "Reset";
+        constexpr char* textDefault = "Refresh";
+        char*           textPtr     = textDefault;
+        constexpr char* iconCustom  = ICON_FA_ROTATE_LEFT;
+        constexpr char* iconDefault = ICON_FA_ROTATE;
+        char*           iconPtr     = iconDefault;
+        ImColor         iconColor   = (_registry._StyleLightMode) ? ImColor (128, 128, 128) : ImColor (128, 128, 128); // If neither custom nor managed (aka disabled)
+
+        if (pApp->tex_icon.isCustom)
+        {
+          iconColor = (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255);
+          iconPtr   = iconCustom;
+          textPtr   = textCustom;
+        }
+
+        else if (pApp->tex_icon.isManaged)
+        {
+          iconColor = (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255);
+        }
+
+        bool enabled = (pApp->tex_icon.isCustom || pApp->tex_icon.isManaged);
+
+        // We use a group otherwise SKIF_ImGui_SetHoverTip() would not appear when disabled
+        if (! enabled)
+          ImGui::BeginGroup ( );
+
+        bool doReset = SKIF_ImGui_MenuItemEx2 (textPtr, iconPtr, iconColor, 0, nullptr, enabled);
+
+        if (! enabled)
+        {
+          ImGui::EndGroup ( );
+          SKIF_ImGui_SetHoverTip ("Managed by the platform client.");
+        }
+
+        else
+          SKIF_ImGui_SetMouseCursorHand ( );
+
+        if (doReset)
+        {
+          std::wstring targetPath = L"";
+
+          targetPath = pApp->GetAssetDirectory ( );
+
+          if (PathFileExists (targetPath.c_str()))
+          {
+            std::wstring fileName = (pApp->tex_icon.isCustom) ? L"icon" : L"icon-original";
+
+            // Will fail on read-only marked files
+            bool d1 = DeleteFile ((targetPath + fileName + L".png").c_str()),
+                 d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
+                 d3 = DeleteFile ((targetPath + fileName + L".ico").c_str());
+
+            // If any file was removed
+            if (d1 || d2 || d3)
+            {
+              // Store-specific (Steam: refresh the icon hash from appinfo.vdf)
+              pApp->PrepareIconSource ( );
+
+              // Reload the icon
+              _art.ReloadIcon (pApp);
+            }
+          }
+        }
+      }
+
+      ImGui::Separator ( );
+
+      if (SKIF_ImGui_MenuItemEx2 ("Open SteamGridDB", ICON_FA_UP_RIGHT_FROM_SQUARE, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)))
+        SKIF_Util_OpenURI (SK_UTF8ToWideChar (pApp->ui.sgdbIcons).c_str());
+      else
+      {
+        SKIF_ImGui_SetMouseCursorHand ( );
+        SKIF_ImGui_SetHoverText       (pApp->ui.sgdbIcons);
+      }
+
+      ImGui::Separator      ( );
+
+      ShowLargeIconToggle   ( );
+
+      ImGui::PopStyleColor ( );
+      ImGui::EndPopup      ( );
+    }
+  }
+
+#pragma endregion
+}
+
+// Context menu for the empty space in the games list (moved verbatim from SKIF_UI_Tab_DrawLibrary)
+void
+DrawEmptySpaceMenu (bool showClearBtn)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
+
+#pragma region GamesList::EmptySpaceMenu
+
+  // Open the Empty Space Menu
+  if (EmptySpaceMenu == PopupState_Open)
+    ImGui::OpenPopup    ("GameListEmptySpaceMenu");
+
+  if (ImGui::BeginPopup   ("GameListEmptySpaceMenu", ImGuiWindowFlags_NoMove))
+  {
+    EmptySpaceMenu = PopupState_Opened;
+
+    ImGui::PushStyleColor (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
+
+    if (showClearBtn)
+    {
+      if (SKIF_ImGui_MenuItemEx2 ("Clear filter", ICON_FA_SQUARE_XMARK, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Failure)))
+        ClearCharFilter ( );
+
+      ImGui::Separator   ( );
+    }
+
+     if (SKIF_ImGui_MenuItemEx2 ("Add game", ICON_FA_SQUARE_PLUS, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success)))
+       AddGamePopup = PopupState_Open;
+
+    ImGui::Separator      ( );
+
+    ImGui::PushID ("#LibrarySort");
+
+    if (SKIF_ImGui_BeginMenuEx2 ("Sort by", ICON_FA_SORT))
+    {
+      static bool bName       = (_registry.iLibrarySort == 0) ? true : false;
+      static bool bFrequently = (_registry.iLibrarySort == 1) ? true : false;
+      static bool bRecently   = (_registry.iLibrarySort == 2) ? true : false;
+
+      if (ImGui::MenuItem ("Alphabetical", spaces,  &bName     ))
+      {
+        _registry.iLibrarySort = 0;
+
+        bFrequently = false;
+        bRecently   = false;
+
+        _registry.regKVLibrarySort.putData (_registry.iLibrarySort);
+        SKIF_GamingCollection::SortApps (&_games.GetApps());
+        sort_changed = true;
+      }
+
+      if (ImGui::MenuItem ("Most played",  spaces, &bFrequently))
+      {
+        _registry.iLibrarySort = 1;
+
+        bName       = false;
+        bRecently   = false;
+
+        _registry.regKVLibrarySort.putData (_registry.iLibrarySort);
+        SKIF_GamingCollection::SortApps (&_games.GetApps());
+        sort_changed = true;
+      }
+
+      SKIF_ImGui_SetHoverTip ("Sort by the number of launches of the game through this app.");
+
+      if (ImGui::MenuItem ("Last played",  spaces, &bRecently  ))
+      {
+        _registry.iLibrarySort = 2;
+
+        bName       = false;
+        bFrequently = false;
+
+        _registry.regKVLibrarySort.putData (_registry.iLibrarySort);
+        SKIF_GamingCollection::SortApps (&_games.GetApps());
+        sort_changed = true;
+      }
+
+      ImGui::EndMenu ( );
+    }
+
+    ImGui::PopID ( );
+
+    ImGui::PushID ("#Platforms");
+
+    if (SKIF_ImGui_BeginMenuEx2 ("Platforms", ICON_FA_GEARS))
+    {
+      static bool* pbLibraryEpic   = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryEpic;
+      static bool* pbLibraryGOG    = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryGOG;
+      static bool* pbLibrarySteam  = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibrarySteam;
+      static bool* pbLibraryXbox   = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryXbox;
+      static bool* pbLibraryCustom = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryCustom;
+
+      if (_games.IsPopulating ( ))
+        SKIF_ImGui_PushDisableState ( );
+
+      if (ImGui::MenuItem ("Epic",  spaces, pbLibraryEpic,   (! _registry._LibraryHidden)))
+      {
+        _registry.regKVLibraryEpic.putData  (_registry.bLibraryEpic);
+        RepopulateGames = true;
+      }
+
+      if (ImGui::MenuItem ("GOG",   spaces, pbLibraryGOG,    (! _registry._LibraryHidden)))
+      {
+        _registry.regKVLibraryGOG.putData   (_registry.bLibraryGOG);
+        RepopulateGames = true;
+      }
+
+      if (ImGui::MenuItem ("Steam", spaces, pbLibrarySteam,  (! _registry._LibraryHidden)))
+      {
+        _registry.regKVLibrarySteam.putData (_registry.bLibrarySteam);
+        RepopulateGames = true;
+      }
+
+      if (ImGui::MenuItem ("Xbox",  spaces, pbLibraryXbox,   (! _registry._LibraryHidden)))
+      {
+        _registry.regKVLibraryXbox.putData  (_registry.bLibraryXbox);
+        RepopulateGames = true;
+      }
+
+      ImGui::Separator ( );
+
+      if (ImGui::MenuItem ("Custom",spaces, pbLibraryCustom, (! _registry._LibraryHidden)))
+      {
+        _registry.regKVLibraryCustom.putData(_registry.bLibraryCustom);
+        RepopulateGames = true;
+      }
+
+      if (ImGui::MenuItem ("Hidden games",spaces, &_registry._LibraryHidden))
+      {
+        pbLibraryEpic   = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryEpic;
+        pbLibraryGOG    = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryGOG;
+        pbLibrarySteam  = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibrarySteam;
+        pbLibraryXbox   = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryXbox;
+        pbLibraryCustom = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryCustom;
+
+        RepopulateGames = true;
+      }
+
+      if (_games.IsPopulating ( ))
+        SKIF_ImGui_PopDisableState ( );
+
+      ImGui::EndMenu ( );
+    }
+
+    ImGui::PopID ( );
+
+    ImGui::Separator      ( );
+
+    ShowLargeIconToggle   ( );
+
+    if (SKIF_ImGui_MenuItemEx2 ("Refresh", ICON_FA_ROTATE_RIGHT, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)))
+      RepopulateGames = true;
+
+    ImGui::PopStyleColor  ( );
+    ImGui::EndPopup       ( );
+  }
+
+  else
+    EmptySpaceMenu = PopupState_Closed;
+
+#pragma endregion
+}
