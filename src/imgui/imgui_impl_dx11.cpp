@@ -1665,7 +1665,20 @@ static void ImGui_ImplDX11_SwapBuffers(ImGuiViewport* viewport, void*)
         PresentFlags |= DXGI_PRESENT_ALLOW_TEARING;
     }
 
-    if (SUCCEEDED (vd->SwapChain->Present (Interval, PresentFlags)))
+    extern DWORD SKIF_startupTime;
+    extern bool  SKIF_FirstPresentDone;
+    extern DWORD SKIF_Util_timeGetTime1 (void);
+
+    const DWORD   dwPresentStart = (! SKIF_FirstPresentDone) ? SKIF_Util_timeGetTime1 ( ) : 0;
+    const HRESULT hrPresent      = vd->SwapChain->Present (Interval, PresentFlags);
+
+    // [Startup] timing (verbose): each Present ( ) until the first one has succeeded
+    if (! SKIF_FirstPresentDone)
+      PLOG_VERBOSE << "[Startup] Present ( ) took " << (SKIF_Util_timeGetTime1 ( ) - dwPresentStart) << " ms, "
+                   << (dwPresentStart - SKIF_startupTime) << " ms after init (HRESULT 0x" << std::hex << static_cast <unsigned long> (hrPresent) << std::dec
+                   << ", window " << (IsWindowVisible (static_cast <HWND> (viewport->PlatformHandle)) ? "visible" : "hidden") << ").";
+
+    if (SUCCEEDED (hrPresent))
     {
       vd->PresentCount++;
 
@@ -1673,12 +1686,12 @@ static void ImGui_ImplDX11_SwapBuffers(ImGuiViewport* viewport, void*)
       if (runOnce)
       {
         runOnce = false;
-        extern DWORD SKIF_startupTime;
-        extern DWORD SKIF_Util_timeGetTime1 (void);
 
         DWORD current_time = SKIF_Util_timeGetTime1();
 
         PLOG_INFO << "Presented first frame! Init -> Present took " << (current_time - SKIF_startupTime) << " ms.";
+
+        SKIF_FirstPresentDone = true;
       }
     }
   }
