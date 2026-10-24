@@ -170,6 +170,7 @@ extern std::string SKIF_StatusBarText;
 extern std::string SKIF_StatusBarHelp;
 
 extern bool        PopulatedGames;
+extern bool        SKIF_StartupFinished; // Set once the first frame has been presented (see SKIF_OnStartupFinished)
 extern bool        RepopulateGames;
 extern bool        RefreshHardwareTab;
 extern bool        RefreshSettingsTab;

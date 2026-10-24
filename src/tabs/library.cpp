@@ -1319,8 +1319,10 @@ SKIF_UI_Tab_DrawLibrary (void)
 
 #pragma region SKIF_LibCoverWorker
 
-  // Streams the cover in on a background thread once the cover area is visible (not while a custom cover is being saved for this game)
-  if (uiCoverVisible && _art.IsCoverRequested ( ) && PopulatedGames && ! _art.IsSavingCover (pApp))
+  // Streams the cover in on a background thread once the cover area is visible (not while a custom cover is being saved for this game).
+  //   Not until SKIF has started: the cover can't be created before the hardware device exists (created after the first
+  //   present), and starting the worker would only delay the first present.
+  if (SKIF_StartupFinished && uiCoverVisible && _art.IsCoverRequested ( ) && PopulatedGames && ! _art.IsSavingCover (pApp))
     _art.StartCoverWorker (pApp);
 
 #pragma endregion

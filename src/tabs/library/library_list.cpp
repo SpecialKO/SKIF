@@ -468,8 +468,10 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
       }
     }
 
-    // Stream the icon in once the game is visible in the list (up to 8 icon workers at once)
-    if (ImGui::IsItemVisible ( ) && app.second->tex_icon.iWorker == 0 && _art.CanStartIconWorker ( ))
+    // Stream the icon in once the game is visible in the list (up to 8 icon workers at once). Not until SKIF has
+    //   started: the icons can't be created before the hardware device exists (created after the first present), and
+    //   starting the workers would only delay the first present.
+    if (SKIF_StartupFinished && ImGui::IsItemVisible ( ) && app.second->tex_icon.iWorker == 0 && _art.CanStartIconWorker ( ))
       _art.StartIconWorker (app.second.get ( ));
   }
 

@@ -328,7 +328,17 @@ SKIF_D3D11_StartHardwareDevice (void)
 }
 
 // Set once SKIF has started (see SKIF_OnStartupFinished)
-static bool SKIF_StartupFinished = false;
+bool SKIF_StartupFinished = false;
+
+// The Direct3D DLLs (dxgi.dll, d3d11.dll, d3d10warp.dll) are loaded, and the first DXGI factory is created, on a thread
+//   of their own as soon as SKIF starts, alongside the init. The first factory of the process takes ~7 ms (it sets up
+//   the adapter enumeration), even with dxgi.dll loaded; CreateDeviceD3D ( ) takes it over the first time (DXGI
+//   factories are thread-safe). [Startup] timing (verbose) logged by CreateDeviceD3D ( ).
+static std::atomic <bool> SKIF_D3DDllPreloadDone      = false;
+static DWORD              SKIF_D3DDllPreloadEndTime   = 0;       // SKIF_Util_timeGetTime1 ( ), set before ..Done
+static double             SKIF_D3DDllPreloadMs        = 0.0;     // Set before ..Done
+static double             SKIF_D3DDllPreloadFactoryMs = 0.0;     // Set before ..Done
+static IDXGIFactory2*     SKIF_D3DDllPreloadFactory   = nullptr; // Set before ..Done; taken by CreateDeviceD3D ( )
 
 // [Startup] timing (verbose) with sub-ms precision
 static double
@@ -339,7 +349,9 @@ SKIF_StartupMs (std::chrono::steady_clock::time_point from, std::chrono::steady_
 
 // [Startup] timing (verbose) of the ImGui platform/renderer callbacks until the first present: creating, sizing and
 //   showing the window, creating its swapchain, and rendering and presenting the first frame. The wrappers stay
-//   installed afterwards, but then only call the backend's function.
+//   installed afterwards, but then only call the backend's function. (Round 13 also logged each window message
+//   handled during them, which showed that Platform_UpdateWindow's ~8 ms was the window's first activation, but
+//   logging every message added ~5 ms to the startup, so it was removed.)
 #define SKIF_STARTUP_TIMED_CALLBACK(member, params, args)                                                          \
   static decltype (ImGuiPlatformIO::member) SKIF_StartupOrig_##member = nullptr;                                  \
   static void SKIF_StartupTimed_##member params                                                                    \
@@ -416,7 +428,8 @@ SKIF_StartupTimedCallbacks_Install (void)
 //  - The notification icon is created (when SKIF starts minimized or to the tray it is created right away instead).
 //  - Started on WARP: the hardware device is created (SKIF_D3D11_StartHardwareDevice).
 //  - The gamepad input thread is spawned (it loads XInput).
-//  - SKIF_StartupFinished is set, after which the library tab registers the drop target (RegisterDragDrop).
+//  - SKIF_StartupFinished is set, after which the library tab registers the drop target (RegisterDragDrop) and starts
+//    the icon and cover workers.
 static void
 SKIF_OnStartupFinished (void)
 {
@@ -428,7 +441,11 @@ SKIF_OnStartupFinished (void)
 
   done = true;
 
-  SKIF_StartupFinished = true; // E.g. the drop target is registered from now on
+  SKIF_StartupFinished = true; // E.g. the drop target is registered, and the icon and cover workers start, from now on
+
+  // Make sure a few more frames follow, so the library starts its icon and cover workers right away
+  if (SKIF_Notify_hWnd != NULL)
+    PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
 
   if (SKIF_Notify_hWnd != NULL)
     KillTimer (SKIF_Notify_hWnd, cIDT_TIMER_STARTUP);
@@ -1716,6 +1733,31 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SetErrorMode (SEM_FAILCRITICALERRORS | SEM_NOALIGNMENTFAULTEXCEPT);
 
   SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_MainThread");
+
+  // Load the Direct3D DLLs alongside the init (see SKIF_D3DDllPreloadDone). Started after the LoadLibrary hooks above
+  //   are in place. The modules stay loaded (SKIF_CreateDXGIFactory1 and SKIF_D3D11CreateDevice load them again).
+  std::thread ([](void)
+  {
+    SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_D3DDllPreload");
+
+    const auto start = std::chrono::steady_clock::now ( );
+
+    LoadLibraryExW (L"dxgi.dll",      nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+    LoadLibraryExW (L"d3d11.dll",     nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+    LoadLibraryExW (L"d3d10warp.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+
+    const auto factoryStart = std::chrono::steady_clock::now ( );
+
+    IDXGIFactory2* pFactory = nullptr;
+    if (SUCCEEDED (SKIF_CreateDXGIFactory1 (__uuidof (IDXGIFactory2), (void **)&pFactory)))
+      SKIF_D3DDllPreloadFactory = pFactory;
+
+    SKIF_D3DDllPreloadFactoryMs = SKIF_StartupMs (factoryStart);
+    SKIF_D3DDllPreloadMs      = SKIF_StartupMs (start);
+    SKIF_D3DDllPreloadEndTime = SKIF_Util_timeGetTime1 ( );
+    SKIF_D3DDllPreloadDone.store (true, std::memory_order_release);
+    SKIF_D3DDllPreloadDone.notify_all ( );
+  }).detach ( );
 
   //CoInitializeEx (nullptr, 0x0);
   OleInitialize (NULL); // Needed for IDropTarget
@@ -4497,7 +4539,29 @@ bool CreateDeviceD3D (HWND hWnd)
 
   CComPtr <IDXGIFactory2> pFactory2;
 
-  if (FAILED (SKIF_CreateDXGIFactory1 (__uuidof (IDXGIFactory2), (void **)&pFactory2.p)))
+  // The first time: take over the DXGI factory created alongside the init (see SKIF_D3DDllPreloadDone), waiting for it
+  //   if it isn't done yet (it does the same work as creating one here would)
+  static bool firstFactory = true;
+  if (firstFactory)
+  {   firstFactory = false;
+
+    const auto waitStart = std::chrono::steady_clock::now ( );
+    const bool wasDone   = SKIF_D3DDllPreloadDone.load (std::memory_order_acquire);
+
+    SKIF_D3DDllPreloadDone.wait (false, std::memory_order_acquire);
+
+    pFactory2.Attach (SKIF_D3DDllPreloadFactory); // Takes its reference
+    SKIF_D3DDllPreloadFactory = nullptr;
+
+    const double waitedMs = SKIF_StartupMs (waitStart);
+
+    PLOG_VERBOSE << "[Startup] The Direct3D DLLs and the DXGI factory were preloaded in " << SKIF_D3DDllPreloadMs << " ms (the factory "
+                 << SKIF_D3DDllPreloadFactoryMs << " ms), finished " << static_cast <int> (SKIF_D3DDllPreloadEndTime - SKIF_startupTime) << " ms after init"
+                 << "; waited " << ((wasDone) ? 0.0 : waitedMs) << " ms for it"
+                 << ((pFactory2 == nullptr) ? "; it failed, so the factory is created here." : ".");
+  }
+
+  if (pFactory2 == nullptr && FAILED (SKIF_CreateDXGIFactory1 (__uuidof (IDXGIFactory2), (void **)&pFactory2.p)))
     return false;
 
   // Windows 7 (2013 Platform Update), or Windows 8+
