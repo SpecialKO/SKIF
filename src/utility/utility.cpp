@@ -1889,6 +1889,25 @@ SKIF_Util_SetThreadDescription (HANDLE hThread, PCWSTR lpThreadDescription)
   return SKIF_SetThreadDescription (hThread, lpThreadDescription);
 }
 
+// Falls back to GetSystemTimeAsFileTime ( ) (lower precision) if GetSystemTimePreciseAsFileTime ( ) isn't available
+VOID
+WINAPI
+SKIF_Util_GetSystemTimePreciseAsFileTime (LPFILETIME lpSystemTimeAsFileTime)
+{
+  using GetSystemTimePreciseAsFileTime_pfn =
+    VOID (WINAPI *)(LPFILETIME lpSystemTimeAsFileTime);
+
+  static GetSystemTimePreciseAsFileTime_pfn
+    SKIF_GetSystemTimePreciseAsFileTime =
+        (GetSystemTimePreciseAsFileTime_pfn)GetProcAddress (LoadLibraryEx (L"kernel32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "GetSystemTimePreciseAsFileTime");
+
+  if (SKIF_GetSystemTimePreciseAsFileTime == nullptr)
+    return GetSystemTimeAsFileTime (lpSystemTimeAsFileTime);
+
+  return SKIF_GetSystemTimePreciseAsFileTime (lpSystemTimeAsFileTime);
+}
+
 BOOL
 WINAPI
 SKIF_Util_SetThreadSelectedCpuSets (HANDLE hThread, const ULONG* CpuSetIds, ULONG CpuSetIdCount)
