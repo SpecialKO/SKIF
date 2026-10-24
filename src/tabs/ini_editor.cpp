@@ -36,8 +36,8 @@ IniWindow::ApplyFilter (void)
 void
 IniWindow::ClearFilter (void)
 {
-  strncpy (charFilter,    "\0", MAX_PATH);
-  strncpy (charFilterTmp, "\0", MAX_PATH);
+  *charFilter    = '\0';
+  *charFilterTmp = '\0';
   ApplyFilter ( );
 }
 
@@ -66,7 +66,7 @@ IniWindow::SetPath (const std::wstring& _p)
     path_parent = L"";
 }
 
-IniWindow::IniWindow (std::vector<IniEntry> _i, IniType _ty, const std::wstring& _p, const std::string& _ti)
+IniWindow::IniWindow (std::vector<IniEntry>& _i, IniType _ty, const std::wstring& _p, const std::string& _ti)
 {
   ini         = _i;
   type        = _ty;
@@ -119,7 +119,7 @@ SKIF_UI_IniEditor_NewWindow (void)
     ini_parsed.push_back (item);
   }
 
-  vIniWindow.push_back({ ini_parsed, dll_ini });
+  vIniWindow.emplace_back (ini_parsed, dll_ini);
 }
 
 void
@@ -241,7 +241,7 @@ SKIF_UI_IniEditor_OpenFile (IniWindow* iniWindow, IniType type, std::wstring pat
   std::vector <IniEntry> ini_parsed = SKIF_IniReader_ParseIni (path, type);
 
   if (iniWindow == nullptr)
-    vIniWindow.push_back({ ini_parsed, type, path, title_final });
+    vIniWindow.emplace_back (ini_parsed, type, path, title_final);
 
   else {
     iniWindow->bChanged    = false;
