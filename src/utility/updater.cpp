@@ -72,6 +72,9 @@ SKIF_Updater::SKIF_Updater (void)
   InitializeConditionVariable (&UpdaterPaused);
   extern SKIF_Signals _Signal;
 
+  // [Startup] timing (verbose) of the constructor
+  const DWORD dwCtorStart = SKIF_Util_timeGetTime1 ( );
+
   if (! _Signal.Launcher && ! _Signal.LauncherURI && ! _Signal.Quit && ! _Signal.ServiceMode)
   {
     // Clearing out old installers...
@@ -83,6 +86,8 @@ SKIF_Updater::SKIF_Updater (void)
     // Initial changes.txt read...
     ReadChangesFile ( );
   }
+
+  const DWORD dwCtorFiles = SKIF_Util_timeGetTime1 ( );
 
   // Start the child thread that is responsible for checking for updates
   static HANDLE hWorkerThread = (HANDLE)
@@ -345,6 +350,12 @@ SKIF_Updater::SKIF_Updater (void)
 
     return 0;
   }, nullptr, 0x0, nullptr);
+
+  const DWORD dwCtorEnd = SKIF_Util_timeGetTime1 ( );
+
+  PLOG_VERBOSE << "[Startup] Initializing the updater took " << (dwCtorEnd - dwCtorStart) << " ms ("
+               << (dwCtorFiles - dwCtorStart) << " ms clearing old installers and reading patrons.txt and changes.txt, "
+               << (dwCtorEnd   - dwCtorFiles) << " ms starting the updater thread).";
 
   if (hWorkerThread != NULL)
   {

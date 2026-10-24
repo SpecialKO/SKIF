@@ -355,6 +355,12 @@ SKIF_OnStartupFinished (void)
   // Started on WARP: create the hardware device now
   SKIF_D3D11_StartHardwareDevice ( );
 
+  // Spawn the gamepad input thread: it loads XInput right away, which holds the loader lock for as long as it takes
+  //   (up to ~65 ms with a custom XInput1_4.dll), and any other thread loading a DLL or starting up waits on it.
+  //   Spawned this late, it can no longer stall the startup.
+  static SKIF_GamePadInputHelper& _gamepad = SKIF_GamePadInputHelper::GetInstance ( );
+  _gamepad.SpawnChildThread ( );
+
   if (SKIF_NotifyIconDeferred)
   {
     SKIF_NotifyIconDeferred = false;
@@ -1967,25 +1973,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     }
   }
 
-  PLOG_INFO << "Initializing Direct3D...";
-
-  DWORD temp_time = SKIF_Util_timeGetTime1();
-
-  // Initialize Direct3D
-  if (! CreateDeviceD3D (SKIF_Notify_hWnd))
-  {
-    CleanupDeviceD3D ();
-    return 1;
-  }
-
-  PLOG_DEBUG << "Operation [CreateDeviceD3D] took " << (SKIF_Util_timeGetTime1() - temp_time) << " ms.";
-
-  // Register to be notified if the effective power mode changes
-  //SKIF_Util_SetEffectivePowerModeNotifications (true); // (this serves no purpose yet)
-
-  // The DropTarget object used for drag-and-drop support for new covers
-  static SKIF_DropTargetObject& _drag_drop  = SKIF_DropTargetObject::GetInstance ( );
-
+  // ImGui is initialized before Direct3D, so the font atlas can be built while the D3D device is created (see below)
   PLOG_INFO << "Initializing ImGui...";
 
   // Setup Dear ImGui context
@@ -2047,8 +2035,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Setup Platform/Renderer bindings
   PLOG_INFO << "Initializing ImGui Win32 platform...";
   ImGui_ImplWin32_Init (nullptr); // This sets up a separate window/hWnd as well, though it will first be created at the end of the main loop
-  PLOG_INFO << "Initializing ImGui D3D11 platform...";
-  ImGui_ImplDX11_Init  (SKIF_pd3dDevice, SKIF_pd3dDeviceContext);
 
   //SKIF_Util_GetMonitorHzPeriod (SKIF_hWnd, MONITOR_DEFAULTTOPRIMARY, dwDwmPeriod);
   //OutputDebugString((L"Initial refresh rate period: " + std::to_wstring (dwDwmPeriod) + L"\n").c_str());
@@ -2064,6 +2050,48 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Initialize ImGui fonts
   PLOG_INFO << "Initializing ImGui fonts...";
   SKIF_ImGui_InitFonts (SKIF_ImGui_FontSizeDefault, (! _Signal.Launcher && ! _Signal.LauncherURI && ! _Signal.Quit && ! _Signal.ServiceMode) );
+
+  // Build the font atlas on a thread of its own while the D3D device is created: it's CPU work only (~25 ms), and
+  //   ImGui_ImplDX11_CreateFontsTexture ( ) skips the build if it has been done already. The main thread does not
+  //   touch ImGui until the thread has been joined below.
+  std::thread fontAtlasBuild ([atlas = io.Fonts]
+  {
+    SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_FontAtlasBuild");
+
+    DWORD dwStart = SKIF_Util_timeGetTime1 ( );
+
+    atlas->Build ( );
+
+    PLOG_DEBUG << "Operation [Fonts->Build] took " << (SKIF_Util_timeGetTime1 ( ) - dwStart) << " ms (in parallel with creating the D3D device).";
+  });
+
+  PLOG_INFO << "Initializing Direct3D...";
+
+  DWORD temp_time = SKIF_Util_timeGetTime1();
+
+  // Initialize Direct3D
+  if (! CreateDeviceD3D (SKIF_Notify_hWnd))
+  {
+    fontAtlasBuild.join ( );
+    CleanupDeviceD3D ();
+    return 1;
+  }
+
+  PLOG_DEBUG << "Operation [CreateDeviceD3D] took " << (SKIF_Util_timeGetTime1() - temp_time) << " ms.";
+
+  // Wait for the font atlas to finish building
+  temp_time = SKIF_Util_timeGetTime1();
+  fontAtlasBuild.join ( );
+  PLOG_VERBOSE << "[Startup] Waited " << (SKIF_Util_timeGetTime1() - temp_time) << " ms for the font atlas to finish building.";
+
+  // Register to be notified if the effective power mode changes
+  //SKIF_Util_SetEffectivePowerModeNotifications (true); // (this serves no purpose yet)
+
+  // The DropTarget object used for drag-and-drop support for new covers
+  static SKIF_DropTargetObject& _drag_drop  = SKIF_DropTargetObject::GetInstance ( );
+
+  PLOG_INFO << "Initializing ImGui D3D11 platform...";
+  ImGui_ImplDX11_Init  (SKIF_pd3dDevice, SKIF_pd3dDeviceContext);
 
   // Variable related to continue/pause processing behaviour
   bool HiddenFramesContinueProcessing = true;  // We always have hidden frames that require to continue processing on init
@@ -2085,8 +2113,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_Util_RegisterHotKeySVCTemp   (_registry.kbStartService.getKeybind());
   }
 
-  // Spawn the gamepad input thread
-  _gamepad.SpawnChildThread ( );
+  // The gamepad input thread is spawned once startup has finished (see SKIF_OnStartupFinished)
 
   PLOG_INFO << "Initializing updater...";
   // Initialize the updater
