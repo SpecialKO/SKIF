@@ -87,8 +87,8 @@ struct SKIF_GamingCollection {
   Trie&                   GetLabels     (void) { return m_tLabels;    }
 
         // Library-wide textures loaded by the library worker
-  ID3D11ShaderResourceView* GetPatreonTexture (void)       { return m_pPatTexSRV.p; }
-  ID3D11ShaderResourceView* GetSKLogoTexture  (bool bSmall) { return (bSmall) ? m_pSKLogoTexSRV_small.p : m_pSKLogoTexSRV.p; }
+  ID3D11ShaderResourceView* GetPatreonTexture (void)       { AdoptEmbeddedTextures ( ); return m_pPatTexSRV.p; }
+  ID3D11ShaderResourceView* GetSKLogoTexture  (bool bSmall) { AdoptEmbeddedTextures ( ); return (bSmall) ? m_pSKLogoTexSRV_small.p : m_pSKLogoTexSRV.p; }
   void                      ReleaseTextures   (void);      // Pushes the library-wide textures to SKIF_ResourcesToFree (device reset)
 
         // Persistent per-game metadata (Assets/db.json)
@@ -116,6 +116,17 @@ private:
 
   CComPtr <ID3D11ShaderResourceView> m_pPatTexSRV;
   CComPtr <ID3D11ShaderResourceView> m_pSKLogoTexSRV;
+
+  // The embedded textures above are loaded by a thread of the library worker, which doesn't wait for it (the textures
+  //   are created on the hardware device, which may not be ready yet), and handed to the main thread by
+  //   AdoptEmbeddedTextures ( ), called by the getters.
+  enum EmbeddedTextures { Embedded_None, Embedded_Loading, Embedded_Loaded, Embedded_Adopted };
+  std::atomic <int>                  m_embeddedState = Embedded_None;
+  std::mutex                         m_embeddedMutex;
+  CComPtr <ID3D11ShaderResourceView> m_pPatTexSRV_loaded;
+  CComPtr <ID3D11ShaderResourceView> m_pSKLogoTexSRV_loaded;
+  CComPtr <ID3D11ShaderResourceView> m_pSKLogoTexSRV_small_loaded;
+  void                               AdoptEmbeddedTextures (void); // Main thread
   CComPtr <ID3D11ShaderResourceView> m_pSKLogoTexSRV_small;
   AppList                   m_apps;
   std::atomic <bool>        m_populatedOnce = false;

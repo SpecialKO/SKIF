@@ -1722,17 +1722,20 @@ SKIF_Util_CompactWorkingSet (void)
 HybridDetect::PROCESSOR_INFO*
 SKIF_Util_GetProcessInfoHybridDetect (void)
 {
-  static HybridDetect::PROCESSOR_INFO procInfo;
+  // Thread-safe one-time initialization: SKIF starts it on a thread of its own (it moves that thread across every logical
+  //   processor, which can take tens of ms), and anything asking earlier waits for it
+  static HybridDetect::PROCESSOR_INFO procInfo = [](void)
+  {
+    HybridDetect::PROCESSOR_INFO info;
 
-  static bool
-      runOnce = true;
-  if (runOnce)
-  {   runOnce = false;
+    DWORD dwStart = SKIF_Util_timeGetTime1 ( );
 
     // Use Intel's HybridDetect to retrieve processor capabilities
-    HybridDetect::GetProcessorInfo (procInfo);
-    PLOG_INFO << "Detected CPU model: " << procInfo.brandString << ((procInfo.hybrid) ? " (Hybrid)" : "");
-  }
+    HybridDetect::GetProcessorInfo (info);
+    PLOG_INFO << "Detected CPU model: " << info.brandString << ((info.hybrid) ? " (Hybrid)" : "") << " (in " << (SKIF_Util_timeGetTime1 ( ) - dwStart) << " ms)";
+
+    return info;
+  } ( );
 
   return &procInfo;
 }

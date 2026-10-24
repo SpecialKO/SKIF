@@ -739,9 +739,40 @@ SKIF_GamingCollection::SwapInPopulatedGames (void)
   return reaped;
 }
 
+// Main thread: takes the embedded textures once the library worker's thread has loaded them
+void
+SKIF_GamingCollection::AdoptEmbeddedTextures (void)
+{
+  if (m_embeddedState.load ( ) != Embedded_Loaded)
+    return;
+
+  std::scoped_lock embedded_lock (m_embeddedMutex);
+
+  m_pPatTexSRV          = m_pPatTexSRV_loaded;
+  m_pSKLogoTexSRV       = m_pSKLogoTexSRV_loaded;
+  m_pSKLogoTexSRV_small = m_pSKLogoTexSRV_small_loaded;
+
+  m_pPatTexSRV_loaded         .Release ( );
+  m_pSKLogoTexSRV_loaded      .Release ( );
+  m_pSKLogoTexSRV_small_loaded.Release ( );
+
+  m_embeddedState.store (Embedded_Adopted);
+}
+
 void
 SKIF_GamingCollection::ReleaseTextures (void)
 {
+  // Loaded again by the next library refresh; textures still being loaded (on the old device) are discarded
+  {
+    std::scoped_lock embedded_lock (m_embeddedMutex);
+
+    m_pPatTexSRV_loaded         .Release ( );
+    m_pSKLogoTexSRV_loaded      .Release ( );
+    m_pSKLogoTexSRV_small_loaded.Release ( );
+
+    m_embeddedState.store (Embedded_None);
+  }
+
   if (m_pPatTexSRV.p != nullptr)
   {
     SKIF_ResourcesToFree.push(m_pPatTexSRV.p);
@@ -976,21 +1007,40 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
   };
 
   // The embedded textures (loaded once) don't depend on the library, so they load alongside it, below normal priority
-  //   (they're only needed once the library shows, so the store scanning gets the CPU first)
-  worker_task_t textures;
+  //   (they're only needed once the library shows, so the store scanning gets the CPU first). The library doesn't wait
+  //   for them: they're created on the hardware device, which SKIF may still be waiting for (see SKIF_D3D11_GetDevice).
+  //   So the work only uses its own locals and the collection (a static), and hands the textures to the main thread
+  //   (AdoptEmbeddedTextures); a device reset meanwhile (ReleaseTextures) makes it discard them.
+  int embeddedNone = Embedded_None;
 
-  if (self.m_pPatTexSRV.p == nullptr || self.m_pSKLogoTexSRV.p == nullptr || self.m_pSKLogoTexSRV_small.p == nullptr)
+  if (self.m_embeddedState.compare_exchange_strong (embeddedNone, Embedded_Loading))
   {
-    textures = _Start (L"SKIF_LibraryWorker_Textures", [&]
+    _Start (L"SKIF_LibraryWorker_Textures", []
     {
-      PLOG_VERBOSE_IF(self.m_pPatTexSRV.p == nullptr) << "Loading the embedded Patreon texture...";
+      PLOG_VERBOSE << "Loading the embedded Patreon texture...";
+
       ImVec2 dontCare;
-      if (self.m_pPatTexSRV.p == nullptr)
-        LoadLibraryTexture (LibraryTexture::Patreon, SKIF_STEAM_APPID, self.m_pPatTexSRV,          L"patreon.png",         dontCare);
-      if (self.m_pSKLogoTexSRV.p == nullptr)
-        LoadLibraryTexture (LibraryTexture::Logo,    SKIF_STEAM_APPID, self.m_pSKLogoTexSRV,       L"sk_boxart.png",       dontCare);
-      if (self.m_pSKLogoTexSRV_small.p == nullptr)
-        LoadLibraryTexture (LibraryTexture::Logo,    SKIF_STEAM_APPID, self.m_pSKLogoTexSRV_small, L"sk_boxart_small.png", dontCare);
+      CComPtr <ID3D11ShaderResourceView> pPatreon, pLogo, pLogoSmall;
+
+      LoadLibraryTexture (LibraryTexture::Patreon, SKIF_STEAM_APPID, pPatreon,   L"patreon.png",         dontCare);
+      LoadLibraryTexture (LibraryTexture::Logo,    SKIF_STEAM_APPID, pLogo,      L"sk_boxart.png",       dontCare);
+      LoadLibraryTexture (LibraryTexture::Logo,    SKIF_STEAM_APPID, pLogoSmall, L"sk_boxart_small.png", dontCare);
+
+      {
+        std::scoped_lock embedded_lock (self.m_embeddedMutex);
+
+        int embeddedLoading = Embedded_Loading;
+
+        if (self.m_embeddedState.compare_exchange_strong (embeddedLoading, Embedded_Loaded))
+        {
+          self.m_pPatTexSRV_loaded          = pPatreon;
+          self.m_pSKLogoTexSRV_loaded       = pLogo;
+          self.m_pSKLogoTexSRV_small_loaded = pLogoSmall;
+        }
+      }
+
+      // Redraw with them
+      PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
     }, true);
   }
 
@@ -1556,21 +1606,16 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
   dwPhase = SKIF_Util_timeGetTime1 ( );
 
   // The first (largest) workload is processed on this thread, the others on their own threads: one drive means no
-  //   extra threads at all
-  std::vector <std::thread> workers;
+  //   extra threads at all. As with the store scans, this thread does any whose thread hasn't started yet (see _Start).
+  std::vector <worker_task_t> drives;
 
   for (size_t i = 1; i < workloads.size ( ); i++)
   {
-    workers.emplace_back ([&, i]
+    drives.push_back (_Start (L"SKIF_LibraryWorker_Games", [&, i]
     {
-      SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibraryWorker_Games");
-
-      tl_isLibraryWorker = true;
-      _PreferPCores ( );
-
       for (auto* job : workloads [i])
         _ProcessGame (*job);
-    });
+    }));
   }
 
   if (! workloads.empty ( ))
@@ -1579,8 +1624,11 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
       _ProcessGame (*job);
   }
 
-  for (auto& worker : workers)
-    worker.join ( );
+  for (auto& drive : drives)
+    _Steal (drive);
+
+  for (auto& drive : drives)
+    _Wait (drive);
 
   PLOG_DEBUG << "[Library Processing] Processed games on " << volumes.size ( ) << " drive(s) using " << workloads.size ( ) << " thread(s) in " << (SKIF_Util_timeGetTime1 ( ) - dwPhase) << " ms.";
   dwPhase = SKIF_Util_timeGetTime1 ( );
@@ -1714,10 +1762,6 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
   //PLOG_INFO << "Apps were sorted!";
 
   PLOG_INFO << "Finished populating the library list.";
-
-  // The embedded textures (started at the top; done here if their thread hasn't started yet)
-  _Steal (textures);
-  _Wait  (textures);
 
   // Force a refresh when the game icons have finished being streamed
   PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);

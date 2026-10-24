@@ -253,11 +253,83 @@ void SKIF_Shell_CreateUpdateNotifyMenu (void);
 
 bool SKIF_NotifyIconDeferred = false; // The notification icon is created by SKIF_OnStartupFinished ( )
 
+static UINT SKIF_HardwareDeviceFlags = 0; // D3D11CreateDevice ( ) flags for the hardware device (see CreateDeviceD3D)
+
+// Started on WARP: starts creating the hardware device on another thread (see SKIF_DeviceSwitchPending). Called once SKIF
+//   has started: loading the display driver holds the Windows loader lock for 100-300 ms, which held up the main thread
+//   creating and showing its window (that loads DLLs too) and every thread started meanwhile.
+static void
+SKIF_D3D11_StartHardwareDevice (void)
+{
+  static bool started = false;
+
+  if (started || ! SKIF_DeviceSwitchPending.load ( ))
+    return;
+
+  started = true;
+
+  const DWORD dwThreadCreated   = SKIF_Util_timeGetTime1 ( );
+  const UINT  createDeviceFlags = SKIF_HardwareDeviceFlags;
+
+  std::thread ([createDeviceFlags, dwThreadCreated]
+  {
+    DWORD dwStart = SKIF_Util_timeGetTime1 ( );
+
+    SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_D3D11DeviceWorker");
+
+    // SKIF prefers the E-cores from now on, but this is still part of starting up
+    SKIF_Util_SetThreadPrefersPCores ( );
+
+    PLOG_VERBOSE << "Creating D3D11 device with driver type: Hardware (in the background, " << (dwStart - SKIF_startupTime)
+                 << " ms after init; the thread started " << (dwStart - dwThreadCreated) << " ms after it was created)";
+
+    const D3D_FEATURE_LEVEL
+                      featureLevelArray [4] = {
+      D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0,
+      D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_10_0
+    };
+
+    ID3D11Device*        pDevice = nullptr;
+    ID3D11DeviceContext* pDevCtx = nullptr;
+    D3D_FEATURE_LEVEL    level;
+
+    HRESULT hrHardware = SKIF_D3D11CreateDevice ( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
+                                                    createDeviceFlags, featureLevelArray,
+                                                                sizeof (featureLevelArray) / sizeof level,
+                                                      D3D11_SDK_VERSION,
+                                                              &pDevice,
+                                                                      &level,
+                                                              &pDevCtx);
+
+    if (SUCCEEDED (hrHardware))
+    {
+      PLOG_DEBUG << "Created the hardware D3D11 device in " << (SKIF_Util_timeGetTime1 ( ) - dwStart) << " ms (" << (SKIF_Util_timeGetTime1 ( ) - SKIF_startupTime) << " ms after init).";
+
+      SKIF_pd3dPendingDevice        = pDevice;
+      SKIF_pd3dPendingDeviceContext = pDevCtx;
+      SKIF_PendingDeviceReady.store (true);
+
+      // Wake the main loop up, in case it's waiting for messages: it switches devices on its next frame
+      if (SKIF_Notify_hWnd != NULL)
+        PostMessage (SKIF_Notify_hWnd, WM_NULL, 0x0, 0x0);
+    }
+
+    else
+    {
+      PLOG_WARNING << "D3D11CreateDevice failed when using hardware. Staying on WARP...";
+
+      // Threads waiting for the hardware device (SKIF_D3D11_GetDevice) continue on WARP
+      SKIF_DeviceSwitchPending.store (false);
+    }
+  }).detach ( );
+}
+
 // Work that waits until SKIF has started, so that it doesn't delay the first frame. Called once the first frame has
 //   been presented, or by a fallback timer if nothing is presented (e.g. started without showing the window).
 //  - On hybrid CPUs SKIF prefers the E-cores, but only from now on: until then (D3D device, fonts, the first frames and
 //    the first present, as well as the first library load) it uses all cores, as the user waits on it.
 //  - The notification icon is created (when SKIF starts minimized or to the tray it is created right away instead).
+//  - Started on WARP: the hardware device is created (SKIF_D3D11_StartHardwareDevice).
 static void
 SKIF_OnStartupFinished (void)
 {
@@ -272,10 +344,16 @@ SKIF_OnStartupFinished (void)
   if (SKIF_Notify_hWnd != NULL)
     KillTimer (SKIF_Notify_hWnd, cIDT_TIMER_STARTUP);
 
+  // Detected on a thread of its own at launch (waits for it if it hasn't finished)
+  _registry._ProcessorHasECores = SKIF_Util_IsHybridCPU ( );
+
   // Set process preference to E-cores using only CPU sets, :)
   //  as affinity masks are inherited by child processes... :(
   if (_registry._ProcessorHasECores)
     SKIF_Util_SetProcessPrefersECores ( );
+
+  // Started on WARP: create the hardware device now
+  SKIF_D3D11_StartHardwareDevice ( );
 
   if (SKIF_NotifyIconDeferred)
   {
@@ -1692,8 +1770,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   PLOG_INFO << "Max severity to log was set to " << _registry.iLogging;
 
-  // Detect if the system is running on a hybrid CPU (e.g. Intel Alder Lake)
-  _registry._ProcessorHasECores = SKIF_Util_IsHybridCPU ( );
+  // Detect if the system is running on a hybrid CPU (e.g. Intel Alder Lake). It moves a thread across every logical
+  //   processor, which can take tens of ms (e.g. right after a restart), and nothing needs the result until SKIF has
+  //   started (SKIF_OnStartupFinished sets _registry._ProcessorHasECores), so it runs on a thread of its own
+  std::thread ([](void)
+  {
+    SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_HybridDetect");
+    SKIF_Util_IsHybridCPU ( ); // Runs the detection (SKIF_Util_GetProcessInfoHybridDetect)
+  }).detach ( );
 
   // The preference for E-cores is set once SKIF has started (see SKIF_OnStartupFinished)
 
@@ -4320,61 +4404,15 @@ bool CreateDeviceD3D (HWND hWnd)
                << (SKIF_Util_timeGetTime1 ( ) - SKIF_startupTime) << " ms after init; d3d10warp.dll "
                << ((bWARPLoaded) ? "was already loaded" : "had to be loaded") << ").";
 
-  // Running on WARP: now create the hardware device on another thread
+  // Running on WARP: the hardware device is created once SKIF has started (see SKIF_D3D11_StartHardwareDevice)
   if (startOnWARP && SUCCEEDED (hr))
   {
-    SKIF_MainThreadId = GetCurrentThreadId ( );
+    SKIF_MainThreadId        = GetCurrentThreadId ( );
+    SKIF_HardwareDeviceFlags = createDeviceFlags;
     SKIF_DeviceSwitchPending.store (true);
-
-    const DWORD dwThreadCreated = SKIF_Util_timeGetTime1 ( );
-
-    std::thread ([featureLevelArray, createDeviceFlags, dwThreadCreated]
-    {
-      // [Startup] diagnostics: a new thread can't run until the loader lock is free (DLL_THREAD_ATTACH)
-      DWORD dwStart = SKIF_Util_timeGetTime1 ( );
-
-      SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_D3D11DeviceWorker");
-
-      PLOG_VERBOSE << "Creating D3D11 device with driver type: Hardware (in the background; the thread started "
-                   << (dwStart - dwThreadCreated) << " ms after it was created)";
-
-      ID3D11Device*        pDevice = nullptr;
-      ID3D11DeviceContext* pDevCtx = nullptr;
-      D3D_FEATURE_LEVEL    level;
-
-      HRESULT hrHardware = SKIF_D3D11CreateDevice ( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
-                                                      createDeviceFlags, featureLevelArray,
-                                                                  sizeof (featureLevelArray) / sizeof level,
-                                                        D3D11_SDK_VERSION,
-                                                                &pDevice,
-                                                                        &level,
-                                                                &pDevCtx);
-
-      if (SUCCEEDED (hrHardware))
-      {
-        PLOG_DEBUG << "Created the hardware D3D11 device in " << (SKIF_Util_timeGetTime1 ( ) - dwStart) << " ms (" << (SKIF_Util_timeGetTime1 ( ) - SKIF_startupTime) << " ms after init).";
-
-        SKIF_pd3dPendingDevice        = pDevice;
-        SKIF_pd3dPendingDeviceContext = pDevCtx;
-        SKIF_PendingDeviceReady.store (true);
-
-        // Wake the main loop up, in case it's waiting for messages: it switches devices on its next frame
-        if (SKIF_Notify_hWnd != NULL)
-          PostMessage (SKIF_Notify_hWnd, WM_NULL, 0x0, 0x0);
-      }
-
-      else
-      {
-        PLOG_WARNING << "D3D11CreateDevice failed when using hardware. Staying on WARP...";
-
-        // Threads waiting for the hardware device (SKIF_D3D11_GetDevice) continue on WARP
-        SKIF_DeviceSwitchPending.store (false);
-      }
-    }).detach ( );
   }
 
-  // Starting on WARP failed: create the hardware device here instead
-  else if (startOnWARP)
+  else if (startOnWARP) // Starting on WARP failed: create the hardware device here instead
   {
     PLOG_WARNING << "D3D11CreateDevice failed when using WARP. Creating the hardware device instead...";
 
