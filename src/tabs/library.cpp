@@ -239,8 +239,7 @@ SearchAppsList (void)
     // If we have a result, select it
     if (result.app_id != 0)
     {
-      search_selection.id       = result.app_id;
-      search_selection.store    = result.store;
+      search_selection.game     = { result.store, result.app_id };
       search_selection.category = result.category;
     }
 
@@ -555,7 +554,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     frameLibraryRefreshed = ImGui::GetFrameCount ( );
 
     // Reset selection to Special K, but only if set to something else than -1
-    if (selection.appid != 0)
+    if (selection.game.appid != 0)
       selection.reset();
 
     bool resortGames   = false;
@@ -568,17 +567,14 @@ SKIF_UI_Tab_DrawLibrary (void)
         continue;
 
       // Set to last selected if it can be found
-      if (app.second->id       ==                      _registry.uiLastSelectedGame &&
-          app.second->store    == (app_record_s::Store)_registry.uiLastSelectedStore)
+      if (app.second->GetKey ( ) == GetLastSelectedGame ( ))
       {
         PLOG_VERBOSE << "Selected app ID " << app.second->id << " from platform ID " << (int)app.second->store << ".";
-        selection.appid        =    app.second->id;
-        selection.store        =    app.second->store;
+        selection.game         =    app.second->GetKey ( );
         selection.category     =   (app.second->skif.pinned > 50 && ! _registry._LibHorizonMode && _registry._LibPinnedVisible) // Only when not using horizon mode
                                ?   "Favorites (pinned)" // Workaround to not expand Favorites tab on launch
                                :    GetEffectiveCategory (app.second.get ( ));
-        search_selection.id    =    selection.appid;
-        search_selection.store =    selection.store;
+        search_selection.game  =    selection.game;
         search_selection.category = selection.category;
         update = true;
       }
@@ -650,7 +646,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // Ensure pApp points to the current selected game
   // This should be the only place where pApp changes during the whole frame!
-  pApp = _games.Find (selection.store, selection.appid);
+  pApp = _games.Find (selection.game);
 
   // Default to primary launch config
   launchConfig = (pApp != nullptr && ! pApp->launch_configs.empty()) ? &pApp->launch_configs.begin()->second : nullptr;
@@ -1211,7 +1207,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       ImGui::PushStyleVar (ImGuiStyleVar_Alpha, fAlphaList);
 
     if (pApp != nullptr && ! isSpecialK)
-      GetInjectionSummary (pApp);
+      DrawGameDetails (pApp);
     else
       _inject._GlobalInjectionCtl ( );
 
@@ -1800,8 +1796,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (SelectNewSKIFGame > 0)
   {
     // Change selection to the new game
-    selection.appid    = SelectNewSKIFGame;
-    selection.store    = app_record_s::Store::Custom;
+    selection.game     = { app_record_s::Store::Custom, SelectNewSKIFGame };
     selection.category = "Games";
 
     update = true;

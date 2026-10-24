@@ -292,8 +292,7 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
         continue;
     }
 
-    bool selected = (selection.appid == app.second->id &&
-                     selection.store == app.second->store);
+    bool selected = (selection.game == app.second->GetKey ( ));
     bool change   = false;
 
     app.second->RefreshClientState (current_time);
@@ -345,7 +344,7 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
     if ( ImGui::IsItemHovered ( ) && pApp != nullptr && pApp->id != SKIF_STEAM_APPID && ! pApp->_status.running && ! pApp->_status.updating )
     {
       if ( ImGui::IsMouseDoubleClicked (ImGuiMouseButton_Left) &&
-           timeClicked != 0 && (item_clicked.appid == pApp->id && item_clicked.store == pApp->store))
+           timeClicked != 0 && (item_clicked.game == pApp->GetKey ( )))
       {
         timeClicked       = 0;
         item_clicked.reset ( );
@@ -355,8 +354,7 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
       else if (ImGui::IsMouseClicked (ImGuiMouseButton_Left) )
       {
         timeClicked        = SKIF_Util_timeGetTime ( );
-        item_clicked.appid = pApp->id;
-        item_clicked.store = pApp->store;
+        item_clicked.game  = pApp->GetKey ( );
       }
 
       else if (timeClicked + 500 < SKIF_Util_timeGetTime ( ))
@@ -372,19 +370,16 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
       SKIF_ImGui_SetHoverTip (app.second->names.normal);
 
     // Handle search input
-    if (search_selection.id    == app.second->id &&
-        search_selection.store == app.second->store)
+    if (search_selection.game == app.second->GetKey ( ))
     {
       // Set focus on current row
       ImGui::ActivateItemByID (ImGui::GetID(app.second->ImGuiLabelID.c_str()));
       ImGui::SetFocusID       (ImGui::GetID(app.second->ImGuiLabelID.c_str()), ImGui::GetCurrentWindow());
 
       // Clear stuff
-      selection.appid        = 0;
-      selection.store        = app_record_s::Store::Unspecified;
+      selection.game         = { };
       selection.category     = "Games";
-      search_selection.id    = 0;
-      search_selection.store = app_record_s::Store::Unspecified;
+      search_selection.game  = { };
       search_selection.category = "";
       change                 = true;
     }
@@ -400,8 +395,7 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
     // End Icon + Selectable row
 
 
-    if ( app.second->id    == selection.appid &&
-         app.second->store == selection.store &&
+    if ( app.second->GetKey ( ) == selection.game &&
                    sort_changed /* &&
         (! ImGui::IsItemVisible ()) */ )
     {
@@ -411,8 +405,7 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
       // Special handling for Special K to reset the scroll pos
       if (isSpecialK)
       {
-        selection.appid    = 0;
-        selection.store    = app_record_s::Store::Unspecified;
+        selection.game     = { };
         selection.category = "Games";
       }
 
@@ -421,11 +414,9 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
 
     if (change)
     {
-      update = (selection.appid != app.second->id ||
-                selection.store != app.second->store);
+      update = (selection.game != app.second->GetKey ( ));
 
-      selection.appid              =    app.second->id;
-      selection.store              =    app.second->store;
+      selection.game               =    app.second->GetKey ( );
       selection.category           = (  app.second->skif.pinned > 50)
                                    ?   "Favorites (pinned)" // Workaround to not expand Favorites tab on launch
                                    :    GetEffectiveCategory (app.second.get ( ));
@@ -434,15 +425,13 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
       // Only update the last selected value if we're not in hidden view
       if (! _registry._LibraryHidden)
       {
-        _registry.uiLastSelectedGame  =      selection.appid;
-        _registry.uiLastSelectedStore = (int)selection.store;
+        SetLastSelectedGame (selection.game);
       }
 
       if (update)
       {
         timeClicked = SKIF_Util_timeGetTime ( );
-        item_clicked.appid = selection.appid;
-        item_clicked.store = selection.store;
+        item_clicked.game  = selection.game;
 
         app.second->_status.invalidate ();
 

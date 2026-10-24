@@ -136,23 +136,20 @@ struct terminate_process_s {
 
 // Keyboard hint search result
 struct library_search_selection_s {
-  uint32_t            id = 0;
-  app_record_s::Store store;
+  app_key_s           game;
   std::string         category = "";
 };
 
 // A game in the library tab: the selected one, the last one clicked
 struct library_selection_s {
-  uint32_t                    appid = SKIF_STEAM_APPID;
-  app_record_s::Store         store = app_record_s::Store::Steam;
+  app_key_s                   game  = { app_record_s::Store::Steam, SKIF_STEAM_APPID }; // Special K by default
   SKIF_DirectoryWatch     dir_watch;
   bool                reset_to_skif = true;
   std::string              category = "";
 
   void reset ()
   {
-    appid    = (reset_to_skif) ? SKIF_STEAM_APPID           : 0;
-    store    = (reset_to_skif) ? app_record_s::Store::Steam : app_record_s::Store::Unspecified;
+    game     = (reset_to_skif) ? app_key_s { app_record_s::Store::Steam, SKIF_STEAM_APPID } : app_key_s { };
     category = "";
 
     if (dir_watch._hChangeNotification != INVALID_HANDLE_VALUE)
@@ -177,6 +174,22 @@ struct library_tab_s {
 };
 
 library_tab_s& GetLibraryTab (void);
+
+// The last selected game, as remembered in the registry (two values there: game ID and store)
+inline app_key_s GetLastSelectedGame (void)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  return { (app_record_s::Store)_registry.uiLastSelectedStore, _registry.uiLastSelectedGame };
+}
+
+inline void SetLastSelectedGame (const app_key_s& game)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  _registry.uiLastSelectedGame  =               game.appid;
+  _registry.uiLastSelectedStore = (unsigned int)game.store;
+}
 
 // Globals defined in library.cpp
 
@@ -247,5 +260,5 @@ void DrawGameCover           (bool sameLine, bool& isCoverHovered, ImVec2& vecPo
 void DrawSpecialKPatreon     (bool& isCoverHovered, ImVec2 vecPosCover);               // isCoverHovered: also set if the panel is hovered
 
 // library/library_details.cpp
-void GetInjectionSummary     (app_record_s* pApp);
+void DrawGameDetails         (app_record_s* pApp);                // The details panel (info frame, Play button, launch bar)
 void UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets);

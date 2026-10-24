@@ -38,7 +38,7 @@ DrawLibraryPopups (void)
 #pragma region Popups
 
   // Popup: Remove Game
-  if (SKIF_Custom_RemoveGame (selection.appid))
+  if (SKIF_Custom_RemoveGame (selection.game.appid))
   {
     // Hide entry
     pApp->id = 0;

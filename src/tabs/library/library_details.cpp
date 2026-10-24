@@ -24,12 +24,10 @@
 
 #pragma region PrintInjectionSummary
 
-void
-GetInjectionSummary (app_record_s* pApp)
+// Details panel, top frame: Special K DLL / profile folder / config file / platform, and the service toggle (moved verbatim from the former GetInjectionSummary)
+static void
+DrawGameDetails_Info (app_record_s* pApp)
 {
-  if (pApp == nullptr)
-    return;
-
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
@@ -331,8 +329,15 @@ GetInjectionSummary (app_record_s* pApp)
   ImGui::EndGroup         ( );
 
   ImGui::EndChild         ( );
+}
 
-  ImGui::Separator ();
+
+// Details panel, middle frame: the Play / install button (moved verbatim from the former GetInjectionSummary)
+static void
+DrawGameDetails_Play (app_record_s* pApp)
+{
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
   auto frame_id2 =
     ImGui::GetID ("###Injection_Play_Button_Frame");
@@ -632,6 +637,15 @@ GetInjectionSummary (app_record_s* pApp)
   {
     EmptySpaceMenu = PopupState_Open;
   }
+}
+
+
+// Details panel, bottom bar: launch configs / disable Special K (moved verbatim from the former GetInjectionSummary)
+static void
+DrawGameDetails_LaunchBar (app_record_s* pApp)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
 
   // Bottom bar: Disable Special K
   ImGui::SetCursorPosY (
@@ -831,6 +845,26 @@ GetInjectionSummary (app_record_s* pApp)
 
   ImGui::EndChild ( );
   fBottomDist = ImGui::GetItemRectSize().y;
+}
+
+
+// The details panel of the selected game (was GetInjectionSummary)
+void
+DrawGameDetails (app_record_s* pApp)
+{
+  if (pApp == nullptr)
+    return;
+
+  // Top frame: Special K DLL, profile folder, config file, platform, service toggle
+  DrawGameDetails_Info (pApp);
+
+  ImGui::Separator ();
+
+  // Middle frame: the Play / install button
+  DrawGameDetails_Play (pApp);
+
+  // Bottom bar: launch configs / disable Special K
+  DrawGameDetails_LaunchBar (pApp);
 }
 
 #pragma endregion

@@ -417,59 +417,11 @@ DrawGameConfigMenu (app_record_s* pApp)
 
 #pragma region DrawGameContextMenu
 
-void
-DrawGameContextMenu (app_record_s* pApp)
+// Game context menu: Instant Play launch options (moved verbatim from DrawGameContextMenu)
+static void
+DrawGameContextMenu_InstantPlay (app_record_s* pApp, bool playDisabled, app_record_s::launch_config_s* firstLaunchConfig)
 {
-  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
-  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
-  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
-
-  // TODO: Many of the below options needs to be adjusted to indicate if the primary launch option
-  //         is even available (or if "without Special K" is the only option available)
-
-  app_record_s::launch_config_s*
-    firstLaunchConfig = (pApp != nullptr && ! pApp->launch_configs.empty ()) ? &pApp->launch_configs.begin ()->second : nullptr;
-
-  bool playDisabled = (pApp->_status.running || pApp->_status.updating);
-
-  // Push styling for Disabled
-  ImGui::PushStyleColor      (ImGuiCol_TextDisabled,
-    ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled)  * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
-  );
-
-  if (playDisabled)
-    ImGui::BeginDisabled ( );
-
-  if (ImGui::MenuItemEx ("Play###GameContextMenu_Launch", ICON_FA_GAMEPAD))
-    launchGameMenu = true;
-
-  if (playDisabled)
-    ImGui::EndDisabled ( );
-
-  if (pApp->specialk.injection.injection.type != InjectionType::Local && _inject.bHasServlet)
-  {
-    if (! _inject.bCurrentState)
-      SKIF_ImGui_SetHoverText ("Starts the injection service as well.");
-
-    ImGui::PushStyleColor      (ImGuiCol_Text,
-      ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
-    );
-
-    if (playDisabled)
-      ImGui::BeginDisabled ( );
-
-    if (ImGui::MenuItem ("\xe2\x94\x94 without Special K###GameContextMenu_LaunchWoSK"))
-      launchGameMenu = launchWithoutSK = true;
-
-    if (playDisabled)
-      ImGui::EndDisabled ( );
-
-    ImGui::PopStyleColor   ( );
-
-    if (_inject.bCurrentState)
-      SKIF_ImGui_SetHoverText ("Stops the injection service as well.");
-  }
 
   // Instant Play options
   if (pApp->CanLaunchExecutableDirectly ( ))
@@ -741,7 +693,13 @@ DrawGameContextMenu (app_record_s* pApp)
         ImGui::PopStyleColor ( );
     }
   }
+}
 
+
+// Game context menu: items for a running game (moved verbatim from DrawGameContextMenu)
+static void
+DrawGameContextMenu_Running (app_record_s* pApp)
+{
   if (pApp->_status.running)
   {
     SKIF_Util_CreateProcess_s* mon_app = nullptr;
@@ -832,13 +790,13 @@ DrawGameContextMenu (app_record_s* pApp)
       }
     }
   }
+}
 
-  // Pop styling for Disabled
-  ImGui::PopStyleColor   ( );
 
-  ImGui::Separator ( );
-  // ==============================
-
+// Game context menu: "Browse" submenu (moved verbatim from DrawGameContextMenu)
+static void
+DrawGameContextMenu_Browse (app_record_s* pApp)
+{
   if (SKIF_ImGui_BeginMenuEx2 ("Browse", ICON_FA_FOLDER, ImColor(255, 207, 72)))
   {
     if (SKIF_ImGui_MenuItemEx2 ("Game folder", ICON_FA_FOLDER_OPEN, ImColor(255, 207, 72)))
@@ -939,6 +897,16 @@ DrawGameContextMenu (app_record_s* pApp)
 
     ImGui::EndMenu ();
   }
+}
+
+
+// Game context menu: "Manage" submenu (moved verbatim from DrawGameContextMenu)
+static void
+DrawGameContextMenu_Manage (app_record_s* pApp)
+{
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
 
   // Manage Game
   if (ImGui::BeginMenuEx ("Manage", ICON_FA_GEARS))
@@ -1231,24 +1199,14 @@ DrawGameContextMenu (app_record_s* pApp)
 
     ImGui::EndMenu ( );
   }
+}
 
-  // Store-specific submenu (e.g. Steam)
-  pApp->DrawStoreMenu ( );
 
-  if (SKIF_ImGui_BeginMenuEx2 ("Websites", ICON_FA_SHARE, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)))
-  {
-    // Store-specific websites (e.g. Steam Community, SteamDB, GOG Database)
-    pApp->DrawWebsiteMenuItems ( );
-
-    if (SKIF_ImGui_MenuItemEx2 ("PCGamingWiki", ICON_FA_SCREWDRIVER_WRENCH, ImColor(200, 200, 200, 255)))
-      SKIF_Util_OpenURI (SK_UTF8ToWideChar(pApp->ui.pcgw).c_str());
-
-    SKIF_ImGui_SetMouseCursorHand ( );
-    SKIF_ImGui_SetHoverText       (pApp->ui.pcgw);
-
-    ImGui::EndMenu ( );
-  }
-
+// Game context menu: "Developer" submenu, developer mode only (moved verbatim from DrawGameContextMenu)
+static void
+DrawGameContextMenu_Developer (app_record_s* pApp)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
   if (_registry.bDeveloperMode)
   {
@@ -1505,6 +1463,97 @@ DrawGameContextMenu (app_record_s* pApp)
       ImGui::EndMenu ();
     }
   }
+}
+
+
+void
+DrawGameContextMenu (app_record_s* pApp)
+{
+  static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
+
+  // TODO: Many of the below options needs to be adjusted to indicate if the primary launch option
+  //         is even available (or if "without Special K" is the only option available)
+
+  app_record_s::launch_config_s*
+    firstLaunchConfig = (pApp != nullptr && ! pApp->launch_configs.empty ()) ? &pApp->launch_configs.begin ()->second : nullptr;
+
+  bool playDisabled = (pApp->_status.running || pApp->_status.updating);
+
+  // Push styling for Disabled
+  ImGui::PushStyleColor      (ImGuiCol_TextDisabled,
+    ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled)  * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
+  );
+
+  if (playDisabled)
+    ImGui::BeginDisabled ( );
+
+  if (ImGui::MenuItemEx ("Play###GameContextMenu_Launch", ICON_FA_GAMEPAD))
+    launchGameMenu = true;
+
+  if (playDisabled)
+    ImGui::EndDisabled ( );
+
+  if (pApp->specialk.injection.injection.type != InjectionType::Local && _inject.bHasServlet)
+  {
+    if (! _inject.bCurrentState)
+      SKIF_ImGui_SetHoverText ("Starts the injection service as well.");
+
+    ImGui::PushStyleColor      (ImGuiCol_Text,
+      ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
+    );
+
+    if (playDisabled)
+      ImGui::BeginDisabled ( );
+
+    if (ImGui::MenuItem ("\xe2\x94\x94 without Special K###GameContextMenu_LaunchWoSK"))
+      launchGameMenu = launchWithoutSK = true;
+
+    if (playDisabled)
+      ImGui::EndDisabled ( );
+
+    ImGui::PopStyleColor   ( );
+
+    if (_inject.bCurrentState)
+      SKIF_ImGui_SetHoverText ("Stops the injection service as well.");
+  }
+
+  // Instant Play launch options
+  DrawGameContextMenu_InstantPlay (pApp, playDisabled, firstLaunchConfig);
+
+  // Items for a running game
+  DrawGameContextMenu_Running (pApp);
+
+  // Pop styling for Disabled
+  ImGui::PopStyleColor   ( );
+
+  ImGui::Separator ( );
+  // ==============================
+
+  // Browse submenu
+  DrawGameContextMenu_Browse (pApp);
+
+  // Manage submenu
+  DrawGameContextMenu_Manage (pApp);
+
+  // Store-specific submenu (e.g. Steam)
+  pApp->DrawStoreMenu ( );
+
+  if (SKIF_ImGui_BeginMenuEx2 ("Websites", ICON_FA_SHARE, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)))
+  {
+    // Store-specific websites (e.g. Steam Community, SteamDB, GOG Database)
+    pApp->DrawWebsiteMenuItems ( );
+
+    if (SKIF_ImGui_MenuItemEx2 ("PCGamingWiki", ICON_FA_SCREWDRIVER_WRENCH, ImColor(200, 200, 200, 255)))
+      SKIF_Util_OpenURI (SK_UTF8ToWideChar(pApp->ui.pcgw).c_str());
+
+    SKIF_ImGui_SetMouseCursorHand ( );
+    SKIF_ImGui_SetHoverText       (pApp->ui.pcgw);
+
+    ImGui::EndMenu ( );
+  }
+
+  // Developer submenu (developer mode only)
+  DrawGameContextMenu_Developer (pApp);
 }
 
 void
