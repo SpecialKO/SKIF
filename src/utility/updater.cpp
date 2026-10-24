@@ -15,6 +15,7 @@
 #include <utility/fsutil.h>
 #include <utility/registry.h>
 #include <utility/injection.h>
+#include <utility/games.h>
 #include <netlistmgr.h>
 
 #include <imgui/imgui.h>
@@ -113,6 +114,31 @@ SKIF_Updater::SKIF_Updater (void)
     }
 
     PLOG_VERBOSE << "SKIF_UpdaterJob thread started!";
+
+    // Wait until the library has been loaded and shown: the first check (downloads, hashing the installer) would
+    //   otherwise compete with it for the CPU. At most 5 seconds, for when the library isn't loading (another tab
+    //   is open, or the window isn't shown).
+    {
+      static SKIF_GamingCollection& _games = SKIF_GamingCollection::Get ( );
+
+      DWORD dwStart  = SKIF_Util_timeGetTime1 ( ),
+            dwLoaded = 0;
+
+      while (true)
+      {
+        DWORD dwNow = SKIF_Util_timeGetTime1 ( );
+
+        if (dwLoaded == 0 && _games.HasPopulatedOnce ( ))
+            dwLoaded = dwNow;
+
+        if ((dwLoaded != 0 && dwNow - dwLoaded >= 500) || dwNow - dwStart >= 5000 || SKIF_Shutdown.load ( ))
+          break;
+
+        Sleep (50);
+      }
+
+      PLOG_VERBOSE << "The updater waited " << (SKIF_Util_timeGetTime1 ( ) - dwStart) << " ms for the library to load.";
+    }
 
     do
     {

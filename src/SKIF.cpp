@@ -29,6 +29,7 @@
 
 #include <MinHook.h>
 #include <SKIF.h>
+#include <thread>
 
 // Plog ini includes (must be included after SKIF.h)
 #include "plog/Initializers/RollingFileInitializer.h"
@@ -85,8 +86,8 @@
 #include <shlobj.h>
 #include <netlistmgr.h>
 #include <dwmapi.h>
+#include <utility/artwork.h>
 
-const int SKIF_STEAM_APPID      = 1157970;
 bool  RecreateD3DDevice         = false;
 bool  RecreateSwapChains        = false;
 bool  RecreateSwapChainsPending = false;
@@ -116,6 +117,7 @@ bool  allowShortcutCtrlA        = true; // Used to disable the Ctrl+A when inter
 bool  SKIF_MouseDragMoveAllowed = true;
 bool  SKIF_debuggerPresent      = false;
 DWORD SKIF_startupTime          = 0; // Used as a basis of how long the initialization took
+bool  SKIF_FirstPresentDone     = false; // Set by ImGui_ImplDX11_SwapBuffers ( ) on the first successful Present ( )
 DWORD SKIF_firstFrameTime       = 0; // Used as a basis of how long the initialization took
 HANDLE SteamProcessHandle       = NULL;
 
@@ -233,6 +235,57 @@ HWND        SKIF_Notify_hWnd   = NULL;
 HWND  hWndOrigForeground;
 HWND  hWndForegroundFocusOnExit = nullptr; // Game HWND as reported by Special K through WM_SKIF_EVENT_SIGNAL
 DWORD pidForegroundFocusOnExit  = NULL;    // Used to hold the game process ID that SKIF launched
+
+void SKIF_Shell_CreateNotifyIcon       (void);
+void SKIF_Shell_CreateUpdateNotifyMenu (void);
+
+bool SKIF_NotifyIconDeferred = false; // The notification icon is created by SKIF_OnStartupFinished ( )
+
+// Work that waits until SKIF has started, so that it doesn't delay the first frame. Called once the first frame has
+//   been presented, or by a fallback timer if nothing is presented (e.g. started without showing the window).
+//  - On hybrid CPUs SKIF prefers the E-cores, but only from now on: until then (D3D device, fonts, the first frames and
+//    the first present, as well as the first library load) it uses all cores, as the user waits on it.
+//  - The notification icon is created (when SKIF starts minimized or to the tray it is created right away instead).
+static void
+SKIF_OnStartupFinished (void)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static bool                   done        = false;
+
+  if (done)
+    return;
+
+  done = true;
+
+  if (SKIF_Notify_hWnd != NULL)
+    KillTimer (SKIF_Notify_hWnd, cIDT_TIMER_STARTUP);
+
+  // Set process preference to E-cores using only CPU sets, :)
+  //  as affinity masks are inherited by child processes... :(
+  if (_registry._ProcessorHasECores)
+    SKIF_Util_SetProcessPrefersECores ( );
+
+  if (SKIF_NotifyIconDeferred)
+  {
+    SKIF_NotifyIconDeferred = false;
+
+    SKIF_Shell_CreateNotifyIcon       ();
+    SKIF_Shell_CreateUpdateNotifyMenu ();
+  }
+}
+
+static VOID CALLBACK
+SKIF_StartupTimerProc (HWND hWnd, UINT Msg, UINT_PTR idEvent, DWORD dwTime)
+{
+  UNREFERENCED_PARAMETER (hWnd);
+  UNREFERENCED_PARAMETER (Msg);
+  UNREFERENCED_PARAMETER (idEvent);
+  UNREFERENCED_PARAMETER (dwTime);
+
+  PLOG_VERBOSE << "Nothing has been presented 5 seconds after startup; finishing startup now.";
+
+  SKIF_OnStartupFinished ( );
+}
 
 void CALLBACK
 SKIF_EfficiencyModeTimerProc (HWND hWnd, UINT Msg, UINT wParamIDEvent, DWORD dwTime)
@@ -1630,10 +1683,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Detect if the system is running on a hybrid CPU (e.g. Intel Alder Lake)
   _registry._ProcessorHasECores = SKIF_Util_IsHybridCPU ( );
 
-  // Set process preference to E-cores using only CPU sets, :)
-  //  as affinity masks are inherited by child processes... :(
-  if (_registry._ProcessorHasECores)
-    SKIF_Util_SetProcessPrefersECores ( );
+  // The preference for E-cores is set once SKIF has started (see SKIF_OnStartupFinished)
 
   // This constructs the singleton object
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( ); // Relies on SKIF_Initialize (working dir) + _path_cache (cached paths) + logging
@@ -1764,8 +1814,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   // The notify window has been created but not displayed.
   // Now we have a parent window to which a notification tray icon can be associated.
-  SKIF_Shell_CreateNotifyIcon       ();
-  SKIF_Shell_CreateUpdateNotifyMenu ();
+  //   It is created once SKIF has started (SKIF_OnStartupFinished), so that it doesn't delay the first frame, unless
+  //   SKIF starts minimized or to the tray, or runs without its window: then it is needed right away.
+  if (startedMinimized || SKIF_isTrayed || _Signal.Launcher || _Signal.LauncherURI || _Signal.Quit || _Signal.ServiceMode)
+  {
+    SKIF_Shell_CreateNotifyIcon       ();
+    SKIF_Shell_CreateUpdateNotifyMenu ();
+  }
+
+  else
+    SKIF_NotifyIconDeferred = true;
 
   // Initialize the gamepad input child thread
   static SKIF_GamePadInputHelper& _gamepad =
@@ -1939,12 +1997,30 @@ wWinMain ( _In_     HINSTANCE hInstance,
   static SKIF_Updater& _updater =
          SKIF_Updater::GetInstance ( );
 
+  // Finish startup after 5 seconds if nothing has been presented by then (see SKIF_OnStartupFinished)
+  if (SKIF_Notify_hWnd != NULL)
+    SetTimer (SKIF_Notify_hWnd, cIDT_TIMER_STARTUP, 5000, &SKIF_StartupTimerProc);
+
   // Main loop
   PLOG_INFO << "Entering main loop...";
   SKIF_firstFrameTime = SKIF_Util_timeGetTime1 ( );
 
+  // [Startup] timing (verbose): the frames until the first one has been presented
+  bool  startupTiming     = true;
+  int   startupFrame      = 0;
+  DWORD startupFrameEnd   = 0;
+  DWORD startupNewFrame   = 0, // Before ImGui_ImplDX11_NewFrame ( )
+        startupUI         = 0, // After ImGui::NewFrame ( )
+        startupLibrary    = 0, // Time spent in SKIF_UI_Tab_DrawLibrary ( )
+        startupRender     = 0, // Before ImGui::Render ( )
+        startupRendered   = 0; // After ImGui::Render ( )
+
   while (! SKIF_Shutdown.load() ) // && IsWindow (hWnd) )
   {
+    const DWORD frameStart = SKIF_Util_timeGetTime1 ( );
+
+    if (startupTiming && startupFrame > 0)
+      PLOG_VERBOSE << "[Startup] Waited " << (frameStart - startupFrameEnd) << " ms before frame " << (startupFrame + 1) << ".";
     // Reset on each frame
     SKIF_MouseDragMoveAllowed = true;
     coverFadeActive           = false; // Assume there's no cover fade effect active
@@ -2479,10 +2555,19 @@ wWinMain ( _In_     HINSTANCE hInstance,
     bool _WantUpdateMonitors =
       SKIF_ImGui_ImplWin32_WantUpdateMonitors (    );
 
+    if (startupTiming)
+    {
+      startupNewFrame = SKIF_Util_timeGetTime1 ( );
+      startupLibrary  = 0;
+    }
+
     // Start the Dear ImGui frame
     ImGui_ImplDX11_NewFrame  (); // (Re)create individual swapchain windows
     ImGui_ImplWin32_NewFrame (); // Handle input
     ImGui::NewFrame          ();
+
+    if (startupTiming)
+      startupUI = SKIF_Util_timeGetTime1 ( );
     {
       SKIF_FrameCount.store(ImGui::GetFrameCount());
 
@@ -2720,7 +2805,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
           }
         }
 
-        if (hotkeyCtrlA && allowShortcutCtrlA)
+        // Ctrl+A belongs to the Local Installs window (select all) while it has focus
+        if (hotkeyCtrlA && allowShortcutCtrlA && ! SKIF_LocalManager::GetInstance ( ).IsFocused ( ))
         {
           if (SKIF_Tab_Selected != UITab_Library)
               SKIF_Tab_ChangeTo  = UITab_Library;
@@ -2840,7 +2926,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           extern void
             SKIF_UI_Tab_DrawLibrary (void);
+
+          const DWORD libraryStart = (startupTiming) ? SKIF_Util_timeGetTime1 ( ) : 0;
+
             SKIF_UI_Tab_DrawLibrary (     );
+
+          if (startupTiming)
+            startupLibrary += SKIF_Util_timeGetTime1 ( ) - libraryStart;
 
           ImGui::EndChild         ( );
           ImGui::EndTabItem       ( );
@@ -3462,12 +3554,36 @@ wWinMain ( _In_     HINSTANCE hInstance,
       ImGui::ShowDemoWindow     ( );
     }
 
+    if (startupTiming)
+      startupRender = SKIF_Util_timeGetTime1 ( );
+
     // Actual rendering is conditional, this just processes input and ends the ImGui frame.
     ImGui::Render (); // also calls ImGui::EndFrame ();
 
-    if (SKIF_ImGui_hWnd != NULL)
+    if (startupTiming)
+      startupRendered = SKIF_Util_timeGetTime1 ( );
+
+    // The jump list takes ~30 ms of COM / shell work, so it's created on a thread of its own once the window has
+    //   been presented (it used to be created on this thread before the first present)
+    if (SKIF_ImGui_hWnd != NULL && SKIF_FirstPresentDone)
     {
-      SK_RunOnce (SKIF_Shell_CreateJumpList ( ));
+      SK_RunOnce (
+        std::thread ([]
+        {
+          SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_JumpListWorker");
+
+          if (SUCCEEDED (CoInitializeEx (nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE)))
+          {
+            DWORD dwStart = SKIF_Util_timeGetTime1 ( );
+
+            SKIF_Shell_CreateJumpList ( );
+
+            PLOG_VERBOSE << "Created the jump list in " << (SKIF_Util_timeGetTime1 ( ) - dwStart) << " ms.";
+
+            CoUninitialize ( );
+          }
+        }).detach ( )
+      );
     }
 
     // Disable navigation highlight on first frames
@@ -3556,7 +3672,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
     }
 
+    const DWORD framePlatform = SKIF_Util_timeGetTime1 ( );
+
     ImGui::UpdatePlatformWindows ( ); // This creates all ImGui related windows, including the main application window, and also updates the window and swapchain sizes etc
+
+    const DWORD frameRender   = SKIF_Util_timeGetTime1 ( );
 
     if (bRefresh)
     {
@@ -3576,6 +3696,36 @@ wWinMain ( _In_     HINSTANCE hInstance,
         //OutputDebugString((L"Initial refresh rate period: " + std::to_wstring (dwDwmPeriod) + L"\n").c_str());
       }
     }
+
+    if (startupTiming)
+    {
+      const DWORD frameEnd = SKIF_Util_timeGetTime1 ( );
+
+      startupFrame++;
+
+      PLOG_VERBOSE << "[Startup] Frame " << startupFrame << " ended " << (frameEnd - SKIF_startupTime) << " ms after init: "
+                   << (framePlatform - frameStart)  << " ms building it ("
+                   <<  (startupNewFrame - frameStart)                       << " ms before NewFrame, "
+                   <<  (startupUI       - startupNewFrame)                  << " ms NewFrame, "
+                   <<   startupLibrary                                      << " ms library tab, "
+                   << ((startupRender   - startupUI) - startupLibrary)      << " ms rest of the UI, "
+                   <<  (startupRendered - startupRender)                    << " ms ImGui::Render, "
+                   <<  (framePlatform   - startupRendered)                  << " ms after it), "
+                   << (frameRender   - framePlatform) << " ms updating the windows, "
+                   << (frameEnd      - frameRender)   << " ms rendering and presenting"
+                   << ((! bRefresh)               ? " (not rendered)"   : "")
+                   << ((SKIF_ImGui_hWnd == NULL)  ? " (no window yet)"  : "")
+                   << ((SKIF_FirstPresentDone)    ? " (first present)"  : "") << ".";
+
+      startupFrameEnd = frameEnd;
+
+      if (SKIF_FirstPresentDone || startupFrame >= 100)
+        startupTiming = false;
+    }
+
+    // SKIF has started (see SKIF_OnStartupFinished)
+    if (SKIF_FirstPresentDone)
+      SKIF_OnStartupFinished ( );
 
     if ( startedMinimized && SKIF_ImGui_IsFocused ( ) )
     {
@@ -4078,8 +4228,13 @@ bool CreateDeviceD3D (HWND hWnd)
     SKIF_Util_IsWindows8Point1OrGreater ( );
 
   // Windows 10 1709+ (Build 16299)
-  _registry._RendererCanHDR                =
-    SKIF_Util_IsHDRActive (NULL);
+  // Querying the displays takes ~10 ms (the first time), so it runs alongside the device creation below. It's needed
+  //   for the dummy swapchain at the end (std::jthread: also joined on the early returns)
+  std::jthread hdrQuery ([&]
+  {
+    _registry._RendererCanHDR              =
+      SKIF_Util_IsHDRActive (NULL);
+  });
 
   CComQIPtr <IDXGIFactory5>
                   pFactory5 (pFactory2.p);
@@ -4162,6 +4317,9 @@ bool CreateDeviceD3D (HWND hWnd)
       }
     }
   }
+
+  // The display query started above
+  hdrQuery.join ( );
 
   // We need to try creating a dummy swapchain before we actually start creating
   //   viewport windows. This is to ensure a compatible format is used from the
@@ -4571,29 +4729,15 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_SKIF_COVER:
+      // A cover worker finished: the next frames swap its result in (SKIF_LibraryArtwork::ApplyWorkerResults)
       addAdditionalFrames += 3;
-
-      // Update tryingToLoadCover
-      extern bool tryingToLoadCover;
-      extern std::atomic<bool> gameCoverLoading;
-      tryingToLoadCover = gameCoverLoading.load();
-
-      // Empty working set after the cover has finished loading
-      if (! tryingToLoadCover)
-        SKIF_Util_CompactWorkingSet ( );
       break;
 
     case WM_SKIF_REFRESHCOVER:
       addAdditionalFrames += 3;
 
-      // Update refreshCover
-      extern bool     coverRefresh; // This just triggers a refresh of the cover
-      extern uint32_t coverRefreshAppId;
-      extern int      coverRefreshStore;
-
-      coverRefresh      = true;
-      coverRefreshAppId = (uint32_t)wParam;
-      coverRefreshStore = ( int    )lParam;
+      // A custom cover has been saved: reload it if it is the one shown
+      SKIF_LibraryArtwork::Get ( ).OnCoverSaved ({ (app_record_s::Store)lParam, (uint32_t)wParam }); // SaveGameCover: wParam = app ID, lParam = store
 
       break;
 

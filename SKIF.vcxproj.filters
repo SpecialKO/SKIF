@@ -117,6 +117,9 @@
     <ClInclude Include="include\tabs\library.h">
       <Filter>Header Files\UI Tabs</Filter>
     </ClInclude>
+    <ClInclude Include="src\tabs\library\library_ui.h">
+      <Filter>Header Files\UI Tabs</Filter>
+    </ClInclude>
     <ClInclude Include="include\stores\Steam\vdf.h">
       <Filter>Header Files\Stores\Steam</Filter>
     </ClInclude>
@@ -172,6 +175,9 @@
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
     <ClInclude Include="include\utility\games.h">
+      <Filter>Header Files\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="include\utility\artwork.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
     <ClInclude Include="include\stores\generic_library2.h">
@@ -284,6 +290,24 @@
     <ClCompile Include="src\tabs\library.cpp">
       <Filter>Source Files\UI Tabs</Filter>
     </ClCompile>
+    <ClCompile Include="src\tabs\library\library_cover.cpp">
+      <Filter>Source Files\UI Tabs</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tabs\library\library_details.cpp">
+      <Filter>Source Files\UI Tabs</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tabs\library\library_launch.cpp">
+      <Filter>Source Files\UI Tabs</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tabs\library\library_menus.cpp">
+      <Filter>Source Files\UI Tabs</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tabs\library\library_popups.cpp">
+      <Filter>Source Files\UI Tabs</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tabs\library\library_list.cpp">
+      <Filter>Source Files\UI Tabs</Filter>
+    </ClCompile>
     <ClCompile Include="src\stores\Steam\vdf.cpp">
       <Filter>Source Files\Stores\Steam</Filter>
     </ClCompile>
@@ -330,6 +354,9 @@
       <Filter>Source Files\Utility</Filter>
     </ClCompile>
     <ClCompile Include="src\utility\games.cpp">
+      <Filter>Source Files\Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utility\artwork.cpp">
       <Filter>Source Files\Utility</Filter>
     </ClCompile>
     <ClCompile Include="src\utility\updater.cpp">

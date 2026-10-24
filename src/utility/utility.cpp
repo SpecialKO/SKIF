@@ -1826,6 +1826,30 @@ SKIF_Util_SetThreadPrefersECores (void)
   return succeeded;
 }
 
+// Used for short bursts of work that the user waits on (the library loading at launch), on a process that prefers the
+//   E-cores (SKIF_Util_SetProcessPrefersECores). Not logged here: callers may use it for several threads at once.
+bool
+SKIF_Util_SetThreadPrefersPCores (void)
+{
+  if (! SKIF_Util_IsWindows10OrGreater ( ))
+    return false;
+
+  HybridDetect::PROCESSOR_INFO procInfo = *SKIF_Util_GetProcessInfoHybridDetect ( );
+
+  bool succeeded = false;
+
+  // See SKIF_Util_SetThreadPrefersECores ( ) on CPU sets vs. affinity masks
+  if (procInfo.hybrid)
+  {
+#ifdef ENABLE_CPU_SETS
+    succeeded =
+      (1 == HybridDetect::RunOn (procInfo, HybridDetect::CoreTypes::INTEL_CORE, procInfo.cpuSets   [HybridDetect::CoreTypes::ANY]));
+#endif
+  }
+
+  return succeeded;
+}
+
 BOOL
 WINAPI
 SKIF_Util_SetThreadInformation (HANDLE hThread, THREAD_INFORMATION_CLASS ThreadInformationClass, LPVOID ThreadInformation, DWORD ThreadInformationSize)
