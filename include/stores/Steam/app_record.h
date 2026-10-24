@@ -92,6 +92,7 @@ constexpr int SKIF_STEAM_APPID = 1157970;
 //   (see app_record_store_s below and the store headers); store-specific behavior lives in the
 //   virtual functions, so consumers should call those instead of switching on `store`.
 enum class LibraryTexture; // stores/generic_library2.h
+struct     app_key_s;      // Below app_record_s
 
 struct app_record_s {
   app_record_s (uint32_t id_) : id (id_) { };
@@ -548,6 +549,7 @@ struct app_record_s {
   virtual int          GetClientHidden            (void) const { return 0; }         // 1 = hidden in the store client
   bool                 IsFavorite                 (void) const { return (skif.pinned > 0 || (skif.pinned == -1 && GetClientFavorite ( ) == 1)); }
   bool                 IsHidden                   (void) const { return (skif.hidden == 1 || (skif.hidden == -1 && GetClientHidden   ( ) == 1)); }
+  app_key_s            GetKey                     (void) const; // (store, id): identifies the game across library refreshes
   virtual bool         CanLaunchExecutableDirectly(void)       { return true; }      // Steam: primary launch config has a valid executable and the game isn't updating
 
   // Run-state detection (RefreshRunningApps in games.cpp)
@@ -597,6 +599,17 @@ using ConfigType =
 // Records are heap-allocated so the list can later hold store-specific derived types without slicing.
 using app_entry_t = std::pair <std::string, std::unique_ptr <app_record_s>>;
 using app_list_t  = std::vector <app_entry_t>;
+
+// Identifies a game across library refreshes (records are replaced on every refresh): (store, appid)
+struct app_key_s {
+  app_record_s::Store store = app_record_s::Store::Unspecified;
+  uint32_t            appid = 0;
+
+  bool operator== (const app_key_s& other) const { return (store == other.store && appid == other.appid); }
+  bool operator!= (const app_key_s& other) const { return ! (*this == other); }
+};
+
+inline app_key_s app_record_s::GetKey (void) const { return { store, id }; }
 
 // Helper base for the per-store record types: fixes the store, and implements Clone / CopyFrom
 //   for the derived type. Usage: struct app_record_foo_s : app_record_store_s <app_record_foo_s, Store::Foo> { ... };

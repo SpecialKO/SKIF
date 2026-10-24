@@ -101,18 +101,15 @@ FastTextureLoading (const std::wstring& path, DirectX::TexMetadata& meta, Direct
   return success;
 }
 
-void
-LoadLibraryTexture (
+bool
+LoadLibraryTextureEx (
         LibraryTexture                      libTexToLoad,
         uint32_t                            appid,
-        CComPtr <ID3D11ShaderResourceView>& pLibTexSRV,
         const std::wstring&                 name,
-        ImVec2&                             resolution,
-      //ImVec2&                             vCoverUv0,
-      //ImVec2&                             vCoverUv1,
-        app_record_s*                       pApp)
+        app_record_s*                       pApp,
+        library_texture_s&                  out)
 {
-  // NOT REALLY THREAD-SAFE WHILE IT RELIES ON THESE STATIC GLOBAL OBJECTS!
+  // Settings and paths are only read here; see the threading notes in generic_library2.h
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
@@ -132,12 +129,6 @@ LoadLibraryTexture (
   if (pApp != nullptr)
   {
     appid = pApp->id;
-
-    if (libTexToLoad == LibraryTexture::Cover)
-      pApp->tex_cover.isCustom = pApp->tex_cover.isManaged = false;
-
-    if (libTexToLoad == LibraryTexture::Icon)
-      pApp->tex_icon.isCustom  = pApp->tex_icon.isManaged  = false;
 
     // Store-specific: the user's custom artwork, else the store's (Special K: custom only, else embedded below)
     load_str = pApp->ResolveArtwork (libTexToLoad, name, customAsset, managedAsset);
@@ -169,18 +160,8 @@ LoadLibraryTexture (
     }
   }
 
-  // Push the existing texture to a stack to be released after the frame
-  //   Do this regardless of whether we could actually load the new cover or not
-  if (pLibTexSRV.p != nullptr)
-  {
-    extern concurrency::concurrent_queue <IUnknown *> SKIF_ResourcesToFree;
-    PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << pLibTexSRV.p << " to be released";;
-    SKIF_ResourcesToFree.push (pLibTexSRV.p);
-    pLibTexSRV.p = nullptr;
-  }
-
   if (! succeeded)
-    return;
+    return false;
 
   DirectX::ScratchImage* pImg  =   &img;
   DirectX::ScratchImage   converted_img;
@@ -236,14 +217,14 @@ LoadLibraryTexture (
   }
 
   // Store the resolution of the loaded image
-  resolution.x = static_cast<float> (meta.width);
-  resolution.y = static_cast<float> (meta.height);
+  out.resolution.x = static_cast<float> (meta.width);
+  out.resolution.y = static_cast<float> (meta.height);
 
   auto pDevice =
     SKIF_D3D11_GetDevice ();
 
   if (! pDevice)
-    return;
+    return false;
 
   pTex2D = nullptr;
 
@@ -275,7 +256,7 @@ LoadLibraryTexture (
       FAILED (
         pDevice->CreateShaderResourceView (
             pTex2D.p, &srv_desc,
-          &pLibTexSRV.p
+          &out.srv.p
         )
       )
     )
@@ -288,22 +269,55 @@ LoadLibraryTexture (
       DWORD post = SKIF_Util_timeGetTime1 ( );
       PLOG_DEBUG << "[Image Processing] Processed image in " << (post - pre) << " ms.";
 
-      if (pApp != nullptr)
-      {
-        if      (libTexToLoad == LibraryTexture::Cover)
-        {
-          pApp->tex_cover.isCustom  = customAsset;
-          pApp->tex_cover.isManaged = managedAsset;
-        }
-        else if (libTexToLoad == LibraryTexture::Icon)
-        {
-          pApp->tex_icon.isCustom  = customAsset;
-          pApp->tex_icon.isManaged = managedAsset;
-        }
-      }
+      out.isCustom  = customAsset;
+      out.isManaged = managedAsset;
     }
 
     // SRV is holding a reference, this is not needed anymore.
     pTex2D = nullptr;
   }
-};
+
+  return (out.srv.p != nullptr);
+}
+
+void
+LoadLibraryTexture (
+        LibraryTexture                      libTexToLoad,
+        uint32_t                            appid,
+        CComPtr <ID3D11ShaderResourceView>& pLibTexSRV,
+        const std::wstring&                 name,
+        ImVec2&                             resolution,
+        app_record_s*                       pApp)
+{
+  library_texture_s tex;
+
+  bool succeeded =
+    LoadLibraryTextureEx (libTexToLoad, appid, name, pApp, tex);
+
+  // Push the existing texture to a stack to be released after the frame
+  //   Do this regardless of whether we could actually load the new texture or not
+  if (pLibTexSRV.p != nullptr)
+  {
+    extern concurrency::concurrent_queue <IUnknown *> SKIF_ResourcesToFree;
+    PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << pLibTexSRV.p << " to be released";;
+    SKIF_ResourcesToFree.push (pLibTexSRV.p);
+    pLibTexSRV.p = nullptr;
+  }
+
+  resolution = tex.resolution;
+  pLibTexSRV = tex.srv;
+
+  if (pApp != nullptr)
+  {
+    if      (libTexToLoad == LibraryTexture::Cover)
+    {
+      pApp->tex_cover.isCustom  = (succeeded && tex.isCustom);
+      pApp->tex_cover.isManaged = (succeeded && tex.isManaged);
+    }
+    else if (libTexToLoad == LibraryTexture::Icon)
+    {
+      pApp->tex_icon.isCustom   = (succeeded && tex.isCustom);
+      pApp->tex_icon.isManaged  = (succeeded && tex.isManaged);
+    }
+  }
+}

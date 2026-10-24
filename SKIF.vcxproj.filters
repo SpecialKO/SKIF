@@ -290,6 +290,9 @@
     <ClCompile Include="src\tabs\library.cpp">
       <Filter>Source Files\UI Tabs</Filter>
     </ClCompile>
+    <ClCompile Include="src\tabs\library\library_cover.cpp">
+      <Filter>Source Files\UI Tabs</Filter>
+    </ClCompile>
     <ClCompile Include="src\tabs\library\library_details.cpp">
       <Filter>Source Files\UI Tabs</Filter>
     </ClCompile>

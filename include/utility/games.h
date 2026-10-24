@@ -57,6 +57,7 @@ struct SKIF_GamingCollection {
         // Looks up a game by its identity. Entries with id 0 (filtered out / invalid) are never returned.
         // Returns nullptr if not found. The pointer stays valid until the next SwapInPopulatedGames ( ).
         app_record_s* Find (app_record_s::Store store, uint32_t appid);
+        app_record_s* Find (const app_key_s& key) { return Find (key.store, key.appid); }
 
         // Library population (call from the main thread).
         //   PopulateGames ( )        starts the background library worker unless one is already running.

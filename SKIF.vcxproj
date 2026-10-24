@@ -485,6 +485,7 @@
     <ClCompile Include="src\tabs\common_ui.cpp" />
     <ClCompile Include="src\tabs\monitor.cpp" />
     <ClCompile Include="src\tabs\library.cpp" />
+    <ClCompile Include="src\tabs\library\library_cover.cpp" />
     <ClCompile Include="src\tabs\library\library_details.cpp" />
     <ClCompile Include="src\tabs\library\library_launch.cpp" />
     <ClCompile Include="src\tabs\library\library_list.cpp" />

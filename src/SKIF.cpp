@@ -4572,18 +4572,15 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_SKIF_COVER:
+      // A cover worker finished: the next frames swap its result in (SKIF_LibraryArtwork::ApplyWorkerResults)
       addAdditionalFrames += 3;
-
-      // Empty working set after the cover has finished loading
-      if (SKIF_LibraryArtwork::Get ( ).OnCoverWorkerFinished ( ))
-        SKIF_Util_CompactWorkingSet ( );
       break;
 
     case WM_SKIF_REFRESHCOVER:
       addAdditionalFrames += 3;
 
       // A custom cover has been saved: reload it if it is the one shown
-      SKIF_LibraryArtwork::Get ( ).OnCoverSaved ((uint32_t)wParam, (int)lParam);
+      SKIF_LibraryArtwork::Get ( ).OnCoverSaved ({ (app_record_s::Store)lParam, (uint32_t)wParam }); // SaveGameCover: wParam = app ID, lParam = store
 
       break;
 

@@ -168,6 +168,12 @@ struct library_tab_s {
   app_record_s*       pApp     = nullptr;        // Record of the selected game; set once per frame, at the top of SKIF_UI_Tab_DrawLibrary ( )
   bool                update   = true;           // The selection changed; refresh what depends on it
   ImVec2              sizeList = ImVec2 (0, 0);  // Size of the games list (DPI-aware, recalculated when the tab area changes)
+
+  // Cover panel (DPI-aware, recalculated when the tab area changes)
+  bool                uiCoverVisible = false;          // The cover is shown at all
+  ImVec2              sizeCover      = ImVec2 (0, 0);
+  ImVec2              sizeSK         = ImVec2 (0, 0);  // Special K logo
+  ImVec2              sizeSK_small   = ImVec2 (0, 0);  // Special K logo with low-res covers
 };
 
 library_tab_s& GetLibraryTab (void);
@@ -181,6 +187,7 @@ extern std::atomic<uint32_t>  modAppId;
 extern bool                   bCategoryMgnt;
 extern int                    numRegular;
 extern float                  fAlphaList;
+extern float                  fTint;             // Cover dimming
 extern library_search_selection_s
                               search_selection;
 extern PopupState             CoverMenu;
@@ -234,6 +241,10 @@ void DrawGamesList           (DWORD current_time, ImVec2 fTop1, bool showClearBt
 
 // library/library_popups.cpp
 void DrawLibraryPopups       (void);
+
+// library/library_cover.cpp
+void DrawGameCover           (bool sameLine, bool& isCoverHovered, ImVec2& vecPosCover); // isCoverHovered / vecPosCover: set for the code after it
+void DrawSpecialKPatreon     (bool& isCoverHovered, ImVec2 vecPosCover);               // isCoverHovered: also set if the panel is hovered
 
 // library/library_details.cpp
 void GetInjectionSummary     (app_record_s* pApp);
