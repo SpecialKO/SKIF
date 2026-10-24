@@ -40,6 +40,14 @@ Index of this file:
 
 #include <stdio.h>      // vsnprintf, sscanf, printf
 
+// SKIF: the font atlas is rasterized on several threads, and the build is timed (see ImFontAtlasBuildWithStbTruetype)
+#include <atomic>
+#include <chrono>
+#include <cmath>
+#include <thread>
+#include <vector>
+// (plog is included by imconfig.h)
+
 // Visual Studio warnings
 #ifdef _MSC_VER
 #pragma warning (disable: 4127)     // condition expression is constant
@@ -130,8 +138,28 @@ namespace IMGUI_STB_NAMESPACE
 #ifdef  IMGUI_ENABLE_STB_TRUETYPE
 #ifndef STB_TRUETYPE_IMPLEMENTATION                         // in case the user already have an implementation in the _same_ compilation unit (e.g. unity builds)
 #ifndef IMGUI_DISABLE_STB_TRUETYPE_IMPLEMENTATION           // in case the user already have an implementation in another compilation unit
-#define STBTT_malloc(x,u)   ((void)(u), IM_ALLOC(x))
-#define STBTT_free(x,u)     ((void)(u), IM_FREE(x))
+// SKIF: ImFontAtlasBuildWithStbTruetype ( ) rasterizes the font sources on several threads. ImGui::MemAlloc ( ) and
+//   ImGui::MemFree ( ) also update the context's debug allocation counters, which aren't thread-safe, so the extra
+//   threads use the allocator functions directly.
+static thread_local bool ImStbTrueType_OnRasterThread = false;
+static void* ImStbTrueType_Alloc (size_t size)
+{
+    if (!ImStbTrueType_OnRasterThread)
+        return IM_ALLOC(size);
+    ImGuiMemAllocFunc alloc_func; ImGuiMemFreeFunc free_func; void* user_data;
+    ImGui::GetAllocatorFunctions(&alloc_func, &free_func, &user_data);
+    return alloc_func(size, user_data);
+}
+static void ImStbTrueType_Free (void* ptr)
+{
+    if (!ImStbTrueType_OnRasterThread)
+        return IM_FREE(ptr);
+    ImGuiMemAllocFunc alloc_func; ImGuiMemFreeFunc free_func; void* user_data;
+    ImGui::GetAllocatorFunctions(&alloc_func, &free_func, &user_data);
+    free_func(ptr, user_data);
+}
+#define STBTT_malloc(x,u)   ((void)(u), ImStbTrueType_Alloc(x))
+#define STBTT_free(x,u)     ((void)(u), ImStbTrueType_Free(x))
 #define STBTT_assert(x)     do { IM_ASSERT(x); } while(0)
 #define STBTT_fmod(x,y)     ImFmod(x,y)
 #define STBTT_sqrt(x)       ImSqrt(x)
@@ -2806,6 +2834,11 @@ static bool ImFontAtlasBuildWithStbTruetype(ImFontAtlas* atlas)
 {
     IM_ASSERT(atlas->ConfigData.Size > 0);
 
+    // SKIF: timing of the build phases (logged at the end)
+    using skif_clock = std::chrono::steady_clock;
+    auto skif_ms = [](skif_clock::time_point from, skif_clock::time_point to) -> double { return std::round (std::chrono::duration <double, std::milli> (to - from).count() * 10.0) / 10.0; };
+    const skif_clock::time_point skif_t_start = skif_clock::now();
+
     ImFontAtlasBuildInit(atlas);
 
     // Clear atlas
@@ -2890,6 +2923,8 @@ static bool ImFontAtlasBuildWithStbTruetype(ImFontAtlas* atlas)
             }
     }
 
+    const skif_clock::time_point skif_t_glyphs = skif_clock::now(); // SKIF: timing
+
     // 3. Unpack our bit map into a flat list (we now have all the Unicode points that we know are requested _and_ available _and_ not overlapping another)
     for (int src_i = 0; src_i < src_tmp_array.Size; src_i++)
     {
@@ -2952,6 +2987,8 @@ static bool ImFontAtlasBuildWithStbTruetype(ImFontAtlas* atlas)
         }
     }
 
+    const skif_clock::time_point skif_t_measured = skif_clock::now(); // SKIF: timing
+
     // We need a width for the skyline algorithm, any width!
     // The exact width doesn't really matter much, but some API/GPU have texture size limitations and increasing width can decrease height.
     // User can override TexDesiredWidth and TexGlyphPadding if they wish, otherwise we use a simple heuristic to select the width based on expected surface.
@@ -2985,6 +3022,8 @@ static bool ImFontAtlasBuildWithStbTruetype(ImFontAtlas* atlas)
                 atlas->TexHeight = ImMax(atlas->TexHeight, src_tmp.Rects[glyph_i].y + src_tmp.Rects[glyph_i].h);
     }
 
+    const skif_clock::time_point skif_t_packed = skif_clock::now(); // SKIF: timing
+
     // 7. Allocate texture
     atlas->TexHeight = (atlas->Flags & ImFontAtlasFlags_NoPowerOfTwoHeight) ? (atlas->TexHeight + 1) : ImUpperPowerOfTwo(atlas->TexHeight);
     atlas->TexUvScale = ImVec2(1.0f / atlas->TexWidth, 1.0f / atlas->TexHeight);
@@ -2994,27 +3033,70 @@ static bool ImFontAtlasBuildWithStbTruetype(ImFontAtlas* atlas)
     spc.height = atlas->TexHeight;
 
     // 8. Render/rasterize font characters into the texture
+    // SKIF: the sources are rasterized in parallel. Each one renders only into its own packed rectangles, which don't
+    //   overlap, and reads its own font info (the font data itself is read-only). Each thread uses a copy of the pack
+    //   context, as stbtt_PackFontRangesRenderIntoRects ( ) changes its oversampling. The calling thread takes part too,
+    //   and the sources are taken largest first, so a thread that is slow to start (e.g. on the loader lock) only means
+    //   less parallelism.
+    ImVector<int> skif_raster_order;
     for (int src_i = 0; src_i < src_tmp_array.Size; src_i++)
+        if (src_tmp_array[src_i].GlyphsCount > 0)
+            skif_raster_order.push_back(src_i);
+    for (int i = 1; i < skif_raster_order.Size; i++) // Insertion sort, largest first (only a handful of sources)
+        for (int j = i; j > 0 && src_tmp_array[skif_raster_order[j]].GlyphsCount > src_tmp_array[skif_raster_order[j - 1]].GlyphsCount; j--)
+            ImSwap(skif_raster_order[j], skif_raster_order[j - 1]);
+
+    std::atomic<int> skif_raster_next = 0;
+    std::vector<double> skif_raster_ms((size_t)src_tmp_array.Size, 0.0);
+
+    auto skif_raster = [&](bool on_extra_thread)
     {
-        ImFontConfig& cfg = atlas->ConfigData[src_i];
-        ImFontBuildSrcData& src_tmp = src_tmp_array[src_i];
-        if (src_tmp.GlyphsCount == 0)
-            continue;
+        ImStbTrueType_OnRasterThread = on_extra_thread;
+        stbtt_pack_context spc_local = spc;
 
-        stbtt_PackFontRangesRenderIntoRects(&spc, &src_tmp.FontInfo, &src_tmp.PackRange, 1, src_tmp.Rects);
-
-        // Apply multiply operator
-        if (cfg.RasterizerMultiply != 1.0f)
+        for (int n = skif_raster_next.fetch_add(1); n < skif_raster_order.Size; n = skif_raster_next.fetch_add(1))
         {
-            unsigned char multiply_table[256];
-            ImFontAtlasBuildMultiplyCalcLookupTable(multiply_table, cfg.RasterizerMultiply);
-            stbrp_rect* r = &src_tmp.Rects[0];
-            for (int glyph_i = 0; glyph_i < src_tmp.GlyphsCount; glyph_i++, r++)
-                if (r->was_packed)
-                    ImFontAtlasBuildMultiplyRectAlpha8(multiply_table, atlas->TexPixelsAlpha8, r->x, r->y, r->w, r->h, atlas->TexWidth * 1);
+            const int src_i = skif_raster_order[n];
+            const skif_clock::time_point skif_t_src = skif_clock::now();
+
+            ImFontConfig& cfg = atlas->ConfigData[src_i];
+            ImFontBuildSrcData& src_tmp = src_tmp_array[src_i];
+
+            stbtt_PackFontRangesRenderIntoRects(&spc_local, &src_tmp.FontInfo, &src_tmp.PackRange, 1, src_tmp.Rects);
+
+            // Apply multiply operator
+            if (cfg.RasterizerMultiply != 1.0f)
+            {
+                unsigned char multiply_table[256];
+                ImFontAtlasBuildMultiplyCalcLookupTable(multiply_table, cfg.RasterizerMultiply);
+                stbrp_rect* r = &src_tmp.Rects[0];
+                for (int glyph_i = 0; glyph_i < src_tmp.GlyphsCount; glyph_i++, r++)
+                    if (r->was_packed)
+                        ImFontAtlasBuildMultiplyRectAlpha8(multiply_table, atlas->TexPixelsAlpha8, r->x, r->y, r->w, r->h, atlas->TexWidth * 1);
+            }
+
+            skif_raster_ms[(size_t)src_i] = skif_ms(skif_t_src, skif_clock::now());
         }
-        src_tmp.Rects = NULL;
+
+        ImStbTrueType_OnRasterThread = false;
+    };
+
+    const unsigned int skif_cores = ImMax(1u, std::thread::hardware_concurrency());
+    const int skif_extra_threads = ImMin(skif_raster_order.Size - 1, ImMin((int)skif_cores - 1, 7));
+    std::vector<std::thread> skif_raster_threads;
+    for (int i = 0; i < skif_extra_threads; i++)
+    {
+        try { skif_raster_threads.emplace_back(skif_raster, true); }
+        catch (const std::system_error&) { break; } // Not started: the other threads do its share
     }
+    skif_raster(false);
+    for (std::thread& thread : skif_raster_threads)
+        thread.join();
+
+    for (int src_i = 0; src_i < src_tmp_array.Size; src_i++)
+        src_tmp_array[src_i].Rects = NULL;
+
+    const skif_clock::time_point skif_t_rasterized = skif_clock::now(); // SKIF: timing
 
     // End packing
     stbtt_PackEnd(&spc);
@@ -3057,6 +3139,27 @@ static bool ImFontAtlasBuildWithStbTruetype(ImFontAtlas* atlas)
             dst_font->AddGlyph(&cfg, (ImWchar)codepoint, x0, y0, x1, y1, q.s0, q.t0, q.s1, q.t1, pc.xadvance * inv_rasterization_scale);
         }
     }
+
+    const skif_clock::time_point skif_t_setup = skif_clock::now(); // SKIF: timing
+
+    // SKIF: log the timing of the build
+    double skif_largest_ms = 0.0;
+    int    skif_largest_src = -1;
+    for (int src_i = 0; src_i < src_tmp_array.Size; src_i++)
+        if (skif_raster_ms[(size_t)src_i] > skif_largest_ms)
+        {
+            skif_largest_ms  = skif_raster_ms[(size_t)src_i];
+            skif_largest_src = src_i;
+        }
+
+    PLOG_DEBUG << "[Fonts] Built the " << atlas->TexWidth << "x" << atlas->TexHeight << " atlas (" << total_glyphs_count << " glyphs from "
+               << skif_raster_order.Size << " sources) in " << skif_ms(skif_t_start, skif_t_setup) << " ms: "
+               << skif_ms(skif_t_start,    skif_t_glyphs)     << " ms finding the glyphs, "
+               << skif_ms(skif_t_glyphs,   skif_t_measured)   << " ms measuring them, "
+               << skif_ms(skif_t_measured, skif_t_packed)     << " ms packing them, "
+               << skif_ms(skif_t_packed,   skif_t_rasterized) << " ms rasterizing them (on " << (skif_raster_threads.size() + 1) << " threads; the largest, "
+               << ((skif_largest_src >= 0) ? atlas->ConfigData[skif_largest_src].Name : "n/a") << ", took " << skif_largest_ms << " ms), "
+               << skif_ms(skif_t_rasterized, skif_t_setup)    << " ms setting up the fonts.";
 
     // Cleanup
     src_tmp_array.clear_destruct();
