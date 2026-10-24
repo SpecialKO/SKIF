@@ -78,11 +78,11 @@ struct IniEntry {
   std::vector<std::string> _dditems = { };
   
         void  Reset    (void);
-              IniEntry (ParameterType _t, std::string _s, std::string _k, std::string _v);
+              IniEntry (ParameterType _t, const std::string& _s, const std::string& _k, const std::string& _v);
 };
 
 std::vector <IniEntry>           SKIF_IniReader_ParseIni         (const std::wstring& file_path, IniType ini_type);
-void                             SKIF_IniReader_WriteIni         (std::vector <IniEntry> ini, const std::wstring& file_path);
+void                             SKIF_IniReader_WriteIni         (const std::vector <IniEntry>& ini, const std::wstring& file_path);
 void                             SKIF_IniReader_ReadOSDIni       (void);
 void                             SKIF_IniReader_SaveOSDIni       (void);
 std::vector <const ConfigEntry*> SKIF_IniReader_GetDefaultParams (IniType ini_type);

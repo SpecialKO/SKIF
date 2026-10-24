@@ -427,7 +427,7 @@ IniEntry::Reset (void)
   strncpy (value, default, MAX_PATH);
 }
 
-IniEntry::IniEntry (ParameterType _t, std::string _s, std::string _k, std::string _v)
+IniEntry::IniEntry (ParameterType _t, const std::string& _s, const std::string& _k, const std::string& _v)
 {
   // Build helpers
 
@@ -648,8 +648,8 @@ SKIF_IniReader_ParseIni (const std::wstring& file_path, IniType ini_type)
 
       for (auto& kv : ini.Get (section))
       {
-        if ((! _stricmp (default_item->section, section.c_str()) &&
-            (! _stricmp (default_item->key,    kv.first.c_str()))))
+        if ((! strcmp (default_item->section, section.c_str()) &&
+            (! strcmp (default_item->key,    kv.first.c_str()))))
         {
           value = kv.second;
           found = true;
@@ -677,8 +677,8 @@ SKIF_IniReader_ParseIni (const std::wstring& file_path, IniType ini_type)
 
       for (auto& item : ini_parsed)
       {
-        if ((! _stricmp (item.section, section.c_str()) &&
-            (! _stricmp (item.key,    kv.first.c_str()))))
+        if ((! strcmp (item.section, section.c_str()) &&
+            (! strcmp (item.key,    kv.first.c_str()))))
         {
           found = true;
           break;
@@ -699,9 +699,9 @@ SKIF_IniReader_ParseIni (const std::wstring& file_path, IniType ini_type)
 
   std::sort (ini_parsed.begin(), ini_parsed.end(), [](const IniEntry& a, const IniEntry& b)
     {
-      return (_stricmp (a.section, b.section)  < 0  ||
-             (_stricmp (a.section, b.section) == 0 &&
-             (_stricmp (a.key,     b.key)      < 0)));
+      return (strcmp (a.section, b.section)  < 0  ||
+             (strcmp (a.section, b.section) == 0 &&
+             (strcmp (a.key,     b.key)      < 0)));
     }
   );
 
@@ -709,11 +709,11 @@ SKIF_IniReader_ParseIni (const std::wstring& file_path, IniType ini_type)
 }
 
 void
-SKIF_IniReader_WriteIni (std::vector<IniEntry> ini, const std::wstring& file_path)
+SKIF_IniReader_WriteIni (const std::vector<IniEntry>& ini, const std::wstring& file_path)
 {
   inih::INIReader new_ini = { };
 
-  for (auto& trie : ini)
+  for (const auto& trie : ini)
   {
     if (! trie._ignore)
     {
