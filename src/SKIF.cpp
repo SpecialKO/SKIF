@@ -85,8 +85,8 @@
 #include <shlobj.h>
 #include <netlistmgr.h>
 #include <dwmapi.h>
+#include <utility/artwork.h>
 
-const int SKIF_STEAM_APPID      = 1157970;
 bool  RecreateD3DDevice         = false;
 bool  RecreateSwapChains        = false;
 bool  RecreateSwapChainsPending = false;
@@ -4573,27 +4573,16 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_SKIF_COVER:
       addAdditionalFrames += 3;
 
-      // Update tryingToLoadCover
-      extern bool tryingToLoadCover;
-      extern std::atomic<bool> gameCoverLoading;
-      tryingToLoadCover = gameCoverLoading.load();
-
       // Empty working set after the cover has finished loading
-      if (! tryingToLoadCover)
+      if (SKIF_LibraryArtwork::Get ( ).OnCoverWorkerFinished ( ))
         SKIF_Util_CompactWorkingSet ( );
       break;
 
     case WM_SKIF_REFRESHCOVER:
       addAdditionalFrames += 3;
 
-      // Update refreshCover
-      extern bool     coverRefresh; // This just triggers a refresh of the cover
-      extern uint32_t coverRefreshAppId;
-      extern int      coverRefreshStore;
-
-      coverRefresh      = true;
-      coverRefreshAppId = (uint32_t)wParam;
-      coverRefreshStore = ( int    )lParam;
+      // A custom cover has been saved: reload it if it is the one shown
+      SKIF_LibraryArtwork::Get ( ).OnCoverSaved ((uint32_t)wParam, (int)lParam);
 
       break;
 

@@ -11,11 +11,45 @@
 #include <stores/Steam/app_record.h>
 
 
+// Library record for an Epic Games Store game
+struct app_record_epic_s : app_record_store_s <app_record_epic_s, app_record_s::Store::Epic>
+{
+  using app_record_store_s::app_record_store_s;
+
+  // Epic-specific data
+  struct epic_s {
+    std::string  catalog_namespace =  ""; // CatalogNamespace
+    std::string  catalog_item_id   =  ""; // CatalogItemId
+    std::string  name_app          =  ""; // AppName (v1) / ArtifactId (v2)
+    std::string  name_display      =  ""; // DisplayName; Used for asset retrieval
+    std::string  gamebox_tall      =  "";
+  } epic;
+
+  std::string GetPersistentKey        (void) const override { return epic.name_app; }
+
+  // Launching (epic_library.cpp)
+  bool        RequiresValidExecutable (void) const override { return false; } // Launches through the Epic Games Launcher
+  void        Launch                  (const launch_context_s& ctx) override;
+
+  // Library UI (epic_library.cpp)
+  std::wstring GetStoreAssetDirectory  (void) const override;
+  std::vector <std::pair <std::string, std::string>>
+               GetStoreDebugFields     (void) const override;
+
+  // Library population: Special K has no Epic manifest parser, so it maps the install folder to the AppName
+  std::string  GetAppIdMapping            (void) const override { return epic.name_app; }
+
+  // Artwork (epic_library.cpp)
+  std::wstring ResolveArtwork          (LibraryTexture type, const std::wstring& source, bool& isCustom, bool& isManaged) override;
+  std::wstring PrepareCoverSource      (void) override;
+};
+
+
 struct SKIF_EpicCollection {
 
   bool isSignaled         (void);
-  void GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s > > *apps) const;
-  void IdentifyAssetNew   (const app_record_s::epic_s& epic);
+  void GetInstalledAppIDs (app_list_t *apps) const;
+  void IdentifyAssetNew   (const app_record_epic_s::epic_s& epic);
 
   static SKIF_EpicCollection& GetInstance (void)
   {
@@ -29,11 +63,10 @@ private:
   SKIF_EpicCollection (SKIF_EpicCollection&&)      = delete;
 
   void RefreshInstallState (void);
-  bool FindInstalledGames2 (std::vector <std::pair < std::string, app_record_s > > *apps) const;
-  bool FindInstalledGames1 (std::vector <std::pair < std::string, app_record_s > > *apps) const;
+  bool FindInstalledGames2 (app_list_t *apps) const;
+  bool FindInstalledGames1 (app_list_t *apps) const;
 
   SKIF_DirectoryWatch watch;
   std::wstring  appdatapath;
   int               version = -1; // -1 unchecked, 0 uninstalled, 1 v1, 2 v2
 };
-

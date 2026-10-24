@@ -402,6 +402,7 @@
     <ClInclude Include="packages_misc\vdf_parser.hpp" />
     <ClInclude Include="resources\fonts\fa_621.h" />
     <ClInclude Include="resources\fonts\fa_621b.h" />
+    <ClInclude Include="include\utility\artwork.h" />
     <ClInclude Include="include\utility\games.h" />
     <ClInclude Include="include\utility\registry.h" />
     <ClInclude Include="include\utility\skif_imgui.h" />
@@ -459,6 +460,7 @@
     <ClCompile Include="src\tabs\hardware.cpp" />
     <ClCompile Include="src\tabs\local.cpp" />
     <ClCompile Include="src\utility\drvreset.cpp" />
+    <ClCompile Include="src\utility\artwork.cpp" />
     <ClCompile Include="src\utility\gamepad.cpp" />
     <ClCompile Include="src\utility\games.cpp" />
     <ClCompile Include="src\utility\ini_reader.cpp" />

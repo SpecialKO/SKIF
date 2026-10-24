@@ -41,6 +41,8 @@
 #include <utility/vfs.h>
 
 #include <vector>
+#include <memory>
+#include <typeinfo>
 
 //
 // TODO: Get this specialization stuff the hell out of here...
@@ -83,8 +85,31 @@ private:
 };
 
 
+// Steam App ID of Special K itself; also used for SKIF's own entry in the library
+constexpr int SKIF_STEAM_APPID = 1157970;
+
+// Base record for a game in the library. Each store has its own record type derived from this
+//   (see app_record_store_s below and the store headers); store-specific behavior lives in the
+//   virtual functions, so consumers should call those instead of switching on `store`.
+enum class LibraryTexture; // stores/generic_library2.h
+
 struct app_record_s {
   app_record_s (uint32_t id_) : id (id_) { };
+  virtual ~app_record_s (void) = default;
+
+  app_record_s            (const app_record_s&) = default;
+  app_record_s& operator= (const app_record_s&) = default;
+
+  // Polymorphic copy (game workers refresh a copy of a record on a background thread).
+  //   Clone    returns a heap copy of the same record type.
+  //   CopyFrom assigns from a record of the same type in place, so the record keeps its address.
+  virtual std::unique_ptr <app_record_s>
+                       Clone                   (void) const                 { return std::make_unique <app_record_s> (*this); }
+  virtual void         CopyFrom                (const app_record_s& src)    { *this = src; }
+
+  // Store-specific behavior
+  virtual bool         isInstantPlayCompatible (void) const                 { return false; }                // Steam, GOG, Xbox
+  virtual std::string  GetPersistentKey        (void) const                 { return std::to_string (id); }  // Key used in db.json and lc.json
 
   struct client_state_s {
     bool refresh    (app_record_s *pApp);
@@ -201,18 +226,6 @@ struct app_record_s {
     std::string    localized_name; // UTF-8
   };
 
-  bool isInstantPlayCompatible (void) const {
-    switch (store)
-    {
-      case Store::GOG:
-      case Store::Steam:
-      case Store::Xbox:
-        return true;
-
-      default:
-        return false;
-    }
-  }
 
   struct common_config_s {
 
@@ -441,50 +454,113 @@ struct app_record_s {
     int              pinned = -1; // Is app favorited? (-1 = unset;   0 = no;   1 = yes;   51 = yes (on top);   99 = Special K)
   } skif;
 
-  struct steam_s {
-    struct {
-      std::string launch_option        = ""; // Holds the custom launch option set in the Steam client
-      std::string launch_option_parsed = ""; // Holds a cached parsed value of the launch option set in the Steam client
-    } local;
-
-    struct {
-      int hidden   = 0; // Hidden in Steam Client (not the same as flagged as private)
-      int favorite = 0; // Favorited in Steam Client
-      std::vector <std::string> tags; // ???
-    } shared; // roaming
-
-    struct {
-      std::wstring AppDetails      = L"";
-      std:: string AppDetails_utf8 =  "";
-      std::wstring IStoreBrowseService_GetItems1      = L"";
-      std:: string IStoreBrowseService_GetItems1_utf8 =  "";
-      std::wstring ISteamUserStats_GetNumberOfCurrentPlayers1      = L"";
-      std:: string ISteamUserStats_GetNumberOfCurrentPlayers1_utf8 =  "";
-    } urls; // Used by the Developer menu
-
-    std::string  manifest_data    =  "";
-    std::wstring manifest_path    = L"";
-    std::string  branch           = "public"; // Holds the current "beta" branch set in the Steam client (default: public)
-  } steam;
-
-  struct epic_s {
-    std::string  catalog_namespace =  ""; // CatalogNamespace
-    std::string  catalog_item_id   =  ""; // CatalogItemId
-    std::string  name_app          =  ""; // AppName (v1) / ArtifactId (v2)
-    std::string  name_display      =  ""; // DisplayName; Used for asset retrieval
-    std::string  gamebox_tall      =  "";
-  } epic;
-
-  struct xbox_s {
-    std::string  package_name            =  ""; // PackageName
-    std::string  package_name_full       =  ""; // PackageFullName
-    std::string  package_name_family     =  ""; // PackageFamilyName
-    std::string  store_id                =  ""; // StoreId
-    std::wstring directory_app           = L""; // AppDirectory; Holds the x:\WindowsApps\<package-full-name> path
-    std::wstring directory_program_files = L""; // Program Files directory; Holds the C:\Program Files\WindowsApps\<package-full-name> path
-  } xbox;
-
   bool           launch_failed           = false;
+
+  // Store-specific behavior (continued; declared here as they use the nested types above)
+  virtual std::string  GetPCGamingWikiURL      (void)       const { return "https://www.pcgamingwiki.com/w/index.php?search=" + names.clean; }
+  virtual std::string  GetSteamGridDBURL       (bool icons) const { return SKIF_Util_FormatStringRaw ((icons) ? "https://www.steamgriddb.com/search/icons?term=%s"
+                                                                                                                 : "https://www.steamgriddb.com/search/grids?term=%s", names.clean.c_str ( )); }
+  virtual void         RefreshClientState      (DWORD dwTimeNow)  { UNREFERENCED_PARAMETER (dwTimeNow); } // Polls the store client for running/updating state (Steam only)
+
+  // Where launch configs from lc.json / lc_user.json are added
+  virtual std::map <int, launch_config_s>&
+                       GetOnlineLaunchConfigs  (void)             { return launch_configs; }
+
+  // Launching. LaunchGame ( ) in library.cpp does the shared preparation (usage stats, injection
+  //   service, instant-launch decision) and then calls Launch ( ) with this context.
+  struct launch_context_s {
+    launch_config_s* config         = nullptr; // Launch config to use
+    bool             instant        = false;   // Launch the executable directly instead of through the store client
+    bool             usingSK        = false;   // Special K will be injected through the global injection service
+    bool             localInjection = false;   // Special K is injected through a local DLL
+    DWORD            timeNow        = 0;
+  };
+
+  virtual bool         RequiresValidExecutable (void) const               { return true; }   // Steam / Epic launch through their client
+  virtual void         WhitelistForInjection   (launch_config_s* config);                     // app_record.cpp
+  virtual bool         PrefersInstantLaunch    (bool fromGameMenu, launch_config_s* config) const { UNREFERENCED_PARAMETER (fromGameMenu); UNREFERENCED_PARAMETER (config); return false; }
+  virtual void         Launch                  (const launch_context_s& ctx);                 // app_record.cpp: instant launch if requested, else nothing applicable
+  void                 LaunchInstant           (const launch_context_s& ctx);                 // app_record.cpp: runs the executable directly
+
+  // Hooks used by LaunchInstant ( )
+  virtual uint32_t     GetSteamAppID           (void) const                { return 0; }      // Steam App ID exposed to the game (SteamAppId)
+  virtual std::string  GetStoreLaunchOptions   (uint32_t steamAppID)       { UNREFERENCED_PARAMETER (steamAppID); return ""; } // Launch options set in the store client
+  virtual std::wstring GetJumpListIconPath     (launch_config_s* config) const { return config->getExecutableFullPath ( ); }
+
+  // Per-game Instant Play preference (skif.instant_play: 0 = global default, 1 = always, 2 = never)
+  bool                 UsesInstantPlay         (bool globalDefault) const { return (skif.instant_play == 1 || (skif.instant_play == 0 && globalDefault)); }
+  virtual bool         GetInstantPlayDefault   (void) const               { return false; }  // The store's global Instant Play setting
+
+  // Library UI
+  std::wstring         GetAssetDirectory       (void) const;                                   // app_record.cpp: SK's Assets folder for this game (backslash-terminated), or empty
+  virtual std::wstring GetStoreAssetDirectory  (void) const               { return L""; }     // Assets\<Store>\<id or key>\ (store .cpp files)
+  virtual bool         IsUserAdded             (void) const               { return false; }   // Custom game added by the user (editable target, removable)
+  virtual std::string  GetClientLaunchOptions  (void) const               { return ""; }      // Launch options the user set in the store client
+  virtual std::string  GetClientCommandLine    (launch_config_s* config)  { UNREFERENCED_PARAMETER (config); return ""; } // Command line built from them when they use %command% (Steam)
+
+  // Special K compatibility
+  virtual bool         HasLegacySpecialKVersion(void) const               { return false; }   // Game is known to use an older, game-specific Special K: skip the local DLL update check
+  virtual bool         HasSpecialKModInstaller (void) const               { return false; }   // Game has a better, game-specific mod offered through the installer button
+
+  // Artwork (covers and icons). Custom artwork is <GetAssetDirectory ( )>cover / icon (.png, .jpg; .ico for icons).
+  //   The source hint comes from PrepareCoverSource ( ) / GetIconSource ( ) and is passed through LoadLibraryTexture.
+  std::wstring         FindCustomArtwork       (LibraryTexture type) const;                    // app_record.cpp: the user's custom cover / icon, or empty
+  virtual std::wstring ResolveArtwork          (LibraryTexture type, const std::wstring& source, bool& isCustom, bool& isManaged); // File for LoadLibraryTexture to load. Base: custom, else the executable's icon
+  virtual std::wstring PrepareCoverSource      (void)       { return L""; }                    // Cover worker thread: fetch / download the store cover; returns the source hint
+  virtual std::wstring GetIconSource           (void) const { return L"icon"; }                // Icon source hint (Steam: library cache icon; GOG: goggame-<id>.ico)
+  virtual void         PrepareIconSource       (void)       { }                                // Main thread, before loading the icon (Steam: icon hash from appinfo.vdf)
+  virtual bool         HasStoreCover           (void) const { return ! IsSpecialK ( ); }       // A default cover exists, so the cover menu offers Refresh / Reset
+  virtual bool         DeleteStoreCoverFiles   (const std::wstring& assetDir) { UNREFERENCED_PARAMETER (assetDir); return false; } // Cover reset: delete store-managed fallbacks; true if any was removed
+  virtual bool         CoverNeedsClientSignIn  (void) const { return false; }                  // The cover is missing because the store client is signed out (GOG Galaxy)
+  virtual std::string  GetLocalizedName        (void)                     { return names.original; } // Name used for the Special K profile folder
+  virtual bool         CanCreateDesktopShortcut(void)                     { return false; }
+  virtual std::wstring GetDesktopShortcutArgs  (void);                                         // app_record.cpp: SKIF arguments that launch the game
+  virtual std::wstring GetDesktopShortcutIcon  (void)                     { return launch_configs[0].getExecutableFullPath ( ); }
+  virtual std::vector <std::pair <std::string, std::string>>
+                       GetStoreDebugFields     (void) const               { return { }; }      // (label, value) pairs for the "<Store> Data" developer menu
+
+  // Context menu hooks. library.cpp calls these at fixed points in the game context menu; stores draw
+  //   their own items there (in their .cpp files) using SKIF's ImGui helpers. All are no-ops by default.
+  virtual void         DrawStoreMenu                  (void) { }                       // Top-level store submenu (Steam)
+  virtual void         DrawWebsiteMenuItems           (void) { }                       // "Websites", before PCGamingWiki (Steam, GOG)
+  virtual void         DrawDeveloperDataMenus         (void) { }                       // "Developer", after "Application" (Steam Web API)
+  virtual void         DrawDeveloperLaunchConfigItems (launch_config_s& launch) { UNREFERENCED_PARAMETER (launch); } // "Developer" > "Launches" > each config, at the end (Steam, Xbox)
+  virtual void         DrawDeveloperActions           (void) { }                       // "Developer", before "Copy ID" (Xbox: Open Terminal)
+
+  // Special K's own entry in the library
+  bool                 IsSpecialK                 (void) const { return (store == Store::Steam && id == SKIF_STEAM_APPID); }
+
+  // Library population (LibraryWorkerThread in games.cpp), in the order they are called
+  virtual void         RefreshInstallState        (void)       { }                   // Steam: queries the client; uninstalled games get id 0
+  virtual std::string  GetFallbackName            (void)       { return ""; }        // Name if the scanner found none (Steam: app manifest)
+  virtual bool         ValidatesInstallDirectory  (void) const { return true; }      // Whether a missing install folder drops the game (Xbox: no)
+  virtual void         ResolveInstallDirectory    (void)       { }                   // Steam: from the app manifest
+  virtual void         ResolveStoreDetails        (void)       { }                   // After the install folder is confirmed (Steam: active branch)
+  virtual std::string  GetAppIdMapping            (void) const { return ""; }        // Path-to-AppID registry mapping for Special K (Epic: AppName)
+  virtual std::vector <std::wstring>
+                       GetAdditionalProfilePaths  (void) const { return { }; }       // Extra folders mapped to the profile name (Xbox)
+
+  // Selection
+  virtual void         LoadStoreDetails           (void)       { }                   // Main thread, before the game worker runs (Steam: appinfo.vdf)
+
+  // State set in the store client (Steam), used as defaults when SKIF's own value is unset (-1)
+  virtual int          GetClientFavorite          (void) const { return 0; }         // 1 = favorited in the store client
+  virtual int          GetClientHidden            (void) const { return 0; }         // 1 = hidden in the store client
+  bool                 IsFavorite                 (void) const { return (skif.pinned > 0 || (skif.pinned == -1 && GetClientFavorite ( ) == 1)); }
+  bool                 IsHidden                   (void) const { return (skif.hidden == 1 || (skif.hidden == -1 && GetClientHidden   ( ) == 1)); }
+  virtual bool         CanLaunchExecutableDirectly(void)       { return true; }      // Steam: primary launch config has a valid executable and the game isn't updating
+
+  // Run-state detection (RefreshRunningApps in games.cpp)
+  enum class ProcessMatch {
+    None,    // Not this game's process
+    Running, // This game's process: mark it as running and stop looking
+    PidOnly  // This game's process, but the store client owns the running state: record the PID and keep looking
+  };
+
+  virtual ProcessMatch MatchProcess                (const wchar_t* wszExeFile, const wchar_t* wszExePath, DWORD dwExePathLen); // app_record.cpp: full path match
+  virtual bool         KeepsRunningStateDuringScan (void) const { return false; } // Keep the staged running state instead of clearing it before the process scan (Steam: unless in process fallback without the client)
+  virtual bool         IsRunningStateFromClient    (void) const { return false; } // The store client owns the running state, so the scan result is not committed (Steam: client running, registry monitoring available)
+  virtual bool         HasPendingStoreDetails      (void) const { return false; } // Store data still to be parsed in the background (Steam: appinfo.vdf, for the process fallback)
 
   template <class _Tp> static
     constexpr bool
@@ -516,3 +592,24 @@ using InjectionType =
   app_record_s::sk_install_state_s::Injection::Type;
 using ConfigType =
   app_record_s::sk_install_state_s::Config::Type;
+
+// An entry in the game list: the (cleaned) display name used for sorting/searching, and the record itself.
+// Records are heap-allocated so the list can later hold store-specific derived types without slicing.
+using app_entry_t = std::pair <std::string, std::unique_ptr <app_record_s>>;
+using app_list_t  = std::vector <app_entry_t>;
+
+// Helper base for the per-store record types: fixes the store, and implements Clone / CopyFrom
+//   for the derived type. Usage: struct app_record_foo_s : app_record_store_s <app_record_foo_s, Store::Foo> { ... };
+template <class Derived, app_record_s::Store StoreType>
+struct app_record_store_s : app_record_s
+{
+  app_record_store_s (uint32_t id_) : app_record_s (id_) { store = StoreType; }
+
+  std::unique_ptr <app_record_s>
+       Clone    (void) const              override { return std::make_unique <Derived> (static_cast <const Derived&> (*this)); }
+  void CopyFrom (const app_record_s& src) override
+  {
+    assert (typeid (src) == typeid (Derived));
+    static_cast <Derived&> (*this) = static_cast <const Derived&> (src);
+  }
+};

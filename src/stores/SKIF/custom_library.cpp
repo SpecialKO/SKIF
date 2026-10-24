@@ -188,7 +188,7 @@ bool SKIF_ModifyCustomAppID (app_record_s* pApp, std::wstring_view exePath, std:
   return ! failed;
 }
 
-void SKIF_GetCustomAppIDs (std::vector<std::pair<std::string, app_record_s>>* apps)
+void SKIF_GetCustomAppIDs (app_list_t* apps)
 {
   PLOG_INFO << "Detecting custom SKIF games...";
 
@@ -226,7 +226,7 @@ void SKIF_GetCustomAppIDs (std::vector<std::pair<std::string, app_record_s>>* ap
             dwSize = sizeof (DWORD32);
             if (RegGetValueW (hSubKey, NULL, L"ID", RRF_RT_REG_DWORD, NULL, &dwData, &dwSize) == ERROR_SUCCESS)
             {
-              app_record_s record (dwData);
+              app_record_custom_s record (dwData);
 
               record.id = dwData;
               record.store      = app_record_s::Store::Custom;
@@ -270,10 +270,10 @@ void SKIF_GetCustomAppIDs (std::vector<std::pair<std::string, app_record_s>>* ap
                 record.specialk.profile_dir_utf8         = SK_WideCharToUTF8(record.specialk.profile_dir);
                 record.specialk.injection.injection.type = InjectionType::Global;
 
-                std::pair <std::string, app_record_s>
-                  pair (record.names.normal, record);
+                app_entry_t
+                  pair (record.names.normal, std::make_unique <app_record_custom_s> (record));
 
-                apps->emplace_back (pair);
+                apps->emplace_back (std::move (pair));
               }
             }
 
@@ -623,3 +623,15 @@ SKIF_Custom_RemoveGame (uint32_t appid)
 
   return ret;
 }
+
+#pragma region Library UI
+
+std::wstring
+app_record_custom_s::GetStoreAssetDirectory (void) const
+{
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
+  return SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, id);
+}
+
+#pragma endregion

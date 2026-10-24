@@ -81,7 +81,7 @@ public:
     appinfo_s* getNextApp     (void);
   };
 
-  appinfo_s* getAppInfo ( uint32_t     appid, std::vector <std::pair < std::string, app_record_s > > *apps );
+  appinfo_s* getAppInfo ( uint32_t     appid, app_list_t *apps );
 
   struct header_s
   {

@@ -8,6 +8,9 @@
 #include <process.h>
 
 #include <utility/registry.h>
+#include <utility/games.h>
+#include <SKIF.h>
+#include <utility/utility.h>
 
 /*
 Epic registry / folder struture
@@ -122,7 +125,7 @@ SKIF_EpicCollection::RefreshInstallState (void)
 }
 
 void
-SKIF_EpicCollection::GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s > > *apps) const
+SKIF_EpicCollection::GetInstalledAppIDs (app_list_t *apps) const
 {
   if (this->version == 0)
   {
@@ -140,7 +143,7 @@ SKIF_EpicCollection::GetInstalledAppIDs (std::vector <std::pair < std::string, a
 }
 
 bool
-SKIF_EpicCollection::FindInstalledGames2 (std::vector<std::pair<std::string, app_record_s>>* apps) const
+SKIF_EpicCollection::FindInstalledGames2 (app_list_t* apps) const
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
@@ -238,7 +241,7 @@ SKIF_EpicCollection::FindInstalledGames2 (std::vector<std::pair<std::string, app
     std::hash <std::string> stoi_hasher;
     size_t int_hash = stoi_hasher (AppName);
 
-    app_record_s record(static_cast<uint32_t>(int_hash));
+    app_record_epic_s record(static_cast<uint32_t>(int_hash));
 
     //record.install_dir.erase(std::find(record.install_dir.begin(), record.install_dir.end(), '\0'), record.install_dir.end());
 
@@ -316,12 +319,12 @@ SKIF_EpicCollection::FindInstalledGames2 (std::vector<std::pair<std::string, app
     record.specialk.profile_dir_utf8 = SKIF_Util_StripInvalidFilenameChars (record.epic.name_display);
     record.specialk.profile_dir      = SK_UTF8ToWideChar (record.specialk.profile_dir_utf8);
 
-    std::pair <std::string, app_record_s>
-      Epic(record.names.normal, record);
+    app_entry_t
+      Epic (record.names.normal, std::make_unique <app_record_epic_s> (record));
 
     discoveredEntries++;
 
-    apps->emplace_back(Epic);
+    apps->emplace_back (std::move (Epic));
     ret = true;
   }
 
@@ -331,7 +334,7 @@ SKIF_EpicCollection::FindInstalledGames2 (std::vector<std::pair<std::string, app
 }
 
 bool
-SKIF_EpicCollection::FindInstalledGames1 (std::vector <std::pair < std::string, app_record_s > >* apps) const
+SKIF_EpicCollection::FindInstalledGames1 (app_list_t* apps) const
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
@@ -386,7 +389,7 @@ SKIF_EpicCollection::FindInstalledGames1 (std::vector <std::pair < std::string, 
           std::hash <std::string> stoi_hasher;
           size_t int_hash = stoi_hasher (AppName);
 
-          app_record_s record(static_cast<uint32_t>(int_hash));
+          app_record_epic_s record(static_cast<uint32_t>(int_hash));
 
           //record.install_dir.erase(std::find(record.install_dir.begin(), record.install_dir.end(), '\0'), record.install_dir.end());
 
@@ -436,10 +439,10 @@ SKIF_EpicCollection::FindInstalledGames1 (std::vector <std::pair < std::string, 
           record.specialk.profile_dir_utf8 = SKIF_Util_StripInvalidFilenameChars (record.epic.name_display);
           record.specialk.profile_dir      = SK_UTF8ToWideChar (record.specialk.profile_dir_utf8);
 
-          std::pair <std::string, app_record_s>
-            Epic(record.names.normal, record);
+          app_entry_t
+            Epic (record.names.normal, std::make_unique <app_record_epic_s> (record));
 
-          apps->emplace_back(Epic);
+          apps->emplace_back (std::move (Epic));
           ret = true;
 
           // Documents\My Mods\SpecialK\Profiles\AppCache\#EpicApps\<AppName>
@@ -465,7 +468,7 @@ SKIF_EpicCollection::FindInstalledGames1 (std::vector <std::pair < std::string, 
 }
 
 void
-SKIF_EpicCollection::IdentifyAssetNew (const app_record_s::epic_s& epic)
+SKIF_EpicCollection::IdentifyAssetNew (const app_record_epic_s::epic_s& epic)
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
@@ -560,3 +563,121 @@ SKIF_EpicCollection::IdentifyAssetNew (const app_record_s::epic_s& epic)
   if (_registry.iLogging < 5)
     DeleteFile ((targetAssetPath + L"offer.json").c_str());
 }
+
+
+#pragma region Launching
+
+// Launch Epic game (always through the Epic Games Launcher)
+void
+app_record_epic_s::Launch (const launch_context_s& ctx)
+{
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
+
+  PLOG_VERBOSE << "Performing an Epic launch...";
+
+  // com.epicgames.launcher://apps/CatalogNamespace%3ACatalogItemId%3AAppName?action=launch&silent=true
+
+  std::wstring launchOptions = SK_FormatStringW(LR"(com.epicgames.launcher://apps/%ws?action=launch&silent=true)", ctx.config->getLaunchOptions().c_str());
+  if (SKIF_Util_OpenURI (launchOptions) != 0)
+  {
+    std::scoped_lock app_lock (_games.GetMutex());
+
+    // Don't check the running state for at least 7.5 seconds
+    _status.dwTimeDelayChecks = ctx.timeNow + 7500;
+    _status.running           = true;
+
+    std::wstring iconPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\icon-original.ico)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(epic.name_app).c_str());
+
+    SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (names.normal), L"", launchOptions, L"", iconPath, (! ctx.localInjection && ctx.usingSK));
+  }
+}
+
+#pragma endregion
+
+#pragma region Library UI
+
+std::wstring
+app_record_epic_s::GetStoreAssetDirectory (void) const
+{
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
+  return SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(epic.name_app).c_str());
+}
+
+std::vector <std::pair <std::string, std::string>>
+app_record_epic_s::GetStoreDebugFields (void) const
+{
+  return {
+    { "App Name",          epic.name_app          },
+    { "Display Name",      epic.name_display      },
+    { "Catalog Namespace", epic.catalog_namespace },
+    { "Catalog Item ID",   epic.catalog_item_id   },
+    { "DieselGameBoxTall", epic.gamebox_tall      }
+  };
+}
+
+#pragma endregion
+
+#pragma region Artwork
+
+std::wstring
+app_record_epic_s::ResolveArtwork (LibraryTexture type, const std::wstring& source, bool& isCustom, bool& isManaged)
+{
+  UNREFERENCED_PARAMETER (source);
+  UNREFERENCED_PARAMETER (isManaged);
+
+  std::wstring EpicAssetPath  = GetStoreAssetDirectory ( );
+  std::wstring SKIFCustomPath = EpicAssetPath + ((type == LibraryTexture::Cover) ? L"cover" : L"icon");
+  std::wstring load_str       = FindCustomArtwork (type);
+
+  isCustom = (! load_str.empty ( ));
+
+  if (! isCustom)
+  {
+    if      (type == LibraryTexture::Cover &&
+             PathFileExistsW ((EpicAssetPath + L"cover-original.jpg").c_str()))
+      load_str =               EpicAssetPath + L"cover-original.jpg";
+    else if (type == LibraryTexture::Icon &&
+             SKIF_Util_SaveExtractExeIcon (launch_configs[0].getExecutableFullPath ( ), EpicAssetPath + L"icon-original.png"))
+      load_str =               SKIFCustomPath + L"-original.png";
+  }
+
+  // Extract a copy of the icon and save it as an .ico
+  if (type == LibraryTexture::Icon)
+  {
+    std::wstring
+      OriginalIconPath  = EpicAssetPath + L"icon-original.png",
+      ExtractedIconPath = EpicAssetPath + L"icon-original.ico";
+
+    if (! PathFileExistsW (ExtractedIconPath.c_str()))
+      SKIF_Util_SaveImageAsICO (OriginalIconPath.c_str(), ExtractedIconPath.c_str(), 32);
+  }
+
+  return load_str;
+}
+
+// Cover worker thread: the downloaded cover, else download it (known URL) or look it up in the Epic store
+std::wstring
+app_record_epic_s::PrepareCoverSource (void)
+{
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+  static SKIF_EpicCollection&   _epic       = SKIF_EpicCollection  ::GetInstance ( );
+
+  std::wstring load_str;
+
+  load_str =
+    SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\cover-original.jpg)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(epic.name_app).c_str());
+
+  if ( ! PathFileExistsW (load_str.   c_str ()) )
+  {
+    if (! epic.gamebox_tall.empty())
+      SKIF_Util_GetWebResource (SK_UTF8ToWideChar (epic.gamebox_tall), load_str);
+    else
+      _epic.IdentifyAssetNew (epic);
+  }
+
+  return load_str;
+}
+
+#pragma endregion

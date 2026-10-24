@@ -63,6 +63,7 @@
 #include <utility/updater.h>
 #include <tabs/ini_editor.h>
 #include <stores/Steam/steam_library.h>
+#include <utility/artwork.h>
 
 constexpr char         spaces[]          = { "\u0020\u0020\u0020\u0020" };
 constexpr wchar_t*     utf8_bom          =  L"\xEF\xBB\xBF";
@@ -103,14 +104,9 @@ BypassAltF4Handler=false
 
 [Textures.D3D11]
 Cache=false)";
-const int              SKIF_STEAM_APPID  = 1157970;
 bool                   SKIF_STEAM_OWNER  = false;
 bool                   steamRunning      = false;
 bool                   steamFallback     = false;
-bool                   loadCover         = false;
-bool                   tryingToLoadCover = false;
-bool                   tryingToSaveCover = false;
-std::atomic<bool>      gameCoverLoading  = false;
 std::atomic<bool>      modDownloading    = false;
 std::atomic<bool>      modInstalling     = false;
 std::atomic<bool>      gameWorkerRunning = false;
@@ -131,17 +127,14 @@ bool                   launchGameMenu    = false;   // Menu is always explicit
 bool                   launchInstant     = false;
 bool                   launchWithoutSK   = false;
 
-bool                   coverRefresh      = false; // This just triggers a refresh of the cover
-uint32_t               coverRefreshAppId = 0;
-int                    coverRefreshStore = 0;
 int                    numRegular        = 0;
 int                    numPinnedOnTop    = 0;
 
 // Support up to 16 running games at once, lol
-SKIF_Util_CreateProcess_s iPlayCache[15] = { };
 
 struct SKIF_Lib_GameWorkerThread_s {
-  app_record_s          app        = app_record_s (0);
+  std::unique_ptr <app_record_s>
+                        app        = nullptr; // Copy of the record being refreshed (same record type)
   std::set<std::string> apptickets = std::set<std::string>( );
   HANDLE                hWorker    = NULL;
   bool                  free       = true;
@@ -152,18 +145,10 @@ struct SKIF_Lib_GameWorkerThread_s {
 SKIF_Lib_GameWorkerThread_s aGameWorkers[MAX_GAMEWORKER] = { };
 
 
-std::set    < std::string >
-              g_apptickets;
 
-nlohmann::json       jsonMetaDB;
-std::recursive_mutex jsonMetaDB_mutex;
-//std::shared_mutex    jsonMetaDB_mutex;
 
 const float fTintMin     = 0.75f;
       float fTint        = 1.0f;
-      float fAlpha       = 0.0f;
-      float fAlphaSK     = 0.0f;
-      float fAlphaPrev   = 1.0f;
       float fAlphaList   = 0.0f;
 
 PopupState GameMenu            = PopupState_Closed;
@@ -189,7 +174,6 @@ struct change_category_s {
   bool       exists = false; // If the new category already exists
 } static_category;
 
-std::wstring file_metadata;
 std::wstring dragDroppedFilePath = L"";
 std::wstring dragDroppedFilePathGame = L"";
 
@@ -215,15 +199,6 @@ struct terminate_process_s {
   std::string  name = "";
 } static static_proc;
 
-std::atomic<int>  textureLoadQueueLength{ 1 };
-
-static int getTextureLoadQueuePos (void) {
-  return textureLoadQueueLength.fetch_add(1) + 1;
-}
-
-CComPtr <ID3D11ShaderResourceView> pPatTexSRV;
-CComPtr <ID3D11ShaderResourceView> pSKLogoTexSRV;
-CComPtr <ID3D11ShaderResourceView> pSKLogoTexSRV_small;
 
 // External declaration
 extern void SKIF_Shell_AddJumpList (std::wstring name, std::wstring path, std::wstring parameters, std::wstring directory, std::wstring icon_path, bool bService);
@@ -233,7 +208,7 @@ extern void SKIF_Shell_AddJumpList (std::wstring name, std::wstring path, std::w
 static std::string
 GetEffectiveCategory (const app_record_s* app)
 {
-  return (    app->skif.pinned > 0 || (app->skif.pinned == -1 && app->steam.shared.favorite == 1))
+  return app->IsFavorite ( )
          ?   "Favorites"
          : (! app->skif.category.empty())
          ?    app->skif.category
@@ -391,7 +366,6 @@ struct {
   std::string         category = "";
 } static search_selection;
 
-Trie labels;
 Trie labelsFiltered;
 
 static void
@@ -465,7 +439,7 @@ SearchAppsList (void)
   {
     dwLastUpdate = SKIF_Util_timeGetTime ();
 
-    Trie* searchLabels = (charFilter[0] != '\0') ? &labelsFiltered : &labels;
+    Trie* searchLabels = (charFilter[0] != '\0') ? &labelsFiltered : &SKIF_GamingCollection::Get ( ).GetLabels ( );
 
     // Acquire lock before iterating the global apps list
     std::scoped_lock app_lock (_games.GetMutex());
@@ -476,23 +450,23 @@ SearchAppsList (void)
       for (const auto& app : _games.GetApps())
       {
         // Skip invalid/hidden and filtered ones
-        if (app.second.id == 0 || app.second.filtered)
+        if (app.second->id == 0 || app.second->filtered)
           continue;
 
-        if (app.second.names.all_upper_alnum.find (test_) == 0)
+        if (app.second->names.all_upper_alnum.find (test_) == 0)
         {
-          result.text     = app.second.names.normal;
-          result.store    = app.second.store;
-          result.app_id   = app.second.id;
-          result.category = GetEffectiveCategory (&app.second);
-          result.pos      = app.second.names.pre_stripped;
+          result.text     = app.second->names.normal;
+          result.store    = app.second->store;
+          result.app_id   = app.second->id;
+          result.category = GetEffectiveCategory (app.second.get ( ));
+          result.pos      = app.second->names.pre_stripped;
           result.len      = strlen (test_);
 
           // Handle cases where articles are ignored
 
           // Add one to the length if the regular all_upper cannot find a match
           // as this indicates a stripped character in the found pattern
-          if (app.second.names.all_upper.find (test_) != 0)
+          if (app.second->names.all_upper.find (test_) != 0)
             result.len++;
 
           break;
@@ -506,16 +480,16 @@ SearchAppsList (void)
       for (auto& app : _games.GetApps())
       {
         // Skip invalid/hidden and filtered ones
-        if (app.second.id == 0 || app.second.filtered)
+        if (app.second->id == 0 || app.second->filtered)
           continue;
 
         size_t
-            pos  = app.second.names.all_upper.find (test_);
+            pos  = app.second->names.all_upper.find (test_);
         if (pos != std::string::npos ) // == 0
         {
-          result.text   = app.second.names.normal;
-          result.store  = app.second.store;
-          result.app_id = app.second.id;
+          result.text   = app.second->names.normal;
+          result.store  = app.second->store;
+          result.app_id = app.second->id;
           result.pos    = pos;
           result.len    = strlen (test_);
 
@@ -578,167 +552,12 @@ SearchAppsList (void)
 
 #pragma endregion
 
-// Basic counter used to provide some additional metadata in the logs
-size_t
-JsonDB_CountElements (void)
-{
-  size_t items = 0;
-
-  for (auto& platform : jsonMetaDB)
-  {
-    items += platform.size();
-  }
-
-  return items;
-}
-
-// This writes the Json object to the disk
-bool
-JsonDB_WriteFile (void)
-{
-  std::scoped_lock jsonLock (jsonMetaDB_mutex);
-
-  if (! jsonMetaDB.is_discarded())
-  {
-    std::ofstream out_file(file_metadata);
-    if (out_file.is_open())
-    {
-      out_file << std::setw(2) << jsonMetaDB << std::endl;
-      out_file.close();
-
-      PLOG_INFO << "Successfully wrote persistent metadata (" << JsonDB_CountElements ( ) << " items) to JSON file.";
-
-      return true;
-    }
-    else {
-      PLOG_ERROR << "Could not open JSON file for writing: " << file_metadata;
-    }
-  }
-
-  else
-    PLOG_ERROR << "Could not write metadata to JSON file as the metadata had been discarded.";
-
-  return false;
-}
-
-// This both updates the metadata and optionally writes the new object to the disk
-bool
-JsonDB_UpdateApp (app_record_s* pApp, bool bWriteToDisk)
-{
-  std::scoped_lock jsonLock (jsonMetaDB_mutex);
-
-  // Update the db.json file with any new values
-  if (! jsonMetaDB.is_discarded())
-  {
-    std::string item = (pApp->store == app_record_s::Store::Epic)  ? pApp->epic.name_app     :
-                       (pApp->store == app_record_s::Store::Xbox)  ? pApp->xbox.package_name :
-                                                     std::to_string (pApp->id);
-
-    try {
-      auto& key = jsonMetaDB[pApp->store_utf8][item];
-
-      // Update the values in the Json object
-      key = {
-        { "Name",     pApp->skif.name      },
-        { "CPU",      pApp->skif.cpu_type  },
-        { "AutoStop", pApp->skif.auto_stop },
-        { "Hidden",   pApp->skif.hidden    },
-        { "Uses",     pApp->skif.uses      },
-        { "Used",     pApp->skif.used      },
-        { "Category", pApp->skif.category  },
-        { "Pin",      pApp->skif.pinned    }
-      };
-
-      if (pApp->store == app_record_s::Store::Steam ||
-          pApp->store == app_record_s::Store::GOG   ||
-          pApp->store == app_record_s::Store::Xbox)
-        key += { "InstantPlay", pApp->skif.instant_play };
-
-      return ! bWriteToDisk || JsonDB_WriteFile ( );
-    }
-    catch (const std::exception&)
-    {
-      PLOG_ERROR << "Error occurred when trying to update the JSON metadata for " << item;
-    }
-  }
-
-  else
-    PLOG_ERROR << "Could not write metadata to JSON file as the metadata had been discarded.";
-
-  return false;
-}
-
-// This updates the category name of all items in the JSON
-bool
-JsonDB_SetCategoryName (std::string szOld, std::string szNew)
-{
-  if (szOld.empty())
-    return false;
-
-  std::scoped_lock jsonLock (jsonMetaDB_mutex);
-
-  if (! jsonMetaDB.is_discarded())
-  {
-    for (auto& platform : jsonMetaDB)
-    {
-      for (auto& game : platform)
-      {
-        if (! game.empty() && game.contains("Category") && game.at("Category") == szOld)
-          game.at("Category") = szNew;
-      }
-    }
-
-    return JsonDB_WriteFile ( );
-  }
-
-  else
-    PLOG_ERROR << "Could not write metadata to JSON file as the metadata had been discarded.";
-
-  return false;
-}
-
-static std::string
-GetSteamCommandLaunchOptions (app_record_s* pApp, app_record_s::launch_config_s* pLaunchCfg)
-{
-  if (! pApp->steam.local.launch_option_parsed.empty())
-    return pApp->steam.local.launch_option_parsed;
-
-  // Check if there is a custom launch option set up
-  if (pApp->steam.local.launch_option.size() > 0)
-  {
-    std::string strSteam_Command  = "%command%"; // Only for Steam games
-    size_t start_pos = SKIF_Util_ToLower (pApp->steam.local.launch_option).find (strSteam_Command);
-
-    // Check if a %COMMAND% is a part of the launch options
-    // %COMMAND% is special in that the original developer-specified launch options are placed at its exact position,
-    //   making the user-specified Steam launch options the _primary_ and the developer-specified launch options _secondary_
-    if (start_pos != std::string::npos)
-    {
-      // Base is dev-specified executable
-      std::string newCmdLine = pLaunchCfg->getExecutableFullPathUTF8 ( );
-      std::string strSteamLO = pApp->steam.local.launch_option;
-
-      // Appended is dev-specified cmd line arguments
-      if (! pLaunchCfg->getLaunchOptionsUTF8().empty())
-        newCmdLine += " " + pLaunchCfg->getLaunchOptionsUTF8();
-
-      // Replace %command% with the dev-specified exe and args
-      strSteamLO.replace (start_pos, strSteam_Command.length(), newCmdLine);
-
-      // Swap in the result and flag to use shell execute
-      pApp->steam.local.launch_option_parsed = strSteamLO;
-    }
-  }
-
-  return pApp->steam.local.launch_option_parsed;
-}
 
 #pragma region LaunchGame
 
 static void
 LaunchGame (app_record_s* pApp)
 {
-  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
   static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
@@ -748,7 +567,7 @@ LaunchGame (app_record_s* pApp)
 
   DWORD current_time = SKIF_Util_timeGetTime ( );
 
-  if ( pApp->store != app_record_s::Store::Steam && pApp->store != app_record_s::Store::Epic &&
+  if ( pApp->RequiresValidExecutable ( ) &&
       ! launchConfig->isExecutableFullPathValid ( ))
   {
     SKIF_ImGui_InfoMessage ("Missing executable", "Could not launch game due to missing executable:\n\n" + launchConfig->getExecutableFullPathUTF8 ( ));
@@ -781,28 +600,8 @@ LaunchGame (app_record_s* pApp)
 
       if (usingSK)
       {
-        // Whitelist the path if it haven't been already
-        // Instant launches needs to fall back to the regular approach
-        if (pApp->store == app_record_s::Store::Xbox)
-        {
-          if (! _inject._TestUserList (SK_WideCharToUTF8 (pApp->xbox.directory_app).c_str(), true))
-          {
-            if (_inject.WhitelistPattern (pApp->xbox.package_name))
-              _inject.SaveWhitelist ( );
-          }
-        }
-
-        // Steam and EGS are the only stores that do not require manual whitelisting;
-        //   Instant Play is not even supported for EGS at the moment.
-        if (pApp->store != app_record_s::Store::Steam)
-        {
-          if (! _inject._TestUserList (launchConfig->getExecutableFullPathUTF8 ( ).c_str (), true))
-          {
-            if (launchConfig->isExecutableFullPathValid ( ) &&
-                _inject.WhitelistPath (launchConfig->getExecutableFullPathUTF8 ( )))
-              _inject.SaveWhitelist ( );
-          }
-        }
+        // Whitelist the game if it hasn't been already (store-specific; Steam needs none)
+        pApp->WhitelistForInjection (launchConfig);
 
         // Disable the first service notification
         if (_registry.bMinimizeOnGameLaunch)
@@ -833,587 +632,32 @@ LaunchGame (app_record_s* pApp)
     // LAUNCH PREPARATIONS
 
 
-    if (! launchInstant)
-    {
-      // Custom games always use instant launch
-      if (pApp->store == app_record_s::Store::Custom)
-        launchInstant = true;
-
-      // Fallback for GOG games if the Galaxy client is not installed
-      else if (pApp->store == app_record_s::Store::GOG && ! GOGGalaxy_Installed)
-        launchInstant = true;
-
-      // Convert a few scenarios to an instant launch -- but not when using the game menu as it is always explicit
-      else if (! launchGameMenu)
-      {
-        // Convert all except those where we are dealing with an invalid launch config (e.g. Link2EA)
-        if (pApp->store == app_record_s::Store::Steam &&
-            (pApp->skif.instant_play == 1 || // Always use Instant Play
-            (pApp->skif.instant_play == 0 && _registry.bInstantPlaySteam)) // Use global default (and globally enabled)
-        && launchConfig->isExecutableFullPathValid ( ))
-          launchInstant = true;
-
-        else if (pApp->store == app_record_s::Store::GOG   &&
-            (pApp->skif.instant_play == 1 || // Always use Instant Play
-            (pApp->skif.instant_play == 0 && _registry.bInstantPlayGOG))) // Use global default (and globally enabled)
-          launchInstant = true;
-
-        else if (pApp->store == app_record_s::Store::Xbox &&
-            (pApp->skif.instant_play == 1 || // Always use Instant Play
-            (pApp->skif.instant_play == 0 && _registry.bInstantPlayXbox))) // Use global default (and globally enabled)
-          launchInstant = true;
-      }
-    }
+    // Some stores and situations always or preferably use an instant launch (but the game menu is always explicit)
+    if (! launchInstant && pApp->PrefersInstantLaunch (launchGameMenu, launchConfig))
+      launchInstant = true;
 
 
     // LAUNCH PROCEDURES
 
     pApp->launch_failed = false;
 
-    // Launch Epic game
-    if (pApp->store == app_record_s::Store::Epic)
-    {
-      PLOG_VERBOSE << "Performing an Epic launch...";
-
-      // com.epicgames.launcher://apps/CatalogNamespace%3ACatalogItemId%3AAppName?action=launch&silent=true
-
-      std::wstring launchOptions = SK_FormatStringW(LR"(com.epicgames.launcher://apps/%ws?action=launch&silent=true)", launchConfig->getLaunchOptions().c_str());
-      if (SKIF_Util_OpenURI (launchOptions) != 0)
-      {
-        std::scoped_lock app_lock (_games.GetMutex());
-
-        // Don't check the running state for at least 7.5 seconds
-        pApp->_status.dwTimeDelayChecks = current_time + 7500;
-        pApp->_status.running           = true;
-
-        std::wstring iconPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\icon-original.ico)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->epic.name_app).c_str());
-
-        SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), L"", launchOptions, L"", iconPath, (! localInjection && usingSK));
-      }
-    }
-
-    // Launch Xbox game
-    else if (pApp->store == app_record_s::Store::Xbox)
-    {
-      PLOG_VERBOSE << "Performing an Xbox launch...";
-
-      static SKIF_Util_CreateProcess_s   default_proc = {};
-      SKIF_Util_CreateProcess_s* proc = &default_proc;
-      for (auto& item : iPlayCache)
-      {
-        if (item.id == 0)
-        {
-          proc           = &item;
-          proc->id       = pApp->id;
-          proc->store_id = (int)pApp->store;
-          break;
-        }
-      }
-
-      static auto _instantLaunch = [&](app_record_s* pApp, SKIF_Util_CreateProcess_s* proc) -> bool
-      {
-        // The "install" directory is often at least one level below where we should be...
-        //   generally we want the same path as gamelaunchhelper.exe and appxmanifest.xml
-        std::wstring          working_dir = pApp->install_dir;
-
-        // Current standard convention for Microsoft Store is to put everything in a Content subdir,
-        //   make sure we don't set the base directory as the working dir before launching.
-        if (PathFileExistsW ((working_dir +  LR"(\Content\appxmanifest.xml)").c_str ()))
-                              working_dir += LR"(\Content)";
-
-        SKIF_Util_CreateProcess (
-          L"",
-          SK_FormatStringW (
-            LR"(powershell.exe -Command "$XmlManifest = Select-Xml -Path 'appxmanifest.xml' -XPath '/'; $Applications = $XmlManifest.Node.Package.Applications.Application; $AppId = if ($null -eq $Applications.Count) { $Applications.Id } else { $Applications[%d].Id }; Invoke-CommandInDesktopPackage -AppId $AppId -PackageFamilyName '%ws' -Command '%ws' -PreventBreakaway:$true")",
-            launchConfig->id,
-            SK_UTF8ToWideChar (pApp->xbox.package_name_family).c_str(),
-            launchConfig->getExecutableFullPath().c_str()
-          ),
-          working_dir.c_str (),
-          nullptr,
-          proc
-        );
-
-        PLOG_VERBOSE << "Using Working Directory for Xbox Instant Play... " << SK_WideCharToUTF8 (working_dir).c_str ();
-
-        return (proc->dwProcessId != 0);
-      };
-
-      static SKIF_Util_CreateProcess_s* launch_proc;
-      static bool                       launched;
-
-      launch_proc = nullptr;
-      launched    = false;
-
-      if (launchInstant)
-      {
-        launched = _instantLaunch (pApp, proc);
-      }
-
-      else if (SKIF_Util_CreateProcess (launchConfig->executable_helper, L"", L"", nullptr, proc))
-      {
-        std::scoped_lock app_lock (_games.GetMutex());
-
-        launch_proc = proc;
-
-        // Don't check the running state for at least 3.0 seconds
-        pApp->_status.dwTimeDelayChecks = current_time + 3000;
-        pApp->_status.running           = true;
-
-        launched = true;
-      }
-
-      if (proc->hWorkerThread.load() == INVALID_HANDLE_VALUE)
-      {
-        PLOG_DEBUG << "Process creation failed ?!";
-
-        proc->id              =  0;
-        proc->store_id        = -1;
-      }
-
-      // Fallback to Instant Play if that didn't work.
-      // 2026-09-18: Temporarily disabled as it causes
-      //             duplicate launches for slow-starting apps
-#if 0
-      else if (pApp->_status.running_pid == 0 && ! launchInstant)
-      {
-        static HANDLE
-            highlander = 0; // We don't need more than one of these :)
-        if (highlander == 0)
-            highlander =
-        CreateThread (nullptr, 0x0, [](LPVOID pUser)->DWORD
-        {
-          app_record_s *pApp =
-            (app_record_s *)pUser;
-
-          SKIF_GamingCollection::RefreshRunningApps (&g_apps, true);
-
-          const DWORD dwTimeToCheck   = pApp->_status.dwTimeDelayChecks;
-          const DWORD dwTimeToReCheck = pApp->_status.dwTimeDelayChecks + 7500UL;
-
-          while (SKIF_Util_timeGetTime () < dwTimeToCheck)
-          {
-            SleepEx (250, FALSE);
-
-            SKIF_GamingCollection::RefreshRunningApps (&g_apps, true);
-
-            if (pApp->_status.running_pid != 0)
-              break;
-          }
-
-          while (SKIF_Util_timeGetTime () < dwTimeToReCheck)
-          {
-            SleepEx (250, FALSE);
-          }
-
-          // Fallback to Instant Play if that didn't work.
-          if (pApp->_status.running_pid == 0)
-          {
-            PLOG_ERROR << "Xbox Game Launch Timed Out, attempting Instant Play instead";
-
-            launched =
-              _instantLaunch (pApp, launch_proc);
-
-            if (launched)
-            {
-              while (pApp->_status.running_pid == 0 && SKIF_Util_timeGetTime () < pApp->_status.dwTimeDelayChecks + 10000UL)
-              {
-                SleepEx (500, FALSE);
-
-                SKIF_GamingCollection::RefreshRunningApps (&g_apps, true);
-
-                if (pApp->_status.running_pid != 0)
-                {
-                  pApp->launch_failed = true;
-                  ModifyGamePopup     = PopupState_Open;
-                  break;
-                }
-              }
-            }
-          }
-
-          CloseHandle (std::exchange (highlander, (HANDLE)0));
-
-          return 0;
-        }, pApp, 0x0, nullptr);
-      }
-#endif
-
-      if (launched)
-      {
-        std::wstring iconPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\icon-original.ico)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->xbox.package_name).c_str());
-        SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), launchConfig->executable_helper, L"", launchConfig->getExecutableDir(), iconPath, (!localInjection && usingSK));
-      }
-    }
-
-    // Instant Play
-    // - Custom games
-    // - GOG games when Galaxy is not installed
-    // - Prefer Instant Play for GOG
-    // - Prefer Instant Play for Steam
-    else if (launchInstant)
-    {
-      PLOG_VERBOSE << "Performing an instant launch...";
-
-      bool launchDecision       = true;
-
-      // We need to use proxy variables since we might remove a substring of the launch options
-      std::wstring cmdLine = launchConfig->getLaunchOptions();
-      bool useShellExecute = false; // This is in case a %COMMAND% Steam call is made
-
-      // Transform to lowercase
-      std::wstring cmdLineLower = SKIF_Util_ToLowerW (cmdLine);
-
-      const std::wstring argSKIF_SteamAppID       = L"skif_steamappid=";
-      size_t             posSKIF_SteamAppID_start = cmdLineLower.find (argSKIF_SteamAppID);
-
-      // For Steam games, we default to using the pApp->id value
-      uint32_t     uiSteamAppID = (pApp->store == app_record_s::Store::Steam) ? pApp->id : 0;
-      std::wstring wsSteamAppID = std::to_wstring(uiSteamAppID);
-
-      // Extract the SKIF_SteamAppID cmd line argument, if it exists
-      if (posSKIF_SteamAppID_start != std::wstring::npos)
-      {
-        size_t
-          posSKIF_SteamAppID_end    = cmdLineLower.find (L" ", posSKIF_SteamAppID_start);
-
-        if (posSKIF_SteamAppID_end == std::wstring::npos)
-          posSKIF_SteamAppID_end    = cmdLineLower.length ( );
-
-        // Length of the substring to remove
-        posSKIF_SteamAppID_end -= posSKIF_SteamAppID_start;
-
-        wsSteamAppID = cmdLineLower.substr (posSKIF_SteamAppID_start + argSKIF_SteamAppID.length ( ), posSKIF_SteamAppID_end);
-
-        // Remove substring from the proxy variable
-        cmdLine.erase (posSKIF_SteamAppID_start, posSKIF_SteamAppID_end);
-
-        // Try to convert the found string to an unsigned integer
-        try {
-          uiSteamAppID = std::stoi(wsSteamAppID);
-        }
-
-        catch (const std::exception& e)
-        {
-          UNREFERENCED_PARAMETER(e);
-          PLOG_ERROR << "Unable to convert found Steam App ID to integer: " << wsSteamAppID;
-          uiSteamAppID = 0;
-        }
-      }
-
-      std::map<std::wstring, std::wstring> env;
-      bool steamOverlay = true;
-
-      if (uiSteamAppID != 0)
-      {
-        PLOG_DEBUG << "Using Steam App ID : "  << uiSteamAppID;
-        env.emplace       (L"SteamAppId",         wsSteamAppID); // Dunno if one is the primary one...
-        env.emplace       (L"SteamGameId",        wsSteamAppID); //   ... so let's use both of them...
-      //env.emplace       (L"SteamOverlayGameId", wsSteamAppID);
-      //env.emplace       (L"EnableConfiguratorSupport", L"0");
-
-        steamOverlay = SKIF_Steam_isSteamOverlayEnabled (uiSteamAppID, SKIF_Steam_GetCurrentUser ( ));
-
-        if (! steamOverlay)
-        {
-          PLOG_DEBUG << "Disabling the Steam Overlay...";
-          env.emplace (L"SteamNoOverlayUIDrawing", L"1");
-        }
-
-        // If both of these are false, see if there is any custom Steam launch options to append...
-        if (! launchConfig->custom_skif &&
-            ! launchConfig->custom_user)
-        {
-          std::string steamLaunchOptions;
-
-          if (pApp->store == app_record_s::Store::Steam)
-            steamLaunchOptions = SKIF_Steam_GetLaunchOptions (uiSteamAppID, SKIF_Steam_GetCurrentUser(), pApp);
-
-          if (steamLaunchOptions.size() > 0)
-          {
-            PLOG_DEBUG << "Found additional launch options for this app in Steam: " << steamLaunchOptions;
-
-            std::string steamLaunchOptionsLower =
-              SKIF_Util_ToLower (steamLaunchOptions);
-
-            std::string sSteam_Command = "%command%"; // Only for Steam games
-            size_t posSteam_Command_start = steamLaunchOptionsLower.find(sSteam_Command);
-
-            // Check if SKIF %COMMAND% is being used, when we're trying to launch without Special K
-            if (! usingSK && steamLaunchOptionsLower.find("skif ") == 0)
-            {
-              launchDecision = false;
-
-              // Escape any percent signs (%) as otherwise ImGui won't be able to show the string properly
-              for (auto pos  = steamLaunchOptions.find ('%');          // Find the first occurence
-                        pos != std::string::npos;                      // Validate we're still in the string
-                        steamLaunchOptions.insert      (pos, R"(%)"),  // Escape the character
-                        pos  = steamLaunchOptions.find ('%', pos + 2)) // Find the next occurence
-              { }
-
-              SKIF_ImGui_InfoMessage ("Conflicting configuration",
-                                      "Could not launch game due to conflicting launch options in Steam:\n"
-                                      "\n"
-                                    +  steamLaunchOptions + "\n"
-                                      "\n"
-                                      "Please change the launch options in Steam before trying again.");
-
-              PLOG_WARNING << "Steam game " << pApp->id << " (" << pApp->names.normal << ") was unable to launch due to a conflict with the launch option of Steam!";
-            }
-
-            // Check if a %COMMAND% is a part of the launch options
-            // %COMMAND% is special in that the original developer-specified launch options are placed at its exact position,
-            //   making the user-specified Steam launch options the _primary_ and the developer-specified launch options _secondary_
-            else if (posSteam_Command_start != std::string::npos)
-            {
-              // Base is dev-specified executable
-              std::wstring newCmdLine = launchConfig->getExecutableFullPath ( );
-              std::wstring wsSteamLO  = SK_UTF8ToWideChar (steamLaunchOptions);
-
-              // Appended is dev-specified cmd line arguments
-              if (! cmdLine.empty())
-                newCmdLine += L" " + cmdLine;
-
-              // Replace %command% with the dev-specified exe and args
-              wsSteamLO.replace(posSteam_Command_start, sSteam_Command.length(), newCmdLine);
-
-              // Swap in the result and flag to use shell execute
-              cmdLine = wsSteamLO;
-              useShellExecute = true;
-            }
-
-            // Append the launch command string with the one from Steam...
-            else {
-              // If the cmdLine is not empty, add a space as well
-              if (! cmdLine.empty())
-                cmdLine += L" ";
-
-              cmdLine += SK_UTF8ToWideChar (steamLaunchOptions);
-            }
-          }
-        }
-      }
-
-      if (launchDecision)
-      {
-        SKIF_Util_CreateProcess_s* proc = nullptr;
-        for (auto& item : iPlayCache)
-        {
-          if (item.id == 0)
-          {
-            proc           = &item;
-            proc->id       = pApp->id;
-            proc->store_id = (int)pApp->store;
-            break;
-          }
-        }
-
-        std::wstring dirPath = launchConfig->getWorkOrExeDirectory ( );
-
-        // This is a fallback for handling Steam's %COMMAND% scenarios
-        if (useShellExecute)
-        {
-          // Note that any new process will inherit SKIF's environment variables
-          if (_registry._LoadedSteamOverlay)
-            SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
-
-          // Set any custom environment variables
-          for (auto& var : env)
-            SetEnvironmentVariable (var.first.c_str(), var.second.c_str());
-
-          // We need to split cmdLine between executable and parameters
-          // Example that we may get: (replace %COMMAND% with game executable and launch options)
-          // SKIF %COMMAND%
-          // "C:\Windows\System32\Notepad.exe" %COMMAND%
-          // and so on and so forth...
-
-          std::wstring exePath;
-
-          // First position is a quotation mark, assume executable is surrounded in them...
-          if (cmdLine.find(L"\"") == 0)
-          {
-            exePath = cmdLine.substr(1, cmdLine.find(L"\"", 1) - 1);                  // Executable
-            cmdLine = cmdLine.substr(cmdLine.find(L"\"", 1) + 1, std::wstring::npos); // Parameters
-          }
-
-          // Go by spaces instead
-          else if (cmdLine.find(L" ") != std::wstring::npos) {
-            exePath = cmdLine.substr(0, cmdLine.find(L" "));                      // Executable
-            cmdLine = cmdLine.substr(cmdLine.find(L" ") + 1, std::wstring::npos); // Parameters
-          }
-
-          // Fallback: cmdLine only has a single non-spaces unquoted path to an executable
-          else {
-            exePath = cmdLine;
-            cmdLine = L"";
-          }
-
-          SHELLEXECUTEINFOW
-            sexi              = { };
-            sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
-            sexi.lpVerb       = L"OPEN";
-            sexi.lpFile       = exePath.c_str();
-            sexi.lpParameters = cmdLine.c_str();
-            sexi.lpDirectory  = dirPath.c_str();
-            sexi.nShow        = SW_SHOWNORMAL;
-            sexi.fMask        = SEE_MASK_NOCLOSEPROCESS | // We need the PID of the process that gets started
-                                SEE_MASK_NOASYNC        | // Never async since we need env variables to be set properly
-                                SEE_MASK_NOZONECHECKS;    // No zone check needs to be performed
-
-          PLOG_INFO                       << "Performing a ShellExecuteEx call...";
-          PLOG_INFO_IF(! exePath.empty()) << "File      : " << exePath;
-          PLOG_INFO_IF(! cmdLine.empty()) << "Parameters: " << cmdLine;
-          PLOG_INFO_IF(! dirPath.empty()) << "Directory : " << dirPath;
-
-          // Attempt to execute the call
-          if (ShellExecuteExW (&sexi))
-            proc->hProcess = sexi.hProcess;
-
-          else {
-            PLOG_ERROR << "Shell execute failed ?!";
-            PLOG_ERROR << SKIF_Util_GetErrorAsWStr ( );
-
-            proc->id       =  0;
-            proc->store_id = -1;
-          }
-
-          // Remove any custom environment variables
-          for (auto& var : env)
-            SetEnvironmentVariable (var.first.c_str(), NULL);
-
-          if (_registry._LoadedSteamOverlay)
-            SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
-        }
-
-        // Main launcher (uses ShellExecute in case elevation is required)
-        else if (SKIF_Util_CreateProcess (launchConfig->getExecutableFullPath ( ),
-                            cmdLine.c_str(),
-                            dirPath.c_str(),
-                              &env,
-                              proc
-          ))
-        {
-          if (pApp->store == app_record_s::Store::Steam)
-            cmdLine += L" SKIF_SteamAppId=" + std::to_wstring (pApp->id);
-
-          SKIF_Util_TrimTrailingSpacesW (cmdLine);
-
-          std::wstring iconPath =
-              (pApp->store == app_record_s::Store::Steam)
-            ? SK_FormatStringW (LR"(%ws\Assets\Steam\%i\icon-original.ico)",  _path_cache.specialk_userdata, pApp->id)
-            : (pApp->store == app_record_s::Store::Steam)
-            ? SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\icon-original.ico)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->xbox.package_name).c_str())
-            : launchConfig->getExecutableFullPath ( );
-
-          SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal),
-            launchConfig->getExecutableFullPath ( ),
-            cmdLine,
-            dirPath,
-            iconPath,
-            (! localInjection && usingSK));
-        }
-
-        else {
-          PLOG_ERROR << "Process worker creation failed ?!";
-
-          proc->id       =  0;
-          proc->store_id = -1;
-        }
-      }
-    }
-
-    // Launch GOG Galaxy game (default for GOG games since 2024-01-05)
-    else if (pApp->store == app_record_s::Store::GOG) // launchGalaxyGame
-    {
-      PLOG_VERBOSE << "Performing a GOG Galaxy launch...";
-
-      extern std::wstring GOGGalaxy_Path;
-      extern std::wstring GOGGalaxy_Folder;
-
-      // "D:\Games\GOG Galaxy\GalaxyClient.exe" /command=runGame /gameId=1895572517 /path="D:\Games\GOG Games\AI War 2"
-
-      std::wstring launchOptions = SK_FormatStringW(LR"(/command=runGame /gameId=%d /path="%ws")", pApp->id, pApp->install_dir.c_str());
-
-      //SKIF_Util_OpenURI (GOGGalaxy_Path, SW_SHOWDEFAULT, L"OPEN", launchOptions.c_str());
-      if (SKIF_Util_CreateProcess (GOGGalaxy_Path, launchOptions.c_str(), L""))
-      {
-        std::scoped_lock app_lock (_games.GetMutex());
-
-        // Don't check the running state for at least 7.5 seconds
-        pApp->_status.dwTimeDelayChecks = current_time + 7500;
-        pApp->_status.running           = true;
-
-        SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal + " (Galaxy)"), GOGGalaxy_Path, launchOptions, GOGGalaxy_Folder, launchConfig->getExecutableFullPath(), (! localInjection && usingSK));
-      }
-    }
-
-    // Launch Steam game (regular)
-    else if (pApp->store == app_record_s::Store::Steam)
-    {
-      PLOG_VERBOSE << "Performing a Steam launch...";
-
-      bool launchDecision = true;
-
-      // Check localconfig.vdf if user is attempting to launch without Special K
-      if (! usingSK && ! localInjection)
-      {
-        if (SKIF_Steam_GetLaunchOptions (pApp->id, SKIF_Steam_GetCurrentUser(), pApp).size() > 0)
-        {
-          if (SKIF_Util_ToLower (pApp->steam.local.launch_option).find("skif ") == 0)
-          {
-            launchDecision = false;
-
-            std::string confirmCopy = pApp->steam.local.launch_option;
-
-            // Escape any percent signs (%)
-            for (auto pos  = confirmCopy.find ('%');          // Find the first occurence
-                      pos != std::string::npos;                  // Validate we're still in the string
-                      confirmCopy.insert      (pos, R"(%)"),  // Escape the character
-                      pos  = confirmCopy.find ('%', pos + 2)) // Find the next occurence
-            { }
-
-            SKIF_ImGui_InfoMessage ("Conflicting configuration",
-                                    "Could not launch game due to conflicting launch options in Steam:\n"
-                                    "\n"
-                                  +  confirmCopy + "\n"
-                                    "\n"
-                                    "Please change the launch options in Steam before trying again.");
-
-            PLOG_WARNING << "Steam game " << pApp->id << " (" << pApp->names.normal << ") was unable to launch due to a conflict with the launch option of Steam: " << confirmCopy;
-          }
-        }
-      }
-
-      if (launchDecision)
-      {
-        // steam://run/1289310/          <- Always launches using the developer-specified primary launch configuration
-        // steam://launch/1289310/dialog <- For games with multiple launch configurations, opens the launch config dialog or uses the user-specified default launch configuration
-        std::wstring launchOptions = SK_FormatStringW (LR"(steam://launch/%d/dialog)", pApp->id);
-        if (SKIF_Util_OpenURI (launchOptions) != 0)
-        {
-          std::scoped_lock app_lock (_games.GetMutex());
-
-          // Don't check the running state for at least 7.5 seconds
-          pApp->_status.dwTimeDelayChecks = current_time + 7500;
-          pApp->_status.running           = true;
-
-          std::wstring iconPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\icon-original.ico)",  _path_cache.specialk_userdata, pApp->id);
-
-          SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (pApp->names.normal), L"", launchOptions, L"", iconPath, (! localInjection && usingSK));
-        }
-      }
-    }
-
-    else {
-      PLOG_ERROR << "No applicable launch option was found?!";
-    }
+    app_record_s::launch_context_s
+      ctx                = { };
+      ctx.config         = launchConfig;
+      ctx.instant        = launchInstant;
+      ctx.usingSK        = usingSK;
+      ctx.localInjection = localInjection;
+      ctx.timeNow        = current_time;
+
+    // Store-specific launch (store client, or an instant launch of the executable)
+    pApp->Launch (ctx);
 
     // Fallback for minimizing SKIF when not using SK if configured as such
     if (_registry.bMinimizeOnGameLaunch && ! usingSK && SKIF_ImGui_hWnd != NULL)
       ShowWindowAsync (SKIF_ImGui_hWnd, SW_SHOWMINNOACTIVE);
 
     // Update the db.json file with the new Uses/Used values
-    JsonDB_UpdateApp (pApp, true);
+    SKIF_GamingCollection::Get ( ).MetaDB_UpdateApp (pApp, true);
 
     // Ensure the sort order is updated as well
     SKIF_GamingCollection::SortApps (&_games.GetApps());
@@ -1556,18 +800,7 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
   if (! isImage && ! isURL)
     return false;
 
-  if (pApp->id == SKIF_STEAM_APPID)
-    targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
-  else if (pApp->store == app_record_s::Store::Custom)
-    targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
-  else if (pApp->store == app_record_s::Store::Epic)
-    targetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->epic.name_app).c_str());
-  else if (pApp->store == app_record_s::Store::GOG)
-    targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
-  else if (pApp->store == app_record_s::Store::Xbox)
-    targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->xbox.package_name).c_str());
-  else if (pApp->store == app_record_s::Store::Steam)
-    targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  _path_cache.specialk_userdata, pApp->id);
+  targetPath = pApp->GetAssetDirectory ( );
 
   if (targetPath == L"")
   {
@@ -2151,15 +1384,8 @@ DrawGameContextMenu (app_record_s* pApp)
   // TODO: Many of the below options needs to be adjusted to indicate if the primary launch option
   //         is even available (or if "without Special K" is the only option available)
 
-  // Do not check games that are being updated (aka installed)
-  //   nor expose the option for shell execute based games (e.g. Link2EA, which requires the Steam client running)
-  bool SteamShortcutPossible = false;
-
   app_record_s::launch_config_s*
     firstLaunchConfig = (pApp != nullptr && ! pApp->launch_configs.empty ()) ? &pApp->launch_configs.begin ()->second : nullptr;
-
-  if (firstLaunchConfig != nullptr && pApp->store == app_record_s::Store::Steam && ! pApp->_status.updating)
-    SteamShortcutPossible = firstLaunchConfig->isExecutableFullPathValid ( );
 
   bool playDisabled = (pApp->_status.running || pApp->_status.updating);
 
@@ -2202,16 +1428,14 @@ DrawGameContextMenu (app_record_s* pApp)
   }
 
   // Instant Play options
-  if (SteamShortcutPossible || pApp->store != app_record_s::Store::Steam)
+  if (pApp->CanLaunchExecutableDirectly ( ))
   {
-    if (pApp->ui.numSecondaryLaunchConfigs > 0 || (pApp->store == app_record_s::Store::Steam || pApp->store == app_record_s::Store::GOG || pApp->store == app_record_s::Store::Xbox))
+    if (pApp->ui.numSecondaryLaunchConfigs > 0 || pApp->isInstantPlayCompatible ( ))
       ImGui::Separator ( );
 
     // If there is only one valid launch config (Steam, GOG, Xbox games only)
     if (pApp->ui.numSecondaryLaunchConfigs == 0   &&
-       (pApp->store == app_record_s::Store::Steam ||
-        pApp->store == app_record_s::Store::GOG   ||
-        pApp->store == app_record_s::Store::Xbox))
+        pApp->isInstantPlayCompatible ( ))
     {
       if (playDisabled)
         ImGui::BeginDisabled ( );
@@ -2228,17 +1452,19 @@ DrawGameContextMenu (app_record_s* pApp)
 
       std::string hoverText = (firstLaunchConfig != nullptr) ? firstLaunchConfig->getExecutableFullPathUTF8() : "";
 
-      if (firstLaunchConfig != nullptr && ! pApp->steam.local.launch_option.empty())
+      if (firstLaunchConfig != nullptr && ! pApp->GetClientLaunchOptions ( ).empty())
       {
-        hoverText = GetSteamCommandLaunchOptions (pApp, firstLaunchConfig);
+        hoverText = pApp->GetClientCommandLine (firstLaunchConfig);
       }
 
       else {
         if (firstLaunchConfig != nullptr && ! firstLaunchConfig->getLaunchOptionsUTF8().empty())
           hoverText += (" " + firstLaunchConfig->getLaunchOptionsUTF8());
 
-        if (pApp->store == app_record_s::Store::Steam)
-          hoverText += (" " + pApp->steam.local.launch_option);
+        std::string clientLaunchOptions = pApp->GetClientLaunchOptions ( );
+
+        if (! clientLaunchOptions.empty ( ))
+          hoverText += (" " + clientLaunchOptions);
       }
 
       SKIF_ImGui_SetHoverText (hoverText.c_str());
@@ -2342,9 +1568,9 @@ DrawGameContextMenu (app_record_s* pApp)
 
           if (! _launch_cfg.second.custom_skif &&
               ! _launch_cfg.second.custom_user &&
-              ! pApp->steam.local.launch_option.empty())
+              ! pApp->GetClientLaunchOptions ( ).empty())
           {
-            hoverText = GetSteamCommandLaunchOptions (pApp, &_launch_cfg.second);
+            hoverText = pApp->GetClientCommandLine (&_launch_cfg.second);
           }
 
           else
@@ -2353,9 +1579,9 @@ DrawGameContextMenu (app_record_s* pApp)
               hoverText += (" " + _launch.getLaunchOptionsUTF8());
 
             // Also add Steam defined launch options, but only if not using custom launch configs
-            if (pApp->store == app_record_s::Store::Steam && ! pApp->steam.local.launch_option.empty() &&
-               ! _launch_cfg.second.custom_skif && ! _launch_cfg.second.custom_user)
-              hoverText += (" " + pApp->steam.local.launch_option);
+            if (! pApp->GetClientLaunchOptions ( ).empty() &&
+                ! _launch_cfg.second.custom_skif && ! _launch_cfg.second.custom_user)
+              hoverText += (" " + pApp->GetClientLaunchOptions ( ));
           }
 
           if (! playDisabled && ! blacklisted)
@@ -2475,7 +1701,7 @@ DrawGameContextMenu (app_record_s* pApp)
   if (pApp->_status.running)
   {
     SKIF_Util_CreateProcess_s* mon_app = nullptr;
-    for (auto& monitored_app : iPlayCache)
+    for (auto& monitored_app : SKIF_GamingCollection::Get ( ).GetInstantPlayProcesses ( ))
       if (monitored_app.id == pApp->id && monitored_app.store_id == (int)pApp->store)
         mon_app = &monitored_app;
 
@@ -2673,11 +1899,7 @@ DrawGameContextMenu (app_record_s* pApp)
   // Manage Game
   if (ImGui::BeginMenuEx ("Manage", ICON_FA_GEARS))
   {
-    bool desktopShortcutPossible =
-          (SteamShortcutPossible                     ||
-          pApp->store == app_record_s::Store::Custom ||
-          pApp->store == app_record_s::Store::GOG    ||
-          pApp->store == app_record_s::Store::Xbox);
+    bool desktopShortcutPossible = pApp->CanCreateDesktopShortcut ( );
 
     if (SKIF_ImGui_MenuItemEx2 ("Properties", ICON_FA_GEAR, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info)))
       ModifyGamePopup = PopupState_Open;
@@ -2689,7 +1911,7 @@ DrawGameContextMenu (app_record_s* pApp)
         pApp->skif.pinned =  51;
         numPinnedOnTop++;
 
-        JsonDB_UpdateApp  ( pApp, true);
+        SKIF_GamingCollection::Get ( ).MetaDB_UpdateApp  ( pApp, true);
 
         SKIF_GamingCollection::SortApps (&_games.GetApps());
         sort_changed = true;
@@ -2699,7 +1921,7 @@ DrawGameContextMenu (app_record_s* pApp)
     constexpr char* labelPin   =   "Favorite###Manage-Favorite";
     constexpr char* labelUnpin = "Unfavorite###Manage-Favorite";
 
-    bool isFavorite = (pApp->skif.pinned > 0 || (pApp->skif.pinned == -1 && pApp->steam.shared.favorite == 1));
+    bool isFavorite = pApp->IsFavorite ( );
     if (SKIF_ImGui_MenuItemEx2 ((isFavorite ? labelUnpin : labelPin), (isFavorite ? ICON_FA_HEART_CRACK : ICON_FA_HEART), ImColor(245, 66, 66, 255)))
     {
       if (pApp->skif.pinned > 50)
@@ -2707,7 +1929,7 @@ DrawGameContextMenu (app_record_s* pApp)
 
       pApp->skif.pinned = isFavorite ? 0 : 1;
 
-      JsonDB_UpdateApp   (pApp, true);
+      SKIF_GamingCollection::Get ( ).MetaDB_UpdateApp   (pApp, true);
 
       SKIF_GamingCollection::SortApps (&_games.GetApps());
       sort_changed = true;
@@ -2729,7 +1951,7 @@ DrawGameContextMenu (app_record_s* pApp)
           numPinnedOnTop--;
 
         pApp->skif.pinned = isFavorite ? 0 : 1;
-        JsonDB_UpdateApp (pApp, true);
+        SKIF_GamingCollection::Get ( ).MetaDB_UpdateApp (pApp, true);
 
         SKIF_GamingCollection::SortApps (&_games.GetApps());
         sort_changed = true;
@@ -2840,7 +2062,7 @@ DrawGameContextMenu (app_record_s* pApp)
       if (newCategory)
       {
         pApp->skif.category = newCategoryName;
-        JsonDB_UpdateApp (pApp, true);
+        SKIF_GamingCollection::Get ( ).MetaDB_UpdateApp (pApp, true);
 
         SKIF_GamingCollection::SortApps (&_games.GetApps());
         //sort_changed = true; // Disabled as this causes a noticable flicker on the menu when the game goes out and in of visibility
@@ -2889,7 +2111,7 @@ DrawGameContextMenu (app_record_s* pApp)
         else
           pApp->skif.category = szName;
 
-        JsonDB_UpdateApp (pApp, true);
+        SKIF_GamingCollection::Get ( ).MetaDB_UpdateApp (pApp, true);
 
         SKIF_GamingCollection::SortApps (&_games.GetApps());
         sort_changed = true;
@@ -2921,21 +2143,8 @@ DrawGameContextMenu (app_record_s* pApp)
         std::string name = SKIF_Util_StripInvalidFilenameChars (pApp->names.normal);
 
         std::wstring linkPath = SK_FormatStringW (LR"(%ws\%ws.lnk)", std::wstring(_path_cache.desktop.path).c_str(), SK_UTF8ToWideChar(name).c_str());
-        std::wstring linkArgs =
-          (pApp->store == app_record_s::Store::Xbox)
-        //? SK_UTF8ToWideChar (SK_FormatString  (R"(SKIF_URI="%s!%s")", pApp->xbox.package_name_family.c_str(),                  pApp->launch_configs[0].Xbox_ApplicationId.c_str()))
-          ?                    SK_FormatStringW (LR"("%ws" %ws)",       pApp->launch_configs[0].executable_helper.c_str(),       pApp->launch_configs[0].getLaunchOptions().c_str())
-          :                    SK_FormatStringW (LR"("%ws" %ws)",       pApp->launch_configs[0].getExecutableFullPath().c_str(), pApp->launch_configs[0].getLaunchOptions().c_str());
-
-        std::wstring iconPath =
-          (pApp->store == app_record_s::Store::Xbox)
-          ?                    SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\icon-original.ico)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->xbox.package_name).c_str())
-          :                    pApp->launch_configs[0].getExecutableFullPath();
-
-        SKIF_Util_TrimTrailingSpacesW (linkArgs);
-
-        if (pApp->store == app_record_s::Store::Steam)
-          linkArgs += L" SKIF_SteamAppId=" + std::to_wstring (pApp->id);
+        std::wstring linkArgs = pApp->GetDesktopShortcutArgs ( );
+        std::wstring iconPath = pApp->GetDesktopShortcutIcon ( );
 
         constexpr char* info_title         = "Create desktop shortcut";
         constexpr char* info_label_success = "A desktop shortcut has been created.";
@@ -2959,18 +2168,18 @@ DrawGameContextMenu (app_record_s* pApp)
     constexpr char* labelHide   =   "Hide";
     constexpr char* labelUnhide = "Unhide";
 
-    bool bUnhide = (pApp->skif.hidden == 1 || (pApp->skif.hidden == -1 && pApp->steam.shared.hidden == 1));
+    bool bUnhide = pApp->IsHidden ( );
 
     if (SKIF_ImGui_MenuItemEx2 ((bUnhide ? labelUnhide : labelHide), (bUnhide ? ICON_FA_EYE : ICON_FA_EYE_SLASH), ImColor(200, 200, 200, 255)))
     {
       pApp->skif.hidden = bUnhide ? 0 : 1;
 
-      JsonDB_UpdateApp  ( pApp, true);
+      SKIF_GamingCollection::Get ( ).MetaDB_UpdateApp  ( pApp, true);
 
       RepopulateGames = true;
     }
 
-    if (pApp->store == app_record_s::Store::Custom)
+    if (pApp->IsUserAdded ( ))
     {
       if (SKIF_ImGui_MenuItemEx2 ("Remove", ICON_FA_TRASH, ImColor(200, 200, 200, 255)))
         RemoveGamePopup = PopupState_Open;
@@ -2979,56 +2188,13 @@ DrawGameContextMenu (app_record_s* pApp)
     ImGui::EndMenu ( );
   }
 
-  if (pApp->store == app_record_s::Store::Steam &&
-      ImGui::BeginMenuEx ("Steam", ICON_FA_STEAM))
-  {
-    if (SKIF_ImGui_MenuItemEx2 ("Details", ICON_FA_BARS_STAGGERED, (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255)))
-      SKIF_Util_OpenURI ((L"steam://nav/games/details/" + std::to_wstring (pApp->id)).c_str());
-
-    SKIF_ImGui_SetMouseCursorHand ( );
-    SKIF_ImGui_SetHoverText       (SKIF_Util_FormatStringRaw ("steam://nav/games/details/%lu", pApp->id));
-
-    if (SKIF_ImGui_MenuItemEx2 ("Steam Input", ICON_FA_GAMEPAD, (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255)))
-      SKIF_Util_OpenURI ((L"steam://controllerconfig/" + std::to_wstring (pApp->id)).c_str());
-
-    SKIF_ImGui_SetMouseCursorHand ( );
-    SKIF_ImGui_SetHoverTip        ("A controller must be connected.");
-    SKIF_ImGui_SetHoverText       (SKIF_Util_FormatStringRaw ("steam://controllerconfig/%lu", pApp->id));
-
-    if (SKIF_ImGui_MenuItemEx2 ("Game properties", ICON_FA_WRENCH, ImColor(200, 200, 200, 255)))
-      SKIF_Util_OpenURI ((L"steam://gameproperties/" + std::to_wstring (pApp->id)).c_str());
-
-    SKIF_ImGui_SetMouseCursorHand ( );
-    SKIF_ImGui_SetHoverText       (SKIF_Util_FormatStringRaw ("steam://gameproperties/%lu", pApp->id));
-
-    ImGui::EndMenu     ( );
-  }
+  // Store-specific submenu (e.g. Steam)
+  pApp->DrawStoreMenu ( );
 
   if (SKIF_ImGui_BeginMenuEx2 ("Websites", ICON_FA_SHARE, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)))
   {
-    if (pApp->store == app_record_s::Store::GOG)
-    {
-      if (SKIF_ImGui_MenuItemEx2 ("GOG Database", ICON_FA_DATABASE, ImColor(155, 89, 182, 255)))
-        SKIF_Util_OpenURI ((L"https://www.gogdb.org/product/" + std::to_wstring (pApp->id)).c_str());
-
-      SKIF_ImGui_SetMouseCursorHand ( );
-      SKIF_ImGui_SetHoverText       (SKIF_Util_FormatStringRaw ("https://www.gogdb.org/product/%lu", pApp->id));
-    }
-
-    else if (pApp->store == app_record_s::Store::Steam)
-    {
-      if (SKIF_ImGui_MenuItemEx2 ("Steam Community", ICON_FA_STEAM_SYMBOL, ((_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255))))
-        SKIF_Util_OpenURI ((L"https://steamcommunity.com/app/" + std::to_wstring (pApp->id)).c_str());
-
-      SKIF_ImGui_SetMouseCursorHand ( );
-      SKIF_ImGui_SetHoverText       (SKIF_Util_FormatStringRaw ("https://steamcommunity.com/app/%lu", pApp->id));
-
-      if (SKIF_ImGui_MenuItemEx2 ("SteamDB", ICON_FA_DATABASE, ImColor(101, 192, 244, 255)))
-        SKIF_Util_OpenURI ((L"https://steamdb.info/app/" + std::to_wstring (pApp->id)).c_str());
-
-      SKIF_ImGui_SetMouseCursorHand ( );
-      SKIF_ImGui_SetHoverText       (SKIF_Util_FormatStringRaw ("https://steamdb.info/app/%lu", pApp->id));
-    }
+    // Store-specific websites (e.g. Steam Community, SteamDB, GOG Database)
+    pApp->DrawWebsiteMenuItems ( );
 
     if (SKIF_ImGui_MenuItemEx2 ("PCGamingWiki", ICON_FA_SCREWDRIVER_WRENCH, ImColor(200, 200, 200, 255)))
       SKIF_Util_OpenURI (SK_UTF8ToWideChar(pApp->ui.pcgw).c_str());
@@ -3089,124 +2255,28 @@ DrawGameContextMenu (app_record_s* pApp)
 
         ImGui::PopID        ( );
 
-        if (pApp->store == app_record_s::Store::Steam)
+        // Store-specific data
+        auto storeFields = pApp->GetStoreDebugFields ( );
+
+        if (! storeFields.empty ( ))
         {
           ImGui::Separator ( );
 
-          ImGui::PushID       ("#Steam");
-          ImGui::TextDisabled ("Steam Data");
-          if (ImGui::MenuItem ("Branch",                  pApp->steam.branch.c_str()))
-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->steam.branch));
-          if (ImGui::MenuItem ("Launch Option",           pApp->steam.local.launch_option.c_str()))
-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->steam.local.launch_option));
-          if (ImGui::MenuItem ("Manifest Path", SK_WideCharToUTF8(pApp->steam.manifest_path).c_str()))
-            SKIF_Util_SetClipboardData (                          pApp->steam.manifest_path);
-          if (ImGui::MenuItem ("CPU Architecture", std::to_string ((int)pApp->common_config.cpu_type).c_str()))
-            SKIF_Util_SetClipboardData (           std::to_wstring((int)pApp->common_config.cpu_type));
-          if (ImGui::MenuItem ("Favorited",        std::to_string (pApp->steam.shared.favorite).c_str()))
-            SKIF_Util_SetClipboardData   (         std::to_wstring(pApp->steam.shared.favorite));
-          if (ImGui::MenuItem ("Hidden",           std::to_string (pApp->steam.shared.hidden).c_str()))
-            SKIF_Util_SetClipboardData   (         std::to_wstring(pApp->steam.shared.hidden));
-          ImGui::PopID        ( );
-        }
-
-        else if (pApp->store == app_record_s::Store::Xbox)
-        {
-          ImGui::Separator ( );
-
-          ImGui::PushID       ("#Xbox");
-          ImGui::TextDisabled ("Xbox Data");
-          if (ImGui::MenuItem ("Package",                 pApp->xbox.package_name.c_str()))
-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->xbox.package_name));
-          if (ImGui::MenuItem ("Full Name",               pApp->xbox.package_name_full.c_str()))
-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->xbox.package_name_full));
-          if (ImGui::MenuItem ("Family Name",             pApp->xbox.package_name_family.c_str()))
-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->xbox.package_name_family));
-          if (ImGui::MenuItem ("Store ID",                pApp->xbox.store_id.c_str()))
-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->xbox.store_id));
-          if (ImGui::MenuItem ("App Directory",    SK_WideCharToUTF8(pApp->xbox.directory_app).c_str()))
-            SKIF_Util_SetClipboardData (                             pApp->xbox.directory_app);
-          if (ImGui::MenuItem ("PF Directory",     SK_WideCharToUTF8(pApp->xbox.directory_program_files).c_str()))
-            SKIF_Util_SetClipboardData (                             pApp->xbox.directory_program_files);
-          ImGui::PopID        ( );
-        }
-
-        else if (pApp->store == app_record_s::Store::Epic)
-        {
-          ImGui::Separator ( );
-
-          ImGui::PushID       ("#Epic");
-          ImGui::TextDisabled ("Epic Data");
-          if (ImGui::MenuItem ("App Name",                pApp->epic.name_app.c_str()))
-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->epic.name_app));
-          if (ImGui::MenuItem ("Display Name",            pApp->epic.name_display.c_str()))
-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->epic.name_display));
-          if (ImGui::MenuItem ("Catalog Namespace",       pApp->epic.catalog_namespace.c_str()))
-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->epic.catalog_namespace));
-          if (ImGui::MenuItem ("Catalog Item ID",         pApp->epic.catalog_item_id.c_str()))
-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->epic.catalog_item_id));
-          if (ImGui::MenuItem ("DieselGameBoxTall",       pApp->epic.gamebox_tall.c_str()))
-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->epic.gamebox_tall));
+          ImGui::PushID       (("#"   + pApp->store_utf8).c_str ( ));
+          ImGui::TextDisabled ((pApp->store_utf8 + " Data").c_str ( ));
+          for (auto& field : storeFields)
+          {
+            if (ImGui::MenuItem (field.first.c_str ( ), field.second.c_str ( )))
+              SKIF_Util_SetClipboardData (SK_UTF8ToWideChar (field.second));
+          }
           ImGui::PopID        ( );
         }
 
         ImGui::EndMenu ();
       }
 
-      if (pApp->store == app_record_s::Store::Steam)
-      {
-        if (SKIF_ImGui_BeginMenuEx2 ("Steam Web API", ICON_FA_DATABASE))
-        {
-          ImGui::PushID         ("#Storefront");
-
-          // ---
-
-          if (pApp->steam.urls.AppDetails.empty())
-          {
-            pApp->steam.urls.AppDetails      = SKIF_SteamWebAPI_AppDetails (pApp->id);
-            pApp->steam.urls.AppDetails_utf8 = SK_WideCharToUTF8 (pApp->steam.urls.AppDetails);
-          }
-
-          if (SKIF_ImGui_MenuItemEx2 ("/AppDetails/", (const char*)u8"\u2022", ImColor(101, 192, 244, 255)))
-            SKIF_Util_OpenURI (pApp->steam.urls.AppDetails.c_str());
-
-          SKIF_ImGui_SetMouseCursorHand ( );
-          SKIF_ImGui_SetHoverText       (pApp->steam.urls.AppDetails_utf8.c_str());
-
-          // ---
-
-          if (pApp->steam.urls.ISteamUserStats_GetNumberOfCurrentPlayers1.empty())
-          {
-            pApp->steam.urls.ISteamUserStats_GetNumberOfCurrentPlayers1 = SKIF_SteamWebAPI_ISteamUserStats_GetNumberOfCurrentPlayers1 (pApp->id);
-            pApp->steam.urls.ISteamUserStats_GetNumberOfCurrentPlayers1_utf8 = SK_WideCharToUTF8 (pApp->steam.urls.ISteamUserStats_GetNumberOfCurrentPlayers1);
-          }
-
-          if (SKIF_ImGui_MenuItemEx2 ("/ISteamUserStats/GetNumberOfCurrentPlayers/v1/", (const char*)u8"\u2022", ImColor(101, 192, 244, 255)))
-            SKIF_Util_OpenURI (pApp->steam.urls.ISteamUserStats_GetNumberOfCurrentPlayers1.c_str());
-
-          SKIF_ImGui_SetMouseCursorHand ( );
-          SKIF_ImGui_SetHoverText       (pApp->steam.urls.ISteamUserStats_GetNumberOfCurrentPlayers1_utf8.c_str());
-
-          // ---
-
-          if (pApp->steam.urls.IStoreBrowseService_GetItems1.empty())
-          {
-            pApp->steam.urls.IStoreBrowseService_GetItems1      = SKIF_SteamWebAPI_IStoreBrowseService_GetItems1 (pApp->id, "US");
-            pApp->steam.urls.IStoreBrowseService_GetItems1_utf8 = SK_WideCharToUTF8 (pApp->steam.urls.IStoreBrowseService_GetItems1);
-          }
-
-          if (SKIF_ImGui_MenuItemEx2 ("/IStoreBrowseService/GetItems/v1/", (const char*)u8"\u2022", ImColor(101, 192, 244, 255)))
-            SKIF_Util_OpenURI (pApp->steam.urls.IStoreBrowseService_GetItems1.c_str());
-
-          SKIF_ImGui_SetMouseCursorHand ( );
-          SKIF_ImGui_SetHoverText       (pApp->steam.urls.IStoreBrowseService_GetItems1_utf8.c_str());
-
-          // ---
-
-          ImGui::PopID        ( );
-          ImGui::EndMenu      ( );
-        }
-      }
+      // Store-specific developer data (e.g. Steam Web API)
+      pApp->DrawDeveloperDataMenus ( );
 
       ImGui::Separator ( );
 
@@ -3316,12 +2386,6 @@ DrawGameContextMenu (app_record_s* pApp)
               if (ImGui::MenuItem ("ID", std::to_string(launch.id).c_str()))
                   SKIF_Util_SetClipboardData (std::to_wstring(launch.id));
 
-              if (pApp->store == app_record_s::Store::Steam && launch.id_steam != -1)
-              {
-                if (ImGui::MenuItem ("ID (Steam)", std::to_string(launch.id_steam).c_str()))
-                  SKIF_Util_SetClipboardData (std::to_wstring(launch.id_steam));
-              }
-
               if (! launch.getExecutableFileNameUTF8().empty())
               {
                 if (ImGui::MenuItem ("Executable", launch.getExecutableFileNameUTF8().c_str()))
@@ -3367,16 +2431,8 @@ DrawGameContextMenu (app_record_s* pApp)
                   SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(launch.branches_joined));
               }
 
-              if (pApp->store == app_record_s::Store::Xbox)
-              {
-                ImGui::Separator ( );
-
-                ImGui::PushID       ("#Xbox");
-                ImGui::TextDisabled ("Xbox Data");
-                if (ImGui::MenuItem ("Application ID",          launch.Xbox_ApplicationId.c_str()))
-                  SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(launch.Xbox_ApplicationId));
-                ImGui::PopID        ( );
-              }
+              // Store-specific launch config data (e.g. Steam launch ID, Xbox application ID)
+              pApp->DrawDeveloperLaunchConfigItems (launch);
 
               ImGui::EndMenu ();
             }
@@ -3389,98 +2445,17 @@ DrawGameContextMenu (app_record_s* pApp)
       }
 
 
-      if (pApp->store == app_record_s::Store::Xbox)
-      {
-        if (pApp->ui.numSecondaryLaunchConfigs == 0)
-        {
-          if (SKIF_ImGui_MenuItemEx2 ("Open Terminal###GameContextMenu_TerminalMenu", ICON_FA_TERMINAL))
-          {
-            SKIF_Util_CreateProcess (
-              L"",
-              SKIF_Xbox_GetCustomLaunchCommandW (
-                pApp->launch_configs.begin()->second.id,
-                pApp->xbox.package_name_family,
-                "cmd.exe"
-              ),
-              pApp->install_dir
-            );
-          }
-
-          SKIF_ImGui_SetMouseCursorHand ( );
-        }
-
-        else if (pApp->ui.numSecondaryLaunchConfigs > 0)
-        {
-          if (SKIF_ImGui_BeginMenuEx2 ("Open Terminal###GameContextMenu_TerminalMenu", ICON_FA_TERMINAL))
-          {
-            for (auto& _launch_cfg : pApp->launch_configs)
-            {
-              if (! _launch_cfg.second.valid ||
-                    _launch_cfg.second.duplicate_exe_args)
-                continue;
-
-              // Filter out launch configs requiring not owned DLCs
-              if (! _launch_cfg.second.owns_dlc)
-                continue;
-
-              auto& _launch = _launch_cfg.second;
-
-              char        szButtonLabel [256] = { };
-
-              sprintf_s ( szButtonLabel, 255,
-                            "%s###GameContextMenu_TerminalMenu-%d",
-                              _launch.getDescriptionUTF8().empty ()
-                                ? _launch.getExecutableFileNameUTF8().c_str ()
-                                : _launch.getDescriptionUTF8().c_str (),
-                              _launch.id);
-
-              ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
-
-              if (ImGui::Selectable (szButtonLabel))
-              {
-                SKIF_Util_CreateProcess (
-                  L"",
-                  SKIF_Xbox_GetCustomLaunchCommandW (
-                    _launch.id,
-                    pApp->xbox.package_name_family,
-                    "cmd.exe"
-                  ),
-                  pApp->install_dir
-                );
-              }
-
-              ImGui::PopStyleColor  ( );
-
-              SKIF_ImGui_SetMouseCursorHand ( );
-            }
-
-            ImGui::EndMenu ();
-          }
-        }
-      }
-
-      SKIF_ImGui_SetHoverTip ("This invokes a terminal in the context of the desktop package.");
+      // Store-specific developer actions (e.g. Xbox: Open Terminal)
+      pApp->DrawDeveloperActions ( );
 
       // Epic and Xbox platforms use fake app IDs hashed from their unique text-based platform identifier
       if (SKIF_ImGui_MenuItemEx2 ("Copy ID", ICON_FA_FINGERPRINT))
       {
-        switch (pApp->store)
-        {
-        case app_record_s::Store::Epic:
-          SKIF_Util_SetClipboardData (SK_UTF8ToWideChar (pApp->epic.name_app));
-          break;
-        case app_record_s::Store::Xbox:
-          SKIF_Util_SetClipboardData (SK_UTF8ToWideChar (pApp->xbox.package_name));
-          break;
-        default:
-          SKIF_Util_SetClipboardData (std::to_wstring   (pApp->id));
-        }
+        SKIF_Util_SetClipboardData (SK_UTF8ToWideChar (pApp->GetPersistentKey ( )));
       }
 
       SKIF_ImGui_SetHoverText (
-        (pApp->store == app_record_s::Store::Epic) ? pApp->epic.name_app     :
-        (pApp->store == app_record_s::Store::Xbox) ? pApp->xbox.package_name :
-                                     std::to_string (pApp->id)
+        pApp->GetPersistentKey ( )
       );
 
       ImGui::EndMenu ();
@@ -3595,7 +2570,7 @@ DrawSpecialKContextMenu (app_record_s* pApp)
     else if (old_value > 50)
       numPinnedOnTop--;
 
-    JsonDB_UpdateApp  ( pApp, true);
+    SKIF_GamingCollection::Get ( ).MetaDB_UpdateApp  ( pApp, true);
 
     SKIF_GamingCollection::SortApps (&_games.GetApps());
     sort_changed = true;
@@ -3623,16 +2598,8 @@ GetInjectionSummary (app_record_s* pApp)
   {
     bool ret = false;
 
-    if ((pApp->store != app_record_s::Store::Steam) ||
-        (pApp->store == app_record_s::Store::Steam  && // Exclude the check for games with known older versions
-         pApp->id    != 405900                      && // Disgaea PC
-       //pApp->id    != 359870                      && // FFX/X-2 HD Remaster  // Not compatible with the latest version as of 2026-10-01
-       //pApp->id    != 578330                      && // LEGO City Undercover // Do not exclude from the updater as its a part of mainline SK
-         pApp->id    != 429660                      && // Tales of Berseria
-         pApp->id    != 372360                      && // Tales of Symphonia
-       //pApp->id    != 738540                      && // Tales of Vesperia DE // Do not exclude from the updater as mainline SK further improves the game
-         pApp->id    != 351970                         // Tales of Zestiria
-        ))
+    // Exclude the check for games with known older versions
+    if (! pApp->HasLegacySpecialKVersion ( ))
     {
       if (SKIF_Util_CompareVersionStrings (_inject.SKVer32, pApp->specialk.injection.dll.version) > 0)
       {
@@ -3953,15 +2920,8 @@ GetInjectionSummary (app_record_s* pApp)
                    buttonPending = false;
 
   if (! pApp->loading &&
-        pApp->store == app_record_s::Store::Steam && // Expose installer for those games with better specific mods
-     (//pApp->id == 405900       || // Disgaea PC
-      //pApp->id == 359870       || // FFX/X-2 HD Remaster  // Not compatible with the latest version as of 2026-10-01
-      //pApp->id == 578330       || // LEGO City Undercover // Do not exclude from the updater as its a part of mainline SK
-        pApp->id == 429660       || // Tales of Berseria
-        pApp->id == 372360     //|| // Tales of Symphonia
-      //pApp->id == 738540     //|| // Tales of Vesperia DE
-      //pApp->id == 351970          // Tales of Zestiria
-      ) && pApp->specialk.injection.injection.type != InjectionType::Local)
+        pApp->HasSpecialKModInstaller ( ) && // Expose installer for those games with better specific mods
+        pApp->specialk.injection.injection.type != InjectionType::Local)
   {
     buttonLabel   = ICON_FA_DOWNLOAD "  Install Mod";
     buttonInstall = true;
@@ -4849,9 +3809,7 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
   if (pApp->specialk.injection.localized_name.empty())
   {
     pApp->specialk.injection.localized_name =
-      (pApp->store == app_record_s::Store::Steam)
-        ? SK_UseManifestToGetAppName (pApp)
-        : pApp->names.original; // Use real original
+      pApp->GetLocalizedName ( ); // Steam: name from the app manifest; else the real original
 
     // Strip any remaining null terminators
     pApp->specialk.injection.localized_name.erase(std::find(pApp->specialk.injection.localized_name.begin(), pApp->specialk.injection.localized_name.end(), '\0'), pApp->specialk.injection.localized_name.end());
@@ -5014,19 +3972,11 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
   }
 
   // PCGamingWiki
-  pApp->ui.pcgw  = ((pApp->store == app_record_s::Store::GOG)   ? "https://www.pcgamingwiki.com/api/gog.php?page="
-                 :  (pApp->store == app_record_s::Store::Steam) ? "https://www.pcgamingwiki.com/api/appid.php?appid="
-                                                                : "https://www.pcgamingwiki.com/w/index.php?search=")
-                 + ((pApp->store == app_record_s::Store::Steam  || pApp->store == app_record_s::Store::GOG)
-                 ? std::to_string(pApp->id) : pApp->names.clean);
+  pApp->ui.pcgw      = pApp->GetPCGamingWikiURL ( );
 
   // SteamGridDB
-  pApp->ui.sgdbGrids = (pApp->store == app_record_s::Store::Steam)
-                     ? SKIF_Util_FormatStringRaw ("https://www.steamgriddb.com/steam/%lu/grids",      pApp->id)
-                     : SKIF_Util_FormatStringRaw ("https://www.steamgriddb.com/search/grids?term=%s", pApp->names.clean.c_str());
-  pApp->ui.sgdbIcons = (pApp->store == app_record_s::Store::Steam)
-                     ? SKIF_Util_FormatStringRaw ("https://www.steamgriddb.com/steam/%lu/icons",      pApp->id)
-                     : SKIF_Util_FormatStringRaw ("https://www.steamgriddb.com/search/icons?term=%s", pApp->names.clean.c_str());
+  pApp->ui.sgdbGrids = pApp->GetSteamGridDBURL  (false);
+  pApp->ui.sgdbIcons = pApp->GetSteamGridDBURL  (true);
 
   // Steam Branches
   pApp->ui.branches.clear ();
@@ -5065,25 +4015,12 @@ SKIF_UI_Tab_DrawLibrary (void)
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
   static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
   static SKIF_EpicCollection&   _epic       = SKIF_EpicCollection  ::GetInstance ( );
+  static SKIF_LibraryArtwork&   _art        = SKIF_LibraryArtwork  ::Get ( ); // Cover + icon textures and workers
 
   static image_s cover, cover_old, coverSK;
 
-  static CComPtr <ID3D11ShaderResourceView> pTexSRV;
-  static CComPtr <ID3D11ShaderResourceView> pTexSRV_old;
-
-  static ImVec2 vecCoverRes     = ImVec2 (0, 0),
-                vecCoverRes_old = ImVec2 (0, 0);
-
-  // This keeps track of the amount of workers streaming icons that we have active in the background
-  static int   activeIconWorkers     = 0; // max: 8
   static int   activeGameWorkers     = 0; // max: 3
   static int   frameLibraryRefreshed = 0;
-
-  // The value needs to be set here since it relies on _path_cache to have been initated
-  // Only do this once!!! >__________________________<
-  SK_RunOnce(
-    file_metadata = SK_FormatStringW(LR"(%ws\Assets\db.json)", _path_cache.specialk_userdata)
-  );
 
 #pragma region Initialization
 
@@ -5128,8 +4065,6 @@ SKIF_UI_Tab_DrawLibrary (void)
   auto& io =
     ImGui::GetIO ();
 
-  SK_RunOnce (fAlpha = (_registry.bFadeCovers) ? 0.0f : 1.0f);
-
   DWORD       current_time = SKIF_Util_timeGetTime ( );
   static bool update       = true;
 
@@ -5149,10 +4084,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (dir_watch._hChangeNotification != INVALID_HANDLE_VALUE)
         dir_watch.reset();
     }
-  } static selection, item_clicked, lastCover;
-
-  // We need to ensure the lastCover isn't set to SKIF's app ID as that would prevent the cover from loading on launch
-  SK_RunOnce (lastCover.reset_to_skif = false; lastCover.reset());
+  } static selection, item_clicked;
 
   // Check if any monitored platforms have been signaled
   // !!! The signal checks must be before the platform checks,
@@ -5217,7 +4149,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   }
 
   // We cannot manipulate the apps array while the game worker thread is running, nor any active icon workers
-  if (RepopulateGames && activeIconWorkers == 0) // ! gameWorkerRunning.load()
+  if (RepopulateGames && _art.GetActiveIconWorkers ( ) == 0) // ! gameWorkerRunning.load()
   {
     PLOG_VERBOSE << "RepopulateGames && activeIconWorkers == 0";
 
@@ -5229,740 +4161,22 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   else if (RepopulateGames)
   {
-    PLOG_VERBOSE << "RepopulateGames " << activeIconWorkers;
+    PLOG_VERBOSE << "RepopulateGames " << _art.GetActiveIconWorkers ( );
   }
 
 
-  struct lib_worker_thread_s {
-    std::vector <
-      std::pair <std::string, app_record_s >
-                > apps       = { };
-    std::set    < std::string >
-                  apptickets = { };
-    SteamId3_t    steam_user = 0;
-    Trie          labels     = { };
-    HANDLE        hWorker    = NULL;
-    int           iWorker    = 0;
-  };
+  // Library population is owned by SKIF_GamingCollection; the UI only decides when to (re)populate
+  //   and applies UI-side state (selection, filter, pinned counts) once new data has been swapped in.
+  if (! PopulatedGames && ! _games.IsPopulating ( ))
+    _games.PopulateGames ( );
 
-  static lib_worker_thread_s* library_worker = nullptr;
-
-  if (! PopulatedGames && library_worker == nullptr)
+  else if (! PopulatedGames && _games.IsPopulateFinished ( ))
   {
-    PLOG_INFO << "Populating library list...";
-
-    // Initialize/reset the Steam appinfo.vdf Reader
-    appinfo = std::make_unique <skValveDataFile>(std::wstring(_path_cache.steam_install) + LR"(\appcache\appinfo.vdf)");
-
-    library_worker = new lib_worker_thread_s;
-    library_worker->steam_user = SKIF_Steam_GetCurrentUser ( );
-
-    HANDLE hWorkerThread = (HANDLE)
-    _beginthreadex (nullptr, 0x0, [](void* var) -> unsigned
-    {
-      SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibraryWorker");
-
-      // Is this combo really appropriate for this thread?
-      //SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // Enable EcoQoS for this thread
-      //SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
-
-      PLOG_VERBOSE << "SKIF_LibraryWorker thread started!";
-
-      std::scoped_lock app_lock (_games.GetMutex());
-
-      DWORD pre   = 0,
-            post  = 0,
-            start = SKIF_Util_timeGetTime1 ( );
-
-      lib_worker_thread_s* _data = static_cast<lib_worker_thread_s*>(var);
-
-      size_t games = _data->apps.size();
-
-      // Load Steam titles from disk
-      if (_registry.bLibrarySteam || _registry._LibraryHidden)
-      {
-        pre  = start;
-
-        SKIF_Steam_GetInstalledAppIDs (&_data->apps);
-
-        if (! _registry._LibraryHidden)
-        {
-          post = SKIF_Util_timeGetTime1 ( );
-          PLOG_DEBUG << "[Library Processing] Processed " << (_data->apps.size() - games) << " Steam games in " << (post - pre) << " ms.";
-          pre  = post;
-          games = _data->apps.size();
-        }
-
-        // Preload user-specific stuff for all Steam games (custom launch options + DLC ownership)
-        SKIF_Steam_PreloadUserConfig (_data->steam_user, &_data->apps, &_data->apptickets);
-
-        if (! _registry._LibraryHidden)
-        {
-          post = SKIF_Util_timeGetTime1 ( );
-          PLOG_DEBUG << "[Library Processing] Processed Steam user configs in " << (post - pre) << " ms.";
-          pre  = post;
-        }
-      }
-
-      if ( ! SKIF_STEAM_OWNER )
-      {
-        app_record_s SKIF_record (SKIF_STEAM_APPID);
-
-        SKIF_record.id                = SKIF_STEAM_APPID;
-        SKIF_record.names.normal      = "Special K";
-        SKIF_record.names.all_upper   = "SPECIAL K";
-        SKIF_record._status.installed = true;
-        SKIF_record.install_dir       = _path_cache.specialk_install;
-        SKIF_record.store             = app_record_s::Store::Steam;
-        SKIF_record.store_utf8        = "Steam";
-        SKIF_record.ImGuiLabelID      = SKIF_Util_FormatStringRaw ("##%i-%i-selectable", (int)SKIF_record.store, SKIF_record.id);
-        SKIF_record.ImGuiPushID       = SKIF_Util_FormatStringRaw ("##%i-%i",            (int)SKIF_record.store, SKIF_record.id);
-
-        SKIF_record.specialk.profile_dir      = SK_FormatStringW(LR"(%ws\Profiles)", _path_cache.specialk_userdata);
-        SKIF_record.specialk.profile_dir_utf8 = SK_WideCharToUTF8 (SKIF_record.specialk.profile_dir);
-
-        std::pair <std::string, app_record_s>
-          SKIF ( "Special K", SKIF_record );
-
-        _data->apps.emplace_back (SKIF);
-        games = _data->apps.size();
-      }
-
-      // Load GOG titles from registry
-      if (_registry.bLibraryGOG || _registry._LibraryHidden)
-      {
-        SKIF_GOG_GetInstalledAppIDs  (&_data->apps);
-
-        if (! _registry._LibraryHidden)
-        {
-          post = SKIF_Util_timeGetTime1 ( );
-          PLOG_DEBUG << "[Library Processing] Processed " << (_data->apps.size() - games) << " GOG games in " << (post - pre) << " ms.";
-          pre  = post;
-          games = _data->apps.size();
-        }
-      }
-
-      // Load Epic titles from disk
-      if (_registry.bLibraryEpic || _registry._LibraryHidden)
-      {
-        SKIF_EpicCollection::GetInstance ( ).GetInstalledAppIDs (&_data->apps);
-
-        if (! _registry._LibraryHidden)
-        {
-          post = SKIF_Util_timeGetTime1 ( );
-          PLOG_DEBUG << "[Library Processing] Processed " << (_data->apps.size() - games) << " Epic games in " << (post - pre) << " ms.";
-          pre  = post;
-          games = _data->apps.size();
-        }
-      }
-
-      if (_registry.bLibraryXbox || _registry._LibraryHidden)
-      {
-        SKIF_Xbox_GetInstalledAppIDs (&_data->apps);
-
-        if (! _registry._LibraryHidden)
-        {
-          post = SKIF_Util_timeGetTime1 ( );
-          PLOG_DEBUG << "[Library Processing] Processed " << (_data->apps.size() - games) << " Xbox games in " << (post - pre) << " ms.";
-          pre  = post;
-          games = _data->apps.size();
-        }
-      }
-
-      // Load custom SKIF titles from registry
-      if (_registry.bLibraryCustom || _registry._LibraryHidden)
-      {
-        SKIF_GetCustomAppIDs (&_data->apps);
-
-        if (! _registry._LibraryHidden)
-        {
-          post = SKIF_Util_timeGetTime1 ( );
-          PLOG_DEBUG << "[Library Processing] Processed " << (_data->apps.size() - games) << " custom SKIF titles in " << (post - pre) << " ms.";
-          games = _data->apps.size();
-        }
-      }
-
-      PLOG_INFO << "Loading custom launch configs synchronously...";
-
-      static const std::pair <bool, std::wstring> lc_files[] = {
-        { false, SK_FormatStringW (LR"(%ws\Assets\lc_user.json)", _path_cache.specialk_userdata) }, // We load user-specified first
-        {  true, SK_FormatStringW (LR"(%ws\Assets\lc.json)",      _path_cache.specialk_userdata) }
-      };
-
-      for (auto& lc_file : lc_files)
-      {
-        std::ifstream file(lc_file.second);
-        nlohmann::json jf = nlohmann::json::parse(file, nullptr, false);
-        file.close();
-
-        if (jf.is_discarded ( ))
-        {
-          PLOG_ERROR << "Error occurred while trying to parse " << lc_file.second;
-
-          // We are dealing with lc.json and something went wrong
-          //   delete the file so a new attempt is performed later
-          if (lc_file.first)
-            PLOG_INFO_IF(DeleteFile (lc_file.second.c_str())) << "Deleting file so a retry occurs the next time an online check is performed...";
-
-          continue;
-        }
-
-        try {
-          for (auto& app : _data->apps)
-          {
-            auto& record     =  app.second;
-            auto& append_cfg = (record.store == app_record_s::Store::Steam) ? record.launch_configs_custom
-                                                                            : record.launch_configs;
-
-            std::string key  = (record.store == app_record_s::Store::Epic)  ? record.epic.name_app     :
-                               (record.store == app_record_s::Store::Xbox)  ? record.xbox.package_name :
-                                                              std::to_string (record.id);
-
-            for (auto& launch_config : jf[record.store_utf8][key])
-            {
-              app_record_s::launch_config_s lc;
-              lc.id                       = static_cast<int> (append_cfg.size());
-              lc.valid                    = 1;
-              lc.description              = SK_UTF8ToWideChar(launch_config.at("Desc"));
-              lc.executable               = SK_UTF8ToWideChar(launch_config.at("Exe"));
-              std::replace(lc.executable.begin(), lc.executable.end(), '/', '\\'); // Replaces all forward slashes with backslashes
-              lc.working_dir              = SK_UTF8ToWideChar(launch_config.at("Dir"));
-              lc.launch_options           = SK_UTF8ToWideChar(launch_config.at("Args"));
-              lc.executable_path          = record.install_dir + LR"(\)" + lc.executable;
-              lc.install_dir              = record.install_dir;
-              lc.custom_skif              =   lc_file.first;
-              lc.custom_user              = ! lc.custom_skif;
-
-              append_cfg.emplace (lc.id, lc);
-            }
-          }
-        }
-        catch (const std::exception& e)
-        {
-          PLOG_ERROR << "Error occurred when trying to parse " << ((lc_file.first) ? "online-based" : "user-specified") << " launch configs: " << e.what ();
-        }
-      }
-
-      PLOG_INFO << "Loading persistent metadata...";
-
-      std::ifstream file(file_metadata);
-      if (file.is_open())
-      {
-        std::scoped_lock jsonLock (jsonMetaDB_mutex);
-
-        jsonMetaDB = nlohmann::json::parse(file, nullptr, false);
-        file.close();
-
-        if (jsonMetaDB.is_discarded ( ))
-        {
-          PLOG_ERROR << "Error occurred while trying to parse " << file_metadata;
-          MoveFileEx (file_metadata.c_str(), (file_metadata + L".bak").c_str(), MOVEFILE_REPLACE_EXISTING);
-          jsonMetaDB = nlohmann::json();
-        }
-        else {
-          PLOG_INFO << "Successfully read persistent metadata (" << JsonDB_CountElements ( ) << " items) from JSON file.";
-        }
-      }
-      else {
-        PLOG_ERROR << "Could not open JSON file for reading: " << file_metadata;
-      }
-
-      PLOG_INFO << "Processing detected games...";
-      pre = SKIF_Util_timeGetTime1 ( );
-
-      bool     newCategories = true;
-      HKEY     hProfilesKey  = 0;
-      HKEY     hAppIdsKey    = 0;
-      LSTATUS lsKey = RegCreateKeyW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\Profiles)", &hProfilesKey);
-
-      if (lsKey == ERROR_SUCCESS)
-          lsKey  = RegCreateKeyW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\AppIds)", &hAppIdsKey);
-      else if (      hProfilesKey != 0)
-        RegCloseKey (hProfilesKey);
-
-      // UNIX timestamp for new arrivals
-      time_t ltime;
-      time (&ltime);
-      std::string szTime = std::to_string (ltime);
-
-      // Process the list of apps -- prepare their names, keyboard search, as well as remove any uninstalled entries
-      for (auto& app : _data->apps)
-      {
-        PLOG_VERBOSE << "Working on " << app.second.id << " (" << app.second.store_utf8 << ")";
-
-        bool isSpecialK = (app.second.store == app_record_s::Store::Steam && app.second.id == SKIF_STEAM_APPID);
-
-        // Steam handling...
-        // Special handling for non-Steam owners of Special K / SKIF
-        if (isSpecialK)
-        {
-          app.first               = "Special K";
-
-          // Default values that needs to be set
-          app.second.skif.pinned  = 99; // Default to pinned
-          app.second.ui.pcgw      = SKIF_Util_FormatStringRaw ("https://www.pcgamingwiki.com/api/appid.php?appid=%lu", app.second.id);
-          app.second.ui.sgdbGrids = SKIF_Util_FormatStringRaw ("https://www.steamgriddb.com/steam/%lu/grids",          app.second.id);
-          app.second.ui.sgdbIcons = SKIF_Util_FormatStringRaw ("https://www.steamgriddb.com/steam/%lu/icons",          app.second.id);
-        }
-
-        // Regular handling for the remaining Steam games
-        else if (app.second.store == app_record_s::Store::Steam)
-        {
-          app.first.clear ();
-
-          if (SKIF_Steam_UpdateAppState (&app.second))
-            app.second._status.dwTimeLastChecked = SKIF_Util_timeGetTime1 ( ) + 333UL; // _RefreshInterval
-
-          // Set uninstalled apps id to 0 so that they are filtered out
-          if (! app.second._status.installed)
-            app.second.id = 0;
-        }
-
-        // Only bother opening the application manifest
-        //   and looking for a name if the client claims
-        //     the app is installed.
-        if (app.second._status.installed)
-        {
-          std::scoped_lock jsonLock (jsonMetaDB_mutex);
-
-          // Load any custom data
-          if (! jsonMetaDB.is_discarded())
-          {
-            std::string item = (app.second.store == app_record_s::Store::Epic)  ? app.second.epic.name_app     :
-                               (app.second.store == app_record_s::Store::Xbox)  ? app.second.xbox.package_name :
-                                                                  std::to_string (app.second.id);
-
-            try {
-              auto& key = jsonMetaDB[app.second.store_utf8][item];
-
-              std::string keyName         = "";
-              int         keyCPU          =  0;
-              int         keyAutoStop     =  0;
-              int         keyHidden       = -1;   // will be 1 for hidden Steam games; 0 for the rest
-              int         keyUses         =  0;
-              std::string keyUsed         = "";
-              std::string keyGroup        = "";
-              int         keyPinned       = -1; // will be 1 for favorited Steam games; 0 for the rest
-
-              // Special K defaults to pinned
-              if (isSpecialK)
-                keyPinned        = 99; // Needed as otherwise we'd overwrite it below
-
-              if (key != nullptr && ! key.empty())
-              {
-                if (key.contains("Name"))
-                  keyName        = key.at("Name");
-
-                if (key.contains("CPU"))
-                  keyCPU         = key.at("CPU");
-
-                if (key.contains("AutoStop"))
-                  keyAutoStop    = key.at("AutoStop");
-
-                if (key.contains("Hidden"))
-                  keyHidden      = key.at("Hidden");
-
-                if (key.contains("Uses"))
-                  keyUses        = key.at("Uses");
-
-                if (key.contains("Used"))
-                  keyUsed        = key.at("Used");
-
-                if (key.contains("Pin"))
-                  keyPinned      = key.at("Pin");
-
-                if (key.contains("Category"))
-                  keyGroup      = key.at("Category");
-              }
-
-              // Populate SKIF's custom variables with the values as well
-              app.second.skif.name           = keyName;
-              app.second.skif.cpu_type       = keyCPU;
-              app.second.skif.auto_stop      = keyAutoStop;
-              app.second.skif.hidden         = keyHidden;
-              app.second.skif.uses           = keyUses;
-              app.second.skif.used           = keyUsed;
-              app.second.skif.category       = keyGroup;
-              app.second.skif.pinned         = keyPinned;
-
-              // For unrecognized categories, add them to SKIF's internal database as well
-              if (! keyGroup.empty() && std::find_if(_registry.vecCategories.begin(), _registry.vecCategories.end(), [&](const SKIF_RegistrySettings::category_s& category) { return category.name == keyGroup; }) == _registry.vecCategories.end())
-              {
-                SKIF_RegistrySettings::category_s  new_category{ keyGroup, false };
-                _registry.vecCategories.push_back (new_category);
-                newCategories = true;
-              }
-
-              // For newly arrived games, we populate the used parameter with the current time
-              //   so they appear on top when sorting by Last Played, mirroring Steam a bit...
-              if (app.second.skif.used.empty())
-                app.second.skif.used         = szTime;
-
-              // Human-readable time format (local time)
-              time_t          last_played    = (time_t)strtol(app.second.skif.used.c_str(), NULL, 10);
-              app.second.skif.used_formatted = SK_WideCharToUTF8 (SKIF_Util_timeGetTimeAsWStr (last_played));
-
-              if (app.second.isInstantPlayCompatible () && key.contains ("InstantPlay"))
-              {
-                app.second.skif.instant_play = key.at ("InstantPlay");
-              }
-
-              // This also populates the JSON object with empty entries for new games
-              key = {
-                { "Name",     app.second.skif.name      },
-                { "CPU",      app.second.skif.cpu_type  },
-                { "AutoStop", app.second.skif.auto_stop },
-                { "Hidden",   app.second.skif.hidden    },
-                { "Uses",     app.second.skif.uses      },
-                { "Used",     app.second.skif.used      },
-                { "Category", app.second.skif.category  },
-                { "Pin",      app.second.skif.pinned    }
-              };
-
-              if (app.second.isInstantPlayCompatible ())
-                key += { "InstantPlay", app.second.skif.instant_play };
-            }
-            catch (const std::exception& e)
-            {
-              PLOG_ERROR << "Error occurred when trying to parse " << item << " (" << (int)app.second.store << ") from " << file_metadata << ": " << e.what ();
-            }
-          }
-
-          if (! app.second.names.normal.empty ())
-            app.first = app.second.names.normal;
-
-          // Some games have an install state but no name,
-          //   for those we have to consult the app manifest
-          else if (app.second.store == app_record_s::Store::Steam && ! isSpecialK)
-            app.first =
-              SK_UseManifestToGetAppName (&app.second);
-
-          // Corrupted app manifest / not known to Steam client; SKIP!
-          if (app.first.empty ())
-          {
-            PLOG_DEBUG << "App ID " << app.second.id << " (" << app.second.store_utf8 << ") has no name; ignoring!";
-
-            app.second.id = 0;
-            continue;
-          }
-
-          // Hide any... uhm... hidden... games...
-          if (! _registry._LibraryHidden && (app.second.skif.hidden == 1 || (app.second.skif.hidden == -1 && app.second.steam.shared.hidden == 1)))
-          {
-            PLOG_DEBUG << "App ID " << app.second.id << " (" << app.second.store_utf8 << ") has been hidden; ignoring!";
-
-            app.second.id = 0;
-            continue;
-          }
-
-          // Hide all non-hidden games if we are in "hidden mode", lol?
-          // Except for Special K, obviously
-          else if (_registry._LibraryHidden && ! isSpecialK && (app.second.skif.hidden == 0 || (app.second.skif.hidden == -1 && app.second.steam.shared.hidden == 0)))
-          {
-            app.second.id = 0;
-            continue;
-          }
-
-          // Strip any remaining null terminators
-          app.first.erase(std::find(app.first.begin(), app.first.end(), '\0'), app.first.end());
-
-          app.second.names.original = app.first;
-
-          // Some games use weird Unicode character combos that ImGui can't handle,
-          //  so let's replace those with the normal ones.
-
-          // Replace RIGHT SINGLE QUOTATION MARK (Code: 2019 | UTF-8: E2 80 99)
-          //  with a APOSTROPHE (Code: 0027 | UTF-8: 27)
-          app.first = std::regex_replace(app.first, std::regex("\xE2\x80\x99"), "\x27");
-
-          // Replace LATIN SMALL LETTER O (Code: 006F | UTF-8: 6F) and COMBINING DIAERESIS (Code: 0308 | UTF-8: CC 88)
-          //  with a LATIN SMALL LETTER O WITH DIAERESIS (Code: 00F6 | UTF-8: C3 B6)
-          app.first = std::regex_replace(app.first, std::regex("\x6F\xCC\x88"), "\xC3\xB6");
-
-          // Remove COPYRIGHT SIGN (Code: 00A9 | UTF-8: C2 A9)
-          app.first = std::regex_replace(app.first, std::regex("\xC2\xA9"), "");
-
-          // Remove REGISTERED SIGN (Code: 00AE | UTF-8: C2 AE)
-          app.first = std::regex_replace(app.first, std::regex("\xC2\xAE"), "");
-
-          // Remove TRADE MARK SIGN (Code: 2122 | UTF-8: E2 84 A2)
-          app.first = std::regex_replace(app.first, std::regex("\xE2\x84\xA2"), "");
-
-          // Output the name change (use widechar to have them appear correct in the logs)
-          if (app.second.names.original != app.first)
-            PLOG_DEBUG << R"(Game title was changed: ")" << SK_UTF8ToWideChar(app.second.names.original.c_str()) << R"(" --> ")" << SK_UTF8ToWideChar(app.first.c_str()) << R"(")";
-
-          SKIF_Util_TrimSpaces (app.first);
-
-          // Strip any remaining null terminators
-          //app.first.erase(std::find(app.first.begin(), app.first.end(), '\0'), app.first.end());
-
-          // Store the cleaned copy of the original
-          app.second.names.clean = app.first;
-
-          // Apply any custom name
-          if (! app.second.skif.name.empty())
-          {
-            app.second.names.normal  = app.second.skif.name;
-            app.first                = app.second.names.normal;
-          }
-
-          // Update ImGuiLabelID and ImGuiPushID
-          app.second.ImGuiLabelID    = SKIF_Util_FormatStringRaw ("###%i-%i-selectable", (int)app.second.store, app.second.id); // ("%s###%i-%i", app.first.c_str(), (int)app.second.store, app.second.id)
-          app.second.ImGuiPushID     = SKIF_Util_FormatStringRaw ("###%i-%i",            (int)app.second.store, app.second.id);
-
-#if 0
-          PLOG_DEBUG << "\nGame Titles: (" << app.second.id << ")"
-                     << "\nOriginal   : " << SK_UTF8ToWideChar(app.second.names.original)
-                     << "\nCleaned    : " << SK_UTF8ToWideChar(app.second.names.clean)
-                     << "\nNormal     : " << SK_UTF8ToWideChar(app.second.names.normal)
-                     << "\nImGuiLID   : " << SK_UTF8ToWideChar(app.second.ImGuiLabelID)
-                     << "\nInstallDir : " << app.second.install_dir;
-#endif
-        }
-
-        // Check if install folder exists (but not for Xbox games or Special K)
-        if (app.second.store != app_record_s::Store::Xbox && ! isSpecialK)
-        {
-          // This populates install_dir for Steam games
-          if (app.second.store == app_record_s::Store::Steam)
-            SK_UseManifestToGetInstallDir (&app.second);
-
-          if (! PathFileExists (app.second.install_dir.c_str()))
-          {
-            PLOG_DEBUG << "App ID " << app.second.id << " (" << app.second.store_utf8 << ") has non-existent install folder; ignoring!";
-
-            app.second.id = 0;
-            continue;
-          }
-
-          // Preload active branch for Steam games
-          if (app.second.store == app_record_s::Store::Steam)
-          {
-            app.second.steam.branch = SK_UseManifestToGetCurrentBranch (&app.second);
-
-            if (! app.second.steam.branch.empty())
-              PLOG_VERBOSE << "App ID " << app.second.id << " has active branch : " << app.second.steam.branch;
-          }
-        }
-
-        if (app.second._status.installed && ! isSpecialK)
-        {
-          // Prepare for the keyboard hint / search/filter functionality
-          InsertTrieKey (&app, &_data->labels);
-
-          std::wstring wsName =
-            SK_UTF8ToWideChar (app.second.names.original);
-
-          // Ensure the Profiles registry key is populated properly, but only write it once to ensure
-          //   profile folders are not randomly renamed if a game gets renamed on the storefront
-          if (ERROR_SUCCESS        == lsKey &&
-              ERROR_FILE_NOT_FOUND == RegQueryValueExW (hProfilesKey, app.second.install_dir.c_str(), NULL, NULL, NULL, NULL))
-          {
-            if (ERROR_SUCCESS != RegSetValueExW (hProfilesKey, app.second.install_dir.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.length() * sizeof(wchar_t)))
-              PLOG_ERROR   << "Failed adding profile name (" << wsName << ") to registry value: " << app.second.install_dir;
-          }
-
-          // Populate a list of Path-to-AppID mappings in the registry for platforms that may not have a manifest that Special K can parse (e.g. Epic)
-          if (ERROR_SUCCESS == lsKey)
-          {
-            switch (app.second.store)
-            {
-              case app_record_s::Store::Epic:
-              {
-                if (! app.second.epic.name_app.empty ())
-                {
-                  std::wstring wsAppId =
-                    SK_UTF8ToWideChar (app.second.epic.name_app);
-
-                  if (ERROR_SUCCESS != RegSetValueExW (hAppIdsKey, app.second.install_dir.c_str(), 0, REG_SZ, (LPBYTE)wsAppId.data (), (DWORD)wsAppId.length() * sizeof(wchar_t)))
-                    PLOG_ERROR   << "Failed adding appid mapping (" << wsAppId << ") to registry value : " << app.second.epic.name_app;
-                }
-              } break;
-              default:
-                break;
-            }
-          }
-
-          // Register profile mappings for all launch configs
-          for (auto& lc : app.second.launch_configs)
-          {
-            auto& exe_path =
-              lc.second.executable_path;
-
-            if (ERROR_SUCCESS        == lsKey &&
-                ERROR_FILE_NOT_FOUND == RegQueryValueExW (hProfilesKey, exe_path.c_str (), NULL, NULL, NULL, NULL))
-            {
-              if (ERROR_SUCCESS != RegSetValueExW (hProfilesKey, exe_path.c_str (), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.length() * sizeof(wchar_t)))
-                PLOG_ERROR   << "Failed adding profile name (" << wsName << ") to registry value: " << exe_path;
-            }
-          }
-
-          // Xbox apps have two directories, but otherwise the procedure is the same as above.
-          if (app.second.store == app_record_s::Store::Xbox)
-          {
-            if ( ERROR_SUCCESS        == lsKey &&
-                (ERROR_FILE_NOT_FOUND == RegQueryValueExW (hProfilesKey, app.second.xbox.directory_app.c_str(),           NULL, NULL, NULL, NULL) ||
-                 ERROR_FILE_NOT_FOUND == RegQueryValueExW (hProfilesKey, app.second.xbox.directory_program_files.c_str(), NULL, NULL, NULL, NULL)) )
-            {
-              if (ERROR_SUCCESS != RegSetValueExW (hProfilesKey, app.second.xbox.directory_app.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.length() * sizeof(wchar_t)))
-                PLOG_ERROR << "Failed adding profile name (" << wsName << ") to registry value: " << app.second.xbox.directory_app;
-
-              if (ERROR_SUCCESS != RegSetValueExW (hProfilesKey, app.second.xbox.directory_program_files.c_str(), 0, REG_SZ, (LPBYTE)wsName.data(), (DWORD)wsName.length() * sizeof(wchar_t)))
-                PLOG_ERROR << "Failed adding profile name (" << wsName << ") to registry value: " << app.second.xbox.directory_program_files;
-            }
-          }
-        }
-      }
-
-      if (ERROR_SUCCESS == lsKey) {
-        RegCloseKey (hProfilesKey);
-        RegCloseKey (hAppIdsKey);
-      }
-
-      // Update the db.json file with any additions and whatnot
-      JsonDB_WriteFile ( );
-
-      // We have detected new categories!
-      if (newCategories)
-      {
-        // Sort the list of categories
-        _registry.vecCategories = _registry.SortCategories (_registry.vecCategories);
-
-        // Update the registry
-        std::vector<std::wstring> _inNames, _inBools;
-        for (auto& category : _registry.vecCategories)
-        {
-          _inNames.push_back (SK_UTF8ToWideChar (category.name));
-          _inBools.push_back (std::to_wstring   (category.expanded));
-        }
-
-        _registry.regKVCategories.     putDataMultiSZ (_inNames);
-        _registry.regKVCategoriesState.putDataMultiSZ (_inBools);
-      }
-
-      post = SKIF_Util_timeGetTime1 ( );
-      games = games - 1; // Do not count Special K as a game
-      PLOG_DEBUG << "Finished processing " << games << " detected games in " << (post - pre) << " ms.";
-
-      SKIF_GamingCollection::SortApps (&_data->apps);
-
-      //PLOG_INFO << "Apps were sorted!";
-
-      PLOG_INFO << "Finished populating the library list.";
-
-      PLOG_VERBOSE_IF(pPatTexSRV.p == nullptr) << "Loading the embedded Patreon texture...";
-      ImVec2 dontCare;
-      if (pPatTexSRV.p == nullptr)
-        LoadLibraryTexture (LibraryTexture::Patreon, SKIF_STEAM_APPID, pPatTexSRV,          L"patreon.png",         dontCare);
-      if (pSKLogoTexSRV.p == nullptr)
-        LoadLibraryTexture (LibraryTexture::Logo,    SKIF_STEAM_APPID, pSKLogoTexSRV,       L"sk_boxart.png",       dontCare);
-      if (pSKLogoTexSRV_small.p == nullptr)
-        LoadLibraryTexture (LibraryTexture::Logo,    SKIF_STEAM_APPID, pSKLogoTexSRV_small, L"sk_boxart_small.png", dontCare);
-
-      // Force a refresh when the game icons have finished being streamed
-      PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
-
-      PLOG_DEBUG << "Library refresh took " << (SKIF_Util_timeGetTime1 ( ) - start) << " ms.";
-
-      PLOG_VERBOSE << "SKIF_LibraryWorker thread stopped!";
-
-      //SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
-
-      return 0;
-    }, library_worker, 0x0, nullptr);
-
-    bool threadCreated = (hWorkerThread != NULL);
-
-    if (threadCreated)
-    {
-      library_worker->hWorker = hWorkerThread;
-      library_worker->iWorker = 1;
-    }
-    else // Someting went wrong during thread creation, so free up the memory we allocated earlier
-    {
-      delete library_worker;
-      library_worker = nullptr;
-    }
-  }
-
-  else if (! PopulatedGames && library_worker != nullptr && library_worker->iWorker == 1 && WaitForSingleObject (library_worker->hWorker, 0) == WAIT_OBJECT_0)
-  {
-
-    struct IconCache {
-      app_record_s::tex_registry_s tex_icon;
-      app_record_s::Store store;
-      AppId_t id;
-    };
-
-    std::vector<IconCache> icon_cache;
-
-    // Clear up any unacknowledged icon workers
-    for (auto& app : _games.GetApps())
-    {
-      if (app.second.tex_icon.iWorker == 1)
-      {
-        if (WaitForSingleObject (app.second.tex_icon.hWorker, 200) == WAIT_OBJECT_0) // 200 second timeout (maybe change it?)
-        {
-          CloseHandle (app.second.tex_icon.hWorker);
-          app.second.tex_icon.hWorker = NULL;
-          app.second.tex_icon.iWorker = 2;
-          activeIconWorkers--;
-        }
-      }
-
-      // Cache any existing icon textures...
-      if (app.second.tex_icon.texture.p != nullptr)
-      {
-        icon_cache.push_back ({
-          app.second.tex_icon,
-          app.second.store,
-          app.second.id
-        });
-
-        //SKIF_ResourcesToFree.push(app.second.tex_icon.texture.p);
-        //app.second.tex_icon.texture.p = nullptr;
-      }
-    }
+    _art.OnIconWorkersReaped (_games.SwapInPopulatedGames ( ));
 
     std::scoped_lock app_lock (_games.GetMutex());
 
-    // Clear current data
-    _games.GetApps() = {};
-    g_apptickets     = { };
-    labels           = { };
     labelsFiltered   = { };
-
-    // Insert new data
-    _games.GetApps() = library_worker->apps;
-    g_apptickets     = library_worker->apptickets;
-    labels           = library_worker->labels;
-
-    // Move cached icons over
-    for (auto& app : _games.GetApps())
-    {
-      for (auto& icon : icon_cache)
-      {
-        if (icon.id    == app.second.id
-         && icon.store == app.second.store)
-        {
-          app.second.tex_icon = icon.tex_icon; // Move it over
-          app.second.tex_icon.iWorker = 2;
-          icon.id = 0; // Mark it _not_ for release
-          break;
-        }
-      }
-    }
-
-    // Push unused icons for release
-    for (auto& icon : icon_cache)
-    {
-      if (icon.id == 0)
-        continue; // Skip icons marked as 0
-
-      SKIF_ResourcesToFree.push(icon.tex_icon.texture.p);
-      icon.tex_icon.texture.p = nullptr;
-    }
 
     fAlphaList = (_registry.bFadeCovers) ? 0.0f : 1.0f;
 
@@ -5978,19 +4192,19 @@ SKIF_UI_Tab_DrawLibrary (void)
     // Do other misc stuff
     for (auto& app : _games.GetApps())
     {
-      if (app.second.id == 0)
+      if (app.second->id == 0)
         continue;
 
       // Set to last selected if it can be found
-      if (app.second.id       ==                      _registry.uiLastSelectedGame &&
-          app.second.store    == (app_record_s::Store)_registry.uiLastSelectedStore)
+      if (app.second->id       ==                      _registry.uiLastSelectedGame &&
+          app.second->store    == (app_record_s::Store)_registry.uiLastSelectedStore)
       {
-        PLOG_VERBOSE << "Selected app ID " << app.second.id << " from platform ID " << (int)app.second.store << ".";
-        selection.appid        =    app.second.id;
-        selection.store        =    app.second.store;
-        selection.category     =   (app.second.skif.pinned > 50 && ! _registry._LibHorizonMode && _registry._LibPinnedVisible) // Only when not using horizon mode
+        PLOG_VERBOSE << "Selected app ID " << app.second->id << " from platform ID " << (int)app.second->store << ".";
+        selection.appid        =    app.second->id;
+        selection.store        =    app.second->store;
+        selection.category     =   (app.second->skif.pinned > 50 && ! _registry._LibHorizonMode && _registry._LibPinnedVisible) // Only when not using horizon mode
                                ?   "Favorites (pinned)" // Workaround to not expand Favorites tab on launch
-                               :    GetEffectiveCategory (&app.second);
+                               :    GetEffectiveCategory (app.second.get ( ));
         search_selection.id    =    selection.appid;
         search_selection.store =    selection.store;
         search_selection.category = selection.category;
@@ -5998,15 +4212,15 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
 
       // Prefill all apps with the current version (solves a single frame flicker the first time a game is selected)
-      app.second.specialk.injection.dll.version      = _inject.SKVer32;
-      app.second.specialk.injection.dll.version_utf8 = SK_WideCharToUTF8 (app.second.specialk.injection.dll.version);
+      app.second->specialk.injection.dll.version      = _inject.SKVer32;
+      app.second->specialk.injection.dll.version_utf8 = SK_WideCharToUTF8 (app.second->specialk.injection.dll.version);
 
       // Apply the current filter
-      app.second.filtered = (charFilter[0] != '\0' && (StrStrIA (app.first.c_str(), charFilter) == NULL &&                // Name
-                                                       StrStrIA (app.second.skif.category.c_str(), charFilter) == NULL)); // Category
+      app.second->filtered = (charFilter[0] != '\0' && (StrStrIA (app.first.c_str(), charFilter) == NULL &&                // Name
+                                                       StrStrIA (app.second->skif.category.c_str(), charFilter) == NULL)); // Category
 
       // Count the number of pinned entries on top
-      if (app.second.skif.pinned > 50)
+      if (app.second->skif.pinned > 50)
       {
         // Only allow 5 pinned on top
         if (5 > tmpPinnedOnTop)
@@ -6015,7 +4229,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         // Reduce all other to normal favorite status
         else
         {
-          app.second.skif.pinned = 50;
+          app.second->skif.pinned = 50;
           resortGames = true;
         }
       }
@@ -6033,28 +4247,18 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     for (auto& app : _games.GetApps())
     {
-      if (app.second.id == 0 || app.second.filtered)
+      if (app.second->id == 0 || app.second->filtered)
         continue;
 
       InsertTrieKey (&app, &labelsFiltered);
 
       numRegular++;
 
-      if (app.second.skif.pinned > 50)
+      if (app.second->skif.pinned > 50)
         numPinnedOnTop++;
     }
 
     numRegular -= numPinnedOnTop;
-
-    CloseHandle (library_worker->hWorker);
-    library_worker->hWorker = NULL;
-    library_worker->iWorker = 2;
-    library_worker->labels  = Trie { };
-    library_worker->apps.clear ();
-    library_worker->apptickets.clear();
-
-    delete library_worker;
-    library_worker = nullptr;
 
     PopulatedGames = true;
     sort_changed   = true;
@@ -6072,14 +4276,12 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // Ensure pApp points to the current selected game
   // This should be the only place where pApp changes during the whole frame!
-  for (auto& app : _games.GetApps())
-    if (app.second.id == selection.appid && app.second.store == selection.store)
-      pApp = &app.second;
+  pApp = _games.Find (selection.store, selection.appid);
 
   // Default to primary launch config
   launchConfig = (pApp != nullptr && ! pApp->launch_configs.empty()) ? &pApp->launch_configs.begin()->second : nullptr;
 
-  bool isSpecialK = (pApp != nullptr && pApp->id == SKIF_STEAM_APPID && pApp->store == app_record_s::Store::Steam);
+  bool isSpecialK = (pApp != nullptr && pApp->IsSpecialK ( ));
 
   // Update the injection strategy for the selected game
   // Only do this once per frame to prevent data from "leaking" between pApp's
@@ -6087,7 +4289,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   // TODO: We still need to improve this by killing off any outdated workers and prevent them from swapping their
   //         results in. Maybe using an integer indicating the library refresh iteration we're currently on, that
   //           the worker can have a copy of for evaluation once it's finished?
-  if (pApp != nullptr && library_worker == nullptr)
+  if (pApp != nullptr && ! _games.IsPopulating ( ))
   {
     if (update)
     {
@@ -6117,33 +4319,33 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         for (auto& app : _games.GetApps())
         {
-          if (app.second.id    == worker.app.id &&
-              app.second.store == worker.app.store)
+          if (app.second->id    == worker.app->id &&
+              app.second->store == worker.app->store)
           {
             // Backup the texture data (in particular any active worker data)
-            app_record_s::tex_registry_s tex_icon  = app.second.tex_icon;
-            app_record_s::tex_registry_s tex_cover = app.second.tex_cover;
+            app_record_s::tex_registry_s tex_icon  = app.second->tex_icon;
+            app_record_s::tex_registry_s tex_cover = app.second->tex_cover;
 
             // Copy the results over
-            app.second = worker.app;
+            app.second->CopyFrom (*worker.app);
 
             // Restore the texture data (and worker data)
-            app.second.tex_icon  = tex_icon;
-            app.second.tex_cover = tex_cover;
+            app.second->tex_icon  = tex_icon;
+            app.second->tex_cover = tex_cover;
 
-            app.second.loading = false;
+            app.second->loading = false;
 
-            int cpu_post = (int)pApp->specialk.injection.injection.bitness;
+            int cpu_post = (int)app.second->specialk.injection.injection.bitness;
 
             // If the CPU has changed, we need to update the metadata as well,
             //   but only if it differs from our cached value...
             if (cpu_post != worker.cpu_pre &&
-                cpu_post != app.second.skif.cpu_type)
+                cpu_post != app.second->skif.cpu_type)
             {
-              app.second.skif.cpu_type = cpu_post; // 0 = Common,  1 = x86, 2 = x64, 0xFFFF = Any
+              app.second->skif.cpu_type = cpu_post; // 0 = Common,  1 = x86, 2 = x64, 0xFFFF = Any
 
               // Update the db.json file with any new values
-              JsonDB_UpdateApp (pApp, true);
+              SKIF_GamingCollection::Get ( ).MetaDB_UpdateApp (app.second.get ( ), true);
             }
           }
         }
@@ -6159,20 +4361,15 @@ SKIF_UI_Tab_DrawLibrary (void)
     if (availableWorker != -1 && ! pApp->loading       && // We require an available worker
         (update                                        ||
          selection.dir_watch.isSignaled ( )            || // TODO: Investigate support for multiple launch configs? Right now only the "main" folder is being monitored
-        (_registry.bLibrarySteam && SKIF_Steam_HasActiveProcessChanged (&_games.GetApps(), &g_apptickets)) || // If Steam user signed in / out
+        (_registry.bLibrarySteam && SKIF_Steam_HasActiveProcessChanged (&_games.GetApps(), &_games.GetAppTickets ( ))) || // If Steam user signed in / out
         _inject.libCacheRefresh                       )) // If the global DLL files have been changed
     {
       _inject.libCacheRefresh = false;
 
       //PLOG_VERBOSE << "CPU PRE : " << cpu_pre;
 
-      if (pApp->store == app_record_s::Store::Steam)
-      {
-        // Parse appinfo data for the current game
-        // This must be done from the main thread since it also manipulates the g_apps array
-        if (! pApp->processed)
-          appinfo->getAppInfo ( pApp->id, &_games.GetApps() );
-      }
+      // Parse store data for the current game on the main thread (Steam: appinfo.vdf)
+      pApp->LoadStoreDetails ( );
 
       // Only run a worker if we're not dealing with Special K
       if (! isSpecialK)
@@ -6181,8 +4378,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         // Make a copy of pApp that we will use to update all data
         SKIF_Lib_GameWorkerThread_s* worker = &aGameWorkers[availableWorker];
-        worker->app        = *pApp;
-        worker->apptickets = g_apptickets;
+        worker->app        = pApp->Clone ( );
+        worker->apptickets = _games.GetAppTickets ( );
         worker->cpu_pre    = (int)pApp->specialk.injection.injection.bitness;
 
         HANDLE hWorkerThread = (HANDLE)
@@ -6198,7 +4395,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
           SKIF_Lib_GameWorkerThread_s* _data = static_cast<SKIF_Lib_GameWorkerThread_s*>(var);
 
-          UpdateInjectionStrategy (&_data->app, _data->apptickets);
+          UpdateInjectionStrategy (_data->app.get ( ), _data->apptickets);
 
           // Force a refresh when the game icons have finished being streamed
           PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
@@ -6226,56 +4423,11 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
     }
 
-    // Load a new cover
-    // Ensure we aren't already loading this cover
-    if (lastCover.appid != pApp->id   ||
-        lastCover.store != pApp->store)
-    {
-      // Special handling for the Special K logo when fading is disabled
-      if (! _registry.bFadeCovers)
-      {
-        if (isSpecialK)
-          fAlphaSK = 1.0f;
-        else if (lastCover.appid == SKIF_STEAM_APPID &&
-                 lastCover.store == app_record_s::Store::Steam)
-          fAlphaSK = 0.0f;
-      }
-
-      loadCover       = true;
-      lastCover.appid = pApp->id;
-      lastCover.store = pApp->store;
-
-      // Hide the current cover and set it up to be unloaded
-      if (pTexSRV.p != nullptr)
-      {
-        // If there already is an old cover, we need to push it for release
-        if (pTexSRV_old.p != nullptr)
-        {
-          PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << pTexSRV_old.p << " to be released";;
-          SKIF_ResourcesToFree.push(pTexSRV_old.p);
-          pTexSRV_old.p = nullptr;
-        }
-
-        // Set up the current one to be released
-        vecCoverRes_old = vecCoverRes;
-        vecCoverRes     = ImVec2 (0, 0);
-        pTexSRV_old.p   = pTexSRV.p;
-        pTexSRV.p       = nullptr;
-        fAlphaPrev      = (_registry.bFadeCovers) ? fAlpha   : 0.0f;
-        fAlpha          = (_registry.bFadeCovers) ?   0.0f   : 1.0f;
-      }
-    }
+    // Load a new cover (no-op if it is already the one shown)
+    _art.SelectCover (pApp);
 
     // Release old cover after it has faded away, or instantly if we don't fade covers
-    if (fAlphaPrev <= 0.0f)
-    {
-      if (pTexSRV_old.p != nullptr)
-      {
-        PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << pTexSRV_old.p << " to be released";;
-        SKIF_ResourcesToFree.push(pTexSRV_old.p);
-        pTexSRV_old.p = nullptr;
-      }
-    }
+    _art.ReleaseOldCoverIfFaded ( );
   }
 
   // Apply changes when the selected game changes
@@ -6429,7 +4581,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   bool          isCoverHovered     = false;
 
-  static int    queuePosGameCover  = 0;
   static char   cstrLabelLoading[] = "...";
   static char   cstrLabelMissing[] = "                      Missing cover :(\n"
                                       "           Right-click to set one manually\n\n"
@@ -6444,26 +4595,25 @@ SKIF_UI_Tab_DrawLibrary (void)
     if (uiCoverVisible)
     {
       // Special handling for when a cover is being loaded in the background and selection changes from another game back to this one...
-      if (tryingToSaveCover && coverRefreshAppId == pApp->id && coverRefreshStore == (int)pApp->store)
+      if (_art.IsSavingCover (pApp))
         pcstrLabel = cstrLabelLoading;
 
       // A new cover is meant to be loaded, so don't do anything for now...
-      else if (loadCover)
+      else if (_art.IsCoverRequested ( ))
       { }
 
-      else if (tryingToLoadCover)
+      else if (_art.IsCoverLoading ( ))
         pcstrLabel = cstrLabelLoading;
 
-      else if (textureLoadQueueLength.load() == queuePosGameCover && pTexSRV.p == nullptr)
+      else if (_art.IsCoverMissing ( ))
       {
-        if (pApp != nullptr && pApp->id == SKIF_STEAM_APPID && pApp->store == app_record_s::Store::Steam)
+        if (pApp != nullptr && pApp->IsSpecialK ( ))
         {
           // Special K selected -- do nothing
         }
 
         else {
-          extern std::wstring GOGGalaxy_UserID;
-          if (pApp != nullptr && pApp->store == app_record_s::Store::GOG && GOGGalaxy_UserID.empty())
+          if (pApp != nullptr && pApp->CoverNeedsClientSignIn ( )) // GOG: Galaxy signed out
             pcstrLabel = cstrLabelGOGUser;
           else
             pcstrLabel = cstrLabelMissing;
@@ -6498,16 +4648,16 @@ SKIF_UI_Tab_DrawLibrary (void)
         }
 
         // Display previous fading out cover
-        if (pTexSRV_old.p != nullptr && fAlphaPrev > 0.0f)
+        if (_art.GetOldCoverTexture ( ) != nullptr && _art.GetOldCoverAlpha ( ) > 0.0f)
         {
-          CalculateImageSizing (cover_old, vecContentRegionAvail, vecCoverRes_old);
+          CalculateImageSizing (cover_old, vecContentRegionAvail, _art.GetOldCoverResolution ( ));
 
           ImGui::SetCursorPos  (cover_old.position); //vecPosImage_old
-          SKIF_ImGui_OptImage  (pTexSRV_old.p,
+          SKIF_ImGui_OptImage  (_art.GetOldCoverTexture ( ),
                                                             cover_old.size, //sizeCoverFloored_old,
                                                             ImVec2 (0, 0),  // Top Left coordinates
                                                             ImVec2 (1, 1),  // Bottom Right coordinates
-                                                            CoverTint (fAlphaPrev),
+                                                            CoverTint (_art.GetOldCoverAlpha ( )),
                                                             ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Never use a border
           );
 
@@ -6515,21 +4665,21 @@ SKIF_UI_Tab_DrawLibrary (void)
         }
 
         // Display game cover image
-        CalculateImageSizing (cover, vecContentRegionAvail, vecCoverRes);
+        CalculateImageSizing (cover, vecContentRegionAvail, _art.GetCoverResolution ( ));
 
         ImGui::SetCursorPos  (cover.position); //vecPosImage
-        SKIF_ImGui_OptImage  (pTexSRV.p,
+        SKIF_ImGui_OptImage  (_art.GetCoverTexture ( ),
                                                           cover.size,     //sizeCoverFloored,
                                                           ImVec2 (0, 0),  // Top Left coordinates
                                                           ImVec2 (1, 1),  // Bottom Right coordinates
-                                                          CoverTint (fAlpha),
+                                                          CoverTint (_art.GetCoverAlpha ( )),
                                                           ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Never use a border
         );
 
         ImGui::SetCursorPos (vecPosCoverInner);
 
         if (isSpecialK ||
-         (! isSpecialK && fAlphaSK > 0.0f))
+         (! isSpecialK && _art.GetSpecialKAlpha ( ) > 0.0f))
         {
           ImVec2 sizeCurrent = (_registry._UseLowResCovers && ! _registry._UseLowResCoversHiDPIBypass) ? sizeSK_small : sizeSK;
 
@@ -6537,11 +4687,11 @@ SKIF_UI_Tab_DrawLibrary (void)
           CalculateImageSizing (coverSK, vecContentRegionAvail, sizeCurrent, true);
           ImGui::SetCursorPos  (coverSK.position);
 
-          ImGui::Image (((_registry._UseLowResCovers && ! _registry._UseLowResCoversHiDPIBypass) ? pSKLogoTexSRV_small.p : pSKLogoTexSRV.p),
+          ImGui::Image (((_registry._UseLowResCovers && ! _registry._UseLowResCoversHiDPIBypass) ? _games.GetSKLogoTexture (true) : _games.GetSKLogoTexture (false)),
                                                           coverSK.size,
                                                           ImVec2 (0, 0),                  // Top Left coordinates
                                                           ImVec2 (1, 1),                  // Bottom Right coordinates
-                                                          CoverTint (fAlphaSK),           // Tint for Special K's logo
+                                                          CoverTint (_art.GetSpecialKAlpha ( )), // Tint for Special K's logo
                                                           ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Never use a border
           );
         }
@@ -6667,20 +4817,20 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     for (auto& app : _games.GetApps())
     {
-      if (app.second.id == 0)
+      if (app.second->id == 0)
         continue;
 
-      app.second.filtered = (charFilter[0] != '\0' && (StrStrIA (app.first.c_str(), charFilter) == NULL &&                // Name
-                                                       StrStrIA (app.second.skif.category.c_str(), charFilter) == NULL)); // Category
+      app.second->filtered = (charFilter[0] != '\0' && (StrStrIA (app.first.c_str(), charFilter) == NULL &&                // Name
+                                                       StrStrIA (app.second->skif.category.c_str(), charFilter) == NULL)); // Category
 
-      if (app.second.filtered)
+      if (app.second->filtered)
         continue;
 
       InsertTrieKey (&app, &labelsFiltered);
 
       numRegular++;
 
-      if (app.second.skif.pinned > 50)
+      if (app.second->skif.pinned > 50)
         numPinnedOnTop++;
     }
 
@@ -6699,11 +4849,11 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     for (auto& app : _games.GetApps())
     {
-      app.second.filtered = false;
+      app.second->filtered = false;
 
       numRegular++;
 
-      if (app.second.skif.pinned > 50)
+      if (app.second->skif.pinned > 50)
         numPinnedOnTop++;
     }
 
@@ -6868,29 +5018,23 @@ SKIF_UI_Tab_DrawLibrary (void)
   for (auto& app : _games.GetApps())
   {
     // ID = 0 is assigned to corrupted entries, do not list these.
-    if (app.second.id == 0)
+    if (app.second->id == 0)
       continue;
 
     // Count the number of pinned entries separately from filtered entries
-    if (app.second.skif.pinned > 50)
+    if (app.second->skif.pinned > 50)
       resetNumOnTop = false;
 
     // Check if there is an icon worker pending that we need to acknowledge the results for...
     //   ... *before* we filter out the game and skips the whole rest of the loop for this one!
-    if (app.second.tex_icon.iWorker == 1 && WaitForSingleObject (app.second.tex_icon.hWorker, 0) == WAIT_OBJECT_0)
-    {
-      CloseHandle (app.second.tex_icon.hWorker);
-      app.second.tex_icon.hWorker = NULL;
-      app.second.tex_icon.iWorker = 2;
-      activeIconWorkers--;
-    }
+    _art.ReapIconWorker (app.second.get ( ));
 
     // Skips those filtered out by an active search field entry
-    if (app.second.filtered)
+    if (app.second->filtered)
       continue;
 
     // Separate always on top (>50) from regular pinned (1-50), but only in regular mode
-    if (app.second.skif.pinned > 50 && ! _registry._LibHorizonMode && _registry._LibPinnedVisible) //  // ! _registry._LibHorizonMode
+    if (app.second->skif.pinned > 50 && ! _registry._LibHorizonMode && _registry._LibPinnedVisible) //  // ! _registry._LibHorizonMode
       pinned_top++;
     else if (pinned_top > 0)
     {
@@ -6925,7 +5069,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       static bool category_opened    = false;
 
       // All favorited games are grouped as such
-      std::string tmpCategory = GetEffectiveCategory (&app.second);
+      std::string tmpCategory = GetEffectiveCategory (app.second.get ( ));
 
       if (tmpCategory != current_category)
       {
@@ -7025,21 +5169,11 @@ SKIF_UI_Tab_DrawLibrary (void)
         continue;
     }
 
-    bool selected = (selection.appid == app.second.id &&
-                     selection.store == app.second.store);
+    bool selected = (selection.appid == app.second->id &&
+                     selection.store == app.second->store);
     bool change   = false;
 
-    if (app.second.store == app_record_s::Store::Steam && steamRunning)
-    {
-      if (app.second._status.dwTimeDelayChecks != 0)
-      {
-        if (app.second._status.dwTimeDelayChecks < current_time)
-          app.second._status.dwTimeDelayChecks = 0;
-      }
-
-      else
-        app.second._status.refresh (&app.second);
-    }
+    app.second->RefreshClientState (current_time);
 
     //if (_registry._TouchDevice)
     //  ImGui::SetCursorPosY (ImGui::GetCursorPosY() + 15.0f);
@@ -7051,32 +5185,32 @@ SKIF_UI_Tab_DrawLibrary (void)
     // Start Icon + Selectable row
 
     ImGui::BeginGroup      ();
-    ImGui::PushID          (app.second.ImGuiPushID.c_str());
+    ImGui::PushID          (app.second->ImGuiPushID.c_str());
 
     if (_registry.bFadeCovers)
       ImGui::PushStyleVar (ImGuiStyleVar_Alpha, fAlphaList);
 
-    SKIF_ImGui_OptImage    (app.second.tex_icon.iWorker == 2 ? app.second.tex_icon.texture.p : nullptr,
+    SKIF_ImGui_OptImage    (app.second->tex_icon.iWorker == 2 ? app.second->tex_icon.texture.p : nullptr,
                               ImVec2 ( _ICON_HEIGHT,
                                        _ICON_HEIGHT )
                             );
 
     change |=
-      _HandleItemSelection (&app.second, true);
+      _HandleItemSelection (app.second.get ( ), true);
 
     ImGui::SameLine        ();
 
     ImVec4 _color =
-      ( app.second._status.updating != 0x0 )
+      ( app.second->_status.updating != 0x0 )
                   ? ImVec4 (ImColor::HSV (0.6f, .6f, 1.f)) :
-      ( app.second._status.running  != 0x0 )
+      ( app.second->_status.running  != 0x0 )
                   ? ImVec4 (ImColor::HSV (0.3f, 1.f, 1.f)) :
                     ImGui::GetStyleColorVec4(ImGuiCol_Text);
 
     // Game Title
     ImGui::PushStyleColor  (ImGuiCol_Text, _color);
     ImGui::PushStyleColor  (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
-    SKIF_ImGui_SelectableVAligned (app.second.ImGuiLabelID.c_str(), app.second.names.normal.c_str(), &selected, ImGuiSelectableFlags_None, ImVec2(maxWidth, _ICON_HEIGHT));
+    SKIF_ImGui_SelectableVAligned (app.second->ImGuiLabelID.c_str(), app.second->names.normal.c_str(), &selected, ImGuiSelectableFlags_None, ImVec2(maxWidth, _ICON_HEIGHT));
     ImGui::PopStyleColor   (2);
 
     if (_registry.bFadeCovers)
@@ -7111,16 +5245,16 @@ SKIF_UI_Tab_DrawLibrary (void)
     }
 
     // Show full title in tooltip if the title spans longer than the width of the Selectable row
-    if (ImGui::IsItemHovered ( ) && ImGui::CalcTextSize  (app.second.names.normal.c_str()).x >= (maxWidth - ImGui::GetStyle().ItemSpacing.x))
-      SKIF_ImGui_SetHoverTip (app.second.names.normal);
+    if (ImGui::IsItemHovered ( ) && ImGui::CalcTextSize  (app.second->names.normal.c_str()).x >= (maxWidth - ImGui::GetStyle().ItemSpacing.x))
+      SKIF_ImGui_SetHoverTip (app.second->names.normal);
 
     // Handle search input
-    if (search_selection.id    == app.second.id &&
-        search_selection.store == app.second.store)
+    if (search_selection.id    == app.second->id &&
+        search_selection.store == app.second->store)
     {
       // Set focus on current row
-      ImGui::ActivateItemByID (ImGui::GetID(app.second.ImGuiLabelID.c_str()));
-      ImGui::SetFocusID       (ImGui::GetID(app.second.ImGuiLabelID.c_str()), ImGui::GetCurrentWindow());
+      ImGui::ActivateItemByID (ImGui::GetID(app.second->ImGuiLabelID.c_str()));
+      ImGui::SetFocusID       (ImGui::GetID(app.second->ImGuiLabelID.c_str()), ImGui::GetCurrentWindow());
 
       // Clear stuff
       selection.appid        = 0;
@@ -7133,7 +5267,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     }
 
     change |=
-      _HandleItemSelection (&app.second);
+      _HandleItemSelection (app.second.get ( ));
 
     ImGui::SetCursorPosY   (fOriginalY - ImGui::GetStyle ().ItemSpacing.y);
 
@@ -7143,8 +5277,8 @@ SKIF_UI_Tab_DrawLibrary (void)
     // End Icon + Selectable row
 
 
-    if ( app.second.id    == selection.appid &&
-         app.second.store == selection.store &&
+    if ( app.second->id    == selection.appid &&
+         app.second->store == selection.store &&
                    sort_changed /* &&
         (! ImGui::IsItemVisible ()) */ )
     {
@@ -7164,14 +5298,14 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     if (change)
     {
-      update = (selection.appid != app.second.id ||
-                selection.store != app.second.store);
+      update = (selection.appid != app.second->id ||
+                selection.store != app.second->store);
 
-      selection.appid              =    app.second.id;
-      selection.store              =    app.second.store;
-      selection.category           = (  app.second.skif.pinned > 50)
+      selection.appid              =    app.second->id;
+      selection.store              =    app.second->store;
+      selection.category           = (  app.second->skif.pinned > 50)
                                    ?   "Favorites (pinned)" // Workaround to not expand Favorites tab on launch
-                                   :    GetEffectiveCategory (&app.second);
+                                   :    GetEffectiveCategory (app.second.get ( ));
       selected                     =    true;
 
       // Only update the last selected value if we're not in hidden view
@@ -7187,12 +5321,12 @@ SKIF_UI_Tab_DrawLibrary (void)
         item_clicked.appid = selection.appid;
         item_clicked.store = selection.store;
 
-        app.second._status.invalidate ();
+        app.second->_status.invalidate ();
 
         if (! ImGui::IsMouseClicked (ImGuiMouseButton_Right))
         {
           // Activate the row of the current game
-          ImGui::ActivateItemByID (ImGui::GetID (app.second.ImGuiLabelID.c_str()));
+          ImGui::ActivateItemByID (ImGui::GetID (app.second->ImGuiLabelID.c_str()));
 
           if (! ImGui::IsItemVisible    (    ))
             ImGui::SetScrollHereY       (0.5f);
@@ -7222,87 +5356,9 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
     }
 
-    if (ImGui::IsItemVisible ( ) && app.second.tex_icon.iWorker == 0 && activeIconWorkers < 8)
-    {
-      activeIconWorkers++;
-
-      std::wstring load_str;
-
-      if (app.second.id == SKIF_STEAM_APPID) // SKIF
-        load_str = L"sk_icon.jpg";
-      else  if (app.second.store == app_record_s::Store::Custom) // SKIF Custom
-        load_str = L"icon";
-      else  if (app.second.store == app_record_s::Store::Epic)  // Epic
-        load_str = L"icon";
-      else  if (app.second.store == app_record_s::Store::GOG)   // GOG
-        load_str = app.second.install_dir + L"\\goggame-" + std::to_wstring(app.second.id) + L".ico";
-      else if (app.second.store  == app_record_s::Store::Steam)  // Steam
-      {
-        appinfo->getAppInfo ( app.second.id, &_games.GetApps() );
-        load_str = SK_FormatStringW(LR"(%ws\appcache\librarycache\%i\%hs.jpg)", _path_cache.steam_install, app.second.id, app.second.common_config.icon_hash.c_str ()); //L"_icon.jpg"
-      }
-      else if (app.second.store  == app_record_s::Store::Xbox)  // Xbox
-        load_str = L"icon";
-
-      struct thread_s {
-        uint32_t                      appid;
-        app_record_s::tex_registry_s* texture;
-        app_record_s*                 app;
-        std::wstring                  path;
-      };
-
-      thread_s* data = new thread_s;
-
-      data->path    =  load_str;
-      data->appid   =  app.second.id;
-      data->texture = &app.second.tex_icon;
-      data->app     = &app.second;
-
-      // We're going to stream game icons asynchronously on this thread
-      HANDLE hWorkerThread = (HANDLE)
-      _beginthreadex (nullptr, 0x0, [](void* var) -> unsigned
-      {
-        SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibIconWorker");
-
-        CoInitializeEx (nullptr, 0x0);
-
-        thread_s* _data = static_cast<thread_s*>(var);
-
-        ImVec2 dontCare;
-
-        LoadLibraryTexture ( LibraryTexture::Icon,
-                                _data->appid,
-                                  _data->texture->texture,
-                                    _data->path,
-                                      dontCare,
-                                        _data->app );
-
-        delete _data;
-
-        // Force a refresh when the game icons have finished being streamed
-        PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
-
-        return 0;
-      }, data, 0x0, nullptr);
-
-      bool threadCreated = (hWorkerThread != NULL);
-
-      if (threadCreated)
-      {
-        PLOG_VERBOSE << "An icon worker was spawned successfully!";
-        app.second.tex_icon.hWorker = hWorkerThread;
-        app.second.tex_icon.iWorker = 1;
-      }
-
-      else // Someting went wrong during thread creation, so free up the memory we allocated earlier
-      {
-        PLOG_VERBOSE << "Something went wrong when spawning an icon worker thread...";
-
-        delete data;
-        app.second.tex_icon.iWorker = 2;
-        activeIconWorkers--;
-      }
-    }
+    // Stream the icon in once the game is visible in the list (up to 8 icon workers at once)
+    if (ImGui::IsItemVisible ( ) && app.second->tex_icon.iWorker == 0 && _art.CanStartIconWorker ( ))
+      _art.StartIconWorker (app.second.get ( ));
   }
 
   if (apply_header_state > 0)
@@ -7437,10 +5493,9 @@ SKIF_UI_Tab_DrawLibrary (void)
       uiCoverVisible                      && // Only when the cover is visible, and
     //! _registry._UseLowResCovers        && //      when not using low-res covers, and
     (ImGui::GetContentRegionAvail().x > 150.0f * SKIF_ImGui_GlobalDPIScale) &&
-    ((! isSpecialK && fAlphaSK > 0.0f)    || // either while Special K logo is fading out,
+    ((! isSpecialK && _art.GetSpecialKAlpha ( ) > 0.0f) || // either while Special K logo is fading out,
        (pApp        != nullptr            && // or its selected in the list
-        pApp->id    == SKIF_STEAM_APPID   &&
-        pApp->store == app_record_s::Store::Steam)))
+        pApp->IsSpecialK ( ))))
   {
     ImGui::SetCursorPos  (ImVec2 (vecPosCover.x, ImFloor (sizeCover.y - 197.0f * SKIF_ImGui_GlobalDPIScale))); // 197.0f _for some reasom_?!
                           //fY - (204.0f * SKIF_ImGui_GlobalDPIScale) ));
@@ -7451,7 +5506,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                   hoveredPatCredits = false;
 
       if (_registry.bFadeCovers)
-        ImGui::PushStyleVar (ImGuiStyleVar_Alpha, fAlphaSK);
+        ImGui::PushStyleVar (ImGuiStyleVar_Alpha, _art.GetSpecialKAlpha ( ));
 
       // Set all button styling to transparent
       ImGui::PushStyleColor (ImGuiCol_Button,        ImVec4 (0, 0, 0, 0));
@@ -7466,7 +5521,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       bool        clicked =
       ImGui::ImageButton   ("###PatreonLogo",
-                           (ImTextureID)pPatTexSRV.p,
+                           (ImTextureID)_games.GetPatreonTexture ( ),
                             ImFloor (ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, // Cover is in reality 200x200, but lets show it as a 150x150 image
                                              150.0f * SKIF_ImGui_GlobalDPIScale)),
                             ImVec2 (  0.f,       0.f),
@@ -7597,10 +5652,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       // Preparations
 
-      bool resetVisible = ((pApp->id    != SKIF_STEAM_APPID             && // Ugly check to exclude the "Special K" entry from being set to true
-                            pApp->store != app_record_s::Store::Custom) ||
-                            pApp->tex_cover.isCustom                    ||
-                            pApp->tex_cover.isManaged);
+      bool resetVisible = (pApp->HasStoreCover ( )   || // Not for Special K or custom games, unless they have custom / managed covers
+                           pApp->tex_cover.isCustom ||
+                           pApp->tex_cover.isManaged);
 
       if (SKIF_ImGui_MenuItemEx2 ("Change", ICON_FA_FILE_IMAGE, (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255)))
       {
@@ -7618,18 +5672,8 @@ SKIF_UI_Tab_DrawLibrary (void)
           std::wstring filePath = std::wstring(pwszFilePath);
           if (SaveGameCover (pApp, filePath))
           {
-            // This allows the "..." loading dots to be visible
-            tryingToSaveCover = true;
-            coverRefreshAppId = pApp->id;
-            coverRefreshStore = (int)pApp->store;
-
-            // This sets up the current one to be released
-            vecCoverRes_old = vecCoverRes;
-            vecCoverRes     = ImVec2 (0, 0);
-            pTexSRV_old.p   = pTexSRV.p;
-            pTexSRV.p       = nullptr;
-            fAlphaPrev      = (_registry.bFadeCovers) ? fAlpha   : 0.0f;
-            fAlpha          = (_registry.bFadeCovers) ?   0.0f   : 1.0f;
+            // Shows the "..." loading dots, and sets up the current cover to be released
+            _art.BeginSavingCover (pApp);
           }
         }
       }
@@ -7652,7 +5696,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         {
           iconColor = (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255);
           iconPtr   = iconCustom;
-          textPtr   = ((pApp->store == app_record_s::Store::Custom) ? textCustom1 : textCustom2);
+          textPtr   = ((pApp->IsUserAdded ( )) ? textCustom1 : textCustom2);
         }
 
         else if (pApp->tex_cover.isManaged)
@@ -7681,18 +5725,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         {
           std::wstring targetPath = L"";
 
-          if (pApp->id == SKIF_STEAM_APPID)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
-          else if (pApp->store == app_record_s::Store::Custom)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
-          else if (pApp->store == app_record_s::Store::Epic)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->epic.name_app).c_str());
-          else if (pApp->store == app_record_s::Store::GOG)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
-          else if (pApp->store == app_record_s::Store::Xbox)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->xbox.package_name).c_str());
-          else if (pApp->store == app_record_s::Store::Steam)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  _path_cache.specialk_userdata, pApp->id);
+          targetPath = pApp->GetAssetDirectory ( );
 
           if (PathFileExists (targetPath.c_str()))
           {
@@ -7701,38 +5734,17 @@ SKIF_UI_Tab_DrawLibrary (void)
             // Will fail on read-only marked files
             bool d1 = DeleteFile ((targetPath + fileName + L".png").c_str()),
                  d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
-                 d3 = false,
-                 d4 = false;
+                 d3 = false;
 
-            // For GOG titles we may also store a PCGW cover that we must reset
-            if (! pApp->tex_cover.isCustom && pApp->store == app_record_s::Store::GOG)
-            {
-              fileName = L"cover-pcgw";
-              pApp->tex_cover.queriedPCGW = false;
-              d3 = DeleteFile ((targetPath + fileName + L".png").c_str());
-            }
-
-            // For Steam titles we may also store a PCGW cover that we must reset
-            if (! pApp->tex_cover.isCustom && pApp->store == app_record_s::Store::Steam)
-            {
-              fileName = L"cover-pcgw";
-              pApp->tex_cover.queriedPCGW = false;
-              d3 = DeleteFile ((targetPath + fileName + L".png").c_str());
-            }
-
-            // For Xbox titles we also store a fallback cover that we must reset
-            if (! pApp->tex_cover.isCustom && pApp->store == app_record_s::Store::Xbox)
-            {
-              fileName = L"cover-fallback";
-              d3 = DeleteFile ((targetPath + fileName + L".png").c_str()),
-              d4 = DeleteFile ((targetPath + fileName + L".jpg").c_str());
-            }
+            // Store-managed fallback covers (PCGamingWiki covers for GOG and Steam, Xbox fallback cover)
+            if (! pApp->tex_cover.isCustom)
+              d3 = pApp->DeleteStoreCoverFiles (targetPath);
 
             // If any file was removed
-            if (d1 || d2 || d3 || d4)
+            if (d1 || d2 || d3)
             {
               update    = true;
-              lastCover.reset(); // Needed as otherwise SKIF would not reload the cover
+              _art.ForgetCover ( ); // Needed as otherwise SKIF would not reload the cover
             }
           }
         }
@@ -7905,10 +5917,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       // Preparations
 
-      bool resetVisible = (pApp->id    != SKIF_STEAM_APPID             ||
-                          (pApp->id    != SKIF_STEAM_APPID             && // Ugly check to exclude the "Special K" entry from being set to true
-                           pApp->store != app_record_s::Store::Custom) ||
-                           pApp->tex_icon.isCustom                     ||
+      bool resetVisible = (! pApp->IsSpecialK ( )    ||
+                           pApp->tex_icon.isCustom ||
                            pApp->tex_icon.isManaged);
 
       if (SKIF_ImGui_MenuItemEx2 ("Change", ICON_FA_FILE_IMAGE, (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255)))
@@ -7927,18 +5937,7 @@ SKIF_UI_Tab_DrawLibrary (void)
           std::wstring targetPath = L"";
           std::wstring ext        = SKIF_Util_ToLowerW (std::filesystem::path(pwszFilePath).extension().wstring());
 
-          if (pApp->id == SKIF_STEAM_APPID)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
-          else if (pApp->store == app_record_s::Store::Custom)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
-          else if (pApp->store == app_record_s::Store::Epic)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->epic.name_app).c_str());
-          else if (pApp->store == app_record_s::Store::GOG)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
-          else if (pApp->store == app_record_s::Store::Xbox)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->xbox.package_name).c_str());
-          else if (pApp->store == app_record_s::Store::Steam)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  _path_cache.specialk_userdata, pApp->id);
+          targetPath = pApp->GetAssetDirectory ( );
 
           if (targetPath != L"")
           {
@@ -7964,17 +5963,8 @@ SKIF_UI_Tab_DrawLibrary (void)
             SetFileAttributes ((targetPath + ext).c_str(),
                     GetFileAttributes ((targetPath + ext).c_str()) & ~FILE_ATTRIBUTE_READONLY);
 
-            ImVec2 dontCare;
-
             // Reload the icon
-            LoadLibraryTexture (LibraryTexture::Icon,
-                                  pApp->id,
-                                    pApp->tex_icon.texture,
-                                      (pApp->store == app_record_s::Store::GOG)
-                                      ? pApp->install_dir + L"\\goggame-" + std::to_wstring(pApp->id) + L".ico"
-                                      : SK_FormatStringW (LR"(%ws\appcache\librarycache\%i\%hs.jpg)", _path_cache.steam_install, pApp->id, pApp->common_config.icon_hash.c_str ()),
-                                          dontCare,
-                                            pApp );
+            _art.ReloadIcon (pApp);
           }
         }
       }
@@ -8025,18 +6015,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         {
           std::wstring targetPath = L"";
 
-          if (pApp->id == SKIF_STEAM_APPID)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
-          else if (pApp->store == app_record_s::Store::Custom)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
-          else if (pApp->store == app_record_s::Store::Epic)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->epic.name_app).c_str());
-          else if (pApp->store == app_record_s::Store::GOG)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
-          else if (pApp->store == app_record_s::Store::Xbox)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->xbox.package_name).c_str());
-          else if (pApp->store == app_record_s::Store::Steam)
-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  _path_cache.specialk_userdata, pApp->id);
+          targetPath = pApp->GetAssetDirectory ( );
 
           if (PathFileExists (targetPath.c_str()))
           {
@@ -8050,20 +6029,11 @@ SKIF_UI_Tab_DrawLibrary (void)
             // If any file was removed
             if (d1 || d2 || d3)
             {
-              ImVec2 dontCare;
-
-              if (pApp->store == app_record_s::Store::Steam)
-                appinfo->getAppInfo ( pApp->id, &_games.GetApps() );
+              // Store-specific (Steam: refresh the icon hash from appinfo.vdf)
+              pApp->PrepareIconSource ( );
 
               // Reload the icon
-              LoadLibraryTexture (LibraryTexture::Icon,
-                                    pApp->id,
-                                      pApp->tex_icon.texture,
-                                        (pApp->store == app_record_s::Store::GOG)
-                                        ? pApp->install_dir + L"\\goggame-" + std::to_wstring(pApp->id) + L".ico"
-                                        : SK_FormatStringW (LR"(%ws\appcache\librarycache\%i\%hs.jpg)", _path_cache.steam_install, pApp->id, pApp->common_config.icon_hash.c_str ()),
-                                            dontCare,
-                                              pApp );
+              _art.ReloadIcon (pApp);
             }
           }
         }
@@ -8176,7 +6146,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       static bool* pbLibraryXbox   = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryXbox;
       static bool* pbLibraryCustom = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryCustom;
 
-      if (library_worker != nullptr)
+      if (_games.IsPopulating ( ))
         SKIF_ImGui_PushDisableState ( );
 
       if (ImGui::MenuItem ("Epic",  spaces, pbLibraryEpic,   (! _registry._LibraryHidden)))
@@ -8222,7 +6192,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         RepopulateGames = true;
       }
 
-      if (library_worker != nullptr)
+      if (_games.IsPopulating ( ))
         SKIF_ImGui_PopDisableState ( );
 
       ImGui::EndMenu ( );
@@ -8265,243 +6235,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
 #pragma region SKIF_LibCoverWorker
 
-  if (uiCoverVisible && loadCover && PopulatedGames && ! (tryingToSaveCover && coverRefreshAppId == pApp->id && coverRefreshStore == (int)pApp->store))
-  { // Load cover first after the window has been shown -- to fix one copy leaking of the cover
-    // 2023-03-24: Is this even needed any longer after fixing the double-loading that was going on?
-    // 2023-03-25: Disabled HiddenFramesCannotSkipItems check to see if it's solved.
-    // 2023-10-05: Disabled waiting for the icon thread as well
-    loadCover = false;
-
-    // Reset variables used to track whether we're still loading a game cover, or if we're missing one
-    gameCoverLoading.store (true);
-    tryingToLoadCover = true;
-    queuePosGameCover = textureLoadQueueLength.load() + 1;
-
-    // We're going to stream the cover in asynchronously on this thread
-    HANDLE hWorkerThread = (HANDLE)
-    _beginthreadex (nullptr, 0x0, [](void*) -> unsigned
-    {
-      SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibCoverWorker");
-
-      CoInitializeEx (nullptr, 0x0);
-
-      PLOG_VERBOSE << "SKIF_LibCoverWorker thread started!";
-
-      PLOG_DEBUG  << "Streaming game cover asynchronously...";
-
-      if (pApp == nullptr)
-      {
-        PLOG_ERROR << "Aborting due to pApp being a nullptr!";
-        return 0;
-      }
-
-      app_record_s* _pApp = pApp;
-
-      int queuePos = getTextureLoadQueuePos();
-      //PLOG_VERBOSE << "queuePos = " << queuePos;
-
-      CComPtr <ID3D11ShaderResourceView> _pTexSRV (pTexSRV.p);
-      std::wstring load_str;
-      ImVec2 _resolution = ImVec2 (0, 0);
-
-      // SKIF
-      if (_pApp->id == SKIF_STEAM_APPID)
-      {
-        // No need to change the string in any way
-      }
-
-      // SKIF Custom
-      else if (_pApp->store == app_record_s::Store::Custom)
-      {
-        load_str = L"cover";
-      }
-
-      // GOG
-      else if (_pApp->store == app_record_s::Store::GOG)
-      {
-        load_str = L"*_glx_vertical_cover.webp"; // Fallback
-
-        if (_registry.bPCGWCoversGOG && ! _pApp->tex_cover.queriedPCGW)
-        {
-          _pApp->tex_cover.queriedPCGW = true;
-          SKIF_GOG_IdentifyAssetPCGW (_pApp->id);
-        }
-      }
-
-      // Epic
-      else if (_pApp->store == app_record_s::Store::Epic)
-      {
-        load_str =
-          SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\cover-original.jpg)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(_pApp->epic.name_app).c_str());
-
-        if ( ! PathFileExistsW (load_str.   c_str ()) )
-        {
-          if (! _pApp->epic.gamebox_tall.empty())
-            SKIF_Util_GetWebResource (SK_UTF8ToWideChar (_pApp->epic.gamebox_tall), load_str);
-          else
-            _epic.IdentifyAssetNew (_pApp->epic);
-        }
-      }
-
-      // Xbox
-      else if (_pApp->store == app_record_s::Store::Xbox)
-      {
-        load_str =
-          SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\cover-original.png)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(_pApp->xbox.package_name).c_str());
-
-        if ( ! PathFileExistsW (load_str.   c_str ()) )
-          SKIF_Xbox_IdentifyAssetNew (_pApp->xbox.package_name, _pApp->xbox.store_id);
-      }
-
-      // Steam
-      else if (_pApp->store == app_record_s::Store::Steam)
-      {
-        std::wstring load_str_2x (
-          SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)", _path_cache.specialk_userdata, _pApp->id)
-        );
-
-        std::error_code ec;
-        // Create any missing directories
-        if (! std::filesystem::exists (            load_str_2x, ec))
-              std::filesystem::create_directories (load_str_2x, ec);
-
-        load_str_2x += L"cover-original.jpg";
-        load_str     = _path_cache.steam_install;
-        load_str    += LR"(/appcache/librarycache/)" +
-          std::to_wstring (_pApp->id)                +
-                                  L"/" + SK_FormatStringW (L"%hs", pApp->common_config.boxart_hash.c_str ());
-
-        if (_registry.bPCGWCoversSteam && ! _pApp->tex_cover.queriedPCGW)
-        {
-          _pApp->tex_cover.queriedPCGW = true;
-          SKIF_Steam_IdentifyAssetPCGW (_pApp->id);
-        }
-
-        // Do not load a high-res copy if low-res covers are being used,
-        //   as in those scenarios we prefer to load the original 300x450 cover
-        if (! _registry._UseLowResCovers || _registry._UseLowResCoversHiDPIBypass)
-        {
-          std::wstring load_str_final = load_str;
-
-          // Get UNIX-style time
-        //time_t ltime;
-        //time (&ltime);
-
-          // Steam typically uses one of two different CDNs:
-          // * CloudFlare : https://cdn.cloudflare.steamstatic.com/steam/apps/2673660/library_600x900_2x.jpg
-          // * Akamai     :        https://steamcdn-a.akamaihd.net/steam/apps/2673660/library_600x900_2x.jpg
-          // Historically the Akamai CDN has been ever so slightly more reliable than the CloudFlare CDN.
-          /*
-          std::wstring url  = L"https://steamcdn-a.akamaihd.net/steam/apps/";
-                       url += std::to_wstring (_pApp->id);
-                       url += L"/library_600x900_2x.jpg";
-                       url += L"?t=";
-                       url += std::to_wstring (ltime); // Add UNIX-style timestamp to ensure we don't get anything cached
-          */
-
-          // If 600x900 exists but 600x900_x2 cannot be found
-          if (  PathFileExistsW (load_str.   c_str ()) &&
-              ! PathFileExistsW (load_str_2x.c_str ()) )
-          {
-            DirectX::TexMetadata meta = { };
-
-            // Load the metadata from 600x900, but only if low bandwidth mode is not enabled
-            if ( ! _registry.bLowBandwidthMode &&
-                  SUCCEEDED (
-                  DirectX::GetMetadataFromWICFile (
-                    load_str.c_str (),
-                      DirectX::WIC_FLAGS_FILTER_POINT,
-                        meta
-                    )
-                  )
-                )
-            {
-              // If the image is in reality 300x450, which indicates a real cover,
-              //   download the real 600x900 cover and store it in _x2
-              if (meta.width  == 300 &&
-                  meta.height == 450)
-              {
-                std::wstring url = SKIF_Steam_GetCoverURI (_pApp->id, true);
-                PLOG_DEBUG << "Downloading cover asset: " << url;
-
-                SKIF_Util_GetWebResource (url, load_str_2x);
-                load_str_final = load_str_2x;
-              }
-            }
-          }
-
-          // If 600x900_x2 exists, check the last modified time stamps
-          else {
-            WIN32_FILE_ATTRIBUTE_DATA faX1{}, faX2{};
-
-            // ... but only if low bandwidth mode is disabled
-            if (! _registry.bLowBandwidthMode &&
-                GetFileAttributesEx (load_str   .c_str (), GetFileExInfoStandard, &faX1) &&
-                GetFileAttributesEx (load_str_2x.c_str (), GetFileExInfoStandard, &faX2))
-            {
-              // If 600x900 has been edited after 600_900_x2,
-              //   download new copy of the 600_900_x2 cover
-              if (CompareFileTime (&faX1.ftLastWriteTime, &faX2.ftLastWriteTime) == 1)
-              {
-                DeleteFile (load_str_2x.c_str ());
-
-                std::wstring url = SKIF_Steam_GetCoverURI (_pApp->id, true);
-                PLOG_DEBUG << "Downloading cover asset: " << url;
-
-                SKIF_Util_GetWebResource (url, load_str_2x);
-              }
-            }
-
-            // If 600x900_x2 exists now, load it
-            if (PathFileExistsW (load_str_2x.c_str ()))
-              load_str_final = load_str_2x;
-          }
-
-          load_str = load_str_final;
-        }
-      }
-
-      LoadLibraryTexture ( LibraryTexture::Cover,
-                              _pApp->id,
-                                _pTexSRV,
-                                  load_str,
-                                    _resolution,
-                                      _pApp);
-
-      PLOG_VERBOSE << "_pTexSRV = " << _pTexSRV;
-
-      int currentQueueLength = textureLoadQueueLength.load();
-
-      if (currentQueueLength == queuePos)
-      {
-        PLOG_DEBUG << "Texture is live! Swapping it in.";
-        vecCoverRes = _resolution;
-        pTexSRV     = _pTexSRV;
-
-        // Indicate that we have stopped loading the cover
-        gameCoverLoading.store (false);
-
-        // Force a refresh when the cover has been swapped in
-        PostMessage (SKIF_Notify_hWnd, WM_SKIF_COVER, 0x0, 0x0);
-      }
-
-      else if (_pTexSRV.p != nullptr)
-      {
-        PLOG_DEBUG << "Texture is late! (" << queuePos << " vs " << currentQueueLength << ")";
-        PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << _pTexSRV.p << " to be released";;
-        SKIF_ResourcesToFree.push(_pTexSRV.p);
-        _pTexSRV.p = nullptr;
-      }
-
-      PLOG_DEBUG << "Finished streaming game cover asynchronously...";
-      PLOG_VERBOSE << "SKIF_LibCoverWorker thread stopped!";
-
-      return 0;
-    }, nullptr, 0x0, nullptr);
-
-    if (hWorkerThread != NULL)
-      CloseHandle (hWorkerThread);
-  }
+  // Streams the cover in on a background thread once the cover area is visible (not while a custom cover is being saved for this game)
+  if (uiCoverVisible && _art.IsCoverRequested ( ) && PopulatedGames && ! _art.IsSavingCover (pApp))
+    _art.StartCoverWorker (pApp);
 
 #pragma endregion
 
@@ -8547,12 +6283,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (SKIF_Custom_AddGame ( ))
   {
     // Unload any current cover on success
-    if (pTexSRV.p != nullptr)
-    {
-      PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << pTexSRV.p << " to be released";;
-      SKIF_ResourcesToFree.push(pTexSRV.p);
-      pTexSRV.p = nullptr;
-    }
+    _art.ReleaseCurrentCover ( );
   }
 
   // Popup: Properties / Manage Game
@@ -8598,13 +6329,13 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         if (cached_hidden_load)
         {
-          cached_hidden          = (pApp->skif.hidden == 1 || (pApp->skif.hidden == -1 && pApp->steam.shared.hidden == 1));
+          cached_hidden          = pApp->IsHidden ( );
           cached_hidden_load     = false;
         }
 
         if (cached_pinned_load)
         {
-          cached_pinned          = (pApp->skif.pinned  > 0 || (pApp->skif.pinned == -1 && pApp->steam.shared.favorite == 1));
+          cached_pinned          = pApp->IsFavorite ( );
           cached_pinned_load     = false;
         }
 
@@ -8614,7 +6345,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (cached_instant_play == -1)
           cached_instant_play    = pApp->skif.instant_play;
 
-        if (pApp->store == app_record_s::Store::Custom)
+        if (pApp->IsUserAdded ( ))
         {
           strncpy (charPath,    pApp->launch_configs[0].getExecutableFullPathUTF8 ( ).c_str(), MAX_PATH);
           strncpy (charWorkDir, pApp->launch_configs[0].getWorkingDirectoryUTF8   ( ).c_str(), MAX_PATH);
@@ -8649,7 +6380,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       float  fInputX          = fModifyGamePopupWidth / 2.0f - vInputSize.x / 2.0f;
 
       // Custom games has their own manage fields
-      if (pApp->store == app_record_s::Store::Custom)
+      if (pApp->IsUserAdded ( ))
       {
         static float fBtnX  = fInputX                                                              // ImGui::InputTextEx (center-aligned)
                             - ImGui::CalcItemSize(vButtonSize, ImGui::CalcTextSize("Browse...").x  // ImGui::Button
@@ -8810,7 +6541,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (charName[0] != '\0')
         changed_name = true;
 
-      if (pApp->store == app_record_s::Store::Custom)
+      if (pApp->IsUserAdded ( ))
       {
         ImGui::SetCursorPosX (fInputX);
 
@@ -8831,9 +6562,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       SKIF_ImGui_Spacing ( );
 
       // Steam / GOG / Xbox supports Instant Play
-      if (pApp->store == app_record_s::Store::Steam ||
-          pApp->store == app_record_s::Store::GOG   ||
-          pApp->store == app_record_s::Store::Xbox)
+      if (pApp->isInstantPlayCompatible ( ))
       {
         ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION); // ImColor::HSV(0.11F, 1.F, 1.F)
         SKIF_ImGui_SetHoverTip ("Warning: This skips the regular platform launch process for the game,\n"
@@ -8855,9 +6584,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         ImGui::TreePush        ("ManageGame_InstantPlay");
         ImGui::RadioButton     (
-          SKIF_Util_FormatStringRaw ("Default (%s)", ((_registry.bInstantPlaySteam && pApp->store == app_record_s::Store::Steam) ||
-                                                      (_registry.bInstantPlayGOG   && pApp->store == app_record_s::Store::GOG)   ||
-                                                      (_registry.bInstantPlayXbox  && pApp->store == app_record_s::Store::Xbox))
+          SKIF_Util_FormatStringRaw ("Default (%s)", (pApp->GetInstantPlayDefault ( ))
                                               ? "Always" : "Never"), &cached_instant_play, 0);
         SKIF_ImGui_SetHoverTip ("The game will use the default behavior configured in the Settings tab.");
         ImGui::SameLine        ( );
@@ -8947,20 +6674,20 @@ SKIF_UI_Tab_DrawLibrary (void)
         pApp->skif.auto_stop    = cached_auto_stop;
         pApp->skif.instant_play = cached_instant_play;
 
-        if (cached_hidden != (pApp->skif.hidden == 1 || (pApp->skif.hidden == -1 && pApp->steam.shared.hidden == 1)))
+        if (cached_hidden != pApp->IsHidden ( ))
         {
           repopulate            = true;
           pApp->skif.hidden     = (int)cached_hidden;
         }
 
-        if (cached_pinned != (pApp->skif.pinned > 0 || (pApp->skif.pinned == -1 && pApp->steam.shared.favorite == 1)))
+        if (cached_pinned != pApp->IsFavorite ( ))
         {
           resort                = true;
           pApp->skif.pinned     = (int)cached_pinned;
         }
 
         // Custom games also updates the registry
-        if (pApp->store == app_record_s::Store::Custom)
+        if (pApp->IsUserAdded ( ))
         {
           std::wstring wszPath    = SK_UTF8ToWideChar (charPath);
           std::wstring wszWorkDir = SK_UTF8ToWideChar (charWorkDir);
@@ -8989,7 +6716,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         }
 
         // Update any locally stored metadata
-        JsonDB_UpdateApp (pApp, true);
+        SKIF_GamingCollection::Get ( ).MetaDB_UpdateApp (pApp, true);
 
         // Clear variables
         changed_name        = false;
@@ -9190,17 +6917,17 @@ SKIF_UI_Tab_DrawLibrary (void)
 
         if (! static_category.rename || (static_category.rename && ! static_category.exists))
         {
-          std::scoped_lock jsonLock (jsonMetaDB_mutex);
+          std::scoped_lock jsonLock (_games.GetMetaDBMutex ( ));
 
-          // Go through the whole jsonMetaDB object (even entries that is not a part of g_apps)
+          // Go through the whole metadata DB (db.json) (even entries that is not a part of g_apps)
           //   and update/clear out the entries where the current category that we are working with is set
-          JsonDB_SetCategoryName (static_category.Name, static_category.newName);
+          SKIF_GamingCollection::Get ( ).MetaDB_SetCategoryName (static_category.Name, static_category.newName);
 
           // Update g_apps
           for (auto& app : _games.GetApps())
           {
-            if (app.second.skif.category == static_category.Name)
-              app.second.skif.category    = static_category.newName;
+            if (app.second->skif.category == static_category.Name)
+              app.second->skif.category    = static_category.newName;
           }
 
           SKIF_GamingCollection::SortApps (&_games.GetApps());
@@ -9693,20 +7420,10 @@ SKIF_UI_Tab_DrawLibrary (void)
     // Images + URLs
     else if (SaveGameCover (pApp, dragDroppedFilePath))
     {
-      // This allows the "..." loading dots to be visible
-      tryingToSaveCover = true;
-      coverRefreshAppId = pApp->id;
-      coverRefreshStore = (int)pApp->store;
+      // Shows the "..." loading dots, and sets up the current cover to be released
+      _art.BeginSavingCover (pApp);
 
-      // This sets up the current one to be released
-      vecCoverRes_old = vecCoverRes;
-      vecCoverRes     = ImVec2 (0, 0);
-      pTexSRV_old.p   = pTexSRV.p;
-      pTexSRV.p       = nullptr;
-      fAlphaPrev      = (_registry.bFadeCovers) ? fAlpha   : 0.0f;
-      fAlpha          = (_registry.bFadeCovers) ?   0.0f   : 1.0f;
-
-      // A child thread will set refreshCover once done
+      // A child thread will post WM_SKIF_REFRESHCOVER once done
     }
 
     else {
@@ -9749,53 +7466,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   if (_registry.bFadeCovers)
   {
-    // Fade in the new cover
-    if (fAlpha < 1.0f && pTexSRV.p != nullptr)
-    {
-      if (current_time - timeLastTick > 15)
-      {
-        fAlpha += 0.05f;
-        incTick = true;
-      }
-
+    // Cover cross-fade, and the Special K logo
+    if (_art.StepFades (isSpecialK, (current_time - timeLastTick > 15), incTick))
       coverFadeActive = true;
-    }
-
-    // Fade out the old one
-    if (fAlphaPrev > 0.0f && pTexSRV_old.p != nullptr)
-    {
-      if (current_time - timeLastTick > 15)
-      {
-        fAlphaPrev -= 0.05f;
-        incTick     = true;
-      }
-
-      coverFadeActive = true;
-    }
-
-    // Fade in the SK logo
-    if (isSpecialK && fAlphaSK < 1.0f)
-    {
-      if (current_time - timeLastTick > 15)
-      {
-        fAlphaSK += 0.05f;
-        incTick   = true;
-      }
-
-      coverFadeActive = true;
-    }
-
-    // Fade out the SK logo
-    if (! isSpecialK && fAlphaSK > 0.0f)
-    {
-      if (current_time - timeLastTick > 15)
-      {
-        fAlphaSK -= 0.05f;
-        incTick   = true;
-      }
-
-      coverFadeActive = true;
-    }
 
     // Fade in the games list (but only on the next frame)
     if (fAlphaList < 1.0f)
@@ -9843,20 +7516,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // END FADE/DIM LOGIC
 
-  if (coverRefresh)
-  {
-    coverRefresh      = false;
-
-    if (lastCover.appid == coverRefreshAppId &&
-        lastCover.store == (app_record_s::Store) coverRefreshStore)
-    {
-      update       = true;
-      lastCover.reset(); // Needed as otherwise SKIF would not reload the cover
-    }
-
-    coverRefreshAppId = 0;
-    coverRefreshStore = 0;
-  }
+  // A custom cover has been saved, or cover settings changed: reload the cover if it is the one shown
+  if (_art.ProcessCoverRefresh ( ))
+    update = true;
 
   // If we have changed mode, we need to reload the cover to ensure the proper resolution of it
   static bool
@@ -9865,7 +7527,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   {   lastLowResState  = (_registry._UseLowResCovers && ! _registry._UseLowResCoversHiDPIBypass);
 
     update    = true;
-    lastCover.reset(); // Needed as otherwise SKIF would not reload the cover
+    _art.ForgetCover ( ); // Needed as otherwise SKIF would not reload the cover
   }
 
   extern uint32_t SelectNewSKIFGame;
@@ -9886,50 +7548,14 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (invalidatedDevice == 1)
   {   invalidatedDevice  = 2;
 
-    if (pTexSRV.p != nullptr)
-    {
-      SKIF_ResourcesToFree.push(pTexSRV.p);
-      pTexSRV.p = nullptr;
-    }
-
-    if (pTexSRV_old.p != nullptr)
-    {
-      SKIF_ResourcesToFree.push(pTexSRV_old.p);
-      pTexSRV_old.p = nullptr;
-    }
-
-    if (pPatTexSRV.p != nullptr)
-    {
-      SKIF_ResourcesToFree.push(pPatTexSRV.p);
-      pPatTexSRV.p = nullptr;
-    }
-
-    if (pSKLogoTexSRV.p != nullptr)
-    {
-      SKIF_ResourcesToFree.push(pSKLogoTexSRV.p);
-      pSKLogoTexSRV.p = nullptr;
-    }
-
-    if (pSKLogoTexSRV_small.p != nullptr)
-    {
-      SKIF_ResourcesToFree.push(pSKLogoTexSRV_small.p);
-      pSKLogoTexSRV_small.p = nullptr;
-    }
-
-    for (auto& app : _games.GetApps())
-    {
-      if (app.second.tex_icon.texture.p != nullptr)
-      {
-        SKIF_ResourcesToFree.push(app.second.tex_icon.texture.p);
-        app.second.tex_icon.texture.p = nullptr;
-      }
-    }
+    _art.ReleaseTextures   ( ); // Covers and game icons
+    _games.ReleaseTextures ( ); // Patreon and Special K logo
 
     // TODO: Make away with RepopulateGames = true from here -- we shouldn't have to reload all games just to refresh textures
     // Trigger a refresh of the list of games, which will reload all icons and the Patreon texture
     RepopulateGames = true;
     // Trigger a refresh of the cover
-    loadCover = true;
+    _art.ReloadCover ( );
   }
 
   if (_registry.bLibrarySteam)
@@ -9945,20 +7571,12 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       for (auto& app : _games.GetApps())
       {
-        if (app.second.store != app_record_s::Store::Steam)
-          continue;
-
-        if (app.second.id == 0)
-          continue;
-
-        if (app.second.id == SKIF_STEAM_APPID)
-          continue;
-
-        if (app.second.processed)
+        // Steam: games whose appinfo.vdf data has not been parsed yet
+        if (! app.second->HasPendingStoreDetails ( ))
           continue;
 
         //PLOG_DEBUG << "[AppInfo Processing] " << "[" << ImGui::GetFrameCount ( ) << "] Processing " << app.second.id << "...";
-        appinfo->getAppInfo ( app.second.id, &_games.GetApps());
+        app.second->LoadStoreDetails ( );
 
         fallbackAvailable = false;
         break;

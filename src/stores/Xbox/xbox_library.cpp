@@ -10,6 +10,10 @@
 
 #include <utility/registry.h>
 #include <comdef.h>
+#include <utility/games.h>
+#include <utility/injection.h>
+#include <utility/skif_imgui.h>
+#include <fonts/fa_621.h>
 
 /*
 Xbox / MS Store games shared registry struture
@@ -110,7 +114,7 @@ static std::string SKIF_Xbox_LoadMSResource (std::string input, std::wstring pac
 }
 
 void
-SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s > > *apps)
+SKIF_Xbox_GetInstalledAppIDs (app_list_t *apps)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
@@ -174,7 +178,7 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                     if (RegGetValueW (hSubKey, szSubKey, L"Root", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
                     {
                       pugi::xml_document manifest, config;
-                      app_record_s record (0); // Dummy value that will be changed further down
+                      app_record_xbox_s record (0); // Dummy value that will be changed further down
 
                       //PLOG_VERBOSE << "Root: " << szData;
 
@@ -464,11 +468,11 @@ SKIF_Xbox_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s
                       record.specialk.profile_dir      = trimmed;
                       record.specialk.profile_dir_utf8 = SK_WideCharToUTF8(record.specialk.profile_dir);
 
-                      std::pair <std::string, app_record_s>
-                        Xbox (record.names.normal, record);
+                      app_entry_t
+                        Xbox (record.names.normal, std::make_unique <app_record_xbox_s> (record));
 
                       //PLOG_VERBOSE << "Added to the list of detected games!";
-                      apps->emplace_back (Xbox);
+                      apps->emplace_back (std::move (Xbox));
                     }
                   }
                 }
@@ -580,3 +584,399 @@ SKIF_Xbox_GetCustomLaunchCommandW (int appId, std::string_view packageFamilyName
           R"(powershell.exe -Command "$XmlManifest = Select-Xml -Path 'appxmanifest.xml' -XPath '/'; $Applications = $XmlManifest.Node.Package.Applications.Application; $AppId = if ($null -eq $Applications.Count) { $Applications.Id } else { $Applications[%d].Id }; Invoke-CommandInDesktopPackage -AppId $AppId -PackageFamilyName '%s' -Command '%s' -PreventBreakaway:$true")",
           appId, packageFamilyName.data(), customCommand.data()));
 }
+
+
+#pragma region Launching
+
+
+// Xbox games are whitelisted by package name pattern as well (instant launches fall back to the executable path)
+void
+app_record_xbox_s::WhitelistForInjection (launch_config_s* config)
+{
+  static SKIF_InjectionContext& _inject = SKIF_InjectionContext::GetInstance ( );
+
+  if (! _inject._TestUserList (SK_WideCharToUTF8 (xbox.directory_app).c_str(), true))
+  {
+    if (_inject.WhitelistPattern (xbox.package_name))
+      _inject.SaveWhitelist ( );
+  }
+
+  app_record_s::WhitelistForInjection (config);
+}
+
+bool
+app_record_xbox_s::PrefersInstantLaunch (bool fromGameMenu, launch_config_s* config) const
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  UNREFERENCED_PARAMETER (config);
+
+  return (! fromGameMenu && UsesInstantPlay (GetInstantPlayDefault ( )));
+}
+
+// Launch Xbox game (through gamelaunchhelper.exe, or Instant Play)
+void
+app_record_xbox_s::Launch (const launch_context_s& ctx)
+{
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
+
+  PLOG_VERBOSE << "Performing an Xbox launch...";
+
+  static SKIF_Util_CreateProcess_s   default_proc = {};
+  SKIF_Util_CreateProcess_s* proc = &default_proc;
+  for (auto& item : SKIF_GamingCollection::Get ( ).GetInstantPlayProcesses ( ))
+  {
+    if (item.id == 0)
+    {
+      proc           = &item;
+      proc->id       = id;
+      proc->store_id = (int)store;
+      break;
+    }
+  }
+
+  auto _instantLaunch = [](app_record_xbox_s* pApp, SKIF_Util_CreateProcess_s* proc, app_record_s::launch_config_s* config) -> bool
+  {
+    // The "install" directory is often at least one level below where we should be...
+    //   generally we want the same path as gamelaunchhelper.exe and appxmanifest.xml
+    std::wstring          working_dir = pApp->install_dir;
+
+    // Current standard convention for Microsoft Store is to put everything in a Content subdir,
+    //   make sure we don't set the base directory as the working dir before launching.
+    if (PathFileExistsW ((working_dir +  LR"(\Content\appxmanifest.xml)").c_str ()))
+                          working_dir += LR"(\Content)";
+
+    SKIF_Util_CreateProcess (
+      L"",
+      SK_FormatStringW (
+        LR"(powershell.exe -Command "$XmlManifest = Select-Xml -Path 'appxmanifest.xml' -XPath '/'; $Applications = $XmlManifest.Node.Package.Applications.Application; $AppId = if ($null -eq $Applications.Count) { $Applications.Id } else { $Applications[%d].Id }; Invoke-CommandInDesktopPackage -AppId $AppId -PackageFamilyName '%ws' -Command '%ws' -PreventBreakaway:$true")",
+        config->id,
+        SK_UTF8ToWideChar (pApp->xbox.package_name_family).c_str(),
+        config->getExecutableFullPath().c_str()
+      ),
+      working_dir.c_str (),
+      nullptr,
+      proc
+    );
+
+    PLOG_VERBOSE << "Using Working Directory for Xbox Instant Play... " << SK_WideCharToUTF8 (working_dir).c_str ();
+
+    return (proc->dwProcessId != 0);
+  };
+
+  static SKIF_Util_CreateProcess_s* launch_proc;
+  static bool                       launched;
+
+  launch_proc = nullptr;
+  launched    = false;
+
+  if (ctx.instant)
+  {
+    launched = _instantLaunch (this, proc, ctx.config);
+  }
+
+  else if (SKIF_Util_CreateProcess (ctx.config->executable_helper, L"", L"", nullptr, proc))
+  {
+    std::scoped_lock app_lock (_games.GetMutex());
+
+    launch_proc = proc;
+
+    // Don't check the running state for at least 3.0 seconds
+    _status.dwTimeDelayChecks = ctx.timeNow + 3000;
+    _status.running           = true;
+
+    launched = true;
+  }
+
+  if (proc->hWorkerThread.load() == INVALID_HANDLE_VALUE)
+  {
+    PLOG_DEBUG << "Process creation failed ?!";
+
+    proc->id              =  0;
+    proc->store_id        = -1;
+  }
+
+  // Fallback to Instant Play if that didn't work.
+  // 2026-09-18: Temporarily disabled as it causes
+  //             duplicate launches for slow-starting apps
+#if 0
+  else if (pApp->_status.running_pid == 0 && ! launchInstant)
+  {
+    static HANDLE
+        highlander = 0; // We don't need more than one of these :)
+    if (highlander == 0)
+        highlander =
+    CreateThread (nullptr, 0x0, [](LPVOID pUser)->DWORD
+    {
+      app_record_s *pApp =
+        (app_record_s *)pUser;
+
+      SKIF_GamingCollection::RefreshRunningApps (&g_apps, true);
+
+      const DWORD dwTimeToCheck   = pApp->_status.dwTimeDelayChecks;
+      const DWORD dwTimeToReCheck = pApp->_status.dwTimeDelayChecks + 7500UL;
+
+      while (SKIF_Util_timeGetTime () < dwTimeToCheck)
+      {
+        SleepEx (250, FALSE);
+
+        SKIF_GamingCollection::RefreshRunningApps (&g_apps, true);
+
+        if (pApp->_status.running_pid != 0)
+          break;
+      }
+
+      while (SKIF_Util_timeGetTime () < dwTimeToReCheck)
+      {
+        SleepEx (250, FALSE);
+      }
+
+      // Fallback to Instant Play if that didn't work.
+      if (pApp->_status.running_pid == 0)
+      {
+        PLOG_ERROR << "Xbox Game Launch Timed Out, attempting Instant Play instead";
+
+        launched =
+          _instantLaunch (pApp, launch_proc);
+
+        if (launched)
+        {
+          while (pApp->_status.running_pid == 0 && SKIF_Util_timeGetTime () < pApp->_status.dwTimeDelayChecks + 10000UL)
+          {
+            SleepEx (500, FALSE);
+
+            SKIF_GamingCollection::RefreshRunningApps (&g_apps, true);
+
+            if (pApp->_status.running_pid != 0)
+            {
+              pApp->launch_failed = true;
+              ModifyGamePopup     = PopupState_Open;
+              break;
+            }
+          }
+        }
+      }
+
+      CloseHandle (std::exchange (highlander, (HANDLE)0));
+
+      return 0;
+    }, pApp, 0x0, nullptr);
+  }
+#endif
+
+  if (launched)
+  {
+    std::wstring iconPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\icon-original.ico)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(xbox.package_name).c_str());
+    SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (names.normal), ctx.config->executable_helper, L"", ctx.config->getExecutableDir(), iconPath, (! ctx.localInjection && ctx.usingSK));
+  }
+}
+
+#pragma endregion
+
+#pragma region Library UI
+
+bool
+app_record_xbox_s::GetInstantPlayDefault (void) const
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  return _registry.bInstantPlayXbox;
+}
+
+std::wstring
+app_record_xbox_s::GetStoreAssetDirectory (void) const
+{
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
+  return SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(xbox.package_name).c_str());
+}
+
+// Xbox shortcuts go through gamelaunchhelper.exe
+std::wstring
+app_record_xbox_s::GetDesktopShortcutArgs (void)
+{
+//std::wstring linkArgs = SK_UTF8ToWideChar (SK_FormatString  (R"(SKIF_URI="%s!%s")", xbox.package_name_family.c_str(), launch_configs[0].Xbox_ApplicationId.c_str()));
+  std::wstring linkArgs = SK_FormatStringW (LR"("%ws" %ws)", launch_configs[0].executable_helper.c_str(), launch_configs[0].getLaunchOptions().c_str());
+
+  SKIF_Util_TrimTrailingSpacesW (linkArgs);
+
+  return linkArgs;
+}
+
+std::vector <std::pair <std::string, std::string>>
+app_record_xbox_s::GetStoreDebugFields (void) const
+{
+  return {
+    { "Package",       xbox.package_name                               },
+    { "Full Name",     xbox.package_name_full                          },
+    { "Family Name",   xbox.package_name_family                        },
+    { "Store ID",      xbox.store_id                                   },
+    { "App Directory", SK_WideCharToUTF8 (xbox.directory_app)          },
+    { "PF Directory",  SK_WideCharToUTF8 (xbox.directory_program_files) }
+  };
+}
+
+#pragma endregion
+
+#pragma region Context Menu
+
+void
+app_record_xbox_s::DrawDeveloperLaunchConfigItems (launch_config_s& launch)
+{
+  ImGui::Separator ( );
+
+  ImGui::PushID       ("#Xbox");
+  ImGui::TextDisabled ("Xbox Data");
+  if (ImGui::MenuItem ("Application ID",          launch.Xbox_ApplicationId.c_str()))
+    SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(launch.Xbox_ApplicationId));
+  ImGui::PopID        ( );
+}
+
+void
+app_record_xbox_s::DrawDeveloperActions (void)
+{
+  if (ui.numSecondaryLaunchConfigs == 0)
+  {
+    if (SKIF_ImGui_MenuItemEx2 ("Open Terminal###GameContextMenu_TerminalMenu", ICON_FA_TERMINAL))
+    {
+      SKIF_Util_CreateProcess (
+        L"",
+        SKIF_Xbox_GetCustomLaunchCommandW (
+          launch_configs.begin()->second.id,
+          xbox.package_name_family,
+          "cmd.exe"
+        ),
+        install_dir
+      );
+    }
+
+    SKIF_ImGui_SetMouseCursorHand ( );
+  }
+
+  else if (ui.numSecondaryLaunchConfigs > 0)
+  {
+    if (SKIF_ImGui_BeginMenuEx2 ("Open Terminal###GameContextMenu_TerminalMenu", ICON_FA_TERMINAL))
+    {
+      for (auto& _launch_cfg : launch_configs)
+      {
+        if (! _launch_cfg.second.valid ||
+              _launch_cfg.second.duplicate_exe_args)
+          continue;
+
+        // Filter out launch configs requiring not owned DLCs
+        if (! _launch_cfg.second.owns_dlc)
+          continue;
+
+        auto& _launch = _launch_cfg.second;
+
+        char        szButtonLabel [256] = { };
+
+        sprintf_s ( szButtonLabel, 255,
+                      "%s###GameContextMenu_TerminalMenu-%d",
+                        _launch.getDescriptionUTF8().empty ()
+                          ? _launch.getExecutableFileNameUTF8().c_str ()
+                          : _launch.getDescriptionUTF8().c_str (),
+                        _launch.id);
+
+        ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
+
+        if (ImGui::Selectable (szButtonLabel))
+        {
+          SKIF_Util_CreateProcess (
+            L"",
+            SKIF_Xbox_GetCustomLaunchCommandW (
+              _launch.id,
+              xbox.package_name_family,
+              "cmd.exe"
+            ),
+            install_dir
+          );
+        }
+
+        ImGui::PopStyleColor  ( );
+
+        SKIF_ImGui_SetMouseCursorHand ( );
+      }
+
+      ImGui::EndMenu ();
+    }
+  }
+
+  SKIF_ImGui_SetHoverTip ("This invokes a terminal in the context of the desktop package.");
+}
+
+#pragma endregion
+
+#pragma region Run State
+
+// Workaround for Xbox games that run under the virtual folder, e.g. H:\Games\Xbox Games\Hades\Content\Hades.exe, by only checking the presence of the process name
+// TODO: Investigate if this is even really needed any longer? // Aemony, 2023-12-31
+app_record_s::ProcessMatch
+app_record_xbox_s::MatchProcess (const wchar_t* wszExeFile, const wchar_t* wszExePath, DWORD dwExePathLen)
+{
+  if (StrStrIW (launch_configs[0].getExecutableFileName ( ).c_str(), wszExeFile))
+    return ProcessMatch::Running;
+
+  return app_record_s::MatchProcess (wszExeFile, wszExePath, dwExePathLen);
+}
+
+#pragma endregion
+
+#pragma region Artwork
+
+std::wstring
+app_record_xbox_s::ResolveArtwork (LibraryTexture type, const std::wstring& source, bool& isCustom, bool& isManaged)
+{
+  UNREFERENCED_PARAMETER (source);
+  UNREFERENCED_PARAMETER (isManaged);
+
+  std::wstring SKIFCustomPath = GetStoreAssetDirectory ( ) + ((type == LibraryTexture::Cover) ? L"cover" : L"icon");
+  std::wstring load_str       = FindCustomArtwork (type);
+
+  isCustom = (! load_str.empty ( ));
+
+  if (! isCustom)
+  {
+    if      (type == LibraryTexture::Cover &&
+             PathFileExistsW ((SKIFCustomPath + L"-original.png").c_str()))
+      load_str =               SKIFCustomPath + L"-original.png";
+    else if (type == LibraryTexture::Cover &&
+             PathFileExistsW ((SKIFCustomPath + L"-fallback.png").c_str()))
+      load_str =               SKIFCustomPath + L"-fallback.png";
+    else if (type == LibraryTexture::Icon &&
+             PathFileExistsW ((SKIFCustomPath + L"-original.png").c_str()))
+      load_str =               SKIFCustomPath + L"-original.png";
+  }
+
+  return load_str;
+}
+
+// Cover worker thread: the downloaded cover, else look it up in the Microsoft Store
+std::wstring
+app_record_xbox_s::PrepareCoverSource (void)
+{
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
+  std::wstring load_str;
+
+  load_str =
+    SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\cover-original.png)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(xbox.package_name).c_str());
+
+  if ( ! PathFileExistsW (load_str.   c_str ()) )
+    SKIF_Xbox_IdentifyAssetNew (xbox.package_name, xbox.store_id);
+
+  return load_str;
+}
+
+// We also store a fallback cover that we must reset
+bool
+app_record_xbox_s::DeleteStoreCoverFiles (const std::wstring& assetDir)
+{
+  bool d1 = DeleteFile ((assetDir + L"cover-fallback.png").c_str()),
+       d2 = DeleteFile ((assetDir + L"cover-fallback.jpg").c_str());
+
+  return (d1 || d2);
+}
+
+#pragma endregion

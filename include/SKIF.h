@@ -172,3 +172,6 @@ extern bool        PopulatedGames;
 extern bool        RepopulateGames;
 extern bool        RefreshHardwareTab;
 extern bool        RefreshSettingsTab;
+
+// Shell (SKIF.cpp)
+void               SKIF_Shell_AddJumpList (std::wstring name, std::wstring path, std::wstring parameters, std::wstring directory, std::wstring icon_path, bool bService);
