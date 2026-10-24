@@ -2285,31 +2285,57 @@ app_record_steam_s::PrepareCoverSource (void)
     SKIF_Steam_IdentifyAssetPCGW (id);
   }
 
+  // Regular files only: with an unknown boxart hash, load_str is just the app's librarycache folder
+  auto _IsFile = [](const std::wstring& path) -> bool
+  {
+    DWORD dwAttributes = GetFileAttributesW (path.c_str ());
+    return (dwAttributes != INVALID_FILE_ATTRIBUTES && ! (dwAttributes & FILE_ATTRIBUTE_DIRECTORY));
+  };
+
+  bool hasClientCover = _IsFile (load_str);    // The Steam client's library cache copy (600x900, sometimes really 300x450)
+  bool hasSKIFCover   = _IsFile (load_str_2x); // SKIF's downloaded 600x900_2x copy
+  bool useLowRes      = (_registry._UseLowResCovers && ! _registry._UseLowResCoversHiDPIBypass);
+
+  // Steam typically uses one of two different CDNs:
+  // * CloudFlare : https://cdn.cloudflare.steamstatic.com/steam/apps/2673660/library_600x900_2x.jpg
+  // * Akamai     :        https://steamcdn-a.akamaihd.net/steam/apps/2673660/library_600x900_2x.jpg
+  // Historically the Akamai CDN has been ever so slightly more reliable than the CloudFlare CDN.
+  // SKIF_Steam_GetCoverURI ( ) looks the asset up through the Steam store API instead.
+
+  // Neither the Steam client nor SKIF has a copy: download one (also with low-res covers, as anything beats a missing cover)
+  if (! hasClientCover && ! hasSKIFCover)
+  {
+    // ... but only if low bandwidth mode is disabled
+    if (! _registry.bLowBandwidthMode)
+    {
+      std::wstring url = SKIF_Steam_GetCoverURI (id, true);
+
+      if (! url.empty ( ))
+      {
+        PLOG_DEBUG << "Downloading cover asset: " << url;
+        SKIF_Util_GetWebResource (url, load_str_2x);
+      }
+
+      else
+        PLOG_WARNING << "Could not find a cover asset for app ID " << id;
+    }
+
+    if (_IsFile (load_str_2x))
+      load_str = load_str_2x;
+  }
+
+  // Only SKIF's copy exists: use it (also with low-res covers)
+  else if (! hasClientCover)
+    load_str = load_str_2x;
+
   // Do not load a high-res copy if low-res covers are being used,
   //   as in those scenarios we prefer to load the original 300x450 cover
-  if (! _registry._UseLowResCovers || _registry._UseLowResCoversHiDPIBypass)
+  else if (! useLowRes)
   {
     std::wstring load_str_final = load_str;
 
-    // Get UNIX-style time
-  //time_t ltime;
-  //time (&ltime);
-
-    // Steam typically uses one of two different CDNs:
-    // * CloudFlare : https://cdn.cloudflare.steamstatic.com/steam/apps/2673660/library_600x900_2x.jpg
-    // * Akamai     :        https://steamcdn-a.akamaihd.net/steam/apps/2673660/library_600x900_2x.jpg
-    // Historically the Akamai CDN has been ever so slightly more reliable than the CloudFlare CDN.
-    /*
-    std::wstring url  = L"https://steamcdn-a.akamaihd.net/steam/apps/";
-                 url += std::to_wstring (id);
-                 url += L"/library_600x900_2x.jpg";
-                 url += L"?t=";
-                 url += std::to_wstring (ltime); // Add UNIX-style timestamp to ensure we don't get anything cached
-    */
-
     // If 600x900 exists but 600x900_x2 cannot be found
-    if (  PathFileExistsW (load_str.   c_str ()) &&
-        ! PathFileExistsW (load_str_2x.c_str ()) )
+    if (! hasSKIFCover)
     {
       DirectX::TexMetadata meta = { };
 
@@ -2333,7 +2359,9 @@ app_record_steam_s::PrepareCoverSource (void)
           PLOG_DEBUG << "Downloading cover asset: " << url;
 
           SKIF_Util_GetWebResource (url, load_str_2x);
-          load_str_final = load_str_2x;
+
+          if (_IsFile (load_str_2x))
+            load_str_final = load_str_2x;
         }
       }
     }
@@ -2361,7 +2389,7 @@ app_record_steam_s::PrepareCoverSource (void)
       }
 
       // If 600x900_x2 exists now, load it
-      if (PathFileExistsW (load_str_2x.c_str ()))
+      if (_IsFile (load_str_2x))
         load_str_final = load_str_2x;
     }
 
