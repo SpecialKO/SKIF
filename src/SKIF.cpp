@@ -31,6 +31,9 @@
 #include <SKIF.h>
 #include <thread>
 #include <atomic>
+#include <chrono>
+#include <cmath>
+#include <sstream>
 
 // Plog ini includes (must be included after SKIF.h)
 #include "plog/Initializers/RollingFileInitializer.h"
@@ -326,6 +329,85 @@ SKIF_D3D11_StartHardwareDevice (void)
 
 // Set once SKIF has started (see SKIF_OnStartupFinished)
 static bool SKIF_StartupFinished = false;
+
+// [Startup] timing (verbose) with sub-ms precision
+static double
+SKIF_StartupMs (std::chrono::steady_clock::time_point from, std::chrono::steady_clock::time_point to = std::chrono::steady_clock::now ( ))
+{
+  return std::round (std::chrono::duration <double, std::milli> (to - from).count ( ) * 10.0) / 10.0;
+}
+
+// [Startup] timing (verbose) of the ImGui platform/renderer callbacks until the first present: creating, sizing and
+//   showing the window, creating its swapchain, and rendering and presenting the first frame. The wrappers stay
+//   installed afterwards, but then only call the backend's function.
+#define SKIF_STARTUP_TIMED_CALLBACK(member, params, args)                                                          \
+  static decltype (ImGuiPlatformIO::member) SKIF_StartupOrig_##member = nullptr;                                  \
+  static void SKIF_StartupTimed_##member params                                                                    \
+  {                                                                                                                \
+    if (SKIF_FirstPresentDone)                                                                                     \
+      return SKIF_StartupOrig_##member args;                                                                       \
+    const auto start = std::chrono::steady_clock::now ( );                                                         \
+    SKIF_StartupOrig_##member args;                                                                                \
+    PLOG_VERBOSE << "[Startup] " #member " ( ) took " << SKIF_StartupMs (start) << " ms ("                         \
+                 << (SKIF_Util_timeGetTime1 ( ) - SKIF_startupTime) << " ms after init).";                         \
+  }
+
+SKIF_STARTUP_TIMED_CALLBACK (Platform_CreateWindow,   (ImGuiViewport* vp),                    (vp))
+SKIF_STARTUP_TIMED_CALLBACK (Platform_ShowWindow,     (ImGuiViewport* vp),                    (vp))
+SKIF_STARTUP_TIMED_CALLBACK (Platform_UpdateWindow,   (ImGuiViewport* vp),                    (vp))
+SKIF_STARTUP_TIMED_CALLBACK (Platform_SetWindowFocus, (ImGuiViewport* vp),                    (vp))
+SKIF_STARTUP_TIMED_CALLBACK (Platform_SetWindowPos,   (ImGuiViewport* vp, ImVec2 v),          (vp, v))
+SKIF_STARTUP_TIMED_CALLBACK (Platform_SetWindowSize,  (ImGuiViewport* vp, ImVec2 v),          (vp, v))
+SKIF_STARTUP_TIMED_CALLBACK (Platform_SetWindowTitle, (ImGuiViewport* vp, const char* title), (vp, title))
+SKIF_STARTUP_TIMED_CALLBACK (Renderer_CreateWindow,   (ImGuiViewport* vp),                    (vp))
+SKIF_STARTUP_TIMED_CALLBACK (Renderer_SetWindowSize,  (ImGuiViewport* vp, ImVec2 v),          (vp, v))
+SKIF_STARTUP_TIMED_CALLBACK (Renderer_SwapBuffers,    (ImGuiViewport* vp, void* arg),         (vp, arg))
+
+// Rendering the first frame: submitting the draws. (Waiting here for the device to finish them was tried in round 10:
+//   on WARP the drawing took ~10-13 ms and the present itself ~3 ms, but the wait's GetData ( ) polling, which flushes
+//   each time, slowed WARP down and added several ms to the startup, so it was removed.)
+static decltype (ImGuiPlatformIO::Renderer_RenderWindow) SKIF_StartupOrig_Renderer_RenderWindow = nullptr;
+static void
+SKIF_StartupTimed_Renderer_RenderWindow (ImGuiViewport* vp, void* arg)
+{
+  if (SKIF_FirstPresentDone)
+    return SKIF_StartupOrig_Renderer_RenderWindow (vp, arg);
+
+  const auto start = std::chrono::steady_clock::now ( );
+
+  SKIF_StartupOrig_Renderer_RenderWindow (vp, arg);
+
+  PLOG_VERBOSE << "[Startup] Renderer_RenderWindow ( ) took " << SKIF_StartupMs (start) << " ms submitting the draws"
+               << ((vp->DrawData != nullptr) ? " (" + std::to_string (vp->DrawData->CmdListsCount) + " draw lists, " + std::to_string (vp->DrawData->TotalVtxCount) + " vertices)" : "")
+               << "; the device draws them during the Present ( ).";
+}
+
+static void
+SKIF_StartupTimedCallbacks_Install (void)
+{
+  ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO ( );
+
+#define SKIF_STARTUP_INSTALL(member)                                \
+  if (platform_io.member != nullptr)                                \
+  {                                                                 \
+    SKIF_StartupOrig_##member = platform_io.member;                 \
+    platform_io.member        = &SKIF_StartupTimed_##member;        \
+  }
+
+  SKIF_STARTUP_INSTALL (Platform_CreateWindow)
+  SKIF_STARTUP_INSTALL (Platform_ShowWindow)
+  SKIF_STARTUP_INSTALL (Platform_UpdateWindow)
+  SKIF_STARTUP_INSTALL (Platform_SetWindowFocus)
+  SKIF_STARTUP_INSTALL (Platform_SetWindowPos)
+  SKIF_STARTUP_INSTALL (Platform_SetWindowSize)
+  SKIF_STARTUP_INSTALL (Platform_SetWindowTitle)
+  SKIF_STARTUP_INSTALL (Renderer_CreateWindow)
+  SKIF_STARTUP_INSTALL (Renderer_SetWindowSize)
+  SKIF_STARTUP_INSTALL (Renderer_RenderWindow)
+  SKIF_STARTUP_INSTALL (Renderer_SwapBuffers)
+
+#undef SKIF_STARTUP_INSTALL
+}
 
 // Work that waits until SKIF has started, so that it doesn't delay the first frame. Called once the first frame has
 //   been presented, or by a fallback timer if nothing is presented (e.g. started without showing the window).
@@ -1769,15 +1851,42 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Get the current time to use as a basis of how long the initialization took
   SKIF_startupTime = SKIF_Util_timeGetTime1();
 
+  // [Startup] timing (verbose) of the steps until ImGui is initialized, logged there. Also how long the process ran
+  //   before init (loading SKIF.exe and its DLLs, the C runtime, MinHook, OleInitialize, the cmd line checks above).
+  double startupProcessMs = -1.0;
+  {
+    FILETIME ftCreation = { }, ftExit = { }, ftKernel = { }, ftUser = { }, ftNow = { };
+
+    if (GetProcessTimes (GetCurrentProcess ( ), &ftCreation, &ftExit, &ftKernel, &ftUser))
+    {
+      SKIF_Util_GetSystemTimePreciseAsFileTime (&ftNow);
+
+      ULARGE_INTEGER creation, now;
+      creation.LowPart = ftCreation.dwLowDateTime; creation.HighPart = ftCreation.dwHighDateTime;
+      now     .LowPart = ftNow     .dwLowDateTime; now     .HighPart = ftNow     .dwHighDateTime;
+
+      startupProcessMs = std::round (static_cast <double> (now.QuadPart - creation.QuadPart) / 1000.0) / 10.0; // 100 ns units
+    }
+  }
+
+  std::vector <std::pair <const char*, std::chrono::steady_clock::time_point>> startupSteps;
+  startupSteps.reserve (16);
+  startupSteps.emplace_back ("init", std::chrono::steady_clock::now ( ));
+  auto _StartupStep = [&](const char* step) { startupSteps.emplace_back (step, std::chrono::steady_clock::now ( )); };
+
   // Process cmd line arguments (1/4) -- this sets up the necessary variables
   SKIF_Startup_ProcessCmdLineArgs (lpCmdLine);
+  _StartupStep ("cmd line (1/4)");
 
   // This constructs these singleton objects
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( ); // Does not rely on anything
+  _StartupStep ("paths");
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( ); // Does not rely on anything
+  _StartupStep ("registry settings");
 
   // Initialize SKIF
   SKIF_Initialize (lpCmdLine); // Relies on _path_cache and sets up logging
+  _StartupStep ("SKIF_Initialize (logging)");
 
   plog::get()->setMaxSeverity((plog::Severity) _registry.iLogging);
 
@@ -1793,6 +1902,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   }).detach ( );
 
   // The preference for E-cores is set once SKIF has started (see SKIF_OnStartupFinished)
+  _StartupStep ("starting the CPU detection");
 
   // This constructs the singleton object
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( ); // Relies on SKIF_Initialize (working dir) + _path_cache (cached paths) + logging
@@ -1803,9 +1913,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_Startup_AddGame               (lpCmdLine);
   SKIF_Startup_LaunchGamePreparation (lpCmdLine);
   SKIF_Startup_LaunchURIPreparation  (lpCmdLine);
+  _StartupStep ("injection context, cmd line (2/4)");
 
   // Force a one-time check so we know whether to start/stop the service...
   _inject._TestServletRunlevel (true);
+  _StartupStep ("service runlevel");
 
   // If there already an instance of SKIF running we do not
   //   need to create a window to service the cmd line args
@@ -1823,9 +1935,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
       SKIF_Startup_RaiseRunningInstance    ( );
   }
 
+  _StartupStep ("cmd line (3/4)");
+
   // Sets the current process app user model ID (used for jump lists and the like)
   if (FAILED (SKIF_Util_SetCurrentProcessExplicitAppUserModelID (SKIF_AppUserModelID)))
     PLOG_ERROR << "Call to SKIF_Util_SetCurrentProcessExplicitAppUserModelID failed!";
+  _StartupStep ("app user model ID");
 
   // Load the SKIF.exe module (used to populate the icon here and there)
   hModSKIF =
@@ -1887,11 +2002,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_Util_RegisterApp ( );
   }
 
+  _StartupStep ("CFA check, global registry values, app registration");
+
   // Generate install GUID if relevant and one does not exist
   SKIF_Util_GenerateInstallGUID ( );
 
   // Set up OS decorations
   SKIF_Util_UpdateAppColorMode ( );
+
+  _StartupStep ("install GUID, app color mode");
 
   PLOG_INFO << "Creating notification icon...";
 
@@ -1933,6 +2052,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   else
     SKIF_NotifyIconDeferred = true;
+
+  _StartupStep ("notification window");
 
   // Initialize the gamepad input child thread
   static SKIF_GamePadInputHelper& _gamepad =
@@ -1978,6 +2099,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if (_Signal.Quit)
         _registry.bMiniMode = true;
     }
+  }
+
+  _StartupStep ("cmd line (4/4), window mode");
+
+  {
+    std::ostringstream steps;
+
+    for (size_t i = 1; i < startupSteps.size ( ); i++)
+      steps << ((i > 1) ? ", " : "") << SKIF_StartupMs (startupSteps [i - 1].second, startupSteps [i].second) << " ms " << startupSteps [i].first;
+
+    PLOG_VERBOSE << "[Startup] The process ran for " << startupProcessMs << " ms before init. Init -> ImGui took "
+                 << SKIF_StartupMs (startupSteps.front ( ).second, startupSteps.back ( ).second) << " ms: " << steps.str ( ) << ".";
   }
 
   // ImGui is initialized before Direct3D, so the font atlas can be built while the D3D device is created (see below)
@@ -2099,6 +2232,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   PLOG_INFO << "Initializing ImGui D3D11 platform...";
   ImGui_ImplDX11_Init  (SKIF_pd3dDevice, SKIF_pd3dDeviceContext);
+
+  // [Startup] timing (verbose) of the window callbacks until the first present
+  SKIF_StartupTimedCallbacks_Install ( );
 
   // Variable related to continue/pause processing behaviour
   bool HiddenFramesContinueProcessing = true;  // We always have hidden frames that require to continue processing on init
