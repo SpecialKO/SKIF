@@ -1253,6 +1253,64 @@ bool SKIF_ImGui_CheckboxHoverPreview (const char* label, bool* v, float preview_
   return pressed;
 }
 
+// Tri-state checkbox with a hover preview of what a click will lead to.
+//  - The box shows 'state' (Mixed uses ImGui's own mixed-value mark).
+//  - While hovered, the current mark is hidden and 'preview' is drawn faded instead
+//    (a faded mixed mark, a faded checkmark, or nothing at all for Unchecked).
+//  - After a click the preview is suppressed until the mouse leaves the box, so the
+//    new state is visible right away instead of being covered by the next preview.
+// Returns true when clicked; the caller decides what the new state is.
+bool SKIF_ImGui_CheckboxTriState (const char* label, SKIF_ImGuiCheckState state, SKIF_ImGuiCheckState preview, float preview_alpha)
+{
+  if (preview == SKIF_ImGuiCheckState_Auto)
+    preview = (state == SKIF_ImGuiCheckState_Unchecked) ? SKIF_ImGuiCheckState_Mixed   :
+              (state == SKIF_ImGuiCheckState_Mixed)     ? SKIF_ImGuiCheckState_Checked :
+                                                          SKIF_ImGuiCheckState_Unchecked;
+
+  const ImGuiID id         = ImGui::GetID (label);
+  const ImGuiID suppressId = ImHashStr ("##TriStatePreviewSuppressed", 0, id);
+  ImGuiStorage* storage    = ImGui::GetStateStorage ( );
+
+  // Hover state from the previous frame, since the item has not been submitted yet
+  const bool hovering      = (ImGui::GetHoveredID ( ) == id);
+  const bool showPreview   = hovering && preview != state && ! storage->GetBool (suppressId, false);
+
+  // While previewing, draw an empty box underneath the faded preview mark
+  bool v                   = (! showPreview && state == SKIF_ImGuiCheckState_Checked);
+  ImGui::PushItemFlag (ImGuiItemFlags_MixedValue, (! showPreview && state == SKIF_ImGuiCheckState_Mixed));
+  const bool pressed       = ImGui::Checkbox (label, &v);
+  ImGui::PopItemFlag  ( );
+
+  if (pressed)
+    storage->SetBool (suppressId, true);
+  else if (! ImGui::IsItemHovered ( ))
+    storage->SetBool (suppressId, false);
+
+  if (showPreview && ! pressed && preview != SKIF_ImGuiCheckState_Unchecked)
+  {
+    const float  square_sz = ImGui::GetFrameHeight ( );
+    const ImVec2 bbMin     = ImGui::GetItemRectMin ( );
+    const ImU32  col       = ImGui::GetColorU32    (ImGuiCol_CheckMark, preview_alpha);
+    ImDrawList*  drawList  = ImGui::GetWindowDrawList ( );
+
+    if (preview == SKIF_ImGuiCheckState_Mixed)
+    {
+      // Mirrors the mixed-value mark ImGui::Checkbox() draws natively
+      const float pad = ImMax (1.0f, IM_TRUNC (square_sz / 3.6f));
+      drawList->AddRectFilled (bbMin + ImVec2 (pad, pad), bbMin + ImVec2 (square_sz - pad, square_sz - pad), col, ImGui::GetStyle ( ).FrameRounding);
+    }
+
+    else
+    {
+      // Mirrors the checkmark ImGui::Checkbox() draws natively
+      const float pad = ImMax (1.0f, IM_TRUNC (square_sz / 6.0f));
+      ImGui::RenderCheckMark (drawList, bbMin + ImVec2 (pad, pad), col, square_sz - pad * 2.0f);
+    }
+  }
+
+  return pressed;
+}
+
 void SKIF_ImGui_ServiceMenu (void)
 {
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );

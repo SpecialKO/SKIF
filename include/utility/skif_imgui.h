@@ -17,6 +17,14 @@ enum SKIF_ImGuiAxis {
      SKIF_ImGuiAxis_X | SKIF_ImGuiAxis_Y
 };
 
+// State for SKIF_ImGui_CheckboxTriState()
+enum SKIF_ImGuiCheckState {
+  SKIF_ImGuiCheckState_Auto = -1, // Preview only: next state in the Unchecked -> Mixed -> Checked -> Unchecked cycle
+  SKIF_ImGuiCheckState_Unchecked,
+  SKIF_ImGuiCheckState_Mixed,
+  SKIF_ImGuiCheckState_Checked
+};
+
 typedef unsigned int DChoice;  // -> enum DChoice_
 
 enum DChoice_
@@ -75,6 +83,7 @@ DChoice  SKIF_ImGui_ConfirmPrompt         (const char* name, bool* p_open, const
 DChoice  SKIF_ImGui_SaveChangesPrompt     (const char* name, bool* p_open, const char* message = nullptr, const char* description = nullptr);
 DChoice  SKIF_ImGui_6432bitnessPrompt     (const char* name, bool* p_open, const char* message = nullptr, const char* description = nullptr);
 bool     SKIF_ImGui_CheckboxHoverPreview  (const char* label, bool* v, float preview_alpha = 0.45f);
+bool     SKIF_ImGui_CheckboxTriState      (const char* label, SKIF_ImGuiCheckState state, SKIF_ImGuiCheckState preview = SKIF_ImGuiCheckState_Auto, float preview_alpha = 0.45f);
 void     SKIF_ImGui_ServiceMenu           (void);
 ImFont*  SKIF_ImGui_LoadFont              (const std::wstring& filename, float point_size, const ImWchar* glyph_range, ImFontConfig* cfg = nullptr);
 void     SKIF_ImGui_InitFonts             (float fontSize, bool extendedCharsets = true);
