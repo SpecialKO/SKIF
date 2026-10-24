@@ -324,12 +324,17 @@ SKIF_D3D11_StartHardwareDevice (void)
   }).detach ( );
 }
 
+// Set once SKIF has started (see SKIF_OnStartupFinished)
+static bool SKIF_StartupFinished = false;
+
 // Work that waits until SKIF has started, so that it doesn't delay the first frame. Called once the first frame has
 //   been presented, or by a fallback timer if nothing is presented (e.g. started without showing the window).
 //  - On hybrid CPUs SKIF prefers the E-cores, but only from now on: until then (D3D device, fonts, the first frames and
 //    the first present, as well as the first library load) it uses all cores, as the user waits on it.
 //  - The notification icon is created (when SKIF starts minimized or to the tray it is created right away instead).
 //  - Started on WARP: the hardware device is created (SKIF_D3D11_StartHardwareDevice).
+//  - The gamepad input thread is spawned (it loads XInput).
+//  - SKIF_StartupFinished is set, after which the library tab registers the drop target (RegisterDragDrop).
 static void
 SKIF_OnStartupFinished (void)
 {
@@ -340,6 +345,8 @@ SKIF_OnStartupFinished (void)
     return;
 
   done = true;
+
+  SKIF_StartupFinished = true; // E.g. the drop target is registered from now on
 
   if (SKIF_Notify_hWnd != NULL)
     KillTimer (SKIF_Notify_hWnd, cIDT_TIMER_STARTUP);
@@ -3039,9 +3046,22 @@ wWinMain ( _In_     HINSTANCE hInstance,
             PLOG_DEBUG << "Switched to tab: Library";
           }
 
-          // Ensure we have set up the drop target on the Library tab
-          if (SKIF_ImGui_hWnd != NULL)
+          // Ensure we have set up the drop target on the Library tab. Not until SKIF has started, as the first
+          //   RegisterDragDrop ( ) takes several ms (it sets up COM marshaling and an OLE window), which would
+          //   otherwise delay the first present.
+          if (SKIF_ImGui_hWnd != NULL && SKIF_StartupFinished)
+          {
+            static bool loggedRegister = false;
+
+            const DWORD dwRegisterStart = (! loggedRegister) ? SKIF_Util_timeGetTime1 ( ) : 0;
+
             _drag_drop.Register (SKIF_ImGui_hWnd);
+
+            if (! loggedRegister)
+            {   loggedRegister = true;
+              PLOG_VERBOSE << "[Startup] Registering the drop target took " << (SKIF_Util_timeGetTime1 ( ) - dwRegisterStart) << " ms.";
+            }
+          }
 
           SKIF_Tab_Selected = UITab_Library;
           if (SKIF_Tab_ChangeTo == UITab_Library)

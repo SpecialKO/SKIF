@@ -567,6 +567,8 @@ struct SKIF_GamingCollection::worker_s {
   HANDLE                  hWorker    = NULL;
   int                     iWorker    = 0;
   bool                    pcores     = false; // First refresh of the session (launch): its threads run on the P-cores
+  std::unique_ptr <skValveDataFile>
+                          appinfo    = nullptr; // Steam's appinfo.vdf, read by the worker (see SwapInPopulatedGames)
 };
 
 bool
@@ -583,8 +585,8 @@ SKIF_GamingCollection::PopulateGames (void)
 
   PLOG_INFO << "Populating library list...";
 
-  // Initialize/reset the Steam appinfo.vdf Reader
-  appinfo = std::make_unique <skValveDataFile>(std::wstring(_path_cache.steam_install) + LR"(\appcache\appinfo.vdf)");
+  // The Steam appinfo.vdf reader is reset by the library worker, which reads the file (all of it, which takes several
+  //   ms), and SwapInPopulatedGames ( ) hands it over. Until then the current reader (if any) stays in use.
 
   m_worker = new worker_s;
   m_worker->steam_user = SKIF_Steam_GetCurrentUser ( );
@@ -697,6 +699,9 @@ SKIF_GamingCollection::SwapInPopulatedGames (void)
   m_tLabels    = std::move (m_worker->labels); // Trie is move-only (it owns its nodes)
 
   m_populatedOnce.store (true);
+
+  // The Steam appinfo.vdf reader the worker created
+  appinfo = std::move (m_worker->appinfo);
 
   // Move cached icons over
   for (auto& app : m_apps)
@@ -1043,6 +1048,18 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
       PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
     }, true);
   }
+
+  // Read Steam's appinfo.vdf (the whole file, several ms) alongside the library refresh. Only the main thread uses the
+  //   reader, once SwapInPopulatedGames ( ) has handed it over, so the library doesn't need it.
+  worker_task_t appinfoTask =
+    _Start (L"SKIF_LibraryWorker_AppInfo", [_worker]
+    {
+      DWORD dwStart = SKIF_Util_timeGetTime1 ( );
+
+      _worker->appinfo = std::make_unique <skValveDataFile> (std::wstring (_path_cache.steam_install) + LR"(\appcache\appinfo.vdf)");
+
+      PLOG_DEBUG << "[Library Processing] Read appinfo.vdf in " << (SKIF_Util_timeGetTime1 ( ) - dwStart) << " ms.";
+    });
 
   DWORD pre   = 0,
         post  = 0,
@@ -1760,6 +1777,10 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
   SKIF_GamingCollection::SortApps (&_data->apps);
 
   //PLOG_INFO << "Apps were sorted!";
+
+  // The appinfo.vdf reader is handed over with the library
+  _Steal (appinfoTask);
+  _Wait  (appinfoTask);
 
   PLOG_INFO << "Finished populating the library list.";
 

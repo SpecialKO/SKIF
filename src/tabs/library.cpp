@@ -1823,7 +1823,10 @@ SKIF_UI_Tab_DrawLibrary (void)
     if (steamRunning)
       steamFallback = false;
 
-    else if (! steamFallback && appinfo != nullptr)
+    // appinfo is created by the library worker and handed over with the library (SwapInPopulatedGames), so on the
+    //   first refresh it's null while the library is still empty. An empty library is still evaluated (as when the
+    //   reader was created by PopulateGames ( )): LoadStoreDetails ( ) isn't called for it.
+    else if (! steamFallback && (appinfo != nullptr || _games.GetApps ( ).empty ( )))
     {
       SK_RunOnce (PLOG_DEBUG << "[AppInfo Processing] Started processing games...");
 
