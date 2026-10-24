@@ -17,6 +17,21 @@
 #include <fonts/fa_621b.h>
 
 static constexpr wchar_t LocalRegPath[] = LR"(Software\Kaldaien\Special K\Local)";
+
+// DLL filenames Special K can be installed as, in the order of most expected (same list as UpdateInjectionStrategy)
+static const struct {
+  const wchar_t* name;
+  const char*    name_utf8;
+  const char*    hint;
+} LocalDLLs [] = {
+  { L"DXGI.dll",     "DXGI.dll",     "Direct3D 10/11/12 games (most common)."                  },
+  { L"D3D11.dll",    "D3D11.dll",    "Direct3D 11 games where DXGI.dll does not work."         },
+  { L"D3D9.dll",     "D3D9.dll",     "Direct3D 9 games."                                       },
+  { L"OpenGL32.dll", "OpenGL32.dll", "OpenGL games."                                           },
+  { L"DInput8.dll",  "DInput8.dll",  "Games that load DirectInput 8; can work as a fallback."  },
+  { L"D3D8.dll",     "D3D8.dll",     "Direct3D 8 games."                                       },
+  { L"DDraw.dll",    "DDraw.dll",    "DirectDraw games."                                       },
+};
 enum class LocalAction {
   None,
   Update,
@@ -60,18 +75,18 @@ SKIF_LocalManager::SetLatestVersion (std::wstring_view v)
   UpdateAnyStates ( );
 }
 
-void
+bool
 SKIF_LocalManager::UpdateInstall (install_s* install, PEBitness iBinaryType)
 {
   if (install == nullptr)
-    return;
+    return false;
 
   // Make sure the pointer actually refers to an element of our vector
   const install_s* first =         installs.data ();
   const install_s* last  = first + installs.size ();
 
   if (install < first || install >= last)
-    return;
+    return false;
 
   if (iBinaryType == PEBitness_Invalid && !install->path.empty())
     iBinaryType = SKIF_Util_GetBinaryType (install->path.c_str());
@@ -79,41 +94,180 @@ SKIF_LocalManager::UpdateInstall (install_s* install, PEBitness iBinaryType)
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
 
-  if (iBinaryType > PEBitness_Invalid)
+  if (iBinaryType <= PEBitness_Invalid)
   {
-    std::wstring folderPath = std::filesystem::path(install->path).parent_path().wstring();
-
-    std::wstring  wsPathToGlobalDLL = SK_FormatStringW (LR"(%ws\%ws)", _path_cache.specialk_install, (iBinaryType == PEBitness_64bit) ? L"SpecialK64.dll" : L"SpecialK32.dll");
-    if (CopyFile (wsPathToGlobalDLL.c_str(), install->path.c_str(), FALSE))
-    {
-      PLOG_INFO << "Successfully updated " << install->path << " from v " << install->version << " to v " << _inject.SKVer32;
-
-      HKEY    hKey = nullptr;
-      LSTATUS res  = RegOpenKeyExW (HKEY_CURRENT_USER, LocalRegPath, 0,
-                                    KEY_SET_VALUE, &hKey);
-
-      if (res == ERROR_SUCCESS)
-      {
-        if (ERROR_SUCCESS != RegSetValueExW (hKey, install->path.c_str(), 0, REG_SZ, (LPBYTE)_inject.SKVer32.data(), (DWORD)_inject.SKVer32.length() * sizeof(wchar_t)))
-          PLOG_ERROR << "Failed adding local install (" << _inject.SKVer32 << ") to registry value: " << install->path;
-
-        RegCloseKey (hKey);
-      }
-
-      install->version      = _inject.SKVer32;
-      install->version_utf8 = SK_WideCharToUTF8 (install->version);
-    }
-
-    else {
-      PLOG_ERROR << "Failed to copy " << wsPathToGlobalDLL << " to " << install->path;
-      PLOG_ERROR << SKIF_Util_GetErrorAsWStr();
-    }
-  }
-
-  else {
     PLOG_ERROR << "Failed to retrieve binary type from " << install->path << " -- returned: " << iBinaryType;
     PLOG_ERROR << SKIF_Util_GetErrorAsWStr();
+    return false;
   }
+
+  std::wstring  wsPathToGlobalDLL = SK_FormatStringW (LR"(%ws\%ws)", _path_cache.specialk_install, (iBinaryType == PEBitness_64bit) ? L"SpecialK64.dll" : L"SpecialK32.dll");
+  if (! CopyFile (wsPathToGlobalDLL.c_str(), install->path.c_str(), FALSE))
+  {
+    PLOG_ERROR << "Failed to copy " << wsPathToGlobalDLL << " to " << install->path;
+    PLOG_ERROR << SKIF_Util_GetErrorAsWStr();
+    return false;
+  }
+
+  PLOG_INFO << "Successfully updated " << install->path << " from v " << install->version << " to v " << _inject.SKVer32;
+
+  // Create the key as well, in case this is the very first local install
+  HKEY    hKey = nullptr;
+  LSTATUS res  = RegCreateKeyExW (HKEY_CURRENT_USER, LocalRegPath, 0, nullptr, REG_OPTION_NON_VOLATILE,
+                                  KEY_SET_VALUE, nullptr, &hKey, nullptr);
+
+  if (res == ERROR_SUCCESS)
+  {
+    if (ERROR_SUCCESS != RegSetValueExW (hKey, install->path.c_str(), 0, REG_SZ, (LPBYTE)_inject.SKVer32.data(), (DWORD)_inject.SKVer32.length() * sizeof(wchar_t)))
+      PLOG_ERROR << "Failed adding local install (" << _inject.SKVer32 << ") to registry value: " << install->path;
+
+    RegCloseKey (hKey);
+  }
+
+  else
+    PLOG_ERROR << "Failed to open the local installs registry key: " << SKIF_Util_GetErrorAsWStr (res);
+
+  install->version      = _inject.SKVer32;
+  install->version_utf8 = SK_WideCharToUTF8 (install->version);
+
+  return true;
+}
+
+// File -> New: let the user pick a game executable. The DLL filename prompt in Process() takes it from there.
+void
+SKIF_LocalManager::BrowseNewInstall (void)
+{
+  LPWSTR  pwszFilePath = nullptr;
+  HRESULT hr           =
+    SKIF_Util_FileExplorer_BrowseForFile (&pwszFilePath, hwnd, { { L"Executables", L"*.exe" } },
+                                          FOS_FILEMUSTEXIST | FOS_PATHMUSTEXIST | FOS_FORCEFILESYSTEM | FOS_NOCHANGEDIR);
+
+  if (SUCCEEDED (hr) && pwszFilePath != nullptr)
+  {
+    new_exe_path      = pwszFilePath;
+    new_exe_path_utf8 = SK_WideCharToUTF8 (new_exe_path);
+    new_bitness       = SKIF_Util_GetBinaryType (new_exe_path.c_str ());
+
+    // Check each candidate once up front, rather than every frame while the prompt is shown
+    const std::filesystem::path folder = std::filesystem::path (new_exe_path).parent_path ();
+
+    new_dll_states.clear ();
+
+    bool         anyInstalled = false,
+                 allUpToDate  = true;
+    std::wstring upToDatePath,
+                 upToDateVer;
+
+    for (const auto& dll : LocalDLLs)
+    {
+      const std::wstring target = (folder / dll.name).wstring ();
+      int                state  = 0;
+
+      if (GetFileAttributesW (target.c_str ()) != INVALID_FILE_ATTRIBUTES)
+      {
+        const std::wstring ver = SKIF_Util_GetSpecialKDLLVersion (target.c_str ());
+
+        if (ver.empty ())
+          state = 2;
+
+        else
+        {
+          state        = 1;
+          anyInstalled = true;
+
+          // Unknown latest version counts as "might be outdated", so the user can still update
+          if (latest_version.empty () || SKIF_Util_CompareVersionStrings (ver, latest_version) < 0)
+            allUpToDate  = false;
+          else
+          {
+            upToDatePath = target;
+            upToDateVer  = ver;
+          }
+        }
+      }
+
+      new_dll_states.push_back (state);
+    }
+
+    if (anyInstalled)
+    {
+      // Special K is already in this folder: only allow updating that copy
+      for (auto& state : new_dll_states)
+        if (state == 0)
+          state = 3;
+
+      // ... and if it is already current, there is nothing to pick at all
+      if (allUpToDate)
+      {
+        new_uptodate_desc = SK_WideCharToUTF8 (upToDatePath) + " (v " +
+                            SK_WideCharToUTF8 (upToDateVer)  + ")";
+        new_exe_path.clear      ( );
+        new_exe_path_utf8.clear ( );
+        new_dll_states.clear    ( );
+      }
+    }
+  }
+
+  if (pwszFilePath != nullptr)
+    CoTaskMemFree (pwszFilePath);
+}
+
+// Installs (or updates) Special K at dll_path and adds it to the list
+void
+SKIF_LocalManager::InstallNew (const std::wstring& dll_path, PEBitness iBinaryType)
+{
+  int idx = -1;
+
+  for (size_t i = 0; i < installs.size (); ++i)
+    if (_wcsicmp (installs [i].path.c_str (), dll_path.c_str ()) == 0)
+      idx = static_cast<int> (i);
+
+  const bool added = (idx == -1);
+
+  if (added)
+  {
+    // push_back() may reallocate, so no install_s pointer may be held across this
+    want_install = nullptr;
+
+    install_s install;
+    install.path          = dll_path;
+    install.path_utf8     = SK_WideCharToUTF8 (dll_path);
+    install.exists_parent = true;
+
+    installs.push_back (std::move (install));
+    idx = static_cast<int> (installs.size ()) - 1;
+  }
+
+  install_s& install = installs [idx];
+
+  if (UpdateInstall (&install, iBinaryType))
+  {
+    install.exists        = true;
+    install.exists_parent = true;
+    install.outdated      = (! latest_version.empty ()) &&
+      SKIF_Util_CompareVersionStrings (install.version, latest_version) < 0;
+    needs_sort            = true;
+
+    ImGui::InsertNotification ({
+      ImGuiToastType::Success, 5000,
+      "Special K Installed",
+      "%s", install.path_utf8.c_str ()
+    });
+  }
+
+  else
+  {
+    ImGui::InsertNotification ({
+      ImGuiToastType::Error, 5000,
+      "Install Failed",
+      "Could not install Special K as %s", install.path_utf8.c_str ()
+    });
+
+    if (added)
+      installs.erase (installs.begin () + idx);
+  }
+
+  UpdateAnyStates ( );
 }
 
 void
@@ -436,6 +590,9 @@ SKIF_LocalManager::Show (void)
     this->label      = "Local Installs###LocalManager-" + std::to_string (id++);
     this->hwnd       = nullptr;
     this->showWindow = true;
+
+    for (auto& i : installs)
+      i.selected = false;
   }
 }
 
@@ -506,7 +663,7 @@ SKIF_LocalManager::Process (void)
           (allOutdatedSelected || outdated == 0) ? SKIF_ImGuiCheckState_Checked   :
                                                    SKIF_ImGuiCheckState_Mixed;
 
-        ImGui::BeginDisabled  (installs.empty ());
+        SKIF_ImGui_BeginDisabled (installs.empty ());
         ImGui::PushStyleVar   (ImGuiStyleVar_FramePadding, ImVec2 (0.0f, 0.0f)); // Shrinks the checkbox
         ImGui::PushStyleColor (ImGuiCol_FrameBg,           IM_COL32_DISABLE);
         ImGui::PushStyleColor (ImGuiCol_FrameBgHovered,    IM_COL32_DISABLE);
@@ -529,7 +686,7 @@ SKIF_LocalManager::Process (void)
         ImGui::PopStyleColor ( ); // ImGuiCol_FrameBgHovered
         ImGui::PopStyleColor ( ); // ImGuiCol_FrameBg
         ImGui::PopStyleVar   ( ); // ImGuiStyleVar_FramePadding
-        ImGui::EndDisabled   ( );
+        SKIF_ImGui_EndDisabled (installs.empty());
       }
 
       else
@@ -633,15 +790,32 @@ SKIF_LocalManager::Process (void)
         ImGui::IsKeyPressed (ImGuiKey_A, false))
       CycleSelectAll (false);
 
+    // A prompt of ours is waiting for an answer
+    const bool anyPrompt = (want_install != nullptr || want_new ||
+                            ! new_exe_path.empty () || ! new_dll_path.empty () ||
+                            ! new_uptodate_desc.empty () ||
+                            action != LocalAction::None);
+
+    if (focused && ! io.WantTextInput && ! anyPrompt && ! io.KeyShift && ! io.KeyAlt)
+    {
+      // Ctrl+N: install Special K next to a new executable
+      if (io.KeyCtrl && ImGui::IsKeyPressed (ImGuiKey_N, false))
+        want_new = true;
+
+      // Escape: close the window, unless that Escape just closed a menu or popup
+      else if (! io.KeyCtrl && ! popup_open_prev && ImGui::IsKeyPressed (ImGuiKey_Escape, false))
+        showWindow = false;
+    }
+
     if (ImGui::BeginMenuBar ( ))
     {
       if (ImGui::BeginMenu ("File"))
       {
-        if (ImGui::MenuItem ("New", "Ctrl+N"))
-          void;
+        if (ImGui::MenuItem ("New", "Ctrl+N", false, ! anyPrompt))
+          want_new = true;
 
         if (ImGui::MenuItem ("Close", "Escape"))
-          void;
+          showWindow = false;
 
         ImGui::EndMenu();
       }
@@ -922,6 +1096,9 @@ SKIF_LocalManager::Process (void)
       ImGui::EndPopup ();
     }
 
+    // Checked by the Escape hotkey next frame
+    popup_open_prev = ImGui::IsPopupOpen (0u, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel);
+
     if (SKIF_ImGui_TitleBarMinimizeButton ( ))
       ShowWindowAsync ((HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, SW_MINIMIZE);
 
@@ -943,6 +1120,119 @@ SKIF_LocalManager::Process (void)
         break;
       case DChoice_Cancel:
         want_install = nullptr;
+        break;
+      }
+    }
+
+    // File -> New, step 1: pick the executable (blocks until the file dialog closes)
+    else if (want_new)
+    {
+      want_new = false;
+      BrowseNewInstall ( );
+    }
+
+    // File -> New: Special K in the picked folder is already up to date
+    else if (! new_uptodate_desc.empty ())
+    {
+      bool dontCare = true;
+      if (DChoice_None != SKIF_ImGui_InfoPrompt ("Already Up-to-Date###LocalNewUpToDate", &dontCare,
+                                                 "Special K is already installed in this folder and is fully up-to-date.",
+                                                 new_uptodate_desc.c_str ()))
+        new_uptodate_desc.clear ( );
+    }
+
+    // File -> New, step 2: pick the DLL filename
+    else if (! new_exe_path.empty ())
+    {
+      int  picked = -1;
+      bool cancel = false;
+
+      if (SKIF_ImGui_BeginPopup ("Install Special K###LocalNewInstall"))
+      {
+        ImGui::Text         ("Which DLL filename should Special K be installed as?");
+        ImGui::TextDisabled ("%s", new_exe_path_utf8.c_str ());
+
+        if (new_bitness == PEBitness_64bit)
+          ImGui::TextDisabled ("64-bit executable");
+        else if (new_bitness == PEBitness_32bit)
+          ImGui::TextDisabled ("32-bit executable");
+        else
+          ImGui::TextDisabled ("Could not detect the bitness of the executable; you will be asked next.");
+
+        if (std::find (new_dll_states.begin (), new_dll_states.end (), 1) != new_dll_states.end ())
+          ImGui::TextDisabled ("Special K is already installed in this folder; only that file can be updated.");
+
+        ImGui::Separator ( );
+
+        const ImVec2 btn = ImVec2 (110.0f, 0.0f) * SKIF_ImGui_GlobalDPIScale;
+
+        for (int i = 0; i < static_cast<int> (IM_ARRAYSIZE (LocalDLLs)); ++i)
+        {
+          const int state = (i < static_cast<int> (new_dll_states.size ())) ? new_dll_states [i] : 0;
+
+          if (i % 4 != 0)
+            ImGui::SameLine ( );
+
+          // Never overwrite a file that is not Special K (e.g. another mod using the same name),
+          //   and don't add a second copy when Special K is already installed under another name
+          SKIF_ImGui_BeginDisabled (state == 2 || state == 3);
+          if (ImGui::Button (LocalDLLs [i].name_utf8, btn))
+            picked = i;
+          SKIF_ImGui_EndDisabled   (state == 2 || state == 3);
+
+          if (ImGui::IsItemHovered (ImGuiHoveredFlags_AllowWhenDisabled))
+            ImGui::SetTooltip ("%s%s", LocalDLLs [i].hint,
+                               (state == 1) ? "\n\nSpecial K is already installed as this file and will be updated." :
+                               (state == 2) ? "\n\nA different file with this name already exists in the folder."    :
+                               (state == 3) ? "\n\nSpecial K is already installed in this folder under another name." : "");
+        }
+
+        ImGui::Separator ( );
+
+        cancel = ImGui::Button ("Cancel", btn) ||
+                 (ImGui::IsWindowFocused ( ) && ImGui::IsKeyPressed (ImGuiKey_Escape, false));
+      }
+
+      SKIF_ImGui_EndPopup ( );
+
+      if (picked != -1)
+      {
+        const std::wstring target =
+          (std::filesystem::path (new_exe_path).parent_path () / LocalDLLs [picked].name).wstring ();
+
+        if (new_bitness > PEBitness_Invalid)
+          InstallNew (target, new_bitness);
+        else
+          new_dll_path = target; // Ask for the bitness first (step 3)
+
+        cancel = true; // Clears the step 2 state below
+      }
+
+      if (cancel)
+      {
+        new_exe_path.clear      ( );
+        new_exe_path_utf8.clear ( );
+        new_dll_states.clear    ( );
+      }
+    }
+
+    // File -> New, step 3: the bitness of the executable could not be detected
+    else if (! new_dll_path.empty ())
+    {
+      bool dontCare = true;
+      switch (SKIF_ImGui_6432bitnessPrompt ("Select the bitness to install###LocalNewBitness", &dontCare,
+                                            "Could not detect the bitness of the executable.\nShould 64-bit or 32-bit be used?"))
+      {
+      case DChoice_32bit:
+        InstallNew (new_dll_path, PEBitness_32bit);
+        new_dll_path.clear ( );
+        break;
+      case DChoice_64bit:
+        InstallNew (new_dll_path, PEBitness_64bit);
+        new_dll_path.clear ( );
+        break;
+      case DChoice_Cancel:
+        new_dll_path.clear ( );
         break;
       }
     }

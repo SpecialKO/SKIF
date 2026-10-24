@@ -1154,6 +1154,8 @@ SKIF_ImGui_DialogPrompt (const char* name, bool* p_open, const char* message, co
         // CPU bitness
         { DChoice_32bit,    "32-bit"     },
         { DChoice_64bit,    "64-bit"     },
+        // Info
+        { DChoice_OK,       "OK"         },
     };
 
     for (auto& choice : choices)
@@ -1213,6 +1215,20 @@ SKIF_ImGui_SaveChangesPrompt (const char* name, bool* p_open, const char* messag
     (message     == nullptr ? default_msg  : message    ),
     (description == nullptr ? default_desc : description),
     { DChoice_Save, DChoice_DontSave, DChoice_Cancel }
+  );
+}
+
+// Call every frame while the prompt is active.
+// Returns Choice::None until the user acknowledges it.
+DChoice
+SKIF_ImGui_InfoPrompt (const char* name, bool* p_open, const char* message, const char* description)
+{
+  return SKIF_ImGui_DialogPrompt (
+    name,
+    p_open,
+    message,
+    description,
+    { DChoice_OK }
   );
 }
 
@@ -1786,8 +1802,23 @@ SKIF_ImGui_SetStyle (ImGuiStyle* dst)
 }
 
 void
-SKIF_ImGui_PushDisableState (void)
+SKIF_ImGui_BeginDisabled (bool disabled)
 {
+  SKIF_ImGui_PushDisableState (disabled);
+}
+
+void
+SKIF_ImGui_EndDisabled (bool disabled)
+{
+  SKIF_ImGui_PopDisableState (disabled);
+}
+
+void
+SKIF_ImGui_PushDisableState (bool disabled)
+{
+  if (! disabled)
+    return;
+
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
 
   // Push the states in a specific order
@@ -1800,26 +1831,15 @@ SKIF_ImGui_PushDisableState (void)
 }
 
 void
-SKIF_ImGui_PushDisableState (bool disabled)
+SKIF_ImGui_PopDisableState (bool disabled)
 {
-  if (disabled)
-    SKIF_ImGui_PushDisableState ( );
-}
+  if (! disabled)
+    return;
 
-void
-SKIF_ImGui_PopDisableState (void)
-{
   // Pop the states in the reverse order that we pushed them in
   ImGui::PopStyleColor (4); // ImGuiCol_FrameBg, ImGuiCol_CheckMark, ImGuiCol_SliderGrab, ImGuiCol_Text
   //ImGui::PopStyleVar ( ); // ImGuiStyleVar_Alpha [UNUSED]
   ImGui::PopItemFlag   ( ); // ImGuiItemFlags_Disabled
-}
-
-void
-SKIF_ImGui_PopDisableState (bool disabled)
-{
-  if (disabled)
-    SKIF_ImGui_PopDisableState ( );
 }
 
 void

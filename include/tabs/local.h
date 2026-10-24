@@ -49,7 +49,9 @@ private:
               SKIF_LocalManager (SKIF_LocalManager&&)      = delete;
          void UpdateAnyStates   (void);
          void SetLatestVersion  (std::wstring_view v);
-         void UpdateInstall     (install_s* install, PEBitness iBinaryType = PEBitness_Invalid);
+         bool UpdateInstall     (install_s* install, PEBitness iBinaryType = PEBitness_Invalid);
+         void InstallNew        (const std::wstring& dll_path, PEBitness iBinaryType);
+         void BrowseNewInstall  (void);
          void DeleteInstall     (install_s* install);
          void RefreshInstalls   (void);
          void SortInstalls      (const ImGuiTableSortSpecs* specs);
@@ -66,8 +68,16 @@ private:
   bool                   anySelected         =   false;
   bool                   anyOutdated         =   false;
   bool                   anyOutdatedSelected =   false;
+  bool                   want_new            =   false; // File -> New / Ctrl+N: open the file dialog
+  bool                   popup_open_prev     =   false; // An ImGui popup was open last frame (keeps Escape from also closing the window)
   bool                   focused             =   false; // Window (or its children) focused this frame
   int                    hovered_row         =      -1; // Row under the mouse last frame (Shift range preview)
+  PEBitness              new_bitness         = PEBitness_Invalid; // Bitness of new_exe_path
+  std::wstring           new_exe_path;                  // Executable picked via File -> New, awaiting a DLL filename
+  std:: string           new_exe_path_utf8;
+  std::wstring           new_dll_path;                  // Target DLL path, awaiting a bitness choice
+  std::vector<int>       new_dll_states;                // Per LocalDLLs entry: 0 = free, 1 = existing Special K DLL, 2 = other file in the way, 3 = Special K installed under another name
+  std:: string           new_uptodate_desc;             // Non-empty: Special K in the picked folder is already up to date, show the info prompt
   std::wstring           anchor_path;                   // Last row clicked without Shift; start of Shift ranges
   std:: string           label;
   std::wstring           latest_version;

@@ -41,6 +41,8 @@ enum DChoice_
   // CPU bitness
   DChoice_32bit    = 1 << 5,
   DChoice_64bit    = 1 << 6,
+  // Info
+  DChoice_OK       = 1 << 7,
 };
 
 float    SKIF_ImGui_LinearTosRGB          (float col_lin);
@@ -81,6 +83,7 @@ void     SKIF_ImGui_EndPopup              (void);
 DChoice  SKIF_ImGui_DialogPrompt          (const char* name, bool* p_open, const char* message = nullptr, const char* description = nullptr, std::vector<DChoice> choices = { DChoice_None });
 DChoice  SKIF_ImGui_ConfirmPrompt         (const char* name, bool* p_open, const char* message = nullptr, const char* description = nullptr);
 DChoice  SKIF_ImGui_SaveChangesPrompt     (const char* name, bool* p_open, const char* message = nullptr, const char* description = nullptr);
+DChoice  SKIF_ImGui_InfoPrompt            (const char* name, bool* p_open, const char* message = nullptr, const char* description = nullptr);
 DChoice  SKIF_ImGui_6432bitnessPrompt     (const char* name, bool* p_open, const char* message = nullptr, const char* description = nullptr);
 bool     SKIF_ImGui_CheckboxHoverPreview  (const char* label, bool* v, float preview_alpha = 0.45f);
 bool     SKIF_ImGui_CheckboxTriState      (const char* label, SKIF_ImGuiCheckState state, SKIF_ImGuiCheckState preview = SKIF_ImGuiCheckState_Auto, float preview_alpha = 0.45f);
@@ -88,10 +91,10 @@ void     SKIF_ImGui_ServiceMenu           (void);
 ImFont*  SKIF_ImGui_LoadFont              (const std::wstring& filename, float point_size, const ImWchar* glyph_range, ImFontConfig* cfg = nullptr);
 void     SKIF_ImGui_InitFonts             (float fontSize, bool extendedCharsets = true);
 void     SKIF_ImGui_SetStyle              (ImGuiStyle* dst = nullptr);
-void     SKIF_ImGui_PushDisableState      (void);
-void     SKIF_ImGui_PushDisableState      (bool disabled);
-void     SKIF_ImGui_PopDisableState       (void);
-void     SKIF_ImGui_PopDisableState       (bool disabled);
+void     SKIF_ImGui_BeginDisabled         (bool disabled = true);
+void     SKIF_ImGui_EndDisabled           (bool disabled = true);
+void     SKIF_ImGui_PushDisableState      (bool disabled = true);
+void     SKIF_ImGui_PopDisableState       (bool disabled = true);
 void     SKIF_ImGui_PushDisabledSpacing   (void);
 void     SKIF_ImGui_PopDisabledSpacing    (void);
 void     SKIF_ImGui_DisallowMouseDragMove (void); // Prevents SKIF from enabling drag move using the mouse
