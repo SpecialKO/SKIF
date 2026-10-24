@@ -34,6 +34,10 @@ public:
   void StartCoverWorker       (app_record_s* pApp);  // Streams the requested cover in on a background thread (SKIF_LibCoverWorker)
   bool OnCoverWorkerFinished  (void);                // WM_SKIF_COVER; returns true once no cover is loading any longer
 
+  // Workers use the game record they were started for, so records must not be freed while this is true
+  //   (the library swap-in, SKIF_GamingCollection::SwapInPopulatedGames ( ), waits for it)
+  bool IsUsingRecords         (void) const;          // A cover worker is running, or an icon worker thread has not exited yet
+
   // Cover state, for drawing
   bool IsCoverLoading         (void) const { return m_tryingToLoadCover; }
   bool IsCoverMissing         (void) const;          // The latest cover load finished without a texture
@@ -97,6 +101,7 @@ private:
   std::atomic<bool>         m_coverLoading      = false;
   std::atomic<int>          m_queueLength       { 1 };
   int                       m_queuePosCover     = 0;
+  std::atomic<int>          m_coverWorkers      { 0 }; // Cover worker threads still running (stale ones included)
 
   // Custom cover being saved, and the refresh it triggers
   bool                      m_savingCover       = false;

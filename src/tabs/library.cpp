@@ -690,7 +690,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (! PopulatedGames && ! _games.IsPopulating ( ))
     _games.PopulateGames ( );
 
-  else if (! PopulatedGames && _games.IsPopulateFinished ( ))
+  // Swapping in frees the old records, so it waits until no cover / icon worker still uses one
+  else if (! PopulatedGames && _games.IsPopulateFinished ( ) && ! _art.IsUsingRecords ( ))
   {
     _art.OnIconWorkersReaped (_games.SwapInPopulatedGames ( ));
 

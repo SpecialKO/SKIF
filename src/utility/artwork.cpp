@@ -108,6 +108,9 @@ SKIF_LibraryArtwork::StartCoverWorker (app_record_s* pApp)
   m_tryingToLoadCover = true;
   m_queuePosCover     = m_queueLength.load() + 1;
 
+  // Counted until the thread no longer uses the record (IsUsingRecords)
+  m_coverWorkers++;
+
   // We're going to stream the cover in asynchronously on this thread
   //   The record is passed in, rather than read from the selection once the thread runs
   HANDLE hWorkerThread = (HANDLE)
@@ -121,15 +124,15 @@ SKIF_LibraryArtwork::StartCoverWorker (app_record_s* pApp)
 
     PLOG_DEBUG  << "Streaming game cover asynchronously...";
 
-    app_record_s* _pApp = static_cast <app_record_s*> (var);
+    app_record_s*        _pApp = static_cast <app_record_s*> (var);
+    SKIF_LibraryArtwork& self  = SKIF_LibraryArtwork::Get ( );
 
     if (_pApp == nullptr)
     {
       PLOG_ERROR << "Aborting due to pApp being a nullptr!";
+      self.m_coverWorkers--;
       return 0;
     }
-
-    SKIF_LibraryArtwork& self = SKIF_LibraryArtwork::Get ( );
 
     int queuePos = self.NextQueuePos ( );
     //PLOG_VERBOSE << "queuePos = " << queuePos;
@@ -160,9 +163,6 @@ SKIF_LibraryArtwork::StartCoverWorker (app_record_s* pApp)
 
       // Indicate that we have stopped loading the cover
       self.m_coverLoading.store (false);
-
-      // Force a refresh when the cover has been swapped in
-      PostMessage (SKIF_Notify_hWnd, WM_SKIF_COVER, 0x0, 0x0);
     }
 
     else if (_pTexSRV.p != nullptr)
@@ -176,11 +176,44 @@ SKIF_LibraryArtwork::StartCoverWorker (app_record_s* pApp)
     PLOG_DEBUG << "Finished streaming game cover asynchronously...";
     PLOG_VERBOSE << "SKIF_LibCoverWorker thread stopped!";
 
+    // The record is no longer used from here on (a deferred library swap-in may now free it)
+    self.m_coverWorkers--;
+
+    // Force a refresh when the cover has been swapped in, and wake a library swap-in waiting on this worker
+    PostMessage (SKIF_Notify_hWnd, WM_SKIF_COVER, 0x0, 0x0);
+
     return 0;
   }, pApp, 0x0, nullptr);
 
   if (hWorkerThread != NULL)
     CloseHandle (hWorkerThread);
+
+  else // Something went wrong during thread creation: nothing is loading
+  {
+    PLOG_ERROR << "Failed to start the cover worker thread!";
+    m_coverWorkers--;
+    m_coverLoading.store (false);
+    m_tryingToLoadCover = false;
+  }
+}
+
+// Records must outlive the workers using them: the library swap-in is deferred while this is true
+bool
+SKIF_LibraryArtwork::IsUsingRecords (void) const
+{
+  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
+
+  if (m_coverWorkers.load ( ) > 0)
+    return true;
+
+  // Icon workers are reaped by the games list, but the thread itself may already be done
+  for (auto& app : _games.GetApps ( ))
+  {
+    if (app.second->tex_icon.iWorker == 1 && WaitForSingleObject (app.second->tex_icon.hWorker, 0) != WAIT_OBJECT_0)
+      return true;
+  }
+
+  return false;
 }
 
 bool
