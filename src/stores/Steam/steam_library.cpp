@@ -31,6 +31,8 @@
 #include <fstream>
 #include <filesystem>
 #include <regex>
+#include <mutex>
+#include <unordered_map>
 #include <utility/injection.h>
 #include <nlohmann/json.hpp>
 
@@ -172,8 +174,9 @@ SK_GetManifestContentsForAppID (app_record_steam_s *app)
 {
   //PLOG_VERBOSE << "Steam AppID: " << appid;
 
-  static AppId_t     manifest_id = 0;
-  static std::string manifest;
+  // Per thread: the library worker reads manifests on several threads at once
+  static thread_local AppId_t     manifest_id = 0;
+  static thread_local std::string manifest;
 
   if (! app->steam.manifest_data.empty())
     return app->steam.manifest_data;
@@ -181,55 +184,72 @@ SK_GetManifestContentsForAppID (app_record_steam_s *app)
   if (manifest_id == app->id && (! manifest.empty ()))
     return manifest;
 
-  steam_library_t* steam_lib_paths = nullptr;
-  int              steam_libs      = SK_Steam_GetLibraries (&steam_lib_paths);
+  bool found = false;
+  wchar_t    wszManifestFullPath [MAX_PATH + 2] = { };
 
-  if (! steam_lib_paths)
-    return "";
-
-  if (steam_libs != 0)
+  // Known from the library scan (SKIF_Steam_GetInstalledAppIDs): open it directly
+  if (! app->steam.manifest_path.empty () && app->steam.manifest_path != L"<InvalidPath>")
   {
-    bool found = false;
-    wchar_t    wszManifestFullPath [MAX_PATH + 2] = { };
+    wcsncpy_s (wszManifestFullPath,  MAX_PATH,
+       app->steam.manifest_path.c_str(), _TRUNCATE
+    );
 
-    EnterCriticalSection (&VFSManifestSection);
+    found = PathFileExistsW (wszManifestFullPath);
+  }
 
-    for (int i = 0; i < steam_libs; i++)
+  // Otherwise look for it in the Steam libraries
+  if (! found)
+  {
+    steam_library_t* steam_lib_paths = nullptr;
+    int              steam_libs      = SK_Steam_GetLibraries (&steam_lib_paths);
+
+    if (! steam_lib_paths)
+      return "";
+
+    if (steam_libs != 0)
     {
-      auto& library =
-        steam_libraries[i];
+      EnterCriticalSection (&VFSManifestSection);
 
-      SK_VirtualFS::vfsNode* pFolder =
-        library.manifest_vfs;
-
-      wchar_t    wszManifest [MAX_PATH + 2] = { };
-      swprintf ( wszManifest, MAX_PATH,
-                   LR"(appmanifest_%u.acf)",
-                            app->id );
-
-      // This will really only iterate once, over [0]...
-      for (const auto& folder : pFolder->children)
+      for (int i = 0; i < steam_libs; i++)
       {
-        if (folder.second->containsFile (wszManifest))
+        auto& library =
+          steam_libraries[i];
+
+        SK_VirtualFS::vfsNode* pFolder =
+          library.manifest_vfs;
+
+        wchar_t    wszManifest [MAX_PATH + 2] = { };
+        swprintf ( wszManifest, MAX_PATH,
+                     LR"(appmanifest_%u.acf)",
+                              app->id );
+
+        // This will really only iterate once, over [0]...
+        for (const auto& folder : pFolder->children)
         {
-          auto* file =
-            folder.second->children[wszManifest];
+          if (folder.second->containsFile (wszManifest))
+          {
+            auto* file =
+              folder.second->children[wszManifest];
 
-          wcsncpy_s (wszManifestFullPath,  MAX_PATH,
-             file->getFullPath().c_str(), _TRUNCATE
-          );
+            wcsncpy_s (wszManifestFullPath,  MAX_PATH,
+               file->getFullPath().c_str(), _TRUNCATE
+            );
 
-          found = true;
-          break;
+            found = true;
+            break;
+          }
         }
+
+        if (found)
+          break;
       }
 
-      if (found)
-        break;
+      LeaveCriticalSection (&VFSManifestSection);
     }
+  }
 
-    LeaveCriticalSection (&VFSManifestSection);
-
+  if (found)
+  {
     // When opening an existing file, the CreateFile function performs the following actions:
     // [...] and ignores any file attributes (FILE_ATTRIBUTE_*) specified by dwFlagsAndAttributes.
     CHandle hManifest (
@@ -362,21 +382,23 @@ SKIF_Steam_GetUserConfigStore (SteamId3_t userid, ConfigStore config)
   return cachedConfig[config];
 }
 
-std::string
+// Wide, like SKIF_Steam_GetUserConfigStore ( ): std::ifstream reads a narrow path in the system code page (not UTF-8),
+//   so a Steam folder with non-ASCII characters could not be opened through a UTF-8 path
+std::wstring
 SKIF_Steam_GetUserConfigStorePath (SteamId3_t userid, ConfigStore config)
 {
-  const  char*    pathFormats [ConfigStore_ALL] = {
-     R"(%s\userdata\%i\config\localconfig.vdf)",   // ConfigStore_UserLocal
-     R"(%s\userdata\%i\7\remote\sharedconfig.vdf)" // ConfigStore_UserRoaming... AppID 7 == Steam Client
+  const  wchar_t* pathFormats [ConfigStore_ALL] = {
+     LR"(%s\userdata\%i\config\localconfig.vdf)",   // ConfigStore_UserLocal
+     LR"(%s\userdata\%i\7\remote\sharedconfig.vdf)" // ConfigStore_UserRoaming... AppID 7 == Steam Client
   };
 
-  char    szConfig [MAX_PATH + 2] = { };
-  snprintf( szConfig, MAX_PATH,
+  wchar_t wszConfig [MAX_PATH + 2] = { };
+  swprintf ( wszConfig, MAX_PATH,
                 pathFormats[config],
-              SK_GetSteamDirUTF8 ( ),
+              SK_GetSteamDir ( ),
                         userid );
 
-  return szConfig;
+  return wszConfig;
 }
 
 const wchar_t*
@@ -675,6 +697,67 @@ SKIF_Steam_GetLaunchOptions (AppId_t appid, SteamId3_t userid , app_record_steam
   return "";
 }
 
+// The values SKIF_Steam_PreloadUserLocalConfig ( ) uses from localconfig.vdf. The file takes tens of ms to parse and
+//   rarely changes, so they are kept and reused while it is unchanged (same path, size and write time).
+struct localconfig_cache_s {
+  std::wstring                                   path;
+  uint64_t                                       write  = 0,
+                                                 size   = 0;
+  bool                                           parsed = false; // The file was parsed and had content
+  std::unordered_map <std::string, std::string>  launch_options; // App ID -> "LaunchOptions"
+  std::vector <std::string>                      apptickets;     // App IDs under "apptickets"
+};
+
+// Steam's localconfig.vdf, as used by SKIF_Steam_PreloadUserLocalConfig ( ). It is also saved to
+//   Assets\Cache\steam-localconfig.json, so a restart doesn't parse it again while it is unchanged.
+static bool
+SKIF_Steam_LoadSavedLocalConfig (localconfig_cache_s& cache, const std::wstring& path, uint64_t write, uint64_t size)
+{
+  nlohmann::json saved = SKIF_Library_ReadCache (L"steam-localconfig.json");
+
+  if (! saved.is_object ( )                                     ||
+        saved.value ("path",  std::string ( )) != SK_WideCharToUTF8 (path) ||
+        saved.value ("write", uint64_t (0))    != write          ||
+        saved.value ("size",  uint64_t (0))    != size)
+    return false;
+
+  localconfig_cache_s loaded;
+  loaded.path  = path;
+  loaded.write = write;
+  loaded.size  = size;
+
+  try {
+    loaded.parsed = saved.at ("parsed").get <bool> ( );
+
+    for (const auto& [id, options] : saved.at ("launch_options").items ( ))
+      loaded.launch_options.emplace (id, options.get <std::string> ( ));
+
+    for (const auto& appticket : saved.at ("apptickets"))
+      loaded.apptickets.push_back (appticket.get <std::string> ( ));
+  }
+  catch (const std::exception&) {
+    return false;
+  }
+
+  cache = std::move (loaded);
+  return true;
+}
+
+static void
+SKIF_Steam_SaveLocalConfig (const localconfig_cache_s& cache)
+{
+  nlohmann::json saved = {
+    { "path",           SK_WideCharToUTF8 (cache.path) },
+    { "write",          cache.write                    },
+    { "size",           cache.size                     },
+    { "parsed",         cache.parsed                   },
+    { "launch_options", cache.launch_options           },
+    { "apptickets",     cache.apptickets               }
+  };
+
+  SKIF_Library_WriteCache (L"steam-localconfig.json", saved);
+}
+
 bool
 SKIF_Steam_PreloadUserLocalConfig (SteamId3_t userid, app_list_t *apps, std::set <std::string> *apptickets)
 {
@@ -698,100 +781,121 @@ SKIF_Steam_PreloadUserLocalConfig (SteamId3_t userid, app_list_t *apps, std::set
   if (userid == 0)
     return false;
 
-  PLOG_INFO << "Preloading Steam user local config...";
+  // Also called by the main thread (SKIF_Steam_HasActiveProcessChanged), hence the lock
+  static std::mutex          cache_mutex;
+  static localconfig_cache_s cache;
 
-  // Implementation using the ValveFileVDF project
-  std::ifstream file (SKIF_Steam_GetUserConfigStorePath (userid, ConfigStore_UserLocal));
+  std::wstring path = SKIF_Steam_GetUserConfigStorePath (userid, ConfigStore_UserLocal);
 
-  if (file.is_open())
+  uint64_t write = 0,
+           size  = 0;
+
+  if (! SKIF_Library_GetFileStamp (path, write, size))
+    return false;
+
+  std::scoped_lock cache_lock (cache_mutex);
+
+  if (cache.path == path && cache.write == write && cache.size == size)
+    PLOG_INFO << "Preloading Steam user local config (unchanged; using the values read before)...";
+
+  // Saved by an earlier run (Assets\Cache\steam-localconfig.json)?
+  else if (SKIF_Steam_LoadSavedLocalConfig (cache, path, write, size))
+    PLOG_INFO << "Preloading Steam user local config (unchanged since it was last read; using the saved values)...";
+
+  else
   {
-    try
+    PLOG_INFO << "Preloading Steam user local config...";
+
+    cache       = { };
+    cache.path  = path;
+    cache.write = write;
+    cache.size  = size;
+
+    // Implementation using the ValveFileVDF project
+    std::ifstream file (path);
+
+    if (file.is_open())
     {
-      auto user_localconfig = tyti::vdf::read(file);
-      file.close();
-
-      if (user_localconfig.childs.size() > 0)
+      try
       {
-        // Preload LaunchOptions...
-        // LaunchOptions are tracked at "UserLocalConfigStore" -> "Software" -> "valve" -> "Steam" -> "apps" -> "<app-id>" -> "LaunchOptions"
+        auto user_localconfig = tyti::vdf::read(file);
+        file.close();
 
-        std::shared_ptr <tyti::vdf::object>
-                                         apps_localconfig = SKIF_VDF_ciSearch ("Software", &user_localconfig.childs);
-        if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Valve",    &apps_localconfig->childs);
-        if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Steam",    &apps_localconfig->childs);
-        if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Apps",     &apps_localconfig->childs);
-      //if (apps_localconfig != nullptr) PLOG_VERBOSE << "Found a match!";
-
-        /* case sensitive -- cannot be used
-        auto& apps_localconfig =
-          user_localconfig.
-            childs.at("Software") ->
-              childs.at("valve")  ->
-                childs.at("Steam")->
-                  childs.at("apps");
-        */
-
-        if (apps_localconfig != nullptr &&
-            apps_localconfig->childs.size() > 0)
+        if (user_localconfig.childs.size() > 0)
         {
-          for (auto& app : *apps)
-          {
-            if (app.second->store != app_record_s::Store::Steam)
-              continue;
+          // LaunchOptions are tracked at "UserLocalConfigStore" -> "Software" -> "valve" -> "Steam" -> "apps" -> "<app-id>" -> "LaunchOptions"
+          std::shared_ptr <tyti::vdf::object>
+                                           apps_localconfig = SKIF_VDF_ciSearch ("Software", &user_localconfig.childs);
+          if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Valve",    &apps_localconfig->childs);
+          if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Steam",    &apps_localconfig->childs);
+          if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Apps",     &apps_localconfig->childs);
 
-            auto lc_app = apps_localconfig->childs.find(std::to_string(app.second->id));
-            if (lc_app != apps_localconfig->childs.end())
+          if (apps_localconfig != nullptr)
+          {
+            for (auto& lc_app : apps_localconfig->childs)
             {
-              auto& attribs = lc_app->second->attribs;
+              auto& attribs = lc_app.second->attribs;
 
               if (! attribs.empty() && attribs.count("LaunchOptions") > 0)
-                AsSteamRecord (app)->steam.local.launch_option = attribs.at("LaunchOptions");
+                cache.launch_options.emplace (lc_app.first, attribs.at("LaunchOptions"));
             }
           }
-        }
 
-        // Preload DLC ownership...
-        //
-        // AppTickets are tracked at "UserLocalConfigStore" -> "apptickets" -> "<app-id>"
-        // This is used to determine if a DLC related launch option should be visible
-        std::shared_ptr <tyti::vdf::object>
-          apptickets_localconfig =
-            SKIF_VDF_ciSearch ("apptickets", &user_localconfig.childs);
-            //user_localconfig.childs.at("apptickets"); // case sensitive -- cannot be used
+          // AppTickets are tracked at "UserLocalConfigStore" -> "apptickets" -> "<app-id>"
+          // This is used to determine if a DLC related launch option should be visible
+          std::shared_ptr <tyti::vdf::object>
+            apptickets_localconfig =
+              SKIF_VDF_ciSearch ("apptickets", &user_localconfig.childs);
 
-        if (apptickets_localconfig != nullptr &&
-            apptickets_localconfig->attribs.size() > 0)
-        {
-          // Naively assume an app ticket indicates ownership
-          for (auto& child : apptickets_localconfig->attribs)
+          if (apptickets_localconfig != nullptr)
           {
-            if (! child.first.empty())
+            for (auto& child : apptickets_localconfig->attribs)
             {
-              try {
-                apptickets->emplace (child.first);
-              }
-              catch (const std::exception& e)
-              {
-                UNREFERENCED_PARAMETER(e);
-              }
+              if (! child.first.empty())
+                cache.apptickets.push_back (child.first);
             }
           }
-        }
 
-        return true;
+          cache.parsed = true;
+        }
+      }
+
+      // I don't expect this to throw any std::out_of_range exceptions any more
+      //   but one can never be too sure when it comes to data structures like these.
+      //     - Aemony
+      catch (const std::exception& e)
+      {
+        PLOG_ERROR << "Unknown error occurred when trying to parse localconfig.vdf: " << e.what ();
       }
     }
 
-    // I don't expect this to throw any std::out_of_range exceptions any more
-    //   but one can never be too sure when it comes to data structures like these.
-    //     - Aemony
+    SKIF_Steam_SaveLocalConfig (cache);
+  }
+
+  // Preload LaunchOptions...
+  for (auto& app : *apps)
+  {
+    if (app.second->store != app_record_s::Store::Steam)
+      continue;
+
+    auto lc_app = cache.launch_options.find (std::to_string(app.second->id));
+    if ( lc_app != cache.launch_options.end ( ))
+      AsSteamRecord (app)->steam.local.launch_option = lc_app->second;
+  }
+
+  // Preload DLC ownership (naively assume an app ticket indicates ownership)
+  for (auto& appticket : cache.apptickets)
+  {
+    try {
+      apptickets->emplace (appticket);
+    }
     catch (const std::exception& e)
     {
-      PLOG_ERROR << "Unknown error occurred when trying to parse localconfig.vdf: " << e.what ();
+      UNREFERENCED_PARAMETER(e);
     }
   }
 
-  return false;
+  return cache.parsed;
 }
 
 bool
@@ -1166,11 +1270,12 @@ SKIF_Steam_areLibrariesSignaled (void)
 
 
 // This is an internal helper function used by SKIF_Steam_GetInstalledAppIDs ( ).
-// This function discovers and returns an unprocessed vector of all apps on the system.
-static std::vector <AppId_t>
+// This function discovers and returns an unprocessed vector of all apps on the system,
+//   with the full path of each app manifest (appmanifest_<id>.acf) found.
+static std::vector <std::pair <AppId_t, std::wstring>>
 SKIF_SteamInt_DiscoverInstalledApps (void)
 {
-  std::vector <AppId_t> apps;
+  std::vector <std::pair <AppId_t, std::wstring>> apps;
 
   steam_library_t* steam_lib_paths = nullptr;
   int              steam_libs      = SK_Steam_GetLibraries (&steam_lib_paths);
@@ -1233,7 +1338,7 @@ SKIF_SteamInt_DiscoverInstalledApps (void)
                             L"appmanifest_%lu.acf",
                               &appid ) == 1 )
           {
-            apps.push_back (appid);
+            apps.push_back ({ appid, file.second->getFullPath ( ) });
 
             if (appid == 1157970)
               bHasSpecialK = true;
@@ -1324,7 +1429,7 @@ SKIF_Steam_GetInstalledAppIDs (app_list_t *apps)
 
   PLOG_INFO << "Detecting Steam games...";
 
-  for (auto app : SKIF_SteamInt_DiscoverInstalledApps ( ))
+  for (auto& [app, manifest_path] : SKIF_SteamInt_DiscoverInstalledApps ( ))
   {
     // Skip Steamworks Common Redists
     if (app == 228980) continue;
@@ -1337,6 +1442,7 @@ SKIF_Steam_GetInstalledAppIDs (app_list_t *apps)
       app_record_steam_s record (app);
       record.store      = app_record_s::Store::Steam;
       record.store_utf8 = "Steam";
+      record.steam.manifest_path = manifest_path; // Read directly later (no search), and tells the library worker which volume the game is on
 
       // Opening the manifests to read the names is a
       //   lengthy operation, so defer names and icons
@@ -1474,7 +1580,11 @@ SKIF_Steam_UpdateAppState (app_record_s *pApp)
 
   if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_CURRENT_USER, SK_FormatStringW (LR"(SOFTWARE\Valve\Steam\Apps\%lu)", pApp->id).c_str(), 0, KEY_READ | KEY_WOW64_64KEY, &hKey))
   {
-    std::scoped_lock app_lock  (SKIF_GamingCollection::Get().GetMutex());
+    // Not needed for the library worker's own list (see tl_isLibraryWorker)
+    std::unique_lock <std::recursive_mutex> app_lock (SKIF_GamingCollection::Get().GetMutex(), std::defer_lock);
+
+    if (! SKIF_GamingCollection::tl_isLibraryWorker)
+      app_lock.lock ( );
 
     SKIF_Steam_GetAppStateDWORD (
       &hKey,   L"Installed",

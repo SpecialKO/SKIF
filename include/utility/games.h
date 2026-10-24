@@ -7,6 +7,7 @@
 #include <mutex>
 #include <set>
 #include <array>
+#include <cstdint>
 #include <stores/generic_library2.h>
 #include <nlohmann/json.hpp>
 
@@ -35,6 +36,13 @@ private:
 void InsertTrieKey (app_entry_t* app, Trie* labels);
 
 // Singleton struct
+// Caches of store data that rarely changes but is slow to read (used by the library worker so that a restart doesn't
+//   parse it again): small JSON files in <SK user data>\Assets\Cache\. Each one records the size and write time of
+//   the file it was read from, so it is only used while that file is unchanged.
+bool           SKIF_Library_GetFileStamp (const std::wstring& path, uint64_t& write, uint64_t& size); // false if the file doesn't exist
+nlohmann::json SKIF_Library_ReadCache    (const wchar_t* name); // null if missing or not valid JSON
+void           SKIF_Library_WriteCache   (const wchar_t* name, const nlohmann::json& data);
+
 struct SKIF_GamingCollection {
   using AppList = app_list_t;
 
@@ -49,6 +57,10 @@ struct SKIF_GamingCollection {
   SKIF_GamingCollection (SKIF_GamingCollection&&)      = delete; // Delete move constructor
 
   std::recursive_mutex& GetMutex() { return m_apps_mutex; }
+
+  // Set on the library worker's threads. They fill the worker's own app list, which nothing else sees until
+  //   SwapInPopulatedGames ( ), so code they call skips GetMutex ( ) (each thread only touches its own games)
+  static inline thread_local bool tl_isLibraryWorker = false;
 
   const AppList& GetApps() const { return m_apps; }
         AppList& GetApps()       { return m_apps; }
@@ -68,6 +80,7 @@ struct SKIF_GamingCollection {
         bool IsPopulating         (void) const;
         bool IsPopulateFinished   (void) const;
         int  SwapInPopulatedGames (void);
+        bool HasPopulatedOnce     (void) const { return m_populatedOnce.load ( ); } // A library has been swapped in (any thread)
 
         // Steam app tickets and the keyboard-hint label trie produced by the last population
   std::set <std::string>& GetAppTickets (void) { return m_apptickets; }
@@ -105,6 +118,7 @@ private:
   CComPtr <ID3D11ShaderResourceView> m_pSKLogoTexSRV;
   CComPtr <ID3D11ShaderResourceView> m_pSKLogoTexSRV_small;
   AppList                   m_apps;
+  std::atomic <bool>        m_populatedOnce = false;
   std::array <SKIF_Util_CreateProcess_s, 15>
                             m_iPlayCache = { };
   std::recursive_mutex      m_apps_mutex; // More specifically, this is intended to guard access to the run state of games.

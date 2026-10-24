@@ -3,6 +3,8 @@
 #include <wtypes.h>
 #include <fstream>
 #include <filesystem>
+#include <mutex>
+#include <unordered_map>
 
 #include <comdef.h>
 #include <process.h>
@@ -142,6 +144,141 @@ SKIF_EpicCollection::GetInstalledAppIDs (app_list_t *apps) const
     this->FindInstalledGames1 (apps);
 }
 
+// The fields used from an item of the Epic Games Launcher's catalog-cache.json
+struct epic_catalog_item_s {
+  bool        child = false; // Has a mainGameItem (DLC / add-on), so not listed
+  std::string title;
+  std::string gamebox_tall;  // URL of the DieselGameBoxTall key image
+};
+
+using epic_catalog_t = std::unordered_map <std::string, epic_catalog_item_s>; // Catalog item ID -> item
+
+// Reads catalog-cache.json (it can be large: parsing took ~30 ms in testing) and keeps the fields used, which are reused while the
+//   file is unchanged (same path, size and write time), also across restarts (Assets\Cache\epic-catalog.json).
+//   Returns nullptr if the file is missing or not valid JSON.
+static std::shared_ptr <const epic_catalog_t>
+SKIF_Epic_GetCatalog (const std::wstring& path)
+{
+  static std::mutex                             cache_mutex;
+  static std::wstring                           cache_path;
+  static uint64_t                               cache_write = 0,
+                                                cache_size  = 0;
+  static std::shared_ptr <const epic_catalog_t> cache;
+
+  uint64_t write = 0,
+           size  = 0;
+
+  if (! SKIF_Library_GetFileStamp (path, write, size))
+    return nullptr;
+
+  std::scoped_lock cache_lock (cache_mutex);
+
+  if (cache_path == path && cache_write == write && cache_size == size)
+  {
+    PLOG_VERBOSE << "catalog-cache.json is unchanged; using the items read before.";
+    return cache;
+  }
+
+  cache_path  = path;
+  cache_write = write;
+  cache_size  = size;
+  cache       = nullptr;
+
+  // Saved by an earlier run (Assets\Cache\epic-catalog.json)?
+  nlohmann::json saved = SKIF_Library_ReadCache (L"epic-catalog.json");
+
+  if (saved.is_object ( )                                     &&
+      saved.value ("path",  std::string ( )) == SK_WideCharToUTF8 (path) &&
+      saved.value ("write", uint64_t (0))    == write          &&
+      saved.value ("size",  uint64_t (0))    == size)
+  {
+    try {
+      auto items = std::make_shared <epic_catalog_t> ( );
+
+      for (const auto& [id, item] : saved.at ("items").items ( ))
+        items->emplace (id, epic_catalog_item_s { item.at (0).get <bool> ( ), item.at (1).get <std::string> ( ), item.at (2).get <std::string> ( ) });
+
+      PLOG_VERBOSE << "catalog-cache.json is unchanged since it was last read; using the saved items (" << items->size ( ) << ").";
+
+      cache = items;
+      return cache;
+    }
+    catch (const std::exception&) { } // Read the catalog itself below
+  }
+
+  // Read the whole file at once (parsing from a stream reads it a character at a time)
+  std::string   data;
+  std::ifstream file (path, std::ios::binary);
+
+  if (! file.is_open ( ))
+    return nullptr;
+
+  data.resize (static_cast <size_t> (size));
+  file.read   (data.data ( ), data.size ( ));
+  data.resize (static_cast <size_t> (file.gcount ( )));
+  file.close  ( );
+
+  nlohmann::json catalog = nlohmann::json::parse (data, nullptr, false);
+
+  if (catalog.is_discarded ( ) || ! catalog.is_object ( ))
+  {
+    PLOG_WARNING << "catalog_cache is discarded or not an object";
+    return nullptr;
+  }
+
+  auto items = std::make_shared <epic_catalog_t> ( );
+  auto list  = catalog.find ("items");
+
+  if (list != catalog.end ( ) && list->is_object ( ))
+  {
+    for (const auto& [id, entry] : list->items ( ))
+    {
+      try {
+        const nlohmann::json& item = entry.at ("item");
+
+        epic_catalog_item_s it;
+        it.child = item.contains ("mainGameItem") && ! item.at ("mainGameItem").is_null ( );
+        it.title = item.at ("title").get<std::string> ();
+
+        if (item.contains ("keyImages"))
+        {
+          for (const auto& img : item.at ("keyImages"))
+          {
+            if (img.value ("type", std::string ( )) == "DieselGameBoxTall")
+            {
+              it.gamebox_tall = img.value ("url", std::string ( ));
+              break;
+            }
+          }
+        }
+
+        items->emplace (id, std::move (it));
+      }
+
+      // Items missing a field are left out (the game then falls back to its executable name)
+      catch (const std::exception&) { }
+    }
+  }
+
+  PLOG_VERBOSE << "Read catalog-cache.json successfully (" << items->size ( ) << " items).";
+
+  // Saved for the next run: { path, write, size, items: { id: [ child, title, gamebox_tall ] } }
+  nlohmann::json save_items = nlohmann::json::object ( );
+
+  for (const auto& [id, item] : *items)
+    save_items [id] = { item.child, item.title, item.gamebox_tall };
+
+  SKIF_Library_WriteCache (L"epic-catalog.json", {
+    { "path",  SK_WideCharToUTF8 (path) },
+    { "write", write                    },
+    { "size",  size                     },
+    { "items", save_items               }
+  });
+
+  cache = items;
+  return cache;
+}
+
 bool
 SKIF_EpicCollection::FindInstalledGames2 (app_list_t* apps) const
 {
@@ -157,20 +294,8 @@ SKIF_EpicCollection::FindInstalledGames2 (app_list_t* apps) const
     return ret;
   }
 
-  nlohmann::json
-      catalog_cache;
-  std::ifstream
-      catalog_cache_file (this->appdatapath + LR"(\cache\prod\catalog-cache.json)");
-  if (catalog_cache_file.is_open())
-  {
-    catalog_cache = nlohmann::json::parse (catalog_cache_file, nullptr);
-    catalog_cache_file.close();
-
-    if (catalog_cache.is_discarded ( ) || ! catalog_cache.is_object ( ))
-      PLOG_WARNING << "catalog_cache is discarded or not an object";
-    else
-      PLOG_VERBOSE << "Read catalog-cache.json successfully.";
-  }
+  auto catalog_cache =
+    SKIF_Epic_GetCatalog (this->appdatapath + LR"(\cache\prod\catalog-cache.json)");
 
   std::string line;
   size_t      lineNo            = 0;
@@ -251,33 +376,24 @@ SKIF_EpicCollection::FindInstalledGames2 (app_list_t* apps) const
     record.install_dir          = SK_UTF8ToWideChar (jl.at ("dir"));
     record.install_dir          = std::filesystem::path (record.install_dir).lexically_normal();
 
-    // Fallback
-    if (catalog_cache.is_discarded ( ) || ! catalog_cache.is_object ( ))
+    auto item = (catalog_cache != nullptr) ? catalog_cache->find (CatalogItemId) : epic_catalog_t::const_iterator { };
+
+    // Fallback (no catalog, or the game is missing from it)
+    if (catalog_cache == nullptr || item == catalog_cache->end ( ))
     {
       record.names.normal       = jl.value ("launchExecutable", std::string());
       SKIF_Util_ReplaceAll       (record.names.normal, ".exe", "");
     }
 
     else {
-      const nlohmann::json& item =
-        catalog_cache.at ("items").at (CatalogItemId).at ("item");
-
-      if (item.contains ("mainGameItem") && ! item["mainGameItem"].is_null ( ))
+      if (item->second.child)
       {
         PLOG_DEBUG << "Line " << lineNo << ": item not a parent; skipping...";
         continue;
       }
 
-      record.names.normal       = item.at ("title").get<std::string> ();
-
-      for (const auto& img : item.at ("keyImages"))
-      {
-        if (img.at ("type") == "DieselGameBoxTall")
-        {
-          record.epic.gamebox_tall = img.at ("url").get<std::string> ();
-          break;
-        }
-      }
+      record.names.normal       = item->second.title;
+      record.epic.gamebox_tall  = item->second.gamebox_tall;
     }
 
     record.names.original       = record.names.normal;

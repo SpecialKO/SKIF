@@ -262,7 +262,7 @@ std::vector <SK_Steam_Depot> SK_UseManifestToGetDepots           (app_record_ste
 ManifestId_t                 SK_UseManifestToGetDepotManifest    (app_record_steam_s *app, DepotId_t depot);
 std::string                  SKIF_Steam_GetLaunchOptions         (AppId_t appid, SteamId3_t userid, app_record_steam_s *app = nullptr);
 std::string                  SKIF_Steam_GetUserConfigStore       (SteamId3_t userid, ConfigStore config);
-std::string                  SKIF_Steam_GetUserConfigStorePath   (SteamId3_t userid, ConfigStore config);
+std::wstring                 SKIF_Steam_GetUserConfigStorePath   (SteamId3_t userid, ConfigStore config);
 void                         SKIF_Steam_PreloadUserConfig        (SteamId3_t userid, app_list_t *apps, std::set <std::string> *apptickets);
 bool                         SKIF_Steam_isSteamOverlayEnabled    (AppId_t appid, SteamId3_t userid);
 bool                         SKIF_Steam_areLibrariesSignaled     (void);
@@ -362,6 +362,9 @@ struct app_record_steam_s : app_record_store_s <app_record_steam_s, app_record_s
   void         ResolveStoreDetails        (void) override;
   void         LoadStoreDetails           (void) override;
   bool         CanLaunchExecutableDirectly(void) override;
+
+  // Library processing: the app manifest is in the library the game is installed to (known from the library scan)
+  std::wstring GetStorageLocation      (void) const override { return (! steam.manifest_path.empty ( )) ? steam.manifest_path : install_dir; }
 
   // Run-state detection (steam_library.cpp)
   ProcessMatch MatchProcess                (const wchar_t* wszExeFile, const wchar_t* wszExePath, DWORD dwExePathLen) override;

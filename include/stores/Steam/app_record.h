@@ -541,6 +541,7 @@ struct app_record_s {
   virtual std::string  GetAppIdMapping            (void) const { return ""; }        // Path-to-AppID registry mapping for Special K (Epic: AppName)
   virtual std::vector <std::wstring>
                        GetAdditionalProfilePaths  (void) const { return { }; }       // Extra folders mapped to the profile name (Xbox)
+  virtual std::wstring GetStorageLocation         (void) const { return install_dir; } // Where the game's files are: the library worker groups games by its volume (Steam: the app manifest)
 
   // Selection
   virtual void         LoadStoreDetails           (void)       { }                   // Main thread, before the game worker runs (Steam: appinfo.vdf)

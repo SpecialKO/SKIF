@@ -4,6 +4,9 @@
 #include <wtypes.h>
 #include <fstream>
 #include <filesystem>
+#include <mutex>
+#include <unordered_map>
+#include <set>
 #include <nlohmann/json.hpp>
 #include <SKIF.h>
 #include <utility/utility.h>
@@ -46,6 +49,57 @@ SKIF_Xbox_PackageFamilyNameFromFullName (IN PCWSTR packageFullName, IN OUT UINT3
   return SKIF_PackageFamilyNameFromFullName (packageFullName, packageFamilyNameLength, packageFamilyName);
 }
 
+// Resolved ms-resource display names. Resolving one takes several ms (more when it fails), so the results (failures
+//   included) are kept, and saved to Assets\Cache\xbox-names.json for the next run. The key includes the package full
+//   name, which includes its version, so an updated package is resolved again.
+static std::mutex                                     xbox_names_mutex;
+static std::unordered_map <std::wstring, std::string> xbox_names;        // Key -> resolved name
+static std::set <std::wstring>                        xbox_names_used;   // Keys used by the current scan
+static bool                                           xbox_names_loaded = false,
+                                                      xbox_names_dirty  = false;
+
+// Call with xbox_names_mutex held
+static void
+SKIF_Xbox_LoadSavedNames (void)
+{
+  if (xbox_names_loaded)
+    return;
+
+  xbox_names_loaded = true;
+
+  nlohmann::json saved = SKIF_Library_ReadCache (L"xbox-names.json");
+
+  if (! saved.is_object ( ))
+    return;
+
+  for (const auto& [key, name] : saved.items ( ))
+  {
+    if (name.is_string ( ))
+      xbox_names.emplace (SK_UTF8ToWideChar (key), name.get <std::string> ( ));
+  }
+}
+
+// After a scan: saves the names used by it (so names of removed packages are dropped)
+static void
+SKIF_Xbox_SaveNames (void)
+{
+  std::scoped_lock names_lock (xbox_names_mutex);
+
+  if (! xbox_names_dirty && xbox_names_used.size ( ) == xbox_names.size ( ))
+    return;
+
+  std::erase_if (xbox_names, [](const auto& entry) { return ! xbox_names_used.contains (entry.first); });
+
+  nlohmann::json saved = nlohmann::json::object ( );
+
+  for (const auto& [key, name] : xbox_names)
+    saved [SK_WideCharToUTF8 (key)] = name;
+
+  SKIF_Library_WriteCache (L"xbox-names.json", saved);
+
+  xbox_names_dirty = false;
+}
+
 static std::string SKIF_Xbox_LoadMSResource (std::string input, std::wstring packageName, std::wstring packageFullName, std::wstring packageFamilyName)
 {
   std::string lowercaseName = SKIF_Util_ToLower (input);
@@ -61,6 +115,20 @@ static std::string SKIF_Xbox_LoadMSResource (std::string input, std::wstring pac
 
   if (pos_msResourceString != std::string::npos)
   {
+    // Resolved before (see xbox_names)?
+    const std::wstring cache_key =
+      packageFullName + L"|" + packageName + L"|" + packageFamilyName + L"|" + SK_UTF8ToWideChar (input);
+
+    {
+      std::scoped_lock names_lock (xbox_names_mutex);
+
+      SKIF_Xbox_LoadSavedNames ( );
+      xbox_names_used.insert   (cache_key);
+
+      if (auto hit = xbox_names.find (cache_key); hit != xbox_names.end ( ))
+        return hit->second;
+    }
+
     const UINT   cuiBufferSize = 1024;
     WCHAR        wszDisplayName[cuiBufferSize]{ };
     std::string  substr        = input.substr (pos_msResourceString + pattern.length());
@@ -108,6 +176,10 @@ static std::string SKIF_Xbox_LoadMSResource (std::string input, std::wstring pac
     {
       PLOG_ERROR << "SHLoadIndirectString failed with HRESULT: " << std::wstring (_com_error(hr).ErrorMessage());
     }
+
+    std::scoped_lock names_lock (xbox_names_mutex);
+    xbox_names [cache_key] = input;
+    xbox_names_dirty       = true;
   }
 
   return input;
@@ -117,6 +189,11 @@ void
 SKIF_Xbox_GetInstalledAppIDs (app_list_t *apps)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
+  {
+    std::scoped_lock names_lock (xbox_names_mutex);
+    xbox_names_used.clear ( );
+  }
 
   PLOG_INFO << "Detecting Xbox games...";
 
@@ -491,6 +568,8 @@ SKIF_Xbox_GetInstalledAppIDs (app_list_t *apps)
 
     RegCloseKey (hKey);
   }
+
+  SKIF_Xbox_SaveNames ( );
 }
 
 void

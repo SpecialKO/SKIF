@@ -10,6 +10,9 @@
 #include <sstream>
 #include <concurrent_queue.h>
 #include <memory>
+#include <map>
+#include <thread>
+#include <functional>
 #include <algorithm>
 #include <Shlwapi.h>
 #include <process.h>
@@ -155,7 +158,11 @@ InsertTrieKey (app_entry_t* app, Trie* labels)
 void
 SKIF_GamingCollection::SortApps (app_list_t *apps)
 {
-  std::scoped_lock app_lock (SKIF_GamingCollection::Get().GetMutex());
+  // Not needed for the library worker's own list (see tl_isLibraryWorker)
+  std::unique_lock <std::recursive_mutex> app_lock (SKIF_GamingCollection::Get().GetMutex(), std::defer_lock);
+
+  if (! tl_isLibraryWorker)
+    app_lock.lock ( );
 
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
@@ -559,6 +566,7 @@ struct SKIF_GamingCollection::worker_s {
   Trie                    labels     = { };
   HANDLE                  hWorker    = NULL;
   int                     iWorker    = 0;
+  bool                    pcores     = false; // First refresh of the session (launch): its threads run on the P-cores
 };
 
 bool
@@ -580,6 +588,12 @@ SKIF_GamingCollection::PopulateGames (void)
 
   m_worker = new worker_s;
   m_worker->steam_user = SKIF_Steam_GetCurrentUser ( );
+
+  // The user waits on the library at launch, so that refresh runs on the P-cores; later ones keep the process default
+  //   (E-cores, see SKIF_Util_SetProcessPrefersECores)
+  static bool firstRefresh = true;
+  m_worker->pcores = firstRefresh;
+  firstRefresh     = false;
 
   HANDLE hWorkerThread = (HANDLE)
   _beginthreadex (nullptr, 0x0, LibraryWorkerThread, m_worker, 0x0, nullptr);
@@ -682,6 +696,8 @@ SKIF_GamingCollection::SwapInPopulatedGames (void)
   m_apptickets = m_worker->apptickets;
   m_tLabels    = std::move (m_worker->labels); // Trie is move-only (it owns its nodes)
 
+  m_populatedOnce.store (true);
+
   // Move cached icons over
   for (auto& app : m_apps)
   {
@@ -745,6 +761,121 @@ SKIF_GamingCollection::ReleaseTextures (void)
   }
 }
 
+#pragma region Store caches
+
+bool
+SKIF_Library_GetFileStamp (const std::wstring& path, uint64_t& write, uint64_t& size)
+{
+  WIN32_FILE_ATTRIBUTE_DATA fad = { };
+
+  if (! GetFileAttributesExW (path.c_str ( ), GetFileExInfoStandard, &fad))
+    return false;
+
+  write = (static_cast <uint64_t> (fad.ftLastWriteTime.dwHighDateTime) << 32) | fad.ftLastWriteTime.dwLowDateTime;
+  size  = (static_cast <uint64_t> (fad.nFileSizeHigh)                  << 32) | fad.nFileSizeLow;
+
+  return true;
+}
+
+static std::wstring
+SKIF_Library_GetCachePath (const wchar_t* name)
+{
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
+  return SK_FormatStringW (LR"(%ws\Assets\Cache\%ws)", _path_cache.specialk_userdata, name);
+}
+
+nlohmann::json
+SKIF_Library_ReadCache (const wchar_t* name)
+{
+  std::ifstream file (SKIF_Library_GetCachePath (name), std::ios::binary);
+
+  if (! file.is_open ( ))
+    return nullptr;
+
+  std::string data ((std::istreambuf_iterator <char> (file)), std::istreambuf_iterator <char> ( ));
+
+  nlohmann::json json = nlohmann::json::parse (data, nullptr, false);
+
+  if (json.is_discarded ( ))
+  {
+    PLOG_WARNING << "Ignoring the invalid cache file " << name;
+    return nullptr;
+  }
+
+  return json;
+}
+
+void
+SKIF_Library_WriteCache (const wchar_t* name, const nlohmann::json& data)
+{
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
+  CreateDirectoryW (SK_FormatStringW (LR"(%ws\Assets\Cache)", _path_cache.specialk_userdata).c_str ( ), nullptr);
+
+  // Written to a temporary file first, so a cache file is never left half-written
+  std::wstring path = SKIF_Library_GetCachePath (name),
+               temp = path + L".tmp";
+
+  {
+    std::ofstream file (temp, std::ios::binary | std::ios::trunc);
+
+    if (! file.is_open ( ))
+    {
+      PLOG_WARNING << "Could not write the cache file " << name;
+      return;
+    }
+
+    file << data.dump ( );
+  }
+
+  if (! MoveFileExW (temp.c_str ( ), path.c_str ( ), MOVEFILE_REPLACE_EXISTING))
+    PLOG_WARNING << "Could not replace the cache file " << name;
+}
+
+#pragma endregion
+
+// The drive a path is on ("x:\" or "\\server\share\"), lower-case; empty if unknown.
+//   The library worker processes the games of each drive on their own thread.
+//   Read from the path itself: GetVolumePathNameW queries the file system for every folder in the path, which costs
+//   more than the parallel processing saves. (A volume mounted into a folder counts as its host drive; that only
+//   affects how the games are split across threads.)
+static std::wstring
+SKIF_GetVolumeKey (const std::wstring& path)
+{
+  std::wstring root = path;
+  std::replace (root.begin ( ), root.end ( ), L'/', L'\\');
+
+  if      (root.starts_with (LR"(\\?\UNC\)"))
+    root = LR"(\\)" + root.substr (8);
+  else if (root.starts_with (LR"(\\?\)"))
+    root = root.substr (4);
+
+  // Drive letter
+  if (root.length ( ) >= 2 && root [1] == L':')
+    return SKIF_Util_ToLowerW (root.substr (0, 2)) + L"\\";
+
+  // Network share
+  if (root.starts_with (LR"(\\)"))
+  {
+    size_t server = root.find (L'\\', 2);
+
+    if (server != std::wstring::npos && server > 2)
+      return SKIF_Util_ToLowerW (root.substr (0, root.find (L'\\', server + 1))) + L"\\";
+  }
+
+  return L"";
+}
+
+// Replaces every occurrence of a literal byte sequence (used for the game title clean-up; std::regex would compile a
+//   pattern per call, and constructing one takes a process-wide locale lock that the game threads contend on)
+static void
+SKIF_ReplaceAll (std::string& str, std::string_view from, std::string_view to)
+{
+  for (size_t pos = str.find (from); pos != std::string::npos; pos = str.find (from, pos + to.length ( )))
+    str.replace (pos, from.length ( ), to);
+}
+
 unsigned __stdcall
 SKIF_GamingCollection::LibraryWorkerThread (void* var)
 {
@@ -760,7 +891,108 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
 
   PLOG_VERBOSE << "SKIF_LibraryWorker thread started!";
 
-  std::scoped_lock app_lock (self.m_apps_mutex);
+  // This thread and the ones it starts work on the worker's own app list (moved into the collection by
+  //   SwapInPopulatedGames ( ) once this thread has ended), so they don't take the apps lock, and the main thread
+  //   isn't held up by the library refresh
+  tl_isLibraryWorker = true;
+
+  worker_s* _worker = static_cast <worker_s*> (var);
+
+  // First refresh of the session: this thread and the ones it starts run on the P-cores (see PopulateGames ( ))
+  auto _PreferPCores = [pcores = _worker->pcores](void) -> bool
+  {
+    return (pcores && SKIF_Util_SetThreadPrefersPCores ( ));
+  };
+
+  // (Called outside the log macro: plog skips evaluating its condition when verbose logging is off)
+  const bool onPCores = _PreferPCores ( ); // Only on hybrid CPUs
+
+  PLOG_VERBOSE_IF (onPCores) << "This refresh runs on the P-cores (first refresh of the session).";
+
+  // Work that runs on a thread of its own, unless this thread gets to it first. Starting a thread can take tens of ms at
+  //   launch: a new thread has to wait for the Windows loader lock, which the main thread holds while it loads DLLs to
+  //   create and show its window. With the caches the scans take a few ms, so once this thread is done with its own
+  //   share it does any work whose thread hasn't started yet (_Steal), and a thread that starts after its work was
+  //   taken just ends. The threads are detached so that a late one never holds this thread up: until it claims its
+  //   work, it only touches its task (shared), and claimed work (which uses this function's locals) is always waited
+  //   for (_Wait) before this function returns.
+  struct worker_task_s {
+    const wchar_t*              name    = L"";
+    std::function <void (void)> work;
+    std::atomic <bool>          claimed = false; // Taken by its thread or by this one
+    std::atomic <bool>          done    = false;
+  };
+
+  using worker_task_t = std::shared_ptr <worker_task_s>;
+
+  // Does the work, unless it was taken already; true if it did
+  auto _Claim = [](worker_task_s& task) -> bool
+  {
+    if (task.claimed.exchange (true))
+      return false;
+
+    task.work ( );
+
+    task.done.store      (true);
+    task.done.notify_all ( );
+
+    return true;
+  };
+
+  auto _Start = [&](const wchar_t* name, std::function <void (void)> work, bool background = false) -> worker_task_t
+  {
+    auto task  = std::make_shared <worker_task_s> ( );
+    task->name = name;
+    task->work = std::move (work);
+
+    try {
+      std::thread ([task, background, _Claim, _PreferPCores]
+      {
+        SKIF_Util_SetThreadDescription (GetCurrentThread (), task->name);
+        tl_isLibraryWorker = true;
+        _PreferPCores ( );
+
+        if (background)
+          SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_BELOW_NORMAL);
+
+        _Claim (*task);
+      }).detach ( );
+    }
+    catch (const std::system_error&) { } // Not started: _Steal ( ) does the work here
+
+    return task;
+  };
+
+  auto _Steal = [&](const worker_task_t& task)
+  {
+    if (task && _Claim (*task))
+      PLOG_VERBOSE << "[Library Processing] " << task->name << ": done by the library worker (its thread had not started yet).";
+  };
+
+  auto _Wait = [](const worker_task_t& task)
+  {
+    if (task)
+      task->done.wait (false);
+  };
+
+  // The embedded textures (loaded once) don't depend on the library, so they load alongside it, below normal priority
+  //   (they're only needed once the library shows, so the store scanning gets the CPU first)
+  worker_task_t textures;
+
+  if (self.m_pPatTexSRV.p == nullptr || self.m_pSKLogoTexSRV.p == nullptr || self.m_pSKLogoTexSRV_small.p == nullptr)
+  {
+    textures = _Start (L"SKIF_LibraryWorker_Textures", [&]
+    {
+      PLOG_VERBOSE_IF(self.m_pPatTexSRV.p == nullptr) << "Loading the embedded Patreon texture...";
+      ImVec2 dontCare;
+      if (self.m_pPatTexSRV.p == nullptr)
+        LoadLibraryTexture (LibraryTexture::Patreon, SKIF_STEAM_APPID, self.m_pPatTexSRV,          L"patreon.png",         dontCare);
+      if (self.m_pSKLogoTexSRV.p == nullptr)
+        LoadLibraryTexture (LibraryTexture::Logo,    SKIF_STEAM_APPID, self.m_pSKLogoTexSRV,       L"sk_boxart.png",       dontCare);
+      if (self.m_pSKLogoTexSRV_small.p == nullptr)
+        LoadLibraryTexture (LibraryTexture::Logo,    SKIF_STEAM_APPID, self.m_pSKLogoTexSRV_small, L"sk_boxart_small.png", dontCare);
+    }, true);
+  }
 
   DWORD pre   = 0,
         post  = 0,
@@ -770,31 +1002,104 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
 
   size_t games = _data->apps.size();
 
+  // Load the games of the enabled stores in parallel: each store reads its own sources (client files, registry,
+  //   manifests) into its own list. The lists are merged in a fixed order afterwards: Steam, Special K, GOG, Epic, Xbox, custom.
+  enum { Scan_Steam, Scan_GOG, Scan_Epic, Scan_Xbox, Scan_Custom, Scan_Count };
+
+  app_list_t                scanned [Scan_Count];
+  worker_task_t             scans   [Scan_Count]; // On threads of their own (see _Start)
+  std::vector <std::function <void (void)>>
+                            scans_here;           // Quick ones (~1 ms), done on this thread first
+
+  auto _LogScan = [&](const char* what, size_t count, DWORD dwStart)
+  {
+    if (! _registry._LibraryHidden)
+      PLOG_DEBUG << "[Library Processing] Processed " << count << " " << what << " in " << (SKIF_Util_timeGetTime1 ( ) - dwStart) << " ms.";
+  };
+
   // Load Steam titles from disk
   if (_registry.bLibrarySteam || _registry._LibraryHidden)
   {
-    pre  = start;
-
-    SKIF_Steam_GetInstalledAppIDs (&_data->apps);
-
-    if (! _registry._LibraryHidden)
+    scans [Scan_Steam] = _Start (L"SKIF_LibraryWorker_Steam", [&]
     {
-      post = SKIF_Util_timeGetTime1 ( );
-      PLOG_DEBUG << "[Library Processing] Processed " << (_data->apps.size() - games) << " Steam games in " << (post - pre) << " ms.";
-      pre  = post;
-      games = _data->apps.size();
-    }
+      DWORD dwStart = SKIF_Util_timeGetTime1 ( );
 
-    // Preload user-specific stuff for all Steam games (custom launch options + DLC ownership)
-    SKIF_Steam_PreloadUserConfig (_data->steam_user, &_data->apps, &_data->apptickets);
+      SKIF_Steam_GetInstalledAppIDs (&scanned [Scan_Steam]);
 
-    if (! _registry._LibraryHidden)
-    {
-      post = SKIF_Util_timeGetTime1 ( );
-      PLOG_DEBUG << "[Library Processing] Processed Steam user configs in " << (post - pre) << " ms.";
-      pre  = post;
-    }
+      _LogScan ("Steam games", scanned [Scan_Steam].size ( ), dwStart);
+      dwStart = SKIF_Util_timeGetTime1 ( );
+
+      // Preload user-specific stuff for all Steam games (custom launch options + DLC ownership)
+      SKIF_Steam_PreloadUserConfig (_data->steam_user, &scanned [Scan_Steam], &_data->apptickets);
+
+      if (! _registry._LibraryHidden)
+        PLOG_DEBUG << "[Library Processing] Processed Steam user configs in " << (SKIF_Util_timeGetTime1 ( ) - dwStart) << " ms.";
+    });
   }
+
+  // Load GOG titles from registry
+  if (_registry.bLibraryGOG || _registry._LibraryHidden)
+  {
+    scans_here.emplace_back ([&]
+    {
+      DWORD dwStart = SKIF_Util_timeGetTime1 ( );
+      SKIF_GOG_GetInstalledAppIDs  (&scanned [Scan_GOG]);
+      _LogScan ("GOG games", scanned [Scan_GOG].size ( ), dwStart);
+    });
+  }
+
+  // Load Epic titles from disk
+  if (_registry.bLibraryEpic || _registry._LibraryHidden)
+  {
+    scans [Scan_Epic] = _Start (L"SKIF_LibraryWorker_Epic", [&]
+    {
+      DWORD dwStart = SKIF_Util_timeGetTime1 ( );
+      SKIF_EpicCollection::GetInstance ( ).GetInstalledAppIDs (&scanned [Scan_Epic]);
+      _LogScan ("Epic games", scanned [Scan_Epic].size ( ), dwStart);
+    });
+  }
+
+  if (_registry.bLibraryXbox || _registry._LibraryHidden)
+  {
+    scans [Scan_Xbox] = _Start (L"SKIF_LibraryWorker_Xbox", [&]
+    {
+      DWORD dwStart = SKIF_Util_timeGetTime1 ( );
+      SKIF_Xbox_GetInstalledAppIDs (&scanned [Scan_Xbox]);
+      _LogScan ("Xbox games", scanned [Scan_Xbox].size ( ), dwStart);
+    });
+  }
+
+  // Load custom SKIF titles from registry
+  if (_registry.bLibraryCustom || _registry._LibraryHidden)
+  {
+    scans_here.emplace_back ([&]
+    {
+      DWORD dwStart = SKIF_Util_timeGetTime1 ( );
+      SKIF_GetCustomAppIDs (&scanned [Scan_Custom]);
+      _LogScan ("custom SKIF titles", scanned [Scan_Custom].size ( ), dwStart);
+    });
+  }
+
+  for (auto& scan : scans_here)
+    scan ( );
+
+  // Any scan whose thread hasn't started yet is done here, then the rest are waited for
+  for (auto& scan : scans)
+    _Steal (scan);
+
+  for (auto& scan : scans)
+    _Wait (scan);
+
+  auto _Merge = [&](app_list_t& list)
+  {
+    for (auto& entry : list)
+      _data->apps.emplace_back (std::move (entry));
+
+    list.clear ( );
+  };
+
+  _Merge (scanned [Scan_Steam]);
+  games = _data->apps.size();
 
   if ( ! SKIF_STEAM_OWNER )
   {
@@ -820,59 +1125,14 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
     games = _data->apps.size();
   }
 
-  // Load GOG titles from registry
-  if (_registry.bLibraryGOG || _registry._LibraryHidden)
-  {
-    SKIF_GOG_GetInstalledAppIDs  (&_data->apps);
+  _Merge (scanned [Scan_GOG]);
+  _Merge (scanned [Scan_Epic]);
+  _Merge (scanned [Scan_Xbox]);
+  _Merge (scanned [Scan_Custom]);
+  games = _data->apps.size();
 
-    if (! _registry._LibraryHidden)
-    {
-      post = SKIF_Util_timeGetTime1 ( );
-      PLOG_DEBUG << "[Library Processing] Processed " << (_data->apps.size() - games) << " GOG games in " << (post - pre) << " ms.";
-      pre  = post;
-      games = _data->apps.size();
-    }
-  }
-
-  // Load Epic titles from disk
-  if (_registry.bLibraryEpic || _registry._LibraryHidden)
-  {
-    SKIF_EpicCollection::GetInstance ( ).GetInstalledAppIDs (&_data->apps);
-
-    if (! _registry._LibraryHidden)
-    {
-      post = SKIF_Util_timeGetTime1 ( );
-      PLOG_DEBUG << "[Library Processing] Processed " << (_data->apps.size() - games) << " Epic games in " << (post - pre) << " ms.";
-      pre  = post;
-      games = _data->apps.size();
-    }
-  }
-
-  if (_registry.bLibraryXbox || _registry._LibraryHidden)
-  {
-    SKIF_Xbox_GetInstalledAppIDs (&_data->apps);
-
-    if (! _registry._LibraryHidden)
-    {
-      post = SKIF_Util_timeGetTime1 ( );
-      PLOG_DEBUG << "[Library Processing] Processed " << (_data->apps.size() - games) << " Xbox games in " << (post - pre) << " ms.";
-      pre  = post;
-      games = _data->apps.size();
-    }
-  }
-
-  // Load custom SKIF titles from registry
-  if (_registry.bLibraryCustom || _registry._LibraryHidden)
-  {
-    SKIF_GetCustomAppIDs (&_data->apps);
-
-    if (! _registry._LibraryHidden)
-    {
-      post = SKIF_Util_timeGetTime1 ( );
-      PLOG_DEBUG << "[Library Processing] Processed " << (_data->apps.size() - games) << " custom SKIF titles in " << (post - pre) << " ms.";
-      games = _data->apps.size();
-    }
-  }
+  post = SKIF_Util_timeGetTime1 ( );
+  PLOG_DEBUG << "[Library Processing] Loaded the stores' games (in parallel) in " << (post - start) << " ms.";
 
   PLOG_INFO << "Loading custom launch configs synchronously...";
 
@@ -974,9 +1234,59 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
   time (&ltime);
   std::string szTime = std::to_string (ltime);
 
-  // Process the list of apps -- prepare their names, keyboard search, as well as remove any uninstalled entries
-  for (auto& app : _data->apps)
+  // Process the list of apps -- prepare their names, check their install folders, load their metadata, and remove
+  //   any uninstalled entries. This touches each game's files, so the games are grouped by the volume their files are on
+  //   and each volume is processed on its own thread: several drives are read at once, but each drive by one thread.
+  //   Shared state (vecCategories, the label trie, the Profiles / AppIds registry values) is updated afterwards.
+  //   The game threads don't touch the shared metadata (db.json): each game's entry is copied in before and written
+  //   back after the parallel part, by this thread.
+  struct game_job_s {
+    app_entry_t*   app   = nullptr;
+    std::string    key;           // GetPersistentKey ( ), taken before the processing (it may set a Steam game's ID to 0)
+    nlohmann::json meta;          // The game's db.json entry (null if it has none); updated by the processing
+    bool           write = false; // Write meta back to db.json
+  };
+
+  DWORD dwPhase = SKIF_Util_timeGetTime1 ( );
+
+  std::vector <game_job_s> jobs (_data->apps.size ( ));
+  bool                     metaAvailable = false;
+
   {
+    std::scoped_lock jsonLock (self.m_jsonMetaDB_mutex);
+
+    const nlohmann::json& db = self.m_jsonMetaDB;
+    metaAvailable            = ! db.is_discarded ( );
+
+    for (size_t i = 0; i < jobs.size ( ); i++)
+    {
+      auto& job = jobs [i];
+      job.app   = &_data->apps [i];
+
+      if (! metaAvailable)
+        continue;
+
+      job.key   = job.app->second->GetPersistentKey ( );
+
+      if (db.is_object ( ))
+      {
+        auto store = db.find (job.app->second->store_utf8);
+
+        if (store != db.end ( ) && store->is_object ( ))
+        {
+          auto entry = store->find (job.key);
+
+          if (entry != store->end ( ))
+            job.meta = *entry;
+        }
+      }
+    }
+  }
+
+  auto _ProcessGame = [&](game_job_s& job) -> void
+  {
+    app_entry_t& app = *job.app;
+
     PLOG_VERBOSE << "Working on " << app.second->id << " (" << app.second->store_utf8 << ")";
 
     bool isSpecialK = app.second->IsSpecialK ( );
@@ -1003,15 +1313,13 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
     //     the app is installed.
     if (app.second->_status.installed)
     {
-      std::scoped_lock jsonLock (self.m_jsonMetaDB_mutex);
-
-      // Load any custom data
-      if (! self.m_jsonMetaDB.is_discarded())
+      // Load any custom data (the game's own copy of its db.json entry: see game_job_s)
+      if (metaAvailable)
       {
-        std::string item = app.second->GetPersistentKey ( );
+        const std::string& item = job.key;
 
         try {
-          auto& key = self.m_jsonMetaDB[app.second->store_utf8][item];
+          auto& key = job.meta;
 
           std::string keyName         = "";
           int         keyCPU          =  0;
@@ -1063,13 +1371,7 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
           app.second->skif.category       = keyGroup;
           app.second->skif.pinned         = keyPinned;
 
-          // For unrecognized categories, add them to SKIF's internal database as well
-          if (! keyGroup.empty() && std::find_if(_registry.vecCategories.begin(), _registry.vecCategories.end(), [&](const SKIF_RegistrySettings::category_s& category) { return category.name == keyGroup; }) == _registry.vecCategories.end())
-          {
-            SKIF_RegistrySettings::category_s  new_category{ keyGroup, false };
-            _registry.vecCategories.push_back (new_category);
-            newCategories = true;
-          }
+          // Unrecognized categories are added to SKIF's internal database after the parallel part (vecCategories is shared)
 
           // For newly arrived games, we populate the used parameter with the current time
           //   so they appear on top when sorting by Last Played, mirroring Steam a bit...
@@ -1099,6 +1401,8 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
 
           if (app.second->isInstantPlayCompatible ())
             key += { "InstantPlay", app.second->skif.instant_play };
+
+          job.write = true;
         }
         catch (const std::exception& e)
         {
@@ -1125,7 +1429,7 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
         PLOG_DEBUG << "App ID " << app.second->id << " (" << app.second->store_utf8 << ") has no name; ignoring!";
 
         app.second->id = 0;
-        continue;
+        return;
       }
 
       // Hide any... uhm... hidden... games...
@@ -1134,7 +1438,7 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
         PLOG_DEBUG << "App ID " << app.second->id << " (" << app.second->store_utf8 << ") has been hidden; ignoring!";
 
         app.second->id = 0;
-        continue;
+        return;
       }
 
       // Hide all non-hidden games if we are in "hidden mode", lol?
@@ -1142,7 +1446,7 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
       else if (_registry._LibraryHidden && ! isSpecialK && (app.second->skif.hidden == 0 || (app.second->skif.hidden == -1 && app.second->GetClientHidden ( ) == 0)))
       {
         app.second->id = 0;
-        continue;
+        return;
       }
 
       // Strip any remaining null terminators
@@ -1155,20 +1459,20 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
 
       // Replace RIGHT SINGLE QUOTATION MARK (Code: 2019 | UTF-8: E2 80 99)
       //  with a APOSTROPHE (Code: 0027 | UTF-8: 27)
-      app.first = std::regex_replace(app.first, std::regex("\xE2\x80\x99"), "\x27");
+      SKIF_ReplaceAll (app.first, "\xE2\x80\x99", "\x27");
 
       // Replace LATIN SMALL LETTER O (Code: 006F | UTF-8: 6F) and COMBINING DIAERESIS (Code: 0308 | UTF-8: CC 88)
       //  with a LATIN SMALL LETTER O WITH DIAERESIS (Code: 00F6 | UTF-8: C3 B6)
-      app.first = std::regex_replace(app.first, std::regex("\x6F\xCC\x88"), "\xC3\xB6");
+      SKIF_ReplaceAll (app.first, "\x6F\xCC\x88", "\xC3\xB6");
 
       // Remove COPYRIGHT SIGN (Code: 00A9 | UTF-8: C2 A9)
-      app.first = std::regex_replace(app.first, std::regex("\xC2\xA9"), "");
+      SKIF_ReplaceAll (app.first, "\xC2\xA9", "");
 
       // Remove REGISTERED SIGN (Code: 00AE | UTF-8: C2 AE)
-      app.first = std::regex_replace(app.first, std::regex("\xC2\xAE"), "");
+      SKIF_ReplaceAll (app.first, "\xC2\xAE", "");
 
       // Remove TRADE MARK SIGN (Code: 2122 | UTF-8: E2 84 A2)
-      app.first = std::regex_replace(app.first, std::regex("\xE2\x84\xA2"), "");
+      SKIF_ReplaceAll (app.first, "\xE2\x84\xA2", "");
 
       // Output the name change (use widechar to have them appear correct in the logs)
       if (app.second->names.original != app.first)
@@ -1214,14 +1518,103 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
         PLOG_DEBUG << "App ID " << app.second->id << " (" << app.second->store_utf8 << ") has non-existent install folder; ignoring!";
 
         app.second->id = 0;
-        continue;
+        return;
       }
 
       // Preload store-specific details (Steam: active branch)
       app.second->ResolveStoreDetails ( );
     }
+  };
 
-    if (app.second->_status.installed && ! isSpecialK)
+  std::map <std::wstring, std::vector <game_job_s*>> volumes;
+
+  for (auto& job : jobs)
+    volumes [SKIF_GetVolumeKey (job.app->second->GetStorageLocation ( ))].push_back (&job);
+
+  // One worker per volume, at most one per CPU thread; with more volumes than that, each volume goes to the worker with the fewest games
+  std::vector <std::vector <game_job_s*>> workloads (
+    std::min <size_t> (volumes.size ( ), std::max <size_t> (1, std::thread::hardware_concurrency ( )))
+  );
+
+  std::vector <std::pair <std::wstring, std::vector <game_job_s*>*>> bySize;
+  for (auto& volume : volumes)
+    bySize.push_back ({ volume.first, &volume.second });
+
+  std::stable_sort (bySize.begin ( ), bySize.end ( ), [](const auto& a, const auto& b) { return a.second->size ( ) > b.second->size ( ); });
+
+  for (auto& volume : bySize)
+  {
+    auto& workload =
+      *std::min_element (workloads.begin ( ), workloads.end ( ), [](const auto& a, const auto& b) { return a.size ( ) < b.size ( ); });
+
+    workload.insert (workload.end ( ), volume.second->begin ( ), volume.second->end ( ));
+
+    PLOG_VERBOSE << "[Library Processing] Volume " << (volume.first.empty ( ) ? L"(unknown)" : volume.first) << ": " << volume.second->size ( ) << " games";
+  }
+
+  PLOG_DEBUG << "[Library Processing] Prepared the games (metadata, drives) in " << (SKIF_Util_timeGetTime1 ( ) - dwPhase) << " ms.";
+  dwPhase = SKIF_Util_timeGetTime1 ( );
+
+  // The first (largest) workload is processed on this thread, the others on their own threads: one drive means no
+  //   extra threads at all
+  std::vector <std::thread> workers;
+
+  for (size_t i = 1; i < workloads.size ( ); i++)
+  {
+    workers.emplace_back ([&, i]
+    {
+      SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibraryWorker_Games");
+
+      tl_isLibraryWorker = true;
+      _PreferPCores ( );
+
+      for (auto* job : workloads [i])
+        _ProcessGame (*job);
+    });
+  }
+
+  if (! workloads.empty ( ))
+  {
+    for (auto* job : workloads [0])
+      _ProcessGame (*job);
+  }
+
+  for (auto& worker : workers)
+    worker.join ( );
+
+  PLOG_DEBUG << "[Library Processing] Processed games on " << volumes.size ( ) << " drive(s) using " << workloads.size ( ) << " thread(s) in " << (SKIF_Util_timeGetTime1 ( ) - dwPhase) << " ms.";
+  dwPhase = SKIF_Util_timeGetTime1 ( );
+
+  // Write the updated metadata back to db.json (in memory; the file is written below)
+  if (metaAvailable)
+  {
+    std::scoped_lock jsonLock (self.m_jsonMetaDB_mutex);
+
+    for (auto& job : jobs)
+    {
+      if (job.write)
+        self.m_jsonMetaDB [job.app->second->store_utf8][job.key] = std::move (job.meta);
+    }
+  }
+
+  // Shared state, in list order
+  for (auto& app : _data->apps)
+  {
+    // For unrecognized categories, add them to SKIF's internal database as well
+    const std::string& keyGroup = app.second->skif.category;
+
+    if (! keyGroup.empty() && std::find_if(_registry.vecCategories.begin(), _registry.vecCategories.end(), [&](const SKIF_RegistrySettings::category_s& category) { return category.name == keyGroup; }) == _registry.vecCategories.end())
+    {
+      // The categories are shared with the main thread
+      std::scoped_lock categories_lock (self.m_apps_mutex);
+
+      SKIF_RegistrySettings::category_s  new_category{ keyGroup, false };
+      _registry.vecCategories.push_back (new_category);
+      newCategories = true;
+    }
+
+    // Games that made it through the processing above (the others have an ID of 0)
+    if (app.second->id != 0 && app.second->_status.installed && ! app.second->IsSpecialK ( ))
     {
       // Prepare for the keyboard hint / search/filter functionality
       InsertTrieKey (&app, &_data->labels);
@@ -1286,12 +1679,17 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
     RegCloseKey (hAppIdsKey);
   }
 
+  PLOG_DEBUG << "[Library Processing] Updated the metadata, categories, search and registry in " << (SKIF_Util_timeGetTime1 ( ) - dwPhase) << " ms.";
+
   // Update the db.json file with any additions and whatnot
   self.MetaDB_WriteFile ( );
 
   // We have detected new categories!
   if (newCategories)
   {
+    // The categories are shared with the main thread
+    std::scoped_lock categories_lock (self.m_apps_mutex);
+
     // Sort the list of categories
     _registry.vecCategories = _registry.SortCategories (_registry.vecCategories);
 
@@ -1317,14 +1715,9 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
 
   PLOG_INFO << "Finished populating the library list.";
 
-  PLOG_VERBOSE_IF(self.m_pPatTexSRV.p == nullptr) << "Loading the embedded Patreon texture...";
-  ImVec2 dontCare;
-  if (self.m_pPatTexSRV.p == nullptr)
-    LoadLibraryTexture (LibraryTexture::Patreon, SKIF_STEAM_APPID, self.m_pPatTexSRV,          L"patreon.png",         dontCare);
-  if (self.m_pSKLogoTexSRV.p == nullptr)
-    LoadLibraryTexture (LibraryTexture::Logo,    SKIF_STEAM_APPID, self.m_pSKLogoTexSRV,       L"sk_boxart.png",       dontCare);
-  if (self.m_pSKLogoTexSRV_small.p == nullptr)
-    LoadLibraryTexture (LibraryTexture::Logo,    SKIF_STEAM_APPID, self.m_pSKLogoTexSRV_small, L"sk_boxart_small.png", dontCare);
+  // The embedded textures (started at the top; done here if their thread hasn't started yet)
+  _Steal (textures);
+  _Wait  (textures);
 
   // Force a refresh when the game icons have finished being streamed
   PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
