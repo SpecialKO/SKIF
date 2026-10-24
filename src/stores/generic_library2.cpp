@@ -139,6 +139,21 @@ LoadLibraryTextureEx (
   if (load_str != L"\0")
   {
     succeeded = FastTextureLoading (load_str, meta, img);
+
+    // A cover SKIF downloaded that does not decode (e.g. an error page saved as the image) would otherwise stay
+    //   forever, since an existing file is never downloaded again: delete it so the next load fetches it anew
+    if (! succeeded && pApp != nullptr && libTexToLoad == LibraryTexture::Cover && managedAsset && ! customAsset)
+    {
+      const std::filesystem::path fsPath (load_str);
+      std::wstring fileName = SKIF_Util_ToLowerW (fsPath.filename ( ).wstring ( ));
+
+      if ((fileName.rfind (L"cover-original.", 0) == 0 || fileName == L"cover-pcgw.png") &&
+          SKIF_Util_ToLowerW (fsPath.parent_path ( ).wstring ( ) + L"\\") == SKIF_Util_ToLowerW (pApp->GetAssetDirectory ( )))
+      {
+        PLOG_WARNING << "Deleting a downloaded cover that could not be decoded: " << load_str;
+        DeleteFileW (load_str.c_str ( ));
+      }
+    }
   }
 
   else if (appid        == SKIF_STEAM_APPID     &&
