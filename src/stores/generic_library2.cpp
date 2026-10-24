@@ -125,38 +125,57 @@ LoadLibraryTextureEx (
 
   DWORD pre = SKIF_Util_timeGetTime1();
 
+  // A cover SKIF downloaded that does not decode (e.g. an error page saved as the image) would otherwise stay
+  //   forever, since an existing file is never downloaded again: delete it. Returns true if it was deleted.
+  auto _DeleteUndecodableDownload = [&](const std::wstring& path) -> bool
+  {
+    if (pApp == nullptr || libTexToLoad != LibraryTexture::Cover || ! managedAsset || customAsset)
+      return false;
+
+    const std::filesystem::path fsPath (path);
+    std::wstring fileName = SKIF_Util_ToLowerW (fsPath.filename ( ).wstring ( ));
+
+    if ((fileName.rfind (L"cover-original.", 0) == 0 || fileName == L"cover-pcgw.png") &&
+        SKIF_Util_ToLowerW (fsPath.parent_path ( ).wstring ( ) + L"\\") == SKIF_Util_ToLowerW (pApp->GetAssetDirectory ( )) &&
+        DeleteFileW (path.c_str ( )))
+    {
+      PLOG_WARNING << "Deleted a downloaded cover that could not be decoded: " << path;
+      return true;
+    }
+
+    return false;
+  };
+
   // Games (not embedded Special K resources)
   if (pApp != nullptr)
   {
     appid = pApp->id;
 
-    // Store-specific: the user's custom artwork, else the store's (Special K: custom only, else embedded below)
-    load_str = pApp->ResolveArtwork (libTexToLoad, name, customAsset, managedAsset);
-  }
-
-  PLOG_VERBOSE_IF (load_str != L"\0") << "Texture to load: " << load_str;
-
-  if (load_str != L"\0")
-  {
-    succeeded = FastTextureLoading (load_str, meta, img);
-
-    // A cover SKIF downloaded that does not decode (e.g. an error page saved as the image) would otherwise stay
-    //   forever, since an existing file is never downloaded again: delete it so the next load fetches it anew
-    if (! succeeded && pApp != nullptr && libTexToLoad == LibraryTexture::Cover && managedAsset && ! customAsset)
+    // Store-specific: the user's custom artwork, else the store's (Special K: custom only, else embedded below).
+    //   If a downloaded cover does not decode it is deleted, and the next candidate in the store's order is tried
+    //   right away (e.g. the PCGamingWiki cover, then the store's cover). Each retry needs one file fewer, so this ends.
+    for (int attempt = 0; attempt < 3; attempt++)
     {
-      const std::filesystem::path fsPath (load_str);
-      std::wstring fileName = SKIF_Util_ToLowerW (fsPath.filename ( ).wstring ( ));
+      customAsset  = false;
+      managedAsset = true; // Assume true (only GOG and SKIF itself is not managed)
+      load_str     = pApp->ResolveArtwork (libTexToLoad, name, customAsset, managedAsset);
 
-      if ((fileName.rfind (L"cover-original.", 0) == 0 || fileName == L"cover-pcgw.png") &&
-          SKIF_Util_ToLowerW (fsPath.parent_path ( ).wstring ( ) + L"\\") == SKIF_Util_ToLowerW (pApp->GetAssetDirectory ( )))
-      {
-        PLOG_WARNING << "Deleting a downloaded cover that could not be decoded: " << load_str;
-        DeleteFileW (load_str.c_str ( ));
-      }
+      if (load_str == L"\0")
+        break;
+
+      PLOG_VERBOSE << "Texture to load: " << load_str;
+
+      succeeded = FastTextureLoading (load_str, meta, img);
+
+      if (succeeded || ! _DeleteUndecodableDownload (load_str))
+        break;
+
+      PLOG_INFO << "Trying the next cover candidate...";
     }
   }
 
-  else if (appid        == SKIF_STEAM_APPID     &&
+  if (load_str     == L"\0"                &&
+      appid        == SKIF_STEAM_APPID     &&
            libTexToLoad != LibraryTexture::Cover ) // We have no embedded cover any longer
   {
     PLOG_VERBOSE << "Texture to load (embedded): " << name;
