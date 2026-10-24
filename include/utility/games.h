@@ -13,26 +13,23 @@
 // define character size
 #define CHAR_SIZE 128
 
-// A Class representing a Trie node
+// Prefix tree of the library's game names (upper-case ASCII letters, digits and spaces), used by the keyboard hint search.
+//   Owns its nodes (freed with the tree); move-only. Characters outside 0-127 are never stored or found.
 class Trie
 {
 public:
-  bool  isLeaf                = false;
-  Trie* character [CHAR_SIZE] = {   };
+  Trie            (void)        = default;
+  Trie            (Trie&&)      = default;
+  Trie& operator= (Trie&&)      = default;
+  Trie            (const Trie&) = delete;
+  Trie& operator= (const Trie&) = delete;
 
-  // Constructor
-  Trie (void)
-  {
-    this->isLeaf = false;
+  void insert (const std::string& key);       // Adds key; a key with a character outside 0-127 is not added
+  bool search (const std::string& key) const; // True if key was added
 
-    for (int i = 0; i < CHAR_SIZE; i++)
-      this->character [i] = nullptr;
-  }
-
-  void insert       (        const std::string&);
-  bool deletion     (Trie*&, const std::string&);
-  bool search       (        const std::string&);
-  bool haveChildren (Trie const*);
+private:
+  bool                   isLeaf = false;
+  std::unique_ptr <Trie> character [CHAR_SIZE];
 };
 
 // Helper functions

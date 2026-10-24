@@ -74,8 +74,8 @@
 
 // Constants
 
-constexpr wchar_t*     utf8_bom          =  L"\xEF\xBB\xBF";
-constexpr wchar_t*     cfg_compatibility =
+constexpr const wchar_t* utf8_bom        =  L"\xEF\xBB\xBF";
+constexpr const wchar_t* cfg_compatibility =
 LR"([SpecialK.System]
 ShowEULA=false
 GlobalInjectDelay=0.0

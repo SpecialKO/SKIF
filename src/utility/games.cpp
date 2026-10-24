@@ -42,16 +42,23 @@ CONDITION_VARIABLE LibRefreshPaused = { };
 void
 Trie::insert (const std::string& key)
 {
+  // Characters outside 0-127 have no node (char is signed: they would index outside the node)
+  for (const char c : key)
+    if (static_cast <unsigned char> (c) >= CHAR_SIZE)
+      return;
+
   // start from root node
   Trie* curr = this;
-  for (size_t i = 0; i < key.length (); i++)
+  for (const char c : key)
   {
+    auto& next = curr->character [static_cast <unsigned char> (c)];
+
     // create a new node if path doesn't exists
-    if (curr->character [key [i]] == nullptr)
-        curr->character [key [i]]  = new Trie ();
+    if (next == nullptr)
+        next = std::make_unique <Trie> ( );
 
     // go to next node
-    curr = curr->character [key [i]];
+    curr = next.get ( );
   }
 
   // mark current node as leaf
@@ -61,13 +68,16 @@ Trie::insert (const std::string& key)
 // Iterative function to search a key in Trie. It returns true
 // if the key is found in the Trie, else it returns false
 bool
-Trie::search (const std::string& key)
+Trie::search (const std::string& key) const
 {
-  Trie* curr = this;
-  for (size_t i = 0; i < key.length (); i++)
+  const Trie* curr = this;
+  for (const char c : key)
   {
+    if (static_cast <unsigned char> (c) >= CHAR_SIZE)
+      return false;
+
     // go to next node
-    curr = curr->character [key [i]];
+    curr = curr->character [static_cast <unsigned char> (c)].get ( );
 
     // if string is invalid (reached end of path in Trie)
     if (curr == nullptr)
@@ -77,77 +87,6 @@ Trie::search (const std::string& key)
   // if current node is a leaf and we have reached the
   // end of the string, return true
   return curr->isLeaf;
-}
-
-// returns true if given node has any children
-bool
-Trie::haveChildren (Trie const* curr)
-{
-  for (int i = 0; i < CHAR_SIZE; i++)
-    if (curr->character [i])
-      return true;  // child found
-
-  return false;
-}
-
-// Recursive function to delete a key in the Trie
-bool
-Trie::deletion (Trie*& curr, const std::string& key)
-{
-  // return if Trie is empty
-  if (curr == nullptr)
-    return false;
-
-  // if we have not reached the end of the key
-  if (key.length ())
-  {
-    // recur for the node corresponding to next character in the key
-    // and if it returns true, delete current node (if it is non-leaf)
-
-    if (        curr                      != nullptr       &&
-                curr->character [key [0]] != nullptr       &&
-      deletion (curr->character [key [0]], key.substr (1)) &&
-                curr->isLeaf == false)
-    {
-      if (! haveChildren (curr))
-      {
-        delete curr;
-        curr = nullptr;
-        return true;
-      }
-
-      else {
-        return false;
-      }
-    }
-  }
-
-  // if we have reached the end of the key
-  if (key.length () == 0 && curr->isLeaf)
-  {
-    // if current node is a leaf node and don't have any children
-    if (! haveChildren (curr))
-    {
-      // delete current node
-      delete curr;
-      curr = nullptr;
-
-      // delete non-leaf parent nodes
-      return true;
-    }
-
-    // if current node is a leaf node and have children
-    else
-    {
-      // mark current node as non-leaf node (DON'T DELETE IT)
-      curr->isLeaf = false;
-
-      // don't delete its parent nodes
-      return false;
-    }
-  }
-
-  return false;
 }
 
 void
@@ -160,10 +99,10 @@ InsertTrieKey (app_entry_t* app, Trie* labels)
 
   for (const char c : app->first)
   {
-    if (! ( isalnum (c) || isspace (c) ))
+    if (! ( isalnum (static_cast <unsigned char> (c)) || isspace (static_cast <unsigned char> (c)) )) // Negative values are undefined for these
       continue;
 
-    all_upper_alnum += (char)toupper (c);
+    all_upper_alnum += (char)toupper (static_cast <unsigned char> (c));
   }
 
   size_t stripped = 0;
@@ -743,7 +682,7 @@ SKIF_GamingCollection::SwapInPopulatedGames (void)
   // Insert new data
   m_apps       = std::move (m_worker->apps);
   m_apptickets = m_worker->apptickets;
-  m_tLabels    = m_worker->labels;
+  m_tLabels    = std::move (m_worker->labels); // Trie is move-only (it owns its nodes)
 
   // Move cached icons over
   for (auto& app : m_apps)
