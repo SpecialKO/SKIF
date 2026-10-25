@@ -1547,17 +1547,19 @@ SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
 
   // Reset any existing fonts. Since ImGui 1.92 this is allowed at any time (it should be done between frames here, as
   //   pointers such as fontConsolas change); the renderer backend recreates the atlas texture on request.
-  io.Fonts->ClearFonts ( );
+  //
+  // This must be Clear ( ) and not ClearFonts ( ): ClearFonts ( ) discards the glyphs and the packer but keeps the
+  //   atlas texture and its pixels, and the next build then packs the new glyphs over the old ones from the top-left
+  //     of that same texture. Each new glyph only overwrites its own rectangle, so the padding around it still holds
+  //       pieces of the previous glyphs, which texture filtering blends into the edges of the new glyphs (garbage
+  //         pixels, seen after a non-Latin character made SKIF reload the fonts with an extended character set).
+  //   Clear ( ) also frees the pixels of the atlas textures, so the next build starts on a new, empty texture
+  //     (the old one is destroyed by the backend the next frame).
+  io.Fonts->Clear ( );
   io.FontDefault = nullptr;
 
   // SKIF's pixel shader reads the font atlas as an alpha-only texture (ImGui_ImplDX11_UpdateTexture supports both)
   io.Fonts->TexDesiredFormat = ImTextureFormat_Alpha8;
-
-  // Two pixels of empty space between the glyphs of the atlas (ImGui's default is one). Glyphs are rasterized with
-  //   horizontal oversampling and drawn squeezed, so texture filtering that reaches further than bilinear (e.g.
-  //     anisotropic filtering forced by the GPU driver) would otherwise blend in pixels of the neighboring glyph.
-  //   Set before any glyph is packed: ClearFonts ( ) above discards the previous packing.
-  io.Fonts->TexGlyphPadding = 2;
 
   // Font Awesome's icons are in the Private Use Area: no other font source may provide those codepoints...
   static_assert (ICON_MIN_FA <= ICON_MIN_FAB && ICON_MAX_FAB <= ICON_MAX_FA, "The Font Awesome ranges are expected to overlap");

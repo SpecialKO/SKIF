@@ -284,10 +284,11 @@ float GammaMatchedAlpha (float alpha, float t)
 
 float4 main (PS_INPUT input) : SV_Target
 {
-  // The font atlas is sampled from its only mip level with SampleLevel: unlike Sample, it is not affected by
-  //   anisotropic filtering forced through the GPU driver's control panel. Glyphs are rasterized with horizontal
-  //     oversampling (drawn squeezed 2:1), and forced anisotropic filtering then takes extra samples along that axis,
-  //       which reach past the padding between glyphs and blend in pixels of the neighboring glyphs of the atlas.
+  // The font atlas is sampled from its only mip level with SampleLevel (same result as Sample, as it has no mipmaps).
+  //   Precaution: SampleLevel cannot be affected by anisotropic filtering forced through the GPU driver's control
+  //     panel. Glyphs are rasterized with horizontal oversampling (drawn squeezed 2:1), and anisotropic filtering takes
+  //       extra samples along that axis, which could reach past the 1 pixel of padding between the glyphs of the atlas
+  //         and blend in pixels of a neighboring glyph. Plain bilinear filtering stays within the padding.
   //   font_dims comes from a constant buffer, so this branch is uniform and Sample still has its derivatives.
   float4 out_col  =
     (font_dims.x + font_dims.y > 0.0f) ? texture0.SampleLevel (sampler0, input.uv, 0.0f)
