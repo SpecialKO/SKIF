@@ -143,6 +143,7 @@ SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst)
 
   // CheckMark / Radio Button
   colors[ImGuiCol_CheckMark]              = ImVec4(0.45f, 0.45f, 0.45f, 1.00f); // ImVec4(0.26f, 0.59f, 0.98f, 1.00f)
+  colors[ImGuiCol_CheckboxSelectedBg]     = ImVec4(0.00f, 0.00f, 0.00f, 0.00f); // Disable
 
   // Slider Grab (used for HDR Brightness slider)
   colors[ImGuiCol_SliderGrab]             = ImVec4(0.24f, 0.52f, 0.88f, 1.00f);
@@ -259,6 +260,7 @@ SKIF_ImGui_StyleColorsLight (ImGuiStyle* dst)
 
   // CheckMark / Radio Button
   colors[ImGuiCol_CheckMark]              = ImVec4(0.26f, 0.59f, 0.98f, 1.00f);
+  colors[ImGuiCol_CheckboxSelectedBg]     = ImVec4(0.00f, 0.00f, 0.00f, 0.00f); // Disable
 
   // Slider Grab (used for HDR Brightness slider)
   colors[ImGuiCol_SliderGrab]             = ImVec4(0.26f, 0.59f, 0.98f, 0.78f);
