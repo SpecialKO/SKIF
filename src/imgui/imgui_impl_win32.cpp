@@ -1829,10 +1829,16 @@ static void ImGui_ImplWin32_UpdateWindow (ImGuiViewport *viewport)
       (LONG)( viewport->Pos.x + viewport->Size.x ), (LONG)( viewport->Pos.y + viewport->Size.y )
     };
 
+    // SWP_NOACTIVATE | SWP_NOZORDER: this runs before Platform_ShowWindow () on newly created windows, and without
+    //   these flags SetWindowPos () activates the window -- even if it was meant to appear with SW_SHOWNA due to
+    //     ImGuiViewportFlags_NoFocusOnAppearing (e.g. ##NavWindowingOverlay). Stealing the activation from the main
+    //       window makes SKIF_GamePadInputHelper neutralize the gamepad state, which released the held gamepad Menu
+    //         button and closed the overlay again, repeating for as long as the button was held down.
+    //           Activation and z-order are left to Platform_ShowWindow () (SW_SHOW / SW_SHOWNA).
     ::SetWindowPos       ( vd->Hwnd, nullptr,
                                           rect.left,               rect.top,
                              rect.right - rect.left, rect.bottom - rect.top,
-                               SWP_FRAMECHANGED );
+                               SWP_FRAMECHANGED | SWP_NOZORDER | SWP_NOACTIVATE );
   }
   //*/
 }
