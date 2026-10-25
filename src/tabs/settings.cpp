@@ -489,7 +489,7 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::SeparatorText   ("Third-Party Setup\tXInput Assignment: ");
 
       auto&                     _gamepad = SKIF_GamePadInputHelper::GetInstance ();
-      std::vector<bool> slots = _gamepad.GetGamePads ( );
+      const auto slots = _gamepad.GetGamePads ( );
 
       ImGui::SameLine        (  );
       ImGui::BeginGroup      (  );

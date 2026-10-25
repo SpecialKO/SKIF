@@ -12,7 +12,8 @@
 struct SKIF_GamePadInputHelper
 {
   bool               HasGamePad                (void);      // Returns true if at least one gamepad is connected
-  std::vector <bool> GetGamePads               (void);      // Returns a boolean vector indicating the connectivity state of each XInput slot
+  std::array <bool, XUSER_MAX_COUNT>
+                     GetGamePads               (void);      // Returns the connectivity state of each XInput slot (fixed size, no heap allocation)
   void               InvalidateGamePads        (void);      // This triggers a check for connected gamepads next time UpdateXInputState ( ) executes
   XINPUT_STATE       GetXInputState            (void);      // Returns the latest XInput state across all slots
   void               WakeThread                (void);      // Wake the gamepad worker thread

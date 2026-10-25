@@ -333,7 +333,7 @@ void SKIF_UI_DrawPlatformStatus (void)
 
   else
   {
-    std::vector<bool> slots = _gamepad.GetGamePads ( );
+    const auto slots = _gamepad.GetGamePads ( );
 
     ImGui::BeginGroup       ( );
     for (auto slot : slots)

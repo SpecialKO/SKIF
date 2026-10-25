@@ -164,15 +164,15 @@ SKIF_GamePadInputHelper::HasGamePad (void)
   return false;
 }
 
-std::vector <bool>
+std::array <bool, XUSER_MAX_COUNT>
 SKIF_GamePadInputHelper::GetGamePads (void)
 {
-  std::vector<bool> vec;
+  std::array <bool, XUSER_MAX_COUNT> slots = { };
 
   for (int i = 0; i < XUSER_MAX_COUNT; i++)
-    vec.push_back (m_bGamepads[i].load());
+    slots [i] = m_bGamepads[i].load();
 
-  return vec;
+  return slots;
 }
 
 void
