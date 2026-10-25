@@ -986,18 +986,10 @@ bool ImGui_ImplDX11_CreateDeviceObjects (void)
           0,       DXGI_FORMAT_R32G32_FLOAT, 0,
             offsetof (ImDrawVert,       uv),
                 D3D11_INPUT_PER_VERTEX_DATA, 0 },
-#ifdef SKIF_ImDrawVert
-      { "COLOR",
-          0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0,
-            offsetof (ImDrawVert,      col),
-                D3D11_INPUT_PER_VERTEX_DATA, 0 }
-#else
       { "COLOR",
           0, DXGI_FORMAT_R8G8B8A8_UNORM, 0,
             offsetof (ImDrawVert,      col),
                 D3D11_INPUT_PER_VERTEX_DATA, 0 }
-
-#endif // SKIF_ImDrawVert
     };
 
   if (FAILED (bd->pd3dDevice->CreateInputLayout (local_layout, 3, imgui_vs_bytecode, sizeof (imgui_vs_bytecode) / sizeof (imgui_vs_bytecode[0]), &bd->pInputLayout)))

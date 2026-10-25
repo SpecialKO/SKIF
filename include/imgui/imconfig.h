@@ -157,23 +157,3 @@ namespace ImGui
 #include <plog/Log.h>
 
 #define IMGUI_DEBUG_PRINTF(_FMT,...)   PLOG_VERBOSE.printf(_FMT, __VA_ARGS__)
-
-//#define SKIF_ImDrawVert
-
-#ifdef SKIF_ImDrawVert
-
-#define IMGUI_OVERRIDE_DRAWVERT_STRUCT_LAYOUT \
-struct ImDrawVert                             \
-{                                             \
-  ImVec2 pos;                                 \
-  ImVec2 uv;                                  \
-  ImVec4 col;                                 \
-};
-
-#define IM_VEC4_CLASS_EXTRA                                                              \
-        constexpr ImVec4(const ImU32& col) : x (((col >>  0) & 0xFF) * 1.0f / 255.0f),   \
-                                             y (((col >>  8) & 0xFF) * 1.0f / 255.0f),   \
-                                             z (((col >> 16) & 0xFF) * 1.0f / 255.0f),   \
-                                             w (((col >> 24) & 0xFF) * 1.0f / 255.0f) {}
-
-#endif // SKIF_ImDrawVert
