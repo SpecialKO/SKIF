@@ -1553,6 +1553,12 @@ SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
   // SKIF's pixel shader reads the font atlas as an alpha-only texture (ImGui_ImplDX11_UpdateTexture supports both)
   io.Fonts->TexDesiredFormat = ImTextureFormat_Alpha8;
 
+  // Two pixels of empty space between the glyphs of the atlas (ImGui's default is one). Glyphs are rasterized with
+  //   horizontal oversampling and drawn squeezed, so texture filtering that reaches further than bilinear (e.g.
+  //     anisotropic filtering forced by the GPU driver) would otherwise blend in pixels of the neighboring glyph.
+  //   Set before any glyph is packed: ClearFonts ( ) above discards the previous packing.
+  io.Fonts->TexGlyphPadding = 2;
+
   // Font Awesome's icons are in the Private Use Area: no other font source may provide those codepoints...
   static_assert (ICON_MIN_FA <= ICON_MIN_FAB && ICON_MAX_FAB <= ICON_MAX_FA, "The Font Awesome ranges are expected to overlap");
   static const ImWchar exclude_font_awesome [] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
