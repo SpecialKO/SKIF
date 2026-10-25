@@ -321,7 +321,7 @@ SKIF_Custom_AddGame (void)
         AddGamePopup = PopupState_Opened;
     }
 
-    // TODO: Go through and correct the buf_size of all ImGui::InputText to include the null terminator
+    // ImGui's buf_size includes the null terminator, so passing MAX_PATH / 1024 to these slightly larger buffers is safe
     static char charName     [MAX_PATH + 2] = { },
                 charPath     [MAX_PATH + 2] = { },
                 charWorkDir  [MAX_PATH + 2] = { },

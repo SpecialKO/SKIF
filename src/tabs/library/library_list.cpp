@@ -133,7 +133,6 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
   int         categories       = 0;
   int         pinned_top       = 0;
   bool        resetNumOnTop    = true;
-  // TODO: Pinned on top has some large counting issues, e.g. disabling a platform or hiding games allows the user to bypass the 5 limit restriction
 
   static int  apply_header_state = 0;
   bool        new_header_state   = false;

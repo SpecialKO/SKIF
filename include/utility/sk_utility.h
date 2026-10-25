@@ -342,60 +342,6 @@ void
                SK_ResumeThreads          (std::queue <DWORD> threads);
 
 
-bool __cdecl   SK_IsRunDLLInvocation     (void);
-bool __cdecl   SK_IsSuperSpecialK        (void);
-
-
-// TODO: Push the SK_GetHostApp (...) stuff into this class
-class SK_HostAppUtil
-{
-public:
-  void         init                      (void);
-
-  bool         isInjectionTool           (void)
-  {
-    init ();
-
-    return SKIF || SKIM || (RunDll32 && SK_IsRunDLLInvocation ());
-  }
-
-
-protected:
-  bool        SKIM     = false;
-  bool        SKIF     = false;
-  bool        RunDll32 = false;
-};
-
-SK_HostAppUtil*
-SK_GetHostAppUtil (void);
-
-bool __stdcall SK_IsDLLSpecialK          (const wchar_t* wszName);
-void __stdcall SK_SelfDestruct           (void) noexcept;
-
-
-
-struct sk_import_test_s {
-  const char* szModuleName;
-  bool        used;
-};
-
-void __stdcall SK_TestImports          (HMODULE hMod, sk_import_test_s* pTests, int nCount);
-
-//
-// This prototype is now completely ridiculous, this "design" sucks...
-//   FIXME!!
-//
-void
-SK_TestRenderImports ( HMODULE hMod,
-                       bool*   gl,
-                       bool*   vulkan,
-                       bool*   d3d9,
-                       bool*   dxgi,
-                       bool*   d3d11,
-                       bool*   d3d8,
-                       bool*   ddraw,
-                       bool*   glide );
-
 void
 __stdcall
 SK_wcsrep ( const wchar_t*   wszIn,
