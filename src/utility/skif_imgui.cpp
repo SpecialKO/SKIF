@@ -1763,12 +1763,6 @@ SKIF_ImGui_SetStyle (ImGuiStyle* dst)
     dst->Colors[ImGuiCol_TabSelected] = dst->Colors[ImGuiCol_WindowBg];
   }
 
-  else {
-    // Is not scaled by ScaleAllSizes() so we have to do it here
-    dst->TabBorderSize   = 1.0F * SKIF_ImGui_GlobalDPIScale;
-    dst->FrameBorderSize = 1.0F * SKIF_ImGui_GlobalDPIScale;
-  }
-
   // Scale the style based on the current DPI factor
   dst->ScaleAllSizes (SKIF_ImGui_GlobalDPIScale);
 
