@@ -3120,6 +3120,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
       }
 
+      // Right edge of the last tab (About) in window-local coordinates, used to keep Shelly the Ghost out of the tab bar
+      //   Mini mode has no tabs, so Shelly may then use all space up until the window buttons
+      float fTabBarRightEdge = ImGui::GetStyle ( ).WindowPadding.x;
+
       // Begin Mini Mode
 #pragma region UI: Mini Mode
 
@@ -3291,7 +3295,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::EndTabItem       ( );
         }
 
-        if (ImGui::BeginTabItem (tabTitleAbout, nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_About) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
+        bool bAboutTabOpen =
+          ImGui::BeginTabItem (tabTitleAbout, nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_About) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None));
+
+        // The tab itself is the last item at this point (regardless of whether it is selected or not)
+        fTabBarRightEdge = ImGui::GetItemRectMax ( ).x - ImGui::GetWindowPos ( ).x;
+
+        if (bAboutTabOpen)
         {
           SKIF_ImGui_BeginTabChildFrame ();
 
@@ -3442,39 +3452,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
 #pragma endregion
 
-#pragma region Shelly the Ghost
-
-      if (_registry.iGhostVisibility == 1 ||
-         (_registry.iGhostVisibility == 2 && _inject.bCurrentState))
-      {
-        ImVec2 preShellyPos =
-          ImGui::GetCursorPos ();
-
-        ImVec2 shelly_movable_area = ImVec2 (
-            250.0f * SKIF_ImGui_GlobalDPIScale,
-            ImGui::CalcTextSize (ICON_FA_GHOST).y + 4.0f * SKIF_ImGui_GlobalDPIScale
-        );
-
-        ImGui::SetCursorPos (ImVec2 (
-              SKIF_ImGui_GetWindowContentRegionMax ( ).x / 2 - shelly_movable_area.x / 2,
-              10.0f * SKIF_ImGui_GlobalDPIScale
-        ));
-
-        ImGui::PushStyleVar (ImGuiStyleVar_WindowPadding, ImVec2());
-        ImGui::PushStyleVar (ImGuiStyleVar_FramePadding,  ImVec2());
-        bool shelly_show = ImGui::BeginChild ("###SKIV_SHELLY", shelly_movable_area, ImGuiChildFlags_None, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMouseInputs);
-        ImGui::PopStyleVar  (2);
-
-        if (shelly_show)
-          SKIF_UI_DrawShellyTheGhost ( );
-
-        ImGui::EndChild ( );
-
-        ImGui::SetCursorPos (preShellyPos);
-      }
-
-#pragma endregion
-
 #pragma region WindowButtons
 
       // 164px - regular mode
@@ -3582,6 +3559,54 @@ wWinMain ( _In_     HINSTANCE hInstance,
       ImGui::SetCursorPos (prevCursorPos);
 
       ImGui::Dummy (ImVec2 (0, 0)); // Dummy required here to solve ImGui::ErrorCheckUsingSetCursorPosToExtendParentBoundaries()
+
+#pragma endregion
+
+#pragma region Shelly the Ghost
+
+      if (_registry.iGhostVisibility == 1 ||
+         (_registry.iGhostVisibility == 2 && _inject.bCurrentState))
+      {
+        const ImVec2 vGhostSize = ImGui::CalcTextSize (ICON_FA_GHOST);
+        const float  fSpacing   = ImGui::GetStyle ( ).ItemSpacing.x * 2.0f;
+
+        // Shelly may only move in the space between the right side of the last tab (About)
+        //   and the left side of the first window button (Horizon or Mini mode toggle)
+        float fShellyMinX = fTabBarRightEdge + fSpacing;
+        float fShellyMaxX = window_btn_pos.x - fSpacing;
+
+        ImVec2 shelly_movable_area = ImVec2 (
+            ImFloor (fShellyMaxX - fShellyMinX),
+            vGhostSize.y + 4.0f * SKIF_ImGui_GlobalDPIScale
+        );
+
+        // Only draw Shelly if there is enough room for her to actually move around
+        //   (this also prevents a width <= 0, which BeginChild () treats as "fill remaining space")
+        if (shelly_movable_area.x >= vGhostSize.x * 3.0f)
+        {
+          ImVec2 preShellyPos =
+            ImGui::GetCursorPos ();
+
+          ImGui::SetCursorPos (ImVec2 (
+                ImFloor (fShellyMinX),
+                10.0f * SKIF_ImGui_GlobalDPIScale
+          ));
+
+          ImGui::PushStyleVar (ImGuiStyleVar_WindowPadding, ImVec2());
+          ImGui::PushStyleVar (ImGuiStyleVar_FramePadding,  ImVec2());
+          bool shelly_show = ImGui::BeginChild ("###SKIV_SHELLY", shelly_movable_area, ImGuiChildFlags_None, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMouseInputs);
+          ImGui::PopStyleVar  (2);
+
+          if (shelly_show)
+            SKIF_UI_DrawShellyTheGhost ( );
+
+          ImGui::EndChild ( );
+
+          ImGui::SetCursorPos (preShellyPos);
+
+          ImGui::Dummy (ImVec2 (0, 0)); // Dummy required here to solve ImGui::ErrorCheckUsingSetCursorPosToExtendParentBoundaries()
+        }
+      }
 
 #pragma endregion
 
