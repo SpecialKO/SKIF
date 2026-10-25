@@ -829,12 +829,8 @@ SKIF_UI_IniEditor_Process (void)
   //     being closed and will close the main SKIF window instead
   if (cleanup)
   {
-    std::vector <IniWindow> new_vector;
-    for (auto& window : vIniWindow)
-    {
-      if (window.state != PopupState_Closed)
-        new_vector.push_back (window);
-    }
-    vIniWindow = new_vector;
+    std::erase_if(vIniWindow, [](const auto& window) {
+      return window.state == PopupState_Closed;
+    });
   }
 }
