@@ -234,19 +234,24 @@ LoadLibraryTextureEx (
     else
       height = width / imageAspectRatio;
 
+    // Resize into an image of its own: pImg may already point to converted_img (single-channel covers converted above),
+    //   and DirectX::Resize () releases its output image before reading the source images (and metadata) it was given
+    DirectX::ScratchImage resized_img;
+
     if (
       SUCCEEDED (
         DirectX::Resize (
           pImg->GetImages   (), pImg->GetImageCount (),
           pImg->GetMetadata (), static_cast<size_t> (width), static_cast<size_t> (height),
           DirectX::TEX_FILTER_FANT,
-              converted_img
+              resized_img
         )
       )
     )
     {
-      meta =  converted_img.GetMetadata ();
-      pImg = &converted_img;
+      converted_img = std::move (resized_img);
+      meta          =  converted_img.GetMetadata ();
+      pImg          = &converted_img;
     }
   }
 
