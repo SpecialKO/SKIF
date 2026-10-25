@@ -99,10 +99,14 @@ struct SKIF_Lib_GameWorkerThread_s {
   HANDLE                hWorker    = NULL;
   bool                  free       = true;
   int                   cpu_pre    = -1;
+  uint32_t              iteration  =  0; // The library iteration the worker was started on
 };
 
 #define MAX_GAMEWORKER 3
 SKIF_Lib_GameWorkerThread_s aGameWorkers[MAX_GAMEWORKER] = { };
+
+// Increased every time a new library is swapped in, so results of workers started before that can be discarded
+static uint32_t uiLibraryIteration = 0;
 
 
 
@@ -560,6 +564,9 @@ SKIF_UI_Tab_DrawLibrary (void)
   {
     _art.OnIconWorkersReaped (_games.SwapInPopulatedGames ( ));
 
+    // Any game worker still running was started on the old library, so its results are outdated
+    uiLibraryIteration++;
+
     std::scoped_lock app_lock (_games.GetMutex());
 
     labelsFiltered   = { };
@@ -671,9 +678,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   // Update the injection strategy for the selected game
   // Only do this once per frame to prevent data from "leaking" between pApp's
   // Also don't do it while the library worker is processing (to prevent stale data from surviving the refresh)
-  // TODO: We still need to improve this by killing off any outdated workers and prevent them from swapping their
-  //         results in. Maybe using an integer indicating the library refresh iteration we're currently on, that
-  //           the worker can have a copy of for evaluation once it's finished?
+  // Workers started before the current library was swapped in have their (outdated) results discarded below
   if (pApp != nullptr && ! _games.IsPopulating ( ))
   {
     if (update)
@@ -702,9 +707,15 @@ SKIF_UI_Tab_DrawLibrary (void)
       {
         std::scoped_lock app_lock (_games.GetMutex());
 
+        // The worker was started before the current library was swapped in, so its results are outdated
+        const bool outdated = (worker.iteration != uiLibraryIteration);
+
+        PLOG_VERBOSE_IF (outdated) << "Discarded the outdated results of the game worker for app ID " << worker.app->id;
+
         for (auto& app : _games.GetApps())
         {
-          if (app.second->id    == worker.app->id &&
+          if (! outdated &&
+              app.second->id    == worker.app->id &&
               app.second->store == worker.app->store)
           {
             // Backup the texture data (in particular any active worker data)
@@ -770,6 +781,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         worker->app        = pApp->Clone ( );
         worker->apptickets = _games.GetAppTickets ( );
         worker->cpu_pre    = (int)pApp->specialk.injection.injection.bitness;
+        worker->iteration  = uiLibraryIteration;
 
         HANDLE hWorkerThread = (HANDLE)
         _beginthreadex (nullptr, 0x0, [](void* var) -> unsigned
