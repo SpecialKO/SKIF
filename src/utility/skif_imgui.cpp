@@ -1746,7 +1746,8 @@ SKIF_ImGui_ApplyDPIScale (float scale)
                        ImFloor ((cur.*m).y * ratio + 0.5f));
   };
 
-  // The same fields as ImGuiStyle::ScaleAllSizes () in ImGui 1.93.0 -- re-check this list on every ImGui update!
+  // The same fields as ImGuiStyle::ScaleAllSizes () in ImGui 1.93.0.
+  // TODO: Re-check this list on every ImGui update!
   V (&ImGuiStyle::WindowPadding);           F (&ImGuiStyle::WindowRounding);           F (&ImGuiStyle::WindowBorderSize);
   V (&ImGuiStyle::WindowMinSize);           F (&ImGuiStyle::WindowBorderHoverPadding);
   F (&ImGuiStyle::ChildRounding);           F (&ImGuiStyle::ChildBorderSize);
