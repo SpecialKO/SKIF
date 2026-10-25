@@ -1549,7 +1549,7 @@ static void ImGui_ImplWin32_CreateWindow(ImGuiViewport *viewport)
 
   // Secondary viewports store their imgui context (read by ImGui_ImplWin32_WndProcHandler_PlatformWindow)
   ::SetPropA(vd->Hwnd, "IMGUI_CONTEXT", ImGui::GetCurrentContext());
-  vd->DpiScale = (_registry.bDPIScaling) ? ImGui_ImplWin32_GetDpiScaleForHwnd (vd->Hwnd) : 1.0f;
+  vd->DpiScale = ImGui_ImplWin32_GetDpiScaleForHwnd (vd->Hwnd); // The real DPI, also with HiDPI scaling disabled (see WM_DPICHANGED)
 
   // We need to store the first window in the backend / globally
   ImGui_ImplWin32_Data* bd = ImGui_ImplWin32_GetBackendData();
@@ -2074,28 +2074,6 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
       switch (msg)
       {
 
-//#define SKIF_Win32_GetDPIScaledSize
-#ifdef SKIF_Win32_GetDPIScaledSize
-      // Calculate the new suggested size of the viewport on DPI changes
-      case WM_GETDPISCALEDSIZE:
-      {
-        SIZE* size = reinterpret_cast<SIZE*> (lParam);
-
-        // If we have disabled DPI scaling, use our existing size (scale non-linearly)
-        if (! _registry.bDPIScaling)
-        {
-          size->cx = (LONG)viewport->Size.x;
-          size->cy = (LONG)viewport->Size.y;
-
-          // We have computed a new size
-          return 1;
-        }
-
-        // Apply the default linear DPI scaling to the window
-        return 0;
-      }
-#endif
-
 //#define SKIF_Win32_Snapping
 #ifdef SKIF_Win32_Snapping
 
@@ -2242,13 +2220,11 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
 
         case WM_DPICHANGED:
         {
-          // Only process if we actually follow HiDPI
-          if (! _registry.bDPIScaling)
-            return 0;
-
           int g_dpi    = HIWORD (wParam);
           RECT* const prcNewWindow = (RECT*) lParam;
 
+          // Always track the real DPI of the window, also with HiDPI scaling disabled, so the ratio between the old and new
+          //   DPI is correct should HiDPI scaling be enabled later on
           ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData;
 
           if (vd != nullptr)
@@ -2256,6 +2232,31 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
             vd->DpiScale_Last = vd->DpiScale;
             vd->DpiScale = (float) g_dpi / USER_DEFAULT_SCREEN_DPI;
           }
+
+          // ImGui uses the monitor list to pick the DPI of new popups and tooltips for their first frame. If the DPI does not
+          //   match the one we know for the target monitor, its scaling was changed in Windows: refresh the monitor list.
+          //     (Moving a window between monitors also sends WM_DPICHANGED, but then the DPI matches and nothing is done.)
+          {
+            const float    newDpiScale = (float) g_dpi / USER_DEFAULT_SCREEN_DPI;
+            const HMONITOR hMonitor    = ::MonitorFromRect (prcNewWindow, MONITOR_DEFAULTTONEAREST);
+            bool           known       = false;
+
+            for (const ImGuiPlatformMonitor& monitor : ImGui::GetPlatformIO ( ).Monitors)
+            {
+              if (monitor.PlatformHandle == (void *)hMonitor)
+              {
+                known = (ImFabs (monitor.DpiScale - newDpiScale) < 0.01f);
+                break;
+              }
+            }
+
+            if (! known)
+              ImGui_ImplWin32_GetBackendData ( )->WantUpdateMonitors = true;
+          }
+
+          // Only process the rest if we actually follow HiDPI
+          if (! _registry.bDPIScaling)
+            return 0;
 
           // Secondary windows (INI editor, local installs, update notes, popups, etc) take the size Windows suggests for
           //   the new DPI, as Per-Monitor V2 expects. Auto-resizing windows refit to their content on the next frame anyway.
