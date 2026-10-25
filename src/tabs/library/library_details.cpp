@@ -800,7 +800,6 @@ DrawGameDetails_LaunchBar (app_record_s* pApp)
           );
 
           ImGui::OpenPopup    ("###DisableSK");
-          ImGui::SetCursorPos (pos);
         }
 
         if (ImGui::BeginPopup ("###DisableSK", ImGuiWindowFlags_NoMove))
@@ -832,7 +831,7 @@ DrawGameDetails_LaunchBar (app_record_s* pApp)
             _BlacklistCfg (launch.second, true);
           }
 
-          ImGui::EndMenu       ();
+          ImGui::EndPopup      ( );
         }
       }
     }
