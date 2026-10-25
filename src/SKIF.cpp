@@ -104,7 +104,6 @@ bool  invalidateFonts           = false;
 DWORD invalidatedFonts          = 0;
 DWORD invalidatedDevice         = 0;
 bool  startedMinimized          = false;
-bool  startedMaximized          = false;
 bool  msgDontRedraw             = false;
 bool  coverFadeActive           = false;
 std::atomic<bool> SKIF_Shutdown = false;
@@ -2005,9 +2004,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   else if (nCmdShow == SW_SHOWMINNOACTIVE)
     nCmdShow = SW_MINIMIZE;
 
-  // "Run: Maximized" uses SW_SHOWMAXIMIZED and requires an ugly hack involving ShowWindowAsync and SW_RESTORE + SW_MAXIMIZE...
-  else if (nCmdShow == SW_SHOWMAXIMIZED)
-    startedMaximized = true;
+  // "Run: Maximized" uses SW_SHOWMAXIMIZED, which is handled in ImGui_ImplWin32_ShowWindow ( )
 
   // Second round
   if (nCmdShow == SW_MINIMIZE)
@@ -2929,21 +2926,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if (repositionToCenter && ! ImGui::IsAnyMouseDown ( ))
       {   repositionToCenter = false;
         ImGui::SetNextWindowPos  (monitor_extent.GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
-      }
-
-      // UGLY HACK AHEAD!
-      // This ugly shit is necessary to support SW_SHOWMAXIMIZED """properly""" without the swapchain breaking or the window being filled with pure black parts.
-      // The downside is that there are visible animation garbage on startup that sees an empty window animate between:
-      //    SW_SHOWMAXIMIZED (maximized on launch; broken)
-      //       vvvv
-      //    SW_RESTORE       (windowed; functioning)
-      //       vvvv
-      //    SW_MAXIMIZE      (maximized; functioning)
-      if (startedMaximized && SKIF_ImGui_hWnd != NULL && ImGui::GetFrameCount() > 5) // Only run after the 5th frame cuz WM_WINDOWPOSCHANGING is ignored prior to that, see imgui_impl_win32.cpp (is this related to why it doesn't work initially? PROBABLY! TODO: Investigate this shit
-      {
-        startedMaximized = false;
-        ShowWindowAsync (SKIF_ImGui_hWnd, SW_RESTORE);
-        ShowWindowAsync (SKIF_ImGui_hWnd, SW_MAXIMIZE);
       }
 
       ImGui::Begin ( SKIF_WINDOW_TITLE_SHORT_A SKIF_WINDOW_HASH,

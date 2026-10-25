@@ -121,9 +121,13 @@ constexpr const wchar_t* SKIF_ImGui_WindowTitle = L"Special K Popup"; // Default
 extern HWND SKIF_ImGui_hWnd;
 extern int  SKIF_nCmdShow;
 
-// Secondary windows resized by WM_DPICHANGED, whose move/resize requests are raised again in ImGui_ImplWin32_NewFrame ()
-struct SKIF_ImGui_DpiChangedWindow { HWND hWnd; bool move; };
-static ImVector<SKIF_ImGui_DpiChangedWindow> SKIF_ImGui_DpiChangedWindows;
+// Windows resized/moved from within ImGui's own UpdatePlatformWindows () loop, whose move/resize requests are raised again in ImGui_ImplWin32_NewFrame ()
+//   ImGui clears the PlatformRequestMove/PlatformRequestResize flags raised by WM_MOVE/WM_SIZE at the end of each iteration of that loop,
+//     so any OS-driven size change that happens *during* a Platform_* call would otherwise be lost. Used for:
+//   - Secondary windows resized by WM_DPICHANGED (within Platform_SetWindowPos)
+//   - The main window shown maximized through SW_SHOWMAXIMIZED (within Platform_ShowWindow)
+struct SKIF_ImGui_PendingRequest { HWND hWnd; bool move; };
+static ImVector<SKIF_ImGui_PendingRequest> SKIF_ImGui_PendingRequests;
 #endif // !SKIF_Win32
 
 // Using XInput for gamepad (will load DLL dynamically)
@@ -588,22 +592,24 @@ void    ImGui_ImplWin32_NewFrame()
       SKIF_TimeInMilliseconds =
         bd->Time / (bd->TicksPerSecond / 1000LL);
 
-    // Secondary windows resized by WM_DPICHANGED: that message usually arrives within ImGui's own Platform_SetWindowPos ()
-    //   call in UpdatePlatformWindows () (when ImGui moves the window to another monitor), and ImGui clears the move/resize
-    //     requests that WM_MOVE/WM_SIZE just raised once that call returns, so ImGui would keep the window and swapchain
-    //       at the size of the previous monitor. Raise them again so ImGui::NewFrame () picks up the new window rect.
-    for (const SKIF_ImGui_DpiChangedWindow& dpiChanged : SKIF_ImGui_DpiChangedWindows)
+    // Windows whose rect was changed by the OS from within ImGui's own UpdatePlatformWindows () loop:
+    //   - Secondary windows resized by WM_DPICHANGED: that message usually arrives within ImGui's own Platform_SetWindowPos ()
+    //       call (when ImGui moves the window to another monitor).
+    //   - The main window shown with SW_SHOWMAXIMIZED: WM_SIZE (SIZE_MAXIMIZED) and WM_MOVE arrive within Platform_ShowWindow ().
+    // ImGui clears the move/resize requests that WM_MOVE/WM_SIZE just raised once that call returns, so ImGui would keep
+    //   the window and swapchain at the old size. Raise them again so ImGui::NewFrame () picks up the new window rect.
+    for (const SKIF_ImGui_PendingRequest& pending : SKIF_ImGui_PendingRequests)
     {
-      if (ImGuiViewport* viewport = ImGui::FindViewportByPlatformHandle ((void *)dpiChanged.hWnd))
+      if (ImGuiViewport* viewport = ImGui::FindViewportByPlatformHandle ((void *)pending.hWnd))
       {
         viewport->PlatformRequestResize = true;
 
-        if (dpiChanged.move)
+        if (pending.move)
           viewport->PlatformRequestMove = true;
       }
     }
 
-    SKIF_ImGui_DpiChangedWindows.clear ( );
+    SKIF_ImGui_PendingRequests.clear ( );
 #endif // SKIF_Win32
 }
 
@@ -1655,6 +1661,14 @@ static void ImGui_ImplWin32_ShowWindow(ImGuiViewport* viewport)
       PLOG_VERBOSE << "SKIF_nCmdShow is set to: " << SKIF_nCmdShow;
 
       ::ShowWindow (vd->Hwnd, SKIF_nCmdShow);
+
+      // SW_SHOWMAXIMIZED resizes and moves the window from within this call, but ImGui clears the
+      //   move/resize requests raised by WM_SIZE/WM_MOVE once we return to UpdatePlatformWindows ( ),
+      //     which would leave ImGui, and the swapchain, at the restored size in the top-left corner of
+      //       an otherwise black maximized window. Queue them again for the next ImGui_ImplWin32_NewFrame ( ).
+      if (SKIF_nCmdShow == SW_SHOWMAXIMIZED || SKIF_nCmdShow == SW_MAXIMIZE)
+        SKIF_ImGui_PendingRequests.push_back ({ vd->Hwnd, true });
+
       SKIF_nCmdShow = -1; // SKIF_nCmdShow has served its purpose by now
     }
     else if (viewport->Flags & ImGuiViewportFlags_NoFocusOnAppearing)
@@ -2293,7 +2307,7 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
             }
 
             // ImGui may clear the requests raised by WM_SIZE/WM_MOVE above (see ImGui_ImplWin32_NewFrame), so queue them again
-            SKIF_ImGui_DpiChangedWindows.push_back ({ hWnd, ! imgui_moving });
+            SKIF_ImGui_PendingRequests.push_back ({ hWnd, ! imgui_moving });
 
             return 0;
           }
