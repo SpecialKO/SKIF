@@ -2786,6 +2786,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if (SKIF_ImGui_GlobalDPIScale_Last != SKIF_ImGui_GlobalDPIScale)
     {   SKIF_ImGui_GlobalDPIScale_Last  = SKIF_ImGui_GlobalDPIScale;
       invalidateFonts = true;
+
+      // The style's sizes (padding, spacing, rounding, borders) are scaled by the DPI as well
+      ImGuiStyle            newStyle;
+      SKIF_ImGui_SetStyle (&newStyle);
     }
 
     float fontScale = 18.0F * SKIF_ImGui_GlobalDPIScale;
