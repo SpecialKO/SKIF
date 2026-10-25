@@ -70,7 +70,7 @@ struct IniWindow {
   void ClearFilter       (void);
   void UpdateWindowTitle (void);
   void SetPath           (const std::wstring& _p);
-       IniWindow         (std::vector<IniEntry>& _i, IniType _ty, const std::wstring& _p = L"", const std::string& _ti = "");
+       IniWindow         (std::vector<IniEntry>  _i, IniType _ty, const std::wstring& _p = L"", const std::string& _ti = ""); // Pass with std::move to avoid a copy
 
    IniWindow            (const IniWindow& )          = default;
    IniWindow& operator= (const IniWindow& )          = default;

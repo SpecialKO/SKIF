@@ -66,9 +66,9 @@ IniWindow::SetPath (const std::wstring& _p)
     path_parent = L"";
 }
 
-IniWindow::IniWindow (std::vector<IniEntry>& _i, IniType _ty, const std::wstring& _p, const std::string& _ti)
+IniWindow::IniWindow (std::vector<IniEntry>  _i, IniType _ty, const std::wstring& _p, const std::string& _ti)
 {
-  ini         = _i;
+  ini         = std::move (_i);
   type        = _ty;
   title       = _ti;
   public_seed = SKIF_Util_RandomInteger ( );
@@ -84,20 +84,19 @@ SKIF_UI_IniEditor_NewFile (IniWindow* iniWindow)
 {
   std::vector<const ConfigEntry*> ini_params = SKIF_IniReader_GetDefaultParams (dll_ini);
   std::vector <IniEntry> ini_parsed;
+  ini_parsed.reserve (ini_params.size ( ));
 
   for (auto& default_item : ini_params)
   {
-    IniEntry item = { default_item->param_type, default_item->section, default_item->key, "" };
+    IniEntry& item = ini_parsed.emplace_back (default_item->param_type, default_item->section, default_item->key, "");
     item.description = default_item->description;
     item._ignore = true;
-
-    ini_parsed.push_back (item);
   }
 
   iniWindow->watch.reset();
   iniWindow->title       = "";
   iniWindow->bChanged    = false;
-  iniWindow->ini         = ini_parsed;
+  iniWindow->ini         = std::move (ini_parsed);
   iniWindow->want_action = EditorAction::None;
   iniWindow->SetPath           (L"");
   iniWindow->UpdateWindowTitle (   );
@@ -109,17 +108,16 @@ SKIF_UI_IniEditor_NewWindow (void)
 {
   std::vector<const ConfigEntry*> ini_params = SKIF_IniReader_GetDefaultParams (dll_ini);
   std::vector <IniEntry> ini_parsed;
+  ini_parsed.reserve (ini_params.size ( ));
 
   for (auto& default_item : ini_params)
   {
-    IniEntry item = { default_item->param_type, default_item->section, default_item->key, "" };
+    IniEntry& item = ini_parsed.emplace_back (default_item->param_type, default_item->section, default_item->key, "");
     item.description = default_item->description;
     item._ignore = true;
-
-    ini_parsed.push_back (item);
   }
 
-  vIniWindow.emplace_back (ini_parsed, dll_ini);
+  vIniWindow.emplace_back (std::move (ini_parsed), dll_ini);
 }
 
 void
@@ -241,11 +239,11 @@ SKIF_UI_IniEditor_OpenFile (IniWindow* iniWindow, IniType type, std::wstring pat
   std::vector <IniEntry> ini_parsed = SKIF_IniReader_ParseIni (path, type);
 
   if (iniWindow == nullptr)
-    vIniWindow.emplace_back (ini_parsed, type, path, title_final);
+    vIniWindow.emplace_back (std::move (ini_parsed), type, path, title_final);
 
   else {
     iniWindow->bChanged    = false;
-    iniWindow->ini         = ini_parsed;
+    iniWindow->ini         = std::move (ini_parsed);
     iniWindow->title       = title_final;
     iniWindow->want_action = EditorAction::None;
     iniWindow->SetPath           (path);

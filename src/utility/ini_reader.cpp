@@ -6,6 +6,10 @@
 
 #include <stdexcept>
 #include <algorithm>
+#include <set>
+#include <string_view>
+#include <unordered_map>
+#include <unordered_set>
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -634,63 +638,67 @@ SKIF_IniReader_ParseIni (const std::wstring& file_path, IniType ini_type)
   std::vector <IniEntry> ini_parsed;
   std::vector<const ConfigEntry*> default_params = SKIF_IniReader_GetDefaultParams (ini_type);
 
+  // Combined lookup key for a section + key pair
+  auto _MakeKey = [](std::string_view section, std::string_view key) -> std::string
+  {
+    std::string ret;
+    ret.reserve   (section.size ( ) + key.size ( ) + 1);
+    ret.append    (section);
+    ret.push_back ('\x1F'); // Unit separator, cannot appear in a section or key name
+    ret.append    (key);
+    return ret;
+  };
+
+  // Index the parsed INI file once. inih's Sections ( ) and Get (section) both return copies,
+  //   so they must not be called once per default parameter (that copied the whole file every time).
+  const std::set <std::string> sections = ini.Sections ( );
+
+  std::vector <std::pair <std::string, std::unordered_map <std::string, std::string>>> ini_sections;
+  ini_sections.reserve (sections.size ( )); // No reallocation, so the pointers in ini_values stay valid
+
+  std::unordered_map <std::string, const std::string*> ini_values;
+
+  for (const auto& section : sections)
+  {
+    auto& sec = ini_sections.emplace_back (section, ini.Get (section));
+
+    for (const auto& kv : sec.second)
+      ini_values.emplace (_MakeKey (sec.first, kv.first), &kv.second);
+  }
+
+  ini_parsed.reserve (default_params.size ( ) + ini_values.size ( ));
+
+  std::unordered_set <std::string> default_keys;
+  default_keys.reserve (default_params.size ( ));
+
   // Add all default parameters first...
 
   for (auto& default_item : default_params)
   {
-    bool found = false;
-    std::string value = "";
+    std::string lookup = _MakeKey (default_item->section, default_item->key);
+    const auto  it     = ini_values.find (lookup);
+    const bool  found  = (it != ini_values.end ( ));
 
-    for (auto& section : ini.Sections())
-    {
-      if (found)
-        break;
+    //PLOG_VERBOSE << "INI item [DEFAULT]: [" << default_item->section << "] " << default_item->key << " = " << (found ? *it->second : "");
 
-      for (auto& kv : ini.Get (section))
-      {
-        if ((! strcmp (default_item->section, section.c_str()) &&
-            (! strcmp (default_item->key,    kv.first.c_str()))))
-        {
-          value = kv.second;
-          found = true;
-          break;
-        }
-      }
-    }
-
-    //PLOG_VERBOSE << "INI item [DEFAULT]: [" << default_item->section << "] " << default_item->key << " = " << value;
-
-    IniEntry item = { default_item->param_type, default_item->section, default_item->key, value };
+    IniEntry& item = ini_parsed.emplace_back (default_item->param_type, default_item->section, default_item->key, found ? *it->second : std::string ( ));
     item.description = default_item->description;
     item._ignore = ! found;
 
-    ini_parsed.push_back (item);
+    default_keys.emplace (std::move (lookup));
   }
 
   // Add any unrecognized parameters...
 
-  for (auto& section : ini.Sections())
+  for (const auto& [section, values] : ini_sections)
   {
-    for (auto& kv : ini.Get (section))
+    for (const auto& kv : values)
     {
-      bool found = false;
-
-      for (auto& item : ini_parsed)
-      {
-        if ((! strcmp (item.section, section.c_str()) &&
-            (! strcmp (item.key,    kv.first.c_str()))))
-        {
-          found = true;
-          break;
-        }
-      }
-
-      if (! found)
+      if (! default_keys.contains (_MakeKey (section, kv.first)))
       {
         //PLOG_VERBOSE << "INI item [UNKNOWN]: [" << section << "] " << kv.first << " = " << kv.second;
-        IniEntry item = { ParameterUnknown, section, kv.first, kv.second };
+        IniEntry& item = ini_parsed.emplace_back (ParameterUnknown, section, kv.first, kv.second);
         item._ignore = false;
-        ini_parsed.push_back(item);
       }
     }
   }
