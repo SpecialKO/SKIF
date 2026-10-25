@@ -739,29 +739,43 @@ SKIF_IniReader_WriteIni (const std::vector<IniEntry>& ini, const std::wstring& f
     }
   }
 
-  constexpr char* utf8_bom = "\xEF\xBB\xBF"; // UTF-8 BOM: EF BB BF
+  // Build the content as UTF-8 first, then convert it to UTF-16 LE when writing.
+  // The file is opened in binary mode, so line endings are written as CRLF here.
+  std::string content;
 
-  std::ofstream out{ SK_WideCharToUTF8 (file_path) };
-  if (! out.is_open())
+  for (std::size_t i = 0; const auto& section : new_ini.Sections ( ))
+  {
+    content += "[" + section + "]\r\n";
+
+    for (const auto& key : new_ini.Keys (section))
+      content += key + "=" + new_ini.Get (section, key) + "\r\n";
+
+    if (++i < new_ini.Sections ( ).size ( ))
+      content += "\r\n";
+  }
+
+  const std::wstring wide_content = SK_UTF8ToWideChar (content);
+
+  FILE* out = _wfopen (file_path.c_str(), L"wb");
+  if (out == nullptr)
   {
     PLOG_FATAL << "cannot open output file: " << file_path;
     return;
   }
 
-  out << utf8_bom;
+  constexpr std::uint8_t utf16le_bom [] = { 0xFF, 0xFE }; // UTF-16 LE BOM: FF FE
 
-  for (std::size_t i = 0; const auto& section : new_ini.Sections ( ))
-  {
-    out << "[" << section << "]\n";
+  bool ok = (fwrite (utf16le_bom, sizeof (utf16le_bom), 1, out) == 1);
 
-    for (const auto& key : new_ini.Keys (section))
-      out << key << "=" << new_ini.Get  (section, key) << "\n";
+  // wchar_t is 16-bit little-endian on Windows, so the buffer can be written as-is.
+  if (ok && ! wide_content.empty ( ))
+    ok = (fwrite (wide_content.data ( ), sizeof (wchar_t), wide_content.size ( ), out) == wide_content.size ( ));
 
-    if (++i < new_ini.Sections ( ).size ( ))
-      out << "\n";
-  }
+  if (fclose (out) != 0)
+    ok = false;
 
-  out.close ( );
+  if (! ok)
+    PLOG_ERROR << "error writing output file: " << file_path;
 }
 
 void
