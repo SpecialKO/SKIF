@@ -215,12 +215,10 @@ SKIF_Updater::SKIF_Updater (void)
           if (line.length() > local.release_notes_formatted.max_length)
             local.release_notes_formatted.max_length = line.length();
 
-        // Populate the vector
+        // Populate the vector (single allocation)
+        local.release_notes_formatted.notes.reserve   (strNotes.length ( ) + 4);
         local.release_notes_formatted.notes.push_back ('\n');
-
-        for (size_t i = 0; i < strNotes.length(); i++)
-          local.release_notes_formatted.notes.push_back(strNotes[i]);
-
+        local.release_notes_formatted.notes.insert    (local.release_notes_formatted.notes.end ( ), strNotes.begin ( ), strNotes.end ( ));
         local.release_notes_formatted.notes.push_back ('\n');
 
         // Ensure the vector array is double null terminated
@@ -922,7 +920,7 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
           if (branch.get<std::string_view>()._Equal(currentBranch))
             _version.is_branch = true;
 
-        _res.versions.push_back (_version);
+        _res.versions.push_back (std::move (_version));
       }
 #endif
 
@@ -975,7 +973,7 @@ SKIF_Updater::ReadPatronsFile (void)
       {
         if (iswalpha(it) != 0)
         {
-          lines.push_back(line);
+          lines.push_back (std::move (line));
           break;
         }
       }
@@ -990,8 +988,15 @@ SKIF_Updater::ReadPatronsFile (void)
       auto gen = std::default_random_engine{ rd() };
       std::shuffle(lines.begin(), lines.end(), gen);  // Shuffle the vector
 
+      size_t total_length = 0;
+      for (const auto& vline : lines)
+        total_length += vline.length ( ) + 1;
+
+      full_text.reserve (total_length);
+
       for (const auto& vline : lines) {
-        full_text += vline + L"\n";
+        full_text += vline;
+        full_text += L'\n';
       }
 
       if (full_text.length() > 0)
@@ -1034,8 +1039,7 @@ SKIF_Updater::ReadChangesFile (void)
     {
       std::getline (file, line);
 
-      for (size_t i = 0; i < line.length(); i++)
-        auto_updater_formatted.notes.push_back (line[i]);
+      auto_updater_formatted.notes.insert (auto_updater_formatted.notes.end ( ), line.begin ( ), line.end ( ));
 
       // Add a newline at the end of the line
       auto_updater_formatted.notes.push_back ('\n');
