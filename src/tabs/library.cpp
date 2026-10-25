@@ -192,7 +192,6 @@ ShowLargeIconToggle (void)
 
   if (_registry._TouchDevice)
   {
-    ImGui::BeginGroup           ( ); // Needed for the hover tip to appear
     SKIF_ImGui_PushDisableState ( );
   }
 
@@ -202,8 +201,7 @@ ShowLargeIconToggle (void)
   if (_registry._TouchDevice)
   {
     SKIF_ImGui_PopDisableState  ( );
-    ImGui::EndGroup             ( );
-    SKIF_ImGui_SetHoverTip      ("Currently enforced by touch input mode.");
+    SKIF_ImGui_SetHoverTip      ("Currently enforced by touch input mode.", false, true);
   }
 }
 
@@ -1016,8 +1014,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   ImGui::BeginChild          ( "###AppListTopRow",
                                 ImVec2 (sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f, fTopHeight),
-                                (_registry.bUIBorders ? ImGuiChildFlags_Border : ImGuiChildFlags_None),
-                                ImGuiWindowFlags_NavFlattened );
+                                ImGuiChildFlags_NavFlattened | (_registry.bUIBorders ? ImGuiChildFlags_Borders : ImGuiChildFlags_None),
+                                ImGuiWindowFlags_None );
 
   ImGui::PushStyleColor (ImGuiCol_Button,        ImVec4(0,0,0,0));
   ImGui::PushStyleColor (ImGuiCol_ButtonHovered, ImVec4(0,0,0,0));
@@ -1054,7 +1052,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   {
     // Clear highlight from filter box
     ImGuiContext& g = *ImGui::GetCurrentContext();
-    g.NavDisableHighlight = false;
+    g.NavCursorVisible = true;
   }
 
   ImGui::SameLine ( );
@@ -1204,20 +1202,20 @@ SKIF_UI_Tab_DrawLibrary (void)
     {
       ImGui::Separator ( );
 
-      ImGui::SetCursorPosY (
+      ImGui::SetCursorPosY (ImFloor (
         ImGui::GetCursorPosY ( )
           - ImGui::GetStyle().ItemInnerSpacing.y
-      );
+          - ImGui::GetStyle().SeparatorSize   // Separator ( ) takes up layout height since ImGui 1.92.7
+      ));
     }
 
     ImGui::BeginChild (
       "###GameDetails",
         ImVec2 ((sizeDetails.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
                  sizeDetails.y),
-          ImGuiChildFlags_AlwaysUseWindowPadding | (_registry.bUIBorders ? ImGuiChildFlags_Border : ImGuiChildFlags_None),
+          ImGuiChildFlags_AlwaysUseWindowPadding | ImGuiChildFlags_NavFlattened | (_registry.bUIBorders ? ImGuiChildFlags_Borders : ImGuiChildFlags_None),
           ImGuiWindowFlags_NoScrollbar       |
           ImGuiWindowFlags_NoScrollWithMouse |
-          ImGuiWindowFlags_NavFlattened      |
           (_registry.bUIBorders || _registry._LibHorizonMode ? ImGuiChildFlags_None : ImGuiWindowFlags_NoBackground) // ImGuiWindowFlags_NoBackground apparently disables the outside border
     );
     ImGui::BeginGroup ();
@@ -1285,7 +1283,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     if (ImGui::BeginPopup ("###GameContextMenu", ImGuiWindowFlags_NoMove))
     {
       // Context menu should not have any navigation highlight (white border around items)
-      ImGui::PushStyleColor  (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
+      ImGui::PushStyleColor  (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
 
       // Show a loading label if the data is currently being processed
       if (pApp->loading)

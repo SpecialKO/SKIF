@@ -101,8 +101,6 @@ bool  RespectMonBoundaries      = false;
 bool  changedHiDPIScaling       = false;
 bool  invalidateStyle           = false;
 bool  invalidateFonts           = false;
-bool  failedLoadFonts           = false;
-bool  failedLoadFontsPrompt     = false;
 DWORD invalidatedFonts          = 0;
 DWORD invalidatedDevice         = 0;
 bool  startedMinimized          = false;
@@ -390,7 +388,7 @@ SKIF_StartupTimed_Renderer_RenderWindow (ImGuiViewport* vp, void* arg)
   SKIF_StartupOrig_Renderer_RenderWindow (vp, arg);
 
   PLOG_VERBOSE << "[Startup] Renderer_RenderWindow ( ) took " << SKIF_StartupMs (start) << " ms submitting the draws"
-               << ((vp->DrawData != nullptr) ? " (" + std::to_string (vp->DrawData->CmdListsCount) + " draw lists, " + std::to_string (vp->DrawData->TotalVtxCount) + " vertices)" : "")
+               << ((vp->DrawData != nullptr) ? " (" + std::to_string (vp->DrawData->CmdLists.Size) + " draw lists, " + std::to_string (vp->DrawData->TotalVtxCount) + " vertices)" : "")
                << "; the device draws them during the Present ( ).";
 }
 
@@ -2186,6 +2184,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
 //io.ConfigDockingAlwaysTabBar       = false;
 //io.ConfigDockingTransparentPayload =  true;
 
+#ifndef _DEBUG
+  io.ConfigDebugHighlightIdConflicts = false; // ImGui 1.91+: avoid showing ID-conflict warnings to users
+#endif
+
   // Main window override flags
   ImGuiWindowClass SKIF_AppWindow;
   // This prevents the main window from ever being merged into the implicit Debug##Default fallback window...
@@ -2233,19 +2235,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   PLOG_INFO << "Initializing ImGui fonts...";
   SKIF_ImGui_InitFonts (SKIF_ImGui_FontSizeDefault, (! _Signal.Launcher && ! _Signal.LauncherURI && ! _Signal.Quit && ! _Signal.ServiceMode) );
 
-  // Build the font atlas on a thread of its own while the D3D device is created: it's CPU work only (~25 ms), and
-  //   ImGui_ImplDX11_CreateFontsTexture ( ) skips the build if it has been done already. The main thread does not
-  //   touch ImGui until the thread has been joined below.
-  std::thread fontAtlasBuild ([atlas = io.Fonts]
-  {
-    SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_FontAtlasBuild");
-
-    DWORD dwStart = SKIF_Util_timeGetTime1 ( );
-
-    atlas->Build ( );
-
-    PLOG_DEBUG << "Operation [Fonts->Build] took " << (SKIF_Util_timeGetTime1 ( ) - dwStart) << " ms (in parallel with creating the D3D device).";
-  });
+  // Since ImGui 1.92 there is no font atlas to build up front: glyphs are rasterized when they are first drawn,
+  //   and the renderer backend creates the atlas texture on the first frame.
 
   PLOG_INFO << "Initializing Direct3D...";
 
@@ -2254,17 +2245,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Initialize Direct3D
   if (! CreateDeviceD3D (SKIF_Notify_hWnd))
   {
-    fontAtlasBuild.join ( );
     CleanupDeviceD3D ();
     return 1;
   }
 
   PLOG_DEBUG << "Operation [CreateDeviceD3D] took " << (SKIF_Util_timeGetTime1() - temp_time) << " ms.";
-
-  // Wait for the font atlas to finish building
-  temp_time = SKIF_Util_timeGetTime1();
-  fontAtlasBuild.join ( );
-  PLOG_VERBOSE << "[Startup] Waited " << (SKIF_Util_timeGetTime1() - temp_time) << " ms for the font atlas to finish building.";
 
   // Register to be notified if the effective power mode changes
   //SKIF_Util_SetEffectivePowerModeNotifications (true); // (this serves no purpose yet)
@@ -2805,6 +2790,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if (SKIF_ImGui_GlobalDPIScale_Last != SKIF_ImGui_GlobalDPIScale)
     {   SKIF_ImGui_GlobalDPIScale_Last  = SKIF_ImGui_GlobalDPIScale;
       invalidateFonts = true;
+
+      // The style's sizes (padding, spacing, rounding, borders) are scaled by the DPI as well
+      ImGuiStyle            newStyle;
+      SKIF_ImGui_SetStyle (&newStyle);
     }
 
     float fontScale = 18.0F * SKIF_ImGui_GlobalDPIScale;
@@ -2815,17 +2804,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
     {
       invalidateFonts = false;
       SKIF_ImGui_InvalidateFonts ( );
-    }
-
-    // This occurs on the next frame, as failedLoadFonts gets evaluated and set as part of ImGui_ImplDX11_NewFrame
-    else if (failedLoadFonts)
-    {
-      // This scenario should basically never happen nowadays that SKIF only loads the specific characters needed from each character set
-
-      SKIF_ImGui_InvalidateFonts ( );
-
-      failedLoadFonts       = false;
-      failedLoadFontsPrompt = true;
     }
 
     //temp_time = SKIF_Util_timeGetTime1();
@@ -3157,8 +3135,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         SKIF_ImGui_BeginChildFrame ( miniMode_id,
           ImVec2 ( 400.0f * SKIF_ImGui_GlobalDPIScale,
                     12.0f * ImGui::GetTextLineHeightWithSpacing () ),
-            ImGuiChildFlags_None,
-            ImGuiWindowFlags_NavFlattened      |
+            ImGuiChildFlags_NavFlattened,
             ImGuiWindowFlags_NoScrollbar       |
             ImGuiWindowFlags_NoScrollWithMouse |
             ImGuiWindowFlags_NoBackground
@@ -3197,7 +3174,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
              *tabTitleAbout    = (ImGui::GetWindowSize ().x < 650.f * SKIF_ImGui_GlobalDPIScale) ? tabTitleAboutS    : tabTitleAboutL;
 
         ImGui::BeginTabBar ( "###SKIF_TAB_BAR",
-                               ImGuiTabBarFlags_FittingPolicyResizeDown |
+                               ImGuiTabBarFlags_FittingPolicyShrink |
                                ImGuiTabBarFlags_FittingPolicyScroll );
 
         if (ImGui::BeginTabItem (tabTitleLibrary, nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Library) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
@@ -3478,7 +3455,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         );
 
         ImGui::SetCursorPos (ImVec2 (
-              ImGui::GetWindowContentRegionMax().x / 2 - shelly_movable_area.x / 2,
+              SKIF_ImGui_GetWindowContentRegionMax ( ).x / 2 - shelly_movable_area.x / 2,
               10.0f * SKIF_ImGui_GlobalDPIScale
         ));
 
@@ -3530,7 +3507,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::GetCursorPos ();
 
       ImVec2 window_btn_pos = ImFloor (
-        ImVec2 ( (ImGui::GetWindowContentRegionMax().x - window_btn_size.x ),
+        ImVec2 ( (SKIF_ImGui_GetWindowContentRegionMax ( ).x - window_btn_size.x ),
                 ((ImGui::GetStyle().WindowPadding.y) - ImGui::GetStyle().FrameBorderSize * 2 - ImGui::GetStyle().WindowBorderSize * 2))
       );
 
@@ -3657,46 +3634,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       {
         static SKIF_LocalManager& _local  = SKIF_LocalManager::GetInstance ( );
         _local.Show ( );
-      }
-
-      // Font warning
-      if (failedLoadFontsPrompt && !HiddenFramesContinueProcessing)
-      {
-        failedLoadFontsPrompt = false;
-
-        ImGui::OpenPopup ("###FailedFontsPopup");
-      }
-
-
-      float fFailedLoadFontsWidth = 400.0f * SKIF_ImGui_GlobalDPIScale;
-      ImGui::SetNextWindowSize (ImVec2 (fFailedLoadFontsWidth, 0.0f));
-      ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
-
-      if (ImGui::BeginPopupModal ("Fonts failed to load###FailedFontsPopup", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize))
-      {
-        ImGui::TreePush    ("FailedFontsTreePush");
-
-        SKIF_ImGui_Spacing ( );
-
-        ImGui::TextWrapped ("The selected character sets failed to load due to system limitations and have been reset.");
-        ImGui::NewLine     ( );
-        ImGui::TextWrapped ("Please limit the selection to only the most essential.");
-
-        SKIF_ImGui_Spacing ( );
-        SKIF_ImGui_Spacing ( );
-
-        ImVec2 vButtonSize = ImVec2(80.0f * SKIF_ImGui_GlobalDPIScale, 0.0f);
-
-        ImGui::SetCursorPosX (fFailedLoadFontsWidth / 2 - vButtonSize.x / 2);
-
-        if (ImGui::Button  ("OK", vButtonSize))
-          ImGui::CloseCurrentPopup ( );
-
-        SKIF_ImGui_Spacing ( );
-
-        ImGui::TreePop     ( );
-
-        ImGui::EndPopup ( );
       }
 
       // Uses a Directory Watch signal, so this is cheap; do it once every frame.
@@ -3910,7 +3847,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     // Disable navigation highlight on first frames
     SK_RunOnce(
       ImGuiContext& g = *ImGui::GetCurrentContext();
-      g.NavDisableHighlight = true;
+      g.NavCursorVisible = false;
     );
 
 
@@ -3939,7 +3876,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (! viewport || ! viewport->DrawData)
           continue;
 
-        for (int i = 0; i < viewport->DrawData->CmdListsCount; ++i)
+        for (int i = 0; i < viewport->DrawData->CmdLists.Size; ++i)
           newVtxBufferSize += viewport->DrawData->CmdLists[i]->VtxBuffer.Size * sizeof (ImDrawVert);
       }
 
@@ -3961,7 +3898,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           if (! viewport || ! viewport->DrawData)
             continue;
 
-          for (int i = 0; i < viewport->DrawData->CmdListsCount; ++i)
+          for (int i = 0; i < viewport->DrawData->CmdLists.Size; ++i)
           {
             if (viewport->DrawData->CmdLists[i]->VtxBuffer.Size <= 0)
               continue;
@@ -4826,12 +4763,6 @@ static void CleanupPendingDeviceD3D (void)
     IUnknown_AtomicRelease ((void **)&SKIF_pd3dPendingDeviceContext);
     IUnknown_AtomicRelease ((void **)&SKIF_pd3dPendingDevice);
   }
-}
-
-// Started on WARP: true while the hardware device is being created or not yet switched to
-bool SKIF_D3D11_IsDeviceSwitchPending (void)
-{
-  return SKIF_DeviceSwitchPending.load ( );
 }
 
 // Started on WARP: the hardware device is ready to be switched to (by ImGui_ImplDX11_NewFrame)

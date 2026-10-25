@@ -46,7 +46,7 @@ DrawGameConfigMenu (app_record_s* pApp)
 
   if (ImGui::BeginPopupEx (idGameConfigMenu, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings))
   {
-    ImGui::PushStyleColor  (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
+    ImGui::PushStyleColor  (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
 
     ImGui::TextColored (
       ImColor::HSV (0.11F, 1.F, 1.F),
@@ -953,7 +953,7 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
     if (SKIF_ImGui_BeginMenuEx2 ("Category", ICON_FA_OBJECT_GROUP, ImColor(200, 200, 200, 255)))
     {
       // Prevent the popup from being closed when selecting a category
-      ImGui::PushItemFlag (ImGuiItemFlags_SelectableDontClosePopup, true);
+      ImGui::PushItemFlag (ImGuiItemFlags_AutoClosePopups, false); // ImGuiItemFlags_SelectableDontClosePopup before ImGui 1.91.0
       ImGui::PushID       ("###ManageCategories");
 
       // TODO: Figure out why unchecking this closes the popup
@@ -1699,7 +1699,7 @@ DrawCoverMenu (void)
   {
     if (ImGui::BeginPopup   ("CoverMenu", ImGuiWindowFlags_NoMove))
     {
-      ImGui::PushStyleColor (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
+      ImGui::PushStyleColor (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
 
       // Preparations
 
@@ -1756,18 +1756,10 @@ DrawCoverMenu (void)
         }
 
         bool enabled = (pApp->tex_cover.isCustom || pApp->tex_cover.isManaged);
-
-        // We use a group otherwise SKIF_ImGui_SetHoverTip() would not appear when disabled
-        if (! enabled)
-          ImGui::BeginGroup ( );
-
         bool doReset = SKIF_ImGui_MenuItemEx2 (textPtr, iconPtr, iconColor, 0, nullptr, enabled);
 
         if (! enabled)
-        {
-          ImGui::EndGroup ( );
-          SKIF_ImGui_SetHoverTip ("Managed by the platform client.");
-        }
+          SKIF_ImGui_SetHoverTip ("Managed by the platform client.", false, true);
 
         else
           SKIF_ImGui_SetMouseCursorHand ( );
@@ -1814,9 +1806,6 @@ DrawCoverMenu (void)
         static bool bNone    = (_registry.iCoverScaling == 3) ? true : false;
         static bool bStretch = (_registry.iCoverScaling == 4) ? true : false;
 
-        // We use a group otherwise SKIF_ImGui_SetHoverTip() would not appear when disabled
-        ImGui::BeginGroup ( );
-
         if (ImGui::MenuItem ("Default", spaces,  &bDefault, ! bDefault))
         {
           _registry.iCoverScaling = 0;
@@ -1830,9 +1819,7 @@ DrawCoverMenu (void)
           _registry.regKVCoverScaling.putData (_registry.iCoverScaling);
         }
 
-        ImGui::EndGroup ( );
-
-        SKIF_ImGui_SetHoverTip ("Scales the cover to a maximum height of 600px");
+        SKIF_ImGui_SetHoverTip ("Scales the cover to a maximum height of 600px", false, true);
 
         if (ImGui::MenuItem ("Fill",  spaces, &bFill, ! bFill))
         {
@@ -1939,7 +1926,7 @@ DrawIconMenu (void)
   {
     if (ImGui::BeginPopup   ("IconMenu", ImGuiWindowFlags_NoMove))
     {
-      ImGui::PushStyleColor (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
+      ImGui::PushStyleColor (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
 
       // Preparations
 
@@ -2021,18 +2008,10 @@ DrawIconMenu (void)
         }
 
         bool enabled = (pApp->tex_icon.isCustom || pApp->tex_icon.isManaged);
-
-        // We use a group otherwise SKIF_ImGui_SetHoverTip() would not appear when disabled
-        if (! enabled)
-          ImGui::BeginGroup ( );
-
         bool doReset = SKIF_ImGui_MenuItemEx2 (textPtr, iconPtr, iconColor, 0, nullptr, enabled);
 
         if (! enabled)
-        {
-          ImGui::EndGroup ( );
-          SKIF_ImGui_SetHoverTip ("Managed by the platform client.");
-        }
+          SKIF_ImGui_SetHoverTip ("Managed by the platform client.", false, true);
 
         else
           SKIF_ImGui_SetMouseCursorHand ( );
@@ -2104,7 +2083,7 @@ DrawEmptySpaceMenu (bool showClearBtn)
   {
     EmptySpaceMenu = PopupState_Opened;
 
-    ImGui::PushStyleColor (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
+    ImGui::PushStyleColor (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
 
     if (showClearBtn)
     {

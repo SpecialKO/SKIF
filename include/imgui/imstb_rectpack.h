@@ -1,7 +1,7 @@
 // [DEAR IMGUI]
 // This is a slightly modified version of stb_rect_pack.h 1.01.
 // Grep for [DEAR IMGUI] to find the changes.
-//
+// 
 // stb_rect_pack.h - v1.01 - public domain - rectangle packing
 // Sean Barrett 2014
 //
@@ -315,7 +315,7 @@ static int stbrp__skyline_find_min_y(stbrp_context *c, stbrp_node *first, int x0
       if (node->y > min_y) {
          // raise min_y higher.
          // we've accounted for all waste up to min_y,
-         // but we'll now add more waste for everything we've visted
+         // but we'll now add more waste for everything we've visited
          waste_area += visited_width * (node->y - min_y);
          min_y = node->y;
          // the first time through, visited_width might be reduced
@@ -470,7 +470,7 @@ static stbrp__findresult stbrp__skyline_pack_rectangle(stbrp_context *context, i
 
    // insert the new node into the right starting point, and
    // let 'cur' point to the remaining nodes needing to be
-   // stiched back in
+   // stitched back in
 
    cur = *res.prev_link;
    if (cur->x < res.x) {

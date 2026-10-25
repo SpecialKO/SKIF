@@ -1355,9 +1355,9 @@ SKIF_Updater::DrawWindowChanges (Window* wnd, WindowType type)
 
     SKIF_ImGui_Spacing ();
 
-    ImGui::PushStyleColor (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
+    ImGui::PushStyleColor (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
     ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
-    ImGui::PushFont       (fontConsolas);
+    ImGui::PushFont       (fontConsolas, (fontConsolas != nullptr) ? fontConsolas->LegacySize : 0.0f); // Its own size (0 = keep the current one)
 
     ImVec2 child_size = ImVec2 (ImGui::GetContentRegionAvail().x,
                                 ImGui::GetContentRegionAvail().y - fY);
@@ -1370,7 +1370,7 @@ SKIF_Updater::DrawWindowChanges (Window* wnd, WindowType type)
 
     ImGui::PopFont        ( ); // fontConsolas
     ImGui::PopStyleColor  ( ); // ImGuiCol_Text
-    ImGui::PopStyleColor  ( ); // ImGuiCol_NavHighlight
+    ImGui::PopStyleColor  ( ); // ImGuiCol_NavCursor
 
     if (SKIF_ImGui_TitleBarMinimizeButton ( ))
       ShowWindowAsync ((HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, SW_MINIMIZE);

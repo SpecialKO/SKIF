@@ -271,7 +271,7 @@ DrawGameCover (bool sameLine, bool& isCoverHovered, ImVec2& vecPosCover)
         CalculateImageSizing (coverSK, vecContentRegionAvail, sizeCurrent, true);
         ImGui::SetCursorPos  (coverSK.position);
 
-        ImGui::Image (((_registry._UseLowResCovers && ! _registry._UseLowResCoversHiDPIBypass) ? _games.GetSKLogoTexture (true) : _games.GetSKLogoTexture (false)),
+        SKIF_ImGui_OptImage (((_registry._UseLowResCovers && ! _registry._UseLowResCoversHiDPIBypass) ? _games.GetSKLogoTexture (true) : _games.GetSKLogoTexture (false)),
                                                         coverSK.size,
                                                         ImVec2 (0, 0),                  // Top Left coordinates
                                                         ImVec2 (1, 1),                  // Bottom Right coordinates
@@ -345,7 +345,7 @@ DrawSpecialKPatreon (bool& isCoverHovered, ImVec2 vecPosCover)
 
       bool        clicked =
       ImGui::ImageButton   ("###PatreonLogo",
-                           (ImTextureID)_games.GetPatreonTexture ( ),
+                           (ImTextureID)(intptr_t)_games.GetPatreonTexture ( ),
                             ImFloor (ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, // Cover is in reality 200x200, but lets show it as a 150x150 image
                                              150.0f * SKIF_ImGui_GlobalDPIScale)),
                             ImVec2 (  0.f,       0.f),

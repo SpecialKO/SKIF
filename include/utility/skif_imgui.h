@@ -60,9 +60,11 @@ bool     SKIF_ImGui_IsMouseHovered        (void);
 bool     SKIF_ImGui_IsAnyInputDown        (void);
 bool     SKIF_ImGui_IsAnyPopupOpen        (void);
 void     SKIF_ImGui_SetMouseCursorHand    (void);
-void     SKIF_ImGui_SetHoverTip           (const std::string_view& szText, bool ignoreDisabledTooltips = false);
+void     SKIF_ImGui_SetHoverTip           (const std::string_view& szText, bool ignoreDisabledTooltips = false, bool allowWhenItemDisabled = false);
 void     SKIF_ImGui_SetHoverText          (const std::string_view& szText, bool overrideExistingText = false);
 bool     SKIF_ImGui_BeginChildFrame       (ImGuiID id, const ImVec2& size, ImGuiChildFlags child_flags, ImGuiWindowFlags window_flags = ImGuiWindowFlags_None);
+ImVec2   SKIF_ImGui_GetContentRegionMax       (void); // Same as ImGui::GetContentRegionMax ( ), removed in ImGui 1.91.0
+ImVec2   SKIF_ImGui_GetWindowContentRegionMax (void); // Same as ImGui::GetWindowContentRegionMax ( ), removed in ImGui 1.91.0
 void     SKIF_ImGui_BeginTabChildFrame    (void);
 bool     SKIF_ImGui_BeginMenuEx2          (const char* label, const char* icon, const ImVec4& colIcon = ImGui::GetStyleColorVec4 (ImGuiCol_Text), bool enabled = true);
 bool     SKIF_ImGui_MenuItemEx2           (const char* label, const char* icon, const ImVec4& colIcon = ImGui::GetStyleColorVec4 (ImGuiCol_Text), const char* shortcut = NULL, bool* p_selected = nullptr, bool enabled = true);
@@ -70,7 +72,7 @@ bool     SKIF_ImGui_IconButton            (ImGuiID id, std::string icon, std::st
 bool     SKIF_ImGui_MinimizeButton        (ImGuiID id, const ImVec2& pos);
 bool     SKIF_ImGui_TitleBarMinimizeButton(void);
 bool     SKIF_ImGui_FrameButton           (const char* label, const ImVec2& size = ImVec2 (0, 0));
-void     SKIF_ImGui_OptImage              (ImTextureID user_texture_id, const ImVec2& size, const ImVec2& uv0 = ImVec2(0, 0), const ImVec2& uv1 = ImVec2(1, 1), const ImVec4& tint_col = ImVec4(1, 1, 1, 1), const ImVec4& border_col = ImVec4(0, 0, 0, 0));
+void     SKIF_ImGui_OptImage              (void* user_texture_id, const ImVec2& size, const ImVec2& uv0 = ImVec2(0, 0), const ImVec2& uv1 = ImVec2(1, 1), const ImVec4& tint_col = ImVec4(1, 1, 1, 1), const ImVec4& border_col = ImVec4(0, 0, 0, 0));
 void     SKIF_ImGui_Columns               (int columns_count, const char* id, bool border, bool resizeble = false);
 void     SKIF_ImGui_Spacing               (float multiplier);
 void     SKIF_ImGui_Spacing               (void);
@@ -88,7 +90,7 @@ DChoice  SKIF_ImGui_6432bitnessPrompt     (const char* name, bool* p_open, const
 bool     SKIF_ImGui_CheckboxHoverPreview  (const char* label, bool* v, float preview_alpha = 0.45f);
 bool     SKIF_ImGui_CheckboxTriState      (const char* label, SKIF_ImGuiCheckState state, SKIF_ImGuiCheckState preview = SKIF_ImGuiCheckState_Auto, float preview_alpha = 0.45f);
 void     SKIF_ImGui_ServiceMenu           (void);
-ImFont*  SKIF_ImGui_LoadFont              (const std::wstring& filename, float point_size, const ImWchar* glyph_range, ImFontConfig* cfg = nullptr);
+ImFont*  SKIF_ImGui_LoadFont              (const std::wstring& filename, float point_size, ImFontConfig* cfg = nullptr);
 void     SKIF_ImGui_InitFonts             (float fontSize, bool extendedCharsets = true);
 void     SKIF_ImGui_SetStyle              (ImGuiStyle* dst = nullptr);
 void     SKIF_ImGui_BeginDisabled         (bool disabled = true);
