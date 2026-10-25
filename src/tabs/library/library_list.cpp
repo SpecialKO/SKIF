@@ -168,9 +168,9 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
     {
       if (! _registry.bUIBorders)
       {
-        ImGui::SetCursorPosY (
-          ImFloor (ImGui::GetCursorPosY ( )
-           - 1.0f * SKIF_ImGui_GlobalDPIScale // ImGui::GetStyle().ItemInnerSpacing.y doesn't give us a pixel-perfect match with the UI borders... :(
+        ImGui::SetCursorPosY (ImFloor (
+          ImGui::GetCursorPosY ( )
+            - ImGui::GetStyle().SeparatorSize   // Separator ( ) takes up layout height since ImGui 1.92.7
         ));
 
         ImGui::Separator ( );

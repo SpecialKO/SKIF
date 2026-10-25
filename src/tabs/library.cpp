@@ -1204,10 +1204,11 @@ SKIF_UI_Tab_DrawLibrary (void)
     {
       ImGui::Separator ( );
 
-      ImGui::SetCursorPosY (
+      ImGui::SetCursorPosY (ImFloor (
         ImGui::GetCursorPosY ( )
           - ImGui::GetStyle().ItemInnerSpacing.y
-      );
+          - ImGui::GetStyle().SeparatorSize   // Separator ( ) takes up layout height since ImGui 1.92.7
+      ));
     }
 
     ImGui::BeginChild (
