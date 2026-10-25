@@ -151,8 +151,6 @@ std::wstring dragDroppedFilePathGame = L"";
 extern bool            allowShortcutCtrlA;
 extern ImVec2          SKIF_vecServiceMode;
 extern ImVec2          SKIF_vecHorizonMode;
-extern float           SKIF_ImGui_GlobalDPIScale;
-extern float           SKIF_ImGui_MainDPIScale_Last;
 extern std::string     SKIF_StatusBarHelp;
 extern std::string     SKIF_StatusBarText;
 extern DWORD           invalidatedDevice;

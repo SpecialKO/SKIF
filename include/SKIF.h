@@ -164,7 +164,7 @@ extern HWND        SKIF_Notify_hWnd;    // Notification area icon "window" that 
 
 extern float       SKIF_ImGui_GlobalDPIScale;      // DPI scale of the window currently being built (per monitor; updated by SKIF_ImGui_OnChangedViewport)
 extern float       SKIF_ImGui_MainDPIScale;        // DPI scale of the main window (SKIF_ImGui_hWnd)
-extern float       SKIF_ImGui_MainDPIScale_Last;   // DPI scale of the main window as of the last frame
+extern float       SKIF_ImGui_MainDPIScale_Last;   // DPI scale that SKIF_vecCurrentMode was measured at (the main window's as of the last frame)
 extern float       fBottomDist;
 
 extern std::string SKIF_StatusBarText;

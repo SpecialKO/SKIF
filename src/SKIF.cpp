@@ -239,8 +239,10 @@ CHandle hInjectExitAckEx (0); // Signalled when an injected game exits (restores
 float SKIF_ImGui_GlobalDPIScale      = 1.0f;
 // Holds the DPI scaling of the main window (SKIF_ImGui_hWnd), 1.0f == 100%, 1.5f == 150%.
 float SKIF_ImGui_MainDPIScale        = 1.0f;
-// Holds last frame's DPI scaling of the main window
-float SKIF_ImGui_MainDPIScale_Last   = 1.0f; // Always identical to SKIF_ImGui_MainDPIScale within ImGui::NewFrame()
+// Holds the DPI scaling that SKIF_vecCurrentMode was measured at (the main window's scale as of the last frame), so it can
+//   be rescaled as (SKIF_vecCurrentMode / SKIF_ImGui_MainDPIScale_Last) * SKIF_ImGui_MainDPIScale, even if the DPI scaling
+//     changed more than once since then. Always identical to SKIF_ImGui_MainDPIScale within ImGui::NewFrame()
+float SKIF_ImGui_MainDPIScale_Last   = 1.0f;
 //float SKIF_ImGui_GlobalDPIScale_New  = 1.0f;
 float SKIF_ImGui_FontSizeDefault     = 18.0f; // 18.0F
 
@@ -2797,8 +2799,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     // DPI changes of the main window need neither a font reload nor a new style: fonts are loaded at their base size,
     //   and the style sizes and font scale of every window follow the DPI of its own monitor (SKIF_ImGui_OnChangedViewport)
-    if (SKIF_ImGui_MainDPIScale_Last != SKIF_ImGui_MainDPIScale)
-        SKIF_ImGui_MainDPIScale_Last  = SKIF_ImGui_MainDPIScale;
+    SKIF_ImGui_MainDPIScale_Last = SKIF_ImGui_MainDPIScale; // SKIF_vecCurrentMode is at this scale from here on
 
     if (invalidateFonts)
     {

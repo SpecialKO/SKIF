@@ -1186,7 +1186,6 @@ SKIF_ImGui_DialogPrompt (const char* name, bool* p_open, const char* message, co
     if (message || description)
     ImGui::Separator ( );
 
-    extern float SKIF_ImGui_GlobalDPIScale;
     ImVec2
       btn       = ImVec2(110, 0) * SKIF_ImGui_GlobalDPIScale;
     static const std::vector<std::pair<const DChoice, const char*>>

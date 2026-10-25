@@ -772,8 +772,6 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
-  extern float SKIF_ImGui_GlobalDPIScale;
-
   //running =
     //TestServletRunlevel (run_lvl_changed);
 
