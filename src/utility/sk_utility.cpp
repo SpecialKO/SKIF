@@ -825,7 +825,9 @@ SK_ImGui_KeybindDialog (SK_KeybindMultiState* keybind)
 
     int  vKey = 256;
 
-#ifndef IMGUI_DISABLE_OBSOLETE_KEYIO
+// ImGui removed IMGUI_DISABLE_OBSOLETE_KEYIO in 1.91.5 (the legacy key IO is gone), so the ImGuiKey scan below is
+//   the one in use, as it was before with IMGUI_DISABLE_OBSOLETE_KEYIO defined. This VK scan is kept for reference.
+#if 0
     for (vKey = 0x08; vKey < 256; vKey++)
     {
       if ( vKey == VK_LCONTROL || vKey == VK_RCONTROL || vKey == VK_CONTROL || // Ctrl
@@ -835,8 +837,8 @@ SK_ImGui_KeybindDialog (SK_KeybindMultiState* keybind)
         continue;
 
       extern
-          ImGuiKey       ImGui_ImplWin32_VirtualKeyToImGuiKey (WPARAM);
-      if (ImGuiKey key = ImGui_ImplWin32_VirtualKeyToImGuiKey (vKey))
+          ImGuiKey       ImGui_ImplWin32_KeyEventToImGuiKey (WPARAM, LPARAM);
+      if (ImGuiKey key = ImGui_ImplWin32_KeyEventToImGuiKey (vKey, (LPARAM)(MapVirtualKeyW (vKey, MAPVK_VK_TO_VSC) << 16)))
       {
         if (ImGui::IsKeyPressed (key, false))
           break;
