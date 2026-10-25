@@ -1722,17 +1722,20 @@ SKIF_Util_CompactWorkingSet (void)
 HybridDetect::PROCESSOR_INFO*
 SKIF_Util_GetProcessInfoHybridDetect (void)
 {
-  static HybridDetect::PROCESSOR_INFO procInfo;
+  // Thread-safe one-time initialization: SKIF starts it on a thread of its own (it moves that thread across every logical
+  //   processor, which can take tens of ms), and anything asking earlier waits for it
+  static HybridDetect::PROCESSOR_INFO procInfo = [](void)
+  {
+    HybridDetect::PROCESSOR_INFO info;
 
-  static bool
-      runOnce = true;
-  if (runOnce)
-  {   runOnce = false;
+    DWORD dwStart = SKIF_Util_timeGetTime1 ( );
 
     // Use Intel's HybridDetect to retrieve processor capabilities
-    HybridDetect::GetProcessorInfo (procInfo);
-    PLOG_INFO << "Detected CPU model: " << procInfo.brandString << ((procInfo.hybrid) ? " (Hybrid)" : "");
-  }
+    HybridDetect::GetProcessorInfo (info);
+    PLOG_INFO << "Detected CPU model: " << info.brandString << ((info.hybrid) ? " (Hybrid)" : "") << " (in " << (SKIF_Util_timeGetTime1 ( ) - dwStart) << " ms)";
+
+    return info;
+  } ( );
 
   return &procInfo;
 }
@@ -1826,6 +1829,30 @@ SKIF_Util_SetThreadPrefersECores (void)
   return succeeded;
 }
 
+// Used for short bursts of work that the user waits on (the library loading at launch), on a process that prefers the
+//   E-cores (SKIF_Util_SetProcessPrefersECores). Not logged here: callers may use it for several threads at once.
+bool
+SKIF_Util_SetThreadPrefersPCores (void)
+{
+  if (! SKIF_Util_IsWindows10OrGreater ( ))
+    return false;
+
+  HybridDetect::PROCESSOR_INFO procInfo = *SKIF_Util_GetProcessInfoHybridDetect ( );
+
+  bool succeeded = false;
+
+  // See SKIF_Util_SetThreadPrefersECores ( ) on CPU sets vs. affinity masks
+  if (procInfo.hybrid)
+  {
+#ifdef ENABLE_CPU_SETS
+    succeeded =
+      (1 == HybridDetect::RunOn (procInfo, HybridDetect::CoreTypes::INTEL_CORE, procInfo.cpuSets   [HybridDetect::CoreTypes::ANY]));
+#endif
+  }
+
+  return succeeded;
+}
+
 BOOL
 WINAPI
 SKIF_Util_SetThreadInformation (HANDLE hThread, THREAD_INFORMATION_CLASS ThreadInformationClass, LPVOID ThreadInformation, DWORD ThreadInformationSize)
@@ -1860,6 +1887,25 @@ SKIF_Util_SetThreadDescription (HANDLE hThread, PCWSTR lpThreadDescription)
     return 0;
 
   return SKIF_SetThreadDescription (hThread, lpThreadDescription);
+}
+
+// Falls back to GetSystemTimeAsFileTime ( ) (lower precision) if GetSystemTimePreciseAsFileTime ( ) isn't available
+VOID
+WINAPI
+SKIF_Util_GetSystemTimePreciseAsFileTime (LPFILETIME lpSystemTimeAsFileTime)
+{
+  using GetSystemTimePreciseAsFileTime_pfn =
+    VOID (WINAPI *)(LPFILETIME lpSystemTimeAsFileTime);
+
+  static GetSystemTimePreciseAsFileTime_pfn
+    SKIF_GetSystemTimePreciseAsFileTime =
+        (GetSystemTimePreciseAsFileTime_pfn)GetProcAddress (LoadLibraryEx (L"kernel32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        "GetSystemTimePreciseAsFileTime");
+
+  if (SKIF_GetSystemTimePreciseAsFileTime == nullptr)
+    return GetSystemTimeAsFileTime (lpSystemTimeAsFileTime);
+
+  return SKIF_GetSystemTimePreciseAsFileTime (lpSystemTimeAsFileTime);
 }
 
 BOOL

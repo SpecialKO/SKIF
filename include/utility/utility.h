@@ -184,8 +184,10 @@ BOOL    WINAPI  SKIF_Util_GetLogicalProcessorInformationEx (LOGICAL_PROCESSOR_RE
 BOOL    WINAPI  SKIF_Util_CompactWorkingSet           (void);
 BOOL    WINAPI  SKIF_Util_GetSystemCpuSetInformation  (PSYSTEM_CPU_SET_INFORMATION Information, ULONG BufferLength, PULONG ReturnedLength, HANDLE Process, ULONG Flags);
 bool            SKIF_Util_SetThreadPrefersECores      (void);
+bool            SKIF_Util_SetThreadPrefersPCores      (void); // The current thread; false if not a hybrid CPU
 BOOL    WINAPI  SKIF_Util_SetThreadInformation        (HANDLE hThread,  THREAD_INFORMATION_CLASS ThreadInformationClass, LPVOID ThreadInformation, DWORD ThreadInformationSize);
 HRESULT WINAPI  SKIF_Util_SetThreadDescription        (HANDLE hThread,  PCWSTR lpThreadDescription);
+VOID    WINAPI  SKIF_Util_GetSystemTimePreciseAsFileTime (LPFILETIME lpSystemTimeAsFileTime);
 BOOL    WINAPI  SKIF_Util_SetThreadSelectedCpuSets    (HANDLE hThread,  const ULONG *CpuSetIds, ULONG CpuSetIdCount);
 BOOL    WINAPI  SKIF_Util_SetThreadGroupAffinity      (HANDLE hThread, const GROUP_AFFINITY* GroupAffinity, PGROUP_AFFINITY PreviousGroupAffinity);
 bool            SKIF_Util_SetThreadPowerThrottling    (HANDLE threadHandle, INT state);

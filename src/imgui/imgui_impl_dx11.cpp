@@ -853,7 +853,12 @@ static void ImGui_ImplDX11_CreateFontsTexture()
   if (FAILED (bd->pd3dDevice->CreateSamplerState (&sampler_desc, &bd->pFontSampler)))
     PLOG_FATAL << "Failed creating sampler-state object of the font sampler!";
 
-  io.Fonts->ClearTexData ();
+  // Kept while SKIF runs on the WARP device it starts on: the texture is created again on the hardware device then,
+  //   without building the atlas again (see SKIF_D3D11_IsDeviceSwitchPending)
+  extern bool SKIF_D3D11_IsDeviceSwitchPending (void);
+
+  if (! SKIF_D3D11_IsDeviceSwitchPending ( ))
+    io.Fonts->ClearTexData ();
 }
 
 #endif // !SKIF_D3D11
@@ -1236,6 +1241,29 @@ void ImGui_ImplDX11_NewFrame()
         ImGui_ImplDX11_CreateDeviceObjects();
 }
 #else
+// SKIF: makes the initialized backend use another device (the hardware device replacing the WARP one SKIF starts on),
+//   after ImGui_ImplDX11_InvalidateDevice ( ). Does the device part of ImGui_ImplDX11_Init ( ), which must not run twice.
+static void ImGui_ImplDX11_SetDevice (ID3D11Device* device, ID3D11DeviceContext* device_context)
+{
+    ImGui_ImplDX11_Data* bd = ImGui_ImplDX11_GetBackendData();
+
+    IDXGIDevice*   pDXGIDevice  = nullptr;
+    IDXGIAdapter*  pDXGIAdapter = nullptr;
+    IDXGIFactory2* pFactory     = nullptr;
+
+    if (device->QueryInterface(IID_PPV_ARGS(&pDXGIDevice)) == S_OK)
+        if (pDXGIDevice->GetParent(IID_PPV_ARGS(&pDXGIAdapter)) == S_OK)
+            pDXGIAdapter->GetParent(IID_PPV_ARGS(&pFactory));
+    if (pDXGIDevice) pDXGIDevice->Release();
+    if (pDXGIAdapter) pDXGIAdapter->Release();
+
+    bd->pd3dDevice        = device;
+    bd->pd3dDeviceContext = device_context;
+    bd->pFactory          = pFactory;
+    bd->pd3dDevice->AddRef();
+    bd->pd3dDeviceContext->AddRef();
+}
+
 void ImGui_ImplDX11_NewFrame()
 {
     ImGui_ImplDX11_Data* bd = ImGui_ImplDX11_GetBackendData();
@@ -1253,10 +1281,16 @@ void ImGui_ImplDX11_NewFrame()
     extern ID3D11Device*           SKIF_pd3dDevice;
     extern ID3D11DeviceContext*    SKIF_pd3dDeviceContext;
     extern DWORD                   invalidatedDevice;
+    extern bool    SKIF_D3D11_IsPendingDeviceReady (void);
+    extern bool    SKIF_D3D11_AdoptPendingDevice   (void);
 
     // Check if the device have been removed for any reason
     RecreateD3DDevice = (RecreateD3DDevice ||
       FAILED (bd->pd3dDevice->GetDeviceRemovedReason ( )));
+
+    // SKIF started on WARP and the hardware device is ready: switch to it (see CreateDeviceD3D)
+    bool SwitchD3DDevice =
+      (! RecreateD3DDevice && SKIF_D3D11_IsPendingDeviceReady ( ));
 
     // Only bother checking if the factory needs to be recreated if the device hasn't been removed
     bool  RecreateFactory =
@@ -1268,7 +1302,8 @@ void ImGui_ImplDX11_NewFrame()
 
     if (RecreateSwapChains ||
         RecreateFactory    ||
-        RecreateD3DDevice  )
+        RecreateD3DDevice  ||
+        SwitchD3DDevice    )
     {
       RecreateSwapChains        = false;
       RecreateSwapChainsPending = true;
@@ -1286,14 +1321,23 @@ void ImGui_ImplDX11_NewFrame()
         bd->pd3dDeviceContext->Flush      ( );
       }
 
-      if (RecreateFactory || RecreateD3DDevice)
+      if (RecreateFactory || RecreateD3DDevice || SwitchD3DDevice)
       {
         PLOG_DEBUG << "Recreating factory...";
         bd->pFactory->Release();
         bd->pFactory = nullptr;
 
-        if (! RecreateD3DDevice)
+        if (! RecreateD3DDevice && ! SwitchD3DDevice)
           SKIF_CreateDXGIFactory1 (__uuidof (IDXGIFactory2), (void **)&bd->pFactory);
+      }
+
+      if (SwitchD3DDevice)
+      {
+        PLOG_DEBUG << "Switching from the WARP device to the hardware device...";
+        ImGui_ImplDX11_InvalidateDevice ( ); // Releases the backend's references to the WARP device, context and factory
+
+        if (SKIF_D3D11_AdoptPendingDevice ( ))
+          ImGui_ImplDX11_SetDevice (SKIF_pd3dDevice, SKIF_pd3dDeviceContext); // Also gets the hardware adapter's factory
       }
 
       if (RecreateD3DDevice)
@@ -1665,7 +1709,20 @@ static void ImGui_ImplDX11_SwapBuffers(ImGuiViewport* viewport, void*)
         PresentFlags |= DXGI_PRESENT_ALLOW_TEARING;
     }
 
-    if (SUCCEEDED (vd->SwapChain->Present (Interval, PresentFlags)))
+    extern DWORD SKIF_startupTime;
+    extern bool  SKIF_FirstPresentDone;
+    extern DWORD SKIF_Util_timeGetTime1 (void);
+
+    const DWORD   dwPresentStart = (! SKIF_FirstPresentDone) ? SKIF_Util_timeGetTime1 ( ) : 0;
+    const HRESULT hrPresent      = vd->SwapChain->Present (Interval, PresentFlags);
+
+    // [Startup] timing (verbose): each Present ( ) until the first one has succeeded
+    if (! SKIF_FirstPresentDone)
+      PLOG_VERBOSE << "[Startup] Present ( ) took " << (SKIF_Util_timeGetTime1 ( ) - dwPresentStart) << " ms, "
+                   << (dwPresentStart - SKIF_startupTime) << " ms after init (HRESULT 0x" << std::hex << static_cast <unsigned long> (hrPresent) << std::dec
+                   << ", window " << (IsWindowVisible (static_cast <HWND> (viewport->PlatformHandle)) ? "visible" : "hidden") << ").";
+
+    if (SUCCEEDED (hrPresent))
     {
       vd->PresentCount++;
 
@@ -1673,12 +1730,12 @@ static void ImGui_ImplDX11_SwapBuffers(ImGuiViewport* viewport, void*)
       if (runOnce)
       {
         runOnce = false;
-        extern DWORD SKIF_startupTime;
-        extern DWORD SKIF_Util_timeGetTime1 (void);
 
         DWORD current_time = SKIF_Util_timeGetTime1();
 
         PLOG_INFO << "Presented first frame! Init -> Present took " << (current_time - SKIF_startupTime) << " ms.";
+
+        SKIF_FirstPresentDone = true;
       }
     }
   }

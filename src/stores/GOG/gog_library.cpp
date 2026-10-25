@@ -5,6 +5,11 @@
 #include <filesystem>
 #include <utility/registry.h>
 #include <nlohmann/json.hpp>
+#include <utility/games.h>
+#include <SKIF.h>
+#include <utility/skif_imgui.h>
+#include <fonts/fa_621.h>
+#include <utility/utility.h>
 
 
 /*
@@ -41,7 +46,7 @@ it's enough to launch the game through Galaxy like the start menu shortcuts does
 */
 
 void
-SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s > > *apps)
+SKIF_GOG_GetInstalledAppIDs (app_list_t *apps)
 {
   PLOG_INFO << "Detecting GOG games...";
 
@@ -84,7 +89,7 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
               if (RegGetValueW (hSubKey, NULL, L"GameID", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
               {
                 int appid = _wtoi(szData);
-                app_record_s record(appid);
+                app_record_gog_s record(appid);
 
                 record.store      = app_record_s::Store::GOG;
                 record.store_utf8 = "GOG";
@@ -130,10 +135,10 @@ SKIF_GOG_GetInstalledAppIDs (std::vector <std::pair < std::string, app_record_s 
                   record.specialk.profile_dir_utf8         = SK_WideCharToUTF8(record.specialk.profile_dir);
                   record.specialk.injection.injection.type = InjectionType::Global;
 
-                  std::pair <std::string, app_record_s>
-                    GOG(record.names.normal, record);
+                  app_entry_t
+                    GOG (record.names.normal, std::make_unique <app_record_gog_s> (record));
 
-                  apps->emplace_back(GOG);
+                  apps->emplace_back (std::move (GOG));
 
                   dwRead++;
                 }
@@ -317,3 +322,193 @@ SKIF_GOG_IdentifyAssetPCGW (uint32_t app_id)
     }
   }
 }
+
+
+#pragma region Launching
+
+bool
+app_record_gog_s::PrefersInstantLaunch (bool fromGameMenu, launch_config_s* config) const
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  extern bool GOGGalaxy_Installed;
+
+  UNREFERENCED_PARAMETER (config);
+
+  // Fallback for GOG games if the Galaxy client is not installed
+  if (! GOGGalaxy_Installed)
+    return true;
+
+  return (! fromGameMenu && UsesInstantPlay (GetInstantPlayDefault ( )));
+}
+
+// Launch GOG Galaxy game (default for GOG games since 2024-01-05), unless an instant launch was requested
+void
+app_record_gog_s::Launch (const launch_context_s& ctx)
+{
+  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
+
+  if (ctx.instant)
+  {
+    LaunchInstant (ctx);
+    return;
+  }
+
+  PLOG_VERBOSE << "Performing a GOG Galaxy launch...";
+
+  extern std::wstring GOGGalaxy_Path;
+  extern std::wstring GOGGalaxy_Folder;
+
+  // "D:\Games\GOG Galaxy\GalaxyClient.exe" /command=runGame /gameId=1895572517 /path="D:\Games\GOG Games\AI War 2"
+
+  std::wstring launchOptions = SK_FormatStringW(LR"(/command=runGame /gameId=%d /path="%ws")", id, install_dir.c_str());
+
+  //SKIF_Util_OpenURI (GOGGalaxy_Path, SW_SHOWDEFAULT, L"OPEN", launchOptions.c_str());
+  if (SKIF_Util_CreateProcess (GOGGalaxy_Path, launchOptions.c_str(), L""))
+  {
+    std::scoped_lock app_lock (_games.GetMutex());
+
+    // Don't check the running state for at least 7.5 seconds
+    _status.dwTimeDelayChecks = ctx.timeNow + 7500;
+    _status.running           = true;
+
+    SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (names.normal + " (Galaxy)"), GOGGalaxy_Path, launchOptions, GOGGalaxy_Folder, ctx.config->getExecutableFullPath(), (! ctx.localInjection && ctx.usingSK));
+  }
+}
+
+#pragma endregion
+
+#pragma region Library UI
+
+bool
+app_record_gog_s::GetInstantPlayDefault (void) const
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  return _registry.bInstantPlayGOG;
+}
+
+std::wstring
+app_record_gog_s::GetStoreAssetDirectory (void) const
+{
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
+  return SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, id);
+}
+
+#pragma endregion
+
+#pragma region Context Menu
+
+void
+app_record_gog_s::DrawWebsiteMenuItems (void)
+{
+  if (SKIF_ImGui_MenuItemEx2 ("GOG Database", ICON_FA_DATABASE, ImColor(155, 89, 182, 255)))
+    SKIF_Util_OpenURI ((L"https://www.gogdb.org/product/" + std::to_wstring (id)).c_str());
+
+  SKIF_ImGui_SetMouseCursorHand ( );
+  SKIF_ImGui_SetHoverText       (SKIF_Util_FormatStringRaw ("https://www.gogdb.org/product/%lu", id));
+}
+
+#pragma endregion
+
+#pragma region Artwork
+
+std::wstring
+app_record_gog_s::ResolveArtwork (LibraryTexture type, const std::wstring& source, bool& isCustom, bool& isManaged)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  std::wstring SKIFCustomPath = GetStoreAssetDirectory ( ) + ((type == LibraryTexture::Cover) ? L"cover" : L"icon");
+  std::wstring load_str       = FindCustomArtwork (type);
+
+  isCustom = (! load_str.empty ( ));
+
+  if (! isCustom)
+  {
+    if      (type == LibraryTexture::Icon &&
+             SKIF_Util_SaveExtractExeIcon (launch_configs[0].getExecutableFullPath ( ), SKIFCustomPath + L"-original.png"))
+      load_str =             SKIFCustomPath + L"-original.png";
+    else if (type == LibraryTexture::Icon)
+    {
+      isManaged = false; // GOG default icons are not managed
+      load_str =             source;
+    }
+
+    else if (type == LibraryTexture::Cover)
+    {
+      // Load PCGW cover
+      if (_registry.bPCGWCoversGOG &&
+          PathFileExistsW ((SKIFCustomPath + L"-pcgw.png").c_str()))
+      {
+        load_str =          SKIFCustomPath + L"-pcgw.png";
+
+        isManaged = true; // PCGW covers are managed
+      }
+
+      // Load GOG Galaxy cover
+      else {
+        isManaged = false; // GOG covers are not managed
+
+        extern std::wstring GOGGalaxy_UserID;
+        load_str = SK_FormatStringW (LR"(C:\ProgramData\GOG.com\Galaxy\webcache\%ws\gog\%i\)", GOGGalaxy_UserID.c_str(), id);
+
+        HANDLE hFind        = INVALID_HANDLE_VALUE;
+        WIN32_FIND_DATA ffd = { };
+
+        hFind =
+          FindFirstFileExW ((load_str + source).c_str(), FindExInfoBasic, &ffd, FindExSearchNameMatch, NULL, NULL);
+        //FindFirstFile((load_str + source).c_str(), &ffd);
+
+        if (INVALID_HANDLE_VALUE != hFind)
+        {
+          load_str += ffd.cFileName;
+          FindClose(hFind);
+        }
+      }
+    }
+  }
+
+  return load_str;
+}
+
+// Cover worker thread: GOG Galaxy's web cache cover (pattern), and the PCGamingWiki cover if enabled
+std::wstring
+app_record_gog_s::PrepareCoverSource (bool queryPCGW)
+{
+  std::wstring load_str;
+
+  load_str = L"*_glx_vertical_cover.webp"; // Fallback
+
+  // Decided on the main thread (SKIF_LibraryArtwork::StartCoverWorker), which also marks tex_cover.queriedPCGW
+  if (queryPCGW)
+    SKIF_GOG_IdentifyAssetPCGW (id);
+
+  return load_str;
+}
+
+bool
+app_record_gog_s::WantsPCGWCover (void) const
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  return _registry.bPCGWCoversGOG;
+}
+
+// We may also store a PCGW cover that we must reset
+bool
+app_record_gog_s::DeleteStoreCoverFiles (const std::wstring& assetDir)
+{
+  tex_cover.queriedPCGW = false;
+
+  return DeleteFile ((assetDir + L"cover-pcgw.png").c_str());
+}
+
+bool
+app_record_gog_s::CoverNeedsClientSignIn (void) const
+{
+  extern std::wstring GOGGalaxy_UserID;
+
+  return GOGGalaxy_UserID.empty();
+}
+
+#pragma endregion

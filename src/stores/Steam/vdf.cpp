@@ -26,7 +26,6 @@
 #include <stores/Steam/steam_library.h>
 #include <filesystem>
 
-const int SKIF_STEAM_APPID = 1157970;
 
 // Shorthands, to make life less painful
 using appinfo_s     = skValveDataFile::appinfo_s;
@@ -290,7 +289,7 @@ appinfo_s::getNextApp (void)
 }
 
 appinfo_s*
-skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::string, app_record_s > > *apps )
+skValveDataFile::getAppInfo ( uint32_t appid, app_list_t *apps )
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
@@ -309,13 +308,13 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
     {
       if (pIter->appid == appid)
       {
-        app_record_s* pAppRecord = nullptr;
+        app_record_steam_s* pAppRecord = nullptr;
 
         for (auto& app : *apps)
         {
-          if (app.second.id == appid && app.second.store == app_record_s::Store::Steam)
+          if (app.second->id == appid && app.second->store == app_record_s::Store::Steam)
           {
-            pAppRecord = &app.second;
+            pAppRecord = static_cast <app_record_steam_s*> (app.second.get ( )); // Steam-store entries are always app_record_steam_s
             break;
           }
         }
@@ -323,7 +322,7 @@ skValveDataFile::getAppInfo ( uint32_t appid, std::vector <std::pair < std::stri
         // If we're dealing with an unrecognized app, process it into a dummy object
         if (! pAppRecord)
         {
-          static app_record_s _non_steam (appid);
+          static app_record_steam_s _non_steam (appid);
           pAppRecord = &_non_steam;
         }
 
