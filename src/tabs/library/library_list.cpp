@@ -465,7 +465,7 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
       static bool _horizon = _registry._LibHorizonMode;
 
       // This allows the scroll to reset on DPI changes, to keep the selected item on-screen
-      if (SKIF_ImGui_GlobalDPIScale != SKIF_ImGui_GlobalDPIScale_Last ||
+      if (SKIF_ImGui_MainDPIScale != SKIF_ImGui_MainDPIScale_Last ||
           _registry._LibHorizonMode != _horizon)
       {
         ImGui::SetScrollHereY (0.5f);

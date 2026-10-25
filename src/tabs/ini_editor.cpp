@@ -289,7 +289,7 @@ SKIF_UI_IniEditor_Process (void)
 
     if (window.state == PopupState_Open)
     {
-      ImGui::SetNextWindowSize (ImVec2 (950.0f, 750.0f) * SKIF_ImGui_GlobalDPIScale);
+      ImGui::SetNextWindowSize (ImVec2 (950.0f, 750.0f) * SKIF_ImGui_MainDPIScale); // Opens centered on the main window
 
       extern ImRect windowRect;
       ImGui::SetNextWindowPos (windowRect.GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
@@ -311,7 +311,7 @@ SKIF_UI_IniEditor_Process (void)
       wc.ClassId = ImGui::GetID ("IniEditorClass");
       wc.ViewportFlagsOverrideSet = ImGuiViewportFlags_NoAutoMerge; // Work around a pesky bug where the viewport tries to merge into the... debug fallback window?
     ImGui::SetNextWindowClass (&wc);
-    ImGui::SetNextWindowSizeConstraints (ImVec2 (640.0f, 480.0f) * SKIF_ImGui_GlobalDPIScale, ImVec2 (FLT_MAX, FLT_MAX));
+    ImGui::SetNextWindowSizeConstraints (ImVec2 (640.0f, 480.0f) * SKIF_ImGui_GetDPIScaleForWindow (window.wnd_name.c_str()), ImVec2 (FLT_MAX, FLT_MAX));
 
     ImGui::Begin (window.wnd_name.c_str(),
                       &show,

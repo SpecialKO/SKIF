@@ -107,6 +107,10 @@ void     SKIF_ImGui_UpdateScrollbarState  (void); // Update the internal state t
 bool     SKIF_ImGui_IsScrollbarX          (void); // Helper function returning true if a horizontal scrollbar is visible
 bool     SKIF_ImGui_IsScrollbarY          (void); // Helper function returning true if a vertical scrollbar is visible
 void     SKIF_ImGui_InvalidateFonts       (void);
+void     SKIF_ImGui_ApplyDPIScale         (float scale);               // Rescales the live style (sizes + FontScaleDpi) to a DPI scale
+void     SKIF_ImGui_OnChangedViewport     (ImGuiViewport* viewport);   // ImGuiPlatformIO::Platform_OnChangedViewport: per-monitor DPI
+void     SKIF_ImGui_RestoreMainDPIScale   (void);                      // Back to the main window's DPI scale (between frames)
+float    SKIF_ImGui_GetDPIScaleForWindow  (const char* name);          // DPI scale for sizes set up before ImGui::Begin () of that window
 void     SKIF_ImGui_BeginHighlightLine    (ImU32 hover_color = ImGui::GetColorU32 (ImGuiCol_SKIF_HighlightLineBg));
 void     SKIF_ImGui_PushHighlightLineLine (void);
 void     SKIF_ImGui_PopHighlightLineLine  (void);
