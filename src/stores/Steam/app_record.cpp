@@ -842,7 +842,13 @@ app_record_s::MatchProcess (const wchar_t* wszExeFile, const wchar_t* wszExePath
 {
   UNREFERENCED_PARAMETER (wszExeFile);
 
-  if (dwExePathLen != 0 && _wcsnicmp (launch_configs[0].getExecutableFullPath ( ).c_str(), wszExePath, dwExePathLen) == 0) // full path
+  // Called by SKIF_LibRefreshWorker: only read the launch configs (operator [] would insert a missing entry)
+  auto primary = launch_configs.find (0);
+
+  if (primary == launch_configs.end ( ))
+    return ProcessMatch::None;
+
+  if (dwExePathLen != 0 && _wcsnicmp (primary->second.getExecutableFullPath ( ).c_str(), wszExePath, dwExePathLen) == 0) // full path
     return ProcessMatch::Running;
 
   // One can also perform a partial match with the below OR clause in the IF statement, however from testing

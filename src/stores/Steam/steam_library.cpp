@@ -2196,7 +2196,13 @@ app_record_steam_s::MatchProcess (const wchar_t* wszExeFile, const wchar_t* wszE
 {
   UNREFERENCED_PARAMETER (wszExeFile);
 
-  if (dwExePathLen != 0 && _wcsnicmp (launch_configs[0].getExecutableFullPath ( ).c_str(), wszExePath, dwExePathLen) == 0)
+  // Called by SKIF_LibRefreshWorker: only read the launch configs (operator [] would insert a missing entry)
+  auto primary = launch_configs.find (0);
+
+  if (primary == launch_configs.end ( ))
+    return ProcessMatch::None;
+
+  if (dwExePathLen != 0 && _wcsnicmp (primary->second.getExecutableFullPath ( ).c_str(), wszExePath, dwExePathLen) == 0)
   {
     // Only set the running state if the primary registry monitoring is unavailable
     return (steamFallback) ? ProcessMatch::Running : ProcessMatch::PidOnly;

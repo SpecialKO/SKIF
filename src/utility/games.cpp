@@ -277,8 +277,11 @@ SKIF_GamingCollection::RefreshRunningApps (app_list_t *apps, bool forced)
   bool focused          = SKIF_ImGui_IsFocused ();
   int  focus_multiplier = focused ? 1 : 10;
 
-  if (forced || (current_time > lastGameRefresh + 666 * focus_multiplier && current_time > last_checked + 333UL * focus_multiplier && (! ImGui::IsAnyMouseDown ( ))))
+  // Runs on SKIF_LibRefreshWorker: ImGui is not thread-safe, so the mouse state comes from s_bAnyMouseDownUI (set by the main thread)
+  if (forced || (current_time > lastGameRefresh + 666 * focus_multiplier && current_time > last_checked + 333UL * focus_multiplier && (! s_bAnyMouseDownUI.load ( ))))
   {
+    // The main thread must hold this lock as well whenever it changes the app list or an app's launch configs
+    //   (e.g. LoadStoreDetails ( ), which rebuilds launch_configs), as the loop below reads them
     std::scoped_lock app_lock (SKIF_GamingCollection::Get().GetMutex());
 
     if (! forced)

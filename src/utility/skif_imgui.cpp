@@ -470,6 +470,8 @@ SKIF_ImGui_CloseInfoPopup (void)
   }
 }
 
+// Whether any of SKIF's windows has the keyboard focus
+//   Thread-safe: the state is kept in an atomic updated by the main thread on WM_SETFOCUS / WM_KILLFOCUS
 bool
 SKIF_ImGui_IsFocused (void)
 {
@@ -478,6 +480,8 @@ SKIF_ImGui_IsFocused (void)
   return SKIF_ImGui_ImplWin32_IsFocused ( );
 }
 
+// Whether the given viewport has the keyboard focus
+//   Main thread only (the viewport data is owned and deleted by the main thread)
 bool
 SKIF_ImGui_IsViewportFocused (const ImGuiViewport* vp)
 {

@@ -754,7 +754,11 @@ SKIF_UI_Tab_DrawLibrary (void)
       //PLOG_VERBOSE << "CPU PRE : " << cpu_pre;
 
       // Parse store data for the current game on the main thread (Steam: appinfo.vdf)
-      pApp->LoadStoreDetails ( );
+      //   This rebuilds the launch configs of the game, which SKIF_LibRefreshWorker reads under the same lock
+      {
+        std::scoped_lock app_lock (_games.GetMutex());
+        pApp->LoadStoreDetails ( );
+      }
 
       // Only run a worker if we're not dealing with Special K
       if (! isSpecialK)
@@ -1265,6 +1269,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   );
 
   // Refresh running state of SKIF Custom, Epic, GOG, and Xbox titles
+  //   The worker does not call into ImGui (not thread-safe), so hand it the mouse state first
+  SKIF_GamingCollection::s_bAnyMouseDownUI.store (ImGui::IsAnyMouseDown ( ));
   SetEvent (hRefreshSignal);
 
 #pragma region ServiceMenu
@@ -1873,7 +1879,11 @@ SKIF_UI_Tab_DrawLibrary (void)
           continue;
 
         //PLOG_DEBUG << "[AppInfo Processing] " << "[" << ImGui::GetFrameCount ( ) << "] Processing " << app.second.id << "...";
-        app.second->LoadStoreDetails ( );
+        // This rebuilds the launch configs of the game, which SKIF_LibRefreshWorker reads under the same lock
+        {
+          std::scoped_lock app_lock (_games.GetMutex());
+          app.second->LoadStoreDetails ( );
+        }
 
         fallbackAvailable = false;
         break;

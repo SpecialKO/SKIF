@@ -62,6 +62,10 @@ struct SKIF_GamingCollection {
   //   SwapInPopulatedGames ( ), so code they call skips GetMutex ( ) (each thread only touches its own games)
   static inline thread_local bool tl_isLibraryWorker = false;
 
+  // Whether a mouse button is held down in the UI. Set by the main thread every frame before it signals
+  //   SKIF_LibRefreshWorker, as RefreshRunningApps ( ) runs on that thread and must not call into ImGui.
+  static inline std::atomic <bool> s_bAnyMouseDownUI = false;
+
   const AppList& GetApps() const { return m_apps; }
         AppList& GetApps()       { return m_apps; }
 
