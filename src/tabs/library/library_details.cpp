@@ -91,8 +91,8 @@ DrawGameDetails_Info (app_record_s* pApp)
                                   ImVec2 ( ImFloor (lib_column2_width - ImGui::GetStyle ().FrameBorderSize * 2.0f),
                                                                             num_lines * line_ht ),
                                     ImGuiChildFlags_AlwaysAutoResize  |
-                                    ImGuiChildFlags_AutoResizeY,
-                                    ImGuiWindowFlags_NavFlattened      |
+                                    ImGuiChildFlags_AutoResizeY |
+                                    ImGuiChildFlags_NavFlattened,
                                     ImGuiWindowFlags_NoScrollbar       |
                                     ImGuiWindowFlags_NoScrollWithMouse |
                                     ImGuiWindowFlags_NoBackground
@@ -353,8 +353,7 @@ DrawGameDetails_Play (app_record_s* pApp)
   SKIF_ImGui_BeginChildFrame (
     frame_id2, ImVec2 (  0.0f,
                          0.0f), //110.f * SKIF_ImGui_GlobalDPIScale ),
-      ImGuiChildFlags_None,
-      ImGuiWindowFlags_NavFlattened      |
+      ImGuiChildFlags_NavFlattened,
       ImGuiWindowFlags_NoScrollbar       |
       ImGuiWindowFlags_NoScrollWithMouse |
       ImGuiWindowFlags_NoBackground
@@ -664,8 +663,7 @@ DrawGameDetails_LaunchBar (app_record_s* pApp)
                               std::max (ImGui::GetContentRegionAvail ().y,
                                         ImGui::GetTextLineHeight () + ImGui::GetStyle ().FramePadding.y * 2.0f + ImGui::GetStyle ().ItemSpacing.y * 2
                                         )),
-                                ImGuiChildFlags_None,
-                                ImGuiWindowFlags_NavFlattened      |
+                                ImGuiChildFlags_NavFlattened,
                                 ImGuiWindowFlags_NoScrollbar       |
                                 ImGuiWindowFlags_NoScrollWithMouse |
                                 ImGuiWindowFlags_NoBackground

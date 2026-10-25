@@ -32,6 +32,38 @@ enum SKIF_ImGui_ExtFont {
 };
 static bool           SKIF_ImGui_ExtFontWanted [SKIF_ImGui_ExtFont_COUNT] = { };
 
+// The Unicode blocks of the extended character sets (pairs of inclusive ranges): used both to pick the font to add for a
+//   missing character, and to keep each regional font to its own script (ImFontConfig::GlyphExcludeRanges)
+#define SKIF_IMGUI_GLYPHS_HANGUL                                                                          \
+  0x1100, 0x11FF, /* Hangul Jamo                                                                     */  \
+  0x3130, 0x318F, /* Hangul Compatibility Jamo                                                       */  \
+  0xA960, 0xA97F, /* Hangul Jamo Extended-A                                                          */  \
+  0xAC00, 0xD7FF, /* Hangul Syllables, Hangul Jamo Extended-B                                        */  \
+  0xFFA0, 0xFFDC  /* Halfwidth Hangul                                                                */
+#define SKIF_IMGUI_GLYPHS_CJK                                                                             \
+  0x2E80, 0x2FDF, /* CJK Radicals Supplement, Kangxi Radicals                                        */  \
+  0x3000, 0x30FF, /* CJK Symbols and Punctuation, Hiragana, Katakana                                 */  \
+  0x3190, 0x31FF, /* Kanbun, Bopomofo Extended, CJK Strokes, Katakana Phonetic Extensions            */  \
+  0x3200, 0x33FF, /* Enclosed CJK Letters and Months, CJK Compatibility                              */  \
+  0x3400, 0x4DBF, /* CJK Unified Ideographs Extension A                                              */  \
+  0x4E00, 0x9FFF, /* CJK Unified Ideographs                                                          */  \
+  0xF900, 0xFAFF, /* CJK Compatibility Ideographs                                                    */  \
+  0xFE30, 0xFE4F, /* CJK Compatibility Forms                                                         */  \
+  0xFF00, 0xFF9F, /* Fullwidth Forms, Halfwidth Katakana (Halfwidth Hangul follows)                  */  \
+  0xFFE0, 0xFFEF  /* Fullwidth Signs                                                                 */
+
+static const ImWchar  SKIF_ImGui_GlyphsHangul [] = { SKIF_IMGUI_GLYPHS_HANGUL, 0 };
+static const ImWchar  SKIF_ImGui_GlyphsCJK    [] = { SKIF_IMGUI_GLYPHS_CJK,    0 };
+
+static bool
+SKIF_ImGui_IsInGlyphRanges (const ImWchar* ranges, unsigned int cp)
+{
+  for (; ranges [0] != 0; ranges += 2)
+    if (cp >= ranges [0] && cp <= ranges [1])
+      return true;
+  return false;
+}
+
 PopupState PopupMessageInfo = PopupState_Closed;
 std::vector <std::pair <std::string, std::string> > vInfoMessages;
 
@@ -146,9 +178,9 @@ SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst)
   // Tabs
   colors[ImGuiCol_Tab]                    = ImVec4(0.15f, 0.15f, 0.15f, 1.00f);       //ImLerp(colors[ImGuiCol_Header],       colors[ImGuiCol_TitleBgActive], 0.80f);
   colors[ImGuiCol_TabHovered]             = ImVec4(0.27f, 0.27f, 0.27f, 1.00f);
-  colors[ImGuiCol_TabActive]              = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);       //ImLerp(colors[ImGuiCol_HeaderActive], colors[ImGuiCol_TitleBgActive], 0.60f);
-  colors[ImGuiCol_TabUnfocused]           = ImVec4(0.08f, 0.08f, 0.08f, 1.00f);
-  colors[ImGuiCol_TabUnfocusedActive]     = ImVec4(0.08f, 0.08f, 0.08f, 1.00f);
+  colors[ImGuiCol_TabSelected]              = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);       //ImLerp(colors[ImGuiCol_HeaderActive], colors[ImGuiCol_TitleBgActive], 0.60f);
+  colors[ImGuiCol_TabDimmed]           = ImVec4(0.08f, 0.08f, 0.08f, 1.00f);
+  colors[ImGuiCol_TabDimmedSelected]     = ImVec4(0.08f, 0.08f, 0.08f, 1.00f);
 
   // Docking stuff
   colors[ImGuiCol_DockingPreview]         = colors[ImGuiCol_HeaderActive] * ImVec4(1.0f, 1.0f, 1.0f, 0.7f);
@@ -172,9 +204,9 @@ SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst)
 
   // Nav/Modal
   // This is the white border that highlights selected items when using keyboard focus etc
-  colors[ImGuiCol_NavHighlight]           = ImVec4(0.27f, 0.27f, 0.27f, 1.00f);
-//colors[ImGuiCol_NavHighlight]           = ImVec4(0.48f, 0.48f, 0.48f, 1.00f);
-//colors[ImGuiCol_NavHighlight]           = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
+  colors[ImGuiCol_NavCursor]           = ImVec4(0.27f, 0.27f, 0.27f, 1.00f);
+//colors[ImGuiCol_NavCursor]           = ImVec4(0.48f, 0.48f, 0.48f, 1.00f);
+//colors[ImGuiCol_NavCursor]           = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
   colors[ImGuiCol_NavWindowingHighlight]  = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
   colors[ImGuiCol_NavWindowingDimBg]      = ImVec4(0.00f, 0.00f, 0.00f, 0.50f); // ImVec4(0.80f, 0.80f, 0.80f, 0.20f)
   colors[ImGuiCol_ModalWindowDimBg]       = ImVec4(0.00f, 0.00f, 0.00f, 0.50f); // ImVec4(0.80f, 0.80f, 0.80f, 0.35f);
@@ -261,9 +293,9 @@ SKIF_ImGui_StyleColorsLight (ImGuiStyle* dst)
   // Tabs
   colors[ImGuiCol_Tab]                    = ImVec4(0.85f, 0.85f, 0.85f, 1.00f); // ImLerp(colors[ImGuiCol_Header],       colors[ImGuiCol_TitleBgActive], 0.90f);
   colors[ImGuiCol_TabHovered]             = ImVec4(0.90f, 0.90f, 0.90f, 1.00f); // colors[ImGuiCol_HeaderHovered];
-  colors[ImGuiCol_TabActive]              = ImVec4(0.80f, 0.80f, 0.80f, 1.00f); // ImLerp(colors[ImGuiCol_HeaderActive], colors[ImGuiCol_TitleBgActive], 0.60f);
-  colors[ImGuiCol_TabUnfocused]           = ImVec4(0.85f, 0.85f, 0.85f, 1.00f);
-  colors[ImGuiCol_TabUnfocusedActive]     = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
+  colors[ImGuiCol_TabSelected]              = ImVec4(0.80f, 0.80f, 0.80f, 1.00f); // ImLerp(colors[ImGuiCol_HeaderActive], colors[ImGuiCol_TitleBgActive], 0.60f);
+  colors[ImGuiCol_TabDimmed]           = ImVec4(0.85f, 0.85f, 0.85f, 1.00f);
+  colors[ImGuiCol_TabDimmedSelected]     = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
 
   // Docking stuff
   colors[ImGuiCol_DockingPreview]         = colors[ImGuiCol_Header] * ImVec4(1.0f, 1.0f, 1.0f, 0.7f);
@@ -286,7 +318,7 @@ SKIF_ImGui_StyleColorsLight (ImGuiStyle* dst)
   colors[ImGuiCol_DragDropTarget]         = ImVec4(0.26f, 0.59f, 0.98f, 0.95f);
 
   // Nav/Modal
-  colors[ImGuiCol_NavHighlight]           = colors[ImGuiCol_HeaderHovered];
+  colors[ImGuiCol_NavCursor]           = colors[ImGuiCol_HeaderHovered];
   colors[ImGuiCol_NavWindowingHighlight]  = ImVec4(0.70f, 0.70f, 0.70f, 0.70f);
   colors[ImGuiCol_NavWindowingDimBg]      = ImVec4(0.20f, 0.20f, 0.20f, 0.20f);
   colors[ImGuiCol_ModalWindowDimBg]       = ImVec4(0.20f, 0.20f, 0.20f, 0.35f);
@@ -469,7 +501,7 @@ SKIF_ImGui_IsMouseHovered (void)
 bool
 SKIF_ImGui_IsAnyInputDown (void)
 {
-  for (ImGuiKey key = ImGuiKey_KeysData_OFFSET; key < ImGuiKey_COUNT; key = (ImGuiKey)(key + 1))
+  for (ImGuiKey key = ImGuiKey_NamedKey_BEGIN; key < ImGuiKey_NamedKey_END; key = (ImGuiKey)(key + 1))
     if (ImGui::IsKeyDown(key))
       return true;
 
@@ -711,7 +743,7 @@ SKIF_ImGui_SeparatorTextClickable (const char* label, const bool* collapsed, boo
   if (hovered && hand_cursor)
     ImGui::SetMouseCursor (ImGuiMouseCursor_Hand);
 
-  ImGui::RenderNavHighlight (bb, id);
+  ImGui::RenderNavCursor (bb, id);
 
   // Draw the separator row (also advances the cursor by one row)
   ImGui::SetCursorScreenPos (pos);
@@ -754,6 +786,20 @@ SKIF_ImGui_SeparatorTextClickable (const char* label, const bool* collapsed, boo
   return activated;
 }
 
+// ImGui 1.91.0 removed GetContentRegionMax ( ) and GetWindowContentRegionMax ( ). These return the same values (relative to
+//   the window position): the content region's right/bottom edge, the first also within tables and columns.
+ImVec2
+SKIF_ImGui_GetContentRegionMax (void)
+{
+  return ImGui::GetContentRegionAvail ( ) + ImGui::GetCursorScreenPos ( ) - ImGui::GetWindowPos ( );
+}
+
+ImVec2
+SKIF_ImGui_GetWindowContentRegionMax (void)
+{
+  return ImGui::GetCurrentWindowRead ( )->ContentRegionRect.Max - ImGui::GetWindowPos ( );
+}
+
 // Difference to regular BeginChildFrame? No ImGuiWindowFlags_NoMove!
 bool
 SKIF_ImGui_BeginChildFrame (ImGuiID id, const ImVec2& size, ImGuiChildFlags child_flags, ImGuiWindowFlags window_flags)
@@ -776,12 +822,19 @@ SKIF_ImGui_BeginChildFrame (ImGuiID id, const ImVec2& size, ImGuiChildFlags chil
 }
 
 // Basically like ImGui::Image but, you know, doesn't actually draw the images
-void SKIF_ImGui_OptImage (ImTextureID user_texture_id, const ImVec2& size, const ImVec2& uv0, const ImVec2& uv1, const ImVec4& tint_col, const ImVec4& border_col)
+//   The texture is an ID3D11ShaderResourceView* (since ImGui 1.91.4 ImTextureID is an integer, so it is converted here)
+void SKIF_ImGui_OptImage (void* user_texture_id, const ImVec2& size, const ImVec2& uv0, const ImVec2& uv1, const ImVec4& tint_col, const ImVec4& border_col)
 {
   // If not a nullptr, run original code
   if (user_texture_id != nullptr)
   {
-    ImGui::Image (user_texture_id, size, uv0, uv1, tint_col, border_col);
+    // ImGui 1.91.9 replaced Image ( )'s tint and border parameters with ImageWithBg ( ) and style.ImageBorderSize;
+    //   this is what ImGui's own legacy Image ( ) overload does, so the size and border stay as before
+    ImGui::PushStyleVar   (ImGuiStyleVar_ImageBorderSize, (border_col.w > 0.0f) ? ImMax (1.0f, ImGui::GetStyle ( ).ImageBorderSize) : 0.0f);
+    ImGui::PushStyleColor (ImGuiCol_Border, border_col);
+    ImGui::ImageWithBg    ((ImTextureID)(intptr_t)user_texture_id, size, uv0, uv1, ImVec4 (0, 0, 0, 0), tint_col);
+    ImGui::PopStyleColor  ( );
+    ImGui::PopStyleVar    ( );
   }
 
   // If a nullptr, run slightly tweaked code that omitts the image rendering
@@ -861,8 +914,8 @@ void SKIF_ImGui_BeginTabChildFrame (void)
   SKIF_ImGui_BeginChildFrame (
     frame_content_area_id,
     ImVec2 (0.0f, maxContentHeight), // 900.0f
-    ImGuiChildFlags_None, // ImGuiChildFlags_FrameStyle
-    ImGuiWindowFlags_NavFlattened
+    ImGuiChildFlags_NavFlattened, // ImGuiChildFlags_FrameStyle
+    ImGuiWindowFlags_None
   );
 }
 
@@ -917,8 +970,8 @@ bool SKIF_ImGui_IconButton (ImGuiID id, std::string icon, std::string label, con
                                  ImGui::CalcTextSize(label.c_str()) .x +
                                  ImGui::CalcTextSize("    ").x,
                                  ImGui::GetTextLineHeightWithSpacing() + 2.0f * SKIF_ImGui_GlobalDPIScale),
-    ImGuiChildFlags_FrameStyle,
-    ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NavFlattened
+    ImGuiChildFlags_FrameStyle | ImGuiChildFlags_NavFlattened,
+    ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse
   );
 
   ImVec2 iconPos = ImGui::GetCursorPos ( );
@@ -969,7 +1022,7 @@ SKIF_ImGui_MinimizeButton (ImGuiID id, const ImVec2& pos)
     float y_offset = g.FontSize * 0.25f;
     ImU32 line_col = ImGui::GetColorU32(ImGuiCol_Text);
     center -= ImVec2(0.5f, 0.5f);
-    window->DrawList->AddLine(ImVec2(center.x - half_width, center.y + y_offset), ImVec2(center.x + half_width, center.y + y_offset), line_col, 1.0f);
+    window->DrawList->AddLineH(center.x - half_width, center.x + half_width, center.y + y_offset, line_col, 1.0f);
 
     return pressed;
 }
@@ -1341,7 +1394,7 @@ void SKIF_ImGui_ServiceMenu (void)
 
   if (ImGui::BeginPopup ("ServiceMenu", ImGuiWindowFlags_NoMove))
   {
-    ImGui::PushStyleColor (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
+    ImGui::PushStyleColor (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
     ImGui::TextColored (
       ImColor::HSV (0.11F, 1.F, 1.F),
         "Troubleshooting:"
@@ -1373,63 +1426,6 @@ void SKIF_ImGui_ServiceMenu (void)
 // Fonts
 
 
-const ImWchar*
-SK_ImGui_GetGlyphRangesDefaultEx (void)
-{
-  static const ImWchar ranges [] =
-  {
-    0x0020,  0x00FF, // Basic Latin + Latin Supplement
-    0x0100,  0x03FF, // Latin, IPA, Greek
-    0x2000,  0x206F, // General Punctuation
-    0x207f,  0x2090, // N/A (literally, the symbols for N/A :P)
-    0x2100,  0x21FF, // Letterlike Symbols
-    0x2500,  0x257F, // Box Drawing (needed for U+2514)
-    0x2600,  0x26FF, // Misc. Characters
-    0x2700,  0x27BF, // Dingbats
-    0xc2b1,  0xc2b3, // ²
-    0
-  };
-  return &ranges [0];
-}
-
-const ImWchar*
-SK_ImGui_GetGlyphRangesKorean (void)
-{
-  static const ImWchar ranges[] =
-  {
-      0x0020, 0x00FF, // Basic Latin + Latin Supplement
-      0x3131, 0x3163, // Korean alphabets
-//#ifdef _WIN64
-      0xAC00, 0xD7A3, // Korean characters (Hangul syllables) -- should not be included on 32-bit OSes due to system limitations
-//#endif
-      0,
-  };
-  return &ranges[0];
-}
-
-const ImWchar*
-SK_ImGui_GetGlyphRangesFontAwesome (void)
-{
-  static const ImWchar ranges [] =
-  {
-    0x0020, 0x00FF,             // Basic Latin + Latin Supplement  (this is needed to get the missing glyph fallback to work)
-    ICON_MIN_FA,  ICON_MAX_FA,  // Font Awesome (Solid / Regular)
-    0
-  };
-  return &ranges [0];
-}
-
-const ImWchar*
-SK_ImGui_GetGlyphRangesFontAwesomeBrands (void)
-{
-  static const ImWchar ranges [] =
-  {
-    0x0020, 0x00FF,             // Basic Latin + Latin Supplement  (this is needed to get the missing glyph fallback to work)
-    ICON_MIN_FAB, ICON_MAX_FAB, // Font Awesome (Brands)
-    0
-  };
-  return &ranges [0];
-}
 
 // Since ImGui 1.92, glyphs are rasterized the first time they are drawn, and glyph ranges are not used: for every glyph,
 //   the merged font sources are searched in the order they were added. So the standard font provides all the
@@ -1446,23 +1442,8 @@ SKIF_ImGui_MissingGlyphCallback (wchar_t c)
 
   const unsigned int cp = static_cast <unsigned int> (c);
 
-  const bool hangul =
-    (cp >= 0x1100 && cp <= 0x11FF) || // Hangul Jamo
-    (cp >= 0x3130 && cp <= 0x318F) || // Hangul Compatibility Jamo
-    (cp >= 0xA960 && cp <= 0xA97F) || // Hangul Jamo Extended-A
-    (cp >= 0xAC00 && cp <= 0xD7FF) || // Hangul Syllables, Hangul Jamo Extended-B
-    (cp >= 0xFFA0 && cp <= 0xFFDC);   // Halfwidth Hangul
-
-  const bool cjk = ! hangul && (
-    (cp >= 0x2E80 && cp <= 0x2FDF) || // CJK Radicals Supplement, Kangxi Radicals
-    (cp >= 0x3000 && cp <= 0x30FF) || // CJK Symbols and Punctuation, Hiragana, Katakana
-    (cp >= 0x3190 && cp <= 0x31FF) || // Kanbun, Bopomofo Extended, CJK Strokes, Katakana Phonetic Extensions
-    (cp >= 0x3200 && cp <= 0x33FF) || // Enclosed CJK Letters and Months, CJK Compatibility
-    (cp >= 0x3400 && cp <= 0x4DBF) || // CJK Unified Ideographs Extension A
-    (cp >= 0x4E00 && cp <= 0x9FFF) || // CJK Unified Ideographs
-    (cp >= 0xF900 && cp <= 0xFAFF) || // CJK Compatibility Ideographs
-    (cp >= 0xFE30 && cp <= 0xFE4F) || // CJK Compatibility Forms
-    (cp >= 0xFF00 && cp <= 0xFFEF) ); // Halfwidth and Fullwidth Forms
+  const bool hangul =          SKIF_ImGui_IsInGlyphRanges (SKIF_ImGui_GlyphsHangul, cp);
+  const bool cjk    = ! hangul && SKIF_ImGui_IsInGlyphRanges (SKIF_ImGui_GlyphsCJK,    cp);
 
   // The fonts to try for the character, in order. As before, Japanese takes priority for ACP 932,
   //   and the Simplified Chinese font (which also has almost all of the Japanese characters) otherwise.
@@ -1569,6 +1550,11 @@ SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
   static const ImWchar exclude_font_awesome [] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
   // ...and the Font Awesome sources only provide their icons, as with their glyph ranges before
   static const ImWchar only_font_awesome    [] = { 0x0001, ICON_MIN_FA - 1, ICON_MAX_FA + 1, 0xFFFF, 0 };
+  // Each regional font only provides its own script, as with the glyph ranges before ImGui 1.92 (since each font is now
+  //   added whole, the order of the sources would otherwise decide e.g. whether Hangul comes from a Chinese font)
+  static const ImWchar exclude_hangul_and_font_awesome [] = { SKIF_IMGUI_GLYPHS_HANGUL, ICON_MIN_FA, ICON_MAX_FA, 0 }; // Chinese, Japanese
+  static const ImWchar exclude_cjk_and_font_awesome    [] = { SKIF_IMGUI_GLYPHS_CJK,    ICON_MIN_FA, ICON_MAX_FA, 0 }; // Korean
+  static_assert (IM_COUNTOF (exclude_cjk_and_font_awesome) - 1 <= 64, "ImFontConfig::GlyphExcludeRanges[] must be small");
 
   ImFontConfig
   font_cfg           = {  };
@@ -1606,6 +1592,8 @@ SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
   // Load extended character sets when SKIF is not used as a launcher, once one of their characters has been missing
   if (extendedCharsets)
   {
+    font_cfg.GlyphExcludeRanges = exclude_hangul_and_font_awesome;
+
     // Japanese character set
     // Load before Chinese for ACP 932 so that the Japanese font is not overwritten
     if (SKIF_ImGui_ExtFontWanted [SKIF_ImGui_ExtFont_Japanese] && acp == 932)
@@ -1644,6 +1632,8 @@ SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
       //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansTC-Regular.ttf"), fontSize, &font_cfg);
 
     // Korean character set
+    font_cfg.GlyphExcludeRanges = exclude_cjk_and_font_awesome;
+
     if (SKIF_ImGui_ExtFontWanted [SKIF_ImGui_ExtFont_Korean])
       SKIF_ImGui_LoadFont   (L"malgun.ttf",   fontSize, &font_cfg);
       //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansKR-Regular.ttf"), fontSize, &font_cfg);
@@ -1768,7 +1758,7 @@ SKIF_ImGui_SetStyle (ImGuiStyle* dst)
     dst->FrameBorderSize = 0.0F;
 
     // Necessary to hide the 1 px separator shown at the bottom of the tabs row
-    dst->Colors[ImGuiCol_TabActive] = dst->Colors[ImGuiCol_WindowBg];
+    dst->Colors[ImGuiCol_TabSelected] = dst->Colors[ImGuiCol_WindowBg];
   }
 
   else {
@@ -2071,7 +2061,7 @@ SKIF_ImGui_BeginHighlightLine (ImU32 hover_color)
 void
 SKIF_ImGui_PushHighlightLineLine (void)
 {
-  IM_ASSERT(_highlightLine._Begin == 1 && drawList != nullptr);
+  IM_ASSERT(_highlightLine._Begin == 1 && _highlightLine.drawList != nullptr);
   _highlightLine._Push++;
 
   // Row bounds: full width of the content area
@@ -2084,7 +2074,7 @@ SKIF_ImGui_PushHighlightLineLine (void)
 void
 SKIF_ImGui_PopHighlightLineLine (void)
 {
-  IM_ASSERT(_highlightLine._Begin == 1 && _highlightLine._Push == 1 && drawList != nullptr);
+  IM_ASSERT(_highlightLine._Begin == 1 && _highlightLine._Push == 1 && _highlightLine.drawList != nullptr);
   _highlightLine._Push--;
 
   // Pad the rect by half the item spacing so adjacent rows touch
@@ -2102,7 +2092,7 @@ SKIF_ImGui_PopHighlightLineLine (void)
 void
 SKIF_ImGui_EndHighlightLine (void)
 {
-  IM_ASSERT(_highlightLine._Begin == 1 && drawList != nullptr);
+  IM_ASSERT(_highlightLine._Begin == 1 && _highlightLine.drawList != nullptr);
   _highlightLine._Begin--;
   _highlightLine.drawListSplitter.Merge (_highlightLine.drawList);
   _highlightLine.drawListSplitter.ClearFreeMemory ( );

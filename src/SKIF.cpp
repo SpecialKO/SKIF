@@ -101,8 +101,6 @@ bool  RespectMonBoundaries      = false;
 bool  changedHiDPIScaling       = false;
 bool  invalidateStyle           = false;
 bool  invalidateFonts           = false;
-bool  failedLoadFonts           = false;
-bool  failedLoadFontsPrompt     = false;
 DWORD invalidatedFonts          = 0;
 DWORD invalidatedDevice         = 0;
 bool  startedMinimized          = false;
@@ -390,7 +388,7 @@ SKIF_StartupTimed_Renderer_RenderWindow (ImGuiViewport* vp, void* arg)
   SKIF_StartupOrig_Renderer_RenderWindow (vp, arg);
 
   PLOG_VERBOSE << "[Startup] Renderer_RenderWindow ( ) took " << SKIF_StartupMs (start) << " ms submitting the draws"
-               << ((vp->DrawData != nullptr) ? " (" + std::to_string (vp->DrawData->CmdListsCount) + " draw lists, " + std::to_string (vp->DrawData->TotalVtxCount) + " vertices)" : "")
+               << ((vp->DrawData != nullptr) ? " (" + std::to_string (vp->DrawData->CmdLists.Size) + " draw lists, " + std::to_string (vp->DrawData->TotalVtxCount) + " vertices)" : "")
                << "; the device draws them during the Present ( ).";
 }
 
@@ -2800,17 +2798,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       SKIF_ImGui_InvalidateFonts ( );
     }
 
-    // This occurs on the next frame, as failedLoadFonts gets evaluated and set as part of ImGui_ImplDX11_NewFrame
-    else if (failedLoadFonts)
-    {
-      // This scenario should basically never happen nowadays that SKIF only loads the specific characters needed from each character set
-
-      SKIF_ImGui_InvalidateFonts ( );
-
-      failedLoadFonts       = false;
-      failedLoadFontsPrompt = true;
-    }
-
     //temp_time = SKIF_Util_timeGetTime1();
     //PLOG_INFO << "Operation took " << (temp_time - SKIF_Util_timeGetTime1()) << " ms.";
 
@@ -3140,8 +3127,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         SKIF_ImGui_BeginChildFrame ( miniMode_id,
           ImVec2 ( 400.0f * SKIF_ImGui_GlobalDPIScale,
                     12.0f * ImGui::GetTextLineHeightWithSpacing () ),
-            ImGuiChildFlags_None,
-            ImGuiWindowFlags_NavFlattened      |
+            ImGuiChildFlags_NavFlattened,
             ImGuiWindowFlags_NoScrollbar       |
             ImGuiWindowFlags_NoScrollWithMouse |
             ImGuiWindowFlags_NoBackground
@@ -3180,7 +3166,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
              *tabTitleAbout    = (ImGui::GetWindowSize ().x < 650.f * SKIF_ImGui_GlobalDPIScale) ? tabTitleAboutS    : tabTitleAboutL;
 
         ImGui::BeginTabBar ( "###SKIF_TAB_BAR",
-                               ImGuiTabBarFlags_FittingPolicyResizeDown |
+                               ImGuiTabBarFlags_FittingPolicyShrink |
                                ImGuiTabBarFlags_FittingPolicyScroll );
 
         if (ImGui::BeginTabItem (tabTitleLibrary, nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Library) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
@@ -3461,7 +3447,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         );
 
         ImGui::SetCursorPos (ImVec2 (
-              ImGui::GetWindowContentRegionMax().x / 2 - shelly_movable_area.x / 2,
+              SKIF_ImGui_GetWindowContentRegionMax ( ).x / 2 - shelly_movable_area.x / 2,
               10.0f * SKIF_ImGui_GlobalDPIScale
         ));
 
@@ -3513,7 +3499,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::GetCursorPos ();
 
       ImVec2 window_btn_pos = ImFloor (
-        ImVec2 ( (ImGui::GetWindowContentRegionMax().x - window_btn_size.x ),
+        ImVec2 ( (SKIF_ImGui_GetWindowContentRegionMax ( ).x - window_btn_size.x ),
                 ((ImGui::GetStyle().WindowPadding.y) - ImGui::GetStyle().FrameBorderSize * 2 - ImGui::GetStyle().WindowBorderSize * 2))
       );
 
@@ -3640,46 +3626,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       {
         static SKIF_LocalManager& _local  = SKIF_LocalManager::GetInstance ( );
         _local.Show ( );
-      }
-
-      // Font warning
-      if (failedLoadFontsPrompt && !HiddenFramesContinueProcessing)
-      {
-        failedLoadFontsPrompt = false;
-
-        ImGui::OpenPopup ("###FailedFontsPopup");
-      }
-
-
-      float fFailedLoadFontsWidth = 400.0f * SKIF_ImGui_GlobalDPIScale;
-      ImGui::SetNextWindowSize (ImVec2 (fFailedLoadFontsWidth, 0.0f));
-      ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
-
-      if (ImGui::BeginPopupModal ("Fonts failed to load###FailedFontsPopup", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize))
-      {
-        ImGui::TreePush    ("FailedFontsTreePush");
-
-        SKIF_ImGui_Spacing ( );
-
-        ImGui::TextWrapped ("The selected character sets failed to load due to system limitations and have been reset.");
-        ImGui::NewLine     ( );
-        ImGui::TextWrapped ("Please limit the selection to only the most essential.");
-
-        SKIF_ImGui_Spacing ( );
-        SKIF_ImGui_Spacing ( );
-
-        ImVec2 vButtonSize = ImVec2(80.0f * SKIF_ImGui_GlobalDPIScale, 0.0f);
-
-        ImGui::SetCursorPosX (fFailedLoadFontsWidth / 2 - vButtonSize.x / 2);
-
-        if (ImGui::Button  ("OK", vButtonSize))
-          ImGui::CloseCurrentPopup ( );
-
-        SKIF_ImGui_Spacing ( );
-
-        ImGui::TreePop     ( );
-
-        ImGui::EndPopup ( );
       }
 
       // Uses a Directory Watch signal, so this is cheap; do it once every frame.
@@ -3893,7 +3839,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     // Disable navigation highlight on first frames
     SK_RunOnce(
       ImGuiContext& g = *ImGui::GetCurrentContext();
-      g.NavDisableHighlight = true;
+      g.NavCursorVisible = false;
     );
 
 
@@ -3922,7 +3868,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (! viewport || ! viewport->DrawData)
           continue;
 
-        for (int i = 0; i < viewport->DrawData->CmdListsCount; ++i)
+        for (int i = 0; i < viewport->DrawData->CmdLists.Size; ++i)
           newVtxBufferSize += viewport->DrawData->CmdLists[i]->VtxBuffer.Size * sizeof (ImDrawVert);
       }
 
@@ -3944,7 +3890,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           if (! viewport || ! viewport->DrawData)
             continue;
 
-          for (int i = 0; i < viewport->DrawData->CmdListsCount; ++i)
+          for (int i = 0; i < viewport->DrawData->CmdLists.Size; ++i)
           {
             if (viewport->DrawData->CmdLists[i]->VtxBuffer.Size <= 0)
               continue;
@@ -4809,12 +4755,6 @@ static void CleanupPendingDeviceD3D (void)
     IUnknown_AtomicRelease ((void **)&SKIF_pd3dPendingDeviceContext);
     IUnknown_AtomicRelease ((void **)&SKIF_pd3dPendingDevice);
   }
-}
-
-// Started on WARP: true while the hardware device is being created or not yet switched to
-bool SKIF_D3D11_IsDeviceSwitchPending (void)
-{
-  return SKIF_DeviceSwitchPending.load ( );
 }
 
 // Started on WARP: the hardware device is ready to be switched to (by ImGui_ImplDX11_NewFrame)

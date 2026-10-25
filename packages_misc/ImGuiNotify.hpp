@@ -58,7 +58,7 @@ extern float SKIF_ImGui_GlobalDPIScale;
 
 
 
-static const ImGuiChildFlags  NOTIFY_DEFAULT_CHILD_FLAGS  = ImGuiChildFlags_AlwaysAutoResize | ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_Border;
+static const ImGuiChildFlags  NOTIFY_DEFAULT_CHILD_FLAGS  = ImGuiChildFlags_AlwaysAutoResize | ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_Borders;
 static const ImGuiWindowFlags NOTIFY_DEFAULT_WINDOW_FLAGS = ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_Tooltip; // ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoFocusOnAppearing;
 
 #define NOTIFY_NULL_OR_EMPTY(str)		(!str || !strlen(str))
@@ -693,7 +693,7 @@ namespace ImGui
 					  // NEEDS TO BE REWORKED
 					  float scale = 0.8f;
 
-					  if (CalcTextSize(content).x > GetWindowContentRegionMax().x)
+					  if (CalcTextSize(content).x > GetCurrentWindowRead()->ContentRegionRect.Max.x - GetWindowPos().x) // GetWindowContentRegionMax().x before ImGui 1.91.0
 					  {
 						  scale = 0.95f;
 					  }

@@ -96,7 +96,7 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
   ImGuiWindowFlags flags_wnd = ImGuiWindowFlags_None;
 
   if (! _registry._LibHorizonMode)
-    flags_wnd |= ImGuiWindowFlags_NavFlattened;
+    flags_cld |= ImGuiChildFlags_NavFlattened;
 
   ImGui::PushStyleColor      (ImGuiCol_ScrollbarBg, ImVec4(0,0,0,0));
 
@@ -116,7 +116,7 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
                                         (! _registry._LibHorizonMode && _registry._LibPinnedVisible && numPinnedOnTop > 0 && numRegular > 0)
                                           ? numPinnedOnTop * _ICON_HEIGHT_OnTop + ImGui::GetStyle().WindowPadding.y
                                           : sizeList.y - (fTop3.y - fTop1.y))), //  - (ImGui::GetStyle().FramePadding.x - 2.0f * SKIF_ImGui_GlobalDPIScale)
-                                  flags_cld | (_registry.bUIBorders ? ImGuiChildFlags_Border : ImGuiChildFlags_None),
+                                  flags_cld | (_registry.bUIBorders ? ImGuiChildFlags_Borders : ImGuiChildFlags_None),
                                   flags_wnd | ((! _registry._LibHorizonMode && _registry._LibPinnedVisible && numPinnedOnTop > 0 && numRegular > 0) ? (ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse) : ImGuiWindowFlags_None));
 
   // Start populating the list
@@ -138,7 +138,7 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
   static int  apply_header_state = 0;
   bool        new_header_state   = false;
 
-  float maxWidth    = (ImGui::GetContentRegionMax().x - _ICON_HEIGHT - ImGui::GetStyle().ItemSpacing.x);
+  float maxWidth    = (SKIF_ImGui_GetContentRegionMax ( ).x - _ICON_HEIGHT - ImGui::GetStyle().ItemSpacing.x);
 
   bool categoryMenuOpened = false;
 
@@ -186,7 +186,7 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
                                      flags_cld,
                                      flags_wnd );
 
-      maxWidth    = (ImGui::GetContentRegionMax().x - _ICON_HEIGHT - ImGui::GetStyle().ItemSpacing.x);
+      maxWidth    = (SKIF_ImGui_GetContentRegionMax ( ).x - _ICON_HEIGHT - ImGui::GetStyle().ItemSpacing.x);
 
       pinned_top = 0;
     }
@@ -241,7 +241,7 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
           CategoryMenu = PopupState_Opened;
           categoryMenuOpened = true;
 
-          ImGui::PushStyleColor  (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
+          ImGui::PushStyleColor  (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
 
           if (tmpCategory != "Games" && tmpCategory != "Favorites")
           {
@@ -336,7 +336,7 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
 
     // Game Title
     ImGui::PushStyleColor  (ImGuiCol_Text, _color);
-    ImGui::PushStyleColor  (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
+    ImGui::PushStyleColor  (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
     SKIF_ImGui_SelectableVAligned (app.second->ImGuiLabelID.c_str(), app.second->names.normal.c_str(), &selected, ImGuiSelectableFlags_None, ImVec2(maxWidth, _ICON_HEIGHT));
     ImGui::PopStyleColor   (2);
 
@@ -453,7 +453,7 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
           // This fixes ImGui not allowing the GameContextMenu to be opened on first search
           //   without an additional keyboard input
           ImGuiContext& g = *ImGui::GetCurrentContext();
-          g.NavDisableHighlight = false;
+          g.NavCursorVisible = true;
         }
 
         //ImGui::SetFocusID(ImGui::GetID(app.first.c_str()), ImGui::GetCurrentWindow());

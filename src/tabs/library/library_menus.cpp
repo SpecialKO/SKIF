@@ -46,7 +46,7 @@ DrawGameConfigMenu (app_record_s* pApp)
 
   if (ImGui::BeginPopupEx (idGameConfigMenu, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings))
   {
-    ImGui::PushStyleColor  (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
+    ImGui::PushStyleColor  (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
 
     ImGui::TextColored (
       ImColor::HSV (0.11F, 1.F, 1.F),
@@ -953,7 +953,7 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
     if (SKIF_ImGui_BeginMenuEx2 ("Category", ICON_FA_OBJECT_GROUP, ImColor(200, 200, 200, 255)))
     {
       // Prevent the popup from being closed when selecting a category
-      ImGui::PushItemFlag (ImGuiItemFlags_SelectableDontClosePopup, true);
+      ImGui::PushItemFlag (ImGuiItemFlags_AutoClosePopups, false); // ImGuiItemFlags_SelectableDontClosePopup before ImGui 1.91.0
       ImGui::PushID       ("###ManageCategories");
 
       // TODO: Figure out why unchecking this closes the popup
@@ -1699,7 +1699,7 @@ DrawCoverMenu (void)
   {
     if (ImGui::BeginPopup   ("CoverMenu", ImGuiWindowFlags_NoMove))
     {
-      ImGui::PushStyleColor (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
+      ImGui::PushStyleColor (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
 
       // Preparations
 
@@ -1939,7 +1939,7 @@ DrawIconMenu (void)
   {
     if (ImGui::BeginPopup   ("IconMenu", ImGuiWindowFlags_NoMove))
     {
-      ImGui::PushStyleColor (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
+      ImGui::PushStyleColor (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
 
       // Preparations
 
@@ -2104,7 +2104,7 @@ DrawEmptySpaceMenu (bool showClearBtn)
   {
     EmptySpaceMenu = PopupState_Opened;
 
-    ImGui::PushStyleColor (ImGuiCol_NavHighlight, ImVec4(0,0,0,0));
+    ImGui::PushStyleColor (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
 
     if (showClearBtn)
     {

@@ -4022,6 +4022,18 @@ const char* ImGui::GetStyleColorName(ImGuiCol idx)
     case ImGuiCol_NavWindowingHighlight: return "NavWindowingHighlight";
     case ImGuiCol_NavWindowingDimBg: return "NavWindowingDimBg";
     case ImGuiCol_ModalWindowDimBg: return "ModalWindowDimBg";
+
+    // SKIF CUSTOM
+    case ImGuiCol_SKIF_TextBase: return "SKIF_TextBase";
+    case ImGuiCol_SKIF_TextCaption: return "SKIF_TextCaption";
+    case ImGuiCol_SKIF_TextGameTitle: return "SKIF_TextGameTitle";
+    case ImGuiCol_SKIF_Success: return "SKIF_Success";                 // Green
+    case ImGuiCol_SKIF_Warning: return "SKIF_Warning";                 // Orange
+    case ImGuiCol_SKIF_Failure: return "SKIF_Failure";                 // Red
+    case ImGuiCol_SKIF_Info: return "SKIF_Info";                       // Blue
+    case ImGuiCol_SKIF_Yellow: return "SKIF_Yellow";                   // Yellow
+    case ImGuiCol_SKIF_Icon: return "SKIF_Icon";                       // Used for icons in BeginMenuEx and MenuItemEx
+    case ImGuiCol_SKIF_HighlightLineBg: return "SKIF_HighlightLineBg"; // Used for the background color of SKIF_ImGui_HighlightLine...
     }
     IM_ASSERT(0);
     return "Unknown";

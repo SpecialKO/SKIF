@@ -798,7 +798,7 @@ SK_ImGui_KeybindDialog (SK_KeybindMultiState* keybind)
   auto& io =
     ImGui::GetIO ();
 
-  const  float font_size = ImGui::GetFont ()->FontSize * io.FontGlobalScale;
+  const  float font_size = ImGui::GetFontSize ();
 
   if (ImGui::IsPopupOpen (keybind->bind_name.c_str()))
   {

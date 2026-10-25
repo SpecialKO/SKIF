@@ -783,8 +783,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
   SKIF_ImGui_BeginChildFrame (
     frame_id, ImVec2 (0.0f, 4.0f * ImGui::GetTextLineHeightWithSpacing ()),
-      ImGuiChildFlags_None,
-      ImGuiWindowFlags_NavFlattened      |
+      ImGuiChildFlags_NavFlattened,
       ImGuiWindowFlags_NoScrollbar       |
       ImGuiWindowFlags_NoScrollWithMouse |
       ImGuiWindowFlags_NoBackground
@@ -911,8 +910,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
     frame_id2,
       ImVec2 (  0.0f,
                 0.0f), //110.f *SKIF_ImGui_GlobalDPIScale ),
-        ImGuiChildFlags_None,
-        ImGuiWindowFlags_NavFlattened      |
+        ImGuiChildFlags_NavFlattened,
         ImGuiWindowFlags_NoScrollbar       |
         ImGuiWindowFlags_NoScrollWithMouse |
         ImGuiWindowFlags_NoBackground
@@ -1011,8 +1009,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
                               std::max (ImGui::GetContentRegionAvail ().y,
                                         ImGui::GetTextLineHeight () + ImGui::GetStyle ().FramePadding.y * 2.0f + ImGui::GetStyle ().ItemSpacing.y * 2
                                        )),
-                                ImGuiChildFlags_None,
-                                ImGuiWindowFlags_NavFlattened      |
+                                ImGuiChildFlags_NavFlattened,
                                 ImGuiWindowFlags_NoScrollbar       |
                                 ImGuiWindowFlags_NoScrollWithMouse |
                                 ImGuiWindowFlags_NoBackground

@@ -458,7 +458,7 @@ SKIF_UI_IniEditor_Process (void)
     float fTopFilterFieldX = ImGui::GetContentRegionAvail().x - fTopZoomX - fTopClearX; //  - fTopFilterX
     //static bool bFilterHovered = false;
 
-    ImGui::PushStyleColor (ImGuiCol_NavHighlight,  ImVec4(0,0,0,0));
+    ImGui::PushStyleColor (ImGuiCol_NavCursor,  ImVec4(0,0,0,0));
     ImGui::PushStyleColor (ImGuiCol_Border,        ImVec4(0,0,0,0));
     ImGui::PushStyleColor (ImGuiCol_Button,        ImVec4(0,0,0,0));
     ImGui::PushStyleColor (ImGuiCol_ButtonHovered, ImVec4(0,0,0,0));
@@ -494,7 +494,7 @@ SKIF_UI_IniEditor_Process (void)
     {
       // Clear highlight from filter box
       ImGuiContext& g = *ImGui::GetCurrentContext();
-      g.NavDisableHighlight = false;
+      g.NavCursorVisible = true;
     }
 
     // Preprocess filtered entries
@@ -535,7 +535,7 @@ SKIF_UI_IniEditor_Process (void)
     ImGui::PopStyleColor  ( ); // ImGuiCol_ButtonHovered
     ImGui::PopStyleColor  ( ); // ImGuiCol_Button
     ImGui::PopStyleColor  ( ); // ImGuiCol_Border
-    ImGui::PopStyleColor  ( ); // ImGuiCol_NavHighlight
+    ImGui::PopStyleColor  ( ); // ImGuiCol_NavCursor
 
     // Some additional vertical padding
     ImGui::SetCursorPosY   (
@@ -573,8 +573,8 @@ SKIF_UI_IniEditor_Process (void)
     SKIF_ImGui_BeginChildFrame (
       ImGui::GetID ("###SKIE_CONTENT_AREA"),
       ImVec2 (0.0f, ImFloor (ImGui::GetWindowSize().y - ImGui::GetCursorPosY() - 20.0f * SKIF_ImGui_GlobalDPIScale - 2.0f * SKIF_ImGui_GlobalDPIScale)), // 900.0f
-      ImGuiChildFlags_None, // ImGuiChildFlags_FrameStyle
-      ImGuiWindowFlags_NavFlattened
+      ImGuiChildFlags_NavFlattened, // ImGuiChildFlags_FrameStyle
+      ImGuiWindowFlags_None
     );
 
     SKIF_ImGui_BeginHighlightLine ( );

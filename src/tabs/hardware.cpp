@@ -1225,7 +1225,7 @@ SKIF_UI_Tab_DrawHardware (void)
       ImGui::EndGroup  ( );
     }
 
-    ImRect mpoRect = ImRect (mpoTop, mpoTop + ImGui::GetContentRegionMax ( ));
+    ImRect mpoRect = ImRect (mpoTop, mpoTop + SKIF_ImGui_GetContentRegionMax ( ));
 
     bool openMenu = false;
 
