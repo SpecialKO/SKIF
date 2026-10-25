@@ -638,8 +638,6 @@ void ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
   ImVec2 clip_off   = draw_data->DisplayPos;
   ImVec2 clip_scale = draw_data->FramebufferScale;
 
-  const ImTextureData* font_tex = ImGui::GetIO ().Fonts->TexData;
-
   for (const ImDrawList* draw_list : draw_data->CmdLists)
   {
     for (int cmd_i = 0; cmd_i < draw_list->CmdBuffer.Size; cmd_i++)
@@ -678,8 +676,10 @@ void ImGui_ImplDX11_RenderDrawData (ImDrawData *draw_data)
           (ID3D11ShaderResourceView *)(intptr_t)pcmd->GetTexID ();
 
         // The font atlas is the one texture managed by ImGui (ImTextureData); covers, icons, etc. are plain IDs.
-        //   It may be recreated when it grows, so compare against the atlas' current texture.
-        if (pcmd->TexRef._TexData != nullptr && pcmd->TexRef._TexData == font_tex)
+        //   Not compared against the atlas' current texture (Fonts->TexData): when the atlas grows or is repacked
+        //     during a frame, the commands recorded before that keep using the previous atlas texture for that frame,
+        //       which would then be drawn as a color texture (black text, as A8 textures sample with RGB = 0).
+        if (pcmd->TexRef._TexData != nullptr && pcmd->TexRef._TexData->Format == ImTextureFormat_Alpha8)
         ctx->PSSetConstantBuffers ( 0, 1, &bd->pFontConstantBuffer );
         ctx->PSSetShaderResources ( 0, 1, &texture_srv);
         ctx->DrawIndexed          ( pcmd->ElemCount,
