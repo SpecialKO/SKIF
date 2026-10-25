@@ -160,6 +160,7 @@ void    SKIF_ImGui_ImplWin32_UpdateDWMBorders (void);
 void    SKIF_ImGui_ImplWin32_SetDWMBorders    (void* hWnd);
 bool    SKIF_ImGui_ImplWin32_IsFocused        (void);
 bool    SKIF_ImGui_ImplWin32_IsFocused        (const ImGuiViewport* viewport);
+HWND    SKIF_ImGui_ImplWin32_GetFocusedWindow (void);
 void    SKIF_ImGui_ImplWin32_SetFocused       (HWND hWnd, bool focused, HWND hWndOther = NULL);
 void    SKIF_ImGui_ImplWin32_UpdateFocused    (HWND hWndFocusPending = NULL);
 
@@ -2659,6 +2660,9 @@ SKIF_ImGui_ImplWin32_UpdateDWMBorders (void)
 //     focus state that only the main thread touches. Any thread may read it through SKIF_ImGui_ImplWin32_IsFocused ( ).
 static std::atomic <bool> SKIF_ImGui_ImplWin32_AnyFocused = false;
 
+// The SKIF window (main window, Local Manager, INI Editor, ...) that has the keyboard focus, or NULL. Same rules as above.
+static std::atomic <HWND> SKIF_ImGui_ImplWin32_FocusedHwnd = NULL;
+
 // Returns the viewport data of one of SKIF's secondary platform windows (the main viewport, index 0, is handled by
 //   the application), or nullptr. Main thread only.
 static ImGui_ImplWin32_ViewportData* SKIF_ImGui_ImplWin32_GetFocusableViewportData (HWND hWnd)
@@ -2683,13 +2687,14 @@ void SKIF_ImGui_ImplWin32_UpdateFocused (HWND hWndFocusPending)
   if (ImGui::GetCurrentContext ( ) == nullptr)
     return;
 
-  bool newState = (SKIF_ImGui_ImplWin32_GetFocusableViewportData (hWndFocusPending) != nullptr);
+  HWND hWndFocused =
+    (SKIF_ImGui_ImplWin32_GetFocusableViewportData (hWndFocusPending) != nullptr) ? hWndFocusPending : NULL;
 
   ImGuiPlatformIO& platform_io =
     ImGui::GetPlatformIO ();
 
   // Skip the main viewport (index 0), which is always fully handled by the application!
-  for (int i = 1; i < platform_io.Viewports.Size && ! newState; i++)
+  for (int i = 1; i < platform_io.Viewports.Size && hWndFocused == NULL; i++)
   {
     ImGuiViewport* viewport =
        platform_io.Viewports [i];
@@ -2697,10 +2702,11 @@ void SKIF_ImGui_ImplWin32_UpdateFocused (HWND hWndFocusPending)
     if (viewport->PlatformHandleRaw != NULL)
       if (ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData)
         if (vd->Focused)
-          newState = true;
+          hWndFocused = vd->Hwnd;
   }
 
-  SKIF_ImGui_ImplWin32_AnyFocused.store (newState);
+  SKIF_ImGui_ImplWin32_FocusedHwnd.store (hWndFocused);
+  SKIF_ImGui_ImplWin32_AnyFocused .store (hWndFocused != NULL);
 }
 
 // Called from WM_SETFOCUS / WM_KILLFOCUS (main thread). hWndOther is the window losing (WM_SETFOCUS) or receiving
@@ -2718,6 +2724,14 @@ void SKIF_ImGui_ImplWin32_SetFocused (HWND hWnd, bool focused, HWND hWndOther)
 bool SKIF_ImGui_ImplWin32_IsFocused (void)
 {
   return SKIF_ImGui_ImplWin32_AnyFocused.load ( );
+}
+
+// Returns the SKIF window that has the keyboard focus, or NULL
+//   Thread-safe (atomic). The window may be destroyed by the main thread right after, so callers on other threads
+//     should only pass it to Win32 functions that fail gracefully for invalid handles (GetWindowInfo, etc).
+HWND SKIF_ImGui_ImplWin32_GetFocusedWindow (void)
+{
+  return SKIF_ImGui_ImplWin32_FocusedHwnd.load ( );
 }
 
 // Returns true if the given viewport is focused

@@ -480,6 +480,16 @@ SKIF_ImGui_IsFocused (void)
   return SKIF_ImGui_ImplWin32_IsFocused ( );
 }
 
+// The SKIF window (main window, Local Manager, INI Editor, ...) that has the keyboard focus, or NULL
+//   Thread-safe: kept in an atomic updated by the main thread on WM_SETFOCUS / WM_KILLFOCUS
+HWND
+SKIF_ImGui_GetFocusedWindow (void)
+{
+  extern HWND
+         SKIF_ImGui_ImplWin32_GetFocusedWindow (void);
+  return SKIF_ImGui_ImplWin32_GetFocusedWindow ( );
+}
+
 // Whether the given viewport has the keyboard focus
 //   Main thread only (the viewport data is owned and deleted by the main thread)
 bool

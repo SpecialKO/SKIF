@@ -3025,8 +3025,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
       {
         int gamepad_tab = 0;
 
-        if (ImGui::IsKeyPressed (ImGuiKey_GamepadL1)) gamepad_tab--;
-        if (ImGui::IsKeyPressed (ImGuiKey_GamepadR1)) gamepad_tab++;
+        // Gamepad input also reaches SKIF's other windows (Local Manager, INI Editor, ...), so only switch tabs
+        //   when L1/R1 is pressed while the main window has the focus
+        if (SKIF_ImGui_GetFocusedWindow ( ) == SKIF_ImGui_hWnd)
+        {
+          if (ImGui::IsKeyPressed (ImGuiKey_GamepadL1)) gamepad_tab--;
+          if (ImGui::IsKeyPressed (ImGuiKey_GamepadR1)) gamepad_tab++;
+        }
 
         if (hotkeyCtrl1)
         {

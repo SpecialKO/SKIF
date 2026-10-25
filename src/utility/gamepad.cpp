@@ -6,32 +6,72 @@
 #include <utility>
 
 #include <unordered_map>
+#include <mutex>
 
-bool SKIF_ImGui_IsFocused (void);
+bool SKIF_ImGui_IsFocused        (void);
+HWND SKIF_ImGui_GetFocusedWindow (void);
 
-bool SKIF_ImGui_ProcessGamepadInput = false;
-
-void
-SKIF_ImGui_UpdateGamepadProcessingEligibility (void)
+// Returns the SKIF window that has the keyboard focus *and* is the active window, or NULL.
+//   This is not necessarily the main window (SKIF_ImGui_hWnd): the Local Manager and the INI Editor are windows of
+//     their own, and gamepad input must reach them as well. Thread-safe.
+static HWND
+SKIF_GamePad_GetActiveWindow (void)
 {
-  RECT                             rcSKIF = { };
-  GetWindowRect (SKIF_ImGui_hWnd, &rcSKIF);
+  HWND hWnd =
+    SKIF_ImGui_GetFocusedWindow ( );
 
-  static HWND  hWndLastForeground = { };
-  static DWORD dwActivePid        = { };
+  if (hWnd == NULL)
+    return NULL;
 
   WINDOWINFO winfo        = {                 };
              winfo.cbSize = sizeof (WINDOWINFO);
 
+  // Fails gracefully if the window has been destroyed in the meantime
+  if (! GetWindowInfo (hWnd, &winfo) || (winfo.dwWindowStatus & WS_ACTIVECAPTION) == 0)
+    return NULL;
+
+  return hWnd;
+}
+
+// Written by SKIF_ImGui_UpdateGamepadProcessingEligibility ( ), which both the main thread and the gamepad thread call
+std::atomic <bool> SKIF_ImGui_ProcessGamepadInput = false;
+
+static bool SKIF_ImGui_CalculateGamepadProcessingEligibility (const char*& reason);
+
+void
+SKIF_ImGui_UpdateGamepadProcessingEligibility (void)
+{
+  // Called from both the main thread and the gamepad thread; the calculation uses shared static caches
+  static std::mutex           eligibility_mutex;
+  std::scoped_lock lock      (eligibility_mutex);
+
+  const char* reason = "";
+  const bool  eligible =
+    SKIF_ImGui_CalculateGamepadProcessingEligibility (reason);
+
+  // Publish the result once, so other threads never see an intermediate value
+  if (SKIF_ImGui_ProcessGamepadInput.exchange (eligible) != eligible)
+    PLOG_VERBOSE << "Gamepad input processing " << ((eligible) ? "enabled" : "disabled") << reason;
+}
+
+static bool
+SKIF_ImGui_CalculateGamepadProcessingEligibility (const char*& reason)
+{
+  // The active SKIF window (main window, Local Manager, INI Editor, ...)
+  HWND hWndActive =
+    SKIF_GamePad_GetActiveWindow ( );
+
+  RECT                             rcSKIF = { };
+  GetWindowRect (hWndActive,      &rcSKIF);
+
+  static HWND  hWndLastForeground = { };
+  static DWORD dwActivePid        = { };
+
   bool windowIsActive =
-    ( SKIF_ImGui_IsFocused (                ) &&
-      GetWindowInfo (SKIF_ImGui_hWnd, &winfo) &&
-                                 0 != (winfo.dwWindowStatus & WS_ACTIVECAPTION) );
+    (hWndActive != NULL);
 
   if (windowIsActive)
   {
-    SKIF_ImGui_ProcessGamepadInput = true;
-
     //
     // Check for another window covering the game window, if the user cannot
     //   see the game then allowing background gamepad input would be very dangerous...
@@ -79,7 +119,7 @@ SKIF_ImGui_UpdateGamepadProcessingEligibility (void)
 
     static std::unordered_map <HWND, BOOL> injected_pid_cache;
     static std::vector        <HWND>       windows_above = {};
-    GetWindowsAbove (SKIF_ImGui_hWnd,      windows_above    );
+    GetWindowsAbove (hWndActive,           windows_above    );
 
     if (process_input)
     {
@@ -111,7 +151,7 @@ SKIF_ImGui_UpdateGamepadProcessingEligibility (void)
       if (any_injected)
       {
         HMONITOR hMonSKIF =
-          MonitorFromWindow (SKIF_ImGui_hWnd, MONITOR_DEFAULTTONEAREST);
+          MonitorFromWindow (hWndActive,      MONITOR_DEFAULTTONEAREST);
 
         MONITORINFO minfo        = {                  };
                     minfo.cbSize = sizeof (MONITORINFO);
@@ -140,11 +180,15 @@ SKIF_ImGui_UpdateGamepadProcessingEligibility (void)
       }
     }
 
-    SKIF_ImGui_ProcessGamepadInput = process_input;
-    return;
+    if (! process_input)
+      reason = " (a window of a game injected with Special K covers SKIF)";
+
+    return process_input;
   }
 
-  SKIF_ImGui_ProcessGamepadInput = false;
+  reason = " (SKIF is not the active window)";
+
+  return false;
 }
 
 
@@ -200,16 +244,9 @@ SKIF_GamePadInputHelper::GetXInputState (void)
 
   if (dwActivePid == GetCurrentProcessId () && pGamepad != nullptr)
   {
-    WINDOWINFO winfo        = {                 };
-               winfo.cbSize = sizeof (WINDOWINFO);
-
-    // This method for testing if the app is active is simpler than the crap above,
-    //   consider replacing all of that junk with simply this.
-    if ((! GetWindowInfo (SKIF_ImGui_hWnd, &winfo)) ||
-                                           (winfo.dwWindowStatus & WS_ACTIVECAPTION) == 0)
-    {
+    // Any of SKIF's windows (main window, Local Manager, INI Editor, ...) must be the active window
+    if (SKIF_GamePad_GetActiveWindow ( ) == NULL)
       return {};
-    }
 
     SKIF_ImGui_UpdateGamepadProcessingEligibility ();
 
@@ -337,11 +374,7 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
 
     if (dwActivePid == GetProcessId (GetCurrentProcess ()))
     {
-      WINDOWINFO winfo        = {                 };
-                 winfo.cbSize = sizeof (WINDOWINFO);
-
-      if (GetWindowInfo (SKIF_ImGui_hWnd, &winfo) &&
-                                          (winfo.dwWindowStatus & WS_ACTIVECAPTION) != 0)
+      if (SKIF_GamePad_GetActiveWindow ( ) != NULL)
       {
         SKIF_ImGui_UpdateGamepadProcessingEligibility ();
 
@@ -377,19 +410,12 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
   static HWND    hWndLastForeground = 0;
   static DWORD  dwActivePid         = 0x0;
 
-  bool windowIsActive = false;
+  // Any of SKIF's windows (main window, Local Manager, INI Editor, ...) is the active window
+  HWND hWndActive =
+    SKIF_GamePad_GetActiveWindow ( );
 
-  WINDOWINFO winfo        = {                 };
-             winfo.cbSize = sizeof (WINDOWINFO);
-
-  if (SKIF_ImGui_IsFocused ())
-  {
-    if (GetWindowInfo (SKIF_ImGui_hWnd, &winfo) &&
-                                        (winfo.dwWindowStatus & WS_ACTIVECAPTION) != 0)
-    {
-      windowIsActive = true;
-    }
-  }
+  bool windowIsActive =
+    (hWndActive != NULL);
 
   // GetWindowThreadProcessId has surprisingly high overhead, if the foreground window
   //   has not changed, then we can avoid calling it.
@@ -397,18 +423,34 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
   if (std::exchange (hWndLastForeground, hWndForeground) != hWndForeground)
     GetWindowThreadProcessId (           hWndForeground, &dwActivePid);
 
+  // This runs on the gamepad thread, so it must use the real time (SKIF_Util_timeGetTime1). SKIF_Util_timeGetTime ( )
+  //   returns the start time of the last frame, which stands still while SKIF is idle and not rendering. That froze the
+  //     500 ms activation delay below until something else (e.g. keyboard input) made SKIF render frames again.
+  const DWORD dwNow = SKIF_Util_timeGetTime1 ( );
+
   static DWORD dwLastActivePid    = dwActivePid;
   static DWORD dwTimeOfActivation = 0;
+  static bool  bPendingActivation = false;
 
+  // SKIF became the foreground process (e.g. Alt+Tab)
   if (dwLastActivePid != dwActivePid && dwActivePid == GetCurrentProcessId ())
-  {
-    if (windowIsActive)
-    {
-      SKIF_ImGui_UpdateGamepadProcessingEligibility ();
+    bPendingActivation = true;
 
-      if (SKIF_ImGui_ProcessGamepadInput)
-        dwTimeOfActivation = SKIF_Util_timeGetTime ();
-    }
+  // Another process took the foreground before SKIF's window became active
+  else if (dwActivePid != GetCurrentProcessId ())
+    bPendingActivation = false;
+
+  // The foreground window changes a few ms before SKIF's window receives WM_SETFOCUS, and SKIF_ImGui_IsFocused ( )
+  //   only reports true from WM_SETFOCUS on. So the activation is completed once the window is actually active, instead
+  //     of only at the moment the foreground process changed (where windowIsActive is usually still false).
+  if (bPendingActivation && windowIsActive)
+  {
+    bPendingActivation = false;
+
+    SKIF_ImGui_UpdateGamepadProcessingEligibility ();
+
+    if (SKIF_ImGui_ProcessGamepadInput)
+      dwTimeOfActivation = dwNow;
   }
 
   for ( auto idx : XUSER_INDEXES )
@@ -427,7 +469,7 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
       else if (dwResult == ERROR_SUCCESS && SKIF_ImGui_ProcessGamepadInput &&
                                             GetCurrentProcessId () == dwActivePid &&
                                                    dwLastActivePid == dwActivePid &&
-                                                   dwTimeOfActivation < SKIF_Util_timeGetTime () - 500UL &&
+                                                   dwTimeOfActivation < dwNow - 500UL &&
                                                    windowIsActive)
       {
         // If button state is different, this controller is active...
@@ -500,8 +542,8 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
 
   if (!SKIF_ImGui_ProcessGamepadInput ||
       dwActivePid != GetCurrentProcessId () ||
-         !IsWindowVisible (SKIF_ImGui_hWnd) ||
-      dwTimeOfActivation > SKIF_Util_timeGetTime () - 500UL ||
+         !IsWindowVisible (hWndActive)      ||
+      dwTimeOfActivation > dwNow - 500UL ||
       !windowIsActive ||
       !_registry.bControllers)
   {
@@ -602,7 +644,7 @@ SKIF_GamePadInputHelper::SpawnChildThread (void)
         _ThrottleIdleInputAfterMs = 3333UL;
 
       static DWORD dwLastInputTime =
-        SKIF_Util_timeGetTime (),
+        SKIF_Util_timeGetTime1 (), // Real time: this thread runs while SKIF is idle and not rendering frames
                    dwCurrentTime;
 
       auto _IsGamepadIdle =
@@ -610,7 +652,7 @@ SKIF_GamePadInputHelper::SpawnChildThread (void)
            (dwLastInputTime < dwCurrentTime - _ThrottleIdleInputAfterMs);
        };
 
-      dwCurrentTime = SKIF_Util_timeGetTime    ();
+      dwCurrentTime = SKIF_Util_timeGetTime1   ();
       packetNew     = parent.UpdateXInputState ().dwPacketNumber;
 
       if (packetNew  > 0  &&
