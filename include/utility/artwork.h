@@ -68,12 +68,12 @@ public:
   bool CanStartIconWorker     (void) const { return m_activeIconWorkers < 8; }
   void StartIconWorker        (app_record_s* pApp);  // tex_icon.iWorker 0 → 1 (SKIF_LibIconWorker)
   void ReapIconWorker         (app_record_s* pApp);  // tex_icon.iWorker 1 → 2 once the worker has finished
-  void OnIconWorkersReaped    (int count) { m_activeIconWorkers -= count; } // Workers reaped by SKIF_GamingCollection::SwapInPopulatedGames ( )
+  void OnIconWorkersReaped    (int count) { m_activeIconWorkers -= count; m_staleIconWorkers.clear ( ); } // Workers reaped by SKIF_GamingCollection::SwapInPopulatedGames ( ) (new records: their icons load anyway)
   void ReloadIcon             (app_record_s* pApp);  // Loads the icon again on this thread (icon changed or reset); waits for its icon worker first
 
   // Textures
   void ReleaseCurrentCover    (void);                // Pushes the current cover to SKIF_ResourcesToFree
-  void ReleaseTextures        (void);                // Covers and all game icons (device reset); results still in flight are dropped
+  void ReleaseTextures        (void);                // Covers and all game icons (device reset); results still in flight are dropped, and the icons load again as they are drawn
 
 private:
   SKIF_LibraryArtwork (void);
@@ -111,6 +111,10 @@ private:
   app_key_s                 m_refresh;
 
   int                       m_activeIconWorkers = 0;
+
+  // Games whose icon worker was still running when the textures were released (device reset):
+  //   their result is dropped, so ReapIconWorker ( ) lets their icon load again
+  std::vector <app_key_s>   m_staleIconWorkers;
 
   // Finished worker results, applied on the main thread (ApplyWorkerResults)
   struct worker_result_s {

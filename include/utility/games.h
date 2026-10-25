@@ -93,6 +93,7 @@ struct SKIF_GamingCollection {
         // Library-wide textures loaded by the library worker
   ID3D11ShaderResourceView* GetPatreonTexture (void)       { AdoptEmbeddedTextures ( ); return m_pPatTexSRV.p; }
   ID3D11ShaderResourceView* GetSKLogoTexture  (bool bSmall) { AdoptEmbeddedTextures ( ); return (bSmall) ? m_pSKLogoTexSRV_small.p : m_pSKLogoTexSRV.p; }
+  void                      ReloadTextures    (void);      // Loads the library-wide textures again on a background thread (after ReleaseTextures)
   void                      ReleaseTextures   (void);      // Pushes the library-wide textures to SKIF_ResourcesToFree (device reset)
 
         // Persistent per-game metadata (Assets/db.json)
@@ -130,6 +131,8 @@ private:
   CComPtr <ID3D11ShaderResourceView> m_pPatTexSRV_loaded;
   CComPtr <ID3D11ShaderResourceView> m_pSKLogoTexSRV_loaded;
   CComPtr <ID3D11ShaderResourceView> m_pSKLogoTexSRV_small_loaded;
+  std::atomic <unsigned int>         m_embeddedGeneration = 0;     // Bumped by ReleaseTextures ( ): loads that started before it were made on the old device
+  void                               LoadEmbeddedTextures  (void); // Any thread: loads them (expects Embedded_Loading) and hands them over
   void                               AdoptEmbeddedTextures (void); // Main thread
   CComPtr <ID3D11ShaderResourceView> m_pSKLogoTexSRV_small;
   AppList                   m_apps;

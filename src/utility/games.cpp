@@ -786,6 +786,8 @@ SKIF_GamingCollection::ReleaseTextures (void)
   {
     std::scoped_lock embedded_lock (m_embeddedMutex);
 
+    m_embeddedGeneration++;
+
     m_pPatTexSRV_loaded         .Release ( );
     m_pSKLogoTexSRV_loaded      .Release ( );
     m_pSKLogoTexSRV_small_loaded.Release ( );
@@ -810,6 +812,71 @@ SKIF_GamingCollection::ReleaseTextures (void)
     SKIF_ResourcesToFree.push(m_pSKLogoTexSRV_small.p);
     m_pSKLogoTexSRV_small.p = nullptr;
   }
+}
+
+// Main thread: loads the embedded textures again on a background thread (device reset, after ReleaseTextures)
+void
+SKIF_GamingCollection::ReloadTextures (void)
+{
+  int embeddedNone = Embedded_None;
+
+  // Already being loaded (on the current device), or loaded
+  if (! m_embeddedState.compare_exchange_strong (embeddedNone, Embedded_Loading))
+    return;
+
+  try {
+    std::thread ([]
+    {
+      SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibraryTextures");
+      SetThreadPriority              (GetCurrentThread (), THREAD_PRIORITY_BELOW_NORMAL);
+
+      CoInitializeEx (nullptr, 0x0);
+
+      SKIF_GamingCollection::Get ( ).LoadEmbeddedTextures ( );
+
+      CoUninitialize ( );
+    }).detach ( );
+  }
+  catch (const std::system_error&)
+  {
+    // Not started: the next library refresh loads them
+    m_embeddedState.store (Embedded_None);
+  }
+}
+
+// Any thread: loads the embedded textures (Patreon, Special K logo) and hands them to the main thread (AdoptEmbeddedTextures)
+//   The caller has set m_embeddedState to Embedded_Loading. A device reset meanwhile (ReleaseTextures) makes it discard them.
+void
+SKIF_GamingCollection::LoadEmbeddedTextures (void)
+{
+  const unsigned int generation = m_embeddedGeneration.load ( );
+
+  PLOG_VERBOSE << "Loading the embedded Patreon texture...";
+
+  ImVec2 dontCare;
+  CComPtr <ID3D11ShaderResourceView> pPatreon, pLogo, pLogoSmall;
+
+  LoadLibraryTexture (LibraryTexture::Patreon, SKIF_STEAM_APPID, pPatreon,   L"patreon.png",         dontCare);
+  LoadLibraryTexture (LibraryTexture::Logo,    SKIF_STEAM_APPID, pLogo,      L"sk_boxart.png",       dontCare);
+  LoadLibraryTexture (LibraryTexture::Logo,    SKIF_STEAM_APPID, pLogoSmall, L"sk_boxart_small.png", dontCare);
+
+  {
+    std::scoped_lock embedded_lock (m_embeddedMutex);
+
+    int embeddedLoading = Embedded_Loading;
+
+    // Textures loaded across a device reset were (or may have been) created on the old device
+    if (generation == m_embeddedGeneration.load ( ) &&
+        m_embeddedState.compare_exchange_strong (embeddedLoading, Embedded_Loaded))
+    {
+      m_pPatTexSRV_loaded          = pPatreon;
+      m_pSKLogoTexSRV_loaded       = pLogo;
+      m_pSKLogoTexSRV_small_loaded = pLogoSmall;
+    }
+  }
+
+  // Redraw with them
+  PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
 }
 
 #pragma region Store caches
@@ -1037,30 +1104,7 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
   {
     _Start (L"SKIF_LibraryWorker_Textures", []
     {
-      PLOG_VERBOSE << "Loading the embedded Patreon texture...";
-
-      ImVec2 dontCare;
-      CComPtr <ID3D11ShaderResourceView> pPatreon, pLogo, pLogoSmall;
-
-      LoadLibraryTexture (LibraryTexture::Patreon, SKIF_STEAM_APPID, pPatreon,   L"patreon.png",         dontCare);
-      LoadLibraryTexture (LibraryTexture::Logo,    SKIF_STEAM_APPID, pLogo,      L"sk_boxart.png",       dontCare);
-      LoadLibraryTexture (LibraryTexture::Logo,    SKIF_STEAM_APPID, pLogoSmall, L"sk_boxart_small.png", dontCare);
-
-      {
-        std::scoped_lock embedded_lock (self.m_embeddedMutex);
-
-        int embeddedLoading = Embedded_Loading;
-
-        if (self.m_embeddedState.compare_exchange_strong (embeddedLoading, Embedded_Loaded))
-        {
-          self.m_pPatTexSRV_loaded          = pPatreon;
-          self.m_pSKLogoTexSRV_loaded       = pLogo;
-          self.m_pSKLogoTexSRV_small_loaded = pLogoSmall;
-        }
-      }
-
-      // Redraw with them
-      PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
+      self.LoadEmbeddedTextures ( );
     }, true);
   }
 

@@ -6,6 +6,7 @@
 #include <SKIF.h>
 #include <concurrent_queue.h>
 #include <process.h>
+#include <algorithm>
 
 extern concurrency::concurrent_queue <IUnknown *> SKIF_ResourcesToFree;
 
@@ -512,6 +513,15 @@ SKIF_LibraryArtwork::ReapIconWorker (app_record_s* pApp)
     pApp->tex_icon.hWorker = NULL;
     pApp->tex_icon.iWorker = 2;
     m_activeIconWorkers--;
+
+    // Its result was made on the old device (ReleaseTextures), so let the icon load again
+    auto stale = std::find (m_staleIconWorkers.begin ( ), m_staleIconWorkers.end ( ), pApp->GetKey ( ));
+
+    if (stale != m_staleIconWorkers.end ( ))
+    {
+      m_staleIconWorkers.erase (stale);
+      pApp->tex_icon.iWorker = 0;
+    }
   }
 }
 
@@ -577,6 +587,14 @@ SKIF_LibraryArtwork::ReleaseTextures (void)
       SKIF_ResourcesToFree.push(app.second->tex_icon.texture.p);
       app.second->tex_icon.texture.p = nullptr;
     }
+
+    // Load the icon again once it is drawn: right away if its worker is done, otherwise once it has been reaped
+    if (app.second->tex_icon.iWorker == 2)
+      app.second->tex_icon.iWorker = 0;
+
+    else if (app.second->tex_icon.iWorker == 1 &&
+             std::find (m_staleIconWorkers.begin ( ), m_staleIconWorkers.end ( ), app.second->GetKey ( )) == m_staleIconWorkers.end ( ))
+      m_staleIconWorkers.push_back (app.second->GetKey ( ));
   }
 }
 

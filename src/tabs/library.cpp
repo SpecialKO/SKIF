@@ -1885,12 +1885,10 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (invalidatedDevice == 1)
   {   invalidatedDevice  = 2;
 
-    _art.ReleaseTextures   ( ); // Covers and game icons
+    _art.ReleaseTextures   ( ); // Covers and game icons (the icons load again as they are drawn)
     _games.ReleaseTextures ( ); // Patreon and Special K logo
+    _games.ReloadTextures  ( ); // Loads the Patreon and Special K logo again, in the background
 
-    // TODO: Make away with RepopulateGames = true from here -- we shouldn't have to reload all games just to refresh textures
-    // Trigger a refresh of the list of games, which will reload all icons and the Patreon texture
-    RepopulateGames = true;
     // Trigger a refresh of the cover
     _art.ReloadCover ( );
   }
