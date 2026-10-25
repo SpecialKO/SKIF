@@ -1448,7 +1448,7 @@ SKIF_Steam_GetInstalledAppIDs (app_list_t *apps)
       //   lengthy operation, so defer names and icons
       //   (LibraryWorkerThread resolves the name)
       apps->emplace_back (
-        "", std::make_unique <app_record_steam_s> (record)
+        "", std::make_unique <app_record_steam_s> (std::move (record))
       );
     }
   }

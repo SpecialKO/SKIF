@@ -11,6 +11,7 @@
 #include <concurrent_queue.h>
 #include <memory>
 #include <map>
+#include <unordered_map>
 #include <thread>
 #include <functional>
 #include <algorithm>
@@ -657,6 +658,7 @@ SKIF_GamingCollection::SwapInPopulatedGames (void)
   };
 
   std::vector<IconCache> icon_cache;
+  icon_cache.reserve (m_apps.size ( ));
 
   // Clear up any unacknowledged icon workers
   for (auto& app : m_apps)
@@ -695,7 +697,7 @@ SKIF_GamingCollection::SwapInPopulatedGames (void)
 
   // Insert new data
   m_apps       = std::move (m_worker->apps);
-  m_apptickets = m_worker->apptickets;
+  m_apptickets = std::move (m_worker->apptickets); // The worker is discarded after the swap
   m_tLabels    = std::move (m_worker->labels); // Trie is move-only (it owns its nodes)
 
   m_populatedOnce.store (true);
@@ -703,19 +705,29 @@ SKIF_GamingCollection::SwapInPopulatedGames (void)
   // The Steam appinfo.vdf reader the worker created
   appinfo = std::move (m_worker->appinfo);
 
-  // Move cached icons over
+  // Move cached icons over (indexed by store + app ID instead of searching the cache for every game)
+  auto _IconKey = [](app_record_s::Store store, AppId_t id) -> uint64_t
+  {
+    return (static_cast <uint64_t> (store) << 32) | static_cast <uint64_t> (id);
+  };
+
+  std::unordered_map <uint64_t, IconCache*> icon_index;
+  icon_index.reserve (icon_cache.size ( ));
+
+  for (auto& icon : icon_cache)
+    icon_index.emplace (_IconKey (icon.store, icon.id), &icon); // First match wins, as before
+
   for (auto& app : m_apps)
   {
-    for (auto& icon : icon_cache)
+    if (auto it  = icon_index.find (_IconKey (app.second->store, app.second->id));
+             it != icon_index.end ( ))
     {
-      if (icon.id    == app.second->id
-       && icon.store == app.second->store)
-      {
-        app.second->tex_icon = icon.tex_icon; // Move it over
-        app.second->tex_icon.iWorker = 2;
-        icon.id = 0; // Mark it _not_ for release
-        break;
-      }
+      IconCache& icon = *it->second;
+
+      app.second->tex_icon = std::move (icon.tex_icon); // Move it over
+      app.second->tex_icon.iWorker = 2;
+      icon.id = 0; // Mark it _not_ for release
+      icon_index.erase (it);
     }
   }
 
@@ -1157,6 +1169,12 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
   for (auto& scan : scans)
     _Wait (scan);
 
+  // Reserve for every store's results (+1 for the Special K entry) so the merge does not reallocate
+  size_t total_apps = _data->apps.size ( ) + 1;
+  for (auto& list : scanned)
+    total_apps += list.size ( );
+  _data->apps.reserve (total_apps);
+
   auto _Merge = [&](app_list_t& list)
   {
     for (auto& entry : list)
@@ -1186,7 +1204,7 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
     SKIF_record.specialk.profile_dir_utf8 = SK_WideCharToUTF8 (SKIF_record.specialk.profile_dir);
 
     app_entry_t
-      SKIF ( "Special K", std::make_unique <app_record_steam_s> (SKIF_record) );
+      SKIF ( "Special K", std::make_unique <app_record_steam_s> (std::move (SKIF_record)) );
 
     _data->apps.emplace_back (std::move (SKIF));
     games = _data->apps.size();
@@ -1673,8 +1691,7 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
       // The categories are shared with the main thread
       std::scoped_lock categories_lock (self.m_apps_mutex);
 
-      SKIF_RegistrySettings::category_s  new_category{ keyGroup, false };
-      _registry.vecCategories.push_back (new_category);
+      _registry.vecCategories.push_back (SKIF_RegistrySettings::category_s { keyGroup, false });
       newCategories = true;
     }
 
@@ -1760,6 +1777,8 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
 
     // Update the registry
     std::vector<std::wstring> _inNames, _inBools;
+    _inNames.reserve (_registry.vecCategories.size ( ));
+    _inBools.reserve (_registry.vecCategories.size ( ));
     for (auto& category : _registry.vecCategories)
     {
       _inNames.push_back (SK_UTF8ToWideChar (category.name));

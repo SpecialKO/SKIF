@@ -101,6 +101,11 @@ struct app_record_s {
   app_record_s            (const app_record_s&) = default;
   app_record_s& operator= (const app_record_s&) = default;
 
+  // Declared explicitly: the virtual destructor and the copy operations above would otherwise
+  //   suppress the implicit move operations, turning every std::move of a record into a deep copy.
+  app_record_s            (app_record_s&&) noexcept = default;
+  app_record_s& operator= (app_record_s&&) noexcept = default;
+
   // Polymorphic copy (game workers refresh a copy of a record on a background thread).
   //   Clone    returns a heap copy of the same record type.
   //   CopyFrom assigns from a record of the same type in place, so the record keeps its address.

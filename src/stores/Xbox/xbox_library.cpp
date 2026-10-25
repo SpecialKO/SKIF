@@ -545,8 +545,10 @@ SKIF_Xbox_GetInstalledAppIDs (app_list_t *apps)
                       record.specialk.profile_dir      = trimmed;
                       record.specialk.profile_dir_utf8 = SK_WideCharToUTF8(record.specialk.profile_dir);
 
+                      std::string entry_name = record.names.normal; // Copied first: the record is moved from below
+
                       app_entry_t
-                        Xbox (record.names.normal, std::make_unique <app_record_xbox_s> (record));
+                        Xbox (std::move (entry_name), std::make_unique <app_record_xbox_s> (std::move (record)));
 
                       //PLOG_VERBOSE << "Added to the list of detected games!";
                       apps->emplace_back (std::move (Xbox));

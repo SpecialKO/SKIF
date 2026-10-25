@@ -729,6 +729,8 @@ DrawLibraryPopups (void)
 
           // Update the registry
           std::vector<std::wstring> _inNames, _inBools;
+          _inNames.reserve (_registry.vecCategories.size ( ));
+          _inBools.reserve (_registry.vecCategories.size ( ));
           for (auto& category : _registry.vecCategories)
           {
             _inNames.push_back (SK_UTF8ToWideChar (category.name));

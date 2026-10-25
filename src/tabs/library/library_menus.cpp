@@ -1095,14 +1095,15 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
         if (! szName.empty() && std::find_if(_registry.vecCategories.begin(), _registry.vecCategories.end(), [&](const SKIF_RegistrySettings::category_s& category) { return category.name == szName; }) == _registry.vecCategories.end())
         {
           // Add the new category
-          SKIF_RegistrySettings::category_s  new_category{ szName, false };
-          _registry.vecCategories.push_back (new_category);
+          _registry.vecCategories.push_back (SKIF_RegistrySettings::category_s { szName, false });
 
           // Sort the list of categories
           _registry.vecCategories = _registry.SortCategories (_registry.vecCategories);
 
           // Update the registry
           std::vector<std::wstring> _inNames, _inBools;
+          _inNames.reserve (_registry.vecCategories.size ( ));
+          _inBools.reserve (_registry.vecCategories.size ( ));
           for (auto& category : _registry.vecCategories)
           {
             _inNames.push_back (SK_UTF8ToWideChar (category.name));

@@ -3,6 +3,7 @@
 #include <string>
 #include <cstdint>
 #include <vector>
+#include <unordered_map>
 #include <wtypes.h>
 //#include <steam/isteamuser.h>
 #include "app_record.h"
@@ -107,6 +108,8 @@ private:
   std::wstring          path;
   std::vector <BYTE>   _data;
   std::vector <char *>  strs; // Preparsed array of pointers
+  std::unordered_map <AppId_t, appinfo_s*>
+                        apps_index; // App ID -> entry, built once so lookups do not walk the whole file
 };
 
 #pragma pack(pop)

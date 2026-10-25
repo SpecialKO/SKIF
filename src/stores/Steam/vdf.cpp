@@ -105,18 +105,18 @@ skValveDataFile::skValveDataFile (std::wstring source) : path (source)
         strs.push_back (str);
       }
     }
+
+    // Index the apps once; getAppInfo ( ) used to walk the file from the start on every call
+    for ( appinfo_s* pIter = root;
+                     pIter != nullptr && pIter->appid != _LastSteamApp;
+                     pIter  = pIter->getNextApp ( ) )
+      apps_index.emplace (pIter->appid, pIter); // First occurrence wins, as with the previous linear search
   }
 }
 
 void
 app_section_s::parse (section_desc_s& desc)
 {
-  static
-    std::map <_TokenOp,size_t>
-                    operand_sizes =
-    { { Int32, sizeof (int32_t) },
-      { Int64, sizeof (int64_t) } };
-
   std::vector <
     section_data_s
   > raw_sections;
@@ -180,8 +180,16 @@ app_section_s::parse (section_desc_s& desc)
       if (op == SectionBegin)
       {
         if (! raw_sections.empty ())
-              raw_sections.push_back ({ raw_sections.back ().name + std::string (".") +
-                                        name, {  (void *)cur, 0 } });
+        {
+          const std::string& parent = raw_sections.back ().name;
+          std::string        full_name;
+          full_name.reserve (parent.size ( ) + 1 + strlen (name));
+          full_name.append  (parent);
+          full_name.push_back ('.');
+          full_name.append  (name);
+
+          raw_sections.push_back     ({ std::move (full_name), {  (void *)cur, 0 } });
+        }
         else
           raw_sections.push_back     ({ name, {  (void *)cur, 0 } });
       }
@@ -192,7 +200,7 @@ app_section_s::parse (section_desc_s& desc)
         {     raw_sections.back  ().desc.size =
             (uintptr_t)cur -
             (uintptr_t)raw_sections.back      ().desc.blob;
-                  finished_sections.push_back (raw_sections.back ());
+                  finished_sections.push_back (std::move (raw_sections.back ()));
                         raw_sections.pop_back  ();
         }
       }
@@ -219,7 +227,7 @@ app_section_s::parse (section_desc_s& desc)
                 { name, { op, (void *)cur }}
               );
             } else { exception = true; }
-            cur += (operand_sizes [op]-1);
+            cur += ((op == Int64 ? sizeof (int64_t) : sizeof (int32_t)) - 1);
             break;
 
           default:
@@ -302,7 +310,10 @@ skValveDataFile::getAppInfo ( uint32_t appid, app_list_t *apps )
 
   if (root != nullptr)
   {
-    skValveDataFile::appinfo_s *pIter = root;
+    // Jump straight to the app (nullptr if it is not in the file)
+    const auto  indexed = apps_index.find (appid);
+    skValveDataFile::appinfo_s *pIter =
+      (indexed != apps_index.end ( )) ? indexed->second : nullptr;
 
     while (pIter != nullptr && pIter->appid != _LastSteamApp)
     {
@@ -692,10 +703,11 @@ skValveDataFile::getAppInfo ( uint32_t appid, app_list_t *apps )
         //     be certain of anything, at all, what so bloody ever! So let's just recreate the std::map!
 
         std::vector <app_record_s::launch_config_s> _cleaner;
+        _cleaner.reserve (pAppRecord->launch_configs.size ( ));
 
         // Put away put away put away put away
         for ( auto& keep : pAppRecord->launch_configs )
-          _cleaner.push_back (keep.second);
+          _cleaner.push_back (std::move (keep.second));
 
         // Clean clean clean clean!
         pAppRecord->launch_configs.clear ();
@@ -710,7 +722,7 @@ skValveDataFile::getAppInfo ( uint32_t appid, app_list_t *apps )
           // Add it back
           pAppRecord->launch_configs.emplace (
             static_cast<int> (pAppRecord->launch_configs.size()),
-            launch);
+            std::move (launch));
         }
         // std::map is now reliable again!
 
@@ -727,7 +739,10 @@ skValveDataFile::getAppInfo ( uint32_t appid, app_list_t *apps )
           // Custom launch config, so Steam launch ID is nothing we use
           custom_cfg.second.id_steam = -1;
 
-          if (! pAppRecord->launch_configs.emplace (custom_cfg.second.id, custom_cfg.second).second)
+          const int custom_id = custom_cfg.second.id;
+
+          // The custom launches are cleared below, so they can be moved over
+          if (! pAppRecord->launch_configs.emplace (custom_id, std::move (custom_cfg.second)).second)
             PLOG_ERROR << "Failed adding a custom launch config to the launch map. An element at that position already exists!";
         }
 
@@ -809,8 +824,8 @@ skValveDataFile::getAppInfo ( uint32_t appid, app_list_t *apps )
             launch.working_dir = std::filesystem::path(launch.working_dir).lexically_normal();
           }
 
-          // Flag the launch config to be added back
-          _launches.push_back (launch);
+          // Flag the launch config to be added back (launch_configs is cleared below)
+          _launches.push_back (std::move (launch));
         }
 
         pAppRecord->launch_configs.clear ();
@@ -840,7 +855,7 @@ skValveDataFile::getAppInfo ( uint32_t appid, app_list_t *apps )
           // Add it back
           pAppRecord->launch_configs.emplace (
             static_cast<int> (pAppRecord->launch_configs.size()),
-            launch);
+            std::move (launch));
         }
 
         // Naively move the first Default launch config type to the front

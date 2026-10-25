@@ -462,8 +462,10 @@ SKIF_EpicCollection::FindInstalledGames2 (app_list_t* apps) const
     record.specialk.profile_dir_utf8 = SKIF_Util_StripInvalidFilenameChars (record.epic.name_display);
     record.specialk.profile_dir      = SK_UTF8ToWideChar (record.specialk.profile_dir_utf8);
 
+    std::string entry_name = record.names.normal; // Copied first: the record is moved from below
+
     app_entry_t
-      Epic (record.names.normal, std::make_unique <app_record_epic_s> (record));
+      Epic (std::move (entry_name), std::make_unique <app_record_epic_s> (std::move (record)));
 
     discoveredEntries++;
 
@@ -582,8 +584,10 @@ SKIF_EpicCollection::FindInstalledGames1 (app_list_t* apps) const
           record.specialk.profile_dir_utf8 = SKIF_Util_StripInvalidFilenameChars (record.epic.name_display);
           record.specialk.profile_dir      = SK_UTF8ToWideChar (record.specialk.profile_dir_utf8);
 
+          std::string entry_name = record.names.normal; // Copied first: the record is moved from below
+
           app_entry_t
-            Epic (record.names.normal, std::make_unique <app_record_epic_s> (record));
+            Epic (std::move (entry_name), std::make_unique <app_record_epic_s> (std::move (record)));
 
           apps->emplace_back (std::move (Epic));
           ret = true;

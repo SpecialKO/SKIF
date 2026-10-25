@@ -270,8 +270,10 @@ void SKIF_GetCustomAppIDs (app_list_t* apps)
                 record.specialk.profile_dir_utf8         = SK_WideCharToUTF8(record.specialk.profile_dir);
                 record.specialk.injection.injection.type = InjectionType::Global;
 
+                std::string entry_name = record.names.normal; // Copied first: the record is moved from below
+
                 app_entry_t
-                  pair (record.names.normal, std::make_unique <app_record_custom_s> (record));
+                  pair (std::move (entry_name), std::make_unique <app_record_custom_s> (std::move (record)));
 
                 apps->emplace_back (std::move (pair));
               }
