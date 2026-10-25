@@ -192,7 +192,6 @@ ShowLargeIconToggle (void)
 
   if (_registry._TouchDevice)
   {
-    ImGui::BeginGroup           ( ); // Needed for the hover tip to appear
     SKIF_ImGui_PushDisableState ( );
   }
 
@@ -202,8 +201,7 @@ ShowLargeIconToggle (void)
   if (_registry._TouchDevice)
   {
     SKIF_ImGui_PopDisableState  ( );
-    ImGui::EndGroup             ( );
-    SKIF_ImGui_SetHoverTip      ("Currently enforced by touch input mode.");
+    SKIF_ImGui_SetHoverTip      ("Currently enforced by touch input mode.", false, true);
   }
 }
 

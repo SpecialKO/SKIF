@@ -1756,18 +1756,10 @@ DrawCoverMenu (void)
         }
 
         bool enabled = (pApp->tex_cover.isCustom || pApp->tex_cover.isManaged);
-
-        // We use a group otherwise SKIF_ImGui_SetHoverTip() would not appear when disabled
-        if (! enabled)
-          ImGui::BeginGroup ( );
-
         bool doReset = SKIF_ImGui_MenuItemEx2 (textPtr, iconPtr, iconColor, 0, nullptr, enabled);
 
         if (! enabled)
-        {
-          ImGui::EndGroup ( );
-          SKIF_ImGui_SetHoverTip ("Managed by the platform client.");
-        }
+          SKIF_ImGui_SetHoverTip ("Managed by the platform client.", false, true);
 
         else
           SKIF_ImGui_SetMouseCursorHand ( );
@@ -1814,9 +1806,6 @@ DrawCoverMenu (void)
         static bool bNone    = (_registry.iCoverScaling == 3) ? true : false;
         static bool bStretch = (_registry.iCoverScaling == 4) ? true : false;
 
-        // We use a group otherwise SKIF_ImGui_SetHoverTip() would not appear when disabled
-        ImGui::BeginGroup ( );
-
         if (ImGui::MenuItem ("Default", spaces,  &bDefault, ! bDefault))
         {
           _registry.iCoverScaling = 0;
@@ -1830,9 +1819,7 @@ DrawCoverMenu (void)
           _registry.regKVCoverScaling.putData (_registry.iCoverScaling);
         }
 
-        ImGui::EndGroup ( );
-
-        SKIF_ImGui_SetHoverTip ("Scales the cover to a maximum height of 600px");
+        SKIF_ImGui_SetHoverTip ("Scales the cover to a maximum height of 600px", false, true);
 
         if (ImGui::MenuItem ("Fill",  spaces, &bFill, ! bFill))
         {
@@ -2021,18 +2008,10 @@ DrawIconMenu (void)
         }
 
         bool enabled = (pApp->tex_icon.isCustom || pApp->tex_icon.isManaged);
-
-        // We use a group otherwise SKIF_ImGui_SetHoverTip() would not appear when disabled
-        if (! enabled)
-          ImGui::BeginGroup ( );
-
         bool doReset = SKIF_ImGui_MenuItemEx2 (textPtr, iconPtr, iconColor, 0, nullptr, enabled);
 
         if (! enabled)
-        {
-          ImGui::EndGroup ( );
-          SKIF_ImGui_SetHoverTip ("Managed by the platform client.");
-        }
+          SKIF_ImGui_SetHoverTip ("Managed by the platform client.", false, true);
 
         else
           SKIF_ImGui_SetMouseCursorHand ( );

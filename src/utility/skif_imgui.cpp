@@ -535,7 +535,7 @@ SKIF_ImGui_SetMouseCursorHand (void)
 }
 
 void
-SKIF_ImGui_SetHoverTip (const std::string_view& szText, bool ignoreDisabledTooltips)
+SKIF_ImGui_SetHoverTip (const std::string_view& szText, bool ignoreDisabledTooltips, bool allowWhenItemDisabled)
 {
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
 
@@ -543,7 +543,7 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText, bool ignoreDisabledToolt
   extern DWORD       HoverTipDuration;      // Used to track how long the item has been hovered (to delay showing tooltips)
   extern std::string SKIF_StatusBarText;
 
-  if (ImGui::IsItemHovered () && ! szText.empty())
+  if (ImGui::IsItemHovered (allowWhenItemDisabled ? ImGuiHoveredFlags_AllowWhenDisabled : ImGuiHoveredFlags_None) && ! szText.empty())
   {
     if (_registry.bUITooltips || ignoreDisabledTooltips)
     {
@@ -935,21 +935,13 @@ bool
 SKIF_ImGui_MenuItemEx2 (const char* label, const char* icon, const ImVec4& colIcon, const char* shortcut, bool* p_selected, bool enabled)
 {
   /* If a tooltip is desired when using the enabled parameter,
-  *    surround the call in its own group and apply the tooltip
-  *      to that, e.g.
+  *    use the allowWhenItemDisabled parameter of SKIF_ImGui_SetHoverTip()
+  *      e.g.
   *
-  *
-      // We use a group otherwise SKIF_ImGui_SetHoverTip() would not appear when disabled
-      if (! enabled)
-        ImGui::BeginGroup ( );
-
       bool doReset = SKIF_ImGui_MenuItemEx2 (textPtr, iconPtr, iconColor, 0, nullptr, enabled);
 
       if (! enabled)
-      {
-        ImGui::EndGroup ( );
-        SKIF_ImGui_SetHoverTip ("Managed by the platform client.");
-      }
+        SKIF_ImGui_SetHoverTip ("Managed by the platform client.", false, true);
   *
   */
 
