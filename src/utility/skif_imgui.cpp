@@ -21,15 +21,16 @@ bool                  bAutoScrollActive;
 bool                  bScrollbarX;
 bool                  bScrollbarY;
 ImFont*               fontConsolas = nullptr;
-std::vector <ImWchar> vFontChineseSimplified;
-std::vector <ImWchar> vFontChineseAll;
-std::vector <ImWchar> vFontCyrillic;
-std::vector <ImWchar> vFontJapanese;
-std::vector <ImWchar> vFontKorean;
-std::vector <ImWchar> vFontThai;
-std::vector <ImWchar> vFontVietnamese;
-std::vector <ImWchar> vFontAwesome;
-std::vector <ImWchar> vFontAwesomeBrands;
+
+// Extended character sets, loaded on demand (see SKIF_ImGui_MissingGlyphCallback)
+enum SKIF_ImGui_ExtFont {
+  SKIF_ImGui_ExtFont_Japanese,
+  SKIF_ImGui_ExtFont_ChineseSimplified,
+  SKIF_ImGui_ExtFont_ChineseFull,
+  SKIF_ImGui_ExtFont_Korean,
+  SKIF_ImGui_ExtFont_COUNT
+};
+static bool           SKIF_ImGui_ExtFontWanted [SKIF_ImGui_ExtFont_COUNT] = { };
 
 PopupState PopupMessageInfo = PopupState_Closed;
 std::vector <std::pair <std::string, std::string> > vInfoMessages;
@@ -1430,82 +1431,84 @@ SK_ImGui_GetGlyphRangesFontAwesomeBrands (void)
   return &ranges [0];
 }
 
+// Since ImGui 1.92, glyphs are rasterized the first time they are drawn, and glyph ranges are not used: for every glyph,
+//   the merged font sources are searched in the order they were added. So the standard font provides all the
+//   characters it has, and an extended character set is a whole font that is added once one of its characters is
+//   missing. The order of the sources then decides which font a character comes from.
+//
+// Called by ImGui (ImFontBaked_BuildLoadGlyph) when none of the font sources has a glyph for the character: once per
+//   character and font size, while drawing or measuring text. This only queues the next font to try (if any); the
+//   fonts are rebuilt with it before the next frame (invalidateFonts).
 void
 SKIF_ImGui_MissingGlyphCallback (wchar_t c)
 {
   static UINT acp = GetACP();
 
-  static std::unordered_set <wchar_t>
-      unprintable_chars;
+  const unsigned int cp = static_cast <unsigned int> (c);
 
-  if (unprintable_chars.emplace (c).second)
+  const bool hangul =
+    (cp >= 0x1100 && cp <= 0x11FF) || // Hangul Jamo
+    (cp >= 0x3130 && cp <= 0x318F) || // Hangul Compatibility Jamo
+    (cp >= 0xA960 && cp <= 0xA97F) || // Hangul Jamo Extended-A
+    (cp >= 0xAC00 && cp <= 0xD7FF) || // Hangul Syllables, Hangul Jamo Extended-B
+    (cp >= 0xFFA0 && cp <= 0xFFDC);   // Halfwidth Hangul
+
+  const bool cjk = ! hangul && (
+    (cp >= 0x2E80 && cp <= 0x2FDF) || // CJK Radicals Supplement, Kangxi Radicals
+    (cp >= 0x3000 && cp <= 0x30FF) || // CJK Symbols and Punctuation, Hiragana, Katakana
+    (cp >= 0x3190 && cp <= 0x31FF) || // Kanbun, Bopomofo Extended, CJK Strokes, Katakana Phonetic Extensions
+    (cp >= 0x3200 && cp <= 0x33FF) || // Enclosed CJK Letters and Months, CJK Compatibility
+    (cp >= 0x3400 && cp <= 0x4DBF) || // CJK Unified Ideographs Extension A
+    (cp >= 0x4E00 && cp <= 0x9FFF) || // CJK Unified Ideographs
+    (cp >= 0xF900 && cp <= 0xFAFF) || // CJK Compatibility Ideographs
+    (cp >= 0xFE30 && cp <= 0xFE4F) || // CJK Compatibility Forms
+    (cp >= 0xFF00 && cp <= 0xFFEF) ); // Halfwidth and Fullwidth Forms
+
+  // The fonts to try for the character, in order. As before, Japanese takes priority for ACP 932,
+  //   and the Simplified Chinese font (which also has almost all of the Japanese characters) otherwise.
+  static const SKIF_ImGui_ExtFont chain_korean   [] = { SKIF_ImGui_ExtFont_Korean };
+  static const SKIF_ImGui_ExtFont chain_japanese [] = { SKIF_ImGui_ExtFont_Japanese,          SKIF_ImGui_ExtFont_ChineseSimplified, SKIF_ImGui_ExtFont_ChineseFull };
+  static const SKIF_ImGui_ExtFont chain_chinese  [] = { SKIF_ImGui_ExtFont_ChineseSimplified, SKIF_ImGui_ExtFont_Japanese,          SKIF_ImGui_ExtFont_ChineseFull };
+
+  const SKIF_ImGui_ExtFont* chain      = nullptr;
+  size_t                    chain_size = 0;
+
+  if (hangul)
   {
-    using range_def_s =
-      std::pair <const ImWchar*, std::vector<ImWchar> * >; // bool *,
+    chain      = chain_korean;
+    chain_size = IM_COUNTOF (chain_korean);
+  }
+  else if (cjk)
+  {
+    chain      = (acp == 932) ? chain_japanese              : chain_chinese;
+    chain_size = (acp == 932) ? IM_COUNTOF (chain_japanese) : IM_COUNTOF (chain_chinese);
+  }
 
-    static       auto pFonts = ImGui::GetIO ().Fonts;
-
-    // Sorted from least number of unique characters to the most
-    static const auto ranges =
-      {
-      // Font Awesome doesn't work as intended as regular and brand has overlapping ranges...
-        range_def_s { SK_ImGui_GetGlyphRangesFontAwesome            (), &vFontAwesome           },
-      //range_def_s { SK_ImGui_GetGlyphRangesFontAwesomeBrands      (), &vFontAwesomeBrands     },
-        range_def_s { pFonts->GetGlyphRangesVietnamese              (), &vFontVietnamese        },
-        range_def_s { pFonts->GetGlyphRangesCyrillic                (), &vFontCyrillic          },
-        range_def_s { pFonts->GetGlyphRangesThai                    (), &vFontThai              },
-      ((acp == 932) // Prioritize Japanese for ACP 932
-      ? range_def_s { pFonts->GetGlyphRangesJapanese                (), &vFontJapanese          }
-      : range_def_s { pFonts->GetGlyphRangesChineseSimplifiedCommon (), &vFontChineseSimplified }),
-      ((acp == 932)
-      ? range_def_s { pFonts->GetGlyphRangesChineseSimplifiedCommon (), &vFontChineseSimplified }
-      : range_def_s { pFonts->GetGlyphRangesJapanese                (), &vFontJapanese          }),
-        range_def_s { pFonts->GetGlyphRangesKorean                  (), &vFontKorean            }
-#ifdef _WIN64
-      // 32-bit SKIF breaks if too many character sets are
-      //   loaded so omit Chinese Full on those versions.
-      , range_def_s { pFonts->GetGlyphRangesChineseFull             (), &vFontChineseAll        }
+  for (size_t i = 0; i < chain_size; i++)
+  {
+#ifndef _WIN64
+    // 32-bit SKIF breaks if too many character sets are
+    //   loaded so omit Chinese Full on those versions.
+    if (chain [i] == SKIF_ImGui_ExtFont_ChineseFull)
+      continue;
 #endif
-      };
 
-    for ( const auto &[span, vector] : ranges)
+    if (! SKIF_ImGui_ExtFontWanted [chain [i]])
     {
-      ImWchar const *sp =
-        &span [2]; // This here ends up excluding fonts that only define a single range, as [2] == 0 in those cases
+      SKIF_ImGui_ExtFontWanted [chain [i]] = true;
 
-      while (*sp != 0x0)
-      {
-        if ( c <= (wchar_t)(*sp++) &&
-             c >= (wchar_t)(*sp++) )
-        {
-          sp             = nullptr;
-          //*enable         = true;
+      PLOG_VERBOSE << "[Fonts] No font has U+" << std::hex << cp << std::dec << ", adding extended character set " << chain [i] << ".";
 
-          if (vector->empty())
-            vector->push_back(c);
-          else
-            vector->back() = c;
+      extern bool invalidateFonts;
+      invalidateFonts = true;
 
-          vector->push_back(c);
-
-          // List is null terminated
-          vector->push_back(0);
-
-          extern bool invalidateFonts;
-          invalidateFonts = true;
-
-          break;
-        }
-      }
-
-      if (sp == nullptr)
-        break;
+      break;
     }
   }
 }
 
 ImFont*
-SKIF_ImGui_LoadFont ( const std::wstring& filename, float point_size, const ImWchar* glyph_range, ImFontConfig* cfg )
+SKIF_ImGui_LoadFont ( const std::wstring& filename, float point_size, ImFontConfig* cfg )
 {
   auto& io =
     ImGui::GetIO ();
@@ -1534,8 +1537,7 @@ SKIF_ImGui_LoadFont ( const std::wstring& filename, float point_size, const ImWc
     return
       io.Fonts->AddFontFromFileTTF ( SK_WideCharToUTF8 (wszFullPath).c_str (),
                                        point_size,
-                                         cfg,
-                                           glyph_range );
+                                         cfg );
   }
 
   return (ImFont *)nullptr;
@@ -1554,30 +1556,23 @@ SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
   auto& io =
     ImGui::GetIO ();
 
-  extern ImGuiContext *GImGui;
+  // Reset any existing fonts. Since ImGui 1.92 this is allowed at any time (it should be done between frames here, as
+  //   pointers such as fontConsolas change); the renderer backend recreates the atlas texture on request.
+  io.Fonts->ClearFonts ( );
+  io.FontDefault = nullptr;
 
-  // Reset any existing fonts
-  if (io.Fonts != nullptr)
-  {
-    if (GImGui->FontAtlasOwnedByContext)
-    {
-      if (GImGui->Font != nullptr)
-      {
-        GImGui->Font->ClearOutputData ();
+  // SKIF's pixel shader reads the font atlas as an alpha-only texture (ImGui_ImplDX11_UpdateTexture supports both)
+  io.Fonts->TexDesiredFormat = ImTextureFormat_Alpha8;
 
-        if (GImGui->Font->ContainerAtlas != nullptr)
-            GImGui->Font->ContainerAtlas->Clear ();
-      }
-
-      io.FontDefault = nullptr;
-
-      IM_DELETE (io.Fonts);
-                 io.Fonts = IM_NEW (ImFontAtlas)();
-    }
-  }
+  // Font Awesome's icons are in the Private Use Area: no other font source may provide those codepoints...
+  static_assert (ICON_MIN_FA <= ICON_MIN_FAB && ICON_MAX_FAB <= ICON_MAX_FA, "The Font Awesome ranges are expected to overlap");
+  static const ImWchar exclude_font_awesome [] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
+  // ...and the Font Awesome sources only provide their icons, as with their glyph ranges before
+  static const ImWchar only_font_awesome    [] = { 0x0001, ICON_MIN_FA - 1, ICON_MAX_FA + 1, 0xFFFF, 0 };
 
   ImFontConfig
   font_cfg           = {  };
+  font_cfg.GlyphExcludeRanges = exclude_font_awesome;
 
   std::filesystem::path fontDir
           (_path_cache.specialk_userdata);
@@ -1599,75 +1594,59 @@ SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
   if (! std::filesystem::exists (            fontDir, ec))
         std::filesystem::create_directories (fontDir, ec);
 
-  // Core character set
-  SKIF_ImGui_LoadFont     (standardFont, fontSize, SK_ImGui_GetGlyphRangesDefaultEx(), &font_cfg);
-  //SKIF_ImGui_LoadFont     ((fontDir / L"NotoSans-Regular.ttf"), fontSize, SK_ImGui_GetGlyphRangesDefaultEx());
+  // Core character set (since 1.92 all of the font's characters, e.g. also Cyrillic, Greek, Thai and Vietnamese)
+  SKIF_ImGui_LoadFont     (standardFont, fontSize, &font_cfg);
+  //SKIF_ImGui_LoadFont     ((fontDir / L"NotoSans-Regular.ttf"), fontSize, &font_cfg);
 
   if (! useDefaultFont)
   {
     font_cfg.MergeMode = true;
   }
 
-  // Load extended character sets when SKIF is not used as a launcher
+  // Load extended character sets when SKIF is not used as a launcher, once one of their characters has been missing
   if (extendedCharsets)
   {
-    // Cyrillic character set
-    if (! vFontCyrillic.empty())
-      SKIF_ImGui_LoadFont   (standardFont,   fontSize, vFontCyrillic.data(), &font_cfg);
-      //SKIF_ImGui_LoadFont   ((fontDir / L"NotoSans-Regular.ttf"), fontSize, io.Fonts->GetGlyphRangesCyrillic        (), &font_cfg);
-
     // Japanese character set
     // Load before Chinese for ACP 932 so that the Japanese font is not overwritten
-    if (! vFontJapanese.empty() && acp == 932)
+    if (SKIF_ImGui_ExtFontWanted [SKIF_ImGui_ExtFont_Japanese] && acp == 932)
     {
-      //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansJP-Regular.ttf"), fontSize, io.Fonts->GetGlyphRangesJapanese        (), &font_cfg);
+      //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansJP-Regular.ttf"), fontSize, &font_cfg);
       ///*
       if (SKIF_Util_IsWindows10OrGreater ( ))
-        SKIF_ImGui_LoadFont (L"YuGothR.ttc",  fontSize, vFontJapanese.data(), &font_cfg);
+        SKIF_ImGui_LoadFont (L"YuGothR.ttc",  fontSize, &font_cfg);
       else
-        SKIF_ImGui_LoadFont (L"yugothic.ttf", fontSize, vFontJapanese.data(), &font_cfg);
+        SKIF_ImGui_LoadFont (L"yugothic.ttf", fontSize, &font_cfg);
       //*/
     }
 
     // Simplified Chinese character set
     // Also includes almost all of the Japanese characters except for some Kanjis
-    if (! vFontChineseSimplified.empty())
-      SKIF_ImGui_LoadFont   (L"msyh.ttc",     fontSize, vFontChineseSimplified.data(), &font_cfg);
-      //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansSC-Regular.ttf"), fontSize, io.Fonts->GetGlyphRangesChineseSimplifiedCommon        (), &font_cfg);
+    if (SKIF_ImGui_ExtFontWanted [SKIF_ImGui_ExtFont_ChineseSimplified])
+      SKIF_ImGui_LoadFont   (L"msyh.ttc",     fontSize, &font_cfg);
+      //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansSC-Regular.ttf"), fontSize, &font_cfg);
 
     // Japanese character set
     // Load after Chinese for the rest of ACP's so that the Chinese font is not overwritten
-    if (! vFontJapanese.empty() && acp != 932)
+    if (SKIF_ImGui_ExtFontWanted [SKIF_ImGui_ExtFont_Japanese] && acp != 932)
     {
-      //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansJP-Regular.ttf"), fontSize, io.Fonts->GetGlyphRangesJapanese        (), &font_cfg);
+      //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansJP-Regular.ttf"), fontSize, &font_cfg);
       ///*
       if (SKIF_Util_IsWindows10OrGreater ( ))
-        SKIF_ImGui_LoadFont (L"YuGothR.ttc",  fontSize, vFontJapanese.data(), &font_cfg);
+        SKIF_ImGui_LoadFont (L"YuGothR.ttc",  fontSize, &font_cfg);
       else
-        SKIF_ImGui_LoadFont (L"yugothic.ttf", fontSize, vFontJapanese.data(), &font_cfg);
+        SKIF_ImGui_LoadFont (L"yugothic.ttf", fontSize, &font_cfg);
       //*/
     }
 
     // All Chinese character sets
-    if (! vFontChineseAll.empty())
-      SKIF_ImGui_LoadFont   (L"msjh.ttc",     fontSize, vFontChineseAll.data(), &font_cfg);
-      //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansTC-Regular.ttf"), fontSize, io.Fonts->GetGlyphRangesChineseFull        (), &font_cfg);
+    if (SKIF_ImGui_ExtFontWanted [SKIF_ImGui_ExtFont_ChineseFull])
+      SKIF_ImGui_LoadFont   (L"msjh.ttc",     fontSize, &font_cfg);
+      //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansTC-Regular.ttf"), fontSize, &font_cfg);
 
     // Korean character set
-    // On 32-bit builds this does not include Hangul syllables due to system limitaitons
-    if (! vFontKorean.empty())
-      SKIF_ImGui_LoadFont   (L"malgun.ttf",   fontSize, vFontKorean.data(), &font_cfg);
-      //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansKR-Regular.ttf"), fontSize, io.Fonts->SK_ImGui_GetGlyphRangesKorean        (), &font_cfg);
-
-    // Thai character set
-    if (! vFontThai.empty())
-      SKIF_ImGui_LoadFont   (standardFont,   fontSize, vFontThai.data(), &font_cfg);
-      //SKIF_ImGui_LoadFont   ((fontDir / L"NotoSansThai-Regular.ttf"),   fontSize, io.Fonts->GetGlyphRangesThai      (), &font_cfg);
-
-    // Vietnamese character set
-    if (! vFontVietnamese.empty())
-      SKIF_ImGui_LoadFont   (standardFont,   fontSize, vFontVietnamese.data(), &font_cfg);
-      //SKIF_ImGui_LoadFont   ((fontDir / L"NotoSans-Regular.ttf"),   fontSize, io.Fonts->GetGlyphRangesVietnamese    (), &font_cfg);
+    if (SKIF_ImGui_ExtFontWanted [SKIF_ImGui_ExtFont_Korean])
+      SKIF_ImGui_LoadFont   (L"malgun.ttf",   fontSize, &font_cfg);
+      //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansKR-Regular.ttf"), fontSize, &font_cfg);
   }
 
     static auto
@@ -1704,17 +1683,24 @@ SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
     //   as they appeared, but while this shaved down a bit on the initial launch time, it also resulted
     //     in unnecessary ~20ms delays every time a new Font Awesome character appeared on-screen...
     //        ... Meanwhile it only shaved of like 10-15ms on the launch time, lol ! // Aemony
+    //   (Since ImGui 1.92 all glyphs are rasterized on demand, as they first appear.)
+
+    font_cfg.GlyphExcludeRanges = only_font_awesome;
 
     // FA Regular is basically useless as it only has 163 icons, so we don't bother using it
     // FA Solid has 1390 icons in comparison
-        SKIF_ImGui_LoadFont (fontDir/FONT_ICON_FILE_NAME_FAS, fontSizeFA, SK_ImGui_GetGlyphRangesFontAwesome(), &font_cfg);
+        SKIF_ImGui_LoadFont (fontDir/FONT_ICON_FILE_NAME_FAS, fontSizeFA, &font_cfg);
     // FA Brands
-    SKIF_ImGui_LoadFont (fontDir/FONT_ICON_FILE_NAME_FAB, fontSizeFA, SK_ImGui_GetGlyphRangesFontAwesomeBrands(), &font_cfg);
+    SKIF_ImGui_LoadFont (fontDir/FONT_ICON_FILE_NAME_FAB, fontSizeFA, &font_cfg);
 
     //io.Fonts->AddFontDefault ();
 
-    fontConsolas = SKIF_ImGui_LoadFont (L"Consola.ttf", fontSizeConsolas, SK_ImGui_GetGlyphRangesDefaultEx ( ));
-    //fontConsolas = SKIF_ImGui_LoadFont ((fontDir / L"NotoSansMono-Regular.ttf"), fontSize/* - 4.0f*/, SK_ImGui_GetGlyphRangesDefaultEx());
+    fontConsolas = SKIF_ImGui_LoadFont (L"Consola.ttf", fontSizeConsolas);
+    //fontConsolas = SKIF_ImGui_LoadFont ((fontDir / L"NotoSansMono-Regular.ttf"), fontSize/* - 4.0f*/);
+
+  // The text size used by default. Since 1.92 ImGui fills this from the first font only once (on the first frame),
+  //   so it is set again whenever the fonts are rebuilt at another size (e.g. on DPI changes).
+  ImGui::GetStyle ( ).FontSizeBase = fontSize;
 }
 
 // Do not use mid-frame to change the style!
@@ -2045,16 +2031,9 @@ SKIF_ImGui_InvalidateFonts (void)
 
   float fontScale = SKIF_ImGui_FontSizeDefault * SKIF_ImGui_GlobalDPIScale;
 
+  // Since ImGui 1.92 there is no atlas to build: glyphs are rasterized when first drawn, and the renderer backend
+  //   creates and updates the atlas texture on request (so its device objects need not be recreated either)
   SKIF_ImGui_InitFonts (fontScale); // SKIF_FONTSIZE_DEFAULT);
-
-  if (ImGui::GetIO().Fonts->TexPixelsAlpha8 == NULL)
-  {
-    DWORD temp_time = SKIF_Util_timeGetTime1();
-    ImGui::GetIO ().Fonts->Build ( );
-    PLOG_DEBUG << "Operation [Fonts->Build] took " << (SKIF_Util_timeGetTime1() - temp_time) << " ms.";
-  }
-
-  ImGui_ImplDX11_InvalidateDeviceObjects ( );
 }
 
 struct {

@@ -6195,6 +6195,20 @@ static ImFontGlyph* ImFontBaked_BuildLoadGlyph(ImFontBaked* baked, ImWchar codep
     // Lazily load fallback glyph
     if (baked->LoadNoFallback)
         return NULL;
+
+    //
+    // SKIF Mod:  Unprintable Character Callback
+    //   None of the font sources has the character, so the fallback glyph will be used for it. This happens once per
+    //   character and font size (the result is stored in the index below), and lets SKIF add a font that has it.
+    //
+    {
+      extern void
+      SKIF_ImGui_MissingGlyphCallback (wchar_t c);
+      SKIF_ImGui_MissingGlyphCallback (
+        static_cast <wchar_t> (codepoint)
+      );
+    }
+
     if (baked->FallbackGlyphIndex == -1)
         ImFontAtlasBuildSetupFontBakedFallback(baked);
 

@@ -2233,19 +2233,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
   PLOG_INFO << "Initializing ImGui fonts...";
   SKIF_ImGui_InitFonts (SKIF_ImGui_FontSizeDefault, (! _Signal.Launcher && ! _Signal.LauncherURI && ! _Signal.Quit && ! _Signal.ServiceMode) );
 
-  // Build the font atlas on a thread of its own while the D3D device is created: it's CPU work only (~25 ms), and
-  //   ImGui_ImplDX11_CreateFontsTexture ( ) skips the build if it has been done already. The main thread does not
-  //   touch ImGui until the thread has been joined below.
-  std::thread fontAtlasBuild ([atlas = io.Fonts]
-  {
-    SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_FontAtlasBuild");
-
-    DWORD dwStart = SKIF_Util_timeGetTime1 ( );
-
-    atlas->Build ( );
-
-    PLOG_DEBUG << "Operation [Fonts->Build] took " << (SKIF_Util_timeGetTime1 ( ) - dwStart) << " ms (in parallel with creating the D3D device).";
-  });
+  // Since ImGui 1.92 there is no font atlas to build up front: glyphs are rasterized when they are first drawn,
+  //   and the renderer backend creates the atlas texture on the first frame.
 
   PLOG_INFO << "Initializing Direct3D...";
 
@@ -2254,17 +2243,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Initialize Direct3D
   if (! CreateDeviceD3D (SKIF_Notify_hWnd))
   {
-    fontAtlasBuild.join ( );
     CleanupDeviceD3D ();
     return 1;
   }
 
   PLOG_DEBUG << "Operation [CreateDeviceD3D] took " << (SKIF_Util_timeGetTime1() - temp_time) << " ms.";
-
-  // Wait for the font atlas to finish building
-  temp_time = SKIF_Util_timeGetTime1();
-  fontAtlasBuild.join ( );
-  PLOG_VERBOSE << "[Startup] Waited " << (SKIF_Util_timeGetTime1() - temp_time) << " ms for the font atlas to finish building.";
 
   // Register to be notified if the effective power mode changes
   //SKIF_Util_SetEffectivePowerModeNotifications (true); // (this serves no purpose yet)

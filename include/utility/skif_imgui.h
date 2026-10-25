@@ -88,7 +88,7 @@ DChoice  SKIF_ImGui_6432bitnessPrompt     (const char* name, bool* p_open, const
 bool     SKIF_ImGui_CheckboxHoverPreview  (const char* label, bool* v, float preview_alpha = 0.45f);
 bool     SKIF_ImGui_CheckboxTriState      (const char* label, SKIF_ImGuiCheckState state, SKIF_ImGuiCheckState preview = SKIF_ImGuiCheckState_Auto, float preview_alpha = 0.45f);
 void     SKIF_ImGui_ServiceMenu           (void);
-ImFont*  SKIF_ImGui_LoadFont              (const std::wstring& filename, float point_size, const ImWchar* glyph_range, ImFontConfig* cfg = nullptr);
+ImFont*  SKIF_ImGui_LoadFont              (const std::wstring& filename, float point_size, ImFontConfig* cfg = nullptr);
 void     SKIF_ImGui_InitFonts             (float fontSize, bool extendedCharsets = true);
 void     SKIF_ImGui_SetStyle              (ImGuiStyle* dst = nullptr);
 void     SKIF_ImGui_BeginDisabled         (bool disabled = true);
