@@ -2184,6 +2184,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
 //io.ConfigDockingAlwaysTabBar       = false;
 //io.ConfigDockingTransparentPayload =  true;
 
+#ifndef _DEBUG
+  io.ConfigDebugHighlightIdConflicts = false; // ImGui 1.91+: avoid showing ID-conflict warnings to users
+#endif
+
   // Main window override flags
   ImGuiWindowClass SKIF_AppWindow;
   // This prevents the main window from ever being merged into the implicit Debug##Default fallback window...
