@@ -250,6 +250,66 @@ LoadLibraryTextureEx (
     }
   }
 
+  // Generate mipmaps, so covers and icons drawn smaller than their resolution (e.g. 600x900 covers in horizon mode, or the
+  //   larger extracted icons at low DPI scales) are filtered smoothly instead of aliasing. Images with transparency are
+  //     mipmapped with premultiplied alpha, as the color of fully transparent pixels (often black) would otherwise bleed
+  //       into the edges. FORCE_NON_WIC keeps this independent of COM/WIC on the worker thread.
+  if (meta.mipLevels <= 1 && (meta.width > 1 || meta.height > 1))
+  {
+    DirectX::ScratchImage  premultiplied_img,
+                           mipmapped_img,
+                           straight_img;
+    DirectX::ScratchImage* pSrc     = pImg;
+    const bool             hasAlpha = ! pImg->IsAlphaAllOpaque ( );
+
+    if (hasAlpha &&
+      SUCCEEDED (
+        DirectX::PremultiplyAlpha (
+          pImg->GetImages   (), pImg->GetImageCount (),
+          pImg->GetMetadata (), DirectX::TEX_PMALPHA_DEFAULT,
+              premultiplied_img
+        )
+      )
+    )
+      pSrc = &premultiplied_img;
+
+    if (
+      SUCCEEDED (
+        DirectX::GenerateMipMaps (
+          pSrc->GetImages   (), pSrc->GetImageCount (),
+          pSrc->GetMetadata (), DirectX::TEX_FILTER_FORCE_NON_WIC, 0, // 0 = the full mip chain
+              mipmapped_img
+        )
+      )
+    )
+    {
+      bool success = true;
+
+      // Back to straight alpha, which is what the rest of SKIF expects
+      if (pSrc == &premultiplied_img)
+      {
+        success =
+          SUCCEEDED (
+            DirectX::PremultiplyAlpha (
+              mipmapped_img.GetImages   (), mipmapped_img.GetImageCount (),
+              mipmapped_img.GetMetadata (), DirectX::TEX_PMALPHA_REVERSE,
+                  straight_img
+            )
+          );
+
+        if (success)
+          mipmapped_img = std::move (straight_img);
+      }
+
+      if (success)
+      {
+        converted_img = std::move (mipmapped_img);
+        meta          =  converted_img.GetMetadata ();
+        pImg          = &converted_img;
+      }
+    }
+  }
+
   // Store the resolution of the loaded image
   out.resolution.x = static_cast<float> (meta.width);
   out.resolution.y = static_cast<float> (meta.height);
