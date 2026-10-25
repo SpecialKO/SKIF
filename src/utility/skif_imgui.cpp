@@ -22,6 +22,7 @@ bool                  bAutoScrollActive;
 bool                  bScrollbarX;
 bool                  bScrollbarY;
 ImFont*               fontConsolas = nullptr;
+float                 fPosXLMEnd   = 0.0f;
 
 // Extended character sets, loaded on demand (see SKIF_ImGui_MissingGlyphCallback)
 enum SKIF_ImGui_ExtFont {
@@ -623,7 +624,7 @@ SKIF_ImGui_SetHoverText ( const std::string_view& szText,
       float       availWidth = 0.0f;
     } static _cache;
 
-    float availWidth = (SKIF_vecCurrentMode.x - 150.0f * SKIF_ImGui_GlobalDPIScale); // -150px due to the Add Game option
+    float availWidth = (SKIF_vecCurrentMode.x - fPosXLMEnd); // -150px due to the Add Game option
 
     if (_cache.availWidth != availWidth || _cache.szInput != szText)
     {

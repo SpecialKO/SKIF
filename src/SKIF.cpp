@@ -3363,6 +3363,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         ImGui::PopStyleColor   (3); // ImGuiCol_ButtonActive, ImGuiCol_ButtonHovered, ImGuiCol_Button
 
+        extern float
+          fPosXLMEnd;
+        fPosXLMEnd = ImGui::GetItemRectMax().x - ImGui::GetWindowPos().x
+                   + ImGui::GetStyle ( ).ItemSpacing.x * 5.0f; // Spacing
+
         if (SKIF_Tab_Selected == UITab_Library)
           ImGui::PopItemFlag     ( );
 
