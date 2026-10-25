@@ -962,6 +962,11 @@ SKIF_UI_Tab_DrawMonitor (void)
       static SKX_GetInjectedPIDs_pfn
               SKX_GetInjectedPIDs = nullptr;
 
+      // The system handle table is several MB, so it is reused across refreshes instead of being
+      //   re-allocated and zero-filled every time (it is released while the tab is not in use)
+      static ULONG      handle_info_capacity = SystemHandleInformationSize;
+      static _ByteArray handle_info_buffer;
+
       do
       {
         while (SKIF_Tab_Selected != UITab_Monitor || refreshIntervalInMsec.load() == 0)
@@ -973,6 +978,10 @@ SKIF_UI_Tab_DrawMonitor (void)
             hModSpecialK = nullptr;
             SKX_GetInjectedPIDs = nullptr;
           }
+
+          // Release the handle table buffer while the tab is not in use
+          if (! handle_info_buffer.empty ( ))
+            _ByteArray ( ).swap (handle_info_buffer);
 
           SleepConditionVariableCS (
             &ProcRefreshPaused, &ProcessRefreshJob,
@@ -1016,22 +1025,28 @@ SKIF_UI_Tab_DrawMonitor (void)
 #pragma region Collect All Event Handles
         NTSTATUS ntStatusHandles;
 
-        ULONG      handle_info_size ( SystemHandleInformationSize );
-        _ByteArray handle_info_buffer;
+        ULONG      handle_info_size ( handle_info_capacity );
 
         do
         {
-          handle_info_buffer.resize (
-                    handle_info_size );
+          if (handle_info_buffer.size ( ) < handle_info_size)
+              handle_info_buffer.resize (   handle_info_size );
 
           ntStatusHandles =
             NtQuerySystemInformation (
               SystemExtendedHandleInformation,
                 handle_info_buffer.data (),
-                handle_info_size,
+                static_cast <ULONG> (handle_info_buffer.size ()),
                 &handle_info_size     );
 
+          // Add some headroom, since new handles may appear before the next attempt
+          if (ntStatusHandles == STATUS_INFO_LENGTH_MISMATCH)
+            handle_info_size += handle_info_size / 8;
+
         } while (ntStatusHandles == STATUS_INFO_LENGTH_MISMATCH);
+
+        handle_info_capacity =
+          static_cast <ULONG> (handle_info_buffer.size ());
 
         if (NT_SUCCESS (ntStatusHandles))
         {
@@ -1360,7 +1375,7 @@ SKIF_UI_Tab_DrawMonitor (void)
 
                 // Add it to the list, but only if it's not a zombie process
                 if (! pebi.IsProcessDeleting)
-                  Processes.emplace_back(proc);
+                  Processes.emplace_back (std::move (proc));
               }
 
               CloseHandle (hProcessSrc);
