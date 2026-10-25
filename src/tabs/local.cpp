@@ -678,9 +678,9 @@ SKIF_LocalManager::Process (void)
           CycleSelectAll (true);
 
         if (ImGui::IsItemHovered ())
-          ImGui::SetTooltip ("%s", allRowsSelected                     ? "Deselect all"    :
+          ImGui::SetTooltip ("%s", allRowsSelected                        ? "Deselect all"    :
                                    (allOutdatedSelected || outdated == 0) ? "Select all"      :
-                                                                          "Select outdated");
+                                                                            "Select outdated");
 
         ImGui::PopStyleColor ( ); // ImGuiCol_FrameBgActive
         ImGui::PopStyleColor ( ); // ImGuiCol_FrameBgHovered
@@ -713,7 +713,15 @@ SKIF_LocalManager::Process (void)
         install.selected = ! install.exists;
       action = LocalAction::AnySelected;
     }
-      
+
+    if (ImGui::MenuItem ("Select All"))
+    {
+      for (auto& install : installs)
+        install.selected = true;
+      anchor_path.clear ();
+      action = LocalAction::AnySelected;
+    }
+
     SKIF_ImGui_PushDisableState (! anySelected);
     if (ImGui::MenuItem ("Deselect All"))
     {
