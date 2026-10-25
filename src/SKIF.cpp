@@ -233,10 +233,16 @@ CHandle hInjectAck       (0); // Signalled when injection service should be stop
 CHandle hInjectAckEx     (0); // Signalled when a successful injection occurs (minimizes SKIF)
 CHandle hInjectExitAckEx (0); // Signalled when an injected game exits (restores SKIF)
 
-// Holds current global DPI scaling, 1.0f == 100%, 1.5f == 150%.
+// Holds the DPI scaling of the window currently being built, 1.0f == 100%, 1.5f == 150%.
+//   Updated per window by SKIF_ImGui_OnChangedViewport (per-monitor DPI), and identical to SKIF_ImGui_MainDPIScale
+//     within the main window and between frames.
 float SKIF_ImGui_GlobalDPIScale      = 1.0f;
-// Holds last frame's DPI scaling
-float SKIF_ImGui_GlobalDPIScale_Last = 1.0f; // Always identical to SKIF_ImGui_GlobalDPIScale within ImGui::NewFrame()
+// Holds the DPI scaling of the main window (SKIF_ImGui_hWnd), 1.0f == 100%, 1.5f == 150%.
+float SKIF_ImGui_MainDPIScale        = 1.0f;
+// Holds the DPI scaling that SKIF_vecCurrentMode was measured at (the main window's scale as of the last frame), so it can
+//   be rescaled as (SKIF_vecCurrentMode / SKIF_ImGui_MainDPIScale_Last) * SKIF_ImGui_MainDPIScale, even if the DPI scaling
+//     changed more than once since then. Always identical to SKIF_ImGui_MainDPIScale within ImGui::NewFrame()
+float SKIF_ImGui_MainDPIScale_Last   = 1.0f;
 //float SKIF_ImGui_GlobalDPIScale_New  = 1.0f;
 float SKIF_ImGui_FontSizeDefault     = 18.0f; // 18.0F
 
@@ -2220,6 +2226,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
   PLOG_INFO << "Initializing ImGui Win32 platform...";
   ImGui_ImplWin32_Init (nullptr); // This sets up a separate window/hWnd as well, though it will first be created at the end of the main loop
 
+  // Per-monitor DPI: ImGui calls this from Begin ()/End () when switching to a window on another viewport,
+  //   which scales the style and fonts of each window to the DPI of the monitor it is on
+  ImGui::GetPlatformIO ( ).Platform_OnChangedViewport = SKIF_ImGui_OnChangedViewport;
+
   //SKIF_Util_GetMonitorHzPeriod (SKIF_hWnd, MONITOR_DEFAULTTOPRIMARY, dwDwmPeriod);
   //OutputDebugString((L"Initial refresh rate period: " + std::to_wstring (dwDwmPeriod) + L"\n").c_str());
 
@@ -2523,9 +2533,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
     }
 
-    SKIF_vecServiceMode     = SKIF_vecServiceModeDefault  * SKIF_ImGui_GlobalDPIScale;
-    SKIF_vecHorizonMode     = SKIF_vecHorizonModeAdjusted * SKIF_ImGui_GlobalDPIScale;
-    SKIF_vecRegularMode     = SKIF_vecRegularModeAdjusted * SKIF_ImGui_GlobalDPIScale;
+    SKIF_vecServiceMode     = SKIF_vecServiceModeDefault  * SKIF_ImGui_MainDPIScale;
+    SKIF_vecHorizonMode     = SKIF_vecHorizonModeAdjusted * SKIF_ImGui_MainDPIScale;
+    SKIF_vecRegularMode     = SKIF_vecRegularModeAdjusted * SKIF_ImGui_MainDPIScale;
 
     // Add support for an even smaller regular mode, at 800x675, but only if the regular size 1000x944 can't be used
     if (monitor_extent.GetWidth() > 0)
@@ -2533,8 +2543,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if ((SKIF_vecRegularMode.x > monitor_extent.GetWidth () ||
            SKIF_vecRegularMode.y > monitor_extent.GetHeight()))
       {
-        SKIF_vecRegularMode.x = 800.0f * SKIF_ImGui_GlobalDPIScale;
-        SKIF_vecRegularMode.y = 675.0f * SKIF_ImGui_GlobalDPIScale;
+        SKIF_vecRegularMode.x = 800.0f * SKIF_ImGui_MainDPIScale;
+        SKIF_vecRegularMode.y = 675.0f * SKIF_ImGui_MainDPIScale;
       }
     }
 
@@ -2564,10 +2574,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
       HMONITOR monitor =
         ::MonitorFromWindow (SKIF_ImGui_hWnd, MONITOR_DEFAULTTONEAREST);
 
-      SKIF_ImGui_GlobalDPIScale = (_registry.bDPIScaling) ? ImGui_ImplWin32_GetDpiScaleForMonitor (monitor) : 1.0f;
+      SKIF_ImGui_MainDPIScale = (_registry.bDPIScaling) ? ImGui_ImplWin32_GetDpiScaleForMonitor (monitor) : 1.0f;
 
       // Divide the window size with its associated DPI scale to get the base size, then multiply with the new DPI scale
-      SKIF_vecCurrentModeNext = (SKIF_vecCurrentMode / SKIF_ImGui_GlobalDPIScale_Last) * SKIF_ImGui_GlobalDPIScale;
+      SKIF_vecCurrentModeNext = (SKIF_vecCurrentMode / SKIF_ImGui_MainDPIScale_Last) * SKIF_ImGui_MainDPIScale;
 
       ImGuiStyle            newStyle;
       SKIF_ImGui_SetStyle (&newStyle);
@@ -2787,18 +2797,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     // Should we invalidate the fonts and/or recreate them?
 
-    if (SKIF_ImGui_GlobalDPIScale_Last != SKIF_ImGui_GlobalDPIScale)
-    {   SKIF_ImGui_GlobalDPIScale_Last  = SKIF_ImGui_GlobalDPIScale;
-      invalidateFonts = true;
-
-      // The style's sizes (padding, spacing, rounding, borders) are scaled by the DPI as well
-      ImGuiStyle            newStyle;
-      SKIF_ImGui_SetStyle (&newStyle);
-    }
-
-    float fontScale = 18.0F * SKIF_ImGui_GlobalDPIScale;
-    if (fontScale < 15.0F)
-      fontScale += 1.0F;
+    // DPI changes of the main window need neither a font reload nor a new style: fonts are loaded at their base size,
+    //   and the style sizes and font scale of every window follow the DPI of its own monitor (SKIF_ImGui_OnChangedViewport)
+    SKIF_ImGui_MainDPIScale_Last = SKIF_ImGui_MainDPIScale; // SKIF_vecCurrentMode is at this scale from here on
 
     if (invalidateFonts)
     {
@@ -2978,7 +2979,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (preMonitor != actMonitor || _WantUpdateMonitors)
         {
           // This is only necessary to run once on launch, to account for the startup display DPI
-          SK_RunOnce (SKIF_ImGui_GlobalDPIScale = (_registry.bDPIScaling) ? ImGui::GetWindowViewport()->DpiScale : 1.0f);
+          SK_RunOnce (SKIF_ImGui_MainDPIScale = (_registry.bDPIScaling) ? ImGui::GetWindowViewport()->DpiScale : 1.0f);
 
           //ImVec2 tmpCurrentSize  = (_registry.bMiniMode) ? SKIF_vecServiceModeDefault  :
           //                         (_registry.bHorizonMode) ? SKIF_vecHorizonModeAdjusted :
@@ -2989,7 +2990,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           if (preMonitor == nullptr)
           {
             // Divide the window size with its associated DPI scale to get the base size, then multiply with the new DPI scale
-            SKIF_vecCurrentModeNext = (SKIF_vecCurrentMode / SKIF_ImGui_GlobalDPIScale_Last) * SKIF_ImGui_GlobalDPIScale;
+            SKIF_vecCurrentModeNext = (SKIF_vecCurrentMode / SKIF_ImGui_MainDPIScale_Last) * SKIF_ImGui_MainDPIScale;
 
             //if (tmpCurrentSize.y * SKIF_ImGui_GlobalDPIScale > (actMonitor->WorkSize.y))
             //  SKIF_vecAlteredSize.y = (tmpCurrentSize.y * SKIF_ImGui_GlobalDPIScale - (actMonitor->WorkSize.y)); // (actMonitor->WorkSize.y - 50.0f)
@@ -3805,10 +3806,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     if (showImGuiDebugDemo)
     {
-      ImGui::SetNextWindowSizeConstraints (ImVec2 (900.0f, 400.0f) * SKIF_ImGui_GlobalDPIScale, ImVec2 (FLT_MAX, FLT_MAX));
+      ImGui::SetNextWindowSizeConstraints (ImVec2 (900.0f, 400.0f) * SKIF_ImGui_GetDPIScaleForWindow ("Dear ImGui Debug Log"), ImVec2 (FLT_MAX, FLT_MAX));
       ImGui::ShowDebugLogWindow ( );
 
-      ImGui::SetNextWindowSizeConstraints (ImVec2 (800.0f, 600.0f) * SKIF_ImGui_GlobalDPIScale, ImVec2 (FLT_MAX, FLT_MAX));
+      ImGui::SetNextWindowSizeConstraints (ImVec2 (800.0f, 600.0f) * SKIF_ImGui_GetDPIScaleForWindow ("Dear ImGui Demo"),      ImVec2 (FLT_MAX, FLT_MAX));
       ImGui::ShowDemoWindow     ( );
     }
 
@@ -3817,6 +3818,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     // Actual rendering is conditional, this just processes input and ends the ImGui frame.
     ImGui::Render (); // also calls ImGui::EndFrame ();
+
+    // The last window of the frame may have been on another monitor, so return to the main window's DPI scale
+    //   for everything that runs between frames
+    SKIF_ImGui_RestoreMainDPIScale ( );
 
     if (startupTiming)
       startupRendered = SKIF_Util_timeGetTime1 ( );
@@ -4308,7 +4313,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   //         e.g. when size / DPI <= regular size * 1.5x or something like that!!!
   //
   // Only store window size and position to the registry if we are not in a maximized state
-  ImVec2 vecCurrentModeDPIUnaware = ImFloor (SKIF_vecCurrentMode / SKIF_ImGui_GlobalDPIScale);
+  ImVec2 vecCurrentModeDPIUnaware = ImFloor (SKIF_vecCurrentMode / SKIF_ImGui_MainDPIScale);
 
   if (! IsZoomed (SKIF_ImGui_hWnd) ||
      (vecCurrentModeDPIUnaware.x <= SKIF_vecRegularModeDefault.x * 1.5f &&

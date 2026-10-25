@@ -162,8 +162,9 @@ extern PopupState  KeyboardHint;        // Library: show a modify category promp
 extern HWND        SKIF_ImGui_hWnd;     // Main ImGui platform window (aka the main window of SKIF)
 extern HWND        SKIF_Notify_hWnd;    // Notification area icon "window" that also doubles as a handler for the stuff previously tied to the now removed SKIF_hWnd 0x0 hidden window
 
-extern float       SKIF_ImGui_GlobalDPIScale;
-extern float       SKIF_ImGui_GlobalDPIScale_Last;
+extern float       SKIF_ImGui_GlobalDPIScale;      // DPI scale of the window currently being built (per monitor; updated by SKIF_ImGui_OnChangedViewport)
+extern float       SKIF_ImGui_MainDPIScale;        // DPI scale of the main window (SKIF_ImGui_hWnd)
+extern float       SKIF_ImGui_MainDPIScale_Last;   // DPI scale that SKIF_vecCurrentMode was measured at (the main window's as of the last frame)
 extern float       fBottomDist;
 
 extern std::string SKIF_StatusBarText;

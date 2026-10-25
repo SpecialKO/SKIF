@@ -239,8 +239,6 @@ extern float                  lib_column2_width; // Holds the width of column2 (
 // Defined elsewhere
 
 extern bool                   allowShortcutCtrlA;
-extern float                  SKIF_ImGui_GlobalDPIScale;
-extern float                  SKIF_ImGui_GlobalDPIScale_Last;
 extern concurrency::concurrent_queue <IUnknown *> SKIF_ResourcesToFree;
 
 // library.cpp

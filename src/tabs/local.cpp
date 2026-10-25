@@ -774,7 +774,7 @@ SKIF_LocalManager::Process (void)
     wc.ClassId = ImGui::GetID ("LocalManagerClass");
     wc.ViewportFlagsOverrideSet = ImGuiViewportFlags_NoAutoMerge; // Work around a pesky bug where the viewport tries to merge into the... debug fallback window?
   ImGui::SetNextWindowClass (&wc);
-  ImGui::SetNextWindowSizeConstraints (ImVec2 (800.0f, 300.0f) * SKIF_ImGui_GlobalDPIScale, ImVec2 (FLT_MAX, FLT_MAX));
+  ImGui::SetNextWindowSizeConstraints (ImVec2 (800.0f, 300.0f) * SKIF_ImGui_GetDPIScaleForWindow (this->label.c_str()), ImVec2 (FLT_MAX, FLT_MAX));
   extern ImRect windowRect;
   ImGui::SetNextWindowPos (windowRect.GetCenter(), ImGuiCond_Appearing, ImVec2 (0.5f, 0.5f));
 

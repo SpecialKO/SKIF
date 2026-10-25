@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <fstream>
 #include <unordered_set>
+#include <map>
 
 #include <utility/sk_utility.h>
 #include <utility/utility.h>
@@ -1185,7 +1186,6 @@ SKIF_ImGui_DialogPrompt (const char* name, bool* p_open, const char* message, co
     if (message || description)
     ImGui::Separator ( );
 
-    extern float SKIF_ImGui_GlobalDPIScale;
     ImVec2
       btn       = ImVec2(110, 0) * SKIF_ImGui_GlobalDPIScale;
     static const std::vector<std::pair<const DChoice, const char*>>
@@ -1682,9 +1682,139 @@ SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
     fontConsolas = SKIF_ImGui_LoadFont (L"Consola.ttf", fontSizeConsolas);
     //fontConsolas = SKIF_ImGui_LoadFont ((fontDir / L"NotoSansMono-Regular.ttf"), fontSize/* - 4.0f*/);
 
-  // The text size used by default. Since 1.92 ImGui fills this from the first font only once (on the first frame),
-  //   so it is set again whenever the fonts are rebuilt at another size (e.g. on DPI changes).
+  // The text size used by default, before DPI scaling (applied per window through style.FontScaleDpi).
+  //   If it is 0, ImGui falls back to the size of the first font at the start of every frame.
   ImGui::GetStyle ( ).FontSizeBase = fontSize;
+}
+
+// Per-monitor DPI
+//
+// The fonts are loaded once at their base size and the style is built unscaled (SKIF_ImGui_BaseStyle). Every window is
+//   then scaled to the DPI of the monitor it is on: ImGui calls SKIF_ImGui_OnChangedViewport from Begin ()/End () when
+//     it switches to a window on another viewport, which swaps the style sizes and style.FontScaleDpi (ImGui bakes the
+//       glyphs for each font size on demand, so this needs no font reload), and sets SKIF_ImGui_GlobalDPIScale to the
+//         scale of the window being built. SKIF_ImGui_MainDPIScale always holds the scale of the main window.
+
+static ImGuiStyle                   SKIF_ImGui_BaseStyle;              // Unscaled, built by SKIF_ImGui_SetStyle ()
+static std::map <float, ImGuiStyle> SKIF_ImGui_ScaledStyles;           // SKIF_ImGui_BaseStyle.ScaleAllSizes (key)
+static float                        SKIF_ImGui_AppliedDPIScale = 1.0f; // The scale the live style currently carries
+
+static const ImGuiStyle&
+SKIF_ImGui_GetScaledStyle (float scale)
+{
+  auto it = SKIF_ImGui_ScaledStyles.find (scale);
+
+  if (it == SKIF_ImGui_ScaledStyles.end ( ))
+  {
+    ImGuiStyle style = SKIF_ImGui_BaseStyle;
+    style.ScaleAllSizes (scale);
+
+    it = SKIF_ImGui_ScaledStyles.emplace (scale, style).first;
+  }
+
+  return it->second;
+}
+
+// Rescales the sizes of the live style from the scale it currently carries to a new one.
+//   Values nobody has pushed snap to the exact scaled style, while values changed by ImGui::PushStyleVar ()
+//     are rescaled by ratio (ImGui::PopStyleVar () restores its own backup, so any rounding is temporary).
+void
+SKIF_ImGui_ApplyDPIScale (float scale)
+{
+  if (scale <= 0.0f || scale == SKIF_ImGui_AppliedDPIScale)
+    return;
+
+  ImGuiStyle&       cur   = ImGui::GetStyle ( );
+  const ImGuiStyle& from  = SKIF_ImGui_GetScaledStyle (SKIF_ImGui_AppliedDPIScale);
+  const ImGuiStyle& to    = SKIF_ImGui_GetScaledStyle (scale);
+  const float       ratio = scale / SKIF_ImGui_AppliedDPIScale;
+
+  auto F = [&](float ImGuiStyle::* m)
+  {
+    if (cur.*m == from.*m)
+      cur.*m = to.*m;
+    else if (cur.*m != FLT_MAX)
+      cur.*m = ImFloor (cur.*m * ratio + 0.5f);
+  };
+
+  auto V = [&](ImVec2 ImGuiStyle::* m)
+  {
+    if ((cur.*m).x == (from.*m).x && (cur.*m).y == (from.*m).y)
+      cur.*m = to.*m;
+    else
+      cur.*m = ImVec2 (ImFloor ((cur.*m).x * ratio + 0.5f),
+                       ImFloor ((cur.*m).y * ratio + 0.5f));
+  };
+
+  // The same fields as ImGuiStyle::ScaleAllSizes () in ImGui 1.93.0 -- re-check this list on every ImGui update!
+  V (&ImGuiStyle::WindowPadding);           F (&ImGuiStyle::WindowRounding);           F (&ImGuiStyle::WindowBorderSize);
+  V (&ImGuiStyle::WindowMinSize);           F (&ImGuiStyle::WindowBorderHoverPadding);
+  F (&ImGuiStyle::ChildRounding);           F (&ImGuiStyle::ChildBorderSize);
+  F (&ImGuiStyle::PopupRounding);           F (&ImGuiStyle::PopupBorderSize);
+  V (&ImGuiStyle::FramePadding);            F (&ImGuiStyle::FrameBorderSize);          F (&ImGuiStyle::FrameRounding);
+  V (&ImGuiStyle::ItemSpacing);             V (&ImGuiStyle::ItemInnerSpacing);         V (&ImGuiStyle::CellPadding);
+  V (&ImGuiStyle::TouchExtraPadding);       F (&ImGuiStyle::IndentSpacing);            F (&ImGuiStyle::ColumnsMinSpacing);
+  F (&ImGuiStyle::ScrollbarSize);           F (&ImGuiStyle::ScrollbarRounding);        F (&ImGuiStyle::ScrollbarPadding);
+  F (&ImGuiStyle::GrabMinSize);             F (&ImGuiStyle::GrabRounding);             F (&ImGuiStyle::LogSliderDeadzone);
+  F (&ImGuiStyle::ImageRounding);           F (&ImGuiStyle::ImageBorderSize);
+  F (&ImGuiStyle::TabRounding);             F (&ImGuiStyle::TabBorderSize);
+  F (&ImGuiStyle::TabMinWidthBase);         F (&ImGuiStyle::TabMinWidthShrink);
+  F (&ImGuiStyle::TabCloseButtonMinWidthSelected);
+  F (&ImGuiStyle::TabCloseButtonMinWidthUnselected);
+  F (&ImGuiStyle::TabBarBorderSize);        F (&ImGuiStyle::TabBarOverlineSize);
+  F (&ImGuiStyle::TreeLinesSize);           F (&ImGuiStyle::TreeLinesRounding);
+  F (&ImGuiStyle::MenuItemRounding);        F (&ImGuiStyle::SelectableRounding);
+  F (&ImGuiStyle::DragDropTargetRounding);  F (&ImGuiStyle::DragDropTargetBorderSize); F (&ImGuiStyle::DragDropTargetPadding);
+  F (&ImGuiStyle::ColorMarkerSize);         F (&ImGuiStyle::InputTextCursorSize);
+  F (&ImGuiStyle::SeparatorSize);           F (&ImGuiStyle::SeparatorTextBorderSize);  V (&ImGuiStyle::SeparatorTextPadding);
+  F (&ImGuiStyle::DockingSeparatorSize);    V (&ImGuiStyle::DisplayWindowPadding);     V (&ImGuiStyle::DisplaySafeAreaPadding);
+  F (&ImGuiStyle::MouseCursorScale);
+
+  cur._MainScale   = to._MainScale;
+  cur.FontScaleDpi = scale;
+
+  SKIF_ImGui_AppliedDPIScale = scale;
+
+  // ImGui::End () calls SetCurrentWindow (parent), which sizes the font, *before* SetCurrentViewport (parent),
+  //   so without this the parent window would continue with the font size of the child window
+  if (ImGui::GetCurrentContext ( )->CurrentWindow != nullptr)
+    ImGui::UpdateCurrentFontSize (0.0f);
+}
+
+// Set as ImGuiPlatformIO::Platform_OnChangedViewport, which Begin ()/End () call when switching to a window on another viewport
+void
+SKIF_ImGui_OnChangedViewport (ImGuiViewport* viewport)
+{
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
+  const float scale = (_registry.bDPIScaling && viewport != nullptr && viewport->DpiScale > 0.0f) ? viewport->DpiScale : 1.0f;
+
+  SKIF_ImGui_GlobalDPIScale = scale; // What the UI code multiplies its pixel sizes with
+  SKIF_ImGui_ApplyDPIScale   (scale); // The style sizes and style.FontScaleDpi
+}
+
+// Restores the main window's scale (used between frames, after ImGui::Render ())
+void
+SKIF_ImGui_RestoreMainDPIScale (void)
+{
+  SKIF_ImGui_GlobalDPIScale = SKIF_ImGui_MainDPIScale;
+  SKIF_ImGui_ApplyDPIScale   (SKIF_ImGui_MainDPIScale);
+}
+
+// The scale to use for sizes set up before ImGui::Begin () of a window that can be on another monitor than the main
+//   window (SetNextWindowSize (), SetNextWindowSizeConstraints ()), as those are applied before Begin () selects the viewport
+float
+SKIF_ImGui_GetDPIScaleForWindow (const char* name)
+{
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
+  // The monitor the window was on last frame
+  if (ImGuiWindow* window = ImGui::FindWindowByName (name))
+    if (window->WasActive && window->Viewport != nullptr && window->Viewport->DpiScale > 0.0f)
+      return (_registry.bDPIScaling) ? window->Viewport->DpiScale : 1.0f;
+
+  // Not shown yet: it opens centered on the main window
+  return SKIF_ImGui_MainDPIScale;
 }
 
 // Do not use mid-frame to change the style!
@@ -1755,14 +1885,18 @@ SKIF_ImGui_SetStyle (ImGuiStyle* dst)
     dst->Colors[ImGuiCol_TabSelected] = dst->Colors[ImGuiCol_WindowBg];
   }
 
-  // Scale the style based on the current DPI factor
-  dst->ScaleAllSizes (SKIF_ImGui_GlobalDPIScale);
-
   if (_registry._sRGBColors)
     for (int i=0; i < ImGuiCol_COUNT; i++)
         dst->Colors[i] = SKIF_ImGui_sRGBtoLinear (dst->Colors[i]);
 
-  ImGui::GetStyle ( ) = *dst;
+  // Store the unscaled style; the DPI scaled copies are made on demand for each DPI in use (see SKIF_ImGui_ApplyDPIScale)
+  SKIF_ImGui_BaseStyle = *dst;
+  SKIF_ImGui_ScaledStyles.clear ( );
+
+  // The live style starts out at the main window's scale
+  ImGui::GetStyle ( )              = SKIF_ImGui_GetScaledStyle (SKIF_ImGui_MainDPIScale);
+  ImGui::GetStyle ( ).FontScaleDpi = SKIF_ImGui_MainDPIScale;
+  SKIF_ImGui_AppliedDPIScale       = SKIF_ImGui_MainDPIScale;
 }
 
 void
@@ -2007,11 +2141,10 @@ SKIF_ImGui_InvalidateFonts (void)
 {
   extern float SKIF_ImGui_FontSizeDefault;
 
-  float fontScale = SKIF_ImGui_FontSizeDefault * SKIF_ImGui_GlobalDPIScale;
-
   // Since ImGui 1.92 there is no atlas to build: glyphs are rasterized when first drawn, and the renderer backend
   //   creates and updates the atlas texture on request (so its device objects need not be recreated either)
-  SKIF_ImGui_InitFonts (fontScale); // SKIF_FONTSIZE_DEFAULT);
+  // The fonts are loaded at their base size, as the DPI scaling is applied per window through style.FontScaleDpi
+  SKIF_ImGui_InitFonts (SKIF_ImGui_FontSizeDefault);
 }
 
 struct {

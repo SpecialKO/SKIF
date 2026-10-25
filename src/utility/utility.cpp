@@ -2677,12 +2677,220 @@ SKIF_Util_SaveImageAsICO (const wchar_t* imgFilePath, const wchar_t* icoFilePath
   return status;
 }
 
+// Reads the first bytes of a file; returns the number of bytes read
+static DWORD
+SKIF_Util_ReadFileHeader (const std::wstring& path, void* buffer, DWORD size)
+{
+  DWORD  read  = 0;
+  HANDLE hFile = CreateFileW (path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+
+  if (hFile != INVALID_HANDLE_VALUE)
+  {
+    if (! ReadFile (hFile, buffer, size, &read, nullptr))
+      read = 0;
+
+    CloseHandle (hFile);
+  }
+
+  return read;
+}
+
+// The largest side of a PNG file in pixels, or 0 if it is not a (readable) PNG file
+static int
+SKIF_Util_GetPNGSize (const std::wstring& path)
+{
+  // 8 byte signature, then the IHDR chunk: length (4), type (4), width (4, big-endian), height (4, big-endian)
+  static const BYTE signature [8] = { 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A };
+  BYTE header [24] = { };
+
+  if (SKIF_Util_ReadFileHeader (path, header, sizeof (header)) != sizeof (header) || memcmp (header, signature, sizeof (signature)) != 0)
+    return 0;
+
+  auto _BigEndian = [](const BYTE* p) { return static_cast<int> ((p [0] << 24) | (p [1] << 16) | (p [2] << 8) | p [3]); };
+
+  return std::max (_BigEndian (&header [16]), _BigEndian (&header [20]));
+}
+
+static BOOL CALLBACK
+SKIF_Util_EnumFirstIconGroup (HMODULE, LPCWSTR, LPWSTR lpName, LONG_PTR lParam)
+{
+  // Resource names that are strings are only valid during the enumeration, so copy them
+  *reinterpret_cast<std::wstring*> (lParam) = IS_INTRESOURCE (lpName) ? L"#" + std::to_wstring (reinterpret_cast<ULONG_PTR> (lpName)) : lpName;
+
+  return FALSE; // Stop at the first one
+}
+
+// The largest icon size in pixels that an .exe/.dll (its first icon group, i.e. the icon SHDefExtractIcon () uses for
+//   index 0) or an .ico file provides, or 0 if it could not be determined
+static int
+SKIF_Util_GetLargestIconSize (const std::wstring& path)
+{
+  int largest = 0;
+
+  auto _Size = [](BYTE b) { return (b == 0) ? 256 : static_cast<int> (b); }; // 0 means 256 px (or larger)
+
+  // .ico file: ICONDIR (reserved, type, count; 2 bytes each), then 16 byte ICONDIRENTRY entries (width and height first)
+  if (path.size() >= 4 && _wcsicmp (path.c_str() + path.size() - 4, L".ico") == 0)
+  {
+    BYTE header [6 + 16 * 64] = { }; // Up to 64 entries
+    DWORD read = SKIF_Util_ReadFileHeader (path, header, sizeof (header));
+
+    if (read >= 6 && header [0] == 0 && header [1] == 0 && header [2] == 1 && header [3] == 0)
+    {
+      const int count = header [4] | (header [5] << 8);
+
+      for (int i = 0; i < count && (6 + 16 * (i + 1)) <= static_cast<int> (read); i++)
+      {
+        const BYTE* entry = &header [6 + 16 * i];
+        largest = std::max (largest, std::max (_Size (entry [0]), _Size (entry [1])));
+      }
+    }
+
+    return largest;
+  }
+
+  HMODULE hModule = LoadLibraryExW (path.c_str(), nullptr, LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_AS_IMAGE_RESOURCE);
+
+  if (hModule == nullptr)
+    return 0;
+
+  std::wstring groupName;
+  EnumResourceNamesW (hModule, RT_GROUP_ICON, SKIF_Util_EnumFirstIconGroup, reinterpret_cast<LONG_PTR> (&groupName));
+
+  if (! groupName.empty())
+  {
+    // "#123" is the string form of an integer resource ID, which FindResource () also accepts
+    if (HRSRC hResource = FindResourceW (hModule, groupName.c_str(), RT_GROUP_ICON))
+    {
+      const DWORD size  = SizeofResource (hModule, hResource);
+      const BYTE* group = static_cast<const BYTE*> (LockResource (LoadResource (hModule, hResource)));
+
+      // GRPICONDIR (reserved, type, count; 2 bytes each), then 14 byte GRPICONDIRENTRY entries (width and height first)
+      if (group != nullptr && size >= 6)
+      {
+        const int count = group [4] | (group [5] << 8);
+
+        for (int i = 0; i < count && (6 + 14 * (i + 1)) <= static_cast<int> (size); i++)
+        {
+          const BYTE* entry = &group [6 + 14 * i];
+          largest = std::max (largest, std::max (_Size (entry [0]), _Size (entry [1])));
+        }
+      }
+    }
+  }
+
+  FreeLibrary (hModule);
+
+  return largest;
+}
+
+// Copies the pixels of an icon as 32 bpp BGRA with straight alpha, top-down (what GDI+'s PixelFormat32bppARGB expects).
+//   Unlike Gdiplus::Bitmap::FromHICON (), this keeps the alpha channel of 32 bpp icons, and uses the AND mask for older
+//     icons without one.
+static bool
+SKIF_Util_GetIconPixels (HICON hIcon, int& width, int& height, std::vector<uint32_t>& pixels)
+{
+  ICONINFO info = { };
+
+  if (! GetIconInfo (hIcon, &info))
+    return false;
+
+  bool   ok = false;
+  BITMAP bm = { };
+
+  // Monochrome icons (no color bitmap) are left to the GDI+ fallback
+  if (info.hbmColor != nullptr && GetObject (info.hbmColor, sizeof (bm), &bm) && bm.bmWidth > 0 && bm.bmHeight > 0)
+  {
+    width  = bm.bmWidth;
+    height = bm.bmHeight;
+
+    BITMAPINFO bmi              = { };
+    bmi.bmiHeader.biSize        = sizeof (BITMAPINFOHEADER);
+    bmi.bmiHeader.biWidth       =  width;
+    bmi.bmiHeader.biHeight      = -height; // Top-down
+    bmi.bmiHeader.biPlanes      = 1;
+    bmi.bmiHeader.biBitCount    = 32;
+    bmi.bmiHeader.biCompression = BI_RGB;
+
+    pixels.assign (static_cast<size_t> (width) * height, 0);
+
+    HDC hDC = GetDC (nullptr);
+
+    if (GetDIBits (hDC, info.hbmColor, 0, height, pixels.data(), &bmi, DIB_RGB_COLORS) == height)
+    {
+      bool hasAlpha = false;
+
+      for (const uint32_t pixel : pixels)
+        if ((pixel >> 24) != 0) { hasAlpha = true; break; }
+
+      // No alpha channel: the AND mask decides transparency (white = transparent)
+      if (! hasAlpha)
+      {
+        std::vector<uint32_t> mask (pixels.size(), 0);
+
+        const bool hasMask = (info.hbmMask != nullptr && GetDIBits (hDC, info.hbmMask, 0, height, mask.data(), &bmi, DIB_RGB_COLORS) == height);
+
+        for (size_t i = 0; i < pixels.size(); i++)
+          pixels [i] = (hasMask && (mask [i] & 0x00FFFFFF) != 0) ? (pixels [i] & 0x00FFFFFF)
+                                                                  : (pixels [i] | 0xFF000000);
+      }
+
+      ok = true;
+    }
+
+    ReleaseDC (nullptr, hDC);
+  }
+
+  if (info.hbmColor != nullptr) DeleteObject (info.hbmColor);
+  if (info.hbmMask  != nullptr) DeleteObject (info.hbmMask);
+
+  return ok;
+}
+
+static bool
+SKIF_Util_SaveExtractExeIconEx (std::wstring sourcePath, std::wstring targetPath, int iconSize);
+
 bool
 SKIF_Util_SaveExtractExeIcon (std::wstring sourcePath, std::wstring targetPath)
 {
+  // The size icons are extracted at: large enough for the largest size the library shows them at (32 px * DPI scale),
+  //   but never larger than what the file provides, as SHDefExtractIcon () would then upscale a smaller icon (blurry)
+  //     instead of failing. Mipmaps take care of drawing it at smaller sizes.
+  static constexpr int iconSizeMax     = 128;
+  static constexpr int iconSizeDefault =  32; // If the sizes the file provides cannot be determined (what was always used before)
+
+  // TODO: Return instantly if file exists and do not bother reading its size.
+  //         The only reason we do not atm (2026-10-25) is to allow users to migrate to the new solution.
   bool  ret  = PathFileExists (targetPath.c_str());
 
-  if (! ret && PathFileExists (sourcePath.c_str()))
+  if (PathFileExists (sourcePath.c_str()))
+  {
+    // Icons cached by older versions were always extracted at 32 px, so extract them again if the file provides a larger size
+    const int cachedSize = (ret) ? SKIF_Util_GetPNGSize (targetPath) : 0;
+    int       iconSize   = 0;
+
+    if (! ret || cachedSize < iconSizeMax)
+    {
+      const int largest = SKIF_Util_GetLargestIconSize (sourcePath);
+      iconSize = (largest > 0) ? std::min (largest, iconSizeMax) : iconSizeDefault;
+
+      if (ret && cachedSize >= iconSize)
+        iconSize = 0; // Already as large as it gets
+    }
+
+    if (iconSize > 0)
+      ret = SKIF_Util_SaveExtractExeIconEx (sourcePath, targetPath, iconSize) || ret; // Keep any existing icon if this fails
+  }
+
+  return ret;
+}
+
+// Extracts the first icon of the file at the given size and saves it as a PNG file
+static bool
+SKIF_Util_SaveExtractExeIconEx (std::wstring sourcePath, std::wstring targetPath, int iconSize)
+{
+  bool  ret  = false;
+
   {
     std::filesystem::path target = targetPath;
 
@@ -2709,7 +2917,7 @@ SKIF_Util_SaveExtractExeIcon (std::wstring sourcePath, std::wstring targetPath)
     Gdiplus::GdiplusStartupInput gdiplusStartupInput;
 
     // Extract the icon
-    HRESULT hr = SHDefExtractIcon (sourcePath.c_str(), 0, 0, &hIcon, 0, 32); // 256
+    HRESULT hr = SHDefExtractIcon (sourcePath.c_str(), 0, 0, &hIcon, 0, static_cast<UINT> (iconSize));
     if (SUCCEEDED(hr) && hr != S_FALSE) // S_FALSE = The requested icon is not present.
     {
       // Start up GDI+
@@ -2724,9 +2932,15 @@ SKIF_Util_SaveExtractExeIcon (std::wstring sourcePath, std::wstring targetPath)
 
         else
         {
-          // Create the GDI+ object
+          // Create the GDI+ object, from the icon's pixels to keep its alpha channel (FromHICON () only as a fallback)
+          int                   width  = 0,
+                                height = 0;
+          std::vector<uint32_t> pixels;
+
           Gdiplus::Bitmap* gdiplusImage =
-            Gdiplus::Bitmap::FromHICON (hIcon);
+            (SKIF_Util_GetIconPixels (hIcon, width, height, pixels))
+              ? new Gdiplus::Bitmap (width, height, width * 4, PixelFormat32bppARGB, reinterpret_cast<BYTE*> (pixels.data()))
+              : Gdiplus::Bitmap::FromHICON (hIcon);
 
           // Save the image in PNG as GIF loses the transparency
           if (Gdiplus::Status::Ok == gdiplusImage->Save (targetPath.c_str (), &pngEncoderClsId, NULL))

@@ -151,8 +151,6 @@ std::wstring dragDroppedFilePathGame = L"";
 extern bool            allowShortcutCtrlA;
 extern ImVec2          SKIF_vecServiceMode;
 extern ImVec2          SKIF_vecHorizonMode;
-extern float           SKIF_ImGui_GlobalDPIScale;
-extern float           SKIF_ImGui_GlobalDPIScale_Last;
 extern std::string     SKIF_StatusBarHelp;
 extern std::string     SKIF_StatusBarText;
 extern DWORD           invalidatedDevice;
@@ -905,7 +903,9 @@ SKIF_UI_Tab_DrawLibrary (void)
                                   tab_ContentRegionAvail.y < horizon_cutoff_height);
     _registry._UseLowResCovers = (_registry._LibHorizonMode &&
                                   tab_ContentRegionAvail.y <= SKIF_vecHorizonMode.y);
-    _registry._UseLowResCoversHiDPIBypass = ! (tab_ContentRegionAvail.y <= (SKIF_vecHorizonMode.y / SKIF_ImGui_GlobalDPIScale)); // Allow high-res images in HiDPI scenarios (true = use high-res; false = use low-res)
+    // Use the high-res cover when the small cover is drawn taller than the 330 px of the low-res one (any DPI scale above 100%,
+    //   unless the window is so short that the cover gets cropped to that size anyway) (true = use high-res; false = use low-res)
+    _registry._UseLowResCoversHiDPIBypass = (ImMin (sizeSK_small.y, tab_ContentRegionAvail.y) > 330.0f);
 
     tab_scrollbar_width    = ImGui::GetCurrentWindowRead()->ScrollbarY ? ImGui::GetStyle().ScrollbarSize : 0.0f;
     lib_column2_width      = 376.0f * SKIF_ImGui_GlobalDPIScale; // tab_scrollbar_width // SKIF_vecServiceMode (not ready yet) // ((_registry._LibHorizonMode) ? 376.0f : 376.0f) * SKIF_ImGui_GlobalDPIScale

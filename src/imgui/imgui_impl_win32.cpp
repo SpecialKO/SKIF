@@ -120,6 +120,10 @@ constexpr const wchar_t* SKIF_ImGui_WindowClass = L"SKIF_ImGuiWindow";
 constexpr const wchar_t* SKIF_ImGui_WindowTitle = L"Special K Popup"; // Default
 extern HWND SKIF_ImGui_hWnd;
 extern int  SKIF_nCmdShow;
+
+// Secondary windows resized by WM_DPICHANGED, whose move/resize requests are raised again in ImGui_ImplWin32_NewFrame ()
+struct SKIF_ImGui_DpiChangedWindow { HWND hWnd; bool move; };
+static ImVector<SKIF_ImGui_DpiChangedWindow> SKIF_ImGui_DpiChangedWindows;
 #endif // !SKIF_Win32
 
 // Using XInput for gamepad (will load DLL dynamically)
@@ -583,6 +587,23 @@ void    ImGui_ImplWin32_NewFrame()
       SKIF_TimeInMilliseconds;
       SKIF_TimeInMilliseconds =
         bd->Time / (bd->TicksPerSecond / 1000LL);
+
+    // Secondary windows resized by WM_DPICHANGED: that message usually arrives within ImGui's own Platform_SetWindowPos ()
+    //   call in UpdatePlatformWindows () (when ImGui moves the window to another monitor), and ImGui clears the move/resize
+    //     requests that WM_MOVE/WM_SIZE just raised once that call returns, so ImGui would keep the window and swapchain
+    //       at the size of the previous monitor. Raise them again so ImGui::NewFrame () picks up the new window rect.
+    for (const SKIF_ImGui_DpiChangedWindow& dpiChanged : SKIF_ImGui_DpiChangedWindows)
+    {
+      if (ImGuiViewport* viewport = ImGui::FindViewportByPlatformHandle ((void *)dpiChanged.hWnd))
+      {
+        viewport->PlatformRequestResize = true;
+
+        if (dpiChanged.move)
+          viewport->PlatformRequestMove = true;
+      }
+    }
+
+    SKIF_ImGui_DpiChangedWindows.clear ( );
 #endif // SKIF_Win32
 }
 
@@ -1506,6 +1527,7 @@ static void ImGui_ImplWin32_CreateWindow(ImGuiViewport *viewport)
 {
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
   extern float SKIF_ImGui_GlobalDPIScale;
+  extern float SKIF_ImGui_MainDPIScale;
 
   ImGui_ImplWin32_ViewportData* vd = IM_NEW(ImGui_ImplWin32_ViewportData)();
   viewport->PlatformUserData = vd;
@@ -1527,7 +1549,7 @@ static void ImGui_ImplWin32_CreateWindow(ImGuiViewport *viewport)
 
   // Secondary viewports store their imgui context (read by ImGui_ImplWin32_WndProcHandler_PlatformWindow)
   ::SetPropA(vd->Hwnd, "IMGUI_CONTEXT", ImGui::GetCurrentContext());
-  vd->DpiScale = (_registry.bDPIScaling) ? ImGui_ImplWin32_GetDpiScaleForHwnd (vd->Hwnd) : 1.0f;
+  vd->DpiScale = ImGui_ImplWin32_GetDpiScaleForHwnd (vd->Hwnd); // The real DPI, also with HiDPI scaling disabled (see WM_DPICHANGED)
 
   // We need to store the first window in the backend / globally
   ImGui_ImplWin32_Data* bd = ImGui_ImplWin32_GetBackendData();
@@ -1542,7 +1564,8 @@ static void ImGui_ImplWin32_CreateWindow(ImGuiViewport *viewport)
     //main_viewport->PlatformHandle = main_viewport->PlatformHandleRaw = (void*)bd->hWnd;
 
     // Retrieve the DPI scaling of the current display
-    SKIF_ImGui_GlobalDPIScale = (_registry.bDPIScaling) ? ImGui_ImplWin32_GetDpiScaleForHwnd (vd->Hwnd) : 1.0f;
+    SKIF_ImGui_MainDPIScale   = (_registry.bDPIScaling) ? ImGui_ImplWin32_GetDpiScaleForHwnd (vd->Hwnd) : 1.0f;
+    SKIF_ImGui_GlobalDPIScale = SKIF_ImGui_MainDPIScale;
 
     // Update the style scaling to reflect the current DPI scaling
     extern bool
@@ -1926,6 +1949,19 @@ static float ImGui_ImplWin32_GetWindowDpiScale(ImGuiViewport* viewport)
     ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData;
     if (vd->Hwnd == 0) return 1.0f; // SKIF CUSTOM
     IM_ASSERT(vd->Hwnd != 0);
+
+#ifdef SKIF_Win32
+    // SKIF CUSTOM: Use the DPI that Windows has assigned the window (Per-Monitor V2), which changes at the same time as
+    //   WM_DPICHANGED is sent, instead of the DPI of the monitor with the largest part of the window. This keeps the viewport's
+    //     DpiScale (used for the per-monitor style and font scaling) in sync with the WM_DPICHANGED handling below.
+    typedef UINT (WINAPI* PFN_SKIF_GetDpiForWindow)(HWND);
+    static PFN_SKIF_GetDpiForWindow
+      SKIF_GetDpiForWindow = (PFN_SKIF_GetDpiForWindow)::GetProcAddress (::GetModuleHandleW (L"user32.dll"), "GetDpiForWindow"); // Windows 10 v1607+
+    if (SKIF_GetDpiForWindow != nullptr)
+      if (UINT dpi = SKIF_GetDpiForWindow (vd->Hwnd))
+        return (float)dpi / 96.0f;
+#endif
+
     return ImGui_ImplWin32_GetDpiScaleForHwnd(vd->Hwnd);
 }
 
@@ -1941,8 +1977,8 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
     static SKIF_GamePadInputHelper& _gamepad   = SKIF_GamePadInputHelper::GetInstance ( );
     static SKIF_DropTargetObject&   _drag_drop = SKIF_DropTargetObject  ::GetInstance ( );
 
-    extern float  SKIF_ImGui_GlobalDPIScale;
-    extern float  SKIF_ImGui_GlobalDPIScale_Last;
+    extern float  SKIF_ImGui_MainDPIScale;
+    extern float  SKIF_ImGui_MainDPIScale_Last;
     extern ImVec2 SKIF_vecRegularModeDefault;  // Does not include the status bar
     extern ImVec2 SKIF_vecRegularModeAdjusted; // Adjusted for status bar and tooltips
     extern ImVec2 SKIF_vecHorizonModeDefault;  // Does not include the status bar
@@ -2037,28 +2073,6 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
     {
       switch (msg)
       {
-
-//#define SKIF_Win32_GetDPIScaledSize
-#ifdef SKIF_Win32_GetDPIScaledSize
-      // Calculate the new suggested size of the viewport on DPI changes
-      case WM_GETDPISCALEDSIZE:
-      {
-        SIZE* size = reinterpret_cast<SIZE*> (lParam);
-
-        // If we have disabled DPI scaling, use our existing size (scale non-linearly)
-        if (! _registry.bDPIScaling)
-        {
-          size->cx = (LONG)viewport->Size.x;
-          size->cy = (LONG)viewport->Size.y;
-
-          // We have computed a new size
-          return 1;
-        }
-
-        // Apply the default linear DPI scaling to the window
-        return 0;
-      }
-#endif
 
 //#define SKIF_Win32_Snapping
 #ifdef SKIF_Win32_Snapping
@@ -2206,32 +2220,90 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
 
         case WM_DPICHANGED:
         {
-          // Only process if we actually follow HiDPI
-          if (! _registry.bDPIScaling)
-            return 0;
-
           int g_dpi    = HIWORD (wParam);
           RECT* const prcNewWindow = (RECT*) lParam;
 
-          if (ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData)
+          // Always track the real DPI of the window, also with HiDPI scaling disabled, so the ratio between the old and new
+          //   DPI is correct should HiDPI scaling be enabled later on
+          ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData;
+
+          if (vd != nullptr)
           {
             vd->DpiScale_Last = vd->DpiScale;
             vd->DpiScale = (float) g_dpi / USER_DEFAULT_SCREEN_DPI;
           }
 
-          // Update the style scaling for the main stuff
-          if (hWnd == SKIF_ImGui_hWnd)
+          // ImGui uses the monitor list to pick the DPI of new popups and tooltips for their first frame. If the DPI does not
+          //   match the one we know for the target monitor, its scaling was changed in Windows: refresh the monitor list.
+          //     (Moving a window between monitors also sends WM_DPICHANGED, but then the DPI matches and nothing is done.)
           {
-            SKIF_ImGui_GlobalDPIScale = (float) g_dpi / USER_DEFAULT_SCREEN_DPI;
+            const float    newDpiScale = (float) g_dpi / USER_DEFAULT_SCREEN_DPI;
+            const HMONITOR hMonitor    = ::MonitorFromRect (prcNewWindow, MONITOR_DEFAULTTONEAREST);
+            bool           known       = false;
 
-            extern bool
-              invalidateFonts;
-              invalidateFonts = true;
+            for (const ImGuiPlatformMonitor& monitor : ImGui::GetPlatformIO ( ).Monitors)
+            {
+              if (monitor.PlatformHandle == (void *)hMonitor)
+              {
+                known = (ImFabs (monitor.DpiScale - newDpiScale) < 0.01f);
+                break;
+              }
+            }
 
-            extern bool
-              invalidateStyle;
-              invalidateStyle = true;
+            if (! known)
+              ImGui_ImplWin32_GetBackendData ( )->WantUpdateMonitors = true;
           }
+
+          // Only process the rest if we actually follow HiDPI
+          if (! _registry.bDPIScaling)
+            return 0;
+
+          // Secondary windows (INI editor, local installs, update notes, popups, etc) take the size Windows suggests for
+          //   the new DPI, as Per-Monitor V2 expects. Auto-resizing windows refit to their content on the next frame anyway.
+          //     Their style and fonts follow the DPI of their own monitor through SKIF_ImGui_OnChangedViewport.
+          if (hWnd != SKIF_ImGui_hWnd)
+          {
+            ImGuiContext& g = *ImGui::GetCurrentContext ( );
+
+            // Is ImGui dragging the window? It then moves it itself (Platform_SetWindowPos) based on the cursor position
+            const bool imgui_moving = (g.MovingWindow != nullptr && g.MovingWindow->Viewport == viewport);
+
+            if (imgui_moving)
+            {
+              // Only take the new size, and scale the grab offset so the cursor keeps its relative position within the
+              //   resized window (as Windows does for OS-driven moves); ImGui moves the window there on the next frame
+              const float ratio = (vd != nullptr && vd->DpiScale_Last > 0.0f) ? vd->DpiScale / vd->DpiScale_Last : 1.0f;
+              g.ActiveIdClickOffset = ImTrunc (g.ActiveIdClickOffset * ratio);
+
+              ::SetWindowPos (hWnd, nullptr,
+                  0, 0,
+                  prcNewWindow->right  - prcNewWindow->left,
+                  prcNewWindow->bottom - prcNewWindow->top,
+                  SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOMOVE);
+            }
+
+            else
+            {
+              ::SetWindowPos (hWnd, nullptr,
+                  prcNewWindow->left,
+                  prcNewWindow->top,
+                  prcNewWindow->right  - prcNewWindow->left,
+                  prcNewWindow->bottom - prcNewWindow->top,
+                  SWP_NOZORDER | SWP_NOACTIVATE);
+            }
+
+            // ImGui may clear the requests raised by WM_SIZE/WM_MOVE above (see ImGui_ImplWin32_NewFrame), so queue them again
+            SKIF_ImGui_DpiChangedWindows.push_back ({ hWnd, ! imgui_moving });
+
+            return 0;
+          }
+
+          // Main window: update its DPI scaling (no font reload is needed as fonts are scaled per window through style.FontScaleDpi)
+          SKIF_ImGui_MainDPIScale = (float) g_dpi / USER_DEFAULT_SCREEN_DPI;
+
+          extern bool
+            invalidateStyle;
+            invalidateStyle = true;
 
           POINT ptLeftTop = {
             prcNewWindow->left,
@@ -2262,7 +2334,7 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
 
             // Divide the window size with its associated DPI scale to get the base size, then multiply with the new DPI scale
             if (hWnd == SKIF_ImGui_hWnd)
-              SKIF_vecCurrentModeNext = (SKIF_vecCurrentMode / SKIF_ImGui_GlobalDPIScale_Last) * SKIF_ImGui_GlobalDPIScale;
+              SKIF_vecCurrentModeNext = (SKIF_vecCurrentMode / SKIF_ImGui_MainDPIScale_Last) * SKIF_ImGui_MainDPIScale;
 
             if (ImGui::IsAnyMouseDown ( ))
               return 0;
@@ -2282,7 +2354,7 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
             else if (prcNewWindow->right >= info.rcWork.right)
             {
               // Switching to a display on the right
-              prcNewWindow->left = info.rcWork.right - static_cast<long> (tmpCurrentSize.x * SKIF_ImGui_GlobalDPIScale);
+              prcNewWindow->left = info.rcWork.right - static_cast<long> (tmpCurrentSize.x * SKIF_ImGui_MainDPIScale);
               reposition = true;
             }
 

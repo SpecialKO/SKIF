@@ -1087,7 +1087,7 @@ bool ImGui_ImplDX11_CreateDeviceObjects (void)
     sampler_desc.MipLODBias         = 0.f;
     sampler_desc.ComparisonFunc     = D3D11_COMPARISON_NEVER;
     sampler_desc.MinLOD             = 0.f;
-    sampler_desc.MaxLOD             = 0.f;
+    sampler_desc.MaxLOD             = D3D11_FLOAT32_MAX; // Use the mipmaps of covers and icons (the font atlas only has one level)
 
   if (FAILED (bd->pd3dDevice->CreateSamplerState (&sampler_desc, &bd->pTexSamplerLinear)))
     return false;

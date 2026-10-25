@@ -654,7 +654,6 @@ SKIF_UI_Tab_DrawMonitor (void)
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
 
-  extern float SKIF_ImGui_GlobalDPIScale;
   static std::atomic<DWORD> refreshIntervalInMsec;
 
   static bool setInitialRefreshInterval = true;

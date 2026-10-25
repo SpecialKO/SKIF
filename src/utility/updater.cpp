@@ -1330,10 +1330,10 @@ SKIF_Updater::DrawWindowChanges (Window* wnd, WindowType type)
     wc.ClassId = ImGui::GetID ("SKIF_ChangelogClass");
     wc.ViewportFlagsOverrideSet = ImGuiViewportFlags_NoAutoMerge; // Work around a pesky bug where the viewport tries to merge into the... debug fallback window?
   ImGui::SetNextWindowClass (&wc);
-  ImGui::SetNextWindowSizeConstraints (ImVec2 (500.0f, 300.0f) * SKIF_ImGui_GlobalDPIScale, ImVec2 (FLT_MAX, FLT_MAX));
+  ImGui::SetNextWindowSizeConstraints (ImVec2 (500.0f, 300.0f) * SKIF_ImGui_GetDPIScaleForWindow (wnd->label.c_str()), ImVec2 (FLT_MAX, FLT_MAX));
   extern ImRect windowRect;
   ImGui::SetNextWindowPos  (windowRect.GetCenter(), ImGuiCond_Appearing, ImVec2 (0.5f, 0.5f));
-  ImGui::SetNextWindowSize (ImVec2 (900.0f, 600.0f) * SKIF_ImGui_GlobalDPIScale, ImGuiCond_Appearing);
+  ImGui::SetNextWindowSize (ImVec2 (900.0f, 600.0f) * SKIF_ImGui_MainDPIScale, ImGuiCond_Appearing); // Opens centered on the main window
 
   bool cache_show = wnd->show;
 
@@ -1357,7 +1357,12 @@ SKIF_Updater::DrawWindowChanges (Window* wnd, WindowType type)
 
     ImGui::PushStyleColor (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
     ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
-    ImGui::PushFont       (fontConsolas, (fontConsolas != nullptr) ? fontConsolas->LegacySize : 0.0f); // Its own size (0 = keep the current one)
+    // Its own size (0 = keep the current one), rounded *down* to whole pixels at the current DPI scale: ImGui rounds font sizes
+    //   half up (e.g. 14 px * 125% = 17.5 -> 18 px), which at 125% and 175% made the 110 columns wide changelog a few pixels
+    //     wider than the window (sized 900 px * DPI scale), showing a horizontal scrollbar
+    const float fontScale        = ImGui::GetStyle ( ).FontScaleMain * ImGui::GetStyle ( ).FontScaleDpi;
+    const float fontConsolasSize = (fontConsolas != nullptr && fontScale > 0.0f) ? ImFloor (fontConsolas->LegacySize * fontScale) / fontScale : 0.0f;
+    ImGui::PushFont       (fontConsolas, fontConsolasSize);
 
     ImVec2 child_size = ImVec2 (ImGui::GetContentRegionAvail().x,
                                 ImGui::GetContentRegionAvail().y - fY);
@@ -1422,10 +1427,10 @@ SKIF_Updater::DrawWindowUpdater (Window* wnd)
     wc.ClassId = ImGui::GetID ("SKIF_UpdaterClass");
     wc.ViewportFlagsOverrideSet = ImGuiViewportFlags_NoAutoMerge; // Work around a pesky bug where the viewport tries to merge into the... debug fallback window?
   ImGui::SetNextWindowClass (&wc);
-  ImGui::SetNextWindowSizeConstraints (ImVec2 (500.0f, 300.0f) * SKIF_ImGui_GlobalDPIScale, ImVec2 (FLT_MAX, FLT_MAX));
+  ImGui::SetNextWindowSizeConstraints (ImVec2 (500.0f, 300.0f) * SKIF_ImGui_GetDPIScaleForWindow (wnd->label.c_str()), ImVec2 (FLT_MAX, FLT_MAX));
   extern ImRect windowRect;
   ImGui::SetNextWindowPos  (windowRect.GetCenter(), ImGuiCond_Appearing, ImVec2 (0.5f, 0.5f));
-  ImGui::SetNextWindowSize (ImVec2 (900.0f, 600.0f) * SKIF_ImGui_GlobalDPIScale, ImGuiCond_Appearing);
+  ImGui::SetNextWindowSize (ImVec2 (900.0f, 600.0f) * SKIF_ImGui_MainDPIScale, ImGuiCond_Appearing); // Opens centered on the main window
 
   bool cache_show = wnd->show;
 
