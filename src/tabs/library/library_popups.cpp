@@ -663,7 +663,7 @@ DrawLibraryPopups (void)
 
         else if (! hasFocus)
         {
-          strncpy (charCategoryRename, static_category.Name.c_str(), maxCategoryNameLen);
+          strncpy_s (charCategoryRename, static_category.Name.c_str(), _TRUNCATE); // Always null-terminated
 
           hasFocus    = true;
           ImGui::ActivateItemByID (ImGui::GetID (renameInputID));

@@ -1065,7 +1065,7 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
           if (ImGui::Selectable (SKIF_Util_FormatStringRaw ("Rename###PopupRename-%i", index)))
           {
             isRenaming = index;
-            strncpy (charCategoryRename, category.name.c_str(), maxCategoryNameLen);
+            strncpy_s (charCategoryRename, category.name.c_str(), _TRUNCATE); // Always null-terminated
             ImGui::CloseCurrentPopup ( );
           }
 
