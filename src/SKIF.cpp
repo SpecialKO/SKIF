@@ -3924,8 +3924,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if (bRefresh)
     {
       bRefresh = false;
+      // Two persistent buffers that are swapped every frame, so the comparison
+      //   no longer allocates (and zero-fills) a fresh buffer on every frame
       static std::vector<uint8_t>
                     snapVtxBufferData;
+      static std::vector<uint8_t>
+                     newVtxBufferData;
       static size_t snapVtxBufferSize = 0;
              size_t  newVtxBufferSize = 0;
 
@@ -3943,10 +3947,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if (newVtxBufferSize != snapVtxBufferSize)
         bRefresh = true;
 
-      std::vector<uint8_t>     newVtxBufferData;
-      newVtxBufferData.resize (newVtxBufferSize);
+      newVtxBufferData.resize (newVtxBufferSize); // Keeps its capacity across frames
 
-      if (! bRefresh && newVtxBufferSize > 0)
+      // Always pack (even when the size changed), so the stored snapshot is the real vertex data;
+      //   previously a zero-filled snapshot was stored on a size change, forcing an extra refresh next frame
+      if (newVtxBufferSize > 0)
       {
         size_t offset = 0;
 
@@ -3968,7 +3973,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
 
         // Compare snapshot with new buffer
-        bRefresh = std::memcmp (snapVtxBufferData.data(), newVtxBufferData.data(), newVtxBufferSize) != 0;
+        if (! bRefresh)
+          bRefresh = std::memcmp (snapVtxBufferData.data(), newVtxBufferData.data(), newVtxBufferSize) != 0;
       }
 
       // Store snapshot
@@ -4214,7 +4220,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           extern bool SKIF_ImGui_ImplWin32_IsViewportVisible (ImGuiViewport* viewport);
           extern HANDLE SKIF_ImplDX11_ViewPort_GetWaitHandle (ImGuiViewport* viewport);
-          std::vector<HANDLE> vActiveSwapchainWaitHandles;
+          static std::vector<HANDLE> vActiveSwapchainWaitHandles; // Reused every frame (keeps its capacity)
+          vActiveSwapchainWaitHandles.clear ( );
 
           for (int i = 1; i < ImGui::GetCurrentContext()->Viewports.Size; i++)
           {
