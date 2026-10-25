@@ -831,6 +831,10 @@ SKIF_UI_Tab_DrawLibrary (void)
     _art.ReleaseOldCoverIfFaded ( );
   }
 
+  // A finished game worker (CopyFrom) or LoadStoreDetails ( ) above may have rebuilt the launch configs of pApp,
+  //   which would leave launchConfig pointing to a freed launch config for the rest of the frame
+  launchConfig = (pApp != nullptr && ! pApp->launch_configs.empty()) ? &pApp->launch_configs.begin()->second : nullptr;
+
   // Apply changes when the selected game changes
   if (update)
     fTint = (_registry.iDimCovers == 0) ? 1.0f : fTintMin;
@@ -1396,14 +1400,38 @@ SKIF_UI_Tab_DrawLibrary (void)
       );
 
     const bool bWasRunning =
-      (_inject.bHasServlet && _inject.bCurrentState),
-               bWasWaiting =
-      (_inject.bHasServlet && _inject.bAckInj);
+      (_inject.bHasServlet && _inject.bCurrentState);
 
     if (bWasRunning) {
-      _inject._StartStopInject (true, bWasWaiting, launchConfig->isElevated (), pApp->skif.auto_stop);
-      // XXX: This delay helps but does not completely solve wrong reported versions
-      Sleep (500UL);
+      // Open the service hosts before stopping the service, so we can wait for them to actually exit
+      //   (and let go of the DLL files) instead of guessing with a fixed delay
+      std::vector <HANDLE> hServiceHosts;
+
+      for (int pid : { _inject.pid32, _inject.pid64 })
+      {
+        if (pid == 0)
+          continue;
+
+        if (HANDLE hProcess = OpenProcess (SYNCHRONIZE, FALSE, static_cast<DWORD> (pid)))
+          hServiceHosts.push_back (hProcess);
+      }
+
+      // Stopping does not depend on the selected game, so do not touch pApp / launchConfig here
+      //   (either can be null, e.g. a game without launch configs, or no game selected)
+      _inject._StartStopInject (true);
+
+      // Fallback if the service hosts could not be opened (e.g. missing PID files)
+      if (hServiceHosts.empty ( ))
+        Sleep (500UL);
+
+      else
+      {
+        if (WaitForMultipleObjects (static_cast<DWORD> (hServiceHosts.size ( )), hServiceHosts.data ( ), TRUE, 500UL) == WAIT_TIMEOUT)
+          PLOG_WARNING << "Timed out waiting for the service to stop before replacing " << local_path;
+
+        for (HANDLE hProcess : hServiceHosts)
+          CloseHandle (hProcess);
+      }
     }
 
     if (! DeleteFileW (local_path.c_str ()))
@@ -1536,13 +1564,10 @@ SKIF_UI_Tab_DrawLibrary (void)
 
           if (++retries > 50)
           {
-            SetLastError (ERROR_FILE_INVALID);
+            PLOG_ERROR << "Failed to delete the ZIP archive: " << SKIF_Util_GetErrorAsWStr ( );
             break;
           }
         }
-
-        if (GetLastError ( ) != NO_ERROR)
-          PLOG_ERROR << "An unexpected error occurred when trying to delete the ZIP archive: " << SKIF_Util_GetErrorAsWStr ( );
 
         bool failed = true;
 
@@ -1650,6 +1675,9 @@ SKIF_UI_Tab_DrawLibrary (void)
         bool ret =
           ShellExecuteExW (&sexi);
 
+        if (! ret)
+          PLOG_ERROR << "Failed to start the 7z extraction: " << SKIF_Util_GetErrorAsWStr ( );
+
         SetCurrentDirectoryW (wszCurrentDir);
 
         // Wait for up to 5 seconds for the archive to extract and files to flush
@@ -1665,12 +1693,12 @@ SKIF_UI_Tab_DrawLibrary (void)
 
             if (++retries > 50)
             {
+              PLOG_ERROR << "Timed out waiting for the DLL files to be extracted from the 7z archive.";
               ImGui::InsertNotification ({
                 ImGuiToastType::Error, 5000,
                 "Missing Files",
                 "Unable to extract Special K DLL files from the provided .7z file."
               });
-              SetLastError (ERROR_FILE_INVALID);
               ret = false;
               break;
             }
@@ -1684,15 +1712,12 @@ SKIF_UI_Tab_DrawLibrary (void)
 
             if (++retries > 50)
             {
-              SetLastError (ERROR_FILE_INVALID);
+              PLOG_ERROR << "Failed to delete the 7z archive: " << SKIF_Util_GetErrorAsWStr ( );
               ret = false;
               break;
             }
           }
         }
-
-        if (GetLastError ( ) != NO_ERROR)
-          PLOG_ERROR << "An unexpected error occurred: " << SKIF_Util_GetErrorAsWStr();
 
         if (ret)
         {
