@@ -992,11 +992,15 @@ app_record_xbox_s::DrawDeveloperActions (void)
 #pragma region Run State
 
 // Workaround for Xbox games that run under the virtual folder, e.g. H:\Games\Xbox Games\Hades\Content\Hades.exe, by only checking the presence of the process name
-// TODO: Investigate if this is even really needed any longer? // Aemony, 2023-12-31
 app_record_s::ProcessMatch
 app_record_xbox_s::MatchProcess (const wchar_t* wszExeFile, const wchar_t* wszExePath, DWORD dwExePathLen)
 {
-  if (StrStrIW (launch_configs[0].getExecutableFileName ( ).c_str(), wszExeFile))
+  // Compare the file name exactly, as a partial match would also match e.g. Game.exe against MyGame.exe
+  const std::wstring& executable = launch_configs[0].getExecutableFileName ( );
+  const size_t        pos        = executable.find_last_of (LR"(\/)");
+  const wchar_t*      wszName    = executable.c_str ( ) + ((pos != std::wstring::npos) ? pos + 1 : 0);
+
+  if (_wcsicmp (wszName, wszExeFile) == 0)
     return ProcessMatch::Running;
 
   return app_record_s::MatchProcess (wszExeFile, wszExePath, dwExePathLen);
