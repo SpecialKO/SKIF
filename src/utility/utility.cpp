@@ -2859,6 +2859,8 @@ SKIF_Util_SaveExtractExeIcon (std::wstring sourcePath, std::wstring targetPath)
   static constexpr int iconSizeMax     = 128;
   static constexpr int iconSizeDefault =  32; // If the sizes the file provides cannot be determined (what was always used before)
 
+  // TODO: Return instantly if file exists and do not bother reading its size.
+  //         The only reason we do not atm (2026-10-25) is to allow users to migrate to the new solution.
   bool  ret  = PathFileExists (targetPath.c_str());
 
   if (PathFileExists (sourcePath.c_str()))
