@@ -140,6 +140,28 @@ LaunchGame (app_record_s* pApp)
 
 #pragma region UpdateGameCover
 
+// The file extension to keep a saved cover image as, based on its file signature:
+//   .jpg or .png, or empty for any other format (which then needs to be converted to PNG)
+static std::wstring
+SKIF_Lib_GetCoverExtension (const std::wstring& path)
+{
+  static constexpr unsigned char sigPNG [8] = { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A };
+                   unsigned char sig    [8] = { };
+
+  std::ifstream file (path, std::ios::binary);
+
+  if (! file.read (reinterpret_cast <char*> (sig), sizeof (sig)))
+    return L"";
+
+  if (sig [0] == 0xFF && sig [1] == 0xD8) // JPEG (SOI; Start of Image)
+    return L".jpg";
+
+  if (memcmp (sig, sigPNG, sizeof (sigPNG)) == 0)
+    return L".png";
+
+  return L"";
+}
+
 bool
 SaveGameCover (app_record_s* pApp, std::wstring_view path)
 {
@@ -153,7 +175,6 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
   std::wstring targetPath = L"";
   std::wstring ext        = SKIF_Util_ToLowerW (fsPath.extension().wstring());
   bool         isURL      = PathIsURL (path.data());
-  std::wstring extTarget  = ext;
   bool isImage = false;
 
   if (! isURL)
@@ -198,19 +219,8 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
           PLOG_INFO << "Detected an " << type.mime_type << " image";
 
           isImage   = true;
-          extTarget = SKIF_Util_ToLowerW (type.file_extension);
 
-          // Shortcut to use a few (incorrect) file extensions for some types
-          // TODO: Do away with this cheating, lol
-          if (type.file_extension == L".webp")
-            extTarget = L".png";
-
-          if (type.file_extension == L".bmp")
-            extTarget = L".png";
-
-          if (type.file_extension == L".psd")
-            extTarget = L".png";
-
+          // The saved file gets its extension from the image itself (see SKIF_Lib_GetCoverExtension)
           break;
         }
       }
@@ -237,7 +247,6 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
   struct thread_s {
     std::wstring source        = L"";
     std::wstring destination   = L"";
-    std::wstring ext_target    = L"";
     std::wstring ext_original  = L"";
     bool         is_url        = false;
     uint32_t     appid         = 0;
@@ -248,7 +257,6 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
 
   data->source        = path;
   data->destination   = targetPath;
-  data->ext_target    = extTarget;
   data->ext_original  = ext;
   data->is_url        = isURL;
   data->appid         = pApp->id;
@@ -331,11 +339,15 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
     // Swap it in
     if (success)
     {
-      // BMP images needs to be converted to PNG
-      // Extremely basic and rudimentary check -- should really preferably read the metadata instead
-      if (_data->ext_original == L".bmp")
+      // SKIF only looks for cover.jpg and cover.png, so JPEG and PNG images are kept as they are,
+      //   while anything else (WebP, BMP, PSD, ...) is converted to PNG. This goes by the file's
+      //     signature, so it also covers URLs and files with a misleading file extension.
+      const std::wstring ext_saved =
+        SKIF_Lib_GetCoverExtension (tmpPath);
+
+      if (ext_saved.empty ( ))
       {
-        PLOG_DEBUG << "Converting BMP image to PNG...";
+        PLOG_DEBUG << "Converting the image to PNG...";
         success =
           SUCCEEDED (
               DirectX::SaveToWICFile (
@@ -343,17 +355,16 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
                 img.GetImageCount(),
                 DirectX::WIC_FLAGS_FORCE_SRGB,
                 GetWICCodec (DirectX::WIC_CODEC_PNG),
-                (_data->destination + _data->ext_target).c_str()
+                (_data->destination + L".png").c_str()
               )
           );
       }
 
-      // Rename remaining types
       else
       {
         PLOG_DEBUG << "Swapping in the new file...";
         success =
-          MoveFileEx((_data->destination + L".tmp").c_str(), (_data->destination + _data->ext_target).c_str(), MOVEFILE_REPLACE_EXISTING);
+          MoveFileEx((_data->destination + L".tmp").c_str(), (_data->destination + ext_saved).c_str(), MOVEFILE_REPLACE_EXISTING);
       }
     }
 
