@@ -1356,8 +1356,9 @@ void ImGui_ImplDX11_NewFrame()
       _registry._RendererCanHDR = SKIF_Util_IsHDRActive (NULL); // true
 
       PLOG_DEBUG << "Recreating any necessary swapchains and their wait objects...";
-      for (int i = 0; i < g.Viewports.Size; i++)
-        ImGui_ImplDX11_CreateWindow  (g.Viewports [i]);
+      for (ImGuiViewportP* viewport : g.Viewports)
+        if (viewport->PlatformWindowCreated && viewport->PlatformHandle != nullptr) // Skip viewports without a Win32 window (e.g. the hidden Debug##Default)
+          ImGui_ImplDX11_CreateWindow (viewport);
     }
 
     // Textures destroyed by ImGui_ImplDX11_InvalidateDeviceObjects ( ) are recreated by ImGui from their CPU copy
