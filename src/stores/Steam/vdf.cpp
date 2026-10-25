@@ -863,9 +863,9 @@ skValveDataFile::getAppInfo ( uint32_t appid, app_list_t *apps )
 
         for (auto& launch : pAppRecord->launch_configs)
         {
-          // Ignore launch options requiring a beta key
-          // TODO: Contemplate this choice now that SKIF can read current beta!
-          if (! launch.second.branches.empty())
+          // Ignore invalid launch options, e.g. those requiring a beta branch the user is not on
+          //   (launch options for the beta branch the user *is* on may become the primary one)
+          if (! launch.second.valid)
             continue;
 
           if (launch.second.type == app_record_s::launch_config_s::Type::Default)
