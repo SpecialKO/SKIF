@@ -120,6 +120,10 @@ constexpr const wchar_t* SKIF_ImGui_WindowClass = L"SKIF_ImGuiWindow";
 constexpr const wchar_t* SKIF_ImGui_WindowTitle = L"Special K Popup"; // Default
 extern HWND SKIF_ImGui_hWnd;
 extern int  SKIF_nCmdShow;
+
+// Secondary windows resized by WM_DPICHANGED, whose move/resize requests are raised again in ImGui_ImplWin32_NewFrame ()
+struct SKIF_ImGui_DpiChangedWindow { HWND hWnd; bool move; };
+static ImVector<SKIF_ImGui_DpiChangedWindow> SKIF_ImGui_DpiChangedWindows;
 #endif // !SKIF_Win32
 
 // Using XInput for gamepad (will load DLL dynamically)
@@ -583,6 +587,23 @@ void    ImGui_ImplWin32_NewFrame()
       SKIF_TimeInMilliseconds;
       SKIF_TimeInMilliseconds =
         bd->Time / (bd->TicksPerSecond / 1000LL);
+
+    // Secondary windows resized by WM_DPICHANGED: that message usually arrives within ImGui's own Platform_SetWindowPos ()
+    //   call in UpdatePlatformWindows () (when ImGui moves the window to another monitor), and ImGui clears the move/resize
+    //     requests that WM_MOVE/WM_SIZE just raised once that call returns, so ImGui would keep the window and swapchain
+    //       at the size of the previous monitor. Raise them again so ImGui::NewFrame () picks up the new window rect.
+    for (const SKIF_ImGui_DpiChangedWindow& dpiChanged : SKIF_ImGui_DpiChangedWindows)
+    {
+      if (ImGuiViewport* viewport = ImGui::FindViewportByPlatformHandle ((void *)dpiChanged.hWnd))
+      {
+        viewport->PlatformRequestResize = true;
+
+        if (dpiChanged.move)
+          viewport->PlatformRequestMove = true;
+      }
+    }
+
+    SKIF_ImGui_DpiChangedWindows.clear ( );
 #endif // SKIF_Win32
 }
 
@@ -2228,24 +2249,50 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
           int g_dpi    = HIWORD (wParam);
           RECT* const prcNewWindow = (RECT*) lParam;
 
-          if (ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData)
+          ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData;
+
+          if (vd != nullptr)
           {
             vd->DpiScale_Last = vd->DpiScale;
             vd->DpiScale = (float) g_dpi / USER_DEFAULT_SCREEN_DPI;
           }
 
-          // Secondary windows (INI editor, local installs, update notes, popups, etc) take the rect Windows suggests for
-          //   the new DPI, as Per-Monitor V2 expects. ImGui picks up the new size through WM_SIZE -> PlatformRequestResize,
-          //     and auto-resizing windows refit to their content on the next frame anyway. Their style and fonts follow the
-          //       DPI of their own monitor through SKIF_ImGui_OnChangedViewport.
+          // Secondary windows (INI editor, local installs, update notes, popups, etc) take the size Windows suggests for
+          //   the new DPI, as Per-Monitor V2 expects. Auto-resizing windows refit to their content on the next frame anyway.
+          //     Their style and fonts follow the DPI of their own monitor through SKIF_ImGui_OnChangedViewport.
           if (hWnd != SKIF_ImGui_hWnd)
           {
-            ::SetWindowPos (hWnd, nullptr,
-                prcNewWindow->left,
-                prcNewWindow->top,
-                prcNewWindow->right  - prcNewWindow->left,
-                prcNewWindow->bottom - prcNewWindow->top,
-                SWP_NOZORDER | SWP_NOACTIVATE);
+            ImGuiContext& g = *ImGui::GetCurrentContext ( );
+
+            // Is ImGui dragging the window? It then moves it itself (Platform_SetWindowPos) based on the cursor position
+            const bool imgui_moving = (g.MovingWindow != nullptr && g.MovingWindow->Viewport == viewport);
+
+            if (imgui_moving)
+            {
+              // Only take the new size, and scale the grab offset so the cursor keeps its relative position within the
+              //   resized window (as Windows does for OS-driven moves); ImGui moves the window there on the next frame
+              const float ratio = (vd != nullptr && vd->DpiScale_Last > 0.0f) ? vd->DpiScale / vd->DpiScale_Last : 1.0f;
+              g.ActiveIdClickOffset = ImTrunc (g.ActiveIdClickOffset * ratio);
+
+              ::SetWindowPos (hWnd, nullptr,
+                  0, 0,
+                  prcNewWindow->right  - prcNewWindow->left,
+                  prcNewWindow->bottom - prcNewWindow->top,
+                  SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOMOVE);
+            }
+
+            else
+            {
+              ::SetWindowPos (hWnd, nullptr,
+                  prcNewWindow->left,
+                  prcNewWindow->top,
+                  prcNewWindow->right  - prcNewWindow->left,
+                  prcNewWindow->bottom - prcNewWindow->top,
+                  SWP_NOZORDER | SWP_NOACTIVATE);
+            }
+
+            // ImGui may clear the requests raised by WM_SIZE/WM_MOVE above (see ImGui_ImplWin32_NewFrame), so queue them again
+            SKIF_ImGui_DpiChangedWindows.push_back ({ hWnd, ! imgui_moving });
 
             return 0;
           }

@@ -1357,7 +1357,12 @@ SKIF_Updater::DrawWindowChanges (Window* wnd, WindowType type)
 
     ImGui::PushStyleColor (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
     ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
-    ImGui::PushFont       (fontConsolas, (fontConsolas != nullptr) ? fontConsolas->LegacySize : 0.0f); // Its own size (0 = keep the current one)
+    // Its own size (0 = keep the current one), rounded *down* to whole pixels at the current DPI scale: ImGui rounds font sizes
+    //   half up (e.g. 14 px * 125% = 17.5 -> 18 px), which at 125% and 175% made the 110 columns wide changelog a few pixels
+    //     wider than the window (sized 900 px * DPI scale), showing a horizontal scrollbar
+    const float fontScale        = ImGui::GetStyle ( ).FontScaleMain * ImGui::GetStyle ( ).FontScaleDpi;
+    const float fontConsolasSize = (fontConsolas != nullptr && fontScale > 0.0f) ? ImFloor (fontConsolas->LegacySize * fontScale) / fontScale : 0.0f;
+    ImGui::PushFont       (fontConsolas, fontConsolasSize);
 
     ImVec2 child_size = ImVec2 (ImGui::GetContentRegionAvail().x,
                                 ImGui::GetContentRegionAvail().y - fY);
