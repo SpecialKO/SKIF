@@ -29,6 +29,11 @@
 
 #include <MinHook.h>
 #include <SKIF.h>
+#include <thread>
+#include <atomic>
+#include <chrono>
+#include <cmath>
+#include <sstream>
 
 // Plog ini includes (must be included after SKIF.h)
 #include "plog/Initializers/RollingFileInitializer.h"
@@ -85,8 +90,8 @@
 #include <shlobj.h>
 #include <netlistmgr.h>
 #include <dwmapi.h>
+#include <utility/artwork.h>
 
-const int SKIF_STEAM_APPID      = 1157970;
 bool  RecreateD3DDevice         = false;
 bool  RecreateSwapChains        = false;
 bool  RecreateSwapChainsPending = false;
@@ -116,6 +121,7 @@ bool  allowShortcutCtrlA        = true; // Used to disable the Ctrl+A when inter
 bool  SKIF_MouseDragMoveAllowed = true;
 bool  SKIF_debuggerPresent      = false;
 DWORD SKIF_startupTime          = 0; // Used as a basis of how long the initialization took
+bool  SKIF_FirstPresentDone     = false; // Set by ImGui_ImplDX11_SwapBuffers ( ) on the first successful Present ( )
 DWORD SKIF_firstFrameTime       = 0; // Used as a basis of how long the initialization took
 HANDLE SteamProcessHandle       = NULL;
 
@@ -203,6 +209,16 @@ float fBottomDist = 0.0f;
 
 ID3D11Device*           SKIF_pd3dDevice           = nullptr;
 ID3D11DeviceContext*    SKIF_pd3dDeviceContext    = nullptr;
+
+// At launch SKIF starts on a WARP device (software rendering, quick to create), while the hardware device -- which
+//   takes 100+ ms to create, mostly loading the display driver -- is created on another thread. Once that's ready,
+//   ImGui_ImplDX11_NewFrame ( ) switches to it (SKIF_D3D11_AdoptPendingDevice). See CreateDeviceD3D ( ).
+static std::atomic <bool>    SKIF_DeviceSwitchPending      = false;   // On WARP, waiting for the hardware device
+static std::atomic <bool>    SKIF_PendingDeviceReady       = false;   // The hardware device below can be switched to
+static ID3D11Device*         SKIF_pd3dPendingDevice        = nullptr;
+static ID3D11DeviceContext*  SKIF_pd3dPendingDeviceContext = nullptr;
+static std::atomic <bool>    SKIF_TexturesOnWARP           = false;   // A texture was created on WARP: reload after the switch
+static DWORD                 SKIF_MainThreadId             = 0;
 //ID3D11RenderTargetView* SKIF_g_mainRenderTargetView = nullptr;
 
 // Forward declarations
@@ -210,6 +226,7 @@ HRESULT             SKIF_CreateDXGIFactory1 (REFIID riid, void **ppFactory);
 HRESULT             SKIF_D3D11CreateDevice  (IDXGIAdapter *pAdapter, D3D_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, const D3D_FEATURE_LEVEL *pFeatureLevels, UINT FeatureLevels, UINT SDKVersion, ID3D11Device **ppDevice, D3D_FEATURE_LEVEL *pFeatureLevel, ID3D11DeviceContext **ppImmediateContext);
 bool                CreateDeviceD3D         (HWND hWnd);
 void                CleanupDeviceD3D        (void);
+static void         CleanupPendingDeviceD3D (void);
 LRESULT WINAPI      SKIF_WndProc            (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 LRESULT WINAPI      SKIF_Notify_WndProc     (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 void                SKIF_Initialize         (LPWSTR lpCmdLine);
@@ -233,6 +250,244 @@ HWND        SKIF_Notify_hWnd   = NULL;
 HWND  hWndOrigForeground;
 HWND  hWndForegroundFocusOnExit = nullptr; // Game HWND as reported by Special K through WM_SKIF_EVENT_SIGNAL
 DWORD pidForegroundFocusOnExit  = NULL;    // Used to hold the game process ID that SKIF launched
+
+void SKIF_Shell_CreateNotifyIcon       (void);
+void SKIF_Shell_CreateUpdateNotifyMenu (void);
+
+bool SKIF_NotifyIconDeferred = false; // The notification icon is created by SKIF_OnStartupFinished ( )
+
+static UINT SKIF_HardwareDeviceFlags = 0; // D3D11CreateDevice ( ) flags for the hardware device (see CreateDeviceD3D)
+
+// Started on WARP: starts creating the hardware device on another thread (see SKIF_DeviceSwitchPending). Called once SKIF
+//   has started: loading the display driver holds the Windows loader lock for 100-300 ms, which held up the main thread
+//   creating and showing its window (that loads DLLs too) and every thread started meanwhile.
+static void
+SKIF_D3D11_StartHardwareDevice (void)
+{
+  static bool started = false;
+
+  if (started || ! SKIF_DeviceSwitchPending.load ( ))
+    return;
+
+  started = true;
+
+  const DWORD dwThreadCreated   = SKIF_Util_timeGetTime1 ( );
+  const UINT  createDeviceFlags = SKIF_HardwareDeviceFlags;
+
+  std::thread ([createDeviceFlags, dwThreadCreated]
+  {
+    DWORD dwStart = SKIF_Util_timeGetTime1 ( );
+
+    SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_D3D11DeviceWorker");
+
+    // SKIF prefers the E-cores from now on, but this is still part of starting up
+    SKIF_Util_SetThreadPrefersPCores ( );
+
+    PLOG_VERBOSE << "Creating D3D11 device with driver type: Hardware (in the background, " << (dwStart - SKIF_startupTime)
+                 << " ms after init; the thread started " << (dwStart - dwThreadCreated) << " ms after it was created)";
+
+    const D3D_FEATURE_LEVEL
+                      featureLevelArray [4] = {
+      D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0,
+      D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_10_0
+    };
+
+    ID3D11Device*        pDevice = nullptr;
+    ID3D11DeviceContext* pDevCtx = nullptr;
+    D3D_FEATURE_LEVEL    level;
+
+    HRESULT hrHardware = SKIF_D3D11CreateDevice ( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
+                                                    createDeviceFlags, featureLevelArray,
+                                                                sizeof (featureLevelArray) / sizeof level,
+                                                      D3D11_SDK_VERSION,
+                                                              &pDevice,
+                                                                      &level,
+                                                              &pDevCtx);
+
+    if (SUCCEEDED (hrHardware))
+    {
+      PLOG_DEBUG << "Created the hardware D3D11 device in " << (SKIF_Util_timeGetTime1 ( ) - dwStart) << " ms (" << (SKIF_Util_timeGetTime1 ( ) - SKIF_startupTime) << " ms after init).";
+
+      SKIF_pd3dPendingDevice        = pDevice;
+      SKIF_pd3dPendingDeviceContext = pDevCtx;
+      SKIF_PendingDeviceReady.store (true);
+
+      // Wake the main loop up, in case it's waiting for messages: it switches devices on its next frame
+      if (SKIF_Notify_hWnd != NULL)
+        PostMessage (SKIF_Notify_hWnd, WM_NULL, 0x0, 0x0);
+    }
+
+    else
+    {
+      PLOG_WARNING << "D3D11CreateDevice failed when using hardware. Staying on WARP...";
+
+      // Threads waiting for the hardware device (SKIF_D3D11_GetDevice) continue on WARP
+      SKIF_DeviceSwitchPending.store (false);
+    }
+  }).detach ( );
+}
+
+// Set once SKIF has started (see SKIF_OnStartupFinished)
+bool SKIF_StartupFinished = false;
+
+// The Direct3D DLLs (dxgi.dll, d3d11.dll, d3d10warp.dll) are loaded, and the first DXGI factory is created, on a thread
+//   of their own as soon as SKIF starts, alongside the init. The first factory of the process takes ~7 ms (it sets up
+//   the adapter enumeration), even with dxgi.dll loaded; CreateDeviceD3D ( ) takes it over the first time (DXGI
+//   factories are thread-safe). [Startup] timing (verbose) logged by CreateDeviceD3D ( ).
+static std::atomic <bool> SKIF_D3DDllPreloadDone      = false;
+static DWORD              SKIF_D3DDllPreloadEndTime   = 0;       // SKIF_Util_timeGetTime1 ( ), set before ..Done
+static double             SKIF_D3DDllPreloadMs        = 0.0;     // Set before ..Done
+static double             SKIF_D3DDllPreloadFactoryMs = 0.0;     // Set before ..Done
+static IDXGIFactory2*     SKIF_D3DDllPreloadFactory   = nullptr; // Set before ..Done; taken by CreateDeviceD3D ( )
+
+// [Startup] timing (verbose) with sub-ms precision
+static double
+SKIF_StartupMs (std::chrono::steady_clock::time_point from, std::chrono::steady_clock::time_point to = std::chrono::steady_clock::now ( ))
+{
+  return std::round (std::chrono::duration <double, std::milli> (to - from).count ( ) * 10.0) / 10.0;
+}
+
+// [Startup] timing (verbose) of the ImGui platform/renderer callbacks until the first present: creating, sizing and
+//   showing the window, creating its swapchain, and rendering and presenting the first frame. The wrappers stay
+//   installed afterwards, but then only call the backend's function. (Round 13 also logged each window message
+//   handled during them, which showed that Platform_UpdateWindow's ~8 ms was the window's first activation, but
+//   logging every message added ~5 ms to the startup, so it was removed.)
+#define SKIF_STARTUP_TIMED_CALLBACK(member, params, args)                                                          \
+  static decltype (ImGuiPlatformIO::member) SKIF_StartupOrig_##member = nullptr;                                  \
+  static void SKIF_StartupTimed_##member params                                                                    \
+  {                                                                                                                \
+    if (SKIF_FirstPresentDone)                                                                                     \
+      return SKIF_StartupOrig_##member args;                                                                       \
+    const auto start = std::chrono::steady_clock::now ( );                                                         \
+    SKIF_StartupOrig_##member args;                                                                                \
+    PLOG_VERBOSE << "[Startup] " #member " ( ) took " << SKIF_StartupMs (start) << " ms ("                         \
+                 << (SKIF_Util_timeGetTime1 ( ) - SKIF_startupTime) << " ms after init).";                         \
+  }
+
+SKIF_STARTUP_TIMED_CALLBACK (Platform_CreateWindow,   (ImGuiViewport* vp),                    (vp))
+SKIF_STARTUP_TIMED_CALLBACK (Platform_ShowWindow,     (ImGuiViewport* vp),                    (vp))
+SKIF_STARTUP_TIMED_CALLBACK (Platform_UpdateWindow,   (ImGuiViewport* vp),                    (vp))
+SKIF_STARTUP_TIMED_CALLBACK (Platform_SetWindowFocus, (ImGuiViewport* vp),                    (vp))
+SKIF_STARTUP_TIMED_CALLBACK (Platform_SetWindowPos,   (ImGuiViewport* vp, ImVec2 v),          (vp, v))
+SKIF_STARTUP_TIMED_CALLBACK (Platform_SetWindowSize,  (ImGuiViewport* vp, ImVec2 v),          (vp, v))
+SKIF_STARTUP_TIMED_CALLBACK (Platform_SetWindowTitle, (ImGuiViewport* vp, const char* title), (vp, title))
+SKIF_STARTUP_TIMED_CALLBACK (Renderer_CreateWindow,   (ImGuiViewport* vp),                    (vp))
+SKIF_STARTUP_TIMED_CALLBACK (Renderer_SetWindowSize,  (ImGuiViewport* vp, ImVec2 v),          (vp, v))
+SKIF_STARTUP_TIMED_CALLBACK (Renderer_SwapBuffers,    (ImGuiViewport* vp, void* arg),         (vp, arg))
+
+// Rendering the first frame: submitting the draws. (Waiting here for the device to finish them was tried in round 10:
+//   on WARP the drawing took ~10-13 ms and the present itself ~3 ms, but the wait's GetData ( ) polling, which flushes
+//   each time, slowed WARP down and added several ms to the startup, so it was removed.)
+static decltype (ImGuiPlatformIO::Renderer_RenderWindow) SKIF_StartupOrig_Renderer_RenderWindow = nullptr;
+static void
+SKIF_StartupTimed_Renderer_RenderWindow (ImGuiViewport* vp, void* arg)
+{
+  if (SKIF_FirstPresentDone)
+    return SKIF_StartupOrig_Renderer_RenderWindow (vp, arg);
+
+  const auto start = std::chrono::steady_clock::now ( );
+
+  SKIF_StartupOrig_Renderer_RenderWindow (vp, arg);
+
+  PLOG_VERBOSE << "[Startup] Renderer_RenderWindow ( ) took " << SKIF_StartupMs (start) << " ms submitting the draws"
+               << ((vp->DrawData != nullptr) ? " (" + std::to_string (vp->DrawData->CmdListsCount) + " draw lists, " + std::to_string (vp->DrawData->TotalVtxCount) + " vertices)" : "")
+               << "; the device draws them during the Present ( ).";
+}
+
+static void
+SKIF_StartupTimedCallbacks_Install (void)
+{
+  ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO ( );
+
+#define SKIF_STARTUP_INSTALL(member)                                \
+  if (platform_io.member != nullptr)                                \
+  {                                                                 \
+    SKIF_StartupOrig_##member = platform_io.member;                 \
+    platform_io.member        = &SKIF_StartupTimed_##member;        \
+  }
+
+  SKIF_STARTUP_INSTALL (Platform_CreateWindow)
+  SKIF_STARTUP_INSTALL (Platform_ShowWindow)
+  SKIF_STARTUP_INSTALL (Platform_UpdateWindow)
+  SKIF_STARTUP_INSTALL (Platform_SetWindowFocus)
+  SKIF_STARTUP_INSTALL (Platform_SetWindowPos)
+  SKIF_STARTUP_INSTALL (Platform_SetWindowSize)
+  SKIF_STARTUP_INSTALL (Platform_SetWindowTitle)
+  SKIF_STARTUP_INSTALL (Renderer_CreateWindow)
+  SKIF_STARTUP_INSTALL (Renderer_SetWindowSize)
+  SKIF_STARTUP_INSTALL (Renderer_RenderWindow)
+  SKIF_STARTUP_INSTALL (Renderer_SwapBuffers)
+
+#undef SKIF_STARTUP_INSTALL
+}
+
+// Work that waits until SKIF has started, so that it doesn't delay the first frame. Called once the first frame has
+//   been presented, or by a fallback timer if nothing is presented (e.g. started without showing the window).
+//  - On hybrid CPUs SKIF prefers the E-cores, but only from now on: until then (D3D device, fonts, the first frames and
+//    the first present, as well as the first library load) it uses all cores, as the user waits on it.
+//  - The notification icon is created (when SKIF starts minimized or to the tray it is created right away instead).
+//  - Started on WARP: the hardware device is created (SKIF_D3D11_StartHardwareDevice).
+//  - The gamepad input thread is spawned (it loads XInput).
+//  - SKIF_StartupFinished is set, after which the library tab registers the drop target (RegisterDragDrop) and starts
+//    the icon and cover workers.
+static void
+SKIF_OnStartupFinished (void)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static bool                   done        = false;
+
+  if (done)
+    return;
+
+  done = true;
+
+  SKIF_StartupFinished = true; // E.g. the drop target is registered, and the icon and cover workers start, from now on
+
+  // Make sure a few more frames follow, so the library starts its icon and cover workers right away
+  if (SKIF_Notify_hWnd != NULL)
+    PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
+
+  if (SKIF_Notify_hWnd != NULL)
+    KillTimer (SKIF_Notify_hWnd, cIDT_TIMER_STARTUP);
+
+  // Detected on a thread of its own at launch (waits for it if it hasn't finished)
+  _registry._ProcessorHasECores = SKIF_Util_IsHybridCPU ( );
+
+  // Set process preference to E-cores using only CPU sets, :)
+  //  as affinity masks are inherited by child processes... :(
+  if (_registry._ProcessorHasECores)
+    SKIF_Util_SetProcessPrefersECores ( );
+
+  // Started on WARP: create the hardware device now
+  SKIF_D3D11_StartHardwareDevice ( );
+
+  // Spawn the gamepad input thread: it loads XInput right away, which holds the loader lock for as long as it takes
+  //   (up to ~65 ms with a custom XInput1_4.dll), and any other thread loading a DLL or starting up waits on it.
+  //   Spawned this late, it can no longer stall the startup.
+  static SKIF_GamePadInputHelper& _gamepad = SKIF_GamePadInputHelper::GetInstance ( );
+  _gamepad.SpawnChildThread ( );
+
+  if (SKIF_NotifyIconDeferred)
+  {
+    SKIF_NotifyIconDeferred = false;
+
+    SKIF_Shell_CreateNotifyIcon       ();
+    SKIF_Shell_CreateUpdateNotifyMenu ();
+  }
+}
+
+static VOID CALLBACK
+SKIF_StartupTimerProc (HWND hWnd, UINT Msg, UINT_PTR idEvent, DWORD dwTime)
+{
+  UNREFERENCED_PARAMETER (hWnd);
+  UNREFERENCED_PARAMETER (Msg);
+  UNREFERENCED_PARAMETER (idEvent);
+  UNREFERENCED_PARAMETER (dwTime);
+
+  PLOG_VERBOSE << "Nothing has been presented 5 seconds after startup; finishing startup now.";
+
+  SKIF_OnStartupFinished ( );
+}
 
 void CALLBACK
 SKIF_EfficiencyModeTimerProc (HWND hWnd, UINT Msg, UINT wParamIDEvent, DWORD dwTime)
@@ -1479,6 +1734,31 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_MainThread");
 
+  // Load the Direct3D DLLs alongside the init (see SKIF_D3DDllPreloadDone). Started after the LoadLibrary hooks above
+  //   are in place. The modules stay loaded (SKIF_CreateDXGIFactory1 and SKIF_D3D11CreateDevice load them again).
+  std::thread ([](void)
+  {
+    SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_D3DDllPreload");
+
+    const auto start = std::chrono::steady_clock::now ( );
+
+    LoadLibraryExW (L"dxgi.dll",      nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+    LoadLibraryExW (L"d3d11.dll",     nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+    LoadLibraryExW (L"d3d10warp.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+
+    const auto factoryStart = std::chrono::steady_clock::now ( );
+
+    IDXGIFactory2* pFactory = nullptr;
+    if (SUCCEEDED (SKIF_CreateDXGIFactory1 (__uuidof (IDXGIFactory2), (void **)&pFactory)))
+      SKIF_D3DDllPreloadFactory = pFactory;
+
+    SKIF_D3DDllPreloadFactoryMs = SKIF_StartupMs (factoryStart);
+    SKIF_D3DDllPreloadMs      = SKIF_StartupMs (start);
+    SKIF_D3DDllPreloadEndTime = SKIF_Util_timeGetTime1 ( );
+    SKIF_D3DDllPreloadDone.store (true, std::memory_order_release);
+    SKIF_D3DDllPreloadDone.notify_all ( );
+  }).detach ( );
+
   //CoInitializeEx (nullptr, 0x0);
   OleInitialize (NULL); // Needed for IDropTarget
 
@@ -1613,27 +1893,58 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Get the current time to use as a basis of how long the initialization took
   SKIF_startupTime = SKIF_Util_timeGetTime1();
 
+  // [Startup] timing (verbose) of the steps until ImGui is initialized, logged there. Also how long the process ran
+  //   before init (loading SKIF.exe and its DLLs, the C runtime, MinHook, OleInitialize, the cmd line checks above).
+  double startupProcessMs = -1.0;
+  {
+    FILETIME ftCreation = { }, ftExit = { }, ftKernel = { }, ftUser = { }, ftNow = { };
+
+    if (GetProcessTimes (GetCurrentProcess ( ), &ftCreation, &ftExit, &ftKernel, &ftUser))
+    {
+      SKIF_Util_GetSystemTimePreciseAsFileTime (&ftNow);
+
+      ULARGE_INTEGER creation, now;
+      creation.LowPart = ftCreation.dwLowDateTime; creation.HighPart = ftCreation.dwHighDateTime;
+      now     .LowPart = ftNow     .dwLowDateTime; now     .HighPart = ftNow     .dwHighDateTime;
+
+      startupProcessMs = std::round (static_cast <double> (now.QuadPart - creation.QuadPart) / 1000.0) / 10.0; // 100 ns units
+    }
+  }
+
+  std::vector <std::pair <const char*, std::chrono::steady_clock::time_point>> startupSteps;
+  startupSteps.reserve (16);
+  startupSteps.emplace_back ("init", std::chrono::steady_clock::now ( ));
+  auto _StartupStep = [&](const char* step) { startupSteps.emplace_back (step, std::chrono::steady_clock::now ( )); };
+
   // Process cmd line arguments (1/4) -- this sets up the necessary variables
   SKIF_Startup_ProcessCmdLineArgs (lpCmdLine);
+  _StartupStep ("cmd line (1/4)");
 
   // This constructs these singleton objects
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( ); // Does not rely on anything
+  _StartupStep ("paths");
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( ); // Does not rely on anything
+  _StartupStep ("registry settings");
 
   // Initialize SKIF
   SKIF_Initialize (lpCmdLine); // Relies on _path_cache and sets up logging
+  _StartupStep ("SKIF_Initialize (logging)");
 
   plog::get()->setMaxSeverity((plog::Severity) _registry.iLogging);
 
   PLOG_INFO << "Max severity to log was set to " << _registry.iLogging;
 
-  // Detect if the system is running on a hybrid CPU (e.g. Intel Alder Lake)
-  _registry._ProcessorHasECores = SKIF_Util_IsHybridCPU ( );
+  // Detect if the system is running on a hybrid CPU (e.g. Intel Alder Lake). It moves a thread across every logical
+  //   processor, which can take tens of ms (e.g. right after a restart), and nothing needs the result until SKIF has
+  //   started (SKIF_OnStartupFinished sets _registry._ProcessorHasECores), so it runs on a thread of its own
+  std::thread ([](void)
+  {
+    SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_HybridDetect");
+    SKIF_Util_IsHybridCPU ( ); // Runs the detection (SKIF_Util_GetProcessInfoHybridDetect)
+  }).detach ( );
 
-  // Set process preference to E-cores using only CPU sets, :)
-  //  as affinity masks are inherited by child processes... :(
-  if (_registry._ProcessorHasECores)
-    SKIF_Util_SetProcessPrefersECores ( );
+  // The preference for E-cores is set once SKIF has started (see SKIF_OnStartupFinished)
+  _StartupStep ("starting the CPU detection");
 
   // This constructs the singleton object
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( ); // Relies on SKIF_Initialize (working dir) + _path_cache (cached paths) + logging
@@ -1644,9 +1955,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
   SKIF_Startup_AddGame               (lpCmdLine);
   SKIF_Startup_LaunchGamePreparation (lpCmdLine);
   SKIF_Startup_LaunchURIPreparation  (lpCmdLine);
+  _StartupStep ("injection context, cmd line (2/4)");
 
   // Force a one-time check so we know whether to start/stop the service...
   _inject._TestServletRunlevel (true);
+  _StartupStep ("service runlevel");
 
   // If there already an instance of SKIF running we do not
   //   need to create a window to service the cmd line args
@@ -1664,9 +1977,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
       SKIF_Startup_RaiseRunningInstance    ( );
   }
 
+  _StartupStep ("cmd line (3/4)");
+
   // Sets the current process app user model ID (used for jump lists and the like)
   if (FAILED (SKIF_Util_SetCurrentProcessExplicitAppUserModelID (SKIF_AppUserModelID)))
     PLOG_ERROR << "Call to SKIF_Util_SetCurrentProcessExplicitAppUserModelID failed!";
+  _StartupStep ("app user model ID");
 
   // Load the SKIF.exe module (used to populate the icon here and there)
   hModSKIF =
@@ -1728,11 +2044,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_Util_RegisterApp ( );
   }
 
+  _StartupStep ("CFA check, global registry values, app registration");
+
   // Generate install GUID if relevant and one does not exist
   SKIF_Util_GenerateInstallGUID ( );
 
   // Set up OS decorations
   SKIF_Util_UpdateAppColorMode ( );
+
+  _StartupStep ("install GUID, app color mode");
 
   PLOG_INFO << "Creating notification icon...";
 
@@ -1764,8 +2084,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   // The notify window has been created but not displayed.
   // Now we have a parent window to which a notification tray icon can be associated.
-  SKIF_Shell_CreateNotifyIcon       ();
-  SKIF_Shell_CreateUpdateNotifyMenu ();
+  //   It is created once SKIF has started (SKIF_OnStartupFinished), so that it doesn't delay the first frame, unless
+  //   SKIF starts minimized or to the tray, or runs without its window: then it is needed right away.
+  if (startedMinimized || SKIF_isTrayed || _Signal.Launcher || _Signal.LauncherURI || _Signal.Quit || _Signal.ServiceMode)
+  {
+    SKIF_Shell_CreateNotifyIcon       ();
+    SKIF_Shell_CreateUpdateNotifyMenu ();
+  }
+
+  else
+    SKIF_NotifyIconDeferred = true;
+
+  _StartupStep ("notification window");
 
   // Initialize the gamepad input child thread
   static SKIF_GamePadInputHelper& _gamepad =
@@ -1813,25 +2143,19 @@ wWinMain ( _In_     HINSTANCE hInstance,
     }
   }
 
-  PLOG_INFO << "Initializing Direct3D...";
+  _StartupStep ("cmd line (4/4), window mode");
 
-  DWORD temp_time = SKIF_Util_timeGetTime1();
-
-  // Initialize Direct3D
-  if (! CreateDeviceD3D (SKIF_Notify_hWnd))
   {
-    CleanupDeviceD3D ();
-    return 1;
+    std::ostringstream steps;
+
+    for (size_t i = 1; i < startupSteps.size ( ); i++)
+      steps << ((i > 1) ? ", " : "") << SKIF_StartupMs (startupSteps [i - 1].second, startupSteps [i].second) << " ms " << startupSteps [i].first;
+
+    PLOG_VERBOSE << "[Startup] The process ran for " << startupProcessMs << " ms before init. Init -> ImGui took "
+                 << SKIF_StartupMs (startupSteps.front ( ).second, startupSteps.back ( ).second) << " ms: " << steps.str ( ) << ".";
   }
 
-  PLOG_DEBUG << "Operation [CreateDeviceD3D] took " << (SKIF_Util_timeGetTime1() - temp_time) << " ms.";
-
-  // Register to be notified if the effective power mode changes
-  //SKIF_Util_SetEffectivePowerModeNotifications (true); // (this serves no purpose yet)
-
-  // The DropTarget object used for drag-and-drop support for new covers
-  static SKIF_DropTargetObject& _drag_drop  = SKIF_DropTargetObject::GetInstance ( );
-
+  // ImGui is initialized before Direct3D, so the font atlas can be built while the D3D device is created (see below)
   PLOG_INFO << "Initializing ImGui...";
 
   // Setup Dear ImGui context
@@ -1893,8 +2217,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Setup Platform/Renderer bindings
   PLOG_INFO << "Initializing ImGui Win32 platform...";
   ImGui_ImplWin32_Init (nullptr); // This sets up a separate window/hWnd as well, though it will first be created at the end of the main loop
-  PLOG_INFO << "Initializing ImGui D3D11 platform...";
-  ImGui_ImplDX11_Init  (SKIF_pd3dDevice, SKIF_pd3dDeviceContext);
 
   //SKIF_Util_GetMonitorHzPeriod (SKIF_hWnd, MONITOR_DEFAULTTOPRIMARY, dwDwmPeriod);
   //OutputDebugString((L"Initial refresh rate period: " + std::to_wstring (dwDwmPeriod) + L"\n").c_str());
@@ -1910,6 +2232,51 @@ wWinMain ( _In_     HINSTANCE hInstance,
   // Initialize ImGui fonts
   PLOG_INFO << "Initializing ImGui fonts...";
   SKIF_ImGui_InitFonts (SKIF_ImGui_FontSizeDefault, (! _Signal.Launcher && ! _Signal.LauncherURI && ! _Signal.Quit && ! _Signal.ServiceMode) );
+
+  // Build the font atlas on a thread of its own while the D3D device is created: it's CPU work only (~25 ms), and
+  //   ImGui_ImplDX11_CreateFontsTexture ( ) skips the build if it has been done already. The main thread does not
+  //   touch ImGui until the thread has been joined below.
+  std::thread fontAtlasBuild ([atlas = io.Fonts]
+  {
+    SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_FontAtlasBuild");
+
+    DWORD dwStart = SKIF_Util_timeGetTime1 ( );
+
+    atlas->Build ( );
+
+    PLOG_DEBUG << "Operation [Fonts->Build] took " << (SKIF_Util_timeGetTime1 ( ) - dwStart) << " ms (in parallel with creating the D3D device).";
+  });
+
+  PLOG_INFO << "Initializing Direct3D...";
+
+  DWORD temp_time = SKIF_Util_timeGetTime1();
+
+  // Initialize Direct3D
+  if (! CreateDeviceD3D (SKIF_Notify_hWnd))
+  {
+    fontAtlasBuild.join ( );
+    CleanupDeviceD3D ();
+    return 1;
+  }
+
+  PLOG_DEBUG << "Operation [CreateDeviceD3D] took " << (SKIF_Util_timeGetTime1() - temp_time) << " ms.";
+
+  // Wait for the font atlas to finish building
+  temp_time = SKIF_Util_timeGetTime1();
+  fontAtlasBuild.join ( );
+  PLOG_VERBOSE << "[Startup] Waited " << (SKIF_Util_timeGetTime1() - temp_time) << " ms for the font atlas to finish building.";
+
+  // Register to be notified if the effective power mode changes
+  //SKIF_Util_SetEffectivePowerModeNotifications (true); // (this serves no purpose yet)
+
+  // The DropTarget object used for drag-and-drop support for new covers
+  static SKIF_DropTargetObject& _drag_drop  = SKIF_DropTargetObject::GetInstance ( );
+
+  PLOG_INFO << "Initializing ImGui D3D11 platform...";
+  ImGui_ImplDX11_Init  (SKIF_pd3dDevice, SKIF_pd3dDeviceContext);
+
+  // [Startup] timing (verbose) of the window callbacks until the first present
+  SKIF_StartupTimedCallbacks_Install ( );
 
   // Variable related to continue/pause processing behaviour
   bool HiddenFramesContinueProcessing = true;  // We always have hidden frames that require to continue processing on init
@@ -1931,20 +2298,37 @@ wWinMain ( _In_     HINSTANCE hInstance,
     SKIF_Util_RegisterHotKeySVCTemp   (_registry.kbStartService.getKeybind());
   }
 
-  // Spawn the gamepad input thread
-  _gamepad.SpawnChildThread ( );
+  // The gamepad input thread is spawned once startup has finished (see SKIF_OnStartupFinished)
 
   PLOG_INFO << "Initializing updater...";
   // Initialize the updater
   static SKIF_Updater& _updater =
          SKIF_Updater::GetInstance ( );
 
+  // Finish startup after 5 seconds if nothing has been presented by then (see SKIF_OnStartupFinished)
+  if (SKIF_Notify_hWnd != NULL)
+    SetTimer (SKIF_Notify_hWnd, cIDT_TIMER_STARTUP, 5000, &SKIF_StartupTimerProc);
+
   // Main loop
   PLOG_INFO << "Entering main loop...";
   SKIF_firstFrameTime = SKIF_Util_timeGetTime1 ( );
 
+  // [Startup] timing (verbose): the frames until the first one has been presented
+  bool  startupTiming     = true;
+  int   startupFrame      = 0;
+  DWORD startupFrameEnd   = 0;
+  DWORD startupNewFrame   = 0, // Before ImGui_ImplDX11_NewFrame ( )
+        startupUI         = 0, // After ImGui::NewFrame ( )
+        startupLibrary    = 0, // Time spent in SKIF_UI_Tab_DrawLibrary ( )
+        startupRender     = 0, // Before ImGui::Render ( )
+        startupRendered   = 0; // After ImGui::Render ( )
+
   while (! SKIF_Shutdown.load() ) // && IsWindow (hWnd) )
   {
+    const DWORD frameStart = SKIF_Util_timeGetTime1 ( );
+
+    if (startupTiming && startupFrame > 0)
+      PLOG_VERBOSE << "[Startup] Waited " << (frameStart - startupFrameEnd) << " ms before frame " << (startupFrame + 1) << ".";
     // Reset on each frame
     SKIF_MouseDragMoveAllowed = true;
     coverFadeActive           = false; // Assume there's no cover fade effect active
@@ -2479,10 +2863,19 @@ wWinMain ( _In_     HINSTANCE hInstance,
     bool _WantUpdateMonitors =
       SKIF_ImGui_ImplWin32_WantUpdateMonitors (    );
 
+    if (startupTiming)
+    {
+      startupNewFrame = SKIF_Util_timeGetTime1 ( );
+      startupLibrary  = 0;
+    }
+
     // Start the Dear ImGui frame
     ImGui_ImplDX11_NewFrame  (); // (Re)create individual swapchain windows
     ImGui_ImplWin32_NewFrame (); // Handle input
     ImGui::NewFrame          ();
+
+    if (startupTiming)
+      startupUI = SKIF_Util_timeGetTime1 ( );
     {
       SKIF_FrameCount.store(ImGui::GetFrameCount());
 
@@ -2720,7 +3113,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
           }
         }
 
-        if (hotkeyCtrlA && allowShortcutCtrlA)
+        // Ctrl+A belongs to the Local Installs window (select all) while it has focus
+        if (hotkeyCtrlA && allowShortcutCtrlA && ! SKIF_LocalManager::GetInstance ( ).IsFocused ( ))
         {
           if (SKIF_Tab_Selected != UITab_Library)
               SKIF_Tab_ChangeTo  = UITab_Library;
@@ -2830,9 +3224,22 @@ wWinMain ( _In_     HINSTANCE hInstance,
             PLOG_DEBUG << "Switched to tab: Library";
           }
 
-          // Ensure we have set up the drop target on the Library tab
-          if (SKIF_ImGui_hWnd != NULL)
+          // Ensure we have set up the drop target on the Library tab. Not until SKIF has started, as the first
+          //   RegisterDragDrop ( ) takes several ms (it sets up COM marshaling and an OLE window), which would
+          //   otherwise delay the first present.
+          if (SKIF_ImGui_hWnd != NULL && SKIF_StartupFinished)
+          {
+            static bool loggedRegister = false;
+
+            const DWORD dwRegisterStart = (! loggedRegister) ? SKIF_Util_timeGetTime1 ( ) : 0;
+
             _drag_drop.Register (SKIF_ImGui_hWnd);
+
+            if (! loggedRegister)
+            {   loggedRegister = true;
+              PLOG_VERBOSE << "[Startup] Registering the drop target took " << (SKIF_Util_timeGetTime1 ( ) - dwRegisterStart) << " ms.";
+            }
+          }
 
           SKIF_Tab_Selected = UITab_Library;
           if (SKIF_Tab_ChangeTo == UITab_Library)
@@ -2840,7 +3247,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           extern void
             SKIF_UI_Tab_DrawLibrary (void);
+
+          const DWORD libraryStart = (startupTiming) ? SKIF_Util_timeGetTime1 ( ) : 0;
+
             SKIF_UI_Tab_DrawLibrary (     );
+
+          if (startupTiming)
+            startupLibrary += SKIF_Util_timeGetTime1 ( ) - libraryStart;
 
           ImGui::EndChild         ( );
           ImGui::EndTabItem       ( );
@@ -3462,12 +3875,36 @@ wWinMain ( _In_     HINSTANCE hInstance,
       ImGui::ShowDemoWindow     ( );
     }
 
+    if (startupTiming)
+      startupRender = SKIF_Util_timeGetTime1 ( );
+
     // Actual rendering is conditional, this just processes input and ends the ImGui frame.
     ImGui::Render (); // also calls ImGui::EndFrame ();
 
-    if (SKIF_ImGui_hWnd != NULL)
+    if (startupTiming)
+      startupRendered = SKIF_Util_timeGetTime1 ( );
+
+    // The jump list takes ~30 ms of COM / shell work, so it's created on a thread of its own once the window has
+    //   been presented (it used to be created on this thread before the first present)
+    if (SKIF_ImGui_hWnd != NULL && SKIF_FirstPresentDone)
     {
-      SK_RunOnce (SKIF_Shell_CreateJumpList ( ));
+      SK_RunOnce (
+        std::thread ([]
+        {
+          SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_JumpListWorker");
+
+          if (SUCCEEDED (CoInitializeEx (nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE)))
+          {
+            DWORD dwStart = SKIF_Util_timeGetTime1 ( );
+
+            SKIF_Shell_CreateJumpList ( );
+
+            PLOG_VERBOSE << "Created the jump list in " << (SKIF_Util_timeGetTime1 ( ) - dwStart) << " ms.";
+
+            CoUninitialize ( );
+          }
+        }).detach ( )
+      );
     }
 
     // Disable navigation highlight on first frames
@@ -3556,7 +3993,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
     }
 
+    const DWORD framePlatform = SKIF_Util_timeGetTime1 ( );
+
     ImGui::UpdatePlatformWindows ( ); // This creates all ImGui related windows, including the main application window, and also updates the window and swapchain sizes etc
+
+    const DWORD frameRender   = SKIF_Util_timeGetTime1 ( );
 
     if (bRefresh)
     {
@@ -3576,6 +4017,36 @@ wWinMain ( _In_     HINSTANCE hInstance,
         //OutputDebugString((L"Initial refresh rate period: " + std::to_wstring (dwDwmPeriod) + L"\n").c_str());
       }
     }
+
+    if (startupTiming)
+    {
+      const DWORD frameEnd = SKIF_Util_timeGetTime1 ( );
+
+      startupFrame++;
+
+      PLOG_VERBOSE << "[Startup] Frame " << startupFrame << " ended " << (frameEnd - SKIF_startupTime) << " ms after init: "
+                   << (framePlatform - frameStart)  << " ms building it ("
+                   <<  (startupNewFrame - frameStart)                       << " ms before NewFrame, "
+                   <<  (startupUI       - startupNewFrame)                  << " ms NewFrame, "
+                   <<   startupLibrary                                      << " ms library tab, "
+                   << ((startupRender   - startupUI) - startupLibrary)      << " ms rest of the UI, "
+                   <<  (startupRendered - startupRender)                    << " ms ImGui::Render, "
+                   <<  (framePlatform   - startupRendered)                  << " ms after it), "
+                   << (frameRender   - framePlatform) << " ms updating the windows, "
+                   << (frameEnd      - frameRender)   << " ms rendering and presenting"
+                   << ((! bRefresh)               ? " (not rendered)"   : "")
+                   << ((SKIF_ImGui_hWnd == NULL)  ? " (no window yet)"  : "")
+                   << ((SKIF_FirstPresentDone)    ? " (first present)"  : "") << ".";
+
+      startupFrameEnd = frameEnd;
+
+      if (SKIF_FirstPresentDone || startupFrame >= 100)
+        startupTiming = false;
+    }
+
+    // SKIF has started (see SKIF_OnStartupFinished)
+    if (SKIF_FirstPresentDone)
+      SKIF_OnStartupFinished ( );
 
     if ( startedMinimized && SKIF_ImGui_IsFocused ( ) )
     {
@@ -3948,6 +4419,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
   ImGui_ImplWin32_Shutdown    ( );
 
   CleanupDeviceD3D            ( );
+  CleanupPendingDeviceD3D     ( );
 
   PLOG_INFO << "Destroying notification icon...";
   _gamepad.UnregisterDevNotification ( );
@@ -4067,7 +4539,29 @@ bool CreateDeviceD3D (HWND hWnd)
 
   CComPtr <IDXGIFactory2> pFactory2;
 
-  if (FAILED (SKIF_CreateDXGIFactory1 (__uuidof (IDXGIFactory2), (void **)&pFactory2.p)))
+  // The first time: take over the DXGI factory created alongside the init (see SKIF_D3DDllPreloadDone), waiting for it
+  //   if it isn't done yet (it does the same work as creating one here would)
+  static bool firstFactory = true;
+  if (firstFactory)
+  {   firstFactory = false;
+
+    const auto waitStart = std::chrono::steady_clock::now ( );
+    const bool wasDone   = SKIF_D3DDllPreloadDone.load (std::memory_order_acquire);
+
+    SKIF_D3DDllPreloadDone.wait (false, std::memory_order_acquire);
+
+    pFactory2.Attach (SKIF_D3DDllPreloadFactory); // Takes its reference
+    SKIF_D3DDllPreloadFactory = nullptr;
+
+    const double waitedMs = SKIF_StartupMs (waitStart);
+
+    PLOG_VERBOSE << "[Startup] The Direct3D DLLs and the DXGI factory were preloaded in " << SKIF_D3DDllPreloadMs << " ms (the factory "
+                 << SKIF_D3DDllPreloadFactoryMs << " ms), finished " << static_cast <int> (SKIF_D3DDllPreloadEndTime - SKIF_startupTime) << " ms after init"
+                 << "; waited " << ((wasDone) ? 0.0 : waitedMs) << " ms for it"
+                 << ((pFactory2 == nullptr) ? "; it failed, so the factory is created here." : ".");
+  }
+
+  if (pFactory2 == nullptr && FAILED (SKIF_CreateDXGIFactory1 (__uuidof (IDXGIFactory2), (void **)&pFactory2.p)))
     return false;
 
   // Windows 7 (2013 Platform Update), or Windows 8+
@@ -4078,8 +4572,13 @@ bool CreateDeviceD3D (HWND hWnd)
     SKIF_Util_IsWindows8Point1OrGreater ( );
 
   // Windows 10 1709+ (Build 16299)
-  _registry._RendererCanHDR                =
-    SKIF_Util_IsHDRActive (NULL);
+  // Querying the displays takes ~10 ms (the first time), so it runs alongside the device creation below. It's needed
+  //   for the dummy swapchain at the end (std::jthread: also joined on the early returns)
+  std::jthread hdrQuery ([&]
+  {
+    _registry._RendererCanHDR              =
+      SKIF_Util_IsHDRActive (NULL);
+  });
 
   CComQIPtr <IDXGIFactory5>
                   pFactory5 (pFactory2.p);
@@ -4116,11 +4615,28 @@ bool CreateDeviceD3D (HWND hWnd)
     ? D3D_DRIVER_TYPE_HARDWARE
     : D3D_DRIVER_TYPE_WARP;
 
-  PLOG_VERBOSE << "Creating D3D11 device with driver type: " << (driverType == D3D_DRIVER_TYPE_HARDWARE ? "Hardware" : "WARP");
-
   UINT createDeviceFlags = 0;
   // This MUST be disabled before public release! Otherwise systems without the Windows SDK installed will crash on launch.
   //createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG; // Enable debug layer of D3D11
+
+  // At launch: start on WARP and create the hardware device on another thread (see SKIF_DeviceSwitchPending). Later
+  //   calls (the device was removed, or the settings changed) create the device directly.
+  //   The WARP device is created first and the hardware device only after it: creating the hardware device loads the
+  //   display driver's DLLs, which holds the Windows loader lock for 100+ ms, and creating the WARP device at the same
+  //   time (it loads d3d10warp.dll) then waits for that -- it took ~20 ms or ~130 ms depending on which came first.
+  static bool firstDevice = true;
+  const  bool startOnWARP = (firstDevice && driverType == D3D_DRIVER_TYPE_HARDWARE);
+  firstDevice = false;
+
+  if (startOnWARP)
+    driverType = D3D_DRIVER_TYPE_WARP;
+
+  PLOG_VERBOSE << "Creating D3D11 device with driver type: " << (driverType == D3D_DRIVER_TYPE_HARDWARE ? "Hardware" : "WARP")
+               << ((startOnWARP) ? " (the hardware device is created in the background afterwards)" : "");
+
+  // [Startup] diagnostics: the device creation time, and whether its DLL had to be loaded
+  const DWORD dwCreateStart = SKIF_Util_timeGetTime1 ( );
+  const bool  bWARPLoaded   = (GetModuleHandleW (L"d3d10warp.dll") != NULL);
 
   HRESULT hr = SKIF_D3D11CreateDevice ( nullptr, driverType, nullptr,
                                           createDeviceFlags, featureLevelArray,
@@ -4129,6 +4645,34 @@ bool CreateDeviceD3D (HWND hWnd)
                                                     &SKIF_pd3dDevice,
                                                             &featureLevel,
                                                     &SKIF_pd3dDeviceContext);
+
+  if (driverType == D3D_DRIVER_TYPE_WARP)
+    PLOG_DEBUG << "[Startup] Creating the WARP device took " << (SKIF_Util_timeGetTime1 ( ) - dwCreateStart) << " ms ("
+               << (SKIF_Util_timeGetTime1 ( ) - SKIF_startupTime) << " ms after init; d3d10warp.dll "
+               << ((bWARPLoaded) ? "was already loaded" : "had to be loaded") << ").";
+
+  // Running on WARP: the hardware device is created once SKIF has started (see SKIF_D3D11_StartHardwareDevice)
+  if (startOnWARP && SUCCEEDED (hr))
+  {
+    SKIF_MainThreadId        = GetCurrentThreadId ( );
+    SKIF_HardwareDeviceFlags = createDeviceFlags;
+    SKIF_DeviceSwitchPending.store (true);
+  }
+
+  else if (startOnWARP) // Starting on WARP failed: create the hardware device here instead
+  {
+    PLOG_WARNING << "D3D11CreateDevice failed when using WARP. Creating the hardware device instead...";
+
+    driverType = D3D_DRIVER_TYPE_HARDWARE;
+
+    hr = SKIF_D3D11CreateDevice ( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
+                                    createDeviceFlags, featureLevelArray,
+                                                sizeof (featureLevelArray) / sizeof featureLevel,
+                                      D3D11_SDK_VERSION,
+                                              &SKIF_pd3dDevice,
+                                                      &featureLevel,
+                                              &SKIF_pd3dDeviceContext);
+  }
 
   if (FAILED (hr) && driverType != D3D_DRIVER_TYPE_WARP)
   {
@@ -4162,6 +4706,9 @@ bool CreateDeviceD3D (HWND hWnd)
       }
     }
   }
+
+  // The display query started above
+  hdrQuery.join ( );
 
   // We need to try creating a dummy swapchain before we actually start creating
   //   viewport windows. This is to ensure a compatible format is used from the
@@ -4261,6 +4808,68 @@ void CleanupDeviceD3D (void)
   IUnknown_AtomicRelease ((void **)&SKIF_pd3dDevice);
 }
 
+// At exit: a hardware device that was never switched to (see SKIF_DeviceSwitchPending). Not part of CleanupDeviceD3D ( ),
+//   which also runs when switching to it and when the device is recreated
+static void CleanupPendingDeviceD3D (void)
+{
+  if (SKIF_PendingDeviceReady.exchange (false))
+  {
+    IUnknown_AtomicRelease ((void **)&SKIF_pd3dPendingDeviceContext);
+    IUnknown_AtomicRelease ((void **)&SKIF_pd3dPendingDevice);
+  }
+}
+
+// Started on WARP: true while the hardware device is being created or not yet switched to
+bool SKIF_D3D11_IsDeviceSwitchPending (void)
+{
+  return SKIF_DeviceSwitchPending.load ( );
+}
+
+// Started on WARP: the hardware device is ready to be switched to (by ImGui_ImplDX11_NewFrame)
+bool SKIF_D3D11_IsPendingDeviceReady (void)
+{
+  return SKIF_PendingDeviceReady.load ( );
+}
+
+// Replaces the WARP device with the hardware device. Called by ImGui_ImplDX11_NewFrame ( ) on the main thread, once
+//   everything created on the WARP device by the ImGui backend (swapchains, device objects) has been released
+bool SKIF_D3D11_AdoptPendingDevice (void)
+{
+  extern DWORD invalidatedDevice;
+
+  if (! SKIF_PendingDeviceReady.load ( ))
+    return false;
+
+  // Release the WARP device (not with CleanupDeviceD3D ( ): see CleanupPendingDeviceD3D)
+  IUnknown_AtomicRelease ((void **)&SKIF_pd3dDeviceContext);
+  IUnknown_AtomicRelease ((void **)&SKIF_pd3dDevice);
+
+  SKIF_pd3dDevice               = SKIF_pd3dPendingDevice;
+  SKIF_pd3dDeviceContext        = SKIF_pd3dPendingDeviceContext;
+  SKIF_pd3dPendingDevice        = nullptr;
+  SKIF_pd3dPendingDeviceContext = nullptr;
+  SKIF_PendingDeviceReady.store (false);
+
+  // Textures the main thread created on WARP are reloaded by the library tab (other threads waited for the switch)
+  if (SKIF_TexturesOnWARP.load ( ))
+    invalidatedDevice = 1;
+
+  // Threads waiting in SKIF_D3D11_GetDevice ( ) continue, on the hardware device
+  SKIF_DeviceSwitchPending.store (false);
+
+  CComPtr <IDXGIDevice> dxgiDevice;
+  if (SUCCEEDED (SKIF_pd3dDevice->QueryInterface (IID_PPV_ARGS (&dxgiDevice))))
+  {
+    CComPtr <IDXGIAdapter> adapter;
+    DXGI_ADAPTER_DESC      desc;
+
+    if (SUCCEEDED (dxgiDevice->GetAdapter (&adapter)) && SUCCEEDED (adapter->GetDesc (&desc)))
+      PLOG_INFO << "Switched from WARP to the D3D11 device on adapter: " << desc.Description << " (" << (SKIF_Util_timeGetTime1 ( ) - SKIF_startupTime) << " ms after init).";
+  }
+
+  return true;
+}
+
 // Prevent race conditions between asset loading and device init
 //
 void SKIF_WaitForDeviceInitD3D (void)
@@ -4278,6 +4887,20 @@ SKIF_D3D11_GetDevice (bool bWait)
 {
   if (bWait)
     SKIF_WaitForDeviceInitD3D ();
+
+  // Started on WARP: resources are created on the hardware device, so other threads wait for the switch (done on the
+  //   main thread, which therefore doesn't wait). Anything created on WARP is reloaded after it (see AdoptPendingDevice).
+  if (SKIF_DeviceSwitchPending.load ( ))
+  {
+    if (bWait && GetCurrentThreadId ( ) != SKIF_MainThreadId)
+    {
+      while (SKIF_DeviceSwitchPending.load ( ))
+        Sleep (5);
+    }
+
+    else
+      SKIF_TexturesOnWARP.store (true);
+  }
 
   return
     SKIF_pd3dDevice;
@@ -4571,29 +5194,15 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_SKIF_COVER:
+      // A cover worker finished: the next frames swap its result in (SKIF_LibraryArtwork::ApplyWorkerResults)
       addAdditionalFrames += 3;
-
-      // Update tryingToLoadCover
-      extern bool tryingToLoadCover;
-      extern std::atomic<bool> gameCoverLoading;
-      tryingToLoadCover = gameCoverLoading.load();
-
-      // Empty working set after the cover has finished loading
-      if (! tryingToLoadCover)
-        SKIF_Util_CompactWorkingSet ( );
       break;
 
     case WM_SKIF_REFRESHCOVER:
       addAdditionalFrames += 3;
 
-      // Update refreshCover
-      extern bool     coverRefresh; // This just triggers a refresh of the cover
-      extern uint32_t coverRefreshAppId;
-      extern int      coverRefreshStore;
-
-      coverRefresh      = true;
-      coverRefreshAppId = (uint32_t)wParam;
-      coverRefreshStore = ( int    )lParam;
+      // A custom cover has been saved: reload it if it is the one shown
+      SKIF_LibraryArtwork::Get ( ).OnCoverSaved ({ (app_record_s::Store)lParam, (uint32_t)wParam }); // SaveGameCover: wParam = app ID, lParam = store
 
       break;
 

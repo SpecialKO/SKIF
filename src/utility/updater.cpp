@@ -15,6 +15,7 @@
 #include <utility/fsutil.h>
 #include <utility/registry.h>
 #include <utility/injection.h>
+#include <utility/games.h>
 #include <netlistmgr.h>
 
 #include <imgui/imgui.h>
@@ -71,6 +72,9 @@ SKIF_Updater::SKIF_Updater (void)
   InitializeConditionVariable (&UpdaterPaused);
   extern SKIF_Signals _Signal;
 
+  // [Startup] timing (verbose) of the constructor
+  const DWORD dwCtorStart = SKIF_Util_timeGetTime1 ( );
+
   if (! _Signal.Launcher && ! _Signal.LauncherURI && ! _Signal.Quit && ! _Signal.ServiceMode)
   {
     // Clearing out old installers...
@@ -82,6 +86,8 @@ SKIF_Updater::SKIF_Updater (void)
     // Initial changes.txt read...
     ReadChangesFile ( );
   }
+
+  const DWORD dwCtorFiles = SKIF_Util_timeGetTime1 ( );
 
   // Start the child thread that is responsible for checking for updates
   static HANDLE hWorkerThread = (HANDLE)
@@ -113,6 +119,31 @@ SKIF_Updater::SKIF_Updater (void)
     }
 
     PLOG_VERBOSE << "SKIF_UpdaterJob thread started!";
+
+    // Wait until the library has been loaded and shown: the first check (downloads, hashing the installer) would
+    //   otherwise compete with it for the CPU. At most 5 seconds, for when the library isn't loading (another tab
+    //   is open, or the window isn't shown).
+    {
+      static SKIF_GamingCollection& _games = SKIF_GamingCollection::Get ( );
+
+      DWORD dwStart  = SKIF_Util_timeGetTime1 ( ),
+            dwLoaded = 0;
+
+      while (true)
+      {
+        DWORD dwNow = SKIF_Util_timeGetTime1 ( );
+
+        if (dwLoaded == 0 && _games.HasPopulatedOnce ( ))
+            dwLoaded = dwNow;
+
+        if ((dwLoaded != 0 && dwNow - dwLoaded >= 500) || dwNow - dwStart >= 5000 || SKIF_Shutdown.load ( ))
+          break;
+
+        Sleep (50);
+      }
+
+      PLOG_VERBOSE << "The updater waited " << (SKIF_Util_timeGetTime1 ( ) - dwStart) << " ms for the library to load.";
+    }
 
     do
     {
@@ -319,6 +350,12 @@ SKIF_Updater::SKIF_Updater (void)
 
     return 0;
   }, nullptr, 0x0, nullptr);
+
+  const DWORD dwCtorEnd = SKIF_Util_timeGetTime1 ( );
+
+  PLOG_VERBOSE << "[Startup] Initializing the updater took " << (dwCtorEnd - dwCtorStart) << " ms ("
+               << (dwCtorFiles - dwCtorStart) << " ms clearing old installers and reading patrons.txt and changes.txt, "
+               << (dwCtorEnd   - dwCtorFiles) << " ms starting the updater thread).";
 
   if (hWorkerThread != NULL)
   {

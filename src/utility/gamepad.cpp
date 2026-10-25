@@ -257,12 +257,14 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
 
       for (wchar_t* dll : xinput_dlls)
       {
+        DWORD dwLoadStart = SKIF_Util_timeGetTime1 ( );
+
         hModXInput = LoadLibraryW (dll);
 
         if (hModXInput == nullptr)
           continue;
 
-        PLOG_VERBOSE << "Loaded the XInput library: " << dll;
+        PLOG_VERBOSE << "Loaded the XInput library: " << dll << " (in " << (SKIF_Util_timeGetTime1 ( ) - dwLoadStart) << " ms)";
 
         if (runOnce)
         {

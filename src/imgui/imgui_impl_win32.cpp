@@ -1219,6 +1219,8 @@ struct ImGui_ImplWin32_ViewportData
     DWORD   DwExStyle;
     DWORD   WmSize;  // WM_SIZE
     bool    Focused; // WM_SETFOCUS / WM_KILLFOCUS
+    float   DpiScale_Last = 1.0f;
+    float   DpiScale      = 1.0f;
 
 #ifdef SKIF_Win32
     bool    RemovedDWMBorders;
@@ -1349,6 +1351,7 @@ static void ImGui_ImplWin32_CreateWindow(ImGuiViewport *viewport)
   vd->HwndOwned = true;
   viewport->PlatformRequestResize = false;
   viewport->PlatformHandle = viewport->PlatformHandleRaw = vd->Hwnd;
+  vd->DpiScale = (_registry.bDPIScaling) ? ImGui_ImplWin32_GetDpiScaleForHwnd (vd->Hwnd) : 1.0f;
 
   // We need to store the first window in the backend / globally
   ImGui_ImplWin32_Data* bd = ImGui_ImplWin32_GetBackendData();
@@ -1776,6 +1779,7 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
     extern bool KeyWinKey;
     extern int  SnapKeys;
 
+    ///*
     PLOG_VERBOSE_IF(_registry.isDevLogging()) << std::format("[{:0>5d}] [0x{:<4x}] [{:5d}] [{:20s}]{:s}[0x{:x}, {:d}{:s}] [0x{:x}, {:d}]",
                       ImGui::GetFrameCount(),
                       msg, // Hexadecimal
@@ -1785,6 +1789,7 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
                       wParam, wParam,
                ((HWND)wParam == SKIF_ImGui_hWnd ?  ", SKIF_ImGui_hWnd"   : ""),  // Does wParam point to SKIF_ImGui_hWnd ?
                       lParam, lParam);
+    //*/
 
 #define SKIF_MAXIMIZE_POS 27     // 27
 #define SWP_STATECHANGED  0x8000 // Undocumented
@@ -2019,6 +2024,11 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
           int g_dpi    = HIWORD (wParam);
           RECT* const prcNewWindow = (RECT*) lParam;
 
+          if (ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData)
+          {
+            vd->DpiScale_Last = vd->DpiScale;
+            vd->DpiScale = (float) g_dpi / USER_DEFAULT_SCREEN_DPI;
+          }
 
           // Update the style scaling for the main stuff
           if (hWnd == SKIF_ImGui_hWnd)

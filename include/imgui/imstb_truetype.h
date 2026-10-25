@@ -1779,7 +1779,14 @@ static int stbtt__GetGlyphShapeTT(const stbtt_fontinfo *info, int glyph_index, s
                // where we can start, and we need to save some state for when we wraparound.
                scx = x;
                scy = y;
-               if (!(vertices[off+i+1].type & 1)) {
+               if (i + 1 >= n) {
+                  // SKIF: the last point starts a contour of its own (a degenerate glyph). The branches below read
+                  //   vertices[off+i+1], one element past the end of the allocation: an out-of-bounds read that crashes
+                  //   when the allocation ends at the end of a memory page (seen in SKIF as a rare crash on launch,
+                  //   in Fonts->Build). Start the contour at the point itself instead.
+                  sx = x;
+                  sy = y;
+               } else if (!(vertices[off+i+1].type & 1)) {
                   // next point is also a curve point, so interpolate an on-point curve
                   sx = (x + (stbtt_int32) vertices[off+i+1].x) >> 1;
                   sy = (y + (stbtt_int32) vertices[off+i+1].y) >> 1;

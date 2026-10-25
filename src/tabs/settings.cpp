@@ -17,6 +17,7 @@
 #include <utility/updater.h>
 #include <utility/gamepad.h>
 #include <utility/ini_reader.h>
+#include <utility/artwork.h>
 
 extern bool allowShortcutCtrlA;
 bool saveIniOSD = false;
@@ -816,14 +817,13 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::TreePush      ("PCGWCovers");
 
-    extern bool coverRefresh;
-    extern float fAlpha;
+    static SKIF_LibraryArtwork& _art = SKIF_LibraryArtwork::Get ( );
 
     if (ImGui::Checkbox       ("GOG",         &_registry.bPCGWCoversGOG))
     {
       _registry.regKVPCGWCoversGOG.putData    (_registry.bPCGWCoversGOG);
-      coverRefresh = true;
-      fAlpha       = (_registry.bFadeCovers) ? 0.0f : 1.0f;
+      _art.RefreshShownCover ( );
+      _art.ResetCoverAlpha   ( );
     }
 
     ImGui::SameLine ( );
@@ -833,8 +833,8 @@ SKIF_UI_Tab_DrawSettings (void)
     if (ImGui::Checkbox       ("Steam",       &_registry.bPCGWCoversSteam))
     {
       _registry.regKVPCGWCoversSteam.putData  (_registry.bPCGWCoversSteam);
-      coverRefresh = true;
-      fAlpha       = (_registry.bFadeCovers) ? 0.0f : 1.0f;
+      _art.RefreshShownCover ( );
+      _art.ResetCoverAlpha   ( );
     }
 
     ImGui::TreePop          ( );
@@ -1137,8 +1137,7 @@ SKIF_UI_Tab_DrawSettings (void)
     {
       _registry.regKVFadeCovers.putData (_registry.bFadeCovers);
 
-      extern float fAlpha;
-      fAlpha = (_registry.bFadeCovers) ?   0.0f   : 1.0f;
+      SKIF_LibraryArtwork::Get ( ).ResetCoverAlpha ( );
     }
 
     SKIF_ImGui_SetHoverTip ("Fade between game covers when switching games.");

@@ -101,30 +101,23 @@ FastTextureLoading (const std::wstring& path, DirectX::TexMetadata& meta, Direct
   return success;
 }
 
-void
-LoadLibraryTexture (
+bool
+LoadLibraryTextureEx (
         LibraryTexture                      libTexToLoad,
         uint32_t                            appid,
-        CComPtr <ID3D11ShaderResourceView>& pLibTexSRV,
         const std::wstring&                 name,
-        ImVec2&                             resolution,
-      //ImVec2&                             vCoverUv0,
-      //ImVec2&                             vCoverUv1,
-        app_record_s*                       pApp)
+        app_record_s*                       pApp,
+        library_texture_s&                  out)
 {
-  // NOT REALLY THREAD-SAFE WHILE IT RELIES ON THESE STATIC GLOBAL OBJECTS!
+  // Settings and paths are only read here; see the threading notes in generic_library2.h
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
-
-  static const int SKIF_STEAM_APPID = 1157970;
 
   CComPtr <ID3D11Texture2D> pTex2D;
   DirectX::TexMetadata        meta = { };
   DirectX::ScratchImage        img = { };
 
-  std::wstring load_str = L"\0",
-               SKIFCustomPath,
-               SteamCustomPath;
+  std::wstring load_str = L"\0";
 
   bool succeeded    = false;
   bool customAsset  = false;
@@ -132,278 +125,57 @@ LoadLibraryTexture (
 
   DWORD pre = SKIF_Util_timeGetTime1();
 
+  // A cover SKIF downloaded that does not decode (e.g. an error page saved as the image) would otherwise stay
+  //   forever, since an existing file is never downloaded again: delete it. Returns true if it was deleted.
+  auto _DeleteUndecodableDownload = [&](const std::wstring& path) -> bool
+  {
+    if (pApp == nullptr || libTexToLoad != LibraryTexture::Cover || ! managedAsset || customAsset)
+      return false;
+
+    const std::filesystem::path fsPath (path);
+    std::wstring fileName = SKIF_Util_ToLowerW (fsPath.filename ( ).wstring ( ));
+
+    if ((fileName.rfind (L"cover-original.", 0) == 0 || fileName == L"cover-pcgw.png") &&
+        SKIF_Util_ToLowerW (fsPath.parent_path ( ).wstring ( ) + L"\\") == SKIF_Util_ToLowerW (pApp->GetAssetDirectory ( )) &&
+        DeleteFileW (path.c_str ( )))
+    {
+      PLOG_WARNING << "Deleted a downloaded cover that could not be decoded: " << path;
+      return true;
+    }
+
+    return false;
+  };
+
   // Games (not embedded Special K resources)
   if (pApp != nullptr)
   {
     appid = pApp->id;
 
-    if (libTexToLoad == LibraryTexture::Cover)
-      pApp->tex_cover.isCustom = pApp->tex_cover.isManaged = false;
-
-    if (libTexToLoad == LibraryTexture::Icon)
-      pApp->tex_icon.isCustom  = pApp->tex_icon.isManaged  = false;
-
-    // SKIF
-    if (       appid == SKIF_STEAM_APPID           &&
-         pApp->store == app_record_s::Store::Steam  )
+    // Store-specific: the user's custom artwork, else the store's (Special K: custom only, else embedded below).
+    //   If a downloaded cover does not decode it is deleted, and the next candidate in the store's order is tried
+    //   right away (e.g. the PCGamingWiki cover, then the store's cover). Each retry needs one file fewer, so this ends.
+    for (int attempt = 0; attempt < 3; attempt++)
     {
-      SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\)", _path_cache.specialk_userdata);
+      customAsset  = false;
+      managedAsset = true; // Assume true (only GOG and SKIF itself is not managed)
+      load_str     = pApp->ResolveArtwork (libTexToLoad, name, customAsset, managedAsset);
 
-      if (libTexToLoad == LibraryTexture::Cover)
-        SKIFCustomPath += L"cover";
-      else
-        SKIFCustomPath += L"icon";
+      if (load_str == L"\0")
+        break;
 
-      if      (PathFileExistsW ((SKIFCustomPath + L".png").c_str()))
-        load_str =               SKIFCustomPath + L".png";
-      else if (PathFileExistsW ((SKIFCustomPath + L".jpg").c_str()))
-        load_str =               SKIFCustomPath + L".jpg";
-      else if (libTexToLoad == LibraryTexture::Icon &&
-               PathFileExistsW ((SKIFCustomPath + L".ico").c_str()))
-        load_str =               SKIFCustomPath + L".ico";
+      PLOG_VERBOSE << "Texture to load: " << load_str;
 
-      customAsset = managedAsset = (load_str != L"\0");
-    }
+      succeeded = FastTextureLoading (load_str, meta, img);
 
-    // SKIF Custom
-    else if (pApp->store == app_record_s::Store::Custom)
-    {
-      SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, appid);
+      if (succeeded || ! _DeleteUndecodableDownload (load_str))
+        break;
 
-      if (libTexToLoad == LibraryTexture::Cover)
-        SKIFCustomPath += L"cover";
-      else
-        SKIFCustomPath += L"icon";
-
-      if      (PathFileExistsW    ((SKIFCustomPath + L".png").c_str()))
-        load_str =                  SKIFCustomPath + L".png";
-      else if (PathFileExistsW    ((SKIFCustomPath + L".jpg").c_str()))
-        load_str =                  SKIFCustomPath + L".jpg";
-      else if (libTexToLoad == LibraryTexture::Icon &&
-               PathFileExistsW    ((SKIFCustomPath + L".ico").c_str()))
-        load_str =                  SKIFCustomPath + L".ico";
-
-      customAsset = (load_str != L"\0");
-
-      if (! customAsset)
-      {
-        if      (libTexToLoad == LibraryTexture::Icon &&
-                 SKIF_Util_SaveExtractExeIcon (pApp->launch_configs[0].getExecutableFullPath ( ), SKIFCustomPath + L"-original.png"))
-          load_str =                SKIFCustomPath + L"-original.png";
-      }
-    }
-
-    // Epic
-    else if (pApp->store == app_record_s::Store::Epic)
-    {
-      std::wstring EpicAssetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)", _path_cache.specialk_userdata, SK_UTF8ToWideChar (pApp->epic.name_app).c_str());
-      SKIFCustomPath = std::wstring(EpicAssetPath);
-
-      if (libTexToLoad == LibraryTexture::Cover)
-        SKIFCustomPath += L"cover";
-      else
-        SKIFCustomPath += L"icon";
-
-      if      (PathFileExistsW  ((SKIFCustomPath + L".png").c_str()))
-        load_str =                SKIFCustomPath + L".png";
-      else if (PathFileExistsW  ((SKIFCustomPath + L".jpg").c_str()))
-        load_str =                SKIFCustomPath + L".jpg";
-      else if (libTexToLoad == LibraryTexture::Icon &&
-               PathFileExistsW  ((SKIFCustomPath + L".ico").c_str()))
-        load_str =                SKIFCustomPath + L".ico";
-
-      customAsset = (load_str != L"\0");
-
-      if (! customAsset)
-      {
-        if      (libTexToLoad == LibraryTexture::Cover &&
-                 PathFileExistsW ((EpicAssetPath + L"cover-original.jpg").c_str()))
-          load_str =               EpicAssetPath + L"cover-original.jpg";
-        else if (libTexToLoad == LibraryTexture::Icon &&
-                 SKIF_Util_SaveExtractExeIcon (pApp->launch_configs[0].getExecutableFullPath ( ), EpicAssetPath + L"icon-original.png"))
-          load_str =               SKIFCustomPath + L"-original.png";
-      }
-
-      // Extract a copy of the icon and save it as an .ico
-      if (libTexToLoad == LibraryTexture::Icon)
-      {
-        std::wstring
-          OriginalIconPath  = EpicAssetPath + L"icon-original.png",
-          ExtractedIconPath = EpicAssetPath + L"icon-original.ico";
-
-        if (! PathFileExistsW (ExtractedIconPath.c_str()))
-          SKIF_Util_SaveImageAsICO (OriginalIconPath.c_str(), ExtractedIconPath.c_str(), 32);
-      }
-    }
-
-    // GOG
-    else if (pApp->store == app_record_s::Store::GOG)
-    {
-      SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)", _path_cache.specialk_userdata, appid);
-
-      if (libTexToLoad == LibraryTexture::Cover)
-        SKIFCustomPath += L"cover";
-      else
-        SKIFCustomPath += L"icon";
-
-      if      (PathFileExistsW ((SKIFCustomPath + L".png").c_str()))
-        load_str =               SKIFCustomPath + L".png";
-      else if (PathFileExistsW ((SKIFCustomPath + L".jpg").c_str()))
-        load_str =               SKIFCustomPath + L".jpg";
-      else if (libTexToLoad == LibraryTexture::Icon &&
-               PathFileExistsW ((SKIFCustomPath + L".ico").c_str()))
-        load_str =               SKIFCustomPath + L".ico";
-
-      customAsset = (load_str != L"\0");
-
-      if (! customAsset)
-      {
-        if      (libTexToLoad == LibraryTexture::Icon &&
-                 SKIF_Util_SaveExtractExeIcon (pApp->launch_configs[0].getExecutableFullPath ( ), SKIFCustomPath + L"-original.png"))
-          load_str =             SKIFCustomPath + L"-original.png";
-        else if (libTexToLoad == LibraryTexture::Icon)
-        {
-          managedAsset = false; // GOG default icons are not managed
-          load_str =             name;
-        }
-
-        else if (libTexToLoad == LibraryTexture::Cover)
-        {
-          // Load PCGW cover
-          if (_registry.bPCGWCoversGOG &&
-              PathFileExistsW ((SKIFCustomPath + L"-pcgw.png").c_str()))
-          {
-            load_str =          SKIFCustomPath + L"-pcgw.png";
-
-            managedAsset = true; // PCGW covers are managed
-          }
-
-          // Load GOG Galaxy cover
-          else {
-            managedAsset = false; // GOG covers are not managed
-
-            extern std::wstring GOGGalaxy_UserID;
-            load_str = SK_FormatStringW (LR"(C:\ProgramData\GOG.com\Galaxy\webcache\%ws\gog\%i\)", GOGGalaxy_UserID.c_str(), appid);
-
-            HANDLE hFind        = INVALID_HANDLE_VALUE;
-            WIN32_FIND_DATA ffd = { };
-
-            hFind =
-              FindFirstFileExW ((load_str + name).c_str(), FindExInfoBasic, &ffd, FindExSearchNameMatch, NULL, NULL);
-            //FindFirstFile((load_str + name).c_str(), &ffd);
-
-            if (INVALID_HANDLE_VALUE != hFind)
-            {
-              load_str += ffd.cFileName;
-              FindClose(hFind);
-            }
-          }
-        }
-      }
-    }
-
-    // Xbox
-    else if (pApp->store == app_record_s::Store::Xbox)
-    {
-      std::wstring XboxAssetPath = SK_FormatStringW(LR"(%ws\Assets\Xbox\%ws\)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->xbox.package_name).c_str());
-      SKIFCustomPath = std::wstring(XboxAssetPath);
-
-      if (libTexToLoad == LibraryTexture::Cover)
-        SKIFCustomPath += L"cover";
-      else
-        SKIFCustomPath += L"icon";
-
-      if      (PathFileExistsW  ((SKIFCustomPath + L".png").c_str()))
-        load_str =                SKIFCustomPath + L".png";
-      else if (PathFileExistsW  ((SKIFCustomPath + L".jpg").c_str()))
-        load_str =                SKIFCustomPath + L".jpg";
-      else if (libTexToLoad == LibraryTexture::Icon &&
-               PathFileExistsW  ((SKIFCustomPath + L".ico").c_str()))
-        load_str =                SKIFCustomPath + L".ico";
-
-      customAsset = (load_str != L"\0");
-
-      if (! customAsset)
-      {
-        if      (libTexToLoad == LibraryTexture::Cover &&
-                 PathFileExistsW ((SKIFCustomPath + L"-original.png").c_str()))
-          load_str =               SKIFCustomPath + L"-original.png";
-        else if (libTexToLoad == LibraryTexture::Cover &&
-                 PathFileExistsW ((SKIFCustomPath + L"-fallback.png").c_str()))
-          load_str =               SKIFCustomPath + L"-fallback.png";
-        else if (libTexToLoad == LibraryTexture::Icon &&
-                 PathFileExistsW ((SKIFCustomPath + L"-original.png").c_str()))
-          load_str =               SKIFCustomPath + L"-original.png";
-      }
-    }
-
-    // STEAM
-    else if (pApp->store == app_record_s::Store::Steam)
-    {
-      SKIFCustomPath    = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",                  _path_cache.specialk_userdata,                            appid);
-      SteamCustomPath   = SK_FormatStringW (LR"(%ws\userdata\%i\config\grid\%i)",        _path_cache.steam_install, SKIF_Steam_GetCurrentUser ( ), appid);
-
-      if (libTexToLoad == LibraryTexture::Cover)
-        SKIFCustomPath += L"cover";
-      else
-        SKIFCustomPath += L"icon";
-
-      // Extract a copy of the official Steam icon and save it as a .ico
-      if (libTexToLoad == LibraryTexture::Icon)
-      {
-        std::wstring
-          ExtractedIconPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\icon-original.ico)", _path_cache.specialk_userdata,                        appid);
-
-        if (! PathFileExistsW (ExtractedIconPath.c_str()))
-          SKIF_Util_SaveImageAsICO (name.c_str(), ExtractedIconPath.c_str(), 32);
-      }
-
-      if      (PathFileExistsW (( SKIFCustomPath +  L".png").c_str()))
-        load_str =                SKIFCustomPath +  L".png";
-      else if (PathFileExistsW (( SKIFCustomPath +  L".jpg").c_str()))
-        load_str =                SKIFCustomPath +  L".jpg";
-      else if (libTexToLoad == LibraryTexture::Icon  &&
-               PathFileExistsW (( SKIFCustomPath +  L".ico").c_str()))
-        load_str =                SKIFCustomPath +  L".ico";
-
-      customAsset = (load_str != L"\0");
-
-      if (! customAsset)
-      {
-        managedAsset = false; // Steam's user-specific custom covers are not managed
-
-        if      (libTexToLoad == LibraryTexture::Cover && _registry.bPCGWCoversSteam &&
-                 PathFileExistsW ((SKIFCustomPath + L"-pcgw.png").c_str()))
-        {
-          load_str =               SKIFCustomPath + L"-pcgw.png";
-          managedAsset = true; // PCGW cover is managed!
-        }
-        else if (libTexToLoad == LibraryTexture::Cover &&
-                 PathFileExistsW ((SteamCustomPath + L"p.png").c_str()))
-          load_str =               SteamCustomPath + L"p.png";
-        else if (libTexToLoad == LibraryTexture::Cover &&
-                 PathFileExistsW ((SteamCustomPath + L"p.jpg").c_str()))
-          load_str =               SteamCustomPath + L"p.jpg";
-        else {
-          load_str =               name;
-
-          // The fallback is normally managed! <%ws\Assets\Steam\%i\cover-original.jpg>
-          // The only time it is not is when SKIF is in tinyCovers mode and loaded the original 300x450 cover from the Steam client
-          if (load_str.find (L"cover-original.jpg") != std::wstring::npos)
-            managedAsset = true;
-        }
-      }
+      PLOG_INFO << "Trying the next cover candidate...";
     }
   }
 
-  PLOG_VERBOSE_IF (load_str != L"\0") << "Texture to load: " << load_str;
-
-  if (load_str != L"\0")
-  {
-    succeeded = FastTextureLoading (load_str, meta, img);
-  }
-
-  else if (appid        == SKIF_STEAM_APPID     &&
+  if (load_str     == L"\0"                &&
+      appid        == SKIF_STEAM_APPID     &&
            libTexToLoad != LibraryTexture::Cover ) // We have no embedded cover any longer
   {
     PLOG_VERBOSE << "Texture to load (embedded): " << name;
@@ -422,58 +194,11 @@ LoadLibraryTexture (
     }
   }
 
-  // Push the existing texture to a stack to be released after the frame
-  //   Do this regardless of whether we could actually load the new cover or not
-  if (pLibTexSRV.p != nullptr)
-  {
-    extern concurrency::concurrent_queue <IUnknown *> SKIF_ResourcesToFree;
-    PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << pLibTexSRV.p << " to be released";;
-    SKIF_ResourcesToFree.push (pLibTexSRV.p);
-    pLibTexSRV.p = nullptr;
-  }
-
   if (! succeeded)
-    return;
+    return false;
 
   DirectX::ScratchImage* pImg  =   &img;
   DirectX::ScratchImage   converted_img;
-
-  // Start aspect ratio
-#if 0
-  vCoverUv0 = ImVec2(0.f, 0.f); // Top left corner
-  vCoverUv1 = ImVec2(1.f, 1.f); // Bottom right corner
-  ImVec2 vecTex2D = ImVec2(600.f, 900.f);
-
-  vecTex2D.x = static_cast<float>(meta.width);
-  vecTex2D.y = static_cast<float>(meta.height);
-
-  ImVec2 diff = ImVec2(0.0f, 0.0f);
-
-  // Crop wider aspect ratios by their width
-  if ((vecTex2D.x / vecTex2D.y) > (600.f / 900.f))
-  {
-    float newWidth = vecTex2D.x / vecTex2D.y * 900.0f;
-    diff.x = (600.0f / newWidth);
-    diff.x -= 1.0f;
-    diff.x /= 2;
-
-    vCoverUv0.x = 0.f - diff.x;
-    vCoverUv1.x = 1.f + diff.x;
-  }
-
-  // Crop thinner aspect ratios by their height
-  else if ((vecTex2D.x / vecTex2D.y) < (600.f / 900.f))
-  {
-    float newHeight = vecTex2D.y / vecTex2D.x * 600.0f;
-    diff.y = (900.0f / newHeight);
-    diff.y -= 1.0f;
-    diff.y /= 2;
-
-    vCoverUv0.y = 0.f - diff.y;
-    vCoverUv1.y = 1.f + diff.y;
-  }
-#endif
-  // End aspect ratio
 
   // We don't want single-channel icons, so convert to RGBA
   if (meta.format == DXGI_FORMAT_R8_UNORM)
@@ -526,14 +251,14 @@ LoadLibraryTexture (
   }
 
   // Store the resolution of the loaded image
-  resolution.x = static_cast<float> (meta.width);
-  resolution.y = static_cast<float> (meta.height);
+  out.resolution.x = static_cast<float> (meta.width);
+  out.resolution.y = static_cast<float> (meta.height);
 
   auto pDevice =
     SKIF_D3D11_GetDevice ();
 
   if (! pDevice)
-    return;
+    return false;
 
   pTex2D = nullptr;
 
@@ -565,7 +290,7 @@ LoadLibraryTexture (
       FAILED (
         pDevice->CreateShaderResourceView (
             pTex2D.p, &srv_desc,
-          &pLibTexSRV.p
+          &out.srv.p
         )
       )
     )
@@ -578,22 +303,55 @@ LoadLibraryTexture (
       DWORD post = SKIF_Util_timeGetTime1 ( );
       PLOG_DEBUG << "[Image Processing] Processed image in " << (post - pre) << " ms.";
 
-      if (pApp != nullptr)
-      {
-        if      (libTexToLoad == LibraryTexture::Cover)
-        {
-          pApp->tex_cover.isCustom  = customAsset;
-          pApp->tex_cover.isManaged = managedAsset;
-        }
-        else if (libTexToLoad == LibraryTexture::Icon)
-        {
-          pApp->tex_icon.isCustom  = customAsset;
-          pApp->tex_icon.isManaged = managedAsset;
-        }
-      }
+      out.isCustom  = customAsset;
+      out.isManaged = managedAsset;
     }
 
     // SRV is holding a reference, this is not needed anymore.
     pTex2D = nullptr;
   }
-};
+
+  return (out.srv.p != nullptr);
+}
+
+void
+LoadLibraryTexture (
+        LibraryTexture                      libTexToLoad,
+        uint32_t                            appid,
+        CComPtr <ID3D11ShaderResourceView>& pLibTexSRV,
+        const std::wstring&                 name,
+        ImVec2&                             resolution,
+        app_record_s*                       pApp)
+{
+  library_texture_s tex;
+
+  bool succeeded =
+    LoadLibraryTextureEx (libTexToLoad, appid, name, pApp, tex);
+
+  // Push the existing texture to a stack to be released after the frame
+  //   Do this regardless of whether we could actually load the new texture or not
+  if (pLibTexSRV.p != nullptr)
+  {
+    extern concurrency::concurrent_queue <IUnknown *> SKIF_ResourcesToFree;
+    PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << pLibTexSRV.p << " to be released";;
+    SKIF_ResourcesToFree.push (pLibTexSRV.p);
+    pLibTexSRV.p = nullptr;
+  }
+
+  resolution = tex.resolution;
+  pLibTexSRV = tex.srv;
+
+  if (pApp != nullptr)
+  {
+    if      (libTexToLoad == LibraryTexture::Cover)
+    {
+      pApp->tex_cover.isCustom  = (succeeded && tex.isCustom);
+      pApp->tex_cover.isManaged = (succeeded && tex.isManaged);
+    }
+    else if (libTexToLoad == LibraryTexture::Icon)
+    {
+      pApp->tex_icon.isCustom   = (succeeded && tex.isCustom);
+      pApp->tex_icon.isManaged  = (succeeded && tex.isManaged);
+    }
+  }
+}
