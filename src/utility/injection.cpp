@@ -50,7 +50,6 @@
 #include <filesystem>
 #include <regex>
 #include <string>
-#include <sstream>
 #include <strsafe.h>
 
 // This can be used to force the service to run in user-mode even if SKIF was launched elevated
@@ -1604,25 +1603,61 @@ bool SKIF_InjectionContext::_TestUserList (const char* szExecutable, bool whitel
       ! whitelist_ && *blacklist == '\0')
     return false;
 
-  std::istringstream iss(  (whitelist_)
-                          ? whitelist
-                          : blacklist);
+  std::scoped_lock lock (_compiledListsMutex);
 
-  for (std::string line; std::getline(iss, line); )
-  {
-    try {
-      std::regex regexp (line, std::regex_constants::icase);
+  CompiledUserList& list = (whitelist_) ? _compiledWhitelist : _compiledBlacklist;
+  _CompileUserList (list,  (whitelist_) ?          whitelist :          blacklist);
 
-      if (std::regex_search(szExecutable, regexp))
+  try {
+    for (const auto& regexp : list.patterns)
+      if (std::regex_search (szExecutable, regexp))
         return true;
-    }
-    catch (const std::exception& e)
-    {
-      UNREFERENCED_PARAMETER(e);
-    }
+  }
+  catch (const std::exception& e) // e.g. error_complexity on a pathological pattern
+  {
+    UNREFERENCED_PARAMETER(e);
   }
 
   return false;
+}
+
+// Must be called with _compiledListsMutex held
+void SKIF_InjectionContext::_CompileUserList (CompiledUserList& list, const char* szList)
+{
+  // Comparing the list text is trivial compared to recompiling the regexes,
+  //   and it means no edit/load path can leave the cache stale
+  if (list.source == szList)
+    return;
+
+  list.source = szList;
+  list.patterns.clear ();
+
+  std::string_view view (list.source);
+
+  while (! view.empty ())
+  {
+    size_t           eol  = view.find ('\n');
+    std::string_view line = view.substr (0, eol);
+    view = (eol == std::string_view::npos) ? std::string_view { }
+                                           : view.substr (eol + 1);
+
+    if (! line.empty () && line.back () == '\r')
+      line.remove_suffix (1);
+
+    // An empty pattern matches everything, so skip it
+    if (line.empty ())
+      continue;
+
+    try {
+      list.patterns.emplace_back (line.data (), line.size (),
+        std::regex_constants::icase | std::regex_constants::optimize);
+    }
+    catch (const std::exception& e)
+    {
+      // Invalid pattern: dropped once here instead of being re-thrown on every call
+      UNREFERENCED_PARAMETER(e);
+    }
+  }
 }
 
 bool SKIF_InjectionContext::AddUserListPattern (std::string pattern, bool whitelist_)

@@ -1,0 +1,574 @@
+diff -ru skif.orig/src/tabs/library/library_details.cpp skif/src/tabs/library/library_details.cpp
+--- skif.orig/src/tabs/library/library_details.cpp	2026-10-24 07:52:26.834945578 +0000
++++ skif/src/tabs/library/library_details.cpp	2026-10-24 14:10:15.128897944 +0000
+@@ -24,12 +24,10 @@
+ 
+ #pragma region PrintInjectionSummary
+ 
+-void
+-GetInjectionSummary (app_record_s* pApp)
++// Details panel, top frame: Special K DLL / profile folder / config file / platform, and the service toggle (moved verbatim from the former GetInjectionSummary)
++static void
++DrawGameDetails_Info (app_record_s* pApp)
+ {
+-  if (pApp == nullptr)
+-    return;
+-
+   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
+@@ -331,8 +329,15 @@
+   ImGui::EndGroup         ( );
+ 
+   ImGui::EndChild         ( );
++}
+ 
+-  ImGui::Separator ();
++
++// Details panel, middle frame: the Play / install button (moved verbatim from the former GetInjectionSummary)
++static void
++DrawGameDetails_Play (app_record_s* pApp)
++{
++  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
++  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+ 
+   auto frame_id2 =
+     ImGui::GetID ("###Injection_Play_Button_Frame");
+@@ -632,6 +637,15 @@
+   {
+     EmptySpaceMenu = PopupState_Open;
+   }
++}
++
++
++// Details panel, bottom bar: launch configs / disable Special K (moved verbatim from the former GetInjectionSummary)
++static void
++DrawGameDetails_LaunchBar (app_record_s* pApp)
++{
++  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
++  static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
+ 
+   // Bottom bar: Disable Special K
+   ImGui::SetCursorPosY (
+@@ -833,6 +847,26 @@
+   fBottomDist = ImGui::GetItemRectSize().y;
+ }
+ 
++
++// The details panel of the selected game (was GetInjectionSummary)
++void
++DrawGameDetails (app_record_s* pApp)
++{
++  if (pApp == nullptr)
++    return;
++
++  // Top frame: Special K DLL, profile folder, config file, platform, service toggle
++  DrawGameDetails_Info (pApp);
++
++  ImGui::Separator ();
++
++  // Middle frame: the Play / install button
++  DrawGameDetails_Play (pApp);
++
++  // Bottom bar: launch configs / disable Special K
++  DrawGameDetails_LaunchBar (pApp);
++}
++
+ #pragma endregion
+ 
+ 
+diff -ru skif.orig/src/tabs/library/library_list.cpp skif/src/tabs/library/library_list.cpp
+--- skif.orig/src/tabs/library/library_list.cpp	2026-10-24 08:02:15.356704527 +0000
++++ skif/src/tabs/library/library_list.cpp	2026-10-24 14:10:15.135044491 +0000
+@@ -292,8 +292,7 @@
+         continue;
+     }
+ 
+-    bool selected = (selection.appid == app.second->id &&
+-                     selection.store == app.second->store);
++    bool selected = (selection.game == app.second->GetKey ( ));
+     bool change   = false;
+ 
+     app.second->RefreshClientState (current_time);
+@@ -345,7 +344,7 @@
+     if ( ImGui::IsItemHovered ( ) && pApp != nullptr && pApp->id != SKIF_STEAM_APPID && ! pApp->_status.running && ! pApp->_status.updating )
+     {
+       if ( ImGui::IsMouseDoubleClicked (ImGuiMouseButton_Left) &&
+-           timeClicked != 0 && (item_clicked.appid == pApp->id && item_clicked.store == pApp->store))
++           timeClicked != 0 && (item_clicked.game == pApp->GetKey ( )))
+       {
+         timeClicked       = 0;
+         item_clicked.reset ( );
+@@ -355,8 +354,7 @@
+       else if (ImGui::IsMouseClicked (ImGuiMouseButton_Left) )
+       {
+         timeClicked        = SKIF_Util_timeGetTime ( );
+-        item_clicked.appid = pApp->id;
+-        item_clicked.store = pApp->store;
++        item_clicked.game  = pApp->GetKey ( );
+       }
+ 
+       else if (timeClicked + 500 < SKIF_Util_timeGetTime ( ))
+@@ -372,19 +370,16 @@
+       SKIF_ImGui_SetHoverTip (app.second->names.normal);
+ 
+     // Handle search input
+-    if (search_selection.id    == app.second->id &&
+-        search_selection.store == app.second->store)
++    if (search_selection.game == app.second->GetKey ( ))
+     {
+       // Set focus on current row
+       ImGui::ActivateItemByID (ImGui::GetID(app.second->ImGuiLabelID.c_str()));
+       ImGui::SetFocusID       (ImGui::GetID(app.second->ImGuiLabelID.c_str()), ImGui::GetCurrentWindow());
+ 
+       // Clear stuff
+-      selection.appid        = 0;
+-      selection.store        = app_record_s::Store::Unspecified;
++      selection.game         = { };
+       selection.category     = "Games";
+-      search_selection.id    = 0;
+-      search_selection.store = app_record_s::Store::Unspecified;
++      search_selection.game  = { };
+       search_selection.category = "";
+       change                 = true;
+     }
+@@ -400,8 +395,7 @@
+     // End Icon + Selectable row
+ 
+ 
+-    if ( app.second->id    == selection.appid &&
+-         app.second->store == selection.store &&
++    if ( app.second->GetKey ( ) == selection.game &&
+                    sort_changed /* &&
+         (! ImGui::IsItemVisible ()) */ )
+     {
+@@ -411,8 +405,7 @@
+       // Special handling for Special K to reset the scroll pos
+       if (isSpecialK)
+       {
+-        selection.appid    = 0;
+-        selection.store    = app_record_s::Store::Unspecified;
++        selection.game     = { };
+         selection.category = "Games";
+       }
+ 
+@@ -421,11 +414,9 @@
+ 
+     if (change)
+     {
+-      update = (selection.appid != app.second->id ||
+-                selection.store != app.second->store);
++      update = (selection.game != app.second->GetKey ( ));
+ 
+-      selection.appid              =    app.second->id;
+-      selection.store              =    app.second->store;
++      selection.game               =    app.second->GetKey ( );
+       selection.category           = (  app.second->skif.pinned > 50)
+                                    ?   "Favorites (pinned)" // Workaround to not expand Favorites tab on launch
+                                    :    GetEffectiveCategory (app.second.get ( ));
+@@ -434,15 +425,13 @@
+       // Only update the last selected value if we're not in hidden view
+       if (! _registry._LibraryHidden)
+       {
+-        _registry.uiLastSelectedGame  =      selection.appid;
+-        _registry.uiLastSelectedStore = (int)selection.store;
++        SetLastSelectedGame (selection.game);
+       }
+ 
+       if (update)
+       {
+         timeClicked = SKIF_Util_timeGetTime ( );
+-        item_clicked.appid = selection.appid;
+-        item_clicked.store = selection.store;
++        item_clicked.game  = selection.game;
+ 
+         app.second->_status.invalidate ();
+ 
+diff -ru skif.orig/src/tabs/library/library_menus.cpp skif/src/tabs/library/library_menus.cpp
+--- skif.orig/src/tabs/library/library_menus.cpp	2026-10-24 08:02:15.357095023 +0000
++++ skif/src/tabs/library/library_menus.cpp	2026-10-24 14:10:58.418747921 +0000
+@@ -417,59 +417,11 @@
+ 
+ #pragma region DrawGameContextMenu
+ 
+-void
+-DrawGameContextMenu (app_record_s* pApp)
++// Game context menu: Instant Play launch options (moved verbatim from DrawGameContextMenu)
++static void
++DrawGameContextMenu_InstantPlay (app_record_s* pApp, bool playDisabled, app_record_s::launch_config_s* firstLaunchConfig)
+ {
+-  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+-  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
+-  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
+-
+-  // TODO: Many of the below options needs to be adjusted to indicate if the primary launch option
+-  //         is even available (or if "without Special K" is the only option available)
+-
+-  app_record_s::launch_config_s*
+-    firstLaunchConfig = (pApp != nullptr && ! pApp->launch_configs.empty ()) ? &pApp->launch_configs.begin ()->second : nullptr;
+-
+-  bool playDisabled = (pApp->_status.running || pApp->_status.updating);
+-
+-  // Push styling for Disabled
+-  ImGui::PushStyleColor      (ImGuiCol_TextDisabled,
+-    ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled)  * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
+-  );
+-
+-  if (playDisabled)
+-    ImGui::BeginDisabled ( );
+-
+-  if (ImGui::MenuItemEx ("Play###GameContextMenu_Launch", ICON_FA_GAMEPAD))
+-    launchGameMenu = true;
+-
+-  if (playDisabled)
+-    ImGui::EndDisabled ( );
+-
+-  if (pApp->specialk.injection.injection.type != InjectionType::Local && _inject.bHasServlet)
+-  {
+-    if (! _inject.bCurrentState)
+-      SKIF_ImGui_SetHoverText ("Starts the injection service as well.");
+-
+-    ImGui::PushStyleColor      (ImGuiCol_Text,
+-      ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
+-    );
+-
+-    if (playDisabled)
+-      ImGui::BeginDisabled ( );
+-
+-    if (ImGui::MenuItem ("\xe2\x94\x94 without Special K###GameContextMenu_LaunchWoSK"))
+-      launchGameMenu = launchWithoutSK = true;
+-
+-    if (playDisabled)
+-      ImGui::EndDisabled ( );
+-
+-    ImGui::PopStyleColor   ( );
+-
+-    if (_inject.bCurrentState)
+-      SKIF_ImGui_SetHoverText ("Stops the injection service as well.");
+-  }
+ 
+   // Instant Play options
+   if (pApp->CanLaunchExecutableDirectly ( ))
+@@ -741,7 +693,13 @@
+         ImGui::PopStyleColor ( );
+     }
+   }
++}
++
+ 
++// Game context menu: items for a running game (moved verbatim from DrawGameContextMenu)
++static void
++DrawGameContextMenu_Running (app_record_s* pApp)
++{
+   if (pApp->_status.running)
+   {
+     SKIF_Util_CreateProcess_s* mon_app = nullptr;
+@@ -832,13 +790,13 @@
+       }
+     }
+   }
++}
+ 
+-  // Pop styling for Disabled
+-  ImGui::PopStyleColor   ( );
+-
+-  ImGui::Separator ( );
+-  // ==============================
+ 
++// Game context menu: "Browse" submenu (moved verbatim from DrawGameContextMenu)
++static void
++DrawGameContextMenu_Browse (app_record_s* pApp)
++{
+   if (SKIF_ImGui_BeginMenuEx2 ("Browse", ICON_FA_FOLDER, ImColor(255, 207, 72)))
+   {
+     if (SKIF_ImGui_MenuItemEx2 ("Game folder", ICON_FA_FOLDER_OPEN, ImColor(255, 207, 72)))
+@@ -939,6 +897,16 @@
+ 
+     ImGui::EndMenu ();
+   }
++}
++
++
++// Game context menu: "Manage" submenu (moved verbatim from DrawGameContextMenu)
++static void
++DrawGameContextMenu_Manage (app_record_s* pApp)
++{
++  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
++  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
++  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
+ 
+   // Manage Game
+   if (ImGui::BeginMenuEx ("Manage", ICON_FA_GEARS))
+@@ -1231,24 +1199,14 @@
+ 
+     ImGui::EndMenu ( );
+   }
++}
+ 
+-  // Store-specific submenu (e.g. Steam)
+-  pApp->DrawStoreMenu ( );
+-
+-  if (SKIF_ImGui_BeginMenuEx2 ("Websites", ICON_FA_SHARE, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)))
+-  {
+-    // Store-specific websites (e.g. Steam Community, SteamDB, GOG Database)
+-    pApp->DrawWebsiteMenuItems ( );
+-
+-    if (SKIF_ImGui_MenuItemEx2 ("PCGamingWiki", ICON_FA_SCREWDRIVER_WRENCH, ImColor(200, 200, 200, 255)))
+-      SKIF_Util_OpenURI (SK_UTF8ToWideChar(pApp->ui.pcgw).c_str());
+-
+-    SKIF_ImGui_SetMouseCursorHand ( );
+-    SKIF_ImGui_SetHoverText       (pApp->ui.pcgw);
+-
+-    ImGui::EndMenu ( );
+-  }
+ 
++// Game context menu: "Developer" submenu, developer mode only (moved verbatim from DrawGameContextMenu)
++static void
++DrawGameContextMenu_Developer (app_record_s* pApp)
++{
++  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+ 
+   if (_registry.bDeveloperMode)
+   {
+@@ -1507,6 +1465,97 @@
+   }
+ }
+ 
++
++void
++DrawGameContextMenu (app_record_s* pApp)
++{
++  static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
++
++  // TODO: Many of the below options needs to be adjusted to indicate if the primary launch option
++  //         is even available (or if "without Special K" is the only option available)
++
++  app_record_s::launch_config_s*
++    firstLaunchConfig = (pApp != nullptr && ! pApp->launch_configs.empty ()) ? &pApp->launch_configs.begin ()->second : nullptr;
++
++  bool playDisabled = (pApp->_status.running || pApp->_status.updating);
++
++  // Push styling for Disabled
++  ImGui::PushStyleColor      (ImGuiCol_TextDisabled,
++    ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled)  * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
++  );
++
++  if (playDisabled)
++    ImGui::BeginDisabled ( );
++
++  if (ImGui::MenuItemEx ("Play###GameContextMenu_Launch", ICON_FA_GAMEPAD))
++    launchGameMenu = true;
++
++  if (playDisabled)
++    ImGui::EndDisabled ( );
++
++  if (pApp->specialk.injection.injection.type != InjectionType::Local && _inject.bHasServlet)
++  {
++    if (! _inject.bCurrentState)
++      SKIF_ImGui_SetHoverText ("Starts the injection service as well.");
++
++    ImGui::PushStyleColor      (ImGuiCol_Text,
++      ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
++    );
++
++    if (playDisabled)
++      ImGui::BeginDisabled ( );
++
++    if (ImGui::MenuItem ("\xe2\x94\x94 without Special K###GameContextMenu_LaunchWoSK"))
++      launchGameMenu = launchWithoutSK = true;
++
++    if (playDisabled)
++      ImGui::EndDisabled ( );
++
++    ImGui::PopStyleColor   ( );
++
++    if (_inject.bCurrentState)
++      SKIF_ImGui_SetHoverText ("Stops the injection service as well.");
++  }
++
++  // Instant Play launch options
++  DrawGameContextMenu_InstantPlay (pApp, playDisabled, firstLaunchConfig);
++
++  // Items for a running game
++  DrawGameContextMenu_Running (pApp);
++
++  // Pop styling for Disabled
++  ImGui::PopStyleColor   ( );
++
++  ImGui::Separator ( );
++  // ==============================
++
++  // Browse submenu
++  DrawGameContextMenu_Browse (pApp);
++
++  // Manage submenu
++  DrawGameContextMenu_Manage (pApp);
++
++  // Store-specific submenu (e.g. Steam)
++  pApp->DrawStoreMenu ( );
++
++  if (SKIF_ImGui_BeginMenuEx2 ("Websites", ICON_FA_SHARE, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)))
++  {
++    // Store-specific websites (e.g. Steam Community, SteamDB, GOG Database)
++    pApp->DrawWebsiteMenuItems ( );
++
++    if (SKIF_ImGui_MenuItemEx2 ("PCGamingWiki", ICON_FA_SCREWDRIVER_WRENCH, ImColor(200, 200, 200, 255)))
++      SKIF_Util_OpenURI (SK_UTF8ToWideChar(pApp->ui.pcgw).c_str());
++
++    SKIF_ImGui_SetMouseCursorHand ( );
++    SKIF_ImGui_SetHoverText       (pApp->ui.pcgw);
++
++    ImGui::EndMenu ( );
++  }
++
++  // Developer submenu (developer mode only)
++  DrawGameContextMenu_Developer (pApp);
++}
++
+ void
+ DrawSpecialKContextMenu (app_record_s* pApp)
+ {
+diff -ru skif.orig/src/tabs/library/library_popups.cpp skif/src/tabs/library/library_popups.cpp
+--- skif.orig/src/tabs/library/library_popups.cpp	2026-10-24 13:33:36.199811086 +0000
++++ skif/src/tabs/library/library_popups.cpp	2026-10-24 14:10:15.135666985 +0000
+@@ -38,7 +38,7 @@
+ #pragma region Popups
+ 
+   // Popup: Remove Game
+-  if (SKIF_Custom_RemoveGame (selection.appid))
++  if (SKIF_Custom_RemoveGame (selection.game.appid))
+   {
+     // Hide entry
+     pApp->id = 0;
+diff -ru skif.orig/src/tabs/library/library_ui.h skif/src/tabs/library/library_ui.h
+--- skif.orig/src/tabs/library/library_ui.h	2026-10-24 13:02:50.118495097 +0000
++++ skif/src/tabs/library/library_ui.h	2026-10-24 14:10:15.134502221 +0000
+@@ -136,23 +136,20 @@
+ 
+ // Keyboard hint search result
+ struct library_search_selection_s {
+-  uint32_t            id = 0;
+-  app_record_s::Store store;
++  app_key_s           game;
+   std::string         category = "";
+ };
+ 
+ // A game in the library tab: the selected one, the last one clicked
+ struct library_selection_s {
+-  uint32_t                    appid = SKIF_STEAM_APPID;
+-  app_record_s::Store         store = app_record_s::Store::Steam;
++  app_key_s                   game  = { app_record_s::Store::Steam, SKIF_STEAM_APPID }; // Special K by default
+   SKIF_DirectoryWatch     dir_watch;
+   bool                reset_to_skif = true;
+   std::string              category = "";
+ 
+   void reset ()
+   {
+-    appid    = (reset_to_skif) ? SKIF_STEAM_APPID           : 0;
+-    store    = (reset_to_skif) ? app_record_s::Store::Steam : app_record_s::Store::Unspecified;
++    game     = (reset_to_skif) ? app_key_s { app_record_s::Store::Steam, SKIF_STEAM_APPID } : app_key_s { };
+     category = "";
+ 
+     if (dir_watch._hChangeNotification != INVALID_HANDLE_VALUE)
+@@ -178,6 +175,22 @@
+ 
+ library_tab_s& GetLibraryTab (void);
+ 
++// The last selected game, as remembered in the registry (two values there: game ID and store)
++inline app_key_s GetLastSelectedGame (void)
++{
++  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
++
++  return { (app_record_s::Store)_registry.uiLastSelectedStore, _registry.uiLastSelectedGame };
++}
++
++inline void SetLastSelectedGame (const app_key_s& game)
++{
++  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
++
++  _registry.uiLastSelectedGame  =               game.appid;
++  _registry.uiLastSelectedStore = (unsigned int)game.store;
++}
++
+ // Globals defined in library.cpp
+ 
+ extern bool                   SKIF_STEAM_OWNER;
+@@ -247,5 +260,5 @@
+ void DrawSpecialKPatreon     (bool& isCoverHovered, ImVec2 vecPosCover);               // isCoverHovered: also set if the panel is hovered
+ 
+ // library/library_details.cpp
+-void GetInjectionSummary     (app_record_s* pApp);
++void DrawGameDetails         (app_record_s* pApp);                // The details panel (info frame, Play button, launch bar)
+ void UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets);
+diff -ru skif.orig/src/tabs/library.cpp skif/src/tabs/library.cpp
+--- skif.orig/src/tabs/library.cpp	2026-10-24 13:33:36.200271187 +0000
++++ skif/src/tabs/library.cpp	2026-10-24 14:10:15.136287113 +0000
+@@ -239,8 +239,7 @@
+     // If we have a result, select it
+     if (result.app_id != 0)
+     {
+-      search_selection.id       = result.app_id;
+-      search_selection.store    = result.store;
++      search_selection.game     = { result.store, result.app_id };
+       search_selection.category = result.category;
+     }
+ 
+@@ -555,7 +554,7 @@
+     frameLibraryRefreshed = ImGui::GetFrameCount ( );
+ 
+     // Reset selection to Special K, but only if set to something else than -1
+-    if (selection.appid != 0)
++    if (selection.game.appid != 0)
+       selection.reset();
+ 
+     bool resortGames   = false;
+@@ -568,17 +567,14 @@
+         continue;
+ 
+       // Set to last selected if it can be found
+-      if (app.second->id       ==                      _registry.uiLastSelectedGame &&
+-          app.second->store    == (app_record_s::Store)_registry.uiLastSelectedStore)
++      if (app.second->GetKey ( ) == GetLastSelectedGame ( ))
+       {
+         PLOG_VERBOSE << "Selected app ID " << app.second->id << " from platform ID " << (int)app.second->store << ".";
+-        selection.appid        =    app.second->id;
+-        selection.store        =    app.second->store;
++        selection.game         =    app.second->GetKey ( );
+         selection.category     =   (app.second->skif.pinned > 50 && ! _registry._LibHorizonMode && _registry._LibPinnedVisible) // Only when not using horizon mode
+                                ?   "Favorites (pinned)" // Workaround to not expand Favorites tab on launch
+                                :    GetEffectiveCategory (app.second.get ( ));
+-        search_selection.id    =    selection.appid;
+-        search_selection.store =    selection.store;
++        search_selection.game  =    selection.game;
+         search_selection.category = selection.category;
+         update = true;
+       }
+@@ -650,7 +646,7 @@
+ 
+   // Ensure pApp points to the current selected game
+   // This should be the only place where pApp changes during the whole frame!
+-  pApp = _games.Find (selection.store, selection.appid);
++  pApp = _games.Find (selection.game);
+ 
+   // Default to primary launch config
+   launchConfig = (pApp != nullptr && ! pApp->launch_configs.empty()) ? &pApp->launch_configs.begin()->second : nullptr;
+@@ -1211,7 +1207,7 @@
+       ImGui::PushStyleVar (ImGuiStyleVar_Alpha, fAlphaList);
+ 
+     if (pApp != nullptr && ! isSpecialK)
+-      GetInjectionSummary (pApp);
++      DrawGameDetails (pApp);
+     else
+       _inject._GlobalInjectionCtl ( );
+ 
+@@ -1800,8 +1796,7 @@
+   if (SelectNewSKIFGame > 0)
+   {
+     // Change selection to the new game
+-    selection.appid    = SelectNewSKIFGame;
+-    selection.store    = app_record_s::Store::Custom;
++    selection.game     = { app_record_s::Store::Custom, SelectNewSKIFGame };
+     selection.category = "Games";
+ 
+     update = true;

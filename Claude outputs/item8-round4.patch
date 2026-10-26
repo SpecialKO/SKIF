@@ -1,0 +1,504 @@
+diff -ru --strip-trailing-cr skif.orig/include/utility/games.h skif/include/utility/games.h
+--- skif.orig/include/utility/games.h	2026-10-24 14:56:23.616179822 +0000
++++ skif/include/utility/games.h	2026-10-24 15:10:24.372328569 +0000
+@@ -7,6 +7,7 @@
+ #include <mutex>
+ #include <set>
+ #include <array>
++#include <cstdint>
+ #include <stores/generic_library2.h>
+ #include <nlohmann/json.hpp>
+ 
+@@ -35,6 +36,13 @@
+ void InsertTrieKey (app_entry_t* app, Trie* labels);
+ 
+ // Singleton struct
++// Caches of store data that rarely changes but is slow to read (used by the library worker so that a restart doesn't
++//   parse it again): small JSON files in <SK user data>\Assets\Cache\. Each one records the size and write time of
++//   the file it was read from, so it is only used while that file is unchanged.
++bool           SKIF_Library_GetFileStamp (const std::wstring& path, uint64_t& write, uint64_t& size); // false if the file doesn't exist
++nlohmann::json SKIF_Library_ReadCache    (const wchar_t* name); // null if missing or not valid JSON
++void           SKIF_Library_WriteCache   (const wchar_t* name, const nlohmann::json& data);
++
+ struct SKIF_GamingCollection {
+   using AppList = app_list_t;
+ 
+diff -ru --strip-trailing-cr skif.orig/src/stores/Epic/epic_library.cpp skif/src/stores/Epic/epic_library.cpp
+--- skif.orig/src/stores/Epic/epic_library.cpp	2026-10-24 14:56:23.622498994 +0000
++++ skif/src/stores/Epic/epic_library.cpp	2026-10-24 15:10:24.375193838 +0000
+@@ -154,22 +154,22 @@
+ using epic_catalog_t = std::unordered_map <std::string, epic_catalog_item_s>; // Catalog item ID -> item
+ 
+ // Reads catalog-cache.json (it can be large: parsing took ~30 ms in testing) and keeps the fields used, which are reused while the
+-//   file is unchanged (same path, size and write time). Returns nullptr if the file is missing or not valid JSON.
++//   file is unchanged (same path, size and write time), also across restarts (Assets\Cache\epic-catalog.json).
++//   Returns nullptr if the file is missing or not valid JSON.
+ static std::shared_ptr <const epic_catalog_t>
+ SKIF_Epic_GetCatalog (const std::wstring& path)
+ {
+   static std::mutex                             cache_mutex;
+   static std::wstring                           cache_path;
+-  static ULONGLONG                              cache_write = 0,
++  static uint64_t                               cache_write = 0,
+                                                 cache_size  = 0;
+   static std::shared_ptr <const epic_catalog_t> cache;
+ 
+-  WIN32_FILE_ATTRIBUTE_DATA fad = { };
+-  if (! GetFileAttributesExW (path.c_str ( ), GetFileExInfoStandard, &fad))
+-    return nullptr;
++  uint64_t write = 0,
++           size  = 0;
+ 
+-  ULONGLONG write = (static_cast <ULONGLONG> (fad.ftLastWriteTime.dwHighDateTime) << 32) | fad.ftLastWriteTime.dwLowDateTime;
+-  ULONGLONG size  = (static_cast <ULONGLONG> (fad.nFileSizeHigh)                  << 32) | fad.nFileSizeLow;
++  if (! SKIF_Library_GetFileStamp (path, write, size))
++    return nullptr;
+ 
+   std::scoped_lock cache_lock (cache_mutex);
+ 
+@@ -184,6 +184,28 @@
+   cache_size  = size;
+   cache       = nullptr;
+ 
++  // Saved by an earlier run (Assets\Cache\epic-catalog.json)?
++  nlohmann::json saved = SKIF_Library_ReadCache (L"epic-catalog.json");
++
++  if (saved.is_object ( )                                     &&
++      saved.value ("path",  std::string ( )) == SK_WideCharToUTF8 (path) &&
++      saved.value ("write", uint64_t (0))    == write          &&
++      saved.value ("size",  uint64_t (0))    == size)
++  {
++    try {
++      auto items = std::make_shared <epic_catalog_t> ( );
++
++      for (const auto& [id, item] : saved.at ("items").items ( ))
++        items->emplace (id, epic_catalog_item_s { item.at (0).get <bool> ( ), item.at (1).get <std::string> ( ), item.at (2).get <std::string> ( ) });
++
++      PLOG_VERBOSE << "catalog-cache.json is unchanged since it was last read; using the saved items (" << items->size ( ) << ").";
++
++      cache = items;
++      return cache;
++    }
++    catch (const std::exception&) { } // Read the catalog itself below
++  }
++
+   // Read the whole file at once (parsing from a stream reads it a character at a time)
+   std::string   data;
+   std::ifstream file (path, std::ios::binary);
+@@ -240,6 +262,19 @@
+ 
+   PLOG_VERBOSE << "Read catalog-cache.json successfully (" << items->size ( ) << " items).";
+ 
++  // Saved for the next run: { path, write, size, items: { id: [ child, title, gamebox_tall ] } }
++  nlohmann::json save_items = nlohmann::json::object ( );
++
++  for (const auto& [id, item] : *items)
++    save_items [id] = { item.child, item.title, item.gamebox_tall };
++
++  SKIF_Library_WriteCache (L"epic-catalog.json", {
++    { "path",  SK_WideCharToUTF8 (path) },
++    { "write", write                    },
++    { "size",  size                     },
++    { "items", save_items               }
++  });
++
+   cache = items;
+   return cache;
+ }
+diff -ru --strip-trailing-cr skif.orig/src/stores/Steam/steam_library.cpp skif/src/stores/Steam/steam_library.cpp
+--- skif.orig/src/stores/Steam/steam_library.cpp	2026-10-24 15:03:30.271357398 +0000
++++ skif/src/stores/Steam/steam_library.cpp	2026-10-24 15:10:41.835101920 +0000
+@@ -697,6 +697,67 @@
+   return "";
+ }
+ 
++// The values SKIF_Steam_PreloadUserLocalConfig ( ) uses from localconfig.vdf. The file takes tens of ms to parse and
++//   rarely changes, so they are kept and reused while it is unchanged (same path, size and write time).
++struct localconfig_cache_s {
++  std::wstring                                   path;
++  uint64_t                                       write  = 0,
++                                                 size   = 0;
++  bool                                           parsed = false; // The file was parsed and had content
++  std::unordered_map <std::string, std::string>  launch_options; // App ID -> "LaunchOptions"
++  std::vector <std::string>                      apptickets;     // App IDs under "apptickets"
++};
++
++// Steam's localconfig.vdf, as used by SKIF_Steam_PreloadUserLocalConfig ( ). It is also saved to
++//   Assets\Cache\steam-localconfig.json, so a restart doesn't parse it again while it is unchanged.
++static bool
++SKIF_Steam_LoadSavedLocalConfig (localconfig_cache_s& cache, const std::wstring& path, uint64_t write, uint64_t size)
++{
++  nlohmann::json saved = SKIF_Library_ReadCache (L"steam-localconfig.json");
++
++  if (! saved.is_object ( )                                     ||
++        saved.value ("path",  std::string ( )) != SK_WideCharToUTF8 (path) ||
++        saved.value ("write", uint64_t (0))    != write          ||
++        saved.value ("size",  uint64_t (0))    != size)
++    return false;
++
++  localconfig_cache_s loaded;
++  loaded.path  = path;
++  loaded.write = write;
++  loaded.size  = size;
++
++  try {
++    loaded.parsed = saved.at ("parsed").get <bool> ( );
++
++    for (const auto& [id, options] : saved.at ("launch_options").items ( ))
++      loaded.launch_options.emplace (id, options.get <std::string> ( ));
++
++    for (const auto& appticket : saved.at ("apptickets"))
++      loaded.apptickets.push_back (appticket.get <std::string> ( ));
++  }
++  catch (const std::exception&) {
++    return false;
++  }
++
++  cache = std::move (loaded);
++  return true;
++}
++
++static void
++SKIF_Steam_SaveLocalConfig (const localconfig_cache_s& cache)
++{
++  nlohmann::json saved = {
++    { "path",           SK_WideCharToUTF8 (cache.path) },
++    { "write",          cache.write                    },
++    { "size",           cache.size                     },
++    { "parsed",         cache.parsed                   },
++    { "launch_options", cache.launch_options           },
++    { "apptickets",     cache.apptickets               }
++  };
++
++  SKIF_Library_WriteCache (L"steam-localconfig.json", saved);
++}
++
+ bool
+ SKIF_Steam_PreloadUserLocalConfig (SteamId3_t userid, app_list_t *apps, std::set <std::string> *apptickets)
+ {
+@@ -720,34 +781,27 @@
+   if (userid == 0)
+     return false;
+ 
+-  // localconfig.vdf takes tens of ms to parse and rarely changes, so the values used from it are kept and reused while
+-  //   the file is unchanged (same path, size and write time). Also called by the main thread, hence the lock.
+-  struct localconfig_cache_s {
+-    std::wstring                                   path;
+-    ULONGLONG                                      write  = 0,
+-                                                   size   = 0;
+-    bool                                           parsed = false; // The file was parsed and had content
+-    std::unordered_map <std::string, std::string>  launch_options; // App ID -> "LaunchOptions"
+-    std::vector <std::string>                      apptickets;     // App IDs under "apptickets"
+-  };
+-
++  // Also called by the main thread (SKIF_Steam_HasActiveProcessChanged), hence the lock
+   static std::mutex          cache_mutex;
+   static localconfig_cache_s cache;
+ 
+   std::wstring path = SKIF_Steam_GetUserConfigStorePath (userid, ConfigStore_UserLocal);
+ 
+-  WIN32_FILE_ATTRIBUTE_DATA fad = { };
+-  if (! GetFileAttributesExW (path.c_str ( ), GetFileExInfoStandard, &fad))
+-    return false;
++  uint64_t write = 0,
++           size  = 0;
+ 
+-  ULONGLONG write = (static_cast <ULONGLONG> (fad.ftLastWriteTime.dwHighDateTime) << 32) | fad.ftLastWriteTime.dwLowDateTime;
+-  ULONGLONG size  = (static_cast <ULONGLONG> (fad.nFileSizeHigh)                  << 32) | fad.nFileSizeLow;
++  if (! SKIF_Library_GetFileStamp (path, write, size))
++    return false;
+ 
+   std::scoped_lock cache_lock (cache_mutex);
+ 
+   if (cache.path == path && cache.write == write && cache.size == size)
+     PLOG_INFO << "Preloading Steam user local config (unchanged; using the values read before)...";
+ 
++  // Saved by an earlier run (Assets\Cache\steam-localconfig.json)?
++  else if (SKIF_Steam_LoadSavedLocalConfig (cache, path, write, size))
++    PLOG_INFO << "Preloading Steam user local config (unchanged since it was last read; using the saved values)...";
++
+   else
+   {
+     PLOG_INFO << "Preloading Steam user local config...";
+@@ -814,6 +868,8 @@
+         PLOG_ERROR << "Unknown error occurred when trying to parse localconfig.vdf: " << e.what ();
+       }
+     }
++
++    SKIF_Steam_SaveLocalConfig (cache);
+   }
+ 
+   // Preload LaunchOptions...
+diff -ru --strip-trailing-cr skif.orig/src/stores/Xbox/xbox_library.cpp skif/src/stores/Xbox/xbox_library.cpp
+--- skif.orig/src/stores/Xbox/xbox_library.cpp	2026-10-24 14:56:23.624755902 +0000
++++ skif/src/stores/Xbox/xbox_library.cpp	2026-10-24 15:10:24.375751394 +0000
+@@ -6,6 +6,7 @@
+ #include <filesystem>
+ #include <mutex>
+ #include <unordered_map>
++#include <set>
+ #include <nlohmann/json.hpp>
+ #include <SKIF.h>
+ #include <utility/utility.h>
+@@ -48,6 +49,57 @@
+   return SKIF_PackageFamilyNameFromFullName (packageFullName, packageFamilyNameLength, packageFamilyName);
+ }
+ 
++// Resolved ms-resource display names. Resolving one takes several ms (more when it fails), so the results (failures
++//   included) are kept, and saved to Assets\Cache\xbox-names.json for the next run. The key includes the package full
++//   name, which includes its version, so an updated package is resolved again.
++static std::mutex                                     xbox_names_mutex;
++static std::unordered_map <std::wstring, std::string> xbox_names;        // Key -> resolved name
++static std::set <std::wstring>                        xbox_names_used;   // Keys used by the current scan
++static bool                                           xbox_names_loaded = false,
++                                                      xbox_names_dirty  = false;
++
++// Call with xbox_names_mutex held
++static void
++SKIF_Xbox_LoadSavedNames (void)
++{
++  if (xbox_names_loaded)
++    return;
++
++  xbox_names_loaded = true;
++
++  nlohmann::json saved = SKIF_Library_ReadCache (L"xbox-names.json");
++
++  if (! saved.is_object ( ))
++    return;
++
++  for (const auto& [key, name] : saved.items ( ))
++  {
++    if (name.is_string ( ))
++      xbox_names.emplace (SK_UTF8ToWideChar (key), name.get <std::string> ( ));
++  }
++}
++
++// After a scan: saves the names used by it (so names of removed packages are dropped)
++static void
++SKIF_Xbox_SaveNames (void)
++{
++  std::scoped_lock names_lock (xbox_names_mutex);
++
++  if (! xbox_names_dirty && xbox_names_used.size ( ) == xbox_names.size ( ))
++    return;
++
++  std::erase_if (xbox_names, [](const auto& entry) { return ! xbox_names_used.contains (entry.first); });
++
++  nlohmann::json saved = nlohmann::json::object ( );
++
++  for (const auto& [key, name] : xbox_names)
++    saved [SK_WideCharToUTF8 (key)] = name;
++
++  SKIF_Library_WriteCache (L"xbox-names.json", saved);
++
++  xbox_names_dirty = false;
++}
++
+ static std::string SKIF_Xbox_LoadMSResource (std::string input, std::wstring packageName, std::wstring packageFullName, std::wstring packageFamilyName)
+ {
+   std::string lowercaseName = SKIF_Util_ToLower (input);
+@@ -63,18 +115,17 @@
+ 
+   if (pos_msResourceString != std::string::npos)
+   {
+-    // Resolving a resource string takes several ms (more when it fails), so the results are kept for the session.
+-    //   The package full name includes its version, so an updated package is resolved again.
+-    static std::mutex                                     cache_mutex;
+-    static std::unordered_map <std::wstring, std::string> cache;
+-
++    // Resolved before (see xbox_names)?
+     const std::wstring cache_key =
+       packageFullName + L"|" + packageName + L"|" + packageFamilyName + L"|" + SK_UTF8ToWideChar (input);
+ 
+     {
+-      std::scoped_lock cache_lock (cache_mutex);
++      std::scoped_lock names_lock (xbox_names_mutex);
++
++      SKIF_Xbox_LoadSavedNames ( );
++      xbox_names_used.insert   (cache_key);
+ 
+-      if (auto hit = cache.find (cache_key); hit != cache.end ( ))
++      if (auto hit = xbox_names.find (cache_key); hit != xbox_names.end ( ))
+         return hit->second;
+     }
+ 
+@@ -126,8 +177,9 @@
+       PLOG_ERROR << "SHLoadIndirectString failed with HRESULT: " << std::wstring (_com_error(hr).ErrorMessage());
+     }
+ 
+-    std::scoped_lock cache_lock (cache_mutex);
+-    cache [cache_key] = input;
++    std::scoped_lock names_lock (xbox_names_mutex);
++    xbox_names [cache_key] = input;
++    xbox_names_dirty       = true;
+   }
+ 
+   return input;
+@@ -138,6 +190,11 @@
+ {
+   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+ 
++  {
++    std::scoped_lock names_lock (xbox_names_mutex);
++    xbox_names_used.clear ( );
++  }
++
+   PLOG_INFO << "Detecting Xbox games...";
+ 
+   HKEY  hKey,
+@@ -511,6 +568,8 @@
+ 
+     RegCloseKey (hKey);
+   }
++
++  SKIF_Xbox_SaveNames ( );
+ }
+ 
+ void
+diff -ru --strip-trailing-cr skif.orig/src/utility/games.cpp skif/src/utility/games.cpp
+--- skif.orig/src/utility/games.cpp	2026-10-24 14:56:23.613507800 +0000
++++ skif/src/utility/games.cpp	2026-10-24 15:10:24.373355983 +0000
+@@ -12,6 +12,7 @@
+ #include <memory>
+ #include <map>
+ #include <thread>
++#include <functional>
+ #include <algorithm>
+ #include <Shlwapi.h>
+ #include <process.h>
+@@ -751,6 +752,80 @@
+   }
+ }
+ 
++#pragma region Store caches
++
++bool
++SKIF_Library_GetFileStamp (const std::wstring& path, uint64_t& write, uint64_t& size)
++{
++  WIN32_FILE_ATTRIBUTE_DATA fad = { };
++
++  if (! GetFileAttributesExW (path.c_str ( ), GetFileExInfoStandard, &fad))
++    return false;
++
++  write = (static_cast <uint64_t> (fad.ftLastWriteTime.dwHighDateTime) << 32) | fad.ftLastWriteTime.dwLowDateTime;
++  size  = (static_cast <uint64_t> (fad.nFileSizeHigh)                  << 32) | fad.nFileSizeLow;
++
++  return true;
++}
++
++static std::wstring
++SKIF_Library_GetCachePath (const wchar_t* name)
++{
++  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
++
++  return SK_FormatStringW (LR"(%ws\Assets\Cache\%ws)", _path_cache.specialk_userdata, name);
++}
++
++nlohmann::json
++SKIF_Library_ReadCache (const wchar_t* name)
++{
++  std::ifstream file (SKIF_Library_GetCachePath (name), std::ios::binary);
++
++  if (! file.is_open ( ))
++    return nullptr;
++
++  std::string data ((std::istreambuf_iterator <char> (file)), std::istreambuf_iterator <char> ( ));
++
++  nlohmann::json json = nlohmann::json::parse (data, nullptr, false);
++
++  if (json.is_discarded ( ))
++  {
++    PLOG_WARNING << "Ignoring the invalid cache file " << name;
++    return nullptr;
++  }
++
++  return json;
++}
++
++void
++SKIF_Library_WriteCache (const wchar_t* name, const nlohmann::json& data)
++{
++  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
++
++  CreateDirectoryW (SK_FormatStringW (LR"(%ws\Assets\Cache)", _path_cache.specialk_userdata).c_str ( ), nullptr);
++
++  // Written to a temporary file first, so a cache file is never left half-written
++  std::wstring path = SKIF_Library_GetCachePath (name),
++               temp = path + L".tmp";
++
++  {
++    std::ofstream file (temp, std::ios::binary | std::ios::trunc);
++
++    if (! file.is_open ( ))
++    {
++      PLOG_WARNING << "Could not write the cache file " << name;
++      return;
++    }
++
++    file << data.dump ( );
++  }
++
++  if (! MoveFileExW (temp.c_str ( ), path.c_str ( ), MOVEFILE_REPLACE_EXISTING))
++    PLOG_WARNING << "Could not replace the cache file " << name;
++}
++
++#pragma endregion
++
+ // The drive a path is on ("x:\" or "\\server\share\"), lower-case; empty if unknown.
+ //   The library worker processes the games of each drive on their own thread.
+ //   Read from the path itself: GetVolumePathNameW queries the file system for every folder in the path, which costs
+@@ -821,6 +896,9 @@
+     {
+       SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibraryWorker_Textures");
+ 
++      // Only needed once the library shows, so the store scanning gets the CPU first
++      SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_BELOW_NORMAL);
++
+       PLOG_VERBOSE_IF(self.m_pPatTexSRV.p == nullptr) << "Loading the embedded Patreon texture...";
+       ImVec2 dontCare;
+       if (self.m_pPatTexSRV.p == nullptr)
+@@ -846,6 +924,8 @@
+ 
+   app_list_t                scanned [Scan_Count];
+   std::vector <std::thread> scanners;
++  std::vector <std::function <void (void)>>
++                            scanners_here; // Quick ones (~1 ms), run on this thread while the others run
+ 
+   auto _LogScan = [&](const char* what, size_t count, DWORD dwStart)
+   {
+@@ -879,11 +959,8 @@
+   // Load GOG titles from registry
+   if (_registry.bLibraryGOG || _registry._LibraryHidden)
+   {
+-    scanners.emplace_back ([&]
++    scanners_here.emplace_back ([&]
+     {
+-      SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibraryWorker_GOG");
+-      tl_isLibraryWorker = true;
+-
+       DWORD dwStart = SKIF_Util_timeGetTime1 ( );
+       SKIF_GOG_GetInstalledAppIDs  (&scanned [Scan_GOG]);
+       _LogScan ("GOG games", scanned [Scan_GOG].size ( ), dwStart);
+@@ -920,17 +997,17 @@
+   // Load custom SKIF titles from registry
+   if (_registry.bLibraryCustom || _registry._LibraryHidden)
+   {
+-    scanners.emplace_back ([&]
++    scanners_here.emplace_back ([&]
+     {
+-      SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibraryWorker_Custom");
+-      tl_isLibraryWorker = true;
+-
+       DWORD dwStart = SKIF_Util_timeGetTime1 ( );
+       SKIF_GetCustomAppIDs (&scanned [Scan_Custom]);
+       _LogScan ("custom SKIF titles", scanned [Scan_Custom].size ( ), dwStart);
+     });
+   }
+ 
++  for (auto& scanner : scanners_here)
++    scanner ( );
++
+   for (auto& scanner : scanners)
+     scanner.join ( );
+ 

@@ -1,0 +1,1427 @@
+diff -ruN skif.orig/SKIF.vcxproj skif/SKIF.vcxproj
+--- skif.orig/SKIF.vcxproj	2026-10-24 01:25:58.140794200 +0000
++++ skif/SKIF.vcxproj	2026-10-24 01:29:54.628440132 +0000
+@@ -402,6 +402,7 @@
+     <ClInclude Include="packages_misc\vdf_parser.hpp" />
+     <ClInclude Include="resources\fonts\fa_621.h" />
+     <ClInclude Include="resources\fonts\fa_621b.h" />
++    <ClInclude Include="include\utility\artwork.h" />
+     <ClInclude Include="include\utility\games.h" />
+     <ClInclude Include="include\utility\registry.h" />
+     <ClInclude Include="include\utility\skif_imgui.h" />
+@@ -459,6 +460,7 @@
+     <ClCompile Include="src\tabs\hardware.cpp" />
+     <ClCompile Include="src\tabs\local.cpp" />
+     <ClCompile Include="src\utility\drvreset.cpp" />
++    <ClCompile Include="src\utility\artwork.cpp" />
+     <ClCompile Include="src\utility\gamepad.cpp" />
+     <ClCompile Include="src\utility\games.cpp" />
+     <ClCompile Include="src\utility\ini_reader.cpp" />
+diff -ruN skif.orig/SKIF.vcxproj.filters skif/SKIF.vcxproj.filters
+--- skif.orig/SKIF.vcxproj.filters	2026-10-24 01:25:58.140916305 +0000
++++ skif/SKIF.vcxproj.filters	2026-10-24 01:29:54.629024299 +0000
+@@ -174,6 +174,9 @@
+     <ClInclude Include="include\utility\games.h">
+       <Filter>Header Files\Utility</Filter>
+     </ClInclude>
++    <ClInclude Include="include\utility\artwork.h">
++      <Filter>Header Files\Utility</Filter>
++    </ClInclude>
+     <ClInclude Include="include\stores\generic_library2.h">
+       <Filter>Header Files\Stores</Filter>
+     </ClInclude>
+@@ -332,6 +335,9 @@
+     <ClCompile Include="src\utility\games.cpp">
+       <Filter>Source Files\Utility</Filter>
+     </ClCompile>
++    <ClCompile Include="src\utility\artwork.cpp">
++      <Filter>Source Files\Utility</Filter>
++    </ClCompile>
+     <ClCompile Include="src\utility\updater.cpp">
+       <Filter>Source Files\Utility</Filter>
+     </ClCompile>
+diff -ruN skif.orig/include/utility/artwork.h skif/include/utility/artwork.h
+--- skif.orig/include/utility/artwork.h	1970-01-01 00:00:00.000000000 +0000
++++ skif/include/utility/artwork.h	2026-10-24 01:29:54.629596518 +0000
+@@ -0,0 +1,108 @@
++#pragma once
++#include <atomic>
++#include <cstdint>
++#include <atlbase.h>
++#include <d3d11.h>
++#include <imgui/imgui.h>
++#include <stores/Steam/app_record.h>
++
++// Library artwork: the selected game's cover and the per-game icon workers.
++//
++//   library.cpp decides what is selected and draws; this owns the cover textures (current + previous
++//   for the cross-fade), the Special K logo fade, the background workers and their bookkeeping.
++//   The covers themselves come from the record types (PrepareCoverSource / ResolveArtwork, step 4a).
++//   Everything is main thread, except the worker threads it starts.
++//
++//   Cover flow: SelectCover (pApp) when the selection changes → IsCoverRequested ( ) → StartCoverWorker (pApp)
++//   → WM_SKIF_COVER → OnCoverWorkerFinished ( ). A custom cover being saved (SaveGameCover in library.cpp)
++//   uses BeginSavingCover (pApp) → WM_SKIF_REFRESHCOVER → OnCoverSaved ( ) → ProcessCoverRefresh ( ).
++class SKIF_LibraryArtwork
++{
++public:
++  static SKIF_LibraryArtwork& Get (void)
++  {
++    static SKIF_LibraryArtwork instance;
++    return instance;
++  }
++
++  // Cover selection
++  void SelectCover            (app_record_s* pApp);  // Switches to this game's cover (no-op if it is already the one shown) and retires the current one
++  void ForgetCover            (void);                // Forgets which game's cover is shown, so the next SelectCover ( ) loads it again
++  void ReloadCover            (void) { m_loadCover = true; } // Loads the shown game's cover again (device reset)
++  void ReleaseOldCoverIfFaded (void);                // Releases the previous cover once it has faded out (instantly when fading is disabled)
++  bool IsCoverRequested       (void) const { return m_loadCover; }
++  void StartCoverWorker       (app_record_s* pApp);  // Streams the requested cover in on a background thread (SKIF_LibCoverWorker)
++  bool OnCoverWorkerFinished  (void);                // WM_SKIF_COVER; returns true once no cover is loading any longer
++
++  // Cover state, for drawing
++  bool IsCoverLoading         (void) const { return m_tryingToLoadCover; }
++  bool IsCoverMissing         (void) const;          // The latest cover load finished without a texture
++  ID3D11ShaderResourceView*
++       GetCoverTexture        (void) const { return m_pTexSRV.p;       }
++  ID3D11ShaderResourceView*
++       GetOldCoverTexture     (void) const { return m_pTexSRV_old.p;   }
++  ImVec2 GetCoverResolution   (void) const { return m_vecCoverRes;     }
++  ImVec2 GetOldCoverResolution(void) const { return m_vecCoverRes_old; }
++  float  GetCoverAlpha        (void) const { return m_fAlpha;          }
++  float  GetOldCoverAlpha     (void) const { return m_fAlphaPrev;      }
++  float  GetSpecialKAlpha     (void) const { return m_fAlphaSK;        }
++  void   ResetCoverAlpha      (void);                // Restarts the cover fade-in (fade setting changed)
++  bool   StepFades            (bool isSpecialK, bool tick, bool& ticked); // Cover cross-fade and Special K logo, 0.05 per tick; true while any is active
++
++  // Custom covers (SaveGameCover in library.cpp)
++  void BeginSavingCover       (app_record_s* pApp);  // Shows the "..." loading label for this game and retires the current cover
++  bool IsSavingCover          (const app_record_s* pApp) const;
++  void OnCoverSaved           (uint32_t appid, int store); // WM_SKIF_REFRESHCOVER
++  void RefreshShownCover      (void);                // Reloads the shown cover (cover settings changed)
++  bool ProcessCoverRefresh    (void);                // Once per frame; true if the shown cover must be reloaded (caller sets update)
++
++  // Icons (one background worker per game, up to 8 at once)
++  int  GetActiveIconWorkers   (void) const { return m_activeIconWorkers; }
++  bool CanStartIconWorker     (void) const { return m_activeIconWorkers < 8; }
++  void StartIconWorker        (app_record_s* pApp);  // tex_icon.iWorker 0 → 1 (SKIF_LibIconWorker)
++  void ReapIconWorker         (app_record_s* pApp);  // tex_icon.iWorker 1 → 2 once the worker has finished
++  void OnIconWorkersReaped    (int count) { m_activeIconWorkers -= count; } // Workers reaped by SKIF_GamingCollection::SwapInPopulatedGames ( )
++  void ReloadIcon             (app_record_s* pApp);  // Loads the icon again on this thread (icon changed or reset)
++
++  // Textures
++  void ReleaseCurrentCover    (void);                // Pushes the current cover to SKIF_ResourcesToFree
++  void ReleaseTextures        (void);                // Covers and all game icons (device reset)
++
++private:
++  SKIF_LibraryArtwork (void);
++  SKIF_LibraryArtwork (SKIF_LibraryArtwork const&) = delete;
++  SKIF_LibraryArtwork (SKIF_LibraryArtwork&&)      = delete;
++
++  void RetireCover    (void);                        // Current cover → previous (released once faded out)
++  int  NextQueuePos   (void) { return m_queueLength.fetch_add (1) + 1; }
++
++  // Cover textures (written by the cover worker when its result is still current)
++  CComPtr <ID3D11ShaderResourceView> m_pTexSRV;
++  CComPtr <ID3D11ShaderResourceView> m_pTexSRV_old;
++  ImVec2                    m_vecCoverRes       = ImVec2 (0, 0);
++  ImVec2                    m_vecCoverRes_old   = ImVec2 (0, 0);
++
++  // Fades
++  float                     m_fAlpha            = 0.0f;
++  float                     m_fAlphaPrev        = 1.0f;
++  float                     m_fAlphaSK          = 0.0f;
++
++  // The game whose cover is shown, (0, Unspecified) if none
++  uint32_t                  m_coverAppId        = 0;
++  app_record_s::Store       m_coverStore        = app_record_s::Store::Unspecified;
++
++  // Cover loading. Each load takes a queue position; only the latest one gets swapped in.
++  bool                      m_loadCover         = false;
++  bool                      m_tryingToLoadCover = false;
++  std::atomic<bool>         m_coverLoading      = false;
++  std::atomic<int>          m_queueLength       { 1 };
++  int                       m_queuePosCover     = 0;
++
++  // Custom cover being saved, and the refresh it triggers
++  bool                      m_savingCover       = false;
++  bool                      m_refreshPending    = false;
++  uint32_t                  m_refreshAppId      = 0;
++  int                       m_refreshStore      = 0;
++
++  int                       m_activeIconWorkers = 0;
++};
+diff -ruN skif.orig/src/SKIF.cpp skif/src/SKIF.cpp
+--- skif.orig/src/SKIF.cpp	2026-10-24 00:50:15.558790532 +0000
++++ skif/src/SKIF.cpp	2026-10-24 01:30:27.978369454 +0000
+@@ -85,6 +85,7 @@
+ #include <shlobj.h>
+ #include <netlistmgr.h>
+ #include <dwmapi.h>
++#include <utility/artwork.h>
+ 
+ bool  RecreateD3DDevice         = false;
+ bool  RecreateSwapChains        = false;
+@@ -4572,27 +4573,16 @@
+     case WM_SKIF_COVER:
+       addAdditionalFrames += 3;
+ 
+-      // Update tryingToLoadCover
+-      extern bool tryingToLoadCover;
+-      extern std::atomic<bool> gameCoverLoading;
+-      tryingToLoadCover = gameCoverLoading.load();
+-
+       // Empty working set after the cover has finished loading
+-      if (! tryingToLoadCover)
++      if (SKIF_LibraryArtwork::Get ( ).OnCoverWorkerFinished ( ))
+         SKIF_Util_CompactWorkingSet ( );
+       break;
+ 
+     case WM_SKIF_REFRESHCOVER:
+       addAdditionalFrames += 3;
+ 
+-      // Update refreshCover
+-      extern bool     coverRefresh; // This just triggers a refresh of the cover
+-      extern uint32_t coverRefreshAppId;
+-      extern int      coverRefreshStore;
+-
+-      coverRefresh      = true;
+-      coverRefreshAppId = (uint32_t)wParam;
+-      coverRefreshStore = ( int    )lParam;
++      // A custom cover has been saved: reload it if it is the one shown
++      SKIF_LibraryArtwork::Get ( ).OnCoverSaved ((uint32_t)wParam, (int)lParam);
+ 
+       break;
+ 
+diff -ruN skif.orig/src/tabs/library.cpp skif/src/tabs/library.cpp
+--- skif.orig/src/tabs/library.cpp	2026-10-24 01:15:23.764611564 +0000
++++ skif/src/tabs/library.cpp	2026-10-24 01:30:14.167041579 +0000
+@@ -63,6 +63,7 @@
+ #include <utility/updater.h>
+ #include <tabs/ini_editor.h>
+ #include <stores/Steam/steam_library.h>
++#include <utility/artwork.h>
+ 
+ constexpr char         spaces[]          = { "\u0020\u0020\u0020\u0020" };
+ constexpr wchar_t*     utf8_bom          =  L"\xEF\xBB\xBF";
+@@ -106,10 +107,6 @@
+ bool                   SKIF_STEAM_OWNER  = false;
+ bool                   steamRunning      = false;
+ bool                   steamFallback     = false;
+-bool                   loadCover         = false;
+-bool                   tryingToLoadCover = false;
+-bool                   tryingToSaveCover = false;
+-std::atomic<bool>      gameCoverLoading  = false;
+ std::atomic<bool>      modDownloading    = false;
+ std::atomic<bool>      modInstalling     = false;
+ std::atomic<bool>      gameWorkerRunning = false;
+@@ -130,9 +127,6 @@
+ bool                   launchInstant     = false;
+ bool                   launchWithoutSK   = false;
+ 
+-bool                   coverRefresh      = false; // This just triggers a refresh of the cover
+-uint32_t               coverRefreshAppId = 0;
+-int                    coverRefreshStore = 0;
+ int                    numRegular        = 0;
+ int                    numPinnedOnTop    = 0;
+ 
+@@ -155,9 +149,6 @@
+ 
+ const float fTintMin     = 0.75f;
+       float fTint        = 1.0f;
+-      float fAlpha       = 0.0f;
+-      float fAlphaSK     = 0.0f;
+-      float fAlphaPrev   = 1.0f;
+       float fAlphaList   = 0.0f;
+ 
+ PopupState GameMenu            = PopupState_Closed;
+@@ -208,12 +199,6 @@
+   std::string  name = "";
+ } static static_proc;
+ 
+-std::atomic<int>  textureLoadQueueLength{ 1 };
+-
+-static int getTextureLoadQueuePos (void) {
+-  return textureLoadQueueLength.fetch_add(1) + 1;
+-}
+-
+ 
+ // External declaration
+ extern void SKIF_Shell_AddJumpList (std::wstring name, std::wstring path, std::wstring parameters, std::wstring directory, std::wstring icon_path, bool bService);
+@@ -4030,17 +4015,10 @@
+   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
+   static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
+   static SKIF_EpicCollection&   _epic       = SKIF_EpicCollection  ::GetInstance ( );
++  static SKIF_LibraryArtwork&   _art        = SKIF_LibraryArtwork  ::Get ( ); // Cover + icon textures and workers
+ 
+   static image_s cover, cover_old, coverSK;
+ 
+-  static CComPtr <ID3D11ShaderResourceView> pTexSRV;
+-  static CComPtr <ID3D11ShaderResourceView> pTexSRV_old;
+-
+-  static ImVec2 vecCoverRes     = ImVec2 (0, 0),
+-                vecCoverRes_old = ImVec2 (0, 0);
+-
+-  // This keeps track of the amount of workers streaming icons that we have active in the background
+-  static int   activeIconWorkers     = 0; // max: 8
+   static int   activeGameWorkers     = 0; // max: 3
+   static int   frameLibraryRefreshed = 0;
+ 
+@@ -4087,8 +4065,6 @@
+   auto& io =
+     ImGui::GetIO ();
+ 
+-  SK_RunOnce (fAlpha = (_registry.bFadeCovers) ? 0.0f : 1.0f);
+-
+   DWORD       current_time = SKIF_Util_timeGetTime ( );
+   static bool update       = true;
+ 
+@@ -4108,10 +4084,7 @@
+       if (dir_watch._hChangeNotification != INVALID_HANDLE_VALUE)
+         dir_watch.reset();
+     }
+-  } static selection, item_clicked, lastCover;
+-
+-  // We need to ensure the lastCover isn't set to SKIF's app ID as that would prevent the cover from loading on launch
+-  SK_RunOnce (lastCover.reset_to_skif = false; lastCover.reset());
++  } static selection, item_clicked;
+ 
+   // Check if any monitored platforms have been signaled
+   // !!! The signal checks must be before the platform checks,
+@@ -4176,7 +4149,7 @@
+   }
+ 
+   // We cannot manipulate the apps array while the game worker thread is running, nor any active icon workers
+-  if (RepopulateGames && activeIconWorkers == 0) // ! gameWorkerRunning.load()
++  if (RepopulateGames && _art.GetActiveIconWorkers ( ) == 0) // ! gameWorkerRunning.load()
+   {
+     PLOG_VERBOSE << "RepopulateGames && activeIconWorkers == 0";
+ 
+@@ -4188,7 +4161,7 @@
+ 
+   else if (RepopulateGames)
+   {
+-    PLOG_VERBOSE << "RepopulateGames " << activeIconWorkers;
++    PLOG_VERBOSE << "RepopulateGames " << _art.GetActiveIconWorkers ( );
+   }
+ 
+ 
+@@ -4199,7 +4172,7 @@
+ 
+   else if (! PopulatedGames && _games.IsPopulateFinished ( ))
+   {
+-    activeIconWorkers -= _games.SwapInPopulatedGames ( );
++    _art.OnIconWorkersReaped (_games.SwapInPopulatedGames ( ));
+ 
+     std::scoped_lock app_lock (_games.GetMutex());
+ 
+@@ -4450,56 +4423,11 @@
+       }
+     }
+ 
+-    // Load a new cover
+-    // Ensure we aren't already loading this cover
+-    if (lastCover.appid != pApp->id   ||
+-        lastCover.store != pApp->store)
+-    {
+-      // Special handling for the Special K logo when fading is disabled
+-      if (! _registry.bFadeCovers)
+-      {
+-        if (isSpecialK)
+-          fAlphaSK = 1.0f;
+-        else if (lastCover.appid == SKIF_STEAM_APPID &&
+-                 lastCover.store == app_record_s::Store::Steam)
+-          fAlphaSK = 0.0f;
+-      }
+-
+-      loadCover       = true;
+-      lastCover.appid = pApp->id;
+-      lastCover.store = pApp->store;
+-
+-      // Hide the current cover and set it up to be unloaded
+-      if (pTexSRV.p != nullptr)
+-      {
+-        // If there already is an old cover, we need to push it for release
+-        if (pTexSRV_old.p != nullptr)
+-        {
+-          PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << pTexSRV_old.p << " to be released";;
+-          SKIF_ResourcesToFree.push(pTexSRV_old.p);
+-          pTexSRV_old.p = nullptr;
+-        }
+-
+-        // Set up the current one to be released
+-        vecCoverRes_old = vecCoverRes;
+-        vecCoverRes     = ImVec2 (0, 0);
+-        pTexSRV_old.p   = pTexSRV.p;
+-        pTexSRV.p       = nullptr;
+-        fAlphaPrev      = (_registry.bFadeCovers) ? fAlpha   : 0.0f;
+-        fAlpha          = (_registry.bFadeCovers) ?   0.0f   : 1.0f;
+-      }
+-    }
++    // Load a new cover (no-op if it is already the one shown)
++    _art.SelectCover (pApp);
+ 
+     // Release old cover after it has faded away, or instantly if we don't fade covers
+-    if (fAlphaPrev <= 0.0f)
+-    {
+-      if (pTexSRV_old.p != nullptr)
+-      {
+-        PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << pTexSRV_old.p << " to be released";;
+-        SKIF_ResourcesToFree.push(pTexSRV_old.p);
+-        pTexSRV_old.p = nullptr;
+-      }
+-    }
++    _art.ReleaseOldCoverIfFaded ( );
+   }
+ 
+   // Apply changes when the selected game changes
+@@ -4653,7 +4581,6 @@
+ 
+   bool          isCoverHovered     = false;
+ 
+-  static int    queuePosGameCover  = 0;
+   static char   cstrLabelLoading[] = "...";
+   static char   cstrLabelMissing[] = "                      Missing cover :(\n"
+                                       "           Right-click to set one manually\n\n"
+@@ -4668,17 +4595,17 @@
+     if (uiCoverVisible)
+     {
+       // Special handling for when a cover is being loaded in the background and selection changes from another game back to this one...
+-      if (tryingToSaveCover && coverRefreshAppId == pApp->id && coverRefreshStore == (int)pApp->store)
++      if (_art.IsSavingCover (pApp))
+         pcstrLabel = cstrLabelLoading;
+ 
+       // A new cover is meant to be loaded, so don't do anything for now...
+-      else if (loadCover)
++      else if (_art.IsCoverRequested ( ))
+       { }
+ 
+-      else if (tryingToLoadCover)
++      else if (_art.IsCoverLoading ( ))
+         pcstrLabel = cstrLabelLoading;
+ 
+-      else if (textureLoadQueueLength.load() == queuePosGameCover && pTexSRV.p == nullptr)
++      else if (_art.IsCoverMissing ( ))
+       {
+         if (pApp != nullptr && pApp->IsSpecialK ( ))
+         {
+@@ -4721,16 +4648,16 @@
+         }
+ 
+         // Display previous fading out cover
+-        if (pTexSRV_old.p != nullptr && fAlphaPrev > 0.0f)
++        if (_art.GetOldCoverTexture ( ) != nullptr && _art.GetOldCoverAlpha ( ) > 0.0f)
+         {
+-          CalculateImageSizing (cover_old, vecContentRegionAvail, vecCoverRes_old);
++          CalculateImageSizing (cover_old, vecContentRegionAvail, _art.GetOldCoverResolution ( ));
+ 
+           ImGui::SetCursorPos  (cover_old.position); //vecPosImage_old
+-          SKIF_ImGui_OptImage  (pTexSRV_old.p,
++          SKIF_ImGui_OptImage  (_art.GetOldCoverTexture ( ),
+                                                             cover_old.size, //sizeCoverFloored_old,
+                                                             ImVec2 (0, 0),  // Top Left coordinates
+                                                             ImVec2 (1, 1),  // Bottom Right coordinates
+-                                                            CoverTint (fAlphaPrev),
++                                                            CoverTint (_art.GetOldCoverAlpha ( )),
+                                                             ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Never use a border
+           );
+ 
+@@ -4738,21 +4665,21 @@
+         }
+ 
+         // Display game cover image
+-        CalculateImageSizing (cover, vecContentRegionAvail, vecCoverRes);
++        CalculateImageSizing (cover, vecContentRegionAvail, _art.GetCoverResolution ( ));
+ 
+         ImGui::SetCursorPos  (cover.position); //vecPosImage
+-        SKIF_ImGui_OptImage  (pTexSRV.p,
++        SKIF_ImGui_OptImage  (_art.GetCoverTexture ( ),
+                                                           cover.size,     //sizeCoverFloored,
+                                                           ImVec2 (0, 0),  // Top Left coordinates
+                                                           ImVec2 (1, 1),  // Bottom Right coordinates
+-                                                          CoverTint (fAlpha),
++                                                          CoverTint (_art.GetCoverAlpha ( )),
+                                                           ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Never use a border
+         );
+ 
+         ImGui::SetCursorPos (vecPosCoverInner);
+ 
+         if (isSpecialK ||
+-         (! isSpecialK && fAlphaSK > 0.0f))
++         (! isSpecialK && _art.GetSpecialKAlpha ( ) > 0.0f))
+         {
+           ImVec2 sizeCurrent = (_registry._UseLowResCovers && ! _registry._UseLowResCoversHiDPIBypass) ? sizeSK_small : sizeSK;
+ 
+@@ -4764,7 +4691,7 @@
+                                                           coverSK.size,
+                                                           ImVec2 (0, 0),                  // Top Left coordinates
+                                                           ImVec2 (1, 1),                  // Bottom Right coordinates
+-                                                          CoverTint (fAlphaSK),           // Tint for Special K's logo
++                                                          CoverTint (_art.GetSpecialKAlpha ( )), // Tint for Special K's logo
+                                                           ImVec4 (0.0f, 0.0f, 0.0f, 0.0f) // Never use a border
+           );
+         }
+@@ -5100,13 +5027,7 @@
+ 
+     // Check if there is an icon worker pending that we need to acknowledge the results for...
+     //   ... *before* we filter out the game and skips the whole rest of the loop for this one!
+-    if (app.second->tex_icon.iWorker == 1 && WaitForSingleObject (app.second->tex_icon.hWorker, 0) == WAIT_OBJECT_0)
+-    {
+-      CloseHandle (app.second->tex_icon.hWorker);
+-      app.second->tex_icon.hWorker = NULL;
+-      app.second->tex_icon.iWorker = 2;
+-      activeIconWorkers--;
+-    }
++    _art.ReapIconWorker (app.second.get ( ));
+ 
+     // Skips those filtered out by an active search field entry
+     if (app.second->filtered)
+@@ -5435,74 +5356,9 @@
+       }
+     }
+ 
+-    if (ImGui::IsItemVisible ( ) && app.second->tex_icon.iWorker == 0 && activeIconWorkers < 8)
+-    {
+-      activeIconWorkers++;
+-
+-      // Store-specific icon source (Steam: parses appinfo.vdf for the icon hash first)
+-      app.second->PrepareIconSource ( );
+-
+-      std::wstring load_str = app.second->GetIconSource ( );
+-
+-      struct thread_s {
+-        uint32_t                      appid;
+-        app_record_s::tex_registry_s* texture;
+-        app_record_s*                 app;
+-        std::wstring                  path;
+-      };
+-
+-      thread_s* data = new thread_s;
+-
+-      data->path    =  load_str;
+-      data->appid   =  app.second->id;
+-      data->texture = &app.second->tex_icon;
+-      data->app     = app.second.get ( );
+-
+-      // We're going to stream game icons asynchronously on this thread
+-      HANDLE hWorkerThread = (HANDLE)
+-      _beginthreadex (nullptr, 0x0, [](void* var) -> unsigned
+-      {
+-        SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibIconWorker");
+-
+-        CoInitializeEx (nullptr, 0x0);
+-
+-        thread_s* _data = static_cast<thread_s*>(var);
+-
+-        ImVec2 dontCare;
+-
+-        LoadLibraryTexture ( LibraryTexture::Icon,
+-                                _data->appid,
+-                                  _data->texture->texture,
+-                                    _data->path,
+-                                      dontCare,
+-                                        _data->app );
+-
+-        delete _data;
+-
+-        // Force a refresh when the game icons have finished being streamed
+-        PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
+-
+-        return 0;
+-      }, data, 0x0, nullptr);
+-
+-      bool threadCreated = (hWorkerThread != NULL);
+-
+-      if (threadCreated)
+-      {
+-        PLOG_VERBOSE << "An icon worker was spawned successfully!";
+-        app.second->tex_icon.hWorker = hWorkerThread;
+-        app.second->tex_icon.iWorker = 1;
+-      }
+-
+-      else // Someting went wrong during thread creation, so free up the memory we allocated earlier
+-      {
+-        PLOG_VERBOSE << "Something went wrong when spawning an icon worker thread...";
+-
+-        delete data;
+-        app.second->tex_icon.iWorker = 2;
+-        activeIconWorkers--;
+-      }
+-    }
++    // Stream the icon in once the game is visible in the list (up to 8 icon workers at once)
++    if (ImGui::IsItemVisible ( ) && app.second->tex_icon.iWorker == 0 && _art.CanStartIconWorker ( ))
++      _art.StartIconWorker (app.second.get ( ));
+   }
+ 
+   if (apply_header_state > 0)
+@@ -5637,7 +5493,7 @@
+       uiCoverVisible                      && // Only when the cover is visible, and
+     //! _registry._UseLowResCovers        && //      when not using low-res covers, and
+     (ImGui::GetContentRegionAvail().x > 150.0f * SKIF_ImGui_GlobalDPIScale) &&
+-    ((! isSpecialK && fAlphaSK > 0.0f)    || // either while Special K logo is fading out,
++    ((! isSpecialK && _art.GetSpecialKAlpha ( ) > 0.0f) || // either while Special K logo is fading out,
+        (pApp        != nullptr            && // or its selected in the list
+         pApp->IsSpecialK ( ))))
+   {
+@@ -5650,7 +5506,7 @@
+                   hoveredPatCredits = false;
+ 
+       if (_registry.bFadeCovers)
+-        ImGui::PushStyleVar (ImGuiStyleVar_Alpha, fAlphaSK);
++        ImGui::PushStyleVar (ImGuiStyleVar_Alpha, _art.GetSpecialKAlpha ( ));
+ 
+       // Set all button styling to transparent
+       ImGui::PushStyleColor (ImGuiCol_Button,        ImVec4 (0, 0, 0, 0));
+@@ -5816,18 +5672,8 @@
+           std::wstring filePath = std::wstring(pwszFilePath);
+           if (SaveGameCover (pApp, filePath))
+           {
+-            // This allows the "..." loading dots to be visible
+-            tryingToSaveCover = true;
+-            coverRefreshAppId = pApp->id;
+-            coverRefreshStore = (int)pApp->store;
+-
+-            // This sets up the current one to be released
+-            vecCoverRes_old = vecCoverRes;
+-            vecCoverRes     = ImVec2 (0, 0);
+-            pTexSRV_old.p   = pTexSRV.p;
+-            pTexSRV.p       = nullptr;
+-            fAlphaPrev      = (_registry.bFadeCovers) ? fAlpha   : 0.0f;
+-            fAlpha          = (_registry.bFadeCovers) ?   0.0f   : 1.0f;
++            // Shows the "..." loading dots, and sets up the current cover to be released
++            _art.BeginSavingCover (pApp);
+           }
+         }
+       }
+@@ -5898,7 +5744,7 @@
+             if (d1 || d2 || d3)
+             {
+               update    = true;
+-              lastCover.reset(); // Needed as otherwise SKIF would not reload the cover
++              _art.ForgetCover ( ); // Needed as otherwise SKIF would not reload the cover
+             }
+           }
+         }
+@@ -6117,15 +5963,8 @@
+             SetFileAttributes ((targetPath + ext).c_str(),
+                     GetFileAttributes ((targetPath + ext).c_str()) & ~FILE_ATTRIBUTE_READONLY);
+ 
+-            ImVec2 dontCare;
+-
+             // Reload the icon
+-            LoadLibraryTexture (LibraryTexture::Icon,
+-                                  pApp->id,
+-                                    pApp->tex_icon.texture,
+-                                      pApp->GetIconSource ( ),
+-                                          dontCare,
+-                                            pApp );
++            _art.ReloadIcon (pApp);
+           }
+         }
+       }
+@@ -6190,18 +6029,11 @@
+             // If any file was removed
+             if (d1 || d2 || d3)
+             {
+-              ImVec2 dontCare;
+-
+               // Store-specific (Steam: refresh the icon hash from appinfo.vdf)
+               pApp->PrepareIconSource ( );
+ 
+               // Reload the icon
+-              LoadLibraryTexture (LibraryTexture::Icon,
+-                                    pApp->id,
+-                                      pApp->tex_icon.texture,
+-                                        pApp->GetIconSource ( ),
+-                                            dontCare,
+-                                              pApp );
++              _art.ReloadIcon (pApp);
+             }
+           }
+         }
+@@ -6403,89 +6235,9 @@
+ 
+ #pragma region SKIF_LibCoverWorker
+ 
+-  if (uiCoverVisible && loadCover && PopulatedGames && ! (tryingToSaveCover && coverRefreshAppId == pApp->id && coverRefreshStore == (int)pApp->store))
+-  { // Load cover first after the window has been shown -- to fix one copy leaking of the cover
+-    // 2023-03-24: Is this even needed any longer after fixing the double-loading that was going on?
+-    // 2023-03-25: Disabled HiddenFramesCannotSkipItems check to see if it's solved.
+-    // 2023-10-05: Disabled waiting for the icon thread as well
+-    loadCover = false;
+-
+-    // Reset variables used to track whether we're still loading a game cover, or if we're missing one
+-    gameCoverLoading.store (true);
+-    tryingToLoadCover = true;
+-    queuePosGameCover = textureLoadQueueLength.load() + 1;
+-
+-    // We're going to stream the cover in asynchronously on this thread
+-    HANDLE hWorkerThread = (HANDLE)
+-    _beginthreadex (nullptr, 0x0, [](void*) -> unsigned
+-    {
+-      SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibCoverWorker");
+-
+-      CoInitializeEx (nullptr, 0x0);
+-
+-      PLOG_VERBOSE << "SKIF_LibCoverWorker thread started!";
+-
+-      PLOG_DEBUG  << "Streaming game cover asynchronously...";
+-
+-      if (pApp == nullptr)
+-      {
+-        PLOG_ERROR << "Aborting due to pApp being a nullptr!";
+-        return 0;
+-      }
+-
+-      app_record_s* _pApp = pApp;
+-
+-      int queuePos = getTextureLoadQueuePos();
+-      //PLOG_VERBOSE << "queuePos = " << queuePos;
+-
+-      CComPtr <ID3D11ShaderResourceView> _pTexSRV (pTexSRV.p);
+-      std::wstring load_str;
+-      ImVec2 _resolution = ImVec2 (0, 0);
+-
+-      // Store-specific: fetch or download the store's cover (Steam, Epic, Xbox, PCGamingWiki)
+-      load_str = _pApp->PrepareCoverSource ( );
+-
+-      LoadLibraryTexture ( LibraryTexture::Cover,
+-                              _pApp->id,
+-                                _pTexSRV,
+-                                  load_str,
+-                                    _resolution,
+-                                      _pApp);
+-
+-      PLOG_VERBOSE << "_pTexSRV = " << _pTexSRV;
+-
+-      int currentQueueLength = textureLoadQueueLength.load();
+-
+-      if (currentQueueLength == queuePos)
+-      {
+-        PLOG_DEBUG << "Texture is live! Swapping it in.";
+-        vecCoverRes = _resolution;
+-        pTexSRV     = _pTexSRV;
+-
+-        // Indicate that we have stopped loading the cover
+-        gameCoverLoading.store (false);
+-
+-        // Force a refresh when the cover has been swapped in
+-        PostMessage (SKIF_Notify_hWnd, WM_SKIF_COVER, 0x0, 0x0);
+-      }
+-
+-      else if (_pTexSRV.p != nullptr)
+-      {
+-        PLOG_DEBUG << "Texture is late! (" << queuePos << " vs " << currentQueueLength << ")";
+-        PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << _pTexSRV.p << " to be released";;
+-        SKIF_ResourcesToFree.push(_pTexSRV.p);
+-        _pTexSRV.p = nullptr;
+-      }
+-
+-      PLOG_DEBUG << "Finished streaming game cover asynchronously...";
+-      PLOG_VERBOSE << "SKIF_LibCoverWorker thread stopped!";
+-
+-      return 0;
+-    }, nullptr, 0x0, nullptr);
+-
+-    if (hWorkerThread != NULL)
+-      CloseHandle (hWorkerThread);
+-  }
++  // Streams the cover in on a background thread once the cover area is visible (not while a custom cover is being saved for this game)
++  if (uiCoverVisible && _art.IsCoverRequested ( ) && PopulatedGames && ! _art.IsSavingCover (pApp))
++    _art.StartCoverWorker (pApp);
+ 
+ #pragma endregion
+ 
+@@ -6531,12 +6283,7 @@
+   if (SKIF_Custom_AddGame ( ))
+   {
+     // Unload any current cover on success
+-    if (pTexSRV.p != nullptr)
+-    {
+-      PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << pTexSRV.p << " to be released";;
+-      SKIF_ResourcesToFree.push(pTexSRV.p);
+-      pTexSRV.p = nullptr;
+-    }
++    _art.ReleaseCurrentCover ( );
+   }
+ 
+   // Popup: Properties / Manage Game
+@@ -7673,20 +7420,10 @@
+     // Images + URLs
+     else if (SaveGameCover (pApp, dragDroppedFilePath))
+     {
+-      // This allows the "..." loading dots to be visible
+-      tryingToSaveCover = true;
+-      coverRefreshAppId = pApp->id;
+-      coverRefreshStore = (int)pApp->store;
+-
+-      // This sets up the current one to be released
+-      vecCoverRes_old = vecCoverRes;
+-      vecCoverRes     = ImVec2 (0, 0);
+-      pTexSRV_old.p   = pTexSRV.p;
+-      pTexSRV.p       = nullptr;
+-      fAlphaPrev      = (_registry.bFadeCovers) ? fAlpha   : 0.0f;
+-      fAlpha          = (_registry.bFadeCovers) ?   0.0f   : 1.0f;
++      // Shows the "..." loading dots, and sets up the current cover to be released
++      _art.BeginSavingCover (pApp);
+ 
+-      // A child thread will set refreshCover once done
++      // A child thread will post WM_SKIF_REFRESHCOVER once done
+     }
+ 
+     else {
+@@ -7729,53 +7466,9 @@
+ 
+   if (_registry.bFadeCovers)
+   {
+-    // Fade in the new cover
+-    if (fAlpha < 1.0f && pTexSRV.p != nullptr)
+-    {
+-      if (current_time - timeLastTick > 15)
+-      {
+-        fAlpha += 0.05f;
+-        incTick = true;
+-      }
+-
+-      coverFadeActive = true;
+-    }
+-
+-    // Fade out the old one
+-    if (fAlphaPrev > 0.0f && pTexSRV_old.p != nullptr)
+-    {
+-      if (current_time - timeLastTick > 15)
+-      {
+-        fAlphaPrev -= 0.05f;
+-        incTick     = true;
+-      }
+-
+-      coverFadeActive = true;
+-    }
+-
+-    // Fade in the SK logo
+-    if (isSpecialK && fAlphaSK < 1.0f)
+-    {
+-      if (current_time - timeLastTick > 15)
+-      {
+-        fAlphaSK += 0.05f;
+-        incTick   = true;
+-      }
+-
+-      coverFadeActive = true;
+-    }
+-
+-    // Fade out the SK logo
+-    if (! isSpecialK && fAlphaSK > 0.0f)
+-    {
+-      if (current_time - timeLastTick > 15)
+-      {
+-        fAlphaSK -= 0.05f;
+-        incTick   = true;
+-      }
+-
++    // Cover cross-fade, and the Special K logo
++    if (_art.StepFades (isSpecialK, (current_time - timeLastTick > 15), incTick))
+       coverFadeActive = true;
+-    }
+ 
+     // Fade in the games list (but only on the next frame)
+     if (fAlphaList < 1.0f)
+@@ -7823,20 +7516,9 @@
+ 
+   // END FADE/DIM LOGIC
+ 
+-  if (coverRefresh)
+-  {
+-    coverRefresh      = false;
+-
+-    if (lastCover.appid == coverRefreshAppId &&
+-        lastCover.store == (app_record_s::Store) coverRefreshStore)
+-    {
+-      update       = true;
+-      lastCover.reset(); // Needed as otherwise SKIF would not reload the cover
+-    }
+-
+-    coverRefreshAppId = 0;
+-    coverRefreshStore = 0;
+-  }
++  // A custom cover has been saved, or cover settings changed: reload the cover if it is the one shown
++  if (_art.ProcessCoverRefresh ( ))
++    update = true;
+ 
+   // If we have changed mode, we need to reload the cover to ensure the proper resolution of it
+   static bool
+@@ -7845,7 +7527,7 @@
+   {   lastLowResState  = (_registry._UseLowResCovers && ! _registry._UseLowResCoversHiDPIBypass);
+ 
+     update    = true;
+-    lastCover.reset(); // Needed as otherwise SKIF would not reload the cover
++    _art.ForgetCover ( ); // Needed as otherwise SKIF would not reload the cover
+   }
+ 
+   extern uint32_t SelectNewSKIFGame;
+@@ -7866,34 +7548,14 @@
+   if (invalidatedDevice == 1)
+   {   invalidatedDevice  = 2;
+ 
+-    if (pTexSRV.p != nullptr)
+-    {
+-      SKIF_ResourcesToFree.push(pTexSRV.p);
+-      pTexSRV.p = nullptr;
+-    }
+-
+-    if (pTexSRV_old.p != nullptr)
+-    {
+-      SKIF_ResourcesToFree.push(pTexSRV_old.p);
+-      pTexSRV_old.p = nullptr;
+-    }
+-
+-    _games.ReleaseTextures ( );
+-
+-    for (auto& app : _games.GetApps())
+-    {
+-      if (app.second->tex_icon.texture.p != nullptr)
+-      {
+-        SKIF_ResourcesToFree.push(app.second->tex_icon.texture.p);
+-        app.second->tex_icon.texture.p = nullptr;
+-      }
+-    }
++    _art.ReleaseTextures   ( ); // Covers and game icons
++    _games.ReleaseTextures ( ); // Patreon and Special K logo
+ 
+     // TODO: Make away with RepopulateGames = true from here -- we shouldn't have to reload all games just to refresh textures
+     // Trigger a refresh of the list of games, which will reload all icons and the Patreon texture
+     RepopulateGames = true;
+     // Trigger a refresh of the cover
+-    loadCover = true;
++    _art.ReloadCover ( );
+   }
+ 
+   if (_registry.bLibrarySteam)
+diff -ruN skif.orig/src/tabs/settings.cpp skif/src/tabs/settings.cpp
+--- skif.orig/src/tabs/settings.cpp	2026-10-24 00:50:15.560072714 +0000
++++ skif/src/tabs/settings.cpp	2026-10-24 01:29:54.627459738 +0000
+@@ -17,6 +17,7 @@
+ #include <utility/updater.h>
+ #include <utility/gamepad.h>
+ #include <utility/ini_reader.h>
++#include <utility/artwork.h>
+ 
+ extern bool allowShortcutCtrlA;
+ bool saveIniOSD = false;
+@@ -816,14 +817,13 @@
+ 
+     ImGui::TreePush      ("PCGWCovers");
+ 
+-    extern bool coverRefresh;
+-    extern float fAlpha;
++    static SKIF_LibraryArtwork& _art = SKIF_LibraryArtwork::Get ( );
+ 
+     if (ImGui::Checkbox       ("GOG",         &_registry.bPCGWCoversGOG))
+     {
+       _registry.regKVPCGWCoversGOG.putData    (_registry.bPCGWCoversGOG);
+-      coverRefresh = true;
+-      fAlpha       = (_registry.bFadeCovers) ? 0.0f : 1.0f;
++      _art.RefreshShownCover ( );
++      _art.ResetCoverAlpha   ( );
+     }
+ 
+     ImGui::SameLine ( );
+@@ -833,8 +833,8 @@
+     if (ImGui::Checkbox       ("Steam",       &_registry.bPCGWCoversSteam))
+     {
+       _registry.regKVPCGWCoversSteam.putData  (_registry.bPCGWCoversSteam);
+-      coverRefresh = true;
+-      fAlpha       = (_registry.bFadeCovers) ? 0.0f : 1.0f;
++      _art.RefreshShownCover ( );
++      _art.ResetCoverAlpha   ( );
+     }
+ 
+     ImGui::TreePop          ( );
+@@ -1137,8 +1137,7 @@
+     {
+       _registry.regKVFadeCovers.putData (_registry.bFadeCovers);
+ 
+-      extern float fAlpha;
+-      fAlpha = (_registry.bFadeCovers) ?   0.0f   : 1.0f;
++      SKIF_LibraryArtwork::Get ( ).ResetCoverAlpha ( );
+     }
+ 
+     SKIF_ImGui_SetHoverTip ("Fade between game covers when switching games.");
+diff -ruN skif.orig/src/utility/artwork.cpp skif/src/utility/artwork.cpp
+--- skif.orig/src/utility/artwork.cpp	1970-01-01 00:00:00.000000000 +0000
++++ skif/src/utility/artwork.cpp	2026-10-24 01:29:54.630107977 +0000
+@@ -0,0 +1,473 @@
++#include <utility/artwork.h>
++#include <utility/games.h>
++#include <utility/registry.h>
++#include <utility/utility.h>
++#include <stores/generic_library2.h>
++#include <SKIF.h>
++#include <concurrent_queue.h>
++#include <process.h>
++
++extern concurrency::concurrent_queue <IUnknown *> SKIF_ResourcesToFree;
++
++SKIF_LibraryArtwork::SKIF_LibraryArtwork (void)
++{
++  ResetCoverAlpha ( );
++}
++
++#pragma region Cover Selection
++
++void
++SKIF_LibraryArtwork::SelectCover (app_record_s* pApp)
++{
++  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
++
++  // Ensure we aren't already loading this cover
++  if (m_coverAppId == pApp->id &&
++      m_coverStore == pApp->store)
++    return;
++
++  // Special handling for the Special K logo when fading is disabled
++  if (! _registry.bFadeCovers)
++  {
++    if (pApp->IsSpecialK ( ))
++      m_fAlphaSK = 1.0f;
++    else if (m_coverAppId == SKIF_STEAM_APPID &&
++             m_coverStore == app_record_s::Store::Steam)
++      m_fAlphaSK = 0.0f;
++  }
++
++  m_loadCover  = true;
++  m_coverAppId = pApp->id;
++  m_coverStore = pApp->store;
++
++  // Hide the current cover and set it up to be unloaded
++  if (m_pTexSRV.p != nullptr)
++    RetireCover ( );
++}
++
++void
++SKIF_LibraryArtwork::ForgetCover (void)
++{
++  m_coverAppId = 0;
++  m_coverStore = app_record_s::Store::Unspecified;
++}
++
++// Current cover → previous one, which fades out (or is released right away when fading is disabled)
++void
++SKIF_LibraryArtwork::RetireCover (void)
++{
++  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
++
++  // If there already is an old cover, we need to push it for release
++  if (m_pTexSRV_old.p != nullptr)
++  {
++    PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << m_pTexSRV_old.p << " to be released";;
++    SKIF_ResourcesToFree.push(m_pTexSRV_old.p);
++    m_pTexSRV_old.p = nullptr;
++  }
++
++  // Set up the current one to be released
++  m_vecCoverRes_old = m_vecCoverRes;
++  m_vecCoverRes     = ImVec2 (0, 0);
++  m_pTexSRV_old.p   = m_pTexSRV.p;
++  m_pTexSRV.p       = nullptr;
++  m_fAlphaPrev      = (_registry.bFadeCovers) ? m_fAlpha : 0.0f;
++  m_fAlpha          = (_registry.bFadeCovers) ?   0.0f   : 1.0f;
++}
++
++// Release old cover after it has faded away, or instantly if we don't fade covers
++void
++SKIF_LibraryArtwork::ReleaseOldCoverIfFaded (void)
++{
++  if (m_fAlphaPrev <= 0.0f)
++  {
++    if (m_pTexSRV_old.p != nullptr)
++    {
++      PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << m_pTexSRV_old.p << " to be released";;
++      SKIF_ResourcesToFree.push(m_pTexSRV_old.p);
++      m_pTexSRV_old.p = nullptr;
++    }
++  }
++}
++
++#pragma endregion
++
++#pragma region Cover Worker
++
++void
++SKIF_LibraryArtwork::StartCoverWorker (app_record_s* pApp)
++{
++  // Load cover first after the window has been shown -- to fix one copy leaking of the cover
++  // 2023-03-24: Is this even needed any longer after fixing the double-loading that was going on?
++  // 2023-03-25: Disabled HiddenFramesCannotSkipItems check to see if it's solved.
++  // 2023-10-05: Disabled waiting for the icon thread as well
++  m_loadCover = false;
++
++  // Reset variables used to track whether we're still loading a game cover, or if we're missing one
++  m_coverLoading.store (true);
++  m_tryingToLoadCover = true;
++  m_queuePosCover     = m_queueLength.load() + 1;
++
++  // We're going to stream the cover in asynchronously on this thread
++  //   The record is passed in, rather than read from the selection once the thread runs
++  HANDLE hWorkerThread = (HANDLE)
++  _beginthreadex (nullptr, 0x0, [](void* var) -> unsigned
++  {
++    SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibCoverWorker");
++
++    CoInitializeEx (nullptr, 0x0);
++
++    PLOG_VERBOSE << "SKIF_LibCoverWorker thread started!";
++
++    PLOG_DEBUG  << "Streaming game cover asynchronously...";
++
++    app_record_s* _pApp = static_cast <app_record_s*> (var);
++
++    if (_pApp == nullptr)
++    {
++      PLOG_ERROR << "Aborting due to pApp being a nullptr!";
++      return 0;
++    }
++
++    SKIF_LibraryArtwork& self = SKIF_LibraryArtwork::Get ( );
++
++    int queuePos = self.NextQueuePos ( );
++    //PLOG_VERBOSE << "queuePos = " << queuePos;
++
++    CComPtr <ID3D11ShaderResourceView> _pTexSRV (self.m_pTexSRV.p);
++    std::wstring load_str;
++    ImVec2 _resolution = ImVec2 (0, 0);
++
++    // Store-specific: fetch or download the store's cover (Steam, Epic, Xbox, PCGamingWiki)
++    load_str = _pApp->PrepareCoverSource ( );
++
++    LoadLibraryTexture ( LibraryTexture::Cover,
++                            _pApp->id,
++                              _pTexSRV,
++                                load_str,
++                                  _resolution,
++                                    _pApp);
++
++    PLOG_VERBOSE << "_pTexSRV = " << _pTexSRV;
++
++    int currentQueueLength = self.m_queueLength.load();
++
++    if (currentQueueLength == queuePos)
++    {
++      PLOG_DEBUG << "Texture is live! Swapping it in.";
++      self.m_vecCoverRes = _resolution;
++      self.m_pTexSRV     = _pTexSRV;
++
++      // Indicate that we have stopped loading the cover
++      self.m_coverLoading.store (false);
++
++      // Force a refresh when the cover has been swapped in
++      PostMessage (SKIF_Notify_hWnd, WM_SKIF_COVER, 0x0, 0x0);
++    }
++
++    else if (_pTexSRV.p != nullptr)
++    {
++      PLOG_DEBUG << "Texture is late! (" << queuePos << " vs " << currentQueueLength << ")";
++      PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << _pTexSRV.p << " to be released";;
++      SKIF_ResourcesToFree.push(_pTexSRV.p);
++      _pTexSRV.p = nullptr;
++    }
++
++    PLOG_DEBUG << "Finished streaming game cover asynchronously...";
++    PLOG_VERBOSE << "SKIF_LibCoverWorker thread stopped!";
++
++    return 0;
++  }, pApp, 0x0, nullptr);
++
++  if (hWorkerThread != NULL)
++    CloseHandle (hWorkerThread);
++}
++
++bool
++SKIF_LibraryArtwork::OnCoverWorkerFinished (void)
++{
++  m_tryingToLoadCover = m_coverLoading.load();
++
++  return (! m_tryingToLoadCover);
++}
++
++bool
++SKIF_LibraryArtwork::IsCoverMissing (void) const
++{
++  return (m_queueLength.load() == m_queuePosCover && m_pTexSRV.p == nullptr);
++}
++
++#pragma endregion
++
++#pragma region Fades
++
++void
++SKIF_LibraryArtwork::ResetCoverAlpha (void)
++{
++  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
++
++  m_fAlpha = (_registry.bFadeCovers) ? 0.0f : 1.0f;
++}
++
++// Called only while covers are faded. tick: more than 15 ms since the last step
++bool
++SKIF_LibraryArtwork::StepFades (bool isSpecialK, bool tick, bool& ticked)
++{
++  bool active = false;
++
++  // Fade in the new cover
++  if (m_fAlpha < 1.0f && m_pTexSRV.p != nullptr)
++  {
++    if (tick)
++    {
++      m_fAlpha += 0.05f;
++      ticked = true;
++    }
++
++    active = true;
++  }
++
++  // Fade out the old one
++  if (m_fAlphaPrev > 0.0f && m_pTexSRV_old.p != nullptr)
++  {
++    if (tick)
++    {
++      m_fAlphaPrev -= 0.05f;
++      ticked        = true;
++    }
++
++    active = true;
++  }
++
++  // Fade in the SK logo
++  if (isSpecialK && m_fAlphaSK < 1.0f)
++  {
++    if (tick)
++    {
++      m_fAlphaSK += 0.05f;
++      ticked      = true;
++    }
++
++    active = true;
++  }
++
++  // Fade out the SK logo
++  if (! isSpecialK && m_fAlphaSK > 0.0f)
++  {
++    if (tick)
++    {
++      m_fAlphaSK -= 0.05f;
++      ticked      = true;
++    }
++
++    active = true;
++  }
++
++  return active;
++}
++
++#pragma endregion
++
++#pragma region Custom Covers
++
++void
++SKIF_LibraryArtwork::BeginSavingCover (app_record_s* pApp)
++{
++  // This allows the "..." loading dots to be visible
++  m_savingCover  = true;
++  m_refreshAppId = pApp->id;
++  m_refreshStore = (int)pApp->store;
++
++  // This sets up the current one to be released
++  RetireCover ( );
++
++  // A child thread will post WM_SKIF_REFRESHCOVER once done
++}
++
++bool
++SKIF_LibraryArtwork::IsSavingCover (const app_record_s* pApp) const
++{
++  return (pApp         != nullptr  &&
++          m_savingCover            &&
++          m_refreshAppId == pApp->id &&
++          m_refreshStore == (int)pApp->store);
++}
++
++void
++SKIF_LibraryArtwork::OnCoverSaved (uint32_t appid, int store)
++{
++  m_refreshPending = true;
++  m_refreshAppId   = appid;
++  m_refreshStore   = store;
++}
++
++void
++SKIF_LibraryArtwork::RefreshShownCover (void)
++{
++  OnCoverSaved (m_coverAppId, (int)m_coverStore);
++}
++
++bool
++SKIF_LibraryArtwork::ProcessCoverRefresh (void)
++{
++  if (! m_refreshPending)
++    return false;
++
++  m_refreshPending = false;
++
++  bool reload = (m_coverAppId == m_refreshAppId &&
++                 m_coverStore == (app_record_s::Store) m_refreshStore);
++
++  // Needed as otherwise SKIF would not reload the cover
++  if (reload)
++    ForgetCover ( );
++
++  m_savingCover  = false;
++  m_refreshAppId = 0;
++  m_refreshStore = 0;
++
++  return reload;
++}
++
++#pragma endregion
++
++#pragma region Icons
++
++void
++SKIF_LibraryArtwork::StartIconWorker (app_record_s* pApp)
++{
++  m_activeIconWorkers++;
++
++  // Store-specific icon source (Steam: parses appinfo.vdf for the icon hash first)
++  pApp->PrepareIconSource ( );
++
++  std::wstring load_str = pApp->GetIconSource ( );
++
++  struct thread_s {
++    uint32_t                      appid;
++    app_record_s::tex_registry_s* texture;
++    app_record_s*                 app;
++    std::wstring                  path;
++  };
++
++  thread_s* data = new thread_s;
++
++  data->path    =  load_str;
++  data->appid   =  pApp->id;
++  data->texture = &pApp->tex_icon;
++  data->app     =  pApp;
++
++  // We're going to stream game icons asynchronously on this thread
++  HANDLE hWorkerThread = (HANDLE)
++  _beginthreadex (nullptr, 0x0, [](void* var) -> unsigned
++  {
++    SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibIconWorker");
++
++    CoInitializeEx (nullptr, 0x0);
++
++    thread_s* _data = static_cast<thread_s*>(var);
++
++    ImVec2 dontCare;
++
++    LoadLibraryTexture ( LibraryTexture::Icon,
++                            _data->appid,
++                              _data->texture->texture,
++                                _data->path,
++                                  dontCare,
++                                    _data->app );
++
++    delete _data;
++
++    // Force a refresh when the game icons have finished being streamed
++    PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
++
++    return 0;
++  }, data, 0x0, nullptr);
++
++  bool threadCreated = (hWorkerThread != NULL);
++
++  if (threadCreated)
++  {
++    PLOG_VERBOSE << "An icon worker was spawned successfully!";
++    pApp->tex_icon.hWorker = hWorkerThread;
++    pApp->tex_icon.iWorker = 1;
++  }
++
++  else // Someting went wrong during thread creation, so free up the memory we allocated earlier
++  {
++    PLOG_VERBOSE << "Something went wrong when spawning an icon worker thread...";
++
++    delete data;
++    pApp->tex_icon.iWorker = 2;
++    m_activeIconWorkers--;
++  }
++}
++
++void
++SKIF_LibraryArtwork::ReapIconWorker (app_record_s* pApp)
++{
++  if (pApp->tex_icon.iWorker == 1 && WaitForSingleObject (pApp->tex_icon.hWorker, 0) == WAIT_OBJECT_0)
++  {
++    CloseHandle (pApp->tex_icon.hWorker);
++    pApp->tex_icon.hWorker = NULL;
++    pApp->tex_icon.iWorker = 2;
++    m_activeIconWorkers--;
++  }
++}
++
++void
++SKIF_LibraryArtwork::ReloadIcon (app_record_s* pApp)
++{
++  ImVec2 dontCare;
++
++  LoadLibraryTexture (LibraryTexture::Icon,
++                        pApp->id,
++                          pApp->tex_icon.texture,
++                            pApp->GetIconSource ( ),
++                              dontCare,
++                                pApp );
++}
++
++#pragma endregion
++
++#pragma region Textures
++
++void
++SKIF_LibraryArtwork::ReleaseCurrentCover (void)
++{
++  if (m_pTexSRV.p != nullptr)
++  {
++    PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << m_pTexSRV.p << " to be released";;
++    SKIF_ResourcesToFree.push(m_pTexSRV.p);
++    m_pTexSRV.p = nullptr;
++  }
++}
++
++void
++SKIF_LibraryArtwork::ReleaseTextures (void)
++{
++  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
++
++  if (m_pTexSRV.p != nullptr)
++  {
++    SKIF_ResourcesToFree.push(m_pTexSRV.p);
++    m_pTexSRV.p = nullptr;
++  }
++
++  if (m_pTexSRV_old.p != nullptr)
++  {
++    SKIF_ResourcesToFree.push(m_pTexSRV_old.p);
++    m_pTexSRV_old.p = nullptr;
++  }
++
++  for (auto& app : _games.GetApps())
++  {
++    if (app.second->tex_icon.texture.p != nullptr)
++    {
++      SKIF_ResourcesToFree.push(app.second->tex_icon.texture.p);
++      app.second->tex_icon.texture.p = nullptr;
++    }
++  }
++}
++
++#pragma endregion

@@ -1,0 +1,436 @@
+diff -ru skif.orig/include/stores/Epic/epic_library.h skif/include/stores/Epic/epic_library.h
+--- skif.orig/include/stores/Epic/epic_library.h	2026-10-23 23:24:55.234917929 +0000
++++ skif/include/stores/Epic/epic_library.h	2026-10-23 23:26:33.202809160 +0000
+@@ -37,3 +37,11 @@
+   int               version = -1; // -1 unchecked, 0 uninstalled, 1 v1, 2 v2
+ };
+ 
++
++// Library record for an Epic Games Store game
++struct app_record_epic_s : app_record_store_s <app_record_epic_s, app_record_s::Store::Epic>
++{
++  using app_record_store_s::app_record_store_s;
++
++  std::string GetPersistentKey        (void) const override { return epic.name_app; }
++};
+diff -ru skif.orig/include/stores/GOG/gog_library.h skif/include/stores/GOG/gog_library.h
+--- skif.orig/include/stores/GOG/gog_library.h	2026-10-23 23:24:55.234953474 +0000
++++ skif/include/stores/GOG/gog_library.h	2026-10-23 23:26:33.202519561 +0000
+@@ -7,4 +7,12 @@
+ void SKIF_GOG_UpdateGalaxyUserID       (void);
+ bool SKIF_GOG_hasInstalledGamesChanged (void);
+ bool SKIF_GOG_hasGalaxySettingsChanged (void);
+-void SKIF_GOG_IdentifyAssetPCGW        (uint32_t app_id);
+\ No newline at end of file
++void SKIF_GOG_IdentifyAssetPCGW        (uint32_t app_id);
++
++// Library record for a GOG game
++struct app_record_gog_s : app_record_store_s <app_record_gog_s, app_record_s::Store::GOG>
++{
++  using app_record_store_s::app_record_store_s;
++
++  bool        isInstantPlayCompatible (void) const override { return true; }
++};
+diff -ru skif.orig/include/stores/SKIF/custom_library.h skif/include/stores/SKIF/custom_library.h
+--- skif.orig/include/stores/SKIF/custom_library.h	2026-10-23 23:24:55.235014777 +0000
++++ skif/include/stores/SKIF/custom_library.h	2026-10-23 23:26:33.202932574 +0000
+@@ -7,4 +7,10 @@
+ bool                  SKIF_ModifyCustomAppID (app_record_s* pApp, std::wstring_view exePath, std::wstring_view args, std::wstring workingPath);
+ void                  SKIF_GetCustomAppIDs   (app_list_t *apps);
+ bool                  SKIF_Custom_AddGame    (void);
+-bool                  SKIF_Custom_RemoveGame (uint32_t appid);
+\ No newline at end of file
++bool                  SKIF_Custom_RemoveGame (uint32_t appid);
++
++// Library record for a custom game added to SKIF
++struct app_record_custom_s : app_record_store_s <app_record_custom_s, app_record_s::Store::Custom>
++{
++  using app_record_store_s::app_record_store_s;
++};
+diff -ru skif.orig/include/stores/Steam/app_record.h skif/include/stores/Steam/app_record.h
+--- skif.orig/include/stores/Steam/app_record.h	2026-10-23 23:24:55.235052483 +0000
++++ skif/include/stores/Steam/app_record.h	2026-10-23 23:26:33.202041387 +0000
+@@ -42,6 +42,7 @@
+ 
+ #include <vector>
+ #include <memory>
++#include <typeinfo>
+ 
+ //
+ // TODO: Get this specialization stuff the hell out of here...
+@@ -84,8 +85,26 @@
+ };
+ 
+ 
++// Base record for a game in the library. Each store has its own record type derived from this
++//   (see app_record_store_s below and the store headers); store-specific behavior lives in the
++//   virtual functions, so consumers should call those instead of switching on `store`.
+ struct app_record_s {
+   app_record_s (uint32_t id_) : id (id_) { };
++  virtual ~app_record_s (void) = default;
++
++  app_record_s            (const app_record_s&) = default;
++  app_record_s& operator= (const app_record_s&) = default;
++
++  // Polymorphic copy (game workers refresh a copy of a record on a background thread).
++  //   Clone    returns a heap copy of the same record type.
++  //   CopyFrom assigns from a record of the same type in place, so the record keeps its address.
++  virtual std::unique_ptr <app_record_s>
++                       Clone                   (void) const                 { return std::make_unique <app_record_s> (*this); }
++  virtual void         CopyFrom                (const app_record_s& src)    { *this = src; }
++
++  // Store-specific behavior
++  virtual bool         isInstantPlayCompatible (void) const                 { return false; }                // Steam, GOG, Xbox
++  virtual std::string  GetPersistentKey        (void) const                 { return std::to_string (id); }  // Key used in db.json and lc.json
+ 
+   struct client_state_s {
+     bool refresh    (app_record_s *pApp);
+@@ -202,18 +221,6 @@
+     std::string    localized_name; // UTF-8
+   };
+ 
+-  bool isInstantPlayCompatible (void) const {
+-    switch (store)
+-    {
+-      case Store::GOG:
+-      case Store::Steam:
+-      case Store::Xbox:
+-        return true;
+-
+-      default:
+-        return false;
+-    }
+-  }
+ 
+   struct common_config_s {
+ 
+@@ -522,3 +529,19 @@
+ // Records are heap-allocated so the list can later hold store-specific derived types without slicing.
+ using app_entry_t = std::pair <std::string, std::unique_ptr <app_record_s>>;
+ using app_list_t  = std::vector <app_entry_t>;
++
++// Helper base for the per-store record types: fixes the store, and implements Clone / CopyFrom
++//   for the derived type. Usage: struct app_record_foo_s : app_record_store_s <app_record_foo_s, Store::Foo> { ... };
++template <class Derived, app_record_s::Store StoreType>
++struct app_record_store_s : app_record_s
++{
++  app_record_store_s (uint32_t id_) : app_record_s (id_) { store = StoreType; }
++
++  std::unique_ptr <app_record_s>
++       Clone    (void) const              override { return std::make_unique <Derived> (static_cast <const Derived&> (*this)); }
++  void CopyFrom (const app_record_s& src) override
++  {
++    assert (typeid (src) == typeid (Derived));
++    static_cast <Derived&> (*this) = static_cast <const Derived&> (src);
++  }
++};
+diff -ru skif.orig/include/stores/Steam/steam_library.h skif/include/stores/Steam/steam_library.h
+--- skif.orig/include/stores/Steam/steam_library.h	2026-10-23 23:24:55.235119888 +0000
++++ skif/include/stores/Steam/steam_library.h	2026-10-23 23:26:33.202361891 +0000
+@@ -271,4 +271,12 @@
+ std::wstring                 SKIF_Steam_GetCoverURI              (uint32_t app_id, bool force_2x);
+ std::wstring                 SKIF_SteamWebAPI_AppDetails         (uint32_t app_id);
+ std::wstring                 SKIF_SteamWebAPI_IStoreBrowseService_GetItems1 (uint32_t app_id, std::string country_code);
+-std::wstring                 SKIF_SteamWebAPI_ISteamUserStats_GetNumberOfCurrentPlayers1 (uint32_t app_id);
+\ No newline at end of file
++std::wstring                 SKIF_SteamWebAPI_ISteamUserStats_GetNumberOfCurrentPlayers1 (uint32_t app_id);
++
++// Library record for a Steam game
++struct app_record_steam_s : app_record_store_s <app_record_steam_s, app_record_s::Store::Steam>
++{
++  using app_record_store_s::app_record_store_s;
++
++  bool        isInstantPlayCompatible (void) const override { return true; }
++};
+diff -ru skif.orig/include/stores/Xbox/xbox_library.h skif/include/stores/Xbox/xbox_library.h
+--- skif.orig/include/stores/Xbox/xbox_library.h	2026-10-23 23:24:55.235177528 +0000
++++ skif/include/stores/Xbox/xbox_library.h	2026-10-23 23:26:33.202678903 +0000
+@@ -7,3 +7,12 @@
+ void         SKIF_Xbox_IdentifyAssetNew         (std::string PackageName, std::string StoreID);
+ bool         SKIF_Xbox_hasInstalledGamesChanged (void);
+ std::wstring SKIF_Xbox_GetCustomLaunchCommandW  (int appId, std::string_view packageFamilyName, std::string_view customCommand);
++
++// Library record for an Xbox / Microsoft Store game
++struct app_record_xbox_s : app_record_store_s <app_record_xbox_s, app_record_s::Store::Xbox>
++{
++  using app_record_store_s::app_record_store_s;
++
++  bool        isInstantPlayCompatible (void) const override { return true; }
++  std::string GetPersistentKey        (void) const override { return xbox.package_name; }
++};
+diff -ru skif.orig/src/stores/Epic/epic_library.cpp skif/src/stores/Epic/epic_library.cpp
+--- skif.orig/src/stores/Epic/epic_library.cpp	2026-10-23 23:24:55.230616957 +0000
++++ skif/src/stores/Epic/epic_library.cpp	2026-10-23 23:26:33.203910447 +0000
+@@ -238,7 +238,7 @@
+     std::hash <std::string> stoi_hasher;
+     size_t int_hash = stoi_hasher (AppName);
+ 
+-    app_record_s record(static_cast<uint32_t>(int_hash));
++    app_record_epic_s record(static_cast<uint32_t>(int_hash));
+ 
+     //record.install_dir.erase(std::find(record.install_dir.begin(), record.install_dir.end(), '\0'), record.install_dir.end());
+ 
+@@ -317,7 +317,7 @@
+     record.specialk.profile_dir      = SK_UTF8ToWideChar (record.specialk.profile_dir_utf8);
+ 
+     app_entry_t
+-      Epic (record.names.normal, std::make_unique <app_record_s> (record));
++      Epic (record.names.normal, std::make_unique <app_record_epic_s> (record));
+ 
+     discoveredEntries++;
+ 
+@@ -386,7 +386,7 @@
+           std::hash <std::string> stoi_hasher;
+           size_t int_hash = stoi_hasher (AppName);
+ 
+-          app_record_s record(static_cast<uint32_t>(int_hash));
++          app_record_epic_s record(static_cast<uint32_t>(int_hash));
+ 
+           //record.install_dir.erase(std::find(record.install_dir.begin(), record.install_dir.end(), '\0'), record.install_dir.end());
+ 
+@@ -437,7 +437,7 @@
+           record.specialk.profile_dir      = SK_UTF8ToWideChar (record.specialk.profile_dir_utf8);
+ 
+           app_entry_t
+-            Epic (record.names.normal, std::make_unique <app_record_s> (record));
++            Epic (record.names.normal, std::make_unique <app_record_epic_s> (record));
+ 
+           apps->emplace_back (std::move (Epic));
+           ret = true;
+diff -ru skif.orig/src/stores/GOG/gog_library.cpp skif/src/stores/GOG/gog_library.cpp
+--- skif.orig/src/stores/GOG/gog_library.cpp	2026-10-23 23:24:55.230747568 +0000
++++ skif/src/stores/GOG/gog_library.cpp	2026-10-23 23:26:33.204152987 +0000
+@@ -84,7 +84,7 @@
+               if (RegGetValueW (hSubKey, NULL, L"GameID", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
+               {
+                 int appid = _wtoi(szData);
+-                app_record_s record(appid);
++                app_record_gog_s record(appid);
+ 
+                 record.store      = app_record_s::Store::GOG;
+                 record.store_utf8 = "GOG";
+@@ -131,7 +131,7 @@
+                   record.specialk.injection.injection.type = InjectionType::Global;
+ 
+                   app_entry_t
+-                    GOG (record.names.normal, std::make_unique <app_record_s> (record));
++                    GOG (record.names.normal, std::make_unique <app_record_gog_s> (record));
+ 
+                   apps->emplace_back (std::move (GOG));
+ 
+diff -ru skif.orig/src/stores/SKIF/custom_library.cpp skif/src/stores/SKIF/custom_library.cpp
+--- skif.orig/src/stores/SKIF/custom_library.cpp	2026-10-23 23:24:55.230699894 +0000
++++ skif/src/stores/SKIF/custom_library.cpp	2026-10-23 23:26:33.203709338 +0000
+@@ -226,7 +226,7 @@
+             dwSize = sizeof (DWORD32);
+             if (RegGetValueW (hSubKey, NULL, L"ID", RRF_RT_REG_DWORD, NULL, &dwData, &dwSize) == ERROR_SUCCESS)
+             {
+-              app_record_s record (dwData);
++              app_record_custom_s record (dwData);
+ 
+               record.id = dwData;
+               record.store      = app_record_s::Store::Custom;
+@@ -271,7 +271,7 @@
+                 record.specialk.injection.injection.type = InjectionType::Global;
+ 
+                 app_entry_t
+-                  pair (record.names.normal, std::make_unique <app_record_s> (record));
++                  pair (record.names.normal, std::make_unique <app_record_custom_s> (record));
+ 
+                 apps->emplace_back (std::move (pair));
+               }
+diff -ru skif.orig/src/stores/Steam/steam_library.cpp skif/src/stores/Steam/steam_library.cpp
+--- skif.orig/src/stores/Steam/steam_library.cpp	2026-10-23 23:24:55.230820963 +0000
++++ skif/src/stores/Steam/steam_library.cpp	2026-10-23 23:26:33.203365541 +0000
+@@ -1319,14 +1319,14 @@
+ 
+     if (unique_apps.emplace (app).second)
+     {
+-      app_record_s record (app);
++      app_record_steam_s record (app);
+       record.store      = app_record_s::Store::Steam;
+       record.store_utf8 = "Steam";
+ 
+       // Opening the manifests to read the names is a
+       //   lengthy operation, so defer names and icons
+       apps->emplace_back (
+-        "Loading...", std::make_unique <app_record_s> (record)
++        "Loading...", std::make_unique <app_record_steam_s> (record)
+       );
+     }
+   }
+diff -ru skif.orig/src/stores/Xbox/xbox_library.cpp skif/src/stores/Xbox/xbox_library.cpp
+--- skif.orig/src/stores/Xbox/xbox_library.cpp	2026-10-23 23:24:55.230920306 +0000
++++ skif/src/stores/Xbox/xbox_library.cpp	2026-10-23 23:26:33.204387803 +0000
+@@ -174,7 +174,7 @@
+                     if (RegGetValueW (hSubKey, szSubKey, L"Root", RRF_RT_REG_SZ, NULL, &szData, &dwSize) == ERROR_SUCCESS)
+                     {
+                       pugi::xml_document manifest, config;
+-                      app_record_s record (0); // Dummy value that will be changed further down
++                      app_record_xbox_s record (0); // Dummy value that will be changed further down
+ 
+                       //PLOG_VERBOSE << "Root: " << szData;
+ 
+@@ -465,7 +465,7 @@
+                       record.specialk.profile_dir_utf8 = SK_WideCharToUTF8(record.specialk.profile_dir);
+ 
+                       app_entry_t
+-                        Xbox (record.names.normal, std::make_unique <app_record_s> (record));
++                        Xbox (record.names.normal, std::make_unique <app_record_xbox_s> (record));
+ 
+                       //PLOG_VERBOSE << "Added to the list of detected games!";
+                       apps->emplace_back (std::move (Xbox));
+diff -ru skif.orig/src/tabs/library.cpp skif/src/tabs/library.cpp
+--- skif.orig/src/tabs/library.cpp	2026-10-23 23:24:55.231993605 +0000
++++ skif/src/tabs/library.cpp	2026-10-23 23:26:33.209150353 +0000
+@@ -141,7 +141,8 @@
+ SKIF_Util_CreateProcess_s iPlayCache[15] = { };
+ 
+ struct SKIF_Lib_GameWorkerThread_s {
+-  app_record_s          app        = app_record_s (0);
++  std::unique_ptr <app_record_s>
++                        app        = nullptr; // Copy of the record being refreshed (same record type)
+   std::set<std::string> apptickets = std::set<std::string>( );
+   HANDLE                hWorker    = NULL;
+   bool                  free       = true;
+@@ -2076,14 +2077,12 @@
+   // Instant Play options
+   if (SteamShortcutPossible || pApp->store != app_record_s::Store::Steam)
+   {
+-    if (pApp->ui.numSecondaryLaunchConfigs > 0 || (pApp->store == app_record_s::Store::Steam || pApp->store == app_record_s::Store::GOG || pApp->store == app_record_s::Store::Xbox))
++    if (pApp->ui.numSecondaryLaunchConfigs > 0 || pApp->isInstantPlayCompatible ( ))
+       ImGui::Separator ( );
+ 
+     // If there is only one valid launch config (Steam, GOG, Xbox games only)
+     if (pApp->ui.numSecondaryLaunchConfigs == 0   &&
+-       (pApp->store == app_record_s::Store::Steam ||
+-        pApp->store == app_record_s::Store::GOG   ||
+-        pApp->store == app_record_s::Store::Xbox))
++        pApp->isInstantPlayCompatible ( ))
+     {
+       if (playDisabled)
+         ImGui::BeginDisabled ( );
+@@ -3350,9 +3349,7 @@
+       }
+ 
+       SKIF_ImGui_SetHoverText (
+-        (pApp->store == app_record_s::Store::Epic) ? pApp->epic.name_app     :
+-        (pApp->store == app_record_s::Store::Xbox) ? pApp->xbox.package_name :
+-                                     std::to_string (pApp->id)
++        pApp->GetPersistentKey ( )
+       );
+ 
+       ImGui::EndMenu ();
+@@ -5253,15 +5250,15 @@
+ 
+         for (auto& app : _games.GetApps())
+         {
+-          if (app.second->id    == worker.app.id &&
+-              app.second->store == worker.app.store)
++          if (app.second->id    == worker.app->id &&
++              app.second->store == worker.app->store)
+           {
+             // Backup the texture data (in particular any active worker data)
+             app_record_s::tex_registry_s tex_icon  = app.second->tex_icon;
+             app_record_s::tex_registry_s tex_cover = app.second->tex_cover;
+ 
+             // Copy the results over
+-            *app.second = worker.app;
++            app.second->CopyFrom (*worker.app);
+ 
+             // Restore the texture data (and worker data)
+             app.second->tex_icon  = tex_icon;
+@@ -5317,7 +5314,7 @@
+ 
+         // Make a copy of pApp that we will use to update all data
+         SKIF_Lib_GameWorkerThread_s* worker = &aGameWorkers[availableWorker];
+-        worker->app        = *pApp;
++        worker->app        = pApp->Clone ( );
+         worker->apptickets = _games.GetAppTickets ( );
+         worker->cpu_pre    = (int)pApp->specialk.injection.injection.bitness;
+ 
+@@ -5334,7 +5331,7 @@
+ 
+           SKIF_Lib_GameWorkerThread_s* _data = static_cast<SKIF_Lib_GameWorkerThread_s*>(var);
+ 
+-          UpdateInjectionStrategy (&_data->app, _data->apptickets);
++          UpdateInjectionStrategy (_data->app.get ( ), _data->apptickets);
+ 
+           // Force a refresh when the game icons have finished being streamed
+           PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
+@@ -7967,9 +7964,7 @@
+       SKIF_ImGui_Spacing ( );
+ 
+       // Steam / GOG / Xbox supports Instant Play
+-      if (pApp->store == app_record_s::Store::Steam ||
+-          pApp->store == app_record_s::Store::GOG   ||
+-          pApp->store == app_record_s::Store::Xbox)
++      if (pApp->isInstantPlayCompatible ( ))
+       {
+         ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION); // ImColor::HSV(0.11F, 1.F, 1.F)
+         SKIF_ImGui_SetHoverTip ("Warning: This skips the regular platform launch process for the game,\n"
+diff -ru skif.orig/src/utility/games.cpp skif/src/utility/games.cpp
+--- skif.orig/src/utility/games.cpp	2026-10-23 23:24:55.232676761 +0000
++++ skif/src/utility/games.cpp	2026-10-23 23:26:33.206136776 +0000
+@@ -889,7 +889,7 @@
+ 
+   if ( ! SKIF_STEAM_OWNER )
+   {
+-    app_record_s SKIF_record (SKIF_STEAM_APPID);
++    app_record_steam_s SKIF_record (SKIF_STEAM_APPID);
+ 
+     SKIF_record.id                = SKIF_STEAM_APPID;
+     SKIF_record.names.normal      = "Special K";
+@@ -905,7 +905,7 @@
+     SKIF_record.specialk.profile_dir_utf8 = SK_WideCharToUTF8 (SKIF_record.specialk.profile_dir);
+ 
+     app_entry_t
+-      SKIF ( "Special K", std::make_unique <app_record_s> (SKIF_record) );
++      SKIF ( "Special K", std::make_unique <app_record_steam_s> (SKIF_record) );
+ 
+     _data->apps.emplace_back (std::move (SKIF));
+     games = _data->apps.size();
+@@ -997,9 +997,7 @@
+         auto& append_cfg = (record.store == app_record_s::Store::Steam) ? record.launch_configs_custom
+                                                                         : record.launch_configs;
+ 
+-        std::string key  = (record.store == app_record_s::Store::Epic)  ? record.epic.name_app     :
+-                           (record.store == app_record_s::Store::Xbox)  ? record.xbox.package_name :
+-                                                          std::to_string (record.id);
++        std::string key  = record.GetPersistentKey ( );
+ 
+         for (auto& launch_config : jf[record.store_utf8][key])
+         {
+@@ -1111,9 +1109,7 @@
+       // Load any custom data
+       if (! self.m_jsonMetaDB.is_discarded())
+       {
+-        std::string item = (app.second->store == app_record_s::Store::Epic)  ? app.second->epic.name_app     :
+-                           (app.second->store == app_record_s::Store::Xbox)  ? app.second->xbox.package_name :
+-                                                              std::to_string (app.second->id);
++        std::string item = app.second->GetPersistentKey ( );
+ 
+         try {
+           auto& key = self.m_jsonMetaDB[app.second->store_utf8][item];
+@@ -1511,9 +1507,7 @@
+   // Update the db.json file with any new values
+   if (! m_jsonMetaDB.is_discarded())
+   {
+-    std::string item = (pApp->store == app_record_s::Store::Epic)  ? pApp->epic.name_app     :
+-                       (pApp->store == app_record_s::Store::Xbox)  ? pApp->xbox.package_name :
+-                                                     std::to_string (pApp->id);
++    std::string item = pApp->GetPersistentKey ( );
+ 
+     try {
+       auto& key = m_jsonMetaDB[pApp->store_utf8][item];
+@@ -1530,9 +1524,7 @@
+         { "Pin",      pApp->skif.pinned    }
+       };
+ 
+-      if (pApp->store == app_record_s::Store::Steam ||
+-          pApp->store == app_record_s::Store::GOG   ||
+-          pApp->store == app_record_s::Store::Xbox)
++      if (pApp->isInstantPlayCompatible ( ))
+         key += { "InstantPlay", pApp->skif.instant_play };
+ 
+       return ! bWriteToDisk || MetaDB_WriteFile ( );

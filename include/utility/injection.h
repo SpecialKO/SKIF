@@ -26,6 +26,9 @@
 #include <cstdio>
 #include <array>
 #include <string>
+#include <vector>
+#include <regex>
+#include <mutex>
 #include <imgui/imgui.h>
 
 // Singleton struct
@@ -136,4 +139,16 @@ private:
   bool    AddUserListPattern      (std::string pattern,       bool whitelist_);
   bool    SaveUserList            (bool whitelist_);
   bool    LoadUserList            (bool whitelist_);
+
+  // Compiled regex cache for _TestUserList, rebuilt only when the list text changes
+  struct CompiledUserList {
+    std::string             source;   // List text the patterns were compiled from
+    std::vector<std::regex> patterns;
+  };
+
+  CompiledUserList _compiledWhitelist;
+  CompiledUserList _compiledBlacklist;
+  std::mutex       _compiledListsMutex; // _TestUserList runs on both the UI thread and the process refresh thread
+
+  void    _CompileUserList        (CompiledUserList& list, const char* szList);
 };

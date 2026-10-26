@@ -1,0 +1,730 @@
+diff -ru skif.orig/include/stores/Epic/epic_library.h skif/include/stores/Epic/epic_library.h
+--- skif.orig/include/stores/Epic/epic_library.h	2026-10-23 23:56:09.821194531 +0000
++++ skif/include/stores/Epic/epic_library.h	2026-10-23 23:59:57.169100408 +0000
+@@ -48,4 +48,9 @@
+   // Launching (epic_library.cpp)
+   bool        RequiresValidExecutable (void) const override { return false; } // Launches through the Epic Games Launcher
+   void        Launch                  (const launch_context_s& ctx) override;
++
++  // Library UI (epic_library.cpp)
++  std::wstring GetStoreAssetDirectory  (void) const override;
++  std::vector <std::pair <std::string, std::string>>
++               GetStoreDebugFields     (void) const override;
+ };
+diff -ru skif.orig/include/stores/GOG/gog_library.h skif/include/stores/GOG/gog_library.h
+--- skif.orig/include/stores/GOG/gog_library.h	2026-10-23 23:56:09.821233610 +0000
++++ skif/include/stores/GOG/gog_library.h	2026-10-23 23:59:57.168956158 +0000
+@@ -20,4 +20,9 @@
+   // Launching (gog_library.cpp)
+   bool        PrefersInstantLaunch    (bool fromGameMenu, launch_config_s* config) const override;
+   void        Launch                  (const launch_context_s& ctx) override;
++
++  // Library UI (gog_library.cpp)
++  bool         GetInstantPlayDefault   (void) const override;
++  std::wstring GetStoreAssetDirectory  (void) const override;
++  bool         CanCreateDesktopShortcut(void)       override { return true; }
+ };
+diff -ru skif.orig/include/stores/SKIF/custom_library.h skif/include/stores/SKIF/custom_library.h
+--- skif.orig/include/stores/SKIF/custom_library.h	2026-10-23 23:56:09.821279151 +0000
++++ skif/include/stores/SKIF/custom_library.h	2026-10-23 23:59:57.169368831 +0000
+@@ -16,4 +16,9 @@
+ 
+   // Custom games always use an instant launch
+   bool        PrefersInstantLaunch    (bool fromGameMenu, launch_config_s* config) const override { UNREFERENCED_PARAMETER (fromGameMenu); UNREFERENCED_PARAMETER (config); return true; }
++
++  // Library UI (custom_library.cpp)
++  std::wstring GetStoreAssetDirectory  (void) const override;
++  bool         IsUserAdded             (void) const override { return true; }
++  bool         CanCreateDesktopShortcut(void)       override { return true; }
+ };
+diff -ru skif.orig/include/stores/Steam/app_record.h skif/include/stores/Steam/app_record.h
+--- skif.orig/include/stores/Steam/app_record.h	2026-10-23 23:56:09.821315551 +0000
++++ skif/include/stores/Steam/app_record.h	2026-10-23 23:59:57.164648845 +0000
+@@ -85,6 +85,9 @@
+ };
+ 
+ 
++// Steam App ID of Special K itself; also used for SKIF's own entry in the library
++constexpr int SKIF_STEAM_APPID = 1157970;
++
+ // Base record for a game in the library. Each store has its own record type derived from this
+ //   (see app_record_store_s below and the store headers); store-specific behavior lives in the
+ //   virtual functions, so consumers should call those instead of switching on `store`.
+@@ -527,6 +530,19 @@
+ 
+   // Per-game Instant Play preference (skif.instant_play: 0 = global default, 1 = always, 2 = never)
+   bool                 UsesInstantPlay         (bool globalDefault) const { return (skif.instant_play == 1 || (skif.instant_play == 0 && globalDefault)); }
++  virtual bool         GetInstantPlayDefault   (void) const               { return false; }  // The store's global Instant Play setting
++
++  // Library UI
++  std::wstring         GetAssetDirectory       (void) const;                                   // app_record.cpp: SK's Assets folder for this game (backslash-terminated), or empty
++  virtual std::wstring GetStoreAssetDirectory  (void) const               { return L""; }     // Assets\<Store>\<id or key>\ (store .cpp files)
++  virtual bool         IsUserAdded             (void) const               { return false; }   // Custom game added by the user (editable target, removable)
++  virtual std::string  GetClientLaunchOptions  (void) const               { return ""; }      // Launch options the user set in the store client
++  virtual std::string  GetLocalizedName        (void)                     { return names.original; } // Name used for the Special K profile folder
++  virtual bool         CanCreateDesktopShortcut(void)                     { return false; }
++  virtual std::wstring GetDesktopShortcutArgs  (void);                                         // app_record.cpp: SKIF arguments that launch the game
++  virtual std::wstring GetDesktopShortcutIcon  (void)                     { return launch_configs[0].getExecutableFullPath ( ); }
++  virtual std::vector <std::pair <std::string, std::string>>
++                       GetStoreDebugFields     (void) const               { return { }; }      // (label, value) pairs for the "<Store> Data" developer menu
+ 
+   template <class _Tp> static
+     constexpr bool
+diff -ru skif.orig/include/stores/Steam/steam_library.h skif/include/stores/Steam/steam_library.h
+--- skif.orig/include/stores/Steam/steam_library.h	2026-10-23 23:56:09.821345700 +0000
++++ skif/include/stores/Steam/steam_library.h	2026-10-23 23:59:57.168796529 +0000
+@@ -293,6 +293,16 @@
+   std::string  GetStoreLaunchOptions   (uint32_t steamAppID) override;
+   std::wstring GetJumpListIconPath     (launch_config_s* config) const override;
+ 
++  // Library UI (steam_library.cpp)
++  bool         GetInstantPlayDefault   (void) const override;
++  std::wstring GetStoreAssetDirectory  (void) const override;
++  std::string  GetClientLaunchOptions  (void) const override { return steam.local.launch_option; }
++  std::string  GetLocalizedName        (void)       override;
++  bool         CanCreateDesktopShortcut(void)       override;
++  std::wstring GetDesktopShortcutArgs  (void)       override;
++  std::vector <std::pair <std::string, std::string>>
++               GetStoreDebugFields     (void) const override;
++
+   // Steam parses its original launch configs again when a game is selected, so online ones are kept apart and merged then
+   std::map <int, launch_config_s>&
+               GetOnlineLaunchConfigs  (void) override { return launch_configs_custom; }
+diff -ru skif.orig/include/stores/Xbox/xbox_library.h skif/include/stores/Xbox/xbox_library.h
+--- skif.orig/include/stores/Xbox/xbox_library.h	2026-10-23 23:56:09.821406891 +0000
++++ skif/include/stores/Xbox/xbox_library.h	2026-10-23 23:59:57.169240010 +0000
+@@ -20,4 +20,13 @@
+   void        WhitelistForInjection   (launch_config_s* config) override;
+   bool        PrefersInstantLaunch    (bool fromGameMenu, launch_config_s* config) const override;
+   void        Launch                  (const launch_context_s& ctx) override;
++
++  // Library UI (xbox_library.cpp)
++  bool         GetInstantPlayDefault   (void) const override;
++  std::wstring GetStoreAssetDirectory  (void) const override;
++  bool         CanCreateDesktopShortcut(void)       override { return true; }
++  std::wstring GetDesktopShortcutArgs  (void)       override;
++  std::wstring GetDesktopShortcutIcon  (void)       override { return GetStoreAssetDirectory ( ) + L"icon-original.ico"; }
++  std::vector <std::pair <std::string, std::string>>
++               GetStoreDebugFields     (void) const override;
+ };
+diff -ru skif.orig/src/SKIF.cpp skif/src/SKIF.cpp
+--- skif.orig/src/SKIF.cpp	2026-10-23 23:56:09.817224835 +0000
++++ skif/src/SKIF.cpp	2026-10-23 23:59:57.165549636 +0000
+@@ -86,7 +86,6 @@
+ #include <netlistmgr.h>
+ #include <dwmapi.h>
+ 
+-const int SKIF_STEAM_APPID      = 1157970;
+ bool  RecreateD3DDevice         = false;
+ bool  RecreateSwapChains        = false;
+ bool  RecreateSwapChainsPending = false;
+diff -ru skif.orig/src/stores/Epic/epic_library.cpp skif/src/stores/Epic/epic_library.cpp
+--- skif.orig/src/stores/Epic/epic_library.cpp	2026-10-23 23:56:09.816959835 +0000
++++ skif/src/stores/Epic/epic_library.cpp	2026-10-23 23:59:57.169930400 +0000
+@@ -593,3 +593,27 @@
+ }
+ 
+ #pragma endregion
++
++#pragma region Library UI
++
++std::wstring
++app_record_epic_s::GetStoreAssetDirectory (void) const
++{
++  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
++
++  return SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(epic.name_app).c_str());
++}
++
++std::vector <std::pair <std::string, std::string>>
++app_record_epic_s::GetStoreDebugFields (void) const
++{
++  return {
++    { "App Name",          epic.name_app          },
++    { "Display Name",      epic.name_display      },
++    { "Catalog Namespace", epic.catalog_namespace },
++    { "Catalog Item ID",   epic.catalog_item_id   },
++    { "DieselGameBoxTall", epic.gamebox_tall      }
++  };
++}
++
++#pragma endregion
+diff -ru skif.orig/src/stores/GOG/gog_library.cpp skif/src/stores/GOG/gog_library.cpp
+--- skif.orig/src/stores/GOG/gog_library.cpp	2026-10-23 23:56:09.817037953 +0000
++++ skif/src/stores/GOG/gog_library.cpp	2026-10-23 23:59:57.170720138 +0000
+@@ -335,7 +335,7 @@
+   if (! GOGGalaxy_Installed)
+     return true;
+ 
+-  return (! fromGameMenu && UsesInstantPlay (_registry.bInstantPlayGOG));
++  return (! fromGameMenu && UsesInstantPlay (GetInstantPlayDefault ( )));
+ }
+ 
+ // Launch GOG Galaxy game (default for GOG games since 2024-01-05), unless an instant launch was requested
+@@ -373,3 +373,23 @@
+ }
+ 
+ #pragma endregion
++
++#pragma region Library UI
++
++bool
++app_record_gog_s::GetInstantPlayDefault (void) const
++{
++  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
++
++  return _registry.bInstantPlayGOG;
++}
++
++std::wstring
++app_record_gog_s::GetStoreAssetDirectory (void) const
++{
++  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
++
++  return SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, id);
++}
++
++#pragma endregion
+diff -ru skif.orig/src/stores/SKIF/custom_library.cpp skif/src/stores/SKIF/custom_library.cpp
+--- skif.orig/src/stores/SKIF/custom_library.cpp	2026-10-23 23:56:09.816999751 +0000
++++ skif/src/stores/SKIF/custom_library.cpp	2026-10-23 23:59:57.170299929 +0000
+@@ -623,3 +623,15 @@
+ 
+   return ret;
+ }
++
++#pragma region Library UI
++
++std::wstring
++app_record_custom_s::GetStoreAssetDirectory (void) const
++{
++  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
++
++  return SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, id);
++}
++
++#pragma endregion
+diff -ru skif.orig/src/stores/Steam/app_record.cpp skif/src/stores/Steam/app_record.cpp
+--- skif.orig/src/stores/Steam/app_record.cpp	2026-10-23 23:56:09.817075658 +0000
++++ skif/src/stores/Steam/app_record.cpp	2026-10-23 23:59:57.168518715 +0000
+@@ -6,6 +6,7 @@
+ #include <utility/injection.h>
+ #include <utility/skif_imgui.h>
+ #include <SKIF.h>
++#include <utility/fsutil.h>
+ 
+ // Shorthand, because these are way too long
+ using app_launch_config_s =
+@@ -807,3 +808,28 @@
+ }
+ 
+ #pragma endregion
++
++#pragma region Library UI
++
++std::wstring
++app_record_s::GetAssetDirectory (void) const
++{
++  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
++
++  if (id == SKIF_STEAM_APPID)
++    return SK_FormatStringW (LR"(%ws\Assets\)", _path_cache.specialk_userdata);
++
++  return GetStoreAssetDirectory ( );
++}
++
++std::wstring
++app_record_s::GetDesktopShortcutArgs (void)
++{
++  std::wstring linkArgs = SK_FormatStringW (LR"("%ws" %ws)", launch_configs[0].getExecutableFullPath().c_str(), launch_configs[0].getLaunchOptions().c_str());
++
++  SKIF_Util_TrimTrailingSpacesW (linkArgs);
++
++  return linkArgs;
++}
++
++#pragma endregion
+diff -ru skif.orig/src/stores/Steam/steam_library.cpp skif/src/stores/Steam/steam_library.cpp
+--- skif.orig/src/stores/Steam/steam_library.cpp	2026-10-23 23:56:09.817109074 +0000
++++ skif/src/stores/Steam/steam_library.cpp	2026-10-23 23:59:57.170493996 +0000
+@@ -1766,7 +1766,7 @@
+   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+ 
+   // Convert all except those where we are dealing with an invalid launch config (e.g. Link2EA)
+-  return (! fromGameMenu && UsesInstantPlay (_registry.bInstantPlaySteam) && config->isExecutableFullPathValid ( ));
++  return (! fromGameMenu && UsesInstantPlay (GetInstantPlayDefault ( )) && config->isExecutableFullPathValid ( ));
+ }
+ 
+ // Launch Steam game (regular), unless an instant launch was requested
+@@ -1837,3 +1837,59 @@
+ }
+ 
+ #pragma endregion
++
++#pragma region Library UI
++
++bool
++app_record_steam_s::GetInstantPlayDefault (void) const
++{
++  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
++
++  return _registry.bInstantPlaySteam;
++}
++
++std::wstring
++app_record_steam_s::GetStoreAssetDirectory (void) const
++{
++  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
++
++  return SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  _path_cache.specialk_userdata, id);
++}
++
++std::string
++app_record_steam_s::GetLocalizedName (void)
++{
++  return SK_UseManifestToGetAppName (this);
++}
++
++// Only expose shortcuts for games whose primary launch config points to a valid executable,
++//   and not for shell execute based games (e.g. Link2EA, which requires the Steam client running)
++bool
++app_record_steam_s::CanCreateDesktopShortcut (void)
++{
++  if (launch_configs.empty ( ) || _status.updating)
++    return false;
++
++  return launch_configs.begin ( )->second.isExecutableFullPathValid ( );
++}
++
++std::wstring
++app_record_steam_s::GetDesktopShortcutArgs (void)
++{
++  return app_record_s::GetDesktopShortcutArgs ( ) + L" SKIF_SteamAppId=" + std::to_wstring (id);
++}
++
++std::vector <std::pair <std::string, std::string>>
++app_record_steam_s::GetStoreDebugFields (void) const
++{
++  return {
++    { "Branch",           steam.branch                                    },
++    { "Launch Option",    steam.local.launch_option                       },
++    { "Manifest Path",    SK_WideCharToUTF8 (steam.manifest_path)         },
++    { "CPU Architecture", std::to_string ((int)common_config.cpu_type)    },
++    { "Favorited",        std::to_string (steam.shared.favorite)          },
++    { "Hidden",           std::to_string (steam.shared.hidden)            }
++  };
++}
++
++#pragma endregion
+diff -ru skif.orig/src/stores/Steam/vdf.cpp skif/src/stores/Steam/vdf.cpp
+--- skif.orig/src/stores/Steam/vdf.cpp	2026-10-23 23:56:09.817147107 +0000
++++ skif/src/stores/Steam/vdf.cpp	2026-10-23 23:59:57.167740860 +0000
+@@ -26,7 +26,6 @@
+ #include <stores/Steam/steam_library.h>
+ #include <filesystem>
+ 
+-const int SKIF_STEAM_APPID = 1157970;
+ 
+ // Shorthands, to make life less painful
+ using appinfo_s     = skValveDataFile::appinfo_s;
+diff -ru skif.orig/src/stores/Xbox/xbox_library.cpp skif/src/stores/Xbox/xbox_library.cpp
+--- skif.orig/src/stores/Xbox/xbox_library.cpp	2026-10-23 23:56:09.817191974 +0000
++++ skif/src/stores/Xbox/xbox_library.cpp	2026-10-23 23:59:57.171033851 +0000
+@@ -610,7 +610,7 @@
+ 
+   UNREFERENCED_PARAMETER (config);
+ 
+-  return (! fromGameMenu && UsesInstantPlay (_registry.bInstantPlayXbox));
++  return (! fromGameMenu && UsesInstantPlay (GetInstantPlayDefault ( )));
+ }
+ 
+ // Launch Xbox game (through gamelaunchhelper.exe, or Instant Play)
+@@ -772,3 +772,48 @@
+ }
+ 
+ #pragma endregion
++
++#pragma region Library UI
++
++bool
++app_record_xbox_s::GetInstantPlayDefault (void) const
++{
++  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
++
++  return _registry.bInstantPlayXbox;
++}
++
++std::wstring
++app_record_xbox_s::GetStoreAssetDirectory (void) const
++{
++  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
++
++  return SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(xbox.package_name).c_str());
++}
++
++// Xbox shortcuts go through gamelaunchhelper.exe
++std::wstring
++app_record_xbox_s::GetDesktopShortcutArgs (void)
++{
++//std::wstring linkArgs = SK_UTF8ToWideChar (SK_FormatString  (R"(SKIF_URI="%s!%s")", xbox.package_name_family.c_str(), launch_configs[0].Xbox_ApplicationId.c_str()));
++  std::wstring linkArgs = SK_FormatStringW (LR"("%ws" %ws)", launch_configs[0].executable_helper.c_str(), launch_configs[0].getLaunchOptions().c_str());
++
++  SKIF_Util_TrimTrailingSpacesW (linkArgs);
++
++  return linkArgs;
++}
++
++std::vector <std::pair <std::string, std::string>>
++app_record_xbox_s::GetStoreDebugFields (void) const
++{
++  return {
++    { "Package",       xbox.package_name                               },
++    { "Full Name",     xbox.package_name_full                          },
++    { "Family Name",   xbox.package_name_family                        },
++    { "Store ID",      xbox.store_id                                   },
++    { "App Directory", SK_WideCharToUTF8 (xbox.directory_app)          },
++    { "PF Directory",  SK_WideCharToUTF8 (xbox.directory_program_files) }
++  };
++}
++
++#pragma endregion
+diff -ru skif.orig/src/stores/generic_library2.cpp skif/src/stores/generic_library2.cpp
+--- skif.orig/src/stores/generic_library2.cpp	2026-10-23 23:56:09.816913229 +0000
++++ skif/src/stores/generic_library2.cpp	2026-10-23 23:59:57.168094517 +0000
+@@ -116,8 +116,6 @@
+   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+ 
+-  static const int SKIF_STEAM_APPID = 1157970;
+-
+   CComPtr <ID3D11Texture2D> pTex2D;
+   DirectX::TexMetadata        meta = { };
+   DirectX::ScratchImage        img = { };
+diff -ru skif.orig/src/tabs/library.cpp skif/src/tabs/library.cpp
+--- skif.orig/src/tabs/library.cpp	2026-10-23 23:56:09.818187142 +0000
++++ skif/src/tabs/library.cpp	2026-10-23 23:59:57.181107515 +0000
+@@ -103,7 +103,6 @@
+ 
+ [Textures.D3D11]
+ Cache=false)";
+-const int              SKIF_STEAM_APPID  = 1157970;
+ bool                   SKIF_STEAM_OWNER  = false;
+ bool                   steamRunning      = false;
+ bool                   steamFallback     = false;
+@@ -853,18 +852,7 @@
+   if (! isImage && ! isURL)
+     return false;
+ 
+-  if (pApp->id == SKIF_STEAM_APPID)
+-    targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
+-  else if (pApp->store == app_record_s::Store::Custom)
+-    targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
+-  else if (pApp->store == app_record_s::Store::Epic)
+-    targetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->epic.name_app).c_str());
+-  else if (pApp->store == app_record_s::Store::GOG)
+-    targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
+-  else if (pApp->store == app_record_s::Store::Xbox)
+-    targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->xbox.package_name).c_str());
+-  else if (pApp->store == app_record_s::Store::Steam)
+-    targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  _path_cache.specialk_userdata, pApp->id);
++  targetPath = pApp->GetAssetDirectory ( );
+ 
+   if (targetPath == L"")
+   {
+@@ -1532,8 +1520,10 @@
+         if (firstLaunchConfig != nullptr && ! firstLaunchConfig->getLaunchOptionsUTF8().empty())
+           hoverText += (" " + firstLaunchConfig->getLaunchOptionsUTF8());
+ 
+-        if (pApp->store == app_record_s::Store::Steam)
+-          hoverText += (" " + pApp->steam.local.launch_option);
++        std::string clientLaunchOptions = pApp->GetClientLaunchOptions ( );
++
++        if (! clientLaunchOptions.empty ( ))
++          hoverText += (" " + clientLaunchOptions);
+       }
+ 
+       SKIF_ImGui_SetHoverText (hoverText.c_str());
+@@ -1648,9 +1638,9 @@
+               hoverText += (" " + _launch.getLaunchOptionsUTF8());
+ 
+             // Also add Steam defined launch options, but only if not using custom launch configs
+-            if (pApp->store == app_record_s::Store::Steam && ! pApp->steam.local.launch_option.empty() &&
+-               ! _launch_cfg.second.custom_skif && ! _launch_cfg.second.custom_user)
+-              hoverText += (" " + pApp->steam.local.launch_option);
++            if (! pApp->GetClientLaunchOptions ( ).empty() &&
++                ! _launch_cfg.second.custom_skif && ! _launch_cfg.second.custom_user)
++              hoverText += (" " + pApp->GetClientLaunchOptions ( ));
+           }
+ 
+           if (! playDisabled && ! blacklisted)
+@@ -1968,11 +1958,7 @@
+   // Manage Game
+   if (ImGui::BeginMenuEx ("Manage", ICON_FA_GEARS))
+   {
+-    bool desktopShortcutPossible =
+-          (SteamShortcutPossible                     ||
+-          pApp->store == app_record_s::Store::Custom ||
+-          pApp->store == app_record_s::Store::GOG    ||
+-          pApp->store == app_record_s::Store::Xbox);
++    bool desktopShortcutPossible = pApp->CanCreateDesktopShortcut ( );
+ 
+     if (SKIF_ImGui_MenuItemEx2 ("Properties", ICON_FA_GEAR, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info)))
+       ModifyGamePopup = PopupState_Open;
+@@ -2216,21 +2202,8 @@
+         std::string name = SKIF_Util_StripInvalidFilenameChars (pApp->names.normal);
+ 
+         std::wstring linkPath = SK_FormatStringW (LR"(%ws\%ws.lnk)", std::wstring(_path_cache.desktop.path).c_str(), SK_UTF8ToWideChar(name).c_str());
+-        std::wstring linkArgs =
+-          (pApp->store == app_record_s::Store::Xbox)
+-        //? SK_UTF8ToWideChar (SK_FormatString  (R"(SKIF_URI="%s!%s")", pApp->xbox.package_name_family.c_str(),                  pApp->launch_configs[0].Xbox_ApplicationId.c_str()))
+-          ?                    SK_FormatStringW (LR"("%ws" %ws)",       pApp->launch_configs[0].executable_helper.c_str(),       pApp->launch_configs[0].getLaunchOptions().c_str())
+-          :                    SK_FormatStringW (LR"("%ws" %ws)",       pApp->launch_configs[0].getExecutableFullPath().c_str(), pApp->launch_configs[0].getLaunchOptions().c_str());
+-
+-        std::wstring iconPath =
+-          (pApp->store == app_record_s::Store::Xbox)
+-          ?                    SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\icon-original.ico)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->xbox.package_name).c_str())
+-          :                    pApp->launch_configs[0].getExecutableFullPath();
+-
+-        SKIF_Util_TrimTrailingSpacesW (linkArgs);
+-
+-        if (pApp->store == app_record_s::Store::Steam)
+-          linkArgs += L" SKIF_SteamAppId=" + std::to_wstring (pApp->id);
++        std::wstring linkArgs = pApp->GetDesktopShortcutArgs ( );
++        std::wstring iconPath = pApp->GetDesktopShortcutIcon ( );
+ 
+         constexpr char* info_title         = "Create desktop shortcut";
+         constexpr char* info_label_success = "A desktop shortcut has been created.";
+@@ -2265,7 +2238,7 @@
+       RepopulateGames = true;
+     }
+ 
+-    if (pApp->store == app_record_s::Store::Custom)
++    if (pApp->IsUserAdded ( ))
+     {
+       if (SKIF_ImGui_MenuItemEx2 ("Remove", ICON_FA_TRASH, ImColor(200, 200, 200, 255)))
+         RemoveGamePopup = PopupState_Open;
+@@ -2384,64 +2357,20 @@
+ 
+         ImGui::PopID        ( );
+ 
+-        if (pApp->store == app_record_s::Store::Steam)
+-        {
+-          ImGui::Separator ( );
+-
+-          ImGui::PushID       ("#Steam");
+-          ImGui::TextDisabled ("Steam Data");
+-          if (ImGui::MenuItem ("Branch",                  pApp->steam.branch.c_str()))
+-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->steam.branch));
+-          if (ImGui::MenuItem ("Launch Option",           pApp->steam.local.launch_option.c_str()))
+-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->steam.local.launch_option));
+-          if (ImGui::MenuItem ("Manifest Path", SK_WideCharToUTF8(pApp->steam.manifest_path).c_str()))
+-            SKIF_Util_SetClipboardData (                          pApp->steam.manifest_path);
+-          if (ImGui::MenuItem ("CPU Architecture", std::to_string ((int)pApp->common_config.cpu_type).c_str()))
+-            SKIF_Util_SetClipboardData (           std::to_wstring((int)pApp->common_config.cpu_type));
+-          if (ImGui::MenuItem ("Favorited",        std::to_string (pApp->steam.shared.favorite).c_str()))
+-            SKIF_Util_SetClipboardData   (         std::to_wstring(pApp->steam.shared.favorite));
+-          if (ImGui::MenuItem ("Hidden",           std::to_string (pApp->steam.shared.hidden).c_str()))
+-            SKIF_Util_SetClipboardData   (         std::to_wstring(pApp->steam.shared.hidden));
+-          ImGui::PopID        ( );
+-        }
+-
+-        else if (pApp->store == app_record_s::Store::Xbox)
+-        {
+-          ImGui::Separator ( );
+-
+-          ImGui::PushID       ("#Xbox");
+-          ImGui::TextDisabled ("Xbox Data");
+-          if (ImGui::MenuItem ("Package",                 pApp->xbox.package_name.c_str()))
+-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->xbox.package_name));
+-          if (ImGui::MenuItem ("Full Name",               pApp->xbox.package_name_full.c_str()))
+-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->xbox.package_name_full));
+-          if (ImGui::MenuItem ("Family Name",             pApp->xbox.package_name_family.c_str()))
+-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->xbox.package_name_family));
+-          if (ImGui::MenuItem ("Store ID",                pApp->xbox.store_id.c_str()))
+-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->xbox.store_id));
+-          if (ImGui::MenuItem ("App Directory",    SK_WideCharToUTF8(pApp->xbox.directory_app).c_str()))
+-            SKIF_Util_SetClipboardData (                             pApp->xbox.directory_app);
+-          if (ImGui::MenuItem ("PF Directory",     SK_WideCharToUTF8(pApp->xbox.directory_program_files).c_str()))
+-            SKIF_Util_SetClipboardData (                             pApp->xbox.directory_program_files);
+-          ImGui::PopID        ( );
+-        }
++        // Store-specific data
++        auto storeFields = pApp->GetStoreDebugFields ( );
+ 
+-        else if (pApp->store == app_record_s::Store::Epic)
++        if (! storeFields.empty ( ))
+         {
+           ImGui::Separator ( );
+ 
+-          ImGui::PushID       ("#Epic");
+-          ImGui::TextDisabled ("Epic Data");
+-          if (ImGui::MenuItem ("App Name",                pApp->epic.name_app.c_str()))
+-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->epic.name_app));
+-          if (ImGui::MenuItem ("Display Name",            pApp->epic.name_display.c_str()))
+-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->epic.name_display));
+-          if (ImGui::MenuItem ("Catalog Namespace",       pApp->epic.catalog_namespace.c_str()))
+-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->epic.catalog_namespace));
+-          if (ImGui::MenuItem ("Catalog Item ID",         pApp->epic.catalog_item_id.c_str()))
+-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->epic.catalog_item_id));
+-          if (ImGui::MenuItem ("DieselGameBoxTall",       pApp->epic.gamebox_tall.c_str()))
+-            SKIF_Util_SetClipboardData (SK_UTF8ToWideChar(pApp->epic.gamebox_tall));
++          ImGui::PushID       (("#"   + pApp->store_utf8).c_str ( ));
++          ImGui::TextDisabled ((pApp->store_utf8 + " Data").c_str ( ));
++          for (auto& field : storeFields)
++          {
++            if (ImGui::MenuItem (field.first.c_str ( ), field.second.c_str ( )))
++              SKIF_Util_SetClipboardData (SK_UTF8ToWideChar (field.second));
++          }
+           ImGui::PopID        ( );
+         }
+ 
+@@ -2759,17 +2688,7 @@
+       // Epic and Xbox platforms use fake app IDs hashed from their unique text-based platform identifier
+       if (SKIF_ImGui_MenuItemEx2 ("Copy ID", ICON_FA_FINGERPRINT))
+       {
+-        switch (pApp->store)
+-        {
+-        case app_record_s::Store::Epic:
+-          SKIF_Util_SetClipboardData (SK_UTF8ToWideChar (pApp->epic.name_app));
+-          break;
+-        case app_record_s::Store::Xbox:
+-          SKIF_Util_SetClipboardData (SK_UTF8ToWideChar (pApp->xbox.package_name));
+-          break;
+-        default:
+-          SKIF_Util_SetClipboardData (std::to_wstring   (pApp->id));
+-        }
++        SKIF_Util_SetClipboardData (SK_UTF8ToWideChar (pApp->GetPersistentKey ( )));
+       }
+ 
+       SKIF_ImGui_SetHoverText (
+@@ -4142,9 +4061,7 @@
+   if (pApp->specialk.injection.localized_name.empty())
+   {
+     pApp->specialk.injection.localized_name =
+-      (pApp->store == app_record_s::Store::Steam)
+-        ? SK_UseManifestToGetAppName (pApp)
+-        : pApp->names.original; // Use real original
++      pApp->GetLocalizedName ( ); // Steam: name from the app manifest; else the real original
+ 
+     // Strip any remaining null terminators
+     pApp->specialk.injection.localized_name.erase(std::find(pApp->specialk.injection.localized_name.begin(), pApp->specialk.injection.localized_name.end(), '\0'), pApp->specialk.injection.localized_name.end());
+@@ -6220,18 +6137,7 @@
+         {
+           std::wstring targetPath = L"";
+ 
+-          if (pApp->id == SKIF_STEAM_APPID)
+-            targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
+-          else if (pApp->store == app_record_s::Store::Custom)
+-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
+-          else if (pApp->store == app_record_s::Store::Epic)
+-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->epic.name_app).c_str());
+-          else if (pApp->store == app_record_s::Store::GOG)
+-            targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
+-          else if (pApp->store == app_record_s::Store::Xbox)
+-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->xbox.package_name).c_str());
+-          else if (pApp->store == app_record_s::Store::Steam)
+-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  _path_cache.specialk_userdata, pApp->id);
++          targetPath = pApp->GetAssetDirectory ( );
+ 
+           if (PathFileExists (targetPath.c_str()))
+           {
+@@ -6466,18 +6372,7 @@
+           std::wstring targetPath = L"";
+           std::wstring ext        = SKIF_Util_ToLowerW (std::filesystem::path(pwszFilePath).extension().wstring());
+ 
+-          if (pApp->id == SKIF_STEAM_APPID)
+-            targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
+-          else if (pApp->store == app_record_s::Store::Custom)
+-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
+-          else if (pApp->store == app_record_s::Store::Epic)
+-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->epic.name_app).c_str());
+-          else if (pApp->store == app_record_s::Store::GOG)
+-            targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
+-          else if (pApp->store == app_record_s::Store::Xbox)
+-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->xbox.package_name).c_str());
+-          else if (pApp->store == app_record_s::Store::Steam)
+-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  _path_cache.specialk_userdata, pApp->id);
++          targetPath = pApp->GetAssetDirectory ( );
+ 
+           if (targetPath != L"")
+           {
+@@ -6564,18 +6459,7 @@
+         {
+           std::wstring targetPath = L"";
+ 
+-          if (pApp->id == SKIF_STEAM_APPID)
+-            targetPath = SK_FormatStringW (LR"(%ws\Assets\)",           _path_cache.specialk_userdata);
+-          else if (pApp->store == app_record_s::Store::Custom)
+-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, pApp->id);
+-          else if (pApp->store == app_record_s::Store::Epic)
+-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->epic.name_app).c_str());
+-          else if (pApp->store == app_record_s::Store::GOG)
+-            targetPath = SK_FormatStringW (LR"(%ws\Assets\GOG\%i\)",    _path_cache.specialk_userdata, pApp->id);
+-          else if (pApp->store == app_record_s::Store::Xbox)
+-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(pApp->xbox.package_name).c_str());
+-          else if (pApp->store == app_record_s::Store::Steam)
+-            targetPath = SK_FormatStringW (LR"(%ws\Assets\Steam\%i\)",  _path_cache.specialk_userdata, pApp->id);
++          targetPath = pApp->GetAssetDirectory ( );
+ 
+           if (PathFileExists (targetPath.c_str()))
+           {
+@@ -7153,7 +7037,7 @@
+         if (cached_instant_play == -1)
+           cached_instant_play    = pApp->skif.instant_play;
+ 
+-        if (pApp->store == app_record_s::Store::Custom)
++        if (pApp->IsUserAdded ( ))
+         {
+           strncpy (charPath,    pApp->launch_configs[0].getExecutableFullPathUTF8 ( ).c_str(), MAX_PATH);
+           strncpy (charWorkDir, pApp->launch_configs[0].getWorkingDirectoryUTF8   ( ).c_str(), MAX_PATH);
+@@ -7188,7 +7072,7 @@
+       float  fInputX          = fModifyGamePopupWidth / 2.0f - vInputSize.x / 2.0f;
+ 
+       // Custom games has their own manage fields
+-      if (pApp->store == app_record_s::Store::Custom)
++      if (pApp->IsUserAdded ( ))
+       {
+         static float fBtnX  = fInputX                                                              // ImGui::InputTextEx (center-aligned)
+                             - ImGui::CalcItemSize(vButtonSize, ImGui::CalcTextSize("Browse...").x  // ImGui::Button
+@@ -7349,7 +7233,7 @@
+       if (charName[0] != '\0')
+         changed_name = true;
+ 
+-      if (pApp->store == app_record_s::Store::Custom)
++      if (pApp->IsUserAdded ( ))
+       {
+         ImGui::SetCursorPosX (fInputX);
+ 
+@@ -7392,9 +7276,7 @@
+ 
+         ImGui::TreePush        ("ManageGame_InstantPlay");
+         ImGui::RadioButton     (
+-          SKIF_Util_FormatStringRaw ("Default (%s)", ((_registry.bInstantPlaySteam && pApp->store == app_record_s::Store::Steam) ||
+-                                                      (_registry.bInstantPlayGOG   && pApp->store == app_record_s::Store::GOG)   ||
+-                                                      (_registry.bInstantPlayXbox  && pApp->store == app_record_s::Store::Xbox))
++          SKIF_Util_FormatStringRaw ("Default (%s)", (pApp->GetInstantPlayDefault ( ))
+                                               ? "Always" : "Never"), &cached_instant_play, 0);
+         SKIF_ImGui_SetHoverTip ("The game will use the default behavior configured in the Settings tab.");
+         ImGui::SameLine        ( );
+@@ -7497,7 +7379,7 @@
+         }
+ 
+         // Custom games also updates the registry
+-        if (pApp->store == app_record_s::Store::Custom)
++        if (pApp->IsUserAdded ( ))
+         {
+           std::wstring wszPath    = SK_UTF8ToWideChar (charPath);
+           std::wstring wszWorkDir = SK_UTF8ToWideChar (charWorkDir);
+diff -ru skif.orig/src/utility/games.cpp skif/src/utility/games.cpp
+--- skif.orig/src/utility/games.cpp	2026-10-23 23:56:09.819049409 +0000
++++ skif/src/utility/games.cpp	2026-10-23 23:59:57.167392225 +0000
+@@ -640,9 +640,6 @@
+ extern bool SKIF_STEAM_OWNER;
+ extern concurrency::concurrent_queue <IUnknown *> SKIF_ResourcesToFree;
+ 
+-// Same value as the (internal linkage) constants in library.cpp / vdf.cpp
+-static const int SKIF_STEAM_APPID = 1157970;
+-
+ struct SKIF_GamingCollection::worker_s {
+   AppList                 apps       = { };
+   std::set <std::string>  apptickets = { };

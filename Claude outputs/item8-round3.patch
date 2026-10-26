@@ -1,0 +1,603 @@
+diff -ru --strip-trailing-cr skif.orig/include/utility/games.h skif/include/utility/games.h
+--- skif.orig/include/utility/games.h	2026-10-24 14:35:57.350760220 +0000
++++ skif/include/utility/games.h	2026-10-24 14:55:22.017476263 +0000
+@@ -50,10 +50,9 @@
+ 
+   std::recursive_mutex& GetMutex() { return m_apps_mutex; }
+ 
+-  // Set on the library worker's per-game threads: the library worker holds GetMutex ( ) on their behalf for as long as
+-  //   they run (each thread only touches its own games), so code they call must not lock it themselves -- the lock
+-  //   is held by another thread and would never be released to them (a deadlock).
+-  static inline thread_local bool tl_appsLockHeldByLibraryWorker = false;
++  // Set on the library worker's threads. They fill the worker's own app list, which nothing else sees until
++  //   SwapInPopulatedGames ( ), so code they call skips GetMutex ( ) (each thread only touches its own games)
++  static inline thread_local bool tl_isLibraryWorker = false;
+ 
+   const AppList& GetApps() const { return m_apps; }
+         AppList& GetApps()       { return m_apps; }
+diff -ru --strip-trailing-cr skif.orig/src/stores/Epic/epic_library.cpp skif/src/stores/Epic/epic_library.cpp
+--- skif.orig/src/stores/Epic/epic_library.cpp	2026-10-24 13:33:36.195499832 +0000
++++ skif/src/stores/Epic/epic_library.cpp	2026-10-24 14:55:49.390450750 +0000
+@@ -3,6 +3,8 @@
+ #include <wtypes.h>
+ #include <fstream>
+ #include <filesystem>
++#include <mutex>
++#include <unordered_map>
+ 
+ #include <comdef.h>
+ #include <process.h>
+@@ -142,6 +144,106 @@
+     this->FindInstalledGames1 (apps);
+ }
+ 
++// The fields used from an item of the Epic Games Launcher's catalog-cache.json
++struct epic_catalog_item_s {
++  bool        child = false; // Has a mainGameItem (DLC / add-on), so not listed
++  std::string title;
++  std::string gamebox_tall;  // URL of the DieselGameBoxTall key image
++};
++
++using epic_catalog_t = std::unordered_map <std::string, epic_catalog_item_s>; // Catalog item ID -> item
++
++// Reads catalog-cache.json (it can be large: parsing took ~30 ms in testing) and keeps the fields used, which are reused while the
++//   file is unchanged (same path, size and write time). Returns nullptr if the file is missing or not valid JSON.
++static std::shared_ptr <const epic_catalog_t>
++SKIF_Epic_GetCatalog (const std::wstring& path)
++{
++  static std::mutex                             cache_mutex;
++  static std::wstring                           cache_path;
++  static ULONGLONG                              cache_write = 0,
++                                                cache_size  = 0;
++  static std::shared_ptr <const epic_catalog_t> cache;
++
++  WIN32_FILE_ATTRIBUTE_DATA fad = { };
++  if (! GetFileAttributesExW (path.c_str ( ), GetFileExInfoStandard, &fad))
++    return nullptr;
++
++  ULONGLONG write = (static_cast <ULONGLONG> (fad.ftLastWriteTime.dwHighDateTime) << 32) | fad.ftLastWriteTime.dwLowDateTime;
++  ULONGLONG size  = (static_cast <ULONGLONG> (fad.nFileSizeHigh)                  << 32) | fad.nFileSizeLow;
++
++  std::scoped_lock cache_lock (cache_mutex);
++
++  if (cache_path == path && cache_write == write && cache_size == size)
++  {
++    PLOG_VERBOSE << "catalog-cache.json is unchanged; using the items read before.";
++    return cache;
++  }
++
++  cache_path  = path;
++  cache_write = write;
++  cache_size  = size;
++  cache       = nullptr;
++
++  // Read the whole file at once (parsing from a stream reads it a character at a time)
++  std::string   data;
++  std::ifstream file (path, std::ios::binary);
++
++  if (! file.is_open ( ))
++    return nullptr;
++
++  data.resize (static_cast <size_t> (size));
++  file.read   (data.data ( ), data.size ( ));
++  data.resize (static_cast <size_t> (file.gcount ( )));
++  file.close  ( );
++
++  nlohmann::json catalog = nlohmann::json::parse (data, nullptr, false);
++
++  if (catalog.is_discarded ( ) || ! catalog.is_object ( ))
++  {
++    PLOG_WARNING << "catalog_cache is discarded or not an object";
++    return nullptr;
++  }
++
++  auto items = std::make_shared <epic_catalog_t> ( );
++  auto list  = catalog.find ("items");
++
++  if (list != catalog.end ( ) && list->is_object ( ))
++  {
++    for (const auto& [id, entry] : list->items ( ))
++    {
++      try {
++        const nlohmann::json& item = entry.at ("item");
++
++        epic_catalog_item_s it;
++        it.child = item.contains ("mainGameItem") && ! item.at ("mainGameItem").is_null ( );
++        it.title = item.at ("title").get<std::string> ();
++
++        if (item.contains ("keyImages"))
++        {
++          for (const auto& img : item.at ("keyImages"))
++          {
++            if (img.value ("type", std::string ( )) == "DieselGameBoxTall")
++            {
++              it.gamebox_tall = img.value ("url", std::string ( ));
++              break;
++            }
++          }
++        }
++
++        items->emplace (id, std::move (it));
++      }
++
++      // Items missing a field are left out (the game then falls back to its executable name)
++      catch (const std::exception&) { }
++    }
++  }
++
++  PLOG_VERBOSE << "Read catalog-cache.json successfully (" << items->size ( ) << " items).";
++
++  cache = items;
++  return cache;
++}
++
+ bool
+ SKIF_EpicCollection::FindInstalledGames2 (app_list_t* apps) const
+ {
+@@ -157,20 +259,8 @@
+     return ret;
+   }
+ 
+-  nlohmann::json
+-      catalog_cache;
+-  std::ifstream
+-      catalog_cache_file (this->appdatapath + LR"(\cache\prod\catalog-cache.json)");
+-  if (catalog_cache_file.is_open())
+-  {
+-    catalog_cache = nlohmann::json::parse (catalog_cache_file, nullptr);
+-    catalog_cache_file.close();
+-
+-    if (catalog_cache.is_discarded ( ) || ! catalog_cache.is_object ( ))
+-      PLOG_WARNING << "catalog_cache is discarded or not an object";
+-    else
+-      PLOG_VERBOSE << "Read catalog-cache.json successfully.";
+-  }
++  auto catalog_cache =
++    SKIF_Epic_GetCatalog (this->appdatapath + LR"(\cache\prod\catalog-cache.json)");
+ 
+   std::string line;
+   size_t      lineNo            = 0;
+@@ -251,33 +341,24 @@
+     record.install_dir          = SK_UTF8ToWideChar (jl.at ("dir"));
+     record.install_dir          = std::filesystem::path (record.install_dir).lexically_normal();
+ 
+-    // Fallback
+-    if (catalog_cache.is_discarded ( ) || ! catalog_cache.is_object ( ))
++    auto item = (catalog_cache != nullptr) ? catalog_cache->find (CatalogItemId) : epic_catalog_t::const_iterator { };
++
++    // Fallback (no catalog, or the game is missing from it)
++    if (catalog_cache == nullptr || item == catalog_cache->end ( ))
+     {
+       record.names.normal       = jl.value ("launchExecutable", std::string());
+       SKIF_Util_ReplaceAll       (record.names.normal, ".exe", "");
+     }
+ 
+     else {
+-      const nlohmann::json& item =
+-        catalog_cache.at ("items").at (CatalogItemId).at ("item");
+-
+-      if (item.contains ("mainGameItem") && ! item["mainGameItem"].is_null ( ))
++      if (item->second.child)
+       {
+         PLOG_DEBUG << "Line " << lineNo << ": item not a parent; skipping...";
+         continue;
+       }
+ 
+-      record.names.normal       = item.at ("title").get<std::string> ();
+-
+-      for (const auto& img : item.at ("keyImages"))
+-      {
+-        if (img.at ("type") == "DieselGameBoxTall")
+-        {
+-          record.epic.gamebox_tall = img.at ("url").get<std::string> ();
+-          break;
+-        }
+-      }
++      record.names.normal       = item->second.title;
++      record.epic.gamebox_tall  = item->second.gamebox_tall;
+     }
+ 
+     record.names.original       = record.names.normal;
+diff -ru --strip-trailing-cr skif.orig/src/stores/Steam/steam_library.cpp skif/src/stores/Steam/steam_library.cpp
+--- skif.orig/src/stores/Steam/steam_library.cpp	2026-10-24 14:35:57.347662625 +0000
++++ skif/src/stores/Steam/steam_library.cpp	2026-10-24 14:55:22.019847584 +0000
+@@ -31,6 +31,8 @@
+ #include <fstream>
+ #include <filesystem>
+ #include <regex>
++#include <mutex>
++#include <unordered_map>
+ #include <utility/injection.h>
+ #include <nlohmann/json.hpp>
+ 
+@@ -716,100 +718,126 @@
+   if (userid == 0)
+     return false;
+ 
+-  PLOG_INFO << "Preloading Steam user local config...";
++  // localconfig.vdf takes tens of ms to parse and rarely changes, so the values used from it are kept and reused while
++  //   the file is unchanged (same path, size and write time). Also called by the main thread, hence the lock.
++  struct localconfig_cache_s {
++    std::wstring                                   path;
++    ULONGLONG                                      write  = 0,
++                                                   size   = 0;
++    bool                                           parsed = false; // The file was parsed and had content
++    std::unordered_map <std::string, std::string>  launch_options; // App ID -> "LaunchOptions"
++    std::vector <std::string>                      apptickets;     // App IDs under "apptickets"
++  };
+ 
+-  // Implementation using the ValveFileVDF project
+-  std::ifstream file (SKIF_Steam_GetUserConfigStorePath (userid, ConfigStore_UserLocal));
++  static std::mutex          cache_mutex;
++  static localconfig_cache_s cache;
+ 
+-  if (file.is_open())
++  std::wstring path = SKIF_Steam_GetUserConfigStorePath (userid, ConfigStore_UserLocal);
++
++  WIN32_FILE_ATTRIBUTE_DATA fad = { };
++  if (! GetFileAttributesExW (path.c_str ( ), GetFileExInfoStandard, &fad))
++    return false;
++
++  ULONGLONG write = (static_cast <ULONGLONG> (fad.ftLastWriteTime.dwHighDateTime) << 32) | fad.ftLastWriteTime.dwLowDateTime;
++  ULONGLONG size  = (static_cast <ULONGLONG> (fad.nFileSizeHigh)                  << 32) | fad.nFileSizeLow;
++
++  std::scoped_lock cache_lock (cache_mutex);
++
++  if (cache.path == path && cache.write == write && cache.size == size)
++    PLOG_INFO << "Preloading Steam user local config (unchanged; using the values read before)...";
++
++  else
+   {
+-    try
+-    {
+-      auto user_localconfig = tyti::vdf::read(file);
+-      file.close();
++    PLOG_INFO << "Preloading Steam user local config...";
+ 
+-      if (user_localconfig.childs.size() > 0)
+-      {
+-        // Preload LaunchOptions...
+-        // LaunchOptions are tracked at "UserLocalConfigStore" -> "Software" -> "valve" -> "Steam" -> "apps" -> "<app-id>" -> "LaunchOptions"
++    cache       = { };
++    cache.path  = path;
++    cache.write = write;
++    cache.size  = size;
+ 
+-        std::shared_ptr <tyti::vdf::object>
+-                                         apps_localconfig = SKIF_VDF_ciSearch ("Software", &user_localconfig.childs);
+-        if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Valve",    &apps_localconfig->childs);
+-        if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Steam",    &apps_localconfig->childs);
+-        if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Apps",     &apps_localconfig->childs);
+-      //if (apps_localconfig != nullptr) PLOG_VERBOSE << "Found a match!";
++    // Implementation using the ValveFileVDF project
++    std::ifstream file (path);
+ 
+-        /* case sensitive -- cannot be used
+-        auto& apps_localconfig =
+-          user_localconfig.
+-            childs.at("Software") ->
+-              childs.at("valve")  ->
+-                childs.at("Steam")->
+-                  childs.at("apps");
+-        */
++    if (file.is_open())
++    {
++      try
++      {
++        auto user_localconfig = tyti::vdf::read(file);
++        file.close();
+ 
+-        if (apps_localconfig != nullptr &&
+-            apps_localconfig->childs.size() > 0)
++        if (user_localconfig.childs.size() > 0)
+         {
+-          for (auto& app : *apps)
+-          {
+-            if (app.second->store != app_record_s::Store::Steam)
+-              continue;
++          // LaunchOptions are tracked at "UserLocalConfigStore" -> "Software" -> "valve" -> "Steam" -> "apps" -> "<app-id>" -> "LaunchOptions"
++          std::shared_ptr <tyti::vdf::object>
++                                           apps_localconfig = SKIF_VDF_ciSearch ("Software", &user_localconfig.childs);
++          if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Valve",    &apps_localconfig->childs);
++          if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Steam",    &apps_localconfig->childs);
++          if (apps_localconfig != nullptr) apps_localconfig = SKIF_VDF_ciSearch ("Apps",     &apps_localconfig->childs);
+ 
+-            auto lc_app = apps_localconfig->childs.find(std::to_string(app.second->id));
+-            if (lc_app != apps_localconfig->childs.end())
++          if (apps_localconfig != nullptr)
++          {
++            for (auto& lc_app : apps_localconfig->childs)
+             {
+-              auto& attribs = lc_app->second->attribs;
++              auto& attribs = lc_app.second->attribs;
+ 
+               if (! attribs.empty() && attribs.count("LaunchOptions") > 0)
+-                AsSteamRecord (app)->steam.local.launch_option = attribs.at("LaunchOptions");
++                cache.launch_options.emplace (lc_app.first, attribs.at("LaunchOptions"));
+             }
+           }
+-        }
+ 
+-        // Preload DLC ownership...
+-        //
+-        // AppTickets are tracked at "UserLocalConfigStore" -> "apptickets" -> "<app-id>"
+-        // This is used to determine if a DLC related launch option should be visible
+-        std::shared_ptr <tyti::vdf::object>
+-          apptickets_localconfig =
+-            SKIF_VDF_ciSearch ("apptickets", &user_localconfig.childs);
+-            //user_localconfig.childs.at("apptickets"); // case sensitive -- cannot be used
++          // AppTickets are tracked at "UserLocalConfigStore" -> "apptickets" -> "<app-id>"
++          // This is used to determine if a DLC related launch option should be visible
++          std::shared_ptr <tyti::vdf::object>
++            apptickets_localconfig =
++              SKIF_VDF_ciSearch ("apptickets", &user_localconfig.childs);
+ 
+-        if (apptickets_localconfig != nullptr &&
+-            apptickets_localconfig->attribs.size() > 0)
+-        {
+-          // Naively assume an app ticket indicates ownership
+-          for (auto& child : apptickets_localconfig->attribs)
++          if (apptickets_localconfig != nullptr)
+           {
+-            if (! child.first.empty())
++            for (auto& child : apptickets_localconfig->attribs)
+             {
+-              try {
+-                apptickets->emplace (child.first);
+-              }
+-              catch (const std::exception& e)
+-              {
+-                UNREFERENCED_PARAMETER(e);
+-              }
++              if (! child.first.empty())
++                cache.apptickets.push_back (child.first);
+             }
+           }
++
++          cache.parsed = true;
+         }
++      }
+ 
+-        return true;
++      // I don't expect this to throw any std::out_of_range exceptions any more
++      //   but one can never be too sure when it comes to data structures like these.
++      //     - Aemony
++      catch (const std::exception& e)
++      {
++        PLOG_ERROR << "Unknown error occurred when trying to parse localconfig.vdf: " << e.what ();
+       }
+     }
++  }
+ 
+-    // I don't expect this to throw any std::out_of_range exceptions any more
+-    //   but one can never be too sure when it comes to data structures like these.
+-    //     - Aemony
++  // Preload LaunchOptions...
++  for (auto& app : *apps)
++  {
++    if (app.second->store != app_record_s::Store::Steam)
++      continue;
++
++    auto lc_app = cache.launch_options.find (std::to_string(app.second->id));
++    if ( lc_app != cache.launch_options.end ( ))
++      AsSteamRecord (app)->steam.local.launch_option = lc_app->second;
++  }
++
++  // Preload DLC ownership (naively assume an app ticket indicates ownership)
++  for (auto& appticket : cache.apptickets)
++  {
++    try {
++      apptickets->emplace (appticket);
++    }
+     catch (const std::exception& e)
+     {
+-      PLOG_ERROR << "Unknown error occurred when trying to parse localconfig.vdf: " << e.what ();
++      UNREFERENCED_PARAMETER(e);
+     }
+   }
+ 
+-  return false;
++  return cache.parsed;
+ }
+ 
+ bool
+@@ -1494,10 +1522,10 @@
+ 
+   if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_CURRENT_USER, SK_FormatStringW (LR"(SOFTWARE\Valve\Steam\Apps\%lu)", pApp->id).c_str(), 0, KEY_READ | KEY_WOW64_64KEY, &hKey))
+   {
+-    // Not on the library worker's per-game threads: the library worker already holds the lock for them
++    // Not needed for the library worker's own list (see tl_isLibraryWorker)
+     std::unique_lock <std::recursive_mutex> app_lock (SKIF_GamingCollection::Get().GetMutex(), std::defer_lock);
+ 
+-    if (! SKIF_GamingCollection::tl_appsLockHeldByLibraryWorker)
++    if (! SKIF_GamingCollection::tl_isLibraryWorker)
+       app_lock.lock ( );
+ 
+     SKIF_Steam_GetAppStateDWORD (
+diff -ru --strip-trailing-cr skif.orig/src/stores/Xbox/xbox_library.cpp skif/src/stores/Xbox/xbox_library.cpp
+--- skif.orig/src/stores/Xbox/xbox_library.cpp	2026-10-24 13:33:36.198734556 +0000
++++ skif/src/stores/Xbox/xbox_library.cpp	2026-10-24 14:55:22.020649442 +0000
+@@ -4,6 +4,8 @@
+ #include <wtypes.h>
+ #include <fstream>
+ #include <filesystem>
++#include <mutex>
++#include <unordered_map>
+ #include <nlohmann/json.hpp>
+ #include <SKIF.h>
+ #include <utility/utility.h>
+@@ -61,6 +63,21 @@
+ 
+   if (pos_msResourceString != std::string::npos)
+   {
++    // Resolving a resource string takes several ms (more when it fails), so the results are kept for the session.
++    //   The package full name includes its version, so an updated package is resolved again.
++    static std::mutex                                     cache_mutex;
++    static std::unordered_map <std::wstring, std::string> cache;
++
++    const std::wstring cache_key =
++      packageFullName + L"|" + packageName + L"|" + packageFamilyName + L"|" + SK_UTF8ToWideChar (input);
++
++    {
++      std::scoped_lock cache_lock (cache_mutex);
++
++      if (auto hit = cache.find (cache_key); hit != cache.end ( ))
++        return hit->second;
++    }
++
+     const UINT   cuiBufferSize = 1024;
+     WCHAR        wszDisplayName[cuiBufferSize]{ };
+     std::string  substr        = input.substr (pos_msResourceString + pattern.length());
+@@ -108,6 +125,9 @@
+     {
+       PLOG_ERROR << "SHLoadIndirectString failed with HRESULT: " << std::wstring (_com_error(hr).ErrorMessage());
+     }
++
++    std::scoped_lock cache_lock (cache_mutex);
++    cache [cache_key] = input;
+   }
+ 
+   return input;
+diff -ru --strip-trailing-cr skif.orig/src/utility/games.cpp skif/src/utility/games.cpp
+--- skif.orig/src/utility/games.cpp	2026-10-24 14:44:47.727102308 +0000
++++ skif/src/utility/games.cpp	2026-10-24 14:55:22.019216828 +0000
+@@ -157,7 +157,11 @@
+ void
+ SKIF_GamingCollection::SortApps (app_list_t *apps)
+ {
+-  std::scoped_lock app_lock (SKIF_GamingCollection::Get().GetMutex());
++  // Not needed for the library worker's own list (see tl_isLibraryWorker)
++  std::unique_lock <std::recursive_mutex> app_lock (SKIF_GamingCollection::Get().GetMutex(), std::defer_lock);
++
++  if (! tl_isLibraryWorker)
++    app_lock.lock ( );
+ 
+   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+ 
+@@ -803,7 +807,30 @@
+ 
+   PLOG_VERBOSE << "SKIF_LibraryWorker thread started!";
+ 
+-  std::scoped_lock app_lock (self.m_apps_mutex);
++  // This thread and the ones it starts work on the worker's own app list (moved into the collection by
++  //   SwapInPopulatedGames ( ) once this thread has ended), so they don't take the apps lock, and the main thread
++  //   isn't held up by the library refresh
++  tl_isLibraryWorker = true;
++
++  // The embedded textures (loaded once) don't depend on the library, so they load alongside it
++  std::thread textures;
++
++  if (self.m_pPatTexSRV.p == nullptr || self.m_pSKLogoTexSRV.p == nullptr || self.m_pSKLogoTexSRV_small.p == nullptr)
++  {
++    textures = std::thread ([&]
++    {
++      SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibraryWorker_Textures");
++
++      PLOG_VERBOSE_IF(self.m_pPatTexSRV.p == nullptr) << "Loading the embedded Patreon texture...";
++      ImVec2 dontCare;
++      if (self.m_pPatTexSRV.p == nullptr)
++        LoadLibraryTexture (LibraryTexture::Patreon, SKIF_STEAM_APPID, self.m_pPatTexSRV,          L"patreon.png",         dontCare);
++      if (self.m_pSKLogoTexSRV.p == nullptr)
++        LoadLibraryTexture (LibraryTexture::Logo,    SKIF_STEAM_APPID, self.m_pSKLogoTexSRV,       L"sk_boxart.png",       dontCare);
++      if (self.m_pSKLogoTexSRV_small.p == nullptr)
++        LoadLibraryTexture (LibraryTexture::Logo,    SKIF_STEAM_APPID, self.m_pSKLogoTexSRV_small, L"sk_boxart_small.png", dontCare);
++    });
++  }
+ 
+   DWORD pre   = 0,
+         post  = 0,
+@@ -832,6 +859,7 @@
+     scanners.emplace_back ([&]
+     {
+       SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibraryWorker_Steam");
++      tl_isLibraryWorker = true;
+ 
+       DWORD dwStart = SKIF_Util_timeGetTime1 ( );
+ 
+@@ -854,6 +882,7 @@
+     scanners.emplace_back ([&]
+     {
+       SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibraryWorker_GOG");
++      tl_isLibraryWorker = true;
+ 
+       DWORD dwStart = SKIF_Util_timeGetTime1 ( );
+       SKIF_GOG_GetInstalledAppIDs  (&scanned [Scan_GOG]);
+@@ -867,6 +896,7 @@
+     scanners.emplace_back ([&]
+     {
+       SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibraryWorker_Epic");
++      tl_isLibraryWorker = true;
+ 
+       DWORD dwStart = SKIF_Util_timeGetTime1 ( );
+       SKIF_EpicCollection::GetInstance ( ).GetInstalledAppIDs (&scanned [Scan_Epic]);
+@@ -879,6 +909,7 @@
+     scanners.emplace_back ([&]
+     {
+       SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibraryWorker_Xbox");
++      tl_isLibraryWorker = true;
+ 
+       DWORD dwStart = SKIF_Util_timeGetTime1 ( );
+       SKIF_Xbox_GetInstalledAppIDs (&scanned [Scan_Xbox]);
+@@ -892,6 +923,7 @@
+     scanners.emplace_back ([&]
+     {
+       SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibraryWorker_Custom");
++      tl_isLibraryWorker = true;
+ 
+       DWORD dwStart = SKIF_Util_timeGetTime1 ( );
+       SKIF_GetCustomAppIDs (&scanned [Scan_Custom]);
+@@ -1377,15 +1409,13 @@
+     {
+       SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibraryWorker_Games");
+ 
+-      // LibraryWorkerThread (the parent) holds the apps lock until these threads are done
+-      SKIF_GamingCollection::tl_appsLockHeldByLibraryWorker = true;
++      tl_isLibraryWorker = true;
+ 
+       for (auto* job : workloads [i])
+         _ProcessGame (*job);
+     });
+   }
+ 
+-  // This thread holds the apps lock itself (recursive), so it does not set tl_appsLockHeldByLibraryWorker
+   if (! workloads.empty ( ))
+   {
+     for (auto* job : workloads [0])
+@@ -1418,6 +1448,9 @@
+ 
+     if (! keyGroup.empty() && std::find_if(_registry.vecCategories.begin(), _registry.vecCategories.end(), [&](const SKIF_RegistrySettings::category_s& category) { return category.name == keyGroup; }) == _registry.vecCategories.end())
+     {
++      // The categories are shared with the main thread
++      std::scoped_lock categories_lock (self.m_apps_mutex);
++
+       SKIF_RegistrySettings::category_s  new_category{ keyGroup, false };
+       _registry.vecCategories.push_back (new_category);
+       newCategories = true;
+@@ -1497,6 +1530,9 @@
+   // We have detected new categories!
+   if (newCategories)
+   {
++    // The categories are shared with the main thread
++    std::scoped_lock categories_lock (self.m_apps_mutex);
++
+     // Sort the list of categories
+     _registry.vecCategories = _registry.SortCategories (_registry.vecCategories);
+ 
+@@ -1522,14 +1558,9 @@
+ 
+   PLOG_INFO << "Finished populating the library list.";
+ 
+-  PLOG_VERBOSE_IF(self.m_pPatTexSRV.p == nullptr) << "Loading the embedded Patreon texture...";
+-  ImVec2 dontCare;
+-  if (self.m_pPatTexSRV.p == nullptr)
+-    LoadLibraryTexture (LibraryTexture::Patreon, SKIF_STEAM_APPID, self.m_pPatTexSRV,          L"patreon.png",         dontCare);
+-  if (self.m_pSKLogoTexSRV.p == nullptr)
+-    LoadLibraryTexture (LibraryTexture::Logo,    SKIF_STEAM_APPID, self.m_pSKLogoTexSRV,       L"sk_boxart.png",       dontCare);
+-  if (self.m_pSKLogoTexSRV_small.p == nullptr)
+-    LoadLibraryTexture (LibraryTexture::Logo,    SKIF_STEAM_APPID, self.m_pSKLogoTexSRV_small, L"sk_boxart_small.png", dontCare);
++  // The embedded textures (started at the top)
++  if (textures.joinable ( ))
++    textures.join ( );
+ 
+   // Force a refresh when the game icons have finished being streamed
+   PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);

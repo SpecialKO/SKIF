@@ -1,0 +1,44 @@
+diff -ru --strip-trailing-cr skif.orig/include/utility/games.h skif/include/utility/games.h
+--- skif.orig/include/utility/games.h	2026-10-24 13:33:36.203667485 +0000
++++ skif/include/utility/games.h	2026-10-24 14:35:25.889282610 +0000
+@@ -50,6 +50,11 @@
+ 
+   std::recursive_mutex& GetMutex() { return m_apps_mutex; }
+ 
++  // Set on the library worker's per-game threads: the library worker holds GetMutex ( ) on their behalf for as long as
++  //   they run (each thread only touches its own games), so code they call must not lock it themselves -- the lock
++  //   is held by another thread and would never be released to them (a deadlock).
++  static inline thread_local bool tl_appsLockHeldByLibraryWorker = false;
++
+   const AppList& GetApps() const { return m_apps; }
+         AppList& GetApps()       { return m_apps; }
+ 
+diff -ru --strip-trailing-cr skif.orig/src/stores/Steam/steam_library.cpp skif/src/stores/Steam/steam_library.cpp
+--- skif.orig/src/stores/Steam/steam_library.cpp	2026-10-24 14:31:11.022212652 +0000
++++ skif/src/stores/Steam/steam_library.cpp	2026-10-24 14:35:25.889926454 +0000
+@@ -1494,7 +1494,11 @@
+ 
+   if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_CURRENT_USER, SK_FormatStringW (LR"(SOFTWARE\Valve\Steam\Apps\%lu)", pApp->id).c_str(), 0, KEY_READ | KEY_WOW64_64KEY, &hKey))
+   {
+-    std::scoped_lock app_lock  (SKIF_GamingCollection::Get().GetMutex());
++    // Not on the library worker's per-game threads: the library worker already holds the lock for them
++    std::unique_lock <std::recursive_mutex> app_lock (SKIF_GamingCollection::Get().GetMutex(), std::defer_lock);
++
++    if (! SKIF_GamingCollection::tl_appsLockHeldByLibraryWorker)
++      app_lock.lock ( );
+ 
+     SKIF_Steam_GetAppStateDWORD (
+       &hKey,   L"Installed",
+diff -ru --strip-trailing-cr skif.orig/src/utility/games.cpp skif/src/utility/games.cpp
+--- skif.orig/src/utility/games.cpp	2026-10-24 14:31:11.019617868 +0000
++++ skif/src/utility/games.cpp	2026-10-24 14:35:45.386055715 +0000
+@@ -1299,6 +1299,9 @@
+     {
+       SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibraryWorker_Games");
+ 
++      // LibraryWorkerThread (the parent) holds the apps lock until these threads are done
++      SKIF_GamingCollection::tl_appsLockHeldByLibraryWorker = true;
++
+       for (auto* app : workload)
+         _ProcessGame (*app);
+     });
