@@ -1618,6 +1618,13 @@ SKIF_UI_Tab_DrawSettings (void)
       SKIF_ImGui_SetHoverTip ("The app may be less responsive if disabled.");
     }
 
+    if (ImGui::Checkbox  ("Use system proxy settings",  &_registry.bUseSystemProxy))
+      _registry.regKVUseSystemProxy.putData         (  _registry.bUseSystemProxy);
+
+    SKIF_ImGui_SetHoverTip ("Downloads go through the proxy configured in Windows.\n"
+                            "Automatic proxy detection and setup scripts are not used.\n"
+                            "If disabled, the app always connects directly.");
+
     if (_registry.bCloseToTray)
     {
       ImGui::BeginGroup   ( );

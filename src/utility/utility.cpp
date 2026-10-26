@@ -5057,10 +5057,13 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get, std::string* response_body)
   PLOG_VERBOSE_IF(! get->header.empty())           << "Header: " << get->header;
   PLOG_VERBOSE_IF(! get->body.empty())             << "  Body: " << get->body;
 
+  // Use the proxy configured in Windows unless disabled in the settings. Automatic proxy detection (WPAD) and
+  //   setup scripts (PAC) are skipped, as they can stall the first request on networks where nothing answers them.
   hInetRoot =
     InternetOpen (
       get->user_agent.c_str(),
-        INTERNET_OPEN_TYPE_DIRECT,
+        (_registry.bUseSystemProxy) ? INTERNET_OPEN_TYPE_PRECONFIG_WITH_NO_AUTOPROXY
+                                    : INTERNET_OPEN_TYPE_DIRECT,
           nullptr, nullptr,
             0x00 );
 

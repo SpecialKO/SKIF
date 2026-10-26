@@ -306,6 +306,8 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   bLibraryIgnoreArticles   =   regKVLibraryIgnoreArticles  .getData (&hKey);
 
   bLowBandwidthMode        =   regKVLowBandwidthMode       .getData (&hKey);
+  if (regKVUseSystemProxy.hasData(&hKey))
+    bUseSystemProxy        =   regKVUseSystemProxy         .getData (&hKey);
   bInstantPlayGOG          =   regKVInstantPlayGOG         .getData (&hKey);
   bInstantPlaySteam        =   regKVInstantPlaySteam       .getData (&hKey);
   bInstantPlayXbox         =   regKVInstantPlayXbox        .getData (&hKey);

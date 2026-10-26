@@ -187,6 +187,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Low Bandwidth Mode)" );
 
+  KeyValue <bool> regKVUseSystemProxy =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Use System Proxy)" );
+
   KeyValue <bool> regKVInstantPlayGOG =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Instant Play GOG)" );
@@ -621,6 +625,7 @@ struct SKIF_RegistrySettings {
   bool bStopOnInjection         = false;
   bool bCloseToTray             = false;
   bool bLowBandwidthMode        = false;
+  bool bUseSystemProxy          =  true; // Downloads go through the proxy configured in Windows (without automatic proxy detection)
   bool bInstantPlayGOG          = false;
   bool bInstantPlaySteam        = false;
   bool bInstantPlayXbox         = false;
