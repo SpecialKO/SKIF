@@ -450,7 +450,7 @@ SKIF_ImGui_InfoMessage_Process (void)
         ImGui::CloseCurrentPopup ( );
       }
 
-      SKIF_ImGui_DisallowMouseDragMove ( );
+      SKIF_ImGui_BlockDragMoveWhenItemActive ( );
 
       SKIF_ImGui_Spacing ( );
 
@@ -1985,19 +1985,21 @@ SKIF_ImGui_PopDisabledSpacing (void)
 }
 
 void
-SKIF_ImGui_DisallowMouseDragMove (void)
+SKIF_ImGui_BlockDragMove (void)
+{
+  extern bool SKIF_MouseDragMoveAllowed;
+
+  if (SKIF_ImGui_IsViewportFocused ( ))
+    SKIF_MouseDragMoveAllowed = false;
+}
+
+void
+SKIF_ImGui_BlockDragMoveWhenItemActive (void)
 {
   extern bool SKIF_MouseDragMoveAllowed;
 
   if (ImGui::IsItemActive ( ))
     SKIF_MouseDragMoveAllowed = false;
-}
-
-void
-SKIF_ImGui_DisallowMouseDragMoveForced (void)
-{
-  extern bool SKIF_MouseDragMoveAllowed;
-  SKIF_MouseDragMoveAllowed = false;
 }
 
 // Allows moving the window but only in certain circumstances

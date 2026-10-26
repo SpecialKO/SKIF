@@ -238,7 +238,7 @@ DrawLibraryPopups (void)
           }
         }
 
-        SKIF_ImGui_DisallowMouseDragMove ( );
+        SKIF_ImGui_BlockDragMoveWhenItemActive ( );
 
         ImGui::SameLine    ( );
 
@@ -246,7 +246,7 @@ DrawLibraryPopups (void)
 
         ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
         ImGui::InputTextEx    ("###GamePath", "", charPath, MAX_PATH, vInputSize, ImGuiInputTextFlags_ReadOnly);
-        SKIF_ImGui_DisallowMouseDragMove ( );
+        SKIF_ImGui_BlockDragMoveWhenItemActive ( );
         ImGui::PopStyleColor  ( );
         ImGui::SameLine       ( );
         ImGui::Text           ("Path");
@@ -285,13 +285,13 @@ DrawLibraryPopups (void)
           }
         }
 
-        SKIF_ImGui_DisallowMouseDragMove ( );
+        SKIF_ImGui_BlockDragMoveWhenItemActive ( );
 
         ImGui::SameLine    ( );
 
         ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
         ImGui::InputTextEx    ("###GameWorkDir", "", charWorkDir, MAX_PATH, vInputSize, ImGuiInputTextFlags_ReadOnly);
-        SKIF_ImGui_DisallowMouseDragMove ( );
+        SKIF_ImGui_BlockDragMoveWhenItemActive ( );
         ImGui::PopStyleColor  ( );
         ImGui::SameLine       ( );
         ImGui::Text           ("Working Directory");
@@ -309,7 +309,7 @@ DrawLibraryPopups (void)
       ImGui::SetCursorPosX (fInputX);
 
       ImGui::InputTextEx ("###GameName", hintName, charName, MAX_PATH, vInputSize, ImGuiInputTextFlags_None);
-      SKIF_ImGui_DisallowMouseDragMove ( );
+      SKIF_ImGui_BlockDragMoveWhenItemActive ( );
       ImGui::SameLine    ( );
       ImGui::TextColored (
         ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -324,7 +324,7 @@ DrawLibraryPopups (void)
         ImGui::SetCursorPosX (fInputX);
 
         ImGui::InputTextEx ("###GameArgs", "Leave empty if unsure", charArgs, 1024, vInputSize, ImGuiInputTextFlags_None);
-        SKIF_ImGui_DisallowMouseDragMove ( );
+        SKIF_ImGui_BlockDragMoveWhenItemActive ( );
         ImGui::SameLine    ( );
         ImGui::Text        ("Launch Options");
 
@@ -526,7 +526,7 @@ DrawLibraryPopups (void)
         ImGui::CloseCurrentPopup ( );
       }
 
-      SKIF_ImGui_DisallowMouseDragMove ( );
+      SKIF_ImGui_BlockDragMoveWhenItemActive ( );
 
       if (disabled)
         SKIF_ImGui_PopDisableState  ( );
@@ -556,7 +556,7 @@ DrawLibraryPopups (void)
             pApp->launch_failed = false;
       }
 
-      SKIF_ImGui_DisallowMouseDragMove ( );
+      SKIF_ImGui_BlockDragMoveWhenItemActive ( );
 
       SKIF_ImGui_Spacing ( );
 

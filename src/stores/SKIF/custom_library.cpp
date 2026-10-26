@@ -430,7 +430,7 @@ SKIF_Custom_AddGame (void)
       }
     }
 
-    SKIF_ImGui_DisallowMouseDragMove ( );
+    SKIF_ImGui_BlockDragMoveWhenItemActive ( );
 
     ImGui::SameLine    ( );
 
@@ -438,7 +438,7 @@ SKIF_Custom_AddGame (void)
 
     ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
     ImGui::InputText   ("###GamePath", charPath, MAX_PATH, ImGuiInputTextFlags_ReadOnly);
-    SKIF_ImGui_DisallowMouseDragMove ( );
+    SKIF_ImGui_BlockDragMoveWhenItemActive ( );
     ImGui::PopStyleColor ( );
     ImGui::SameLine    ( );
     ImGui::Text        ("Path");
@@ -477,13 +477,13 @@ SKIF_Custom_AddGame (void)
       }
     }
 
-    SKIF_ImGui_DisallowMouseDragMove ( );
+    SKIF_ImGui_BlockDragMoveWhenItemActive ( );
 
     ImGui::SameLine    ( );
 
     ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
     ImGui::InputText   ("###GameWorkDir", charWorkDir, MAX_PATH, ImGuiInputTextFlags_ReadOnly);
-    SKIF_ImGui_DisallowMouseDragMove ( );
+    SKIF_ImGui_BlockDragMoveWhenItemActive ( );
     ImGui::PopStyleColor ( );
     ImGui::SameLine    ( );
     ImGui::Text        ("Working Directory");
@@ -501,14 +501,14 @@ SKIF_Custom_AddGame (void)
 
     // Name
     ImGui::InputText   ("###GameName", charName, MAX_PATH);
-    SKIF_ImGui_DisallowMouseDragMove ( );
+    SKIF_ImGui_BlockDragMoveWhenItemActive ( );
     ImGui::SameLine    ( );
     ImGui::Text        ("Name");
 
     ImGui::SetCursorPosX (fAddGamePopupX);
 
     ImGui::InputTextEx ("###GameArgs", "Leave empty if unsure", charArgs, 1024, ImVec2(0,0), ImGuiInputTextFlags_None);
-    SKIF_ImGui_DisallowMouseDragMove ( );
+    SKIF_ImGui_BlockDragMoveWhenItemActive ( );
     ImGui::SameLine    ( );
     ImGui::Text        ("Launch Options");
 
@@ -560,7 +560,7 @@ SKIF_Custom_AddGame (void)
       AddGamePopup = PopupState_Closed;
     }
 
-    SKIF_ImGui_DisallowMouseDragMove ( );
+    SKIF_ImGui_BlockDragMoveWhenItemActive ( );
 
     if (disabled)
     {
@@ -584,7 +584,7 @@ SKIF_Custom_AddGame (void)
       AddGamePopup = PopupState_Closed;
     }
 
-    SKIF_ImGui_DisallowMouseDragMove ( );
+    SKIF_ImGui_BlockDragMoveWhenItemActive ( );
 
     SKIF_ImGui_Spacing ( );
 

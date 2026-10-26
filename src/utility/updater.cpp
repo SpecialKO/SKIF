@@ -1392,7 +1392,7 @@ SKIF_Updater::DrawWindowChanges (Window* wnd, WindowType type)
       wnd->show = false;
     }
 
-    SKIF_ImGui_DisallowMouseDragMove ( );
+    SKIF_ImGui_BlockDragMoveWhenItemActive ( );
 
     SKIF_ImGui_Spacing ( );
 
@@ -1559,7 +1559,7 @@ SKIF_Updater::DrawWindowUpdater (Window* wnd)
       wnd->show = false;
     }
 
-    SKIF_ImGui_DisallowMouseDragMove ( );
+    SKIF_ImGui_BlockDragMoveWhenItemActive ( );
 
     ImGui::SameLine ();
     ImGui::Spacing  ();
@@ -1582,7 +1582,7 @@ SKIF_Updater::DrawWindowUpdater (Window* wnd)
       ImGui::SameLine ();
     }
 
-    SKIF_ImGui_DisallowMouseDragMove ( );
+    SKIF_ImGui_BlockDragMoveWhenItemActive ( );
 
     if (ImGui::Button ("Cancel", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
                                            25 * SKIF_ImGui_GlobalDPIScale )))
@@ -1590,7 +1590,7 @@ SKIF_Updater::DrawWindowUpdater (Window* wnd)
       wnd->show = false;
     }
 
-    SKIF_ImGui_DisallowMouseDragMove ( );
+    SKIF_ImGui_BlockDragMoveWhenItemActive ( );
 
     SKIF_ImGui_Spacing ( );
 

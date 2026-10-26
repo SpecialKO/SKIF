@@ -1062,7 +1062,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   }
 
   // This is required to prevent the InputTextEx from not being deselected when clicking empty space
-  SKIF_ImGui_DisallowMouseDragMove ( );
+  SKIF_ImGui_BlockDragMoveWhenItemActive ( );
 
   bFilterActive = ImGui::IsItemActive ( );
 

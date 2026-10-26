@@ -486,7 +486,7 @@ SKIF_UI_IniEditor_Process (void)
     }
 
     // This is required to prevent the InputTextEx from not being deselected when clicking empty space
-    SKIF_ImGui_DisallowMouseDragMove ( );
+    SKIF_ImGui_BlockDragMoveWhenItemActive ( );
 
     window.bFilterActive = ImGui::IsItemActive ( ) || ImGui::IsItemFocused ( );
 
