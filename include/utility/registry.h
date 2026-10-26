@@ -191,6 +191,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Use System Proxy)" );
 
+  KeyValue <bool> regKVInstantPlayEA =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Instant Play EA)" );
+
   KeyValue <bool> regKVInstantPlayGOG =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Instant Play GOG)" );
@@ -250,6 +254,10 @@ struct SKIF_RegistrySettings {
   KeyValue <bool> regKVLibrarySteam =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Library Steam)" );
+
+  KeyValue <bool> regKVLibraryEA =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Library EA)" );
 
   KeyValue <bool> regKVLibraryEpic =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
@@ -608,6 +616,7 @@ struct SKIF_RegistrySettings {
   bool bCheckerboard            = false;
 
   bool bLibrarySteam            =  true;
+  bool bLibraryEA               =  true;
   bool bLibraryEpic             =  true;
   bool bLibraryGOG              =  true;
   bool bLibraryXbox             =  true;
@@ -626,6 +635,7 @@ struct SKIF_RegistrySettings {
   bool bCloseToTray             = false;
   bool bLowBandwidthMode        = false;
   bool bUseSystemProxy          =  true; // Downloads go through the proxy configured in Windows (without automatic proxy detection)
+  bool bInstantPlayEA           = false;
   bool bInstantPlayGOG          = false;
   bool bInstantPlaySteam        = false;
   bool bInstantPlayXbox         = false;

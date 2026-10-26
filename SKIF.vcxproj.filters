@@ -64,6 +64,12 @@
     <Filter Include="Header Files\Stores\Epic">
       <UniqueIdentifier>{530f8142-f01b-4fa6-8cc3-65b6484aee52}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Stores\EA">
+      <UniqueIdentifier>{b8cbb1d9-1168-49a6-9ace-a2ea4324f777}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Stores\EA">
+      <UniqueIdentifier>{aa03d0ce-e8ac-434e-8b97-26737499ca76}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source Files\Stores\Epic">
       <UniqueIdentifier>{53f1e1d3-2a75-46d0-b743-6e316a734c04}</UniqueIdentifier>
     </Filter>
@@ -212,6 +218,9 @@
     </ClInclude>
     <ClInclude Include="resources\images\sk_icon.jpg.h">
       <Filter>Resource Files\Images</Filter>
+    </ClInclude>
+    <ClInclude Include="include\stores\EA\ea_library.h">
+      <Filter>Header Files\Stores\EA</Filter>
     </ClInclude>
     <ClInclude Include="include\stores\Epic\epic_library.h">
       <Filter>Header Files\Stores\Epic</Filter>
@@ -370,6 +379,9 @@
     </ClCompile>
     <ClCompile Include="src\tabs\common_ui.cpp">
       <Filter>Source Files\UI Tabs</Filter>
+    </ClCompile>
+    <ClCompile Include="src\stores\EA\ea_library.cpp">
+      <Filter>Source Files\Stores\EA</Filter>
     </ClCompile>
     <ClCompile Include="src\stores\Epic\epic_library.cpp">
       <Filter>Source Files\Stores\Epic</Filter>

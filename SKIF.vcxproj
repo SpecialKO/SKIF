@@ -383,6 +383,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="include\imgui\imgui_impl_dx11.h" />
+    <ClInclude Include="include\stores\EA\ea_library.h" />
     <ClInclude Include="include\stores\Epic\epic_library.h" />
     <ClInclude Include="include\tabs\ini_editor.h" />
     <ClInclude Include="include\tabs\hardware.h" />
@@ -455,6 +456,7 @@
     <ClCompile Include="src\MinHook\hde\hde64.c" />
     <ClCompile Include="src\MinHook\hook.c" />
     <ClCompile Include="src\MinHook\trampoline.c" />
+    <ClCompile Include="src\stores\EA\ea_library.cpp" />
     <ClCompile Include="src\stores\Epic\epic_library.cpp" />
     <ClCompile Include="src\stores\generic_library2.cpp" />
     <ClCompile Include="src\tabs\ini_editor.cpp" />

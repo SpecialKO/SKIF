@@ -38,6 +38,7 @@
 
 #include <stores/GOG/gog_library.h>
 #include <stores/epic/epic_library.h>
+#include <stores/EA/ea_library.h>
 #include <stores/Xbox/xbox_library.h>
 #include <stores/SKIF/custom_library.h>
 
@@ -515,6 +516,15 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     SK_RunOnce (
       PLOG_DEBUG << "[Library Pre-Processing] GOG took " << (SKIF_Util_timeGetTime1 ( ) - time_current) << " ms.";
+      time_current = SKIF_Util_timeGetTime1 ( );
+    )
+
+    // Does not set up a wait object; checked only while enabled (it enumerates the Uninstall key when that changes)
+    if (_registry.bLibraryEA && SKIF_EA_hasInstalledGamesChanged ( ))
+      RepopulateGames = true;
+
+    SK_RunOnce (
+      PLOG_DEBUG << "[Library Pre-Processing] EA took " << (SKIF_Util_timeGetTime1 ( ) - time_current) << " ms.";
       time_current = SKIF_Util_timeGetTime1 ( );
     )
 

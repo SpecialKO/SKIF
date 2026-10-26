@@ -2169,6 +2169,7 @@ DrawEmptySpaceMenu (bool showClearBtn)
 
     if (SKIF_ImGui_BeginMenuEx2 ("Platforms", ICON_FA_GEARS))
     {
+      static bool* pbLibraryEA     = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryEA;
       static bool* pbLibraryEpic   = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryEpic;
       static bool* pbLibraryGOG    = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryGOG;
       static bool* pbLibrarySteam  = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibrarySteam;
@@ -2177,6 +2178,12 @@ DrawEmptySpaceMenu (bool showClearBtn)
 
       if (_games.IsPopulating ( ))
         SKIF_ImGui_PushDisableState ( );
+
+      if (ImGui::MenuItem ("EA",    spaces, pbLibraryEA,     (! _registry._LibraryHidden)))
+      {
+        _registry.regKVLibraryEA.putData    (_registry.bLibraryEA);
+        RepopulateGames = true;
+      }
 
       if (ImGui::MenuItem ("Epic",  spaces, pbLibraryEpic,   (! _registry._LibraryHidden)))
       {
@@ -2212,6 +2219,7 @@ DrawEmptySpaceMenu (bool showClearBtn)
 
       if (ImGui::MenuItem ("Hidden games",spaces, &_registry._LibraryHidden))
       {
+        pbLibraryEA     = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryEA;
         pbLibraryEpic   = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryEpic;
         pbLibraryGOG    = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryGOG;
         pbLibrarySteam  = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibrarySteam;

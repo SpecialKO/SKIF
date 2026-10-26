@@ -856,11 +856,25 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::BeginGroup ( );
 
+    if (ImGui::Checkbox          ("EA",   &_registry.bLibraryEA))
+    {
+      _registry.regKVLibraryEA.putData    (_registry.bLibraryEA);
+      RepopulateGames = true;
+    }
+
     if (ImGui::Checkbox        ("Epic",   &_registry.bLibraryEpic))
     {
       _registry.regKVLibraryEpic.putData  (_registry.bLibraryEpic);
       RepopulateGames = true;
     }
+
+    ImGui::EndGroup ( );
+
+    ImGui::SameLine ( );
+    ImGui::Spacing  ( );
+    ImGui::SameLine ( );
+
+    ImGui::BeginGroup ( );
 
     if (ImGui::Checkbox         ("GOG",   &_registry.bLibraryGOG))
     {
@@ -868,26 +882,12 @@ SKIF_UI_Tab_DrawSettings (void)
       RepopulateGames = true;
     }
 
-    ImGui::EndGroup ( );
-
-    ImGui::SameLine ( );
-    ImGui::Spacing  ( );
-    ImGui::SameLine ( );
-
-    ImGui::BeginGroup ( );
-
     if (ImGui::Checkbox         ("Steam", &_registry.bLibrarySteam))
     {
       _registry.regKVLibrarySteam.putData (_registry.bLibrarySteam);
       RepopulateGames = true;
     }
 
-    if (ImGui::Checkbox        ("Xbox",   &_registry.bLibraryXbox))
-    {
-      _registry.regKVLibraryXbox.putData  (_registry.bLibraryXbox);
-      RepopulateGames = true;
-    }
-
     ImGui::EndGroup ( );
 
     ImGui::SameLine ( );
@@ -895,6 +895,12 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::SameLine ( );
 
     ImGui::BeginGroup ( );
+
+    if (ImGui::Checkbox        ("Xbox",   &_registry.bLibraryXbox))
+    {
+      _registry.regKVLibraryXbox.putData  (_registry.bLibraryXbox);
+      RepopulateGames = true;
+    }
 
     if (ImGui::Checkbox        ("Custom", &_registry.bLibraryCustom))
     {
@@ -918,6 +924,13 @@ SKIF_UI_Tab_DrawSettings (void)
     );
 
     ImGui::TreePush      ("InstantPlay");
+
+    if (ImGui::Checkbox       ("EA",          &_registry.bInstantPlayEA))
+      _registry.regKVInstantPlayEA.putData    (_registry.bInstantPlayEA);
+
+    ImGui::SameLine ( );
+    ImGui::Spacing  ( );
+    ImGui::SameLine ( );
 
     if (ImGui::Checkbox       ("GOG",         &_registry.bInstantPlayGOG))
       _registry.regKVInstantPlayGOG.putData   (_registry.bInstantPlayGOG);

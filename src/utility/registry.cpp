@@ -308,6 +308,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   bLowBandwidthMode        =   regKVLowBandwidthMode       .getData (&hKey);
   if (regKVUseSystemProxy.hasData(&hKey))
     bUseSystemProxy        =   regKVUseSystemProxy         .getData (&hKey);
+  bInstantPlayEA           =   regKVInstantPlayEA          .getData (&hKey);
   bInstantPlayGOG          =   regKVInstantPlayGOG         .getData (&hKey);
   bInstantPlaySteam        =   regKVInstantPlaySteam       .getData (&hKey);
   bInstantPlayXbox         =   regKVInstantPlayXbox        .getData (&hKey);
@@ -335,6 +336,9 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 
   if (regKVLibrarySteam.hasData(&hKey))
     bLibrarySteam          =   regKVLibrarySteam           .getData (&hKey);
+
+  if (regKVLibraryEA.hasData(&hKey))
+    bLibraryEA             =   regKVLibraryEA              .getData (&hKey);
 
   if (regKVLibraryEpic.hasData(&hKey))
     bLibraryEpic           =   regKVLibraryEpic            .getData (&hKey);
