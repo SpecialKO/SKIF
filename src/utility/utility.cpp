@@ -5076,6 +5076,13 @@ SKIF_Util_GetHotKeyStateSVCTemp (void)
 
 // Web
 
+// Performs the request described by get, and saves the response to get->wszLocalPath and/or response_body
+//
+// Takes ownership of get and deletes it before returning, so it must be heap-allocated (new) and must not be used
+//   by the caller afterwards; never pass an object on the stack (e.g. one returned by SKIF_Util_CrackWebUrl).
+//     This dates back to the function being a thread entry point (hence DWORD WINAPI), where the thread had to
+//       own its request. Internal to this file, as SKIF_Util_GetWebResource ( ) is the only caller and handles that.
+static
 DWORD
 WINAPI
 SKIF_Util_GetWebUri (skif_get_web_uri_t* get, std::string* response_body)
