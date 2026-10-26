@@ -2030,7 +2030,7 @@ SKIF_UI_Tab_DrawMonitor (void)
         SKIF_ImGui_Spacing ( );
       }
 
-      ImGui::SetCursorPos (ImGui::GetCursorPos() + ImVec2(270.0f, 0));
+      ImGui::SetCursorPos (ImGui::GetCursorPos() + ImVec2(270.0f * SKIF_ImGui_GlobalDPIScale, 0));
 
       if (! hasPatterns)
         SKIF_ImGui_PushDisableState ( );

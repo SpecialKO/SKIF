@@ -1125,7 +1125,7 @@ SKIF_ImGui_DimBackgroundViewport (const ImGuiViewport* vp)
   ImGui::PopStyleVar ( ); // ImGuiStyleVar_WindowPadding
 }
 
-// Always call SKIF_ImGui_EndModalWindow () for both true/false from this
+// Always call SKIF_ImGui_EndPopup () for both true/false from this function.
 // This is a custom, but also simplified, window that acts much like a modal popup
 // without actually being one.
 // 
