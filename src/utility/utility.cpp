@@ -4757,6 +4757,7 @@ SKIF_Util_EnableHDROutput (void)
         return false;
       }
 
+      // 24H2+ could also technically use DISPLAYCONFIG_SET_HDR_STATE
       DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE
         setHDRState                     = { };
         setHDRState.enableAdvancedColor = ! monitor.hdr.active;
