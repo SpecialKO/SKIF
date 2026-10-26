@@ -1603,8 +1603,8 @@ SKIF_UI_Tab_DrawMonitor (void)
 
         */
 
-        if (ImGui::Selectable  (ICON_FA_FOLDER_OPEN " Browse"))
-          SKIF_Util_ExplorePath (SK_UTF8ToWideChar (p.parent_path().string()).c_str());
+        if (ImGui::Selectable (ICON_FA_FOLDER_OPEN " Browse"))
+          SKIF_Util_FileExplorer_SelectFile (SK_UTF8ToWideChar (p.string()).c_str());
 
         SKIF_ImGui_SetMouseCursorHand ();
         SKIF_ImGui_SetHoverText       (p.parent_path().string().c_str());
