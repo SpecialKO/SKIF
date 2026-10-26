@@ -1901,18 +1901,11 @@ SKIF_UI_Tab_DrawMonitor (void)
 
   if (static_proc.pid != 0)
   {
-    ImGui::OpenPopup         ("Task Manager###TaskManagerMonitor");
-
-    ImGui::SetNextWindowSize (ImVec2 (400.0f * SKIF_ImGui_GlobalDPIScale, 0.0f));
-    ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
-
-    if (ImGui::BeginPopupModal ( "Task Manager###TaskManagerMonitor", nullptr,
-                                    ImGuiWindowFlags_NoResize |
-                                    ImGuiWindowFlags_NoMove |
-                                    ImGuiWindowFlags_AlwaysAutoResize )
+    // Centered with a dimmed background, and closed by resetting static_proc
+    if (SKIF_ImGui_BeginPopup ( "Task Manager###TaskManagerMonitor", nullptr,
+                                  ImVec2 (400.0f * SKIF_ImGui_GlobalDPIScale, 0.0f) )
         )
     {
-
       ImGui::Text        ("Do you want to end");
       ImGui::SameLine    ( );
       ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), SK_WideCharToUTF8 (static_proc.filename).c_str());
@@ -1932,8 +1925,9 @@ SKIF_UI_Tab_DrawMonitor (void)
         SKIF_Util_TerminateProcess (static_proc.pid, 0x0);
 
         static_proc = standby_record_s{};
-        ImGui::CloseCurrentPopup ( );
       }
+
+      SKIF_ImGui_BlockDragMoveWhenItemActive ( );
 
       ImGui::SameLine ( );
       ImGui::Spacing  ( );
@@ -1943,26 +1937,21 @@ SKIF_UI_Tab_DrawMonitor (void)
                                              25 * SKIF_ImGui_GlobalDPIScale )))
       {
         static_proc = standby_record_s{};
-        ImGui::CloseCurrentPopup ( );
       }
 
-      ImGui::EndPopup ( );
+      SKIF_ImGui_BlockDragMoveWhenItemActive ( );
     }
+
+    SKIF_ImGui_EndPopup ( ); // Must always be called, regardless of the return value of SKIF_ImGui_BeginPopup
   }
 
   // Reset whitelist / blacklist prompt
 
   if (! static_reset.filename.empty ())
   {
-    ImGui::OpenPopup         ("Reset Whitelist / Blacklist###ResetUserListMonitor");
-
-    ImGui::SetNextWindowSize (ImVec2 (500.0f * SKIF_ImGui_GlobalDPIScale, 0.0f));
-    ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
-
-    if (ImGui::BeginPopupModal ( "Reset Whitelist / Blacklist###ResetUserListMonitor", nullptr,
-                                    ImGuiWindowFlags_NoResize |
-                                    ImGuiWindowFlags_NoMove |
-                                    ImGuiWindowFlags_AlwaysAutoResize )
+    // Centered with a dimmed background, and closed by resetting static_reset
+    if (SKIF_ImGui_BeginPopup ( "Reset Whitelist / Blacklist###ResetUserListMonitor", nullptr,
+                                  ImVec2 (500.0f * SKIF_ImGui_GlobalDPIScale, 0.0f) )
         )
     {
       const bool hasPatterns = (! static_reset.whitelist.empty () ||
@@ -2046,14 +2035,13 @@ SKIF_UI_Tab_DrawMonitor (void)
         if (black_removed) static_reset.blacklist.clear ( );
 
         if (white_removed && black_removed)
-        {
           static_reset = user_list_reset_s { };
-          ImGui::CloseCurrentPopup ( );
-        }
 
         else
           static_reset.failed = true;
       }
+
+      SKIF_ImGui_BlockDragMoveWhenItemActive ( );
 
       if (! hasPatterns)
         SKIF_ImGui_PopDisableState  ( );
@@ -2066,10 +2054,11 @@ SKIF_UI_Tab_DrawMonitor (void)
                                              25 * SKIF_ImGui_GlobalDPIScale )))
       {
         static_reset = user_list_reset_s { };
-        ImGui::CloseCurrentPopup ( );
       }
 
-      ImGui::EndPopup ( );
+      SKIF_ImGui_BlockDragMoveWhenItemActive ( );
     }
+
+    SKIF_ImGui_EndPopup ( ); // Must always be called, regardless of the return value of SKIF_ImGui_BeginPopup
   }
 }
