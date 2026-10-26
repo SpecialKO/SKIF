@@ -1366,6 +1366,44 @@ void SKIF_InjectionContext::_RefreshUIQuickToggle (bool active)
   }
 }
 
+static void
+CleanupPatternText (std::wstring& s)
+{
+  size_t w = 0; // write position, never passes the read position
+
+  for (size_t r = 0; r < s.size (); ++r)
+  {
+    const wchar_t ch = s [r];
+
+    // truncate at the first null
+    if (ch == L'\0')
+      break;
+
+    if (ch == L'\n')
+    {
+      // drop pipes before a newline
+      while (w > 0 && s [w - 1] == L'|')
+        --w;
+
+      // collapse newline runs
+      if (w > 0 && s [w - 1] == L'\n')
+        continue;
+    }
+
+    // collapse pipe runs
+    else if (ch == L'|' && w > 0 && s [w - 1] == L'|')
+      continue;
+
+    s [w++] = ch;
+  }
+
+  // trim the end
+  while (w > 0 && (s [w - 1] == L'|' || s [w - 1] == L'\n'))
+    --w;
+
+  s.resize (w);
+}
+
 bool SKIF_InjectionContext::SaveUserList (bool whitelist_)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
@@ -1403,31 +1441,8 @@ bool SKIF_InjectionContext::SaveUserList (bool whitelist_)
 
     std::wstring out_text =
       SK_UTF8ToWideChar((whitelist_) ? whitelist : blacklist);
-
-    // Strip all null terminator \0 characters from the string
-    out_text.erase(std::find(out_text.begin(), out_text.end(), '\0'), out_text.end());
-
-    try
-    {
-      // Strip all double (or more) newline characters from the string
-      out_text = std::regex_replace(out_text, std::wregex(  LR"(\n\n+)"),   L"\n");
-
-      // Strip double pipe characters from the string
-      out_text = std::regex_replace(out_text, std::wregex(  LR"(\|\|)"),    L"|");
-
-      // Strip pipe characters at the end of a line from the string
-      out_text = std::regex_replace(out_text, std::wregex(  LR"(\|\n)"),    L"\n");
-
-      // Strip trailing pipe characters from the string
-      out_text = std::regex_replace(out_text, std::wregex(  LR"(\|+$)"),    L"");
-
-      // Strip trailing newline characters from the string
-      out_text = std::regex_replace(out_text, std::wregex(  LR"(\n+$)"),    L"");
-    }
-    catch (const std::exception& e)
-    {
-      UNREFERENCED_PARAMETER(e);
-    }
+    
+    CleanupPatternText (out_text);
 
     list_file.write(out_text.c_str(),
       out_text.length());

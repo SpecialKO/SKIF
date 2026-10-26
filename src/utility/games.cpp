@@ -985,15 +985,6 @@ SKIF_GetVolumeKey (const std::wstring& path)
   return L"";
 }
 
-// Replaces every occurrence of a literal byte sequence (used for the game title clean-up; std::regex would compile a
-//   pattern per call, and constructing one takes a process-wide locale lock that the game threads contend on)
-static void
-SKIF_ReplaceAll (std::string& str, std::string_view from, std::string_view to)
-{
-  for (size_t pos = str.find (from); pos != std::string::npos; pos = str.find (from, pos + to.length ( )))
-    str.replace (pos, from.length ( ), to);
-}
-
 unsigned __stdcall
 SKIF_GamingCollection::LibraryWorkerThread (void* var)
 {
@@ -1591,20 +1582,20 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
 
       // Replace RIGHT SINGLE QUOTATION MARK (Code: 2019 | UTF-8: E2 80 99)
       //  with a APOSTROPHE (Code: 0027 | UTF-8: 27)
-      SKIF_ReplaceAll (app.first, "\xE2\x80\x99", "\x27");
+      SKIF_Util_ReplaceAll (app.first, "\xE2\x80\x99", "\x27");
 
       // Replace LATIN SMALL LETTER O (Code: 006F | UTF-8: 6F) and COMBINING DIAERESIS (Code: 0308 | UTF-8: CC 88)
       //  with a LATIN SMALL LETTER O WITH DIAERESIS (Code: 00F6 | UTF-8: C3 B6)
-      SKIF_ReplaceAll (app.first, "\x6F\xCC\x88", "\xC3\xB6");
+      SKIF_Util_ReplaceAll (app.first, "\x6F\xCC\x88", "\xC3\xB6");
 
       // Remove COPYRIGHT SIGN (Code: 00A9 | UTF-8: C2 A9)
-      SKIF_ReplaceAll (app.first, "\xC2\xA9", "");
+      SKIF_Util_ReplaceAll (app.first, "\xC2\xA9", "");
 
       // Remove REGISTERED SIGN (Code: 00AE | UTF-8: C2 AE)
-      SKIF_ReplaceAll (app.first, "\xC2\xAE", "");
+      SKIF_Util_ReplaceAll (app.first, "\xC2\xAE", "");
 
       // Remove TRADE MARK SIGN (Code: 2122 | UTF-8: E2 84 A2)
-      SKIF_ReplaceAll (app.first, "\xE2\x84\xA2", "");
+      SKIF_Util_ReplaceAll (app.first, "\xE2\x84\xA2", "");
 
       // Output the name change (use widechar to have them appear correct in the logs)
       if (app.second->names.original != app.first)

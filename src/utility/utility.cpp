@@ -259,28 +259,32 @@ SKIF_Util_TrimTrailingNewlinesW (std::wstring& input)
   input.erase (std::find_if (input.rbegin(), input.rend(), [](const       wchar_t ch) { return (ch != L'\n'); }).base(), input.end());
 }
 
+// Case insensitive Replace All function for std::string
+// 
+// Replaces every occurrence of a literal byte sequence (std::regex would compile a pattern per call,
+//    and constructing one takes a process-wide locale lock that the game threads contend on)
 void
-SKIF_Util_ReplaceAll (std::string& input, const std::string& from, const std::string& to)
+SKIF_Util_ReplaceAll (std::string& input, std::string_view from, std::string_view to)
 {
-  // CC BY-SA 4.0: https://stackoverflow.com/a/24315631
-  size_t  start_pos = 0;
-  while ((start_pos = input.find(from, start_pos)) != std::string::npos)
-  {
-    input.replace(start_pos, from.length(), to);
-    start_pos += to.length();
-  }
+  if (from.empty ())
+    return;
+  
+  for (size_t pos = input.find (from); pos != std::string::npos; pos = input.find (from, pos + to.length ( )))
+    input.replace (pos, from.length ( ), to);
 }
 
+// Case insensitive Replace All function for std::wstring
+// 
+// Replaces every occurrence of a literal byte sequence (std::regex would compile a pattern per call,
+//    and constructing one takes a process-wide locale lock that the game threads contend on)
 void
-SKIF_Util_ReplaceAllW (std::wstring& input, const std::wstring& from, const std::wstring& to)
+SKIF_Util_ReplaceAllW (std::wstring& input, std::wstring_view from, std::wstring_view to)
 {
-  // CC BY-SA 4.0: https://stackoverflow.com/a/24315631
-  size_t  start_pos = 0;
-  while ((start_pos = input.find(from, start_pos)) != std::wstring::npos)
-  {
-    input.replace(start_pos, from.length(), to);
-    start_pos += to.length();
-  }
+  if (from.empty ())
+    return;
+  
+  for (size_t pos = input.find (from); pos != std::wstring::npos; pos = input.find (from, pos + to.length ( )))
+    input.replace (pos, from.length ( ), to);
 }
 
 
@@ -842,21 +846,15 @@ SKIF_Util_StripPersonalData (std::string input)
 {
   SKIF_UtilInt_IniUserMachineStrip ( );
 
-  if (! userDisNameUTF8.empty())
-    input = std::regex_replace (input, std::regex  (userDisNameUTF8.c_str()), replDisNameUTF8.c_str()); // Strip Display Name first as it is most likely to include the profile/SAM account name
-
-  if (! userProfileUTF8.empty())
-    input = std::regex_replace (input, std::regex  (userProfileUTF8.c_str()), replProfileUTF8.c_str());
-
-  if (! userSamNameUTF8.empty())
-    input = std::regex_replace (input, std::regex  (userSamNameUTF8.c_str()), replSamNameUTF8.c_str());
-
-  if (! machineNameUTF8.empty())
-    input = std::regex_replace (input, std::regex  (machineNameUTF8.c_str()), replMacNameUTF8.c_str());
+  // Strip Display Name first, as it is most likely to include the profile/SAM account name
+  SKIF_Util_ReplaceAll (input, userDisNameUTF8, replDisNameUTF8);
+  SKIF_Util_ReplaceAll (input, userProfileUTF8, replProfileUTF8);
+  SKIF_Util_ReplaceAll (input, userSamNameUTF8, replSamNameUTF8);
+  SKIF_Util_ReplaceAll (input, machineNameUTF8, replMacNameUTF8);
 
   // Trim a single trailing newline
-  if (! input.empty() && input.back() == '\n')
-    input.pop_back();
+  if (! input.empty () && input.back () == '\n')
+    input.pop_back ();
 
   return input;
 }
@@ -866,21 +864,15 @@ SKIF_Util_StripPersonalData (std::wstring input)
 {
   SKIF_UtilInt_IniUserMachineStrip ( );
 
-  if (! userDisName.empty())
-    input = std::regex_replace (input, std::wregex (userDisName.c_str()),    replDisName.c_str()); // Strip Display Name first as it is most likely to include the profile/SAM account name
-
-  if (! userProfile.empty())
-    input = std::regex_replace (input, std::wregex (userProfile.c_str()),    replProfile.c_str());
-
-  if (! userSamName.empty())
-    input = std::regex_replace (input, std::wregex (userSamName.c_str()),    replSamName.c_str());
-
-  if (! machineName.empty())
-    input = std::regex_replace (input, std::wregex (machineName.c_str()),    replMacName.c_str());
+  // Strip Display Name first, as it is most likely to include the profile/SAM account name
+  SKIF_Util_ReplaceAllW (input, userDisName, replDisName);
+  SKIF_Util_ReplaceAllW (input, userProfile, replProfile);
+  SKIF_Util_ReplaceAllW (input, userSamName, replSamName);
+  SKIF_Util_ReplaceAllW (input, machineName, replMacName);
 
   // Trim a single trailing newline
-  if (! input.empty() && input.back() == L'\n')
-    input.pop_back();
+  if (! input.empty () && input.back () == L'\n')
+    input.pop_back ();
 
   return input;
 }
