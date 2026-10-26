@@ -1362,6 +1362,11 @@ SKIF_SteamInt_DiscoverInstalledApps (void)
       {
         static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
+        // Everything below changes the environment of the SKIF process (including the variables SteamAPI_Init ( ) sets
+        //   until the snapshot is restored), so hold the shared environment lock until this thread is done, which keeps
+        //     launches on other threads from inheriting any of it in the meantime
+        auto envLock = SKIF_Util_LockEnvironment ( );
+
         // We don't want Steam to draw its overlay on us
         _registry._LoadedSteamOverlay = true;
         SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");

@@ -1017,11 +1017,13 @@ SKIF_Startup_LaunchGame (void)
   PLOG_INFO_IF(! _Signal._GameWorkDir.empty()) << "   Working directory : " << _Signal._GameWorkDir;
   PLOG_INFO_IF(! _Signal._GameArgs   .empty()) << "           Arguments : " << _Signal._GameArgs;
 
+  std::map <std::wstring, std::wstring> overrides;
+
   if (! _Signal._SteamAppID.empty ( ))
   {
     PLOG_INFO << "        Steam App ID : " << _Signal._SteamAppID;
-    SetEnvironmentVariable (L"SteamAppId",    _Signal._SteamAppID.c_str());
-    SetEnvironmentVariable (L"SteamGameId",   _Signal._SteamAppID.c_str());
+    overrides.emplace (L"SteamAppId",  _Signal._SteamAppID);
+    overrides.emplace (L"SteamGameId", _Signal._SteamAppID);
   }
 
   SHELLEXECUTEINFOW
@@ -1036,13 +1038,11 @@ SKIF_Startup_LaunchGame (void)
                         SEE_MASK_NOASYNC        | // Never async since our own process might stop executing before the new process is ready
                         SEE_MASK_NOZONECHECKS;    // No zone check needs to be performed
 
-  // Launch executable
-  ShellExecuteExW (&sexi);
-
-  if (! _Signal._SteamAppID.empty ( ))
+  // Launch executable (the new process inherits SKIF's environment, so the Steam App ID is only applied
+  //   for the duration of the call, after which the previous values are restored)
   {
-    SetEnvironmentVariable (L"SteamAppId",  NULL);
-    SetEnvironmentVariable (L"SteamGameId", NULL);
+    SKIF_Util_ScopedEnvironment scopedEnv (overrides);
+    ShellExecuteExW (&sexi);
   }
 
   // Set the new process as foreground window
@@ -2114,7 +2114,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       // though we need to set this _after_ we have launched any game but before we set up Direct3D.
       // It is later removed when the user switches away from the small mode
       PLOG_INFO << "Setting SteamNoOverlayUIDrawing to prevent the Steam overlay from hooking SKIF...";
-      SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
+      SKIF_Util_SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
       SteamOverlayDisabled = true;
     }
 
@@ -2678,7 +2678,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if (SteamOverlayDisabled)
       {
         PLOG_INFO << "Removing the SteamNoOverlayUIDrawing variable to prevent pollution...";
-        SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
+        SKIF_Util_SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
         SteamOverlayDisabled = false;
       }
 

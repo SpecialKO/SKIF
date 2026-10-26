@@ -862,6 +862,94 @@ SKIF_Util_GenerateInstallGUID (void)
 
 // ShellExecute
 
+// Process environment
+
+static std::recursive_mutex&
+SKIF_UtilInt_EnvironmentMutex (void)
+{
+  // Recursive, as a thread that holds it (e.g. during a ShellExecuteEx ( ) call that pumps messages) may need it again
+  static std::recursive_mutex mutex;
+  return mutex;
+}
+
+// Returns the current value of a variable of the SKIF process, or std::nullopt if it does not exist
+static std::optional <std::wstring>
+SKIF_UtilInt_GetEnvironmentVariable (const std::wstring& name)
+{
+  std::wstring value;
+  DWORD        size = 256;
+
+  // Retried in case the value grows between the size query and the read
+  for (int attempt = 0; attempt < 4; ++attempt)
+  {
+    value.resize (size);
+
+    SetLastError (NO_ERROR);
+
+    const DWORD len =
+      GetEnvironmentVariableW (name.c_str ( ), value.data ( ), size);
+
+    // 0 is returned both for a missing variable and for one with an empty value
+    if (len == 0)
+    {
+      if (GetLastError ( ) == ERROR_ENVVAR_NOT_FOUND)
+        return std::nullopt;
+
+      return std::wstring ( );
+    }
+
+    // It fit: len is the number of characters, excluding the null terminator
+    if (len < size)
+    {
+      value.resize (len);
+      return value;
+    }
+
+    // Too small: len is the required size, including the null terminator
+    size = len;
+  }
+
+  return std::nullopt;
+}
+
+std::unique_lock <std::recursive_mutex>
+SKIF_Util_LockEnvironment (void)
+{
+  return std::unique_lock <std::recursive_mutex> (SKIF_UtilInt_EnvironmentMutex ( ));
+}
+
+bool
+SKIF_Util_SetEnvironmentVariable (const wchar_t* name, const wchar_t* value)
+{
+  std::lock_guard <std::recursive_mutex> lock (SKIF_UtilInt_EnvironmentMutex ( ));
+
+  return (SetEnvironmentVariableW (name, value) != FALSE);
+}
+
+SKIF_Util_ScopedEnvironment::SKIF_Util_ScopedEnvironment (const std::map <std::wstring, std::wstring>& overrides)
+  : _lock (SKIF_UtilInt_EnvironmentMutex ( ))
+{
+  _previous.reserve (overrides.size ( ));
+
+  for (const auto& [name, value] : overrides)
+  {
+    if (name.empty ( ))
+      continue;
+
+    _previous.emplace_back (name, SKIF_UtilInt_GetEnvironmentVariable (name));
+
+    SetEnvironmentVariableW (name.c_str ( ), (value.empty ( )) ? nullptr : value.c_str ( ));
+  }
+}
+
+SKIF_Util_ScopedEnvironment::~SKIF_Util_ScopedEnvironment (void)
+{
+  // Restored in reverse order, so a variable listed twice (e.g. with different casing) ends up with its original value
+  for (auto it = _previous.rbegin ( ); it != _previous.rend ( ); ++it)
+    SetEnvironmentVariableW (it->first.c_str ( ), (it->second.has_value ( )) ? it->second->c_str ( ) : nullptr);
+}
+
+
 HINSTANCE
 SKIF_Util_ExplorePath (std::wstring path )
 {
@@ -910,8 +998,13 @@ SKIF_Util_OpenURI (
   PLOG_INFO_IF(directory  != nullptr) << "Directory : " << std::wstring(directory);
 //PLOG_INFO                           << "Flags     : " << flags;
 
-  if (_registry._LoadedSteamOverlay)
-    SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
+  // The new process inherits SKIF's own environment, so hold the environment lock during the call (so it cannot
+  //   pick up the variables of a launch in progress on another thread), and remove SteamNoOverlayUIDrawing if SKIF
+  //     set it for itself. The previous value is restored when this function returns.
+  SKIF_Util_ScopedEnvironment scopedEnv (
+    (_registry._LoadedSteamOverlay) ? std::map <std::wstring, std::wstring> { { L"SteamNoOverlayUIDrawing", L"" } }
+                                    : std::map <std::wstring, std::wstring> { }
+  );
 
   SHELLEXECUTEINFOW
     sexi              = { };
@@ -934,10 +1027,7 @@ SKIF_Util_OpenURI (
     PLOG_ERROR << "The operation failed!";
   }
 
-  if (_registry._LoadedSteamOverlay)
-    SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
-
-  return ret;
+  return ret; // scopedEnv restores the environment variables
 }
 
 // Make an unelevated ShellExecute call through Explorer.
@@ -1174,13 +1264,15 @@ SKIF_Util_CreateProcess (
 
         static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
-        // Note that any new process will inherit SKIF's environment variables
-        if (_registry._LoadedSteamOverlay)
-          SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
+        // Note that any new process will inherit SKIF's environment variables, so apply the custom variables
+        //   (and remove SteamNoOverlayUIDrawing if SKIF set it for itself, unless the launch sets it explicitly)
+        //     for the duration of the ShellExecuteEx ( ) call below; restored when this scope ends
+        std::map <std::wstring, std::wstring> overrides = _data->env;
 
-        // Set any custom environment variables
-        for (auto& env_var : _data->env)
-          SetEnvironmentVariable (env_var.first.c_str(), env_var.second.c_str());
+        if (_registry._LoadedSteamOverlay)
+          overrides.try_emplace (L"SteamNoOverlayUIDrawing", L"");
+
+        SKIF_Util_ScopedEnvironment scopedEnv (overrides);
 
         PLOG_INFO << "Performing a ShellExecuteEx call...";
 
@@ -1220,12 +1312,7 @@ SKIF_Util_CreateProcess (
               _data->proc->iReturnCode.store (error);
         }
 
-        // Remove any custom environment variables
-        for (auto& env_var : _data->env)
-          SetEnvironmentVariable (env_var.first.c_str(), NULL);
-
-        if (_registry._LoadedSteamOverlay)
-          SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
+        // (scopedEnv restores the environment variables when this scope ends)
       }
 
       // No fallback available

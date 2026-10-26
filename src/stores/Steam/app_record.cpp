@@ -703,13 +703,15 @@ app_record_s::LaunchInstant (const launch_context_s& ctx)
     // This is a fallback for handling Steam's %COMMAND% scenarios
     if (useShellExecute)
     {
-      // Note that any new process will inherit SKIF's environment variables
-      if (_registry._LoadedSteamOverlay)
-        SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
+      // Note that any new process will inherit SKIF's environment variables, so apply the custom variables
+      //   (and remove SteamNoOverlayUIDrawing if SKIF set it for itself, unless the launch sets it explicitly)
+      //     for the duration of the ShellExecuteEx ( ) call below; restored when this scope ends
+      std::map <std::wstring, std::wstring> overrides = env;
 
-      // Set any custom environment variables
-      for (auto& var : env)
-        SetEnvironmentVariable (var.first.c_str(), var.second.c_str());
+      if (_registry._LoadedSteamOverlay)
+        overrides.try_emplace (L"SteamNoOverlayUIDrawing", L"");
+
+      SKIF_Util_ScopedEnvironment scopedEnv (overrides);
 
       // We need to split cmdLine between executable and parameters
       // Example that we may get: (replace %COMMAND% with game executable and launch options)
@@ -767,12 +769,7 @@ app_record_s::LaunchInstant (const launch_context_s& ctx)
         proc->store_id = -1;
       }
 
-      // Remove any custom environment variables
-      for (auto& var : env)
-        SetEnvironmentVariable (var.first.c_str(), NULL);
-
-      if (_registry._LoadedSteamOverlay)
-        SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
+      // (scopedEnv restores the environment variables when this scope ends)
     }
 
     // Main launcher (uses ShellExecute in case elevation is required)

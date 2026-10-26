@@ -532,10 +532,6 @@ DrawGameDetails_Play (app_record_s* pApp)
 
             modInstalling.store (true);
 
-            // Note that any new process will inherit SKIF's environment variables
-            if (_registry._LoadedSteamOverlay)
-              SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
-
             SHELLEXECUTEINFOW
               sexi              = { };
               sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
@@ -553,14 +549,21 @@ DrawGameDetails_Play (app_record_s* pApp)
 
             // Attempt to run the downloaded installer,
             //   and delete it on failure
-            if (! ShellExecuteExW (&sexi))
             {
-              PLOG_ERROR << "Something went wrong: "   << SKIF_Util_GetErrorAsWStr ( );
-              PLOG_ERROR_IF (DeleteFile(path.c_str())) << "The downloaded installer has been removed!";
-            }
+              // Note that any new process will inherit SKIF's environment variables, so remove SteamNoOverlayUIDrawing
+              //   (if SKIF set it for itself) for the duration of the call. Scoped, so the environment lock is not
+              //     held while waiting for the installer to close below.
+              SKIF_Util_ScopedEnvironment scopedEnv (
+                (_registry._LoadedSteamOverlay) ? std::map <std::wstring, std::wstring> { { L"SteamNoOverlayUIDrawing", L"" } }
+                                                : std::map <std::wstring, std::wstring> { }
+              );
 
-            if (_registry._LoadedSteamOverlay)
-              SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", L"1");
+              if (! ShellExecuteExW (&sexi))
+              {
+                PLOG_ERROR << "Something went wrong: "   << SKIF_Util_GetErrorAsWStr ( );
+                PLOG_ERROR_IF (DeleteFile(path.c_str())) << "The downloaded installer has been removed!";
+              }
+            }
 
             // If the process was started successfully, wait for it to close down...
             if (sexi.hInstApp  > (HINSTANCE)32 &&

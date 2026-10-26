@@ -7,6 +7,8 @@
 #include <atomic>
 #include <vector>
 #include <stdexcept>
+#include <mutex>
+#include <optional>
 #include <Windows.h>
 #include <wtypes.h>
 
@@ -126,6 +128,39 @@ std:: string    SKIF_Util_StripPersonalData           (std:: string input);
 std::wstring    SKIF_Util_StripPersonalData           (std::wstring input);
 void            SKIF_Util_Debug_LogUserNames          (void);
 void            SKIF_Util_GenerateInstallGUID         (void);
+
+
+// Process environment
+//
+// The environment of the SKIF process is shared by all of its threads, and every process SKIF starts through
+//   ShellExecuteEx ( ) inherits it (that API has no environment parameter). All changes to it should go through
+//     these helpers, which share one lock, so concurrent launches cannot pick up (or undo) each other's variables.
+
+// Holds the environment lock for as long as the returned object lives, for code that changes the environment in other ways
+std::unique_lock <std::recursive_mutex>
+                SKIF_Util_LockEnvironment             (void);
+// Sets a variable of the SKIF process (nullptr removes it) while holding the environment lock
+bool            SKIF_Util_SetEnvironmentVariable      (const wchar_t* name, const wchar_t* value);
+
+// Temporarily overrides variables of the SKIF process, e.g. around a ShellExecuteEx ( ) call. Holds the environment
+//   lock for its whole lifetime, and restores every variable to its previous value (or removes it if it did not exist)
+//     when it goes out of scope. An empty value removes the variable for the duration.
+//
+// Use it around ShellExecuteEx ( ) calls with SEE_MASK_NOASYNC, so the new process has received its copy of the
+//   environment before the variables are restored, and keep the scope short, as other launches wait for it.
+class SKIF_Util_ScopedEnvironment
+{
+public:
+  explicit SKIF_Util_ScopedEnvironment (const std::map <std::wstring, std::wstring>& overrides);
+          ~SKIF_Util_ScopedEnvironment (void);
+
+  SKIF_Util_ScopedEnvironment            (const SKIF_Util_ScopedEnvironment&) = delete;
+  SKIF_Util_ScopedEnvironment& operator= (const SKIF_Util_ScopedEnvironment&) = delete;
+
+private:
+  std::unique_lock <std::recursive_mutex>                                   _lock;
+  std::vector      <std::pair <std::wstring, std::optional <std::wstring>>> _previous;
+};
 
 
 // ShellExecute
