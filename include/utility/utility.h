@@ -99,14 +99,16 @@ void            SKIF_Util_TrimTrailingNewlines        (std:: string&     input);
 void            SKIF_Util_TrimTrailingNewlinesW       (std::wstring&     input);
 void            SKIF_Util_ReplaceAll                  (std:: string&     input, std:: string_view from, std:: string_view to);
 void            SKIF_Util_ReplaceAllW                 (std::wstring&     input, std::wstring_view from, std::wstring_view to);
+void            SKIF_Util_ReplaceAllI                 (std:: string&     input, std:: string_view from, std:: string_view to); // ASCII letters only
+void            SKIF_Util_ReplaceAllIW                (std::wstring&     input, std::wstring_view from, std::wstring_view to); // Ordinal (all letters)
 std::wstring    SKIF_Util_GetErrorAsWStr              (DWORD error = GetLastError ( ), HMODULE module = NULL);
 void            SKIF_Util_GetErrorAsMsgBox            (std::wstring winTitle = L"Error detected", std::wstring preMsg = L"", DWORD error = GetLastError ( ), HMODULE module = NULL);
 DWORD           SKIF_Util_timeGetTime                 (void);
 DWORD           SKIF_Util_timeGetTime1                (void); // Original non-cached data
 std::wstring    SKIF_Util_timeGetTimeAsWStr           (time_t time);
 std::wstring    SKIF_Util_timeGetTimeAsWStr           (const std::wstring& format = L"H:M:s.m");
-int             SKIF_Util_CompareVersionStrings       (std:: string string1, std:: string string2);
-int             SKIF_Util_CompareVersionStrings       (std::wstring string1, std::wstring string2);
+int             SKIF_Util_CompareVersionStrings       (std:: string_view string1, std:: string_view string2);
+int             SKIF_Util_CompareVersionStrings       (std::wstring_view string1, std::wstring_view string2);
 int             SKIF_Util_RandomInteger               (int low = 0, int high = RAND_MAX);
 
 // Filenames
@@ -223,6 +225,7 @@ bool            SKIF_Util_IsMPOsDisabledInRegistry    (bool refresh = false);
 void            SKIF_Util_GetMonitorHzPeriod          (HWND hwnd, DWORD dwFlags, DWORD& dwPeriod);
 bool            SKIF_Util_SetClipboardData            (const std::wstring_view& data);
 std::wstring    SKIF_Util_AddEnvironmentBlock         (const void* pEnvBlock, const std::wstring& varName, const std::wstring& varValue);
+std::wstring    SKIF_Util_AddEnvironmentBlock         (const void* pEnvBlock, const std::map<std::wstring, std::wstring>& vars);
 void            SKIF_Util_FileExplorer_SelectFile     (PCWSTR filePath);
 bool            SKIF_Util_FileExplorer_DeleteFile     (PCWSTR filePath, bool hideWarning);
 void            SKIF_Util_FileExplorer_ContextMenuFile(PCWSTR filePath, HWND hWndOwner);

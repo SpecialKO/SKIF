@@ -7,7 +7,6 @@
 #include <ShlObj.h>
 #include <strsafe.h>
 #include <filesystem>
-#include <DbgHelp.h>
 #include <gdiplus.h>
 #include <regex>
 #include <random>
@@ -65,8 +64,7 @@ struct SKIF_Util_Monitor_s {
 
 std::vector <SKIF_Util_Monitor_s> g_Monitors           = {  };
 bool                              g_WantUpdateMonitors = true;
-
-CRITICAL_SECTION CriticalSectionDbgHelp = { };
+HMONITOR                          g_MissingMonitor     = NULL; // Last monitor SKIF_Util_GetSDRWhiteLevel ( ) could not find
 
 // Generic Utilities
 
@@ -298,6 +296,64 @@ SKIF_Util_ReplaceAllW (std::wstring& input, std::wstring_view from, std::wstring
     input.replace (pos, from.length ( ), to);
 }
 
+// Case insensitive Replace All function for std::string
+//
+// Only ASCII letters are matched case-insensitively; other bytes (such as UTF-8 sequences) must match exactly
+void
+SKIF_Util_ReplaceAllI (std::string& input, std::string_view from, std::string_view to)
+{
+  if (from.empty ())
+    return;
+
+  auto _EqualsNoCase = [](char a, char b)
+  {
+    return (std::tolower (static_cast<unsigned char> (a)) ==
+            std::tolower (static_cast<unsigned char> (b)));
+  };
+
+  size_t pos = 0;
+
+  while (true)
+  {
+    auto it = std::search (input.begin () + pos, input.end (), from.begin (), from.end (), _EqualsNoCase);
+
+    if (it == input.end ())
+      break;
+
+    pos = static_cast<size_t> (it - input.begin ());
+    input.replace (pos, from.length ( ), to);
+    pos += to.length ( );
+  }
+}
+
+// Case insensitive Replace All function for std::wstring
+//
+// Uses ordinal case-insensitive matching (each character uppercased on its own), the same rules
+//   Windows uses for file and user names, so non-ASCII letters (e.g. "Å" / "å") match as well
+void
+SKIF_Util_ReplaceAllIW (std::wstring& input, std::wstring_view from, std::wstring_view to)
+{
+  if (from.empty () || from.length () > INT_MAX)
+    return;
+
+  size_t pos = 0;
+
+  while (pos < input.length () && (input.length () - pos) <= INT_MAX)
+  {
+    const int found =
+      FindStringOrdinal (FIND_FROMSTART, input.c_str () + pos, static_cast<int> (input.length () - pos),
+                                          from.data (),        static_cast<int> (from.length ()), TRUE);
+
+    if (found < 0)
+      break;
+
+    // Ordinal matching compares one character to one character, so the match is exactly from.length ( ) long
+    pos += static_cast<size_t> (found);
+    input.replace (pos, from.length ( ), to);
+    pos += to.length ( );
+  }
+}
+
 
 // Handles System Error Codes, https://learn.microsoft.com/en-us/windows/win32/debug/system-error-codes#system-error-codes
 //                             https://learn.microsoft.com/en-us/windows/win32/wininet/appendix-c-handling-errors
@@ -440,45 +496,56 @@ SKIF_Util_timeGetTimeAsWStr (const std::wstring& format)
 }
 
 
-// Handles comparisons of a version string split between dots by
-// looping through the parts that makes up the string one by one.
+// Compares two version strings part by part, split between dots (e.g. "24.10.25.1")
 //
 // Outputs:
 //  1 = if string1 is more than string2
 //  0 = if both strings are equal
 // -1 = if string1 is less than string2
 //
-// Basically https://www.geeksforgeeks.org/compare-two-version-numbers/
-int
-SKIF_Util_CompareVersionStrings (std::string string1, std::string string2)
+// Missing parts count as 0 ("1.2" == "1.2.0"). Only the leading digits of each part are compared,
+//   so suffixes such as "-rc1" are ignored, and overly long parts saturate instead of overflowing.
+template <typename CharT>
+static int
+SKIF_UtilInt_CompareVersionStrings (std::basic_string_view <CharT> string1, std::basic_string_view <CharT> string2)
 {
-  int sum1 = 0, sum2 = 0;
-
-  for ( size_t i = 0, j = 0; (i < string1.length ( ) ||
-                              j < string2.length ( )); )
+  // Parses the leading digits of the part that starts at pos, and moves pos past the next dot
+  auto _NextPart = [](std::basic_string_view <CharT> str, size_t& pos) -> uint64_t
   {
-    while ( i < string1.length() && string1[i] != '.' )
+    constexpr uint64_t saturation = 1'000'000'000'000'000'000ULL; // Stops well before uint64_t would overflow
+
+    uint64_t value  = 0;
+    bool     digits = true;
+
+    for (; pos < str.length () && str [pos] != CharT ('.'); ++pos)
     {
-      sum1 = sum1 * 10 + (string1[i] - '0');
-      i++;
+      if (digits && str [pos] >= CharT ('0') && str [pos] <= CharT ('9'))
+      {
+        if (value < saturation)
+          value = value * 10 + static_cast <uint64_t> (str [pos] - CharT ('0'));
+      }
+
+      else
+        digits = false; // Ignore everything after the leading digits (e.g. "-rc1")
     }
 
-    while ( j < string2.length() && string2[j] != '.' )
-    {
-      sum2 = sum2 * 10 + (string2[j] - '0');
-      j++;
-    }
+    ++pos; // Skip the dot
+
+    return value;
+  };
+
+  size_t i = 0, j = 0;
+
+  while (i < string1.length () || j < string2.length ())
+  {
+    const uint64_t part1 = _NextPart (string1, i);
+    const uint64_t part2 = _NextPart (string2, j);
 
     // If string1 is higher than string2, return 1
-    if (sum1 > sum2) return 1;
+    if (part1 > part2) return  1;
 
     // If string2 is higher than string1, return -1
-    if (sum2 > sum1) return -1;
-
-    // if equal, reset variables and go for next numeric part
-    sum1 = sum2 = 0;
-    i++;
-    j++;
+    if (part1 < part2) return -1;
   }
 
   // If both strings are equal, return 0
@@ -486,39 +553,15 @@ SKIF_Util_CompareVersionStrings (std::string string1, std::string string2)
 }
 
 int
-SKIF_Util_CompareVersionStrings (std::wstring string1, std::wstring string2)
+SKIF_Util_CompareVersionStrings (std::string_view string1, std::string_view string2)
 {
-  int sum1 = 0, sum2 = 0;
+  return SKIF_UtilInt_CompareVersionStrings (string1, string2);
+}
 
-  for ( size_t i = 0, j = 0; (i < string1.length ( ) ||
-                              j < string2.length ( )); )
-  {
-    while ( i < string1.length() && string1[i] != '.' )
-    {
-      sum1 = sum1 * 10 + (string1[i] - '0');
-      i++;
-    }
-
-    while ( j < string2.length() && string2[j] != '.' )
-    {
-      sum2 = sum2 * 10 + (string2[j] - '0');
-      j++;
-    }
-
-    // If string1 is higher than string2, return 1
-    if (sum1 > sum2) return 1;
-
-    // If string2 is higher than string1, return -1
-    if (sum2 > sum1) return -1;
-
-    // if equal, reset variables and go for next numeric part
-    sum1 = sum2 = 0;
-    i++;
-    j++;
-  }
-
-  // If both strings are equal, return 0
-  return 0;
+int
+SKIF_Util_CompareVersionStrings (std::wstring_view string1, std::wstring_view string2)
+{
+  return SKIF_UtilInt_CompareVersionStrings (string1, string2);
 }
 
 int
@@ -535,43 +578,39 @@ SKIF_Util_RandomInteger (int low, int high)
 
 
 
+// Characters that are removed from (or replaced in) names used as file or folder names
+template <typename CharT>
+static constexpr bool
+SKIF_UtilInt_IsInvalidFilenameChar (CharT tval)
+{
+  switch (tval)
+  {
+    case CharT ('\\'): case CharT ('/'): case CharT (':'):
+    case CharT ('*'):  case CharT ('?'): case CharT ('\"'):
+    case CharT ('<'):  case CharT ('>'): case CharT ('|'):
+  //case CharT ('&'):
+
+    //
+    // Obviously a period is not an invalid character,
+    //   but three of them in a row messes with
+    //     Windows Explorer and some Steam games use
+    //       ellipsis in their titles.
+    //
+    case CharT ('.'):
+      return true;
+
+    default:
+      return false;
+  }
+}
+
 std::string
 SKIF_Util_StripInvalidFilenameChars (std::string name)
 {
   // Non-trivial name = custom path, remove the old-style <program.exe>
   if (! name.empty())
   {
-    name.erase ( std::remove_if ( name.begin (),
-                                  name.end   (),
-
-                                    [](char tval)
-                                    {
-                                      static
-                                      const std::unordered_set <char>
-                                        invalid_file_char =
-                                        {
-                                          '\\', '/', ':',
-                                          '*',  '?', '\"',
-                                          '<',  '>', '|',
-                                        //L'&',
-
-                                          //
-                                          // Obviously a period is not an invalid character,
-                                          //   but three of them in a row messes with
-                                          //     Windows Explorer and some Steam games use
-                                          //       ellipsis in their titles.
-                                          //
-                                          '.'
-                                        };
-
-                                      return
-                                        ( invalid_file_char.find (tval) !=
-                                          invalid_file_char.end  (    ) );
-                                    }
-                                ),
-
-                     name.end ()
-               );
+    name.erase (std::remove_if (name.begin (), name.end (), SKIF_UtilInt_IsInvalidFilenameChar <char>), name.end ());
 
     // Strip trailing spaces from name, these are usually the result of
     //   deleting one of the non-useable characters above.
@@ -587,37 +626,7 @@ SKIF_Util_StripInvalidFilenameChars (std::wstring name)
   // Non-trivial name = custom path, remove the old-style <program.exe>
   if (! name.empty())
   {
-    name.erase ( std::remove_if ( name.begin (),
-                                  name.end   (),
-
-                                    [](wchar_t tval)
-                                    {
-                                      static
-                                      const std::unordered_set <wchar_t>
-                                        invalid_file_char =
-                                        {
-                                          L'\\', L'/', L':',
-                                          L'*',  L'?', L'\"',
-                                          L'<',  L'>', L'|',
-                                        //L'&',
-
-                                          //
-                                          // Obviously a period is not an invalid character,
-                                          //   but three of them in a row messes with
-                                          //     Windows Explorer and some Steam games use
-                                          //       ellipsis in their titles.
-                                          //
-                                          L'.'
-                                        };
-
-                                      return
-                                        ( invalid_file_char.find (tval) !=
-                                          invalid_file_char.end  (    ) );
-                                    }
-                                ),
-
-                     name.end ()
-               );
+    name.erase (std::remove_if (name.begin (), name.end (), SKIF_UtilInt_IsInvalidFilenameChar <wchar_t>), name.end ());
 
     // Strip trailing spaces from name, these are usually the result of
     //   deleting one of the non-useable characters above.
@@ -630,38 +639,7 @@ SKIF_Util_StripInvalidFilenameChars (std::wstring name)
 std::string
 SKIF_Util_ReplaceInvalidFilenameChars (std::string name, char replacement)
 {
-  if (! name.empty())
-  {
-    std::replace_if ( name.begin (),
-                      name.end   (),
-
-                        [](char tval)
-                        {
-                          static
-                          const std::unordered_set <char>
-                            invalid_file_char =
-                            {
-                              '\\', '/', ':',
-                              '*',  '?', '\"',
-                              '<',  '>', '|',
-                            //L'&',
-
-                              //
-                              // Obviously a period is not an invalid character,
-                              //   but three of them in a row messes with
-                              //     Windows Explorer and some Steam games use
-                              //       ellipsis in their titles.
-                              //
-                              '.'
-                            };
-
-                          return
-                            ( invalid_file_char.find (tval) !=
-                              invalid_file_char.end  (    ) );
-                        }
-                    , replacement
-                   );
-  }
+  std::replace_if (name.begin (), name.end (), SKIF_UtilInt_IsInvalidFilenameChar <char>, replacement);
 
   return name;
 }
@@ -669,38 +647,7 @@ SKIF_Util_ReplaceInvalidFilenameChars (std::string name, char replacement)
 std::wstring
 SKIF_Util_ReplaceInvalidFilenameChars (std::wstring name, wchar_t replacement)
 {
-  if (! name.empty())
-  {
-    std::replace_if ( name.begin (),
-                      name.end   (),
-
-                        [](wchar_t tval)
-                        {
-                          static
-                          const std::unordered_set <wchar_t>
-                            invalid_file_char =
-                            {
-                              '\\', '/', ':',
-                              '*',  '?', '\"',
-                              '<',  '>', '|',
-                            //L'&',
-
-                              //
-                              // Obviously a period is not an invalid character,
-                              //   but three of them in a row messes with
-                              //     Windows Explorer and some Steam games use
-                              //       ellipsis in their titles.
-                              //
-                              '.'
-                            };
-
-                          return
-                            ( invalid_file_char.find (tval) !=
-                              invalid_file_char.end  (    ) );
-                        }
-                    , replacement
-                   );
-  }
+  std::replace_if (name.begin (), name.end (), SKIF_UtilInt_IsInvalidFilenameChar <wchar_t>, replacement);
 
   return name;
 }
@@ -843,10 +790,10 @@ SKIF_Util_StripPersonalData (std::string input)
   SKIF_UtilInt_IniUserMachineStrip ( );
 
   // Strip Display Name first, as it is most likely to include the profile/SAM account name
-  SKIF_Util_ReplaceAll (input, userDisNameUTF8, replDisNameUTF8);
-  SKIF_Util_ReplaceAll (input, userProfileUTF8, replProfileUTF8);
-  SKIF_Util_ReplaceAll (input, userSamNameUTF8, replSamNameUTF8);
-  SKIF_Util_ReplaceAll (input, machineNameUTF8, replMacNameUTF8);
+  SKIF_Util_ReplaceAllI (input, userDisNameUTF8, replDisNameUTF8);
+  SKIF_Util_ReplaceAllI (input, userProfileUTF8, replProfileUTF8);
+  SKIF_Util_ReplaceAllI (input, userSamNameUTF8, replSamNameUTF8);
+  SKIF_Util_ReplaceAllI (input, machineNameUTF8, replMacNameUTF8);
 
   // Trim a single trailing newline
   if (! input.empty () && input.back () == '\n')
@@ -861,10 +808,10 @@ SKIF_Util_StripPersonalData (std::wstring input)
   SKIF_UtilInt_IniUserMachineStrip ( );
 
   // Strip Display Name first, as it is most likely to include the profile/SAM account name
-  SKIF_Util_ReplaceAllW (input, userDisName, replDisName);
-  SKIF_Util_ReplaceAllW (input, userProfile, replProfile);
-  SKIF_Util_ReplaceAllW (input, userSamName, replSamName);
-  SKIF_Util_ReplaceAllW (input, machineName, replMacName);
+  SKIF_Util_ReplaceAllIW (input, userDisName, replDisName);
+  SKIF_Util_ReplaceAllIW (input, userProfile, replProfile);
+  SKIF_Util_ReplaceAllIW (input, userSamName, replSamName);
+  SKIF_Util_ReplaceAllIW (input, machineName, replMacName);
 
   // Trim a single trailing newline
   if (! input.empty () && input.back () == L'\n')
@@ -1173,12 +1120,8 @@ SKIF_Util_CreateProcess (
     // Create a clear and empty environment block for the current user
     if (CreateEnvironmentBlock (&lpEnvBlock, SKIF_Util_GetCurrentUserToken ( ), FALSE))
     {
-      // Convert to a nicely stored wstring
-      wsEnvBlock   = SKIF_Util_AddEnvironmentBlock (lpEnvBlock, L"", L"");
-
-      // Add any custom variables to it
-      for (auto& env_var : _data->env)
-        wsEnvBlock = SKIF_Util_AddEnvironmentBlock (wsEnvBlock.c_str(), env_var.first, env_var.second);
+      // Convert to a nicely stored wstring and add any custom variables to it, in a single pass
+      wsEnvBlock   = SKIF_Util_AddEnvironmentBlock (lpEnvBlock, _data->env);
 
       // Destroy the block once we are done with it
       DestroyEnvironmentBlock (lpEnvBlock);
@@ -1671,43 +1614,49 @@ SKIF_Util_GetBinaryType (const LPCTSTR pszPathToBinary)
 {
   PEBitness arch = PEBitness_Invalid;
 
-  EnterCriticalSection (&CriticalSectionDbgHelp);
-
+  // Only the DOS header and the start of the NT headers are needed, so read those directly instead of
+  //   mapping the whole image (SEC_IMAGE) and using DbgHelp's ImageNtHeader ( ) behind a global lock
   HANDLE hFile = CreateFile (pszPathToBinary, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
   if (hFile != INVALID_HANDLE_VALUE)
   {
-    HANDLE hMapping = CreateFileMapping (hFile, NULL, PAGE_READONLY | SEC_IMAGE, 0, 0, NULL);
-    if (hMapping != NULL) // CreateFileMapping returns NULL on failure, not INVALID_HANDLE_VALUE
+    IMAGE_DOS_HEADER dosHeader = { };
+    DWORD            dwRead    = 0;
+
+    if (ReadFile (hFile, &dosHeader, sizeof (dosHeader), &dwRead, NULL) && dwRead == sizeof (dosHeader) &&
+                   dosHeader.e_magic  == IMAGE_DOS_SIGNATURE &&
+                   dosHeader.e_lfanew >= static_cast<LONG> (sizeof (IMAGE_DOS_HEADER)))
     {
-      LPVOID addrHeader = MapViewOfFile (hMapping, FILE_MAP_READ, 0, 0, 0);
-      if (addrHeader != NULL)
+      // The signature and file header are the same for 32-bit and 64-bit images
+      struct {
+        DWORD             Signature;
+        IMAGE_FILE_HEADER FileHeader;
+      } ntHeaders = { };
+
+      static_assert (sizeof (ntHeaders) == sizeof (DWORD) + sizeof (IMAGE_FILE_HEADER), "Unexpected padding");
+
+      LARGE_INTEGER liOffset = { };
+      liOffset.QuadPart      = dosHeader.e_lfanew;
+
+      if (SetFilePointerEx (hFile, liOffset, NULL, FILE_BEGIN) &&
+          ReadFile (hFile, &ntHeaders, sizeof (ntHeaders), &dwRead, NULL) && dwRead == sizeof (ntHeaders) &&
+                           ntHeaders.Signature == IMAGE_NT_SIGNATURE)
       {
-        // All DbgHelp functions, such as ImageNtHeader, are single threaded.
-        //  Therefore, calls from more than one thread to this function will likely result in unexpected behavior or memory corruption.
-        //   To avoid this, you must synchronize all concurrent calls from more than one thread to this function.
-        PIMAGE_NT_HEADERS peHdr = ImageNtHeader (addrHeader);
-        if (peHdr != NULL)
+        switch (ntHeaders.FileHeader.Machine)
         {
-          switch (peHdr->FileHeader.Machine)
-          {
-            case IMAGE_FILE_MACHINE_I386:
-              arch = PEBitness_32bit;
-              break;
-            case IMAGE_FILE_MACHINE_AMD64:
-              arch = PEBitness_64bit;
-              break;
-            default:
-              arch = PEBitness_Unknown;
-          }
+          case IMAGE_FILE_MACHINE_I386:
+            arch = PEBitness_32bit;
+            break;
+          case IMAGE_FILE_MACHINE_AMD64:
+            arch = PEBitness_64bit;
+            break;
+          default:
+            arch = PEBitness_Unknown;
         }
-        UnmapViewOfFile (addrHeader);
       }
-      CloseHandle (hMapping);
     }
+
     CloseHandle (hFile);
   }
-
-  LeaveCriticalSection (&CriticalSectionDbgHelp);
 
   return arch;
 }
@@ -1724,18 +1673,15 @@ SKIF_Util_CompactWorkingSet (void)
         (EmptyWorkingSet_pfn)GetProcAddress (LoadLibraryEx (L"kernel32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
      "K32EmptyWorkingSet");
 
-  static bool
-      runOnce = true;
-  if (runOnce)
-  {   runOnce = false;
-    // Windows Vista fallback
+  // Windows Vista fallback
+  SK_RunOnce (
     if (SKIF_EmptyWorkingSet == nullptr)
     {
       SKIF_EmptyWorkingSet =
           (EmptyWorkingSet_pfn)GetProcAddress (LoadLibraryEx (L"psapi.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
        "K32EmptyWorkingSet");
     }
-  }
+  )
 
   if (SKIF_EmptyWorkingSet == nullptr)
     return FALSE;
@@ -1911,7 +1857,7 @@ SKIF_Util_SetThreadDescription (HANDLE hThread, PCWSTR lpThreadDescription)
         "SetThreadDescription");
 
   if (SKIF_SetThreadDescription == nullptr)
-    return 0;
+    return E_NOTIMPL;
 
   return SKIF_SetThreadDescription (hThread, lpThreadDescription);
 }
@@ -2154,18 +2100,15 @@ SKIF_Util_GetProcessImageFileNameW (HANDLE hProcess, LPWSTR lpImageFileName, DWO
         (GetProcessImageFileNameW_pfn)GetProcAddress (LoadLibraryEx (L"kernel32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
      "K32GetProcessImageFileNameW");
 
-  static bool
-      runOnce = true;
-  if (runOnce)
-  {   runOnce = false;
-    // Windows Vista fallback
+  // Windows Vista fallback
+  SK_RunOnce (
     if (SKIF_GetProcessImageFileNameW == nullptr)
     {
       SKIF_GetProcessImageFileNameW =
           (GetProcessImageFileNameW_pfn)GetProcAddress (LoadLibraryEx (L"psapi.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
           "GetProcessImageFileNameW");
     }
-  }
+  )
 
   if (SKIF_GetProcessImageFileNameW == nullptr)
     return 0;
@@ -3335,10 +3278,11 @@ SKIF_Util_SetClipboardData (const std::wstring_view& data)
   return result;
 }
 
-// Adds/removes environment variables in a given environment block
+// Adds/removes the given environment variables in a given environment block, in a single pass
+//   (an empty value removes the variable)
 // Parts of this is CC BY-SA 4.0, https://stackoverflow.com/a/59597519
 std::wstring
-SKIF_Util_AddEnvironmentBlock (const void* pEnvBlock, const std::wstring& varName, const std::wstring& varValue)
+SKIF_Util_AddEnvironmentBlock (const void* pEnvBlock, const std::map<std::wstring, std::wstring>& vars)
 {
   std::map <std::wstring,
             std::wstring> env;
@@ -3364,9 +3308,12 @@ SKIF_Util_AddEnvironmentBlock (const void* pEnvBlock, const std::wstring& varNam
     currentEnv += keyValue.size() + 1;
   }
 
-  // If given a variable name, add/remove it based on the given variable value
-  if (! varName.empty())
+  // Add/remove the given variables based on their values
+  for (const auto& [varName, varValue] : vars)
   {
+    if (varName.empty())
+      continue;
+
     if (varValue.empty())
       env.erase (SKIF_Util_ToLowerW (varName));
     else
@@ -3394,6 +3341,15 @@ SKIF_Util_AddEnvironmentBlock (const void* pEnvBlock, const std::wstring& varNam
   result += L'\0';
 
   return result;
+}
+
+// Adds/removes a single environment variable in a given environment block (an empty value removes it)
+std::wstring
+SKIF_Util_AddEnvironmentBlock (const void* pEnvBlock, const std::wstring& varName, const std::wstring& varValue)
+{
+  return SKIF_Util_AddEnvironmentBlock (pEnvBlock,
+           (varName.empty ()) ? std::map<std::wstring, std::wstring> { }
+                              : std::map<std::wstring, std::wstring> { { varName, varValue } });
 }
 
 void
@@ -3721,33 +3677,20 @@ SKIF_Util_Files_PruneOlderThan (std::wstring path, ULONGLONG secondsSince)
     path += LR"(\)";
 
   // Clear out any temp files older than the threshold
-  auto _isLastModified = [&](FILETIME ftLastWriteTime) -> bool
+  //   (FILETIME counts 100-nanosecond intervals; the cutoff is computed once instead of per file)
+  FILETIME ftNow = { };
+  GetSystemTimeAsFileTime (&ftNow);
+
+  const ULONGLONG ullNow    = (static_cast<ULONGLONG> (ftNow.dwHighDateTime) << 32) | ftNow.dwLowDateTime;
+  const ULONGLONG ullAge    = secondsSince * 10'000'000ULL;
+  const ULONGLONG ullCutoff = (ullAge < ullNow) ? ullNow - ullAge : 0;
+
+  auto _isLastModified = [ullCutoff](FILETIME ftLastWriteTime) -> bool
   {
-    FILETIME ftSystemTime{}, ftAdjustedFileTime{};
-    SYSTEMTIME systemTime{};
-    GetSystemTime (&systemTime);
+    const ULONGLONG ullLastWrite = (static_cast<ULONGLONG> (ftLastWriteTime.dwHighDateTime) << 32) | ftLastWriteTime.dwLowDateTime;
 
-    if (SystemTimeToFileTime (&systemTime, &ftSystemTime))
-    {
-      ULARGE_INTEGER uintLastWriteTime{};
-
-      // Copy to ULARGE_INTEGER union to perform 64-bit arithmetic
-      uintLastWriteTime.HighPart        = ftLastWriteTime.dwHighDateTime;
-      uintLastWriteTime.LowPart         = ftLastWriteTime.dwLowDateTime;
-
-      // Perform 64-bit arithmetic to add the required amount of seconds to last modified timestamp
-      uintLastWriteTime.QuadPart        = uintLastWriteTime.QuadPart + ULONGLONG(1 * (secondsSince) * 1.0e+7);
-
-      // Copy the results to an FILETIME struct
-      ftAdjustedFileTime.dwHighDateTime = uintLastWriteTime.HighPart;
-      ftAdjustedFileTime.dwLowDateTime  = uintLastWriteTime.LowPart;
-
-      // Compare with system time, and if system time is later (1), then return true
-      if (CompareFileTime (&ftSystemTime, &ftAdjustedFileTime) == 1)
-        return true;
-    }
-
-    return false;
+    // Older than the threshold if it was last written before the cutoff
+    return (ullLastWrite < ullCutoff);
   };
 
   HANDLE hFind        = INVALID_HANDLE_VALUE;
@@ -4329,7 +4272,7 @@ WINAPI
 SKIF_Util_DisplayConfigSetDeviceInfo (DISPLAYCONFIG_DEVICE_INFO_HEADER * setPacket)
 {
   using DisplayConfigSetDeviceInfo_pfn =
-    HRESULT (WINAPI *)(DISPLAYCONFIG_DEVICE_INFO_HEADER* setPacket);
+    LONG (WINAPI *)(DISPLAYCONFIG_DEVICE_INFO_HEADER* setPacket);
 
   static DisplayConfigSetDeviceInfo_pfn
     SKIF_DisplayConfigSetDeviceInfo =
@@ -4337,7 +4280,7 @@ SKIF_Util_DisplayConfigSetDeviceInfo (DISPLAYCONFIG_DEVICE_INFO_HEADER * setPack
         "DisplayConfigSetDeviceInfo");
 
   if (SKIF_DisplayConfigSetDeviceInfo == nullptr)
-    return E_NOTIMPL;
+    return ERROR_NOT_SUPPORTED;
 
   return SKIF_DisplayConfigSetDeviceInfo (setPacket);
 }
@@ -4347,7 +4290,7 @@ WINAPI
 SKIF_Util_DisplayConfigGetDeviceInfo (DISPLAYCONFIG_DEVICE_INFO_HEADER *getPacket)
 {
   using DisplayConfigGetDeviceInfo_pfn =
-    HRESULT (WINAPI *)(DISPLAYCONFIG_DEVICE_INFO_HEADER* getPacket);
+    LONG (WINAPI *)(DISPLAYCONFIG_DEVICE_INFO_HEADER* getPacket);
 
   static DisplayConfigGetDeviceInfo_pfn
     SKIF_DisplayConfigGetDeviceInfo =
@@ -4355,7 +4298,7 @@ SKIF_Util_DisplayConfigGetDeviceInfo (DISPLAYCONFIG_DEVICE_INFO_HEADER *getPacke
         "DisplayConfigGetDeviceInfo");
 
   if (SKIF_DisplayConfigGetDeviceInfo == nullptr)
-    return E_NOTIMPL;
+    return ERROR_NOT_SUPPORTED;
 
   return SKIF_DisplayConfigGetDeviceInfo (getPacket);
 }
@@ -4365,7 +4308,7 @@ WINAPI
 SKIF_Util_GetDisplayConfigBufferSizes (UINT32 flags, UINT32 *numPathArrayElements, UINT32 *numModeInfoArrayElements)
 {
   using GetDisplayConfigBufferSizes_pfn =
-    HRESULT (WINAPI *)(UINT32 flags, UINT32 *numPathArrayElements, UINT32 *numModeInfoArrayElements);
+    LONG (WINAPI *)(UINT32 flags, UINT32 *numPathArrayElements, UINT32 *numModeInfoArrayElements);
 
   static GetDisplayConfigBufferSizes_pfn
     SKIF_GetDisplayConfigBufferSizes =
@@ -4373,7 +4316,7 @@ SKIF_Util_GetDisplayConfigBufferSizes (UINT32 flags, UINT32 *numPathArrayElement
         "GetDisplayConfigBufferSizes");
 
   if (SKIF_GetDisplayConfigBufferSizes == nullptr)
-    return E_NOTIMPL;
+    return ERROR_NOT_SUPPORTED;
 
   return SKIF_GetDisplayConfigBufferSizes (flags, numPathArrayElements, numModeInfoArrayElements);
 }
@@ -4383,7 +4326,7 @@ WINAPI
 SKIF_Util_QueryDisplayConfig (UINT32 flags, UINT32 *numPathArrayElements, DISPLAYCONFIG_PATH_INFO *pathArray, UINT32 *numModeInfoArrayElements, DISPLAYCONFIG_MODE_INFO *modeInfoArray, DISPLAYCONFIG_TOPOLOGY_ID *currentTopologyId)
 {
   using QueryDisplayConfig_pfn =
-    HRESULT (WINAPI *)(UINT32 flags, UINT32* numPathArrayElements, DISPLAYCONFIG_PATH_INFO* pathArray, UINT32* numModeInfoArrayElements, DISPLAYCONFIG_MODE_INFO* modeInfoArray, DISPLAYCONFIG_TOPOLOGY_ID* currentTopologyId);
+    LONG (WINAPI *)(UINT32 flags, UINT32* numPathArrayElements, DISPLAYCONFIG_PATH_INFO* pathArray, UINT32* numModeInfoArrayElements, DISPLAYCONFIG_MODE_INFO* modeInfoArray, DISPLAYCONFIG_TOPOLOGY_ID* currentTopologyId);
 
   static QueryDisplayConfig_pfn
     SKIF_QueryDisplayConfig =
@@ -4391,7 +4334,7 @@ SKIF_Util_QueryDisplayConfig (UINT32 flags, UINT32 *numPathArrayElements, DISPLA
         "QueryDisplayConfig");
 
   if (SKIF_QueryDisplayConfig == nullptr)
-    return E_NOTIMPL;
+    return ERROR_NOT_SUPPORTED;
 
   return SKIF_QueryDisplayConfig (flags, numPathArrayElements, pathArray, numModeInfoArrayElements, modeInfoArray, currentTopologyId);
 }
@@ -4468,6 +4411,45 @@ SKIF_UtilInt_UpdateMonitors (void)
 
   enum ReaderVersion { RV_Unknown, RV_Win32v1, RV_WinRT, RV_Win32v2, };
   ReaderVersion readerVersion = RV_Unknown;
+
+  // WinRT objects for the Windows 10 1803+ reader below. Set up on first use and shared by every monitor,
+  //   instead of loading combase.dll and activating the factory once per monitor
+  HMODULE                            hCombase           = NULL;
+  bool                               bComUninit         = false;
+  bool                               bTriedStatics      = false;
+  IDisplayInformationStaticsInterop* pDisplayStatics    = nullptr;
+
+  auto _GetDisplayInformationStatics = [&](void) -> IDisplayInformationStaticsInterop*
+  {
+    if (bTriedStatics)
+      return pDisplayStatics;
+
+    bTriedStatics = true;
+
+    // Dynamically interface with WinRT functions through combase.dll
+    // Does not inhibit backwards compatible with Windows 7 and 8
+    HRESULT hr = CoInitializeEx (nullptr, COINIT_APARTMENTTHREADED);
+    bComUninit = SUCCEEDED (hr); // S_FALSE (already initialized) must also be balanced by CoUninitialize ( )
+
+    hCombase = LoadLibraryEx (L"combase.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+    if (hCombase != NULL)
+    {
+      const wchar_t* name = L"Windows.Graphics.Display.DisplayInformation";
+      const UINT32   len  = (UINT32)wcslen (name);
+
+      HSTRING        hClassName = nullptr;
+      HSTRING_HEADER header;
+      if (SUCCEEDED (SK_WindowsCreateStringReference (name, len, &header, &hClassName)) && hClassName != nullptr)
+      {
+        if (FAILED (SK_RoGetActivationFactory (hClassName, __uuidof (IDisplayInformationStaticsInterop), reinterpret_cast<void**>(&pDisplayStatics))))
+          pDisplayStatics = nullptr;
+
+        SK_WindowsDeleteString (hClassName);
+      }
+    }
+
+    return pDisplayStatics;
+  };
 
   // For each active path
   for (auto& path : pathArray)
@@ -4568,61 +4550,38 @@ SKIF_UtilInt_UpdateMonitors (void)
     // Windows 10 1803+ (Build 17134) or newer
     if (readerVersion == RV_Unknown && SKIF_Util_IsWindows10v1803OrGreater ( ))
     {
-      // Dynamically interface with WinRT functions through combase.dll
-      // Does not inhibit backwards compatible with Windows 7 and 8
-      HRESULT hr = CoInitializeEx (nullptr, COINIT_APARTMENTTHREADED);
-      bool needUninit = (SUCCEEDED (hr) && hr != S_FALSE);
-
-      HMODULE
-          hCombase = LoadLibraryEx (L"combase.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
-      if (hCombase != NULL)
+      if (IDisplayInformationStaticsInterop* pStatics = _GetDisplayInformationStatics ( ))
       {
-        const wchar_t* name = L"Windows.Graphics.Display.DisplayInformation";
-        const UINT32   len  = (UINT32)wcslen (name);
-
-        HSTRING        hClassName = nullptr;
-        HSTRING_HEADER header;
-        if (SUCCEEDED (SK_WindowsCreateStringReference (name, len, &header, &hClassName)) && hClassName != nullptr)
+        IDisplayInformation5* pDisp = nullptr;
+        if (SUCCEEDED (pStatics->GetForMonitor (monitor.handle, IID_IDisplayInformation5, reinterpret_cast<void**>(&pDisp))) && pDisp != nullptr)
         {
-          IDisplayInformationStaticsInterop* pStatics = nullptr;
-          if (SUCCEEDED (SK_RoGetActivationFactory (hClassName, __uuidof (IDisplayInformationStaticsInterop), reinterpret_cast<void**>(&pStatics))) && pStatics != nullptr)
+          IAdvancedColorInfo* pAc = nullptr;
+          if (SUCCEEDED (pDisp->GetAdvancedColorInfo(&pAc)) && pAc != nullptr)
           {
-            IDisplayInformation5* pDisp = nullptr;
-            if (SUCCEEDED (pStatics->GetForMonitor (monitor.handle, IID_IDisplayInformation5, reinterpret_cast<void**>(&pDisp))) && pDisp != nullptr)
+            readerVersion = RV_WinRT;
+
+            BOOLEAN available = FALSE;
+
+            if (SUCCEEDED (pAc->IsAdvancedColorKindAvailable (AdvancedColorKind_HighDynamicRange, &available)))
+              monitor.hdr.supported = (available != FALSE);
+
+            if (SUCCEEDED (pAc->IsAdvancedColorKindAvailable (AdvancedColorKind_WideColorGamut,   &available)))
+              monitor.wcg.supported = (available != FALSE);
+
+            AdvancedColorKind cur = AdvancedColorKind_StandardDynamicRange;
+            if (SUCCEEDED (pAc->CurrentAdvancedColorKind (&cur)))
             {
-              IAdvancedColorInfo* pAc = nullptr;
-              if (SUCCEEDED (pDisp->GetAdvancedColorInfo(&pAc)) && pAc != nullptr)
-              {
-                readerVersion = RV_WinRT;
-
-                BOOLEAN available = FALSE;
-
-                if (SUCCEEDED (pAc->IsAdvancedColorKindAvailable (AdvancedColorKind_HighDynamicRange, &available)))
-                  monitor.hdr.supported = (available != FALSE);
-
-                if (SUCCEEDED (pAc->IsAdvancedColorKindAvailable (AdvancedColorKind_WideColorGamut,   &available)))
-                  monitor.wcg.supported = (available != FALSE);
-
-                AdvancedColorKind cur = AdvancedColorKind_StandardDynamicRange;
-                if (SUCCEEDED (pAc->CurrentAdvancedColorKind (&cur)))
-                {
-                  monitor.hdr.active    = (monitor.hdr.supported && (cur & AdvancedColorKind_HighDynamicRange) != 0);
-                  monitor.wcg.active    = (monitor.wcg.supported && (cur & AdvancedColorKind_WideColorGamut)   != 0);
-                }
-
-                pAc->SdrWhiteLevelInNits (&monitor.sdr_whitelevel);
-
-                pAc->Release();
-              }
-              pDisp->Release();
+              monitor.hdr.active    = (monitor.hdr.supported && (cur & AdvancedColorKind_HighDynamicRange) != 0);
+              monitor.wcg.active    = (monitor.wcg.supported && (cur & AdvancedColorKind_WideColorGamut)   != 0);
             }
-            pStatics->Release();
+
+            pAc->SdrWhiteLevelInNits (&monitor.sdr_whitelevel);
+
+            pAc->Release();
           }
-          SK_WindowsDeleteString (hClassName);
+          pDisp->Release();
         }
-        FreeLibrary (hCombase);
       }
-      if (needUninit) CoUninitialize();
     }
 
     // Windows 10 1709+ (Build 16299) fallback
@@ -4671,6 +4630,16 @@ SKIF_UtilInt_UpdateMonitors (void)
 
     g_Monitors.push_back (monitor);
   }
+
+  // Release the shared WinRT objects (if they were used)
+  if (pDisplayStatics != nullptr)
+    pDisplayStatics->Release ();
+
+  if (hCombase != NULL)
+    FreeLibrary (hCombase);
+
+  if (bComUninit)
+    CoUninitialize ( );
 
   PLOG_DEBUG_IF(readerVersion == RV_Win32v2) << "HDR and WCG metadata was read using DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO_2.";
   PLOG_DEBUG_IF(readerVersion == RV_Win32v1) << "HDR and WCG metadata was read using DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO.";
@@ -4748,7 +4717,13 @@ SKIF_Util_GetSDRWhiteLevel (HMONITOR hMonitor)
       return monitor.sdr_whitelevel;
   }
 
-  g_WantUpdateMonitors = true;
+  // Only request one refresh per unknown monitor (until the next WM_DISPLAYCHANGE), as the full query
+  //   would otherwise run again every time a monitor that is not in the list is asked about
+  if (hMonitor != g_MissingMonitor)
+  {
+    g_MissingMonitor     = hMonitor;
+    g_WantUpdateMonitors = true;
+  }
 
   return 80.0f;
 }
@@ -4810,6 +4785,7 @@ void
 SKIF_Util_UpdateMonitors (void)
 {
   g_WantUpdateMonitors = true;
+  g_MissingMonitor     = NULL; // The display configuration changed, so allow a new lookup for any monitor
 }
 
 
@@ -5081,98 +5057,103 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get, std::string* response_body)
                             &dwContentLength_Len,
                               nullptr );
 
+      // The response is streamed to a temporary file (moved into place once complete, so a failed or
+      //   partial download never leaves a truncated file at the target path), and only buffered in
+      //     memory when the caller asked for the response body
+      const bool         bToFile     = (get->wszLocalPath[0] != L'\0');
+      const std::wstring wsLocalPath =  get->wszLocalPath;
+      const std::wstring wsTempPath  = wsLocalPath + L".tmp";
+
+      FILE*              fOut        = nullptr;
+      std::string        body;
       std::vector <char> http_chunk;
-      std::vector <char> concat_buffer;
-      bool               bReadFailed = false;
+      ULONGLONG          ullReceived = 0;
+      bool               bFailed     = false;
 
-      while ( InternetQueryDataAvailable ( hInetHTTPGetReq,
-                                             &dwSizeAvailable,
-                                               0x00, NULL )
-        )
+      if (bToFile)
       {
-        if (dwSizeAvailable > 0)
+        _wfopen_s (&fOut, wsTempPath.c_str (), L"wb" );
+
+        if (fOut == nullptr)
         {
-          DWORD dwSizeRead = 0;
-
-          if (http_chunk.size () < dwSizeAvailable)
-              http_chunk.resize   (dwSizeAvailable);
-
-          if ( InternetReadFile ( hInetHTTPGetReq,
-                                    http_chunk.data (),
-                                      dwSizeAvailable,
-                                        &dwSizeRead )
-             )
-          {
-            if (dwSizeRead == 0)
-              break;
-
-            concat_buffer.insert ( concat_buffer.cend   (),
-                                    http_chunk.cbegin   (),
-                                      http_chunk.cbegin () + dwSizeRead );
-
-            // Keep reading until InternetReadFile ( ) reports 0 bytes, as a short read is not the end of the response
-          }
-
-          else
-          {
-            bReadFailed = true;
-            break;
-          }
+          PLOG_ERROR << "Failed to create the temporary file: " << wsTempPath;
+          return CLEANUP ( );
         }
-
-        else
-          break;
       }
 
-      // Never hand out (or write to disk) a truncated response
-      if (bReadFailed || (dwContentLength > 0 && concat_buffer.size () != dwContentLength))
+      while (true)
       {
-        PLOG_ERROR << "The response was incomplete! Received " << concat_buffer.size () << " of " << dwContentLength << " bytes.";
+        // Returns TRUE with 0 bytes available once the whole response has been read
+        if (! InternetQueryDataAvailable (hInetHTTPGetReq, &dwSizeAvailable, 0x00, NULL))
+        {
+          // ERROR_NO_MORE_FILES also marks the end of the response (the Content-Length check below catches truncation)
+          bFailed = (GetLastError ( ) != ERROR_NO_MORE_FILES);
+          break;
+        }
+
+        if (dwSizeAvailable == 0)
+          break;
+
+        if (http_chunk.size () < dwSizeAvailable)
+            http_chunk.resize   (dwSizeAvailable);
+
+        DWORD dwSizeRead = 0;
+
+        if (! InternetReadFile (hInetHTTPGetReq, http_chunk.data (), dwSizeAvailable, &dwSizeRead))
+        {
+          bFailed = true;
+          break;
+        }
+
+        // Keep reading until 0 bytes are reported, as a short read is not the end of the response
+        if (dwSizeRead == 0)
+          break;
+
+        ullReceived += dwSizeRead;
+
+        if (response_body != nullptr)
+          body.append (http_chunk.data (), dwSizeRead);
+
+        if (fOut != nullptr && fwrite (http_chunk.data (), dwSizeRead, 1, fOut) != 1)
+        {
+          PLOG_ERROR << "Failed to write to the temporary file: " << wsTempPath;
+          bFailed = true;
+          break;
+        }
+      }
+
+      if (fOut != nullptr)
+      {
+        bFailed = (fflush (fOut) != 0) || bFailed;
+        bFailed = (fclose (fOut) != 0) || bFailed;
+      }
+
+      // Never hand out (or leave on disk) a truncated response
+      if (! bFailed && dwContentLength > 0 && ullReceived != dwContentLength)
+      {
+        PLOG_ERROR << "The response was incomplete! Received " << ullReceived << " of " << dwContentLength << " bytes.";
+        bFailed = true;
+      }
+
+      if (! bFailed && bToFile && ! MoveFileExW (wsTempPath.c_str (), wsLocalPath.c_str (), MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED))
+      {
+        PLOG_ERROR << "Failed to move the downloaded file into place: " << wsLocalPath;
+        bFailed = true;
+      }
+
+      if (bFailed)
+      {
+        if (bToFile)
+          DeleteFileW (wsTempPath.c_str ());
+
         return CLEANUP ( );
       }
 
       if (response_body != nullptr)
-      {
-        response_body->clear();
-        response_body->append (concat_buffer.data(), concat_buffer.size());
-      }
+        *response_body = std::move (body);
 
-      if (get->wszLocalPath[0] == '\0')
-      {
-        CLEANUP (true);
-        return 1;
-      }
-
-      // Write to file...
-      else
-      {
-        // Write to a temporary file first and move it into place once complete,
-        //   so a failed write never leaves a truncated file at the target path
-        const std::wstring wsLocalPath = get->wszLocalPath;
-        const std::wstring wsTempPath  = wsLocalPath + L".tmp";
-
-        FILE *fOut = nullptr;
-
-        _wfopen_s (&fOut, wsTempPath.c_str (), L"wb" );
-
-        if (fOut != nullptr)
-        {
-          bool written =
-            (concat_buffer.empty () || fwrite (concat_buffer.data (), concat_buffer.size (), 1, fOut) == 1);
-
-          written = (fflush (fOut) == 0) && written;
-          written = (fclose (fOut) == 0) && written;
-
-          if (written && MoveFileExW (wsTempPath.c_str (), wsLocalPath.c_str (), MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED))
-          {
-            CLEANUP (true);
-            return 1;
-          }
-
-          PLOG_ERROR << "Failed to write the downloaded file to: " << wsLocalPath;
-          DeleteFileW (wsTempPath.c_str ());
-        }
-      }
+      CLEANUP (true);
+      return 1;
     }
 
     else { // dwStatusCode != 200
@@ -5759,7 +5740,14 @@ SKIF_RegistryWatch::isSignaled (void)
     ) == WAIT_OBJECT_0;
 
   if (signaled)
-    reset ();
+  {
+    // Re-arm the notification on the key that is already open; only close and reopen it
+    //   if that fails (e.g. ERROR_KEY_DELETED after the key was deleted or recreated)
+    ResetEvent (_hEvent);
+
+    if (_hKeyBase == NULL || registerNotify ( ) != ERROR_SUCCESS)
+      reset ();
+  }
 
   return signaled;
 }

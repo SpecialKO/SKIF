@@ -1765,10 +1765,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   //CoInitializeEx (nullptr, 0x0);
   OleInitialize (NULL); // Needed for IDropTarget
 
-  // All DbgHelp functions, such as ImageNtHeader, are single threaded.
-  extern   CRITICAL_SECTION   CriticalSectionDbgHelp;
-  InitializeCriticalSection (&CriticalSectionDbgHelp);
-
   // Initialize
   extern   CRITICAL_SECTION   VFSManifestSection;
   InitializeCriticalSection (&VFSManifestSection);
@@ -4391,8 +4387,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   SKIF_ImGui_hWnd  = NULL;
   SKIF_Notify_hWnd = NULL;
-
-  DeleteCriticalSection (&CriticalSectionDbgHelp);
 
   PLOG_INFO << "Exiting process with code " << SKIF_ExitCode;
   return SKIF_ExitCode;
