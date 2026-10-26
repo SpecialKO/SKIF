@@ -4609,6 +4609,8 @@ SKIF_UtilInt_UpdateMonitors (void)
         monitor.hdr.active    = getDisplayHDR.advancedColorActive         &&
                                 getDisplayHDR.highDynamicRangeUserEnabled &&
                                 getDisplayHDR.activeColorMode == DISPLAYCONFIG_ADVANCED_COLOR_MODE_HDR;
+        monitor.wcg.supported = getDisplayHDR.wideColorSupported;
+        monitor.wcg.active    = getDisplayHDR.activeColorMode == DISPLAYCONFIG_ADVANCED_COLOR_MODE_WCG;
       }
 
       if (monitor.hdr.supported)
@@ -4656,8 +4658,8 @@ SKIF_UtilInt_UpdateMonitors (void)
             AdvancedColorKind cur = AdvancedColorKind_StandardDynamicRange;
             if (SUCCEEDED (pAc->CurrentAdvancedColorKind (&cur)))
             {
-              monitor.hdr.active    = (monitor.hdr.supported && (cur & AdvancedColorKind_HighDynamicRange) != 0);
-              monitor.wcg.active    = (monitor.wcg.supported && (cur & AdvancedColorKind_WideColorGamut)   != 0);
+              monitor.hdr.active = (monitor.hdr.supported && cur == AdvancedColorKind_HighDynamicRange);
+              monitor.wcg.active = (monitor.wcg.supported && cur == AdvancedColorKind_WideColorGamut);
             }
 
             pAc->SdrWhiteLevelInNits (&monitor.sdr_whitelevel);
