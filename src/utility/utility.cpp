@@ -30,6 +30,15 @@
 #include <utility/injection.h>
 #include <HybridDetect.h>
 
+#include <atlbase.h>
+
+#pragma comment(lib, "wininet.lib")
+
+#include <processthreadsapi.h>
+#include <vector>
+#include <stdexcept>
+
+
 std::vector<HANDLE> vWatchHandles[UITab_ALL];
 INT64               SKIF_TimeInMilliseconds = 0;
 
@@ -67,7 +76,7 @@ CRITICAL_SECTION CriticalSectionDbgHelp = { };
 //   - Multiple as part of a single expression
 // since the static memory buffer gets overwritten
 // Basically only keep to using this in ImGui label scenarios
-char *
+const char *
 __cdecl
 SKIF_Util_FormatStringRaw (char const* const _Format, ...)
 {
@@ -89,13 +98,15 @@ SKIF_Util_FormatStringRaw (char const* const _Format, ...)
 
   size_t alloc_size = sizeof (char) * (len + 2);
 
-  if (s_alloc_size != alloc_size)
-    s_pData = std::make_unique <char []> (alloc_size);
+  // Only grow the buffer, as this is called for ImGui labels every frame
+  if (s_alloc_size < alloc_size)
+  {
+    s_pData      = std::make_unique <char []> (alloc_size);
+    s_alloc_size = alloc_size;
+  }
 
   if (! s_pData)
     return "";
-
-  s_alloc_size = alloc_size;
   s_pData.get ()[0] = '\0';
 
   va_start (_ArgList, _Format);
@@ -113,7 +124,7 @@ std::string
 SKIF_Util_ToLower      (std::string_view input)
 {
   std::string copy = std::string(input);
-  std::transform (copy.begin(), copy.end(), copy.begin(), [](char c) { return std::tolower(c, std::locale{}); });
+  std::transform (copy.begin(), copy.end(), copy.begin(), [](char c) { return static_cast<char> (std::tolower (static_cast<unsigned char> (c))); });
   return copy;
 }
 
@@ -129,7 +140,7 @@ std::string
 SKIF_Util_ToUpper      (std::string_view input)
 {
   std::string copy = std::string(input);
-  std::transform (copy.begin(), copy.end(), copy.begin(), [](char c) { return std::toupper(c, std::locale{}); });
+  std::transform (copy.begin(), copy.end(), copy.begin(), [](char c) { return static_cast<char> (std::toupper (static_cast<unsigned char> (c))); });
   return copy;
 }
 
@@ -174,13 +185,13 @@ SKIF_Util_StripNullsW (std::wstring& input)
 void
 SKIF_Util_StripCarriageReturns (std::string& input)
 {
-  input.erase (std::find (input.begin(), input.end(), '\r'), input.end());
+  input.erase (std::remove (input.begin(), input.end(), '\r'), input.end());
 }
 
 void
 SKIF_Util_StripCarriageReturnsW (std::wstring& input)
 {
-  input.erase (std::find (input.begin(), input.end(), L'\r'), input.end());
+  input.erase (std::remove (input.begin(), input.end(), L'\r'), input.end());
 }
 
 void
@@ -259,7 +270,7 @@ SKIF_Util_TrimTrailingNewlinesW (std::wstring& input)
   input.erase (std::find_if (input.rbegin(), input.rend(), [](const       wchar_t ch) { return (ch != L'\n'); }).base(), input.end());
 }
 
-// Case insensitive Replace All function for std::string
+// Case sensitive Replace All function for std::string
 // 
 // Replaces every occurrence of a literal byte sequence (std::regex would compile a pattern per call,
 //    and constructing one takes a process-wide locale lock that the game threads contend on)
@@ -273,7 +284,7 @@ SKIF_Util_ReplaceAll (std::string& input, std::string_view from, std::string_vie
     input.replace (pos, from.length ( ), to);
 }
 
-// Case insensitive Replace All function for std::wstring
+// Case sensitive Replace All function for std::wstring
 // 
 // Replaces every occurrence of a literal byte sequence (std::regex would compile a pattern per call,
 //    and constructing one takes a process-wide locale lock that the game threads contend on)
@@ -513,7 +524,7 @@ SKIF_Util_CompareVersionStrings (std::wstring string1, std::wstring string2)
 int
 SKIF_Util_RandomInteger (int low, int high)
 {
-  static std::mt19937 gen { std::random_device { }( ) };
+  static thread_local std::mt19937 gen { std::random_device { }( ) }; // Not shared, as std::mt19937 is not thread-safe
   std::uniform_int_distribution<int> dist (low, high);
   return dist (gen);
 }
@@ -564,11 +575,7 @@ SKIF_Util_StripInvalidFilenameChars (std::string name)
 
     // Strip trailing spaces from name, these are usually the result of
     //   deleting one of the non-useable characters above.
-    for (auto it = name.rbegin (); it != name.rend (); ++it)
-    {
-      if (*it == ' ') *it = '\0';
-      else                   break;
-    }
+    name.erase (name.find_last_not_of (' ') + 1);
   }
 
   return name;
@@ -614,11 +621,7 @@ SKIF_Util_StripInvalidFilenameChars (std::wstring name)
 
     // Strip trailing spaces from name, these are usually the result of
     //   deleting one of the non-useable characters above.
-    for (auto it = name.rbegin (); it != name.rend (); ++it)
-    {
-      if (*it == L' ') *it = L'\0';
-      else                   break;
-    }
+    name.erase (name.find_last_not_of (L' ') + 1);
   }
 
   return name;
@@ -702,40 +705,33 @@ SKIF_Util_ReplaceInvalidFilenameChars (std::wstring name, wchar_t replacement)
   return name;
 }
 
+// Normalizes a path: converts forward slashes to backslashes, collapses repeated backslashes,
+//   and resolves \.\ and \..\ segments, while keeping the leading \\ of UNC (\\server\share) and \\?\ paths intact
 std::string
-SKIF_Util_NormalizeFullPath (std::string string)
+SKIF_Util_NormalizeFullPath (std::string path)
 {
-  // Are we dealing with a network path? (\\server\share)
-  bool isUNCpath = PathIsNetworkPathA (string.c_str());
-
-  // "Clean" the path... But also removes one of the initial two backslashes
-  //   in an UNC path if the path begins with four backslashes (\\\\server\\share)
-  string = std::filesystem::path(string).lexically_normal().string();
-
-  // If we are dealing with an UNC path that is no more,
-  //   we need to fix the initial missing backslash...
-  if (isUNCpath && ! PathIsNetworkPathA (string.c_str()))
-    string.insert(0, 1, '\\');
-
-  return string;
+  // Narrow method would assume ANSI code page and break shit, so just use the wide variant instead
+  return
+    SK_WideCharToUTF8 (
+      SKIF_Util_NormalizeFullPath (
+        SK_UTF8ToWideChar (path)
+      )
+    );
 }
 
 std::wstring
-SKIF_Util_NormalizeFullPath (std::wstring string)
+SKIF_Util_NormalizeFullPath (std::wstring path)
 {
-  // Are we dealing with a network path? (\\server\share)
-  bool isUNCpath = PathIsNetworkPathW (string.c_str());
+  // Are we dealing with a UNC (\\server\share) or \\?\ path?
+  const bool isUNCpath = path.starts_with (LR"(\\)");
 
-  // "Clean" the path... But also removes one of the initial two backslashes
-  //   in an UNC path if the path begins with four backslashes (\\\\server\\share)
-  string = std::filesystem::path(string).lexically_normal();
+  path = std::filesystem::path (path).lexically_normal ();
 
-  // If we are dealing with an UNC path that is no more,
-  //   we need to fix the initial missing backslash...
-  if (isUNCpath && ! PathIsNetworkPathW (string.c_str()))
-    string.insert(0, 1, '\\');
+  // lexically_normal ( ) can collapse the leading \\ to a single backslash, so restore it
+  if (isUNCpath && ! path.starts_with (LR"(\\)"))
+    path.insert (0, 1, L'\\');
 
-  return string;
+  return path;
 }
 
 bool
@@ -745,14 +741,12 @@ SKIF_Util_HasFileSignature (const std::vector<char>& header, const FileSignature
   {
     for (size_t i = 0; i < signature.signature.size(); ++i)
     {
-      if (signature.mask[i] == 0xFF)
-      {
-        // Need to perform a reinterpret to prevent C's integer promotion from screwing with the comparison
-        const unsigned char h = reinterpret_cast<const unsigned char&> (header[i]);
+      // Need to perform a reinterpret to prevent C's integer promotion from screwing with the comparison
+      const unsigned char h = reinterpret_cast<const unsigned char&> (header[i]);
 
-        if (signature.signature[i] != h)
-          return false;
-      }
+      // Only the bits set in the mask are compared (0xFF = the whole byte, 0x00 = ignored)
+      if ((signature.signature[i] & signature.mask[i]) != (h & signature.mask[i]))
+        return false;
     }
 
     return true;
@@ -786,11 +780,9 @@ std:: string replMacNameUTF8;
 void
 SKIF_UtilInt_IniUserMachineStrip (void)
 {
-  static bool
-      runOnce = true;
-  if (runOnce)
-  {   runOnce = false;
-
+  // Thread-safe one-time initialization (magic static), as logging may call this from several threads at once
+  static const bool initialized = [](void) -> bool
+  {
     DWORD   dwLen     =     MAX_PATH;
     wchar_t wszUserProfile [MAX_PATH] = { };
     wchar_t wszUserSamName [MAX_PATH] = { };
@@ -838,7 +830,11 @@ SKIF_UtilInt_IniUserMachineStrip (void)
       replDisName     = std::wstring      (userDisName.length(), L'*');
       replDisNameUTF8 = SK_WideCharToUTF8 (replDisName);
     }
-  }
+
+    return true;
+  } ( );
+
+  UNREFERENCED_PARAMETER (initialized);
 }
 
 std::string
@@ -941,7 +937,7 @@ SKIF_Util_ExplorePath (std::wstring path )
 
 HINSTANCE
 SKIF_Util_OpenURI (
-  const std::wstring_view& path,
+    const std::wstring&    path,
                int         nShow,
                LPCWSTR     verb,
                LPCWSTR     parameters,
@@ -970,11 +966,14 @@ SKIF_Util_OpenURI (
   if (_registry._LoadedSteamOverlay)
     SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
 
+  // A wstring_view is not guaranteed to be null-terminated
+  const std::wstring file (path);
+
   SHELLEXECUTEINFOW
     sexi              = { };
     sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
     sexi.lpVerb       = verb;
-    sexi.lpFile       = path.data ();
+    sexi.lpFile       = file.c_str ();
     sexi.lpParameters = parameters;
     sexi.lpDirectory  = directory;
     sexi.nShow        = nShow;
@@ -1002,52 +1001,74 @@ SKIF_Util_OpenURI (
 // https://devblogs.microsoft.com/oldnewthing/20131118-00/?p=2643
 bool
 SKIF_Util_ShellExecuteUnelevated (
-  const std::wstring_view& path,
+    const std::wstring&    path,
                int         nShow,
                LPCWSTR     verb,
                LPCWSTR     parameters,
                LPCWSTR     directory)
 {
-  auto _FindDesktopFolderView = [&](REFIID riid, void **ppv) -> void
+  // Every step below can fail (Explorer not running, a replacement shell, COM not initialized
+  //   on this thread, etc.), so each result is checked instead of dereferencing a null pointer
+  auto _FindDesktopFolderView = [&](REFIID riid, void **ppv) -> HRESULT
   {
     CComPtr<IShellWindows> spShellWindows;
-    spShellWindows.CoCreateInstance(CLSID_ShellWindows);
+
+    HRESULT hr = spShellWindows.CoCreateInstance(CLSID_ShellWindows);
+    if (FAILED (hr) || spShellWindows == nullptr)
+      return FAILED (hr) ? hr : E_NOINTERFACE;
 
     CComVariant vtLoc(CSIDL_DESKTOP);
     CComVariant vtEmpty;
-    long lhwnd;
+    long lhwnd = 0;
     CComPtr<IDispatch> spdisp;
-    spShellWindows->FindWindowSW(
+
+    hr = spShellWindows->FindWindowSW(
         &vtLoc, &vtEmpty,
         SWC_DESKTOP, &lhwnd, SWFO_NEEDDISPATCH, &spdisp);
+    if (hr != S_OK || spdisp == nullptr) // S_FALSE = no desktop window was found
+      return FAILED (hr) ? hr : E_FAIL;
+
+    CComQIPtr<IServiceProvider> spProvider (spdisp);
+    if (spProvider == nullptr)
+      return E_NOINTERFACE;
 
     CComPtr<IShellBrowser> spBrowser;
-    CComQIPtr<IServiceProvider>(spdisp)->
-        QueryService(SID_STopLevelBrowser,
-                    IID_PPV_ARGS(&spBrowser));
+    hr = spProvider->QueryService(SID_STopLevelBrowser,
+                                  IID_PPV_ARGS(&spBrowser));
+    if (FAILED (hr) || spBrowser == nullptr)
+      return FAILED (hr) ? hr : E_NOINTERFACE;
 
     CComPtr<IShellView> spView;
-    spBrowser->QueryActiveShellView(&spView);
+    hr = spBrowser->QueryActiveShellView(&spView);
+    if (FAILED (hr) || spView == nullptr)
+      return FAILED (hr) ? hr : E_NOINTERFACE;
 
-    spView->QueryInterface(riid, ppv);
+    return spView->QueryInterface(riid, ppv);
   };
 
-  auto _GetDesktopAutomationObject = [&](REFIID riid, void **ppv) -> void
+  auto _GetDesktopAutomationObject = [&](REFIID riid, void **ppv) -> HRESULT
   {
     CComPtr<IShellView> spsv;
-    _FindDesktopFolderView (IID_PPV_ARGS(&spsv));
+    HRESULT hr = _FindDesktopFolderView (IID_PPV_ARGS(&spsv));
+    if (FAILED (hr) || spsv == nullptr)
+      return FAILED (hr) ? hr : E_NOINTERFACE;
+
     CComPtr<IDispatch> spdispView;
-    spsv->GetItemObject(SVGIO_BACKGROUND, IID_PPV_ARGS(&spdispView));
-    spdispView->QueryInterface(riid, ppv);
+    hr = spsv->GetItemObject(SVGIO_BACKGROUND, IID_PPV_ARGS(&spdispView));
+    if (FAILED (hr) || spdispView == nullptr)
+      return FAILED (hr) ? hr : E_NOINTERFACE;
+
+    return spdispView->QueryInterface(riid, ppv);
   };
 
   CComPtr<IShellFolderViewDual> spFolderView;
-  _GetDesktopAutomationObject (IID_PPV_ARGS(&spFolderView));
-  CComPtr<IDispatch> spdispShell;
-  spFolderView->get_Application(&spdispShell);
-  CComQIPtr<IShellDispatch2> shell(spdispShell);
+  HRESULT hr = _GetDesktopAutomationObject (IID_PPV_ARGS(&spFolderView));
 
-  HRESULT hr = E_UNEXPECTED;
+  CComPtr<IDispatch> spdispShell;
+  if (SUCCEEDED (hr) && spFolderView != nullptr)
+    hr = spFolderView->get_Application(&spdispShell);
+
+  CComQIPtr<IShellDispatch2> shell (spdispShell); // Stays null if spdispShell is null
 
   if (shell != nullptr)
   {
@@ -1058,12 +1079,20 @@ SKIF_Util_ShellExecuteUnelevated (
     PLOG_INFO_IF(directory  != nullptr) << "Directory : " << std::wstring(directory);
 
     hr = shell->ShellExecuteW (
-                   CComBSTR    (path.data()),
+                   CComBSTR    (path.c_str()),
                    CComVariant (parameters != nullptr ? parameters : L""),
                    CComVariant (directory  != nullptr ? directory  : L""),
                    CComVariant (verb       != nullptr ? verb       : L""),
                    CComVariant (nShow)
     );
+  }
+
+  else
+  {
+    if (SUCCEEDED (hr))
+      hr = E_NOINTERFACE;
+
+    PLOG_ERROR << "Failed to retrieve the shell automation object of the desktop: " << SKIF_Util_GetErrorAsWStr (HRESULT_CODE (hr));
   }
 
   return SUCCEEDED (hr);
@@ -1072,9 +1101,9 @@ SKIF_Util_ShellExecuteUnelevated (
 // This stupid API doesn't support automatic elevation through e.g. "Run as administrator" registry flags etc
 bool
 SKIF_Util_CreateProcess (
-                     const std::wstring_view& path,
-                     const std::wstring_view& parameters,
-                     const std::wstring_view& directory,
+                         const std::wstring&  path,
+                         const std::wstring&  parameters,
+                         const std::wstring&  directory,
         std::map<std::wstring, std::wstring>* env,
                    SKIF_Util_CreateProcess_s* proc)
 {
@@ -1115,15 +1144,7 @@ SKIF_Util_CreateProcess (
     data->parameters_actual = data->parameters;
 
   // If a directory is not provided, retrieve the folder of the application we are about to launch
-  if (! directory.empty())
-    data->directory    = directory;
-  else
-  {
-    wchar_t              wszExecutableBase [MAX_PATH] = { };
-    StringCchCatW       (wszExecutableBase, MAX_PATH, path.data());
-    PathRemoveFileSpecW (wszExecutableBase);
-    data->directory    = wszExecutableBase;
-  }
+  data->directory = ! directory.empty() ? directory : std::filesystem::path (path).parent_path ().wstring ();
 
   if (env != nullptr)
     data->env = *env;
@@ -1140,6 +1161,9 @@ SKIF_Util_CreateProcess (
     PLOG_VERBOSE << "SKIF_CreateProcessWorker thread started!";
 
     thread_s* _data = static_cast<thread_s*>(var);
+
+    // ShellExecuteEx ( ), used by the elevation fallback below, requires COM to be initialized on the calling thread
+    const HRESULT hrCoInit = CoInitializeEx (nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
 
     PROCESS_INFORMATION procinfo = { };
     STARTUPINFO         supinfo  = { };
@@ -1180,7 +1204,7 @@ SKIF_Util_CreateProcess (
         NULL,
         FALSE,
         NORMAL_PRIORITY_CLASS | CREATE_UNICODE_ENVIRONMENT,
-        const_cast<wchar_t *>(wsEnvBlock.c_str()), // Environment variable block
+        (wsEnvBlock.empty())       ? NULL : const_cast<wchar_t *>(wsEnvBlock.c_str()), // Environment variable block (NULL = inherit SKIF's if the user's block could not be created; an empty block would start the process without any environment variables)
         (_data->directory.empty()) ? NULL : _data->directory.c_str(),
         &supinfo,
         &procinfo))
@@ -1204,7 +1228,7 @@ SKIF_Util_CreateProcess (
       PLOG_WARNING << "CreateProcess failed: " << SKIF_Util_GetErrorAsWStr (error);
 
       // In case elevation is needed, try ShellExecute!
-      if (error == 740)
+      if (error == ERROR_ELEVATION_REQUIRED)
       {
         PLOG_INFO << "Attempting elevation fallback...";
 
@@ -1238,7 +1262,14 @@ SKIF_Util_CreateProcess (
           {
             _data->proc->iReturnCode.store (0);
             _data->proc->hProcess.store    (sexi.hProcess);
+
+            if (sexi.hProcess != NULL)
+              _data->proc->dwProcessId.store (GetProcessId (sexi.hProcess));
           }
+
+          // We don't have a proc structure, so the handle (requested through SEE_MASK_NOCLOSEPROCESS) is unneeded
+          else if (sexi.hProcess != NULL)
+            CloseHandle (sexi.hProcess);
         }
 
         else {
@@ -1268,6 +1299,9 @@ SKIF_Util_CreateProcess (
 
     // Free up the memory we allocated
     delete _data;
+
+    if (SUCCEEDED (hrCoInit))
+      CoUninitialize ( );
 
     PLOG_VERBOSE << "SKIF_CreateProcessWorker thread stopped!";
 
@@ -1319,13 +1353,17 @@ SKIF_Util_GetCurrentProcessToken (void)
 HANDLE
 SKIF_Util_GetCurrentUserToken (void)
 {
-  static HANDLE token = NULL;
+  // Thread-safe one-time initialization (magic static), so concurrent callers cannot open (and leak) a second token
+  static const HANDLE token = [](void) -> HANDLE
+  {
+    HANDLE hToken = NULL;
 
-  if (token != NULL)
-    return token;
+    // CreateEnvironmentBlock requires a token with TOKEN_QUERY and TOKEN_DUPLICATE access
+    if (! OpenProcessToken (SKIF_Util_GetCurrentProcess ( ), (TOKEN_QUERY | TOKEN_DUPLICATE), &hToken))
+      hToken = NULL;
 
-  // CreateEnvironmentBlock requires a token with TOKEN_QUERY and TOKEN_DUPLICATE access
-  OpenProcessToken (SKIF_Util_GetCurrentProcess ( ), (TOKEN_QUERY | TOKEN_DUPLICATE), &token);
+    return hToken;
+  } ( );
 
   return token;
 }
@@ -1638,11 +1676,11 @@ SKIF_Util_GetBinaryType (const LPCTSTR pszPathToBinary)
 
   EnterCriticalSection (&CriticalSectionDbgHelp);
 
-  HANDLE hFile = CreateFile (pszPathToBinary, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
+  HANDLE hFile = CreateFile (pszPathToBinary, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
   if (hFile != INVALID_HANDLE_VALUE)
   {
     HANDLE hMapping = CreateFileMapping (hFile, NULL, PAGE_READONLY | SEC_IMAGE, 0, 0, NULL);
-    if (hMapping != INVALID_HANDLE_VALUE)
+    if (hMapping != NULL) // CreateFileMapping returns NULL on failure, not INVALID_HANDLE_VALUE
     {
       LPVOID addrHeader = MapViewOfFile (hMapping, FILE_MAP_READ, 0, 0, 0);
       if (addrHeader != NULL)
@@ -2260,11 +2298,14 @@ SKIF_Util_IsWindowsVersionOrGreater (DWORD dwMajorVersion, DWORD dwMinorVersion,
   {
     if (NT_SUCCESS (SKIF_RtlGetVersion (&osInfo)))
     {
-      return
-          ( osInfo.dwMajorVersion >  dwMajorVersion ||
-          ( osInfo.dwMajorVersion == dwMajorVersion &&
-            osInfo.dwMinorVersion >= dwMinorVersion &&
-            osInfo.dwBuildNumber  >= dwBuildNumber  ));
+      // Compare the major, then the minor, then the build number
+      if (osInfo.dwMajorVersion != dwMajorVersion)
+        return (osInfo.dwMajorVersion > dwMajorVersion);
+
+      if (osInfo.dwMinorVersion != dwMinorVersion)
+        return (osInfo.dwMinorVersion > dwMinorVersion);
+
+      return (osInfo.dwBuildNumber >= dwBuildNumber);
     }
   }
 
@@ -2396,7 +2437,7 @@ SKIF_Util_FindProcessByName (const wchar_t* wszName)
 
   do
   {
-    if (wcsstr (pe32.szExeFile, wszName))
+    if (_wcsicmp (pe32.szExeFile, wszName) == 0) // Exact (case-insensitive) match, as a substring match could also hit e.g. "xdwm.exe"
       return pe32;
   } while (Process32NextW (hProcessSnap, &pe32));
 
@@ -2509,14 +2550,27 @@ GetIcoBuffer (HICON hIcon, int iColorBits, std::vector<char>& buff)
   if (offsetof (ICONDIRENTRY, dwImageOffset) != 12)
     return false;
 
-  HDC dc = CreateCompatibleDC (NULL);
-
-  // ICO header (file with 1 image)
-  char icoHeader[6] = { 0, 0, 1, 0, 1, 0 };
-
   // Icon info
   ICONINFO iconInfo = { };
-  GetIconInfo (hIcon, &iconInfo);
+  if (! GetIconInfo (hIcon, &iconInfo))
+    return false;
+
+  HDC dc = CreateCompatibleDC (NULL);
+
+  // Releases the DC and the icon's bitmaps on every return path
+  struct cleanup_s {
+    HDC       dc;
+    ICONINFO& info;
+    ~cleanup_s (void)
+    {
+      if (info.hbmColor != NULL) DeleteObject (info.hbmColor);
+      if (info.hbmMask  != NULL) DeleteObject (info.hbmMask);
+      if (dc            != NULL) DeleteDC     (dc);
+    }
+  } _cleanup { dc, iconInfo };
+
+  if (dc == NULL || iconInfo.hbmColor == NULL || iconInfo.hbmMask == NULL)
+    return false;
 
   BITMAPINFO bmInfo = { 0 };
   bmInfo.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
@@ -2538,11 +2592,17 @@ GetIcoBuffer (HICON hIcon, int iColorBits, std::vector<char>& buff)
   if (! bmInfo.bmiHeader.biSizeImage)
     return false;
 
-  // Bitmap data
+  // Bitmap data, sized for the requested color depth (biSizeImage above is for the bitmap's
+  //   native color depth, which may be smaller than iColorBits and would overflow the buffer)
+  const DWORD bmWidth  = static_cast<DWORD> (std::abs (bmInfo.bmiHeader.biWidth));
+  const DWORD bmHeight = static_cast<DWORD> (std::abs (bmInfo.bmiHeader.biHeight));
+  const DWORD bmStride = ((bmWidth * static_cast<DWORD> (iColorBits) + 31) / 32) * 4;
+
   std::vector<UCHAR> bits;
-  bits.resize (bmInfo.bmiHeader.biSizeImage);
+  bits.resize (static_cast<size_t> (bmStride) * bmHeight);
   pBmInfo->bmiHeader.biBitCount = static_cast<WORD>(iColorBits);
   pBmInfo->bmiHeader.biCompression = BI_RGB;
+  pBmInfo->bmiHeader.biSizeImage = static_cast<DWORD> (bits.size());
 
   if (! GetDIBits (dc, iconInfo.hbmColor, 0, bmInfo.bmiHeader.biHeight, bits.data(), pBmInfo, DIB_RGB_COLORS))
     return false;
@@ -2571,7 +2631,7 @@ GetIcoBuffer (HICON hIcon, int iColorBits, std::vector<char>& buff)
   iconDirEntry.bHeight       = (UCHAR)pBmInfo->bmiHeader.biHeight;
   iconDirEntry.bColorCount   = (iColorBits == 4 ? 16 : 0);
   iconDirEntry.bReserved     = 0;
-  iconDirEntry.wPlanes       = 0;
+  iconDirEntry.wPlanes       = 1;
   iconDirEntry.wBitCount     = pBmInfo->bmiHeader.biBitCount;
   iconDirEntry.dwBytesInRes  = pBmInfo->bmiHeader.biSizeImage + pMaskInfo->bmiHeader.biSizeImage + nBmInfoSize;
   iconDirEntry.dwImageOffset = sizeof(ICONDIR); // + sizeof(icoHeader);
@@ -2600,11 +2660,7 @@ GetIcoBuffer (HICON hIcon, int iColorBits, std::vector<char>& buff)
   // Write mask data
   buff.insert (buff.end(), reinterpret_cast<const char *>(maskBits.data()), reinterpret_cast<const char *>(maskBits.data()) + pMaskInfo->bmiHeader.biSizeImage);
 
-  DeleteObject (iconInfo.hbmColor);
-  DeleteObject (iconInfo.hbmMask);
-  DeleteDC     (dc);
-
-  return true;
+  return true; // _cleanup releases the GDI objects
 }
 
 bool
@@ -2626,19 +2682,20 @@ SKIF_Util_SaveImageAsICO (const wchar_t* imgFilePath, const wchar_t* icoFilePath
       INT size = 32;
 
       // Resize the loaded image
-      Gdiplus::Bitmap*  resizedImage = new Gdiplus::Bitmap (size, size, PixelFormat32bppARGB);
-      Gdiplus::Graphics graphics(resizedImage);
+      // On the stack, so it is released (before GdiplusShutdown) instead of leaking
+      Gdiplus::Bitmap   resizedImage (size, size, PixelFormat32bppARGB);
+      Gdiplus::Graphics graphics(&resizedImage);
       graphics.DrawImage (image, 0, 0, size, size);
 
       // Convert the resized image to HICON format
       HICON hIcon;
-      if (Gdiplus::Status::Ok == resizedImage->GetHICON (&hIcon))
+      if (Gdiplus::Status::Ok == resizedImage.GetHICON (&hIcon))
       {
         std::vector<char> fileData = { };
         if (GetIcoBuffer (hIcon, iColorBits, fileData))
         {
           HANDLE hFile = CreateFile (icoFilePath, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
-          if (hFile)
+          if (hFile != INVALID_HANDLE_VALUE) // CreateFile returns INVALID_HANDLE_VALUE on failure, not NULL
           {
             DWORD written = 0;
             if (WriteFile   (hFile, fileData.data(), static_cast<DWORD>(fileData.size()), &written, 0))
@@ -2935,7 +2992,9 @@ SKIF_Util_SaveExtractExeIconEx (std::wstring sourcePath, std::wstring targetPath
               : Gdiplus::Bitmap::FromHICON (hIcon);
 
           // Save the image in PNG as GIF loses the transparency
-          if (Gdiplus::Status::Ok == gdiplusImage->Save (targetPath.c_str (), &pngEncoderClsId, NULL))
+          if (gdiplusImage != nullptr && // FromHICON ( ) returns nullptr on failure
+              Gdiplus::Status::Ok == gdiplusImage->GetLastStatus ( ) &&
+              Gdiplus::Status::Ok == gdiplusImage->Save (targetPath.c_str (), &pngEncoderClsId, NULL))
             ret = true;
 
           // Delete the object
@@ -2952,9 +3011,10 @@ SKIF_Util_SaveExtractExeIconEx (std::wstring sourcePath, std::wstring targetPath
     }
 
     // Something went wrong -- let's try to look for an .ico by the same filename instead
-    else if (sourcePath.rfind(L".exe") != std::wstring::npos)
+    else if (_wcsicmp (PathFindExtensionW (sourcePath.c_str()), L".exe") == 0)
     {
-      sourcePath.replace(sourcePath.rfind(L".exe"), 4, L".ico");
+      // Only the extension is replaced (case-insensitively), never an ".exe" found elsewhere in the path
+      sourcePath.replace(sourcePath.size() - 4, 4, L".ico");
       ret = SKIF_Util_SaveExtractExeIcon (sourcePath, targetPath);
     }
   }
@@ -3019,12 +3079,13 @@ SKIF_Util_GetControlledFolderAccess (void)
 
   HKEY hKey;
   DWORD buffer = 0;
-  unsigned long size = 1024;
+  DWORD size   = sizeof (buffer);
 
   // Check if Controlled Folder Access is enabled
   if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\Windows Defender\Windows Defender Exploit Guard\Controlled Folder Access\)", 0, KEY_READ | KEY_WOW64_64KEY, &hKey))
   {
-    if (ERROR_SUCCESS == RegQueryValueEx (hKey, L"EnableControlledFolderAccess", NULL, NULL, (LPBYTE)&buffer, &size))
+    // RRF_RT_REG_DWORD only accepts a REG_DWORD, so nothing larger than the 4 byte buffer can be written
+    if (ERROR_SUCCESS == RegGetValueW (hKey, NULL, L"EnableControlledFolderAccess", RRF_RT_REG_DWORD, NULL, &buffer, &size))
     {
       // There are at least three possible states of controlled folder access,
       // corresponding to these values:
@@ -3052,9 +3113,9 @@ SKIF_Util_GetControlledFolderAccess (void)
           state = 0;
 
         if (state)
-          PLOG_DEBUG << "SKIF has been whitelisted";
-        else
           PLOG_DEBUG << "SKIF has not been whitelisted!";
+        else
+          PLOG_DEBUG << "SKIF has been whitelisted";
 
         RegCloseKey (hKey);
       }
@@ -3147,14 +3208,21 @@ SKIF_Util_IsMPOsDisabledInRegistry (bool refresh)
 
   isDisabled = false;
 
-  HKEY hKey;
-  unsigned long size = 1024;
+  HKEY  hKey;
+  DWORD dwValue = 0,
+        dwSize  = sizeof (dwValue);
 
   // Check if GraphicsDrivers's DisableOverlays has MPOs disabled
   if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SYSTEM\CurrentControlSet\Control\GraphicsDrivers\)", 0, KEY_READ | KEY_WOW64_64KEY, &hKey))
   {
-    if (ERROR_SUCCESS == RegQueryValueEx (hKey, L"DisableOverlays", NULL, NULL, (LPBYTE)&iDisableOverlay, &size))
+    // RRF_RT_REG_DWORD only accepts a REG_DWORD, so nothing larger than the 4 byte buffer can be written
+    dwValue = 0;
+    dwSize  = sizeof (dwValue);
+    if (ERROR_SUCCESS == RegGetValueW (hKey, NULL, L"DisableOverlays", RRF_RT_REG_DWORD, NULL, &dwValue, &dwSize))
+    {
+      iDisableOverlay = static_cast<int> (dwValue);
       PLOG_VERBOSE << "DisableOverlays registry value is set to: " << iDisableOverlay;
+    }
     else
       iDisableOverlay = 0;
 
@@ -3167,8 +3235,13 @@ SKIF_Util_IsMPOsDisabledInRegistry (bool refresh)
   // Check if DWM's OverlayTestMode has MPOs disabled
   if (ERROR_SUCCESS == RegOpenKeyExW (HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\Windows\Dwm\)", 0, KEY_READ | KEY_WOW64_64KEY, &hKey))
   {
-    if (ERROR_SUCCESS == RegQueryValueEx (hKey, L"OverlayTestMode", NULL, NULL, (LPBYTE)&flagOverlayTestMode, &size))
+    dwValue = 0;
+    dwSize  = sizeof (dwValue);
+    if (ERROR_SUCCESS == RegGetValueW (hKey, NULL, L"OverlayTestMode", RRF_RT_REG_DWORD, NULL, &dwValue, &dwSize))
+    {
+      flagOverlayTestMode = dwValue;
       PLOG_VERBOSE << "OverlayTestMode registry value is set to: " << flagOverlayTestMode;
+    }
     else
       flagOverlayTestMode = DWMOverlayTestModeFlags_None;
 
@@ -3246,7 +3319,9 @@ SKIF_Util_SetClipboardData (const std::wstring_view& data)
 
       if (pszDestination != nullptr)
       {
-        memcpy (pszDestination, data.data(), (data.length() + 1) * sizeof (wchar_t));
+        // A wstring_view is not guaranteed to be null-terminated, so copy its characters and terminate explicitly
+        memcpy (pszDestination, data.data(), data.length() * sizeof (wchar_t));
+        pszDestination [data.length()] = L'\0';
         GlobalUnlock (hGlobal);
 
         EmptyClipboard ( );
@@ -3278,7 +3353,7 @@ SKIF_Util_AddEnvironmentBlock (const void* pEnvBlock, const std::wstring& varNam
     std::wstring  key, value,
                   keyValue = currentEnv;
 
-    size_t pos  = keyValue.find_last_of(L'=');
+    size_t pos  = keyValue.find(L'=', 1); // The first '=' ends the name (values may contain '='); start at 1 to skip the leading '=' of hidden variables such as "=C:"
     if (   pos !=     std::wstring::npos)
       key       = keyValue.substr(0, pos); // Extract the environment variable name from the given "key=value" string
     else
@@ -3623,7 +3698,7 @@ SKIF_Util_FileExplorer_BrowseForFolderXP (PCWSTR defaultPath)
 
   BROWSEINFO
     bi = { };
-    bi.lpszTitle  = L"Select a new screenshot folder for SKIV to use:";
+    bi.lpszTitle  = L"Select a new screenshot folder to use:";
     bi.ulFlags    = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
     bi.lpfn       = SKIF_Util_FileExplorer_BrowseForFolderXP_CallbackProc;
     bi.lParam     = (LPARAM) defaultPath;
@@ -3904,49 +3979,59 @@ SKIF_UtilInt_ExtractFileFromZip (IShellFolder* root, const std::wstring& innerPa
 HRESULT
 SKIF_Util_ExtractFromZip (PCWSTR zipPath, PCWSTR destDir, std::vector <std::pair <std::wstring, HRESULT>>* innerPaths)
 {
-  HRESULT hr = CoInitializeEx (nullptr, COINIT_APARTMENTTHREADED);
+  if (zipPath == nullptr || destDir == nullptr || innerPaths == nullptr)
+    return E_INVALIDARG;
 
-  if (SUCCEEDED (hr))
+  // RPC_E_CHANGED_MODE means COM is already initialized (as MTA) on this thread, which works just as well
+  const HRESULT hrCoInit = CoInitializeEx (nullptr, COINIT_APARTMENTTHREADED);
+
+  if (FAILED (hrCoInit) && hrCoInit != RPC_E_CHANGED_MODE)
+    return hrCoInit;
+
+  HRESULT hr = S_OK;
+
+  // Scoped so every COM object is released before CoUninitialize ( ), and every path reaches it
   {
     PIDLIST_ABSOLUTE zipPidl = nullptr;
     hr = SHParseDisplayName (zipPath, nullptr, &zipPidl, 0, nullptr);
 
-    if (FAILED (hr))
-      return hr;
- 
     CComPtr<IShellFolder> root;
-    hr = SHBindToObject (nullptr, zipPidl, nullptr, IID_PPV_ARGS(&root));
-    CoTaskMemFree (zipPidl);
 
-    if (FAILED (hr))
-      return hr;
- 
-    HRESULT firstError = S_OK;
-
-    std::error_code ec;
-    // Create any missing directories
-    if (! std::filesystem::exists (            destDir, ec))
-          std::filesystem::create_directories (destDir, ec);
-
-    for (auto it = innerPaths->begin(); it != innerPaths->end(); ++it)
+    if (SUCCEEDED (hr))
     {
-      std::wstring dest = std::wstring(destDir) + LR"(\)" + it->first;
-      
-      // Normalize all paths
-      SKIF_Util_ReplaceAllW (dest, LR"(/)",  LR"(\)");
-      SKIF_Util_ReplaceAllW (dest, LR"(\\)", LR"(\)");
-
-      it->second = SKIF_UtilInt_ExtractFileFromZip (root.p, it->first, dest);
-
-      // Return the first error, or S_FALSE if the file could not be found
-      if (FAILED (it->second) && SUCCEEDED (firstError))
-        firstError = (it->second == HRESULT_FROM_WIN32 (ERROR_FILE_NOT_FOUND)) ? S_FALSE : it->second;
+      hr = SHBindToObject (nullptr, zipPidl, nullptr, IID_PPV_ARGS(&root));
+      CoTaskMemFree (zipPidl);
     }
 
-    hr = firstError;
+    if (SUCCEEDED (hr))
+    {
+      HRESULT firstError = S_OK;
 
-    CoUninitialize ( );
+      std::error_code ec;
+      // Create any missing directories
+      if (! std::filesystem::exists (            destDir, ec))
+            std::filesystem::create_directories (destDir, ec);
+
+      for (auto it = innerPaths->begin(); it != innerPaths->end(); ++it)
+      {
+        std::wstring dest = std::wstring(destDir) + LR"(\)" + it->first;
+
+        // Normalize all paths (keeps the leading \\ of UNC paths)
+        dest = SKIF_Util_NormalizeFullPath (dest);
+
+        it->second = SKIF_UtilInt_ExtractFileFromZip (root.p, it->first, dest);
+
+        // Return the first error, or S_FALSE if the file could not be found
+        if (FAILED (it->second) && SUCCEEDED (firstError))
+          firstError = (it->second == HRESULT_FROM_WIN32 (ERROR_FILE_NOT_FOUND)) ? S_FALSE : it->second;
+      }
+
+      hr = firstError;
+    }
   }
+
+  if (SUCCEEDED (hrCoInit))
+    CoUninitialize ( );
 
   return hr;
 }
@@ -4079,6 +4164,7 @@ void SKIF_Util_SetEffectivePowerModeNotifications (bool enable)
       else {
         PLOG_DEBUG << "Unregistering SKIF for effective power mode notifications...";
         SKIF_PowerUnregisterFromEffectivePowerModeNotifications (hEffectivePowerModeRegistration);
+        hEffectivePowerModeRegistration = NULL; // Allows registering again later
       }
     }
   }
@@ -4394,6 +4480,10 @@ SKIF_UtilInt_UpdateMonitors (void)
                 ? path.sourceInfo.sourceModeInfoIdx
                 : path.sourceInfo.modeInfoIdx;
 
+    // The index can be invalid (DISPLAYCONFIG_PATH_MODE_IDX_INVALID) or not refer to a source mode
+    if (idx >= modeArray.size ( ) || modeArray [idx].infoType != DISPLAYCONFIG_MODE_INFO_TYPE_SOURCE)
+      continue;
+
     DISPLAYCONFIG_SOURCE_MODE *pSourceMode =
                 &modeArray [idx].sourceMode;
 
@@ -4424,6 +4514,10 @@ SKIF_UtilInt_UpdateMonitors (void)
       return ! std::get<1>(t).compare (sourceName.viewGdiDeviceName);
     });
 
+    // No match (e.g. a display was connected or removed in between, or GetMonitorInfo ( ) failed)
+    if (tup_mon == monitors.end())
+      continue;
+
     SKIF_Util_Monitor_s
       monitor { .handle = std::get<0>(*tup_mon), .display_rect = displayRect, .gdi_devicename = std::get<1>(*tup_mon) };
 
@@ -4448,7 +4542,6 @@ SKIF_UtilInt_UpdateMonitors (void)
         monitor.hdr.supported = getDisplayHDR.highDynamicRangeSupported &&
                              (! getDisplayHDR.advancedColorLimitedByPolicy);
 
-        monitor.hdr.active    = true;
         monitor.hdr.active    = getDisplayHDR.advancedColorActive         &&
                                 getDisplayHDR.highDynamicRangeUserEnabled &&
                                 getDisplayHDR.activeColorMode == DISPLAYCONFIG_ADVANCED_COLOR_MODE_HDR;
@@ -4929,9 +5022,11 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get, std::string* response_body)
   if (hInetHost == nullptr)
     return CLEANUP ( );
 
+  // Certificate validation must stay enabled (no INTERNET_FLAG_IGNORE_CERT_CN_INVALID / _DATE_INVALID), and HTTPS -> HTTP
+  //   downgrades must be refused (no INTERNET_FLAG_IGNORE_REDIRECT_TO_HTTP), as this also downloads repository.json and
+  //     the Special K installers, whose checksums would otherwise be as easy to spoof as the files themselves
   int flags = ((get->https) ? INTERNET_FLAG_SECURE : 0x0) |
-              INTERNET_FLAG_IGNORE_REDIRECT_TO_HTTP  | INTERNET_FLAG_IGNORE_REDIRECT_TO_HTTPS |
-              INTERNET_FLAG_IGNORE_CERT_DATE_INVALID | INTERNET_FLAG_IGNORE_CERT_CN_INVALID;
+              INTERNET_FLAG_IGNORE_REDIRECT_TO_HTTPS; // HTTP -> HTTPS upgrades are fine
 
   if (_registry.bLowBandwidthMode)
     flags  |= INTERNET_FLAG_RESYNCHRONIZE            | INTERNET_FLAG_CACHE_IF_NET_FAIL        | INTERNET_FLAG_CACHE_ASYNC;
@@ -4991,6 +5086,7 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get, std::string* response_body)
 
       std::vector <char> http_chunk;
       std::vector <char> concat_buffer;
+      bool               bReadFailed = false;
 
       while ( InternetQueryDataAvailable ( hInetHTTPGetReq,
                                              &dwSizeAvailable,
@@ -5017,13 +5113,25 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get, std::string* response_body)
                                     http_chunk.cbegin   (),
                                       http_chunk.cbegin () + dwSizeRead );
 
-            if (dwSizeRead < dwSizeAvailable)
-              break;
+            // Keep reading until InternetReadFile ( ) reports 0 bytes, as a short read is not the end of the response
+          }
+
+          else
+          {
+            bReadFailed = true;
+            break;
           }
         }
 
         else
           break;
+      }
+
+      // Never hand out (or write to disk) a truncated response
+      if (bReadFailed || (dwContentLength > 0 && concat_buffer.size () != dwContentLength))
+      {
+        PLOG_ERROR << "The response was incomplete! Received " << concat_buffer.size () << " of " << dwContentLength << " bytes.";
+        return CLEANUP ( );
       }
 
       if (response_body != nullptr)
@@ -5041,18 +5149,31 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get, std::string* response_body)
       // Write to file...
       else
       {
+        // Write to a temporary file first and move it into place once complete,
+        //   so a failed write never leaves a truncated file at the target path
+        const std::wstring wsLocalPath = get->wszLocalPath;
+        const std::wstring wsTempPath  = wsLocalPath + L".tmp";
+
         FILE *fOut = nullptr;
 
-        _wfopen_s (&fOut, get->wszLocalPath, L"wb+" );
+        _wfopen_s (&fOut, wsTempPath.c_str (), L"wb" );
 
         if (fOut != nullptr)
         {
-          fwrite (concat_buffer.data (), concat_buffer.size (), 1, fOut);
-          fflush (fOut);
-          fclose (fOut);
+          bool written =
+            (concat_buffer.empty () || fwrite (concat_buffer.data (), concat_buffer.size (), 1, fOut) == 1);
 
-          CLEANUP (true);
-          return 1;
+          written = (fflush (fOut) == 0) && written;
+          written = (fclose (fOut) == 0) && written;
+
+          if (written && MoveFileExW (wsTempPath.c_str (), wsLocalPath.c_str (), MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED))
+          {
+            CLEANUP (true);
+            return 1;
+          }
+
+          PLOG_ERROR << "Failed to write the downloaded file to: " << wsLocalPath;
+          DeleteFileW (wsTempPath.c_str ());
         }
       }
     }
@@ -5101,7 +5222,20 @@ SKIF_Util_GetWebResource (std::wstring url, std::wstring_view file_path, std::ws
 
   if (InternetCrackUrl (url.c_str(), static_cast <DWORD> (url.length ()), 0x00, &urlcomps))
   {
-    wcsncpy (get->wszLocalPath, file_path.data (), MAX_PATH);
+    // A wstring_view is not guaranteed to be null-terminated, and a longer path would be silently truncated (saving to the wrong file)
+    if (file_path.length () > MAX_PATH)
+    {
+      PLOG_ERROR << "The target path is too long: " << std::wstring (file_path);
+
+      // Delete get manually on failure (fallback has not been allocated yet)
+      skif_get_web_uri_t* to_delete = nullptr;
+      std::swap   (get,   to_delete);
+      delete              to_delete;
+
+      return 0;
+    }
+
+    wcsncpy_s (get->wszLocalPath, _countof (get->wszLocalPath), file_path.data (), file_path.length ());
     get->https = (urlcomps.nScheme == INTERNET_SCHEME_HTTPS);
 
     // Set up the fallback
@@ -5224,31 +5358,35 @@ SKIF_Util_URLEncode (const std::string & url)
 std::wstring
 SKIF_Util_URLEncode (const std::wstring & url)
 {
-  std::wostringstream out;
-  out << std::uppercase << std::hex;
-
-  for (wchar_t c : url)
-  {
-    if (std::iswalnum(c) ||
-        c == L'-' || c == L'_' ||
-        c == L'.' || c == L'~')
-    {
-      out << c;
-    }
-    else
-    {
-      out << '%'
-          << std::setw(2)
-          << std::setfill(L'0')
-          << static_cast<int>(c);
-    }
-  }
-
-  return out.str();
+  // Percent-encoding works on bytes, so encode the UTF-8 representation
+  //   (encoding the UTF-16 code units directly turned e.g. U+3042 into the invalid "%3042")
+  return SK_UTF8ToWideChar (SKIF_Util_URLEncode (SK_WideCharToUTF8 (url)));
 }
 
 
 // Directory Watch
+
+// Removes a handle from the wait lists of the main loop (MsgWaitForMultipleObjects). Must be done before the handle
+//   is closed, or the main loop would wait on a closed (or reused) handle and return WAIT_FAILED straight away
+static void
+SKIF_UtilInt_RemoveWatchHandle (HANDLE handle, UITab waitTab)
+{
+  if (handle == NULL || handle == INVALID_HANDLE_VALUE)
+    return;
+
+  auto _Remove = [handle](std::vector<HANDLE>& vWatchHandle)
+  {
+    vWatchHandle.erase (std::remove (vWatchHandle.begin (), vWatchHandle.end (), handle), vWatchHandle.end ());
+  };
+
+  if (waitTab == UITab_ALL)
+  {
+    for (auto& vWatchHandle : vWatchHandles)
+      _Remove (vWatchHandle);
+  }
+  else if (waitTab != UITab_None)
+    _Remove (vWatchHandles[waitTab]);
+}
 
 SKIF_DirectoryWatch::SKIF_DirectoryWatch (std::wstring_view wstrPath, UITab waitTab, BOOL bWatchSubtree, DWORD dwNotifyFilter)
 {
@@ -5274,9 +5412,8 @@ SKIF_DirectoryWatch& SKIF_DirectoryWatch::operator= (SKIF_DirectoryWatch&& other
 {
   if (this != &other)
   {
-    // Release whatever we currently own
-    if (_hChangeNotification != INVALID_HANDLE_VALUE)
-      FindCloseChangeNotification (_hChangeNotification);
+    // Release whatever we currently own (reset ( ) also removes it from vWatchHandles)
+    reset ( );
 
     _hChangeNotification = std::exchange (other._hChangeNotification, INVALID_HANDLE_VALUE);
     _waitTab             = std::exchange (other._waitTab,             UITab_None);
@@ -5310,8 +5447,20 @@ SKIF_DirectoryWatch& SKIF_DirectoryWatch::operator= (const SKIF_DirectoryWatch& 
   return *this;
 }
 
+std::wstring
+SKIF_DirectoryWatch::getPath (void) const
+{
+  return _path;
+}
+
 bool
-SKIF_DirectoryWatch::isSignaled (void)
+SKIF_DirectoryWatch::isActive (void) const
+{
+  return (_hChangeNotification != INVALID_HANDLE_VALUE);
+}
+
+bool
+SKIF_DirectoryWatch::isSignaled (void) const
 {
   bool bRet = false;
 
@@ -5350,18 +5499,11 @@ void
 SKIF_DirectoryWatch::reset (void)
 {
   if (     _hChangeNotification != INVALID_HANDLE_VALUE)
-    FindCloseChangeNotification (_hChangeNotification);
-
-  if (_waitTab == UITab_ALL)
   {
-    for (auto& vWatchHandle : vWatchHandles)
-    {
-      if (! vWatchHandle.empty())
-        vWatchHandle.erase(std::remove(vWatchHandle.begin(), vWatchHandle.end(), _hChangeNotification), vWatchHandle.end());
-    }
+    // Remove it from the wait lists before closing it
+    SKIF_UtilInt_RemoveWatchHandle (_hChangeNotification, _waitTab);
+    FindCloseChangeNotification    (_hChangeNotification);
   }
-  else if (_waitTab != UITab_None && ! vWatchHandles[_waitTab].empty())
-    vWatchHandles[_waitTab].erase(std::remove(vWatchHandles[_waitTab].begin(), vWatchHandles[_waitTab].end(), _hChangeNotification), vWatchHandles[_waitTab].end());
 
   // Reset variables
   _hChangeNotification = INVALID_HANDLE_VALUE;
@@ -5379,9 +5521,8 @@ SKIF_DirectoryWatch::registerNotify (std::wstring_view wstrPath, UITab waitTab, 
 
   if (! _path.empty())
   {
-    // Normalize all paths
-    SKIF_Util_ReplaceAllW (_path, LR"(/)",  LR"(\)");
-    SKIF_Util_ReplaceAllW (_path, LR"(\\)", LR"(\)");
+    // Normalize all paths (keeps the leading \\ of UNC paths)
+    _path = SKIF_Util_NormalizeFullPath (_path);
 
     _hChangeNotification =
       FindFirstChangeNotificationW (
@@ -5464,16 +5605,7 @@ SKIF_RegistryWatch::~SKIF_RegistryWatch (void)
 {
   if (_hEvent != NULL)
   {
-    if (_waitTab == UITab_ALL)
-    {
-      for (auto& vWatchHandle : vWatchHandles)
-      {
-        if (! vWatchHandle.empty())
-          vWatchHandle.erase(std::remove(vWatchHandle.begin(), vWatchHandle.end(), _hEvent), vWatchHandle.end());
-      }
-    }
-    else if (_waitTab != UITab_None && ! vWatchHandles[_waitTab].empty())
-      vWatchHandles[_waitTab].erase(std::remove(vWatchHandles[_waitTab].begin(), vWatchHandles[_waitTab].end(), _hEvent), vWatchHandles[_waitTab].end());
+    SKIF_UtilInt_RemoveWatchHandle (_hEvent, _waitTab);
 
     RegCloseKey (_hKeyBase);
     _hKeyBase = NULL;
@@ -5557,7 +5689,15 @@ SKIF_RegistryWatch& SKIF_RegistryWatch::operator= (SKIF_RegistryWatch&& other) n
 LSTATUS
 SKIF_RegistryWatch::registerNotify (void)
 {
-  return RegNotifyChangeKeyValue (_hKeyBase, _init.watch_subtree, _init.filter_mask, _hEvent, TRUE);
+#ifndef REG_NOTIFY_THREAD_AGNOSTIC
+#define REG_NOTIFY_THREAD_AGNOSTIC 0x10000000L
+#endif
+
+  // Without REG_NOTIFY_THREAD_AGNOSTIC (Windows 8+), the registration is silently removed once the thread that made it exits
+  static const DWORD dwThreadAgnostic =
+    (SKIF_Util_IsWindowsVersionOrGreater (6, 2, 0)) ? REG_NOTIFY_THREAD_AGNOSTIC : 0x0;
+
+  return RegNotifyChangeKeyValue (_hKeyBase, _init.watch_subtree, _init.filter_mask | dwThreadAgnostic, _hEvent, TRUE);
 }
 
 void
@@ -5592,7 +5732,7 @@ SKIF_RegistryWatch::reset (void)
                << ", " << _init.watch_subtree
                << ", " << _init.filter_mask
                << ", " << _init.wow64_32key
-               << ", " << _init.wow64_32key;
+               << ", " << _init.wow64_64key;
 
     if (_hKeyBase != NULL)
     {
@@ -5602,6 +5742,8 @@ SKIF_RegistryWatch::reset (void)
 
     if (_hEvent != NULL)
     {
+      // Remove it from the wait lists before closing it, or the main loop would wait on a closed handle
+      SKIF_UtilInt_RemoveWatchHandle (_hEvent, _waitTab);
       CloseHandle (_hEvent);
       _hEvent   = NULL;
     }
@@ -5653,7 +5795,7 @@ SKIF_Util_ResolveShortcut (HWND hwnd, LPCWSTR lpszLinkFile, LPWSTR lpszTarget, L
 {
   IShellLink* psl = nullptr;
 
-  WCHAR szArguments [MAX_PATH + 2] = { };
+  WCHAR szArguments [1024 + 2]     = { }; // Must be at least as large as what GetArguments ( ) is told below
   WCHAR szTarget    [MAX_PATH + 2] = { };
   WCHAR szWorkingDir[MAX_PATH + 2] = { };
 
@@ -5700,7 +5842,7 @@ SKIF_Util_ResolveShortcut (HWND hwnd, LPCWSTR lpszLinkFile, LPWSTR lpszTarget, L
           // Get the arguments of the target.
           // In the case of a Unicode string, there is no limitation on maximum string length.
           // In the case of an ANSI string, the maximum length of the returned string varies depending on the version of Windows; MAX_PATH prior to Windows 2000 and INFOTIPSIZE (defined in Commctrl.h) in Windows 2000 and later.
-          if (SUCCEEDED (psl->GetArguments (szArguments, 1024)))
+          if (SUCCEEDED (psl->GetArguments (szArguments, ARRAYSIZE (szArguments))))
             StringCbCopy (lpszArguments, iPathBufferSize, szArguments);
         }
       }

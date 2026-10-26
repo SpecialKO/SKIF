@@ -3586,7 +3586,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           ImGui::PushStyleVar (ImGuiStyleVar_WindowPadding, ImVec2());
           ImGui::PushStyleVar (ImGuiStyleVar_FramePadding,  ImVec2());
-          bool shelly_show = ImGui::BeginChild ("###SKIV_SHELLY", shelly_movable_area, ImGuiChildFlags_None, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMouseInputs);
+          bool shelly_show = ImGui::BeginChild ("###GHOST_SHELLY", shelly_movable_area, ImGuiChildFlags_None, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMouseInputs);
           ImGui::PopStyleVar  (2);
 
           if (shelly_show)
@@ -5214,7 +5214,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             if (_inject.bCurrentState)
               _inject._StartStopInject (true);
 
-            SKIF_Util_OpenURI (update.c_str(), SW_SHOWNORMAL, L"OPEN", args.c_str());
+            SKIF_Util_OpenURI (update, SW_SHOWNORMAL, L"OPEN", args.c_str());
           }
 
           // Classic update procedure

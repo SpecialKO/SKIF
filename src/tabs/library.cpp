@@ -683,7 +683,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   {
     if (update)
     {
-      if (  pApp->install_dir != selection.dir_watch._path)
+      if (  pApp->install_dir != selection.dir_watch.getPath())
         selection.dir_watch.reset ( );
 
       if (! pApp->install_dir.empty())

@@ -151,9 +151,7 @@ struct library_selection_s {
   {
     game     = (reset_to_skif) ? app_key_s { app_record_s::Store::Steam, SKIF_STEAM_APPID } : app_key_s { };
     category = "";
-
-    if (dir_watch._hChangeNotification != INVALID_HANDLE_VALUE)
-      dir_watch.reset();
+    dir_watch.reset();
   }
 };
 

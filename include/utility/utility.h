@@ -1,23 +1,20 @@
 #pragma once
 
+#include <utility/sk_utility.h>
+
 #include <string>
 #include <map>
 #include <atomic>
 #include <Windows.h>
 #include <wtypes.h>
-#include <WinInet.h>
-#include <atlbase.h>
-#include <Tlhelp32.h>
-#include <processthreadsapi.h>
-#include <vector>
-#include <shellapi.h>
-#include <stdexcept>
-#include <shobjidl_core.h>
-#include <KnownFolders.h>
-#include <utility/sk_utility.h>
-#include <shlobj_core.h>
 
-#pragma comment(lib, "wininet.lib")
+#include <WinInet.h>
+#include <shellapi.h>
+#include <Tlhelp32.h>
+#include <shobjidl_core.h>
+#include <shlobj_core.h>
+#include <KnownFolders.h>
+
 
 // Requires Windows 10, version 1703
 //        + Per Monitor v2 DPI awareness
@@ -74,7 +71,7 @@ extern std::vector<HANDLE> vWatchHandles[UITab_ALL];
 
 // Generic Utilities
 
-char *
+const char *
 __cdecl         SKIF_Util_FormatStringRaw             (char    const* const _Format, ...);
 std:: string    SKIF_Util_ToLower                     (std:: string_view input);
 std::wstring    SKIF_Util_ToLowerW                    (std::wstring_view input);
@@ -112,12 +109,12 @@ int             SKIF_Util_RandomInteger               (int low = 0, int high = R
 
 // Filenames
 
-std:: string    SKIF_Util_StripInvalidFilenameChars   (std:: string name);
-std::wstring    SKIF_Util_StripInvalidFilenameChars   (std::wstring name);
-std:: string    SKIF_Util_ReplaceInvalidFilenameChars (std:: string name,    char replacement);
-std::wstring    SKIF_Util_ReplaceInvalidFilenameChars (std::wstring name, wchar_t replacement);
-std:: string    SKIF_Util_NormalizeFullPath           (std:: string string);
-std::wstring    SKIF_Util_NormalizeFullPath           (std::wstring string);
+std:: string    SKIF_Util_StripInvalidFilenameChars   (std:: string  name);
+std::wstring    SKIF_Util_StripInvalidFilenameChars   (std::wstring  name);
+std:: string    SKIF_Util_ReplaceInvalidFilenameChars (std:: string  name,    char replacement);
+std::wstring    SKIF_Util_ReplaceInvalidFilenameChars (std::wstring  name, wchar_t replacement);
+std:: string    SKIF_Util_NormalizeFullPath           (std:: string  path);
+std::wstring    SKIF_Util_NormalizeFullPath           (std::wstring  path);
 bool            SKIF_Util_HasFileSignature            (const std::vector<char>& header, const FileSignature& signature);
 
 // Usernames
@@ -133,16 +130,16 @@ void            SKIF_Util_GenerateInstallGUID         (void);
 struct SKIF_Util_CreateProcess_s {
   uint32_t            id            =  0; // App ID
   int                 store_id      = -1;
-  std::atomic<HANDLE> hWorkerThread = INVALID_HANDLE_VALUE; // Holds a handle to SKIF's worker thread servicing the request
-  std::atomic<HANDLE> hProcess      = INVALID_HANDLE_VALUE; // Holds a handle to the spawned process
+  std::atomic<HANDLE> hWorkerThread = NULL; // Holds a handle to SKIF's worker thread servicing the request
+  std::atomic<HANDLE> hProcess      = NULL; // Holds a handle to the spawned process
   std::atomic<DWORD>  dwProcessId   =  0;
   std::atomic<int>    iReturnCode   = -1; // Could the separate process be spawned through CreateProcess ? (0 == NO_ERROR; 1+ == ERROR_xxx)
 };
 
 HINSTANCE       SKIF_Util_ExplorePath                 (std::wstring path);
-HINSTANCE       SKIF_Util_OpenURI                     (const std::wstring_view& path, int nShow = SW_SHOWNORMAL, LPCWSTR verb      = L"OPEN", LPCWSTR parameters = NULL, LPCWSTR directory = NULL, UINT flags = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS);
-bool            SKIF_Util_ShellExecuteUnelevated      (const std::wstring_view& path, int nShow = SW_SHOWNORMAL, LPCWSTR verb      = L"OPEN", LPCWSTR parameters = NULL, LPCWSTR directory = NULL);
-bool            SKIF_Util_CreateProcess               (const std::wstring_view& path, const std::wstring_view& parameters, const std::wstring_view& directory, std::map<std::wstring, std::wstring>* env = nullptr, SKIF_Util_CreateProcess_s* proc = nullptr);
+HINSTANCE       SKIF_Util_OpenURI                     (const std::wstring& path, int nShow = SW_SHOWNORMAL, LPCWSTR verb      = L"OPEN", LPCWSTR parameters = NULL, LPCWSTR directory = NULL, UINT flags = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS);
+bool            SKIF_Util_ShellExecuteUnelevated      (const std::wstring& path, int nShow = SW_SHOWNORMAL, LPCWSTR verb      = L"OPEN", LPCWSTR parameters = NULL, LPCWSTR directory = NULL);
+bool            SKIF_Util_CreateProcess               (const std::wstring& path, const std::wstring& parameters, const std::wstring& directory, std::map<std::wstring, std::wstring>* env = nullptr, SKIF_Util_CreateProcess_s* proc = nullptr);
 
 
 // Windows
@@ -321,24 +318,27 @@ struct SKIF_DirectoryWatch
   SKIF_DirectoryWatch            (      SKIF_DirectoryWatch&& other) noexcept;
   SKIF_DirectoryWatch& operator= (      SKIF_DirectoryWatch&& other) noexcept;
 
-  bool isSignaled      (void);
+  std::wstring getPath (void) const;
+  bool isActive        (void) const;
+  bool isSignaled      (void) const;
   bool isSignaled      (std::wstring_view wstrPath,
                                     UITab waitTab        = UITab_None,
                                      BOOL bWatchSubtree  = FALSE,
                                     DWORD dwNotifyFilter = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE);
   void reset           (void);
 
-  HANDLE       _hChangeNotification = INVALID_HANDLE_VALUE; // If the FindFirstChangeNotification function fails, the return value is INVALID_HANDLE_VALUE.
-  UITab        _waitTab             = UITab_None;
-  std::wstring _path                = L"";
-  BOOL         _watchSubtree        = FALSE;
-  DWORD        _notifyFilter        = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE;
 
 private:
   void registerNotify  (std::wstring_view wstrPath,
                                     UITab waitTab        = UITab_None,
                                      BOOL bWatchSubtree  = FALSE,
                                     DWORD dwNotifyFilter = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE);
+
+  HANDLE       _hChangeNotification = INVALID_HANDLE_VALUE; // If the FindFirstChangeNotification function fails, the return value is INVALID_HANDLE_VALUE.
+  UITab        _waitTab             = UITab_None;
+  std::wstring _path                = L"";
+  BOOL         _watchSubtree        = FALSE;
+  DWORD        _notifyFilter        = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE;
 };
 
 

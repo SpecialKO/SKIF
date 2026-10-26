@@ -405,7 +405,7 @@ void
 app_record_gog_s::DrawWebsiteMenuItems (void)
 {
   if (SKIF_ImGui_MenuItemEx2 ("GOG Database", ICON_FA_DATABASE, ImColor(155, 89, 182, 255)))
-    SKIF_Util_OpenURI ((L"https://www.gogdb.org/product/" + std::to_wstring (id)).c_str());
+    SKIF_Util_OpenURI (L"https://www.gogdb.org/product/" + std::to_wstring (id));
 
   SKIF_ImGui_SetMouseCursorHand ( );
   SKIF_ImGui_SetHoverText       (SKIF_Util_FormatStringRaw ("https://www.gogdb.org/product/%lu", id));

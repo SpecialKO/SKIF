@@ -2021,20 +2021,20 @@ app_record_steam_s::DrawStoreMenu (void)
   if (ImGui::BeginMenuEx ("Steam", ICON_FA_STEAM))
   {
     if (SKIF_ImGui_MenuItemEx2 ("Details", ICON_FA_BARS_STAGGERED, (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255)))
-      SKIF_Util_OpenURI ((L"steam://nav/games/details/" + std::to_wstring (id)).c_str());
+      SKIF_Util_OpenURI (L"steam://nav/games/details/" + std::to_wstring (id));
 
     SKIF_ImGui_SetMouseCursorHand ( );
     SKIF_ImGui_SetHoverText       (SKIF_Util_FormatStringRaw ("steam://nav/games/details/%lu", id));
 
     if (SKIF_ImGui_MenuItemEx2 ("Steam Input", ICON_FA_GAMEPAD, (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255)))
-      SKIF_Util_OpenURI ((L"steam://controllerconfig/" + std::to_wstring (id)).c_str());
+      SKIF_Util_OpenURI (L"steam://controllerconfig/" + std::to_wstring (id));
 
     SKIF_ImGui_SetMouseCursorHand ( );
     SKIF_ImGui_SetHoverTip        ("A controller must be connected.");
     SKIF_ImGui_SetHoverText       (SKIF_Util_FormatStringRaw ("steam://controllerconfig/%lu", id));
 
     if (SKIF_ImGui_MenuItemEx2 ("Game properties", ICON_FA_WRENCH, ImColor(200, 200, 200, 255)))
-      SKIF_Util_OpenURI ((L"steam://gameproperties/" + std::to_wstring (id)).c_str());
+      SKIF_Util_OpenURI (L"steam://gameproperties/" + std::to_wstring (id));
 
     SKIF_ImGui_SetMouseCursorHand ( );
     SKIF_ImGui_SetHoverText       (SKIF_Util_FormatStringRaw ("steam://gameproperties/%lu", id));
@@ -2049,13 +2049,13 @@ app_record_steam_s::DrawWebsiteMenuItems (void)
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
   if (SKIF_ImGui_MenuItemEx2 ("Steam Community", ICON_FA_STEAM_SYMBOL, ((_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255))))
-    SKIF_Util_OpenURI ((L"https://steamcommunity.com/app/" + std::to_wstring (id)).c_str());
+    SKIF_Util_OpenURI (L"https://steamcommunity.com/app/" + std::to_wstring (id));
 
   SKIF_ImGui_SetMouseCursorHand ( );
   SKIF_ImGui_SetHoverText       (SKIF_Util_FormatStringRaw ("https://steamcommunity.com/app/%lu", id));
 
   if (SKIF_ImGui_MenuItemEx2 ("SteamDB", ICON_FA_DATABASE, ImColor(101, 192, 244, 255)))
-    SKIF_Util_OpenURI ((L"https://steamdb.info/app/" + std::to_wstring (id)).c_str());
+    SKIF_Util_OpenURI (L"https://steamdb.info/app/" + std::to_wstring (id));
 
   SKIF_ImGui_SetMouseCursorHand ( );
   SKIF_ImGui_SetHoverText       (SKIF_Util_FormatStringRaw ("https://steamdb.info/app/%lu", id));
@@ -2077,7 +2077,7 @@ app_record_steam_s::DrawDeveloperDataMenus (void)
     }
 
     if (SKIF_ImGui_MenuItemEx2 ("/AppDetails/", (const char*)u8"\u2022", ImColor(101, 192, 244, 255)))
-      SKIF_Util_OpenURI (steam.urls.AppDetails.c_str());
+      SKIF_Util_OpenURI (steam.urls.AppDetails);
 
     SKIF_ImGui_SetMouseCursorHand ( );
     SKIF_ImGui_SetHoverText       (steam.urls.AppDetails_utf8.c_str());
@@ -2091,7 +2091,7 @@ app_record_steam_s::DrawDeveloperDataMenus (void)
     }
 
     if (SKIF_ImGui_MenuItemEx2 ("/ISteamUserStats/GetNumberOfCurrentPlayers/v1/", (const char*)u8"\u2022", ImColor(101, 192, 244, 255)))
-      SKIF_Util_OpenURI (steam.urls.ISteamUserStats_GetNumberOfCurrentPlayers1.c_str());
+      SKIF_Util_OpenURI (steam.urls.ISteamUserStats_GetNumberOfCurrentPlayers1);
 
     SKIF_ImGui_SetMouseCursorHand ( );
     SKIF_ImGui_SetHoverText       (steam.urls.ISteamUserStats_GetNumberOfCurrentPlayers1_utf8.c_str());

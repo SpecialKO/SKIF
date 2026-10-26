@@ -328,7 +328,7 @@ SKIF_UI_IniEditor_Process (void)
     if (window.hwnd == nullptr && ImGui::GetWindowViewport()->PlatformHandleRaw)
       window.hwnd = (HWND)ImGui::GetWindowViewport()->PlatformHandleRaw;
 
-    if (window.hwnd != nullptr && window.watch._path.empty() && ! window.path_parent.empty())
+    if (window.hwnd != nullptr && window.watch.getPath().empty() && ! window.path_parent.empty())
       window.watch = SKIF_DirectoryWatch (window.path_parent, UITab_None, FALSE, FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE);
 
     if (window.watch.isSignaled())
@@ -434,7 +434,7 @@ SKIF_UI_IniEditor_Process (void)
           SKIF_ImGui_PushDisableState ( );
 
         if (ImGui::MenuItem ("External Editor"))
-          SKIF_Util_OpenURI (window.path.c_str(), SW_SHOWNORMAL, NULL);
+          SKIF_Util_OpenURI (window.path, SW_SHOWNORMAL, NULL);
 
         if (window.path.empty())
           SKIF_ImGui_PopDisableState ( );

@@ -480,7 +480,7 @@ SKIF_UI_Tab_DrawSettings (void)
         _registry.regKVControllerIdlePowerOffTimeOut.putData (_registry.skinput.dwIdleTimeoutInSecs);
       }
 
-      SKIF_ImGui_SetHoverTip ("This only applies when SKIF or SKIV are running and no game is actively using Special K.");
+      SKIF_ImGui_SetHoverTip ("This only applies when this app is running and no game is actively using Special K.");
 
       ImGui::TreePop         (  );
 

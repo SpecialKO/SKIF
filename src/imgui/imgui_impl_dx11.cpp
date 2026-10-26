@@ -2177,10 +2177,6 @@ static FLOAT SKIF_ImplDX11_ViewPort_GetHDRLuma(ImGuiViewport* viewport)
 
 void SKIF_ImplDX11_ViewPort_ClearAndPresent (ImGuiViewport* viewport)
 {
-  // I have no idea why SKIF requires this stupid workaround but if I don't do this it keeps throwing
-  //   LNK2001: unresolved external symbol IID_ID3D11Device
-  // which makes no bloody sense since d3d11.lib is included and VS can resolve it... Stupid thing
-  // works in SKIV so I dunno why it fails to work as expected in SKIF...
   static const GUID IID_ID3D11DeviceWorkaround = {
     0xdb6f6ddb,0xac77,0x4e88,0x82,0x53,0x81,0x9d,0xf9,0xbb,0xf1,0x40
   };
