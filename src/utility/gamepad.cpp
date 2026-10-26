@@ -262,7 +262,6 @@ SKIF_GamePadInputHelper::GetXInputState (void)
 HMODULE                                            SKIF_GamePadInputHelper::hModXInput                 = nullptr;
 SKIF_GamePadInputHelper::XInputGetState_pfn        SKIF_GamePadInputHelper::SKIF_XInputGetState        = nullptr;
 SKIF_GamePadInputHelper::XInputGetCapabilities_pfn SKIF_GamePadInputHelper::SKIF_XInputGetCapabilities = nullptr;
-bool                                               SKIF_GamePadInputHelper::runOnce                    = true;
 bool                                               SKIF_GamePadInputHelper::skipFreeLibrary            = false;
 
 // If we really wanted to limit the exposure of this function,
@@ -303,12 +302,10 @@ SKIF_GamePadInputHelper::UpdateXInputState (void)
 
         PLOG_VERBOSE << "Loaded the XInput library: " << dll << " (in " << (SKIF_Util_timeGetTime1 ( ) - dwLoadStart) << " ms)";
 
-        if (runOnce)
-        {
+        SK_RunOnce (
           skipFreeLibrary = PathFileExists (dll);
           PLOG_VERBOSE_IF(skipFreeLibrary) << "Custom XInput DLL file detected; will not free the library after use!";
-          runOnce = false;
-        }
+        )
 
         SKIF_XInputGetCapabilities = (XInputGetCapabilities_pfn)
           GetProcAddress (hModXInput, "XInputGetCapabilities");

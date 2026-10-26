@@ -2720,14 +2720,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
           }
           */
 
-          static bool
-              runOnce = true;
-          if (runOnce)
-          {   runOnce = false;
-
-            // Kickstart the update thread
+          // Kickstart the update thread
+          SK_RunOnce (
             _updater.CheckForUpdates ( );
-          }
+          )
         }
       }
     }
@@ -3973,14 +3969,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
       ImGui::RenderPlatformWindowsDefault (); // Also eventually calls ImGui_ImplDX11_SwapBuffers ( ) which Presents ( )
 
       // This runs only once, after the ImGui window has been created
-      static bool
-          runOnce = true;
-      if (runOnce && SKIF_ImGui_hWnd != NULL)
-      {   runOnce = false;
-
-        SKIF_Util_GetMonitorHzPeriod (SKIF_ImGui_hWnd, MONITOR_DEFAULTTOPRIMARY, dwDwmPeriod);
-        //OutputDebugString((L"Initial refresh rate period: " + std::to_wstring (dwDwmPeriod) + L"\n").c_str());
-      }
+      if (SKIF_ImGui_hWnd != NULL)
+        SK_RunOnce (
+          SKIF_Util_GetMonitorHzPeriod (SKIF_ImGui_hWnd, MONITOR_DEFAULTTOPRIMARY, dwDwmPeriod);
+        )
     }
 
     if (startupTiming)

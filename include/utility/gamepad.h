@@ -57,6 +57,5 @@ private:
   static HMODULE                         hModXInput;
   static XInputGetState_pfn              SKIF_XInputGetState;
   static XInputGetCapabilities_pfn       SKIF_XInputGetCapabilities;
-  static bool                            runOnce;
   static bool                            skipFreeLibrary;
 };

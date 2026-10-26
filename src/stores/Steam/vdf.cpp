@@ -247,11 +247,7 @@ appinfo_s::getRootSection (size_t* pSize)
     ( vdf_version > 0x27 ? sizeof (appinfo_s)
                          : sizeof (appinfo27_s) );
 
-  static bool
-      runOnce = true;
-  if (runOnce)
-  {   runOnce = false;
-
+  SK_RunOnce (
     switch (vdf_version)
     {
       case 0x29: // v41
@@ -266,7 +262,7 @@ appinfo_s::getRootSection (size_t* pSize)
       default:
         PLOG_WARNING << "appinfo.vdf version: " << vdf_version << " (unknown/unsupported)";
     }
-  }
+  )
 
   size_t kv_size =
     (size - vdf_header_size + 8);

@@ -1742,17 +1742,13 @@ static void ImGui_ImplDX11_SwapBuffers(ImGuiViewport* viewport, void*)
     {
       vd->PresentCount++;
 
-      static bool runOnce = true;
-      if (runOnce)
-      {
-        runOnce = false;
-
+      SK_RunOnce (
         DWORD current_time = SKIF_Util_timeGetTime1();
 
         PLOG_INFO << "Presented first frame! Init -> Present took " << (current_time - SKIF_startupTime) << " ms.";
 
         SKIF_FirstPresentDone = true;
-      }
+      )
     }
   }
 }

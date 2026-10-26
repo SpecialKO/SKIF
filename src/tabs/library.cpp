@@ -480,34 +480,30 @@ SKIF_UI_Tab_DrawLibrary (void)
   //       otherwise SKIF can end up with signaled objects that's never cleared !!!
   if (! ImGui::IsAnyMouseDown ( ) || ! SKIF_ImGui_IsFocused ( ))
   {
-    static bool runOnce = true;
     static DWORD time_preprocessing, time_current;
 
-    if (runOnce)
-    {
+    SK_RunOnce (
       time_preprocessing = SKIF_Util_timeGetTime1();
       time_current = time_preprocessing;
-    }
+    )
 
     // Sets up a wait object on UITab_Library
     if (SKIF_Steam_areLibrariesSignaled () && _registry.bLibrarySteam)
       RepopulateGames = true;
 
-    if (runOnce)
-    {
+    SK_RunOnce (
       PLOG_DEBUG << "[Library Pre-Processing] Steam took " << (SKIF_Util_timeGetTime1 ( ) - time_current) << " ms.";
       time_current = SKIF_Util_timeGetTime1 ( );
-    }
+    )
 
     // Sets up a wait object on UITab_Library
     if (_epic.isSignaled ( ) && _registry.bLibraryEpic)
       RepopulateGames = true;
 
-    if (runOnce)
-    {
+    SK_RunOnce (
       PLOG_DEBUG << "[Library Pre-Processing] Epic took " << (SKIF_Util_timeGetTime1 ( ) - time_current) << " ms.";
       time_current = SKIF_Util_timeGetTime1 ( );
-    }
+    )
 
     // Sets up a wait object on UITab_Library
     if (SKIF_GOG_hasInstalledGamesChanged ( ) && _registry.bLibraryGOG)
@@ -517,11 +513,10 @@ SKIF_UI_Tab_DrawLibrary (void)
     if (SKIF_GOG_hasGalaxySettingsChanged ( ) && _registry.bLibraryGOG)
       SKIF_GOG_UpdateGalaxyUserID ( );
 
-    if (runOnce)
-    {
+    SK_RunOnce (
       PLOG_DEBUG << "[Library Pre-Processing] GOG took " << (SKIF_Util_timeGetTime1 ( ) - time_current) << " ms.";
       time_current = SKIF_Util_timeGetTime1 ( );
-    }
+    )
 
     time_current = SKIF_Util_timeGetTime1 ( );
 
@@ -529,12 +524,10 @@ SKIF_UI_Tab_DrawLibrary (void)
     if (SKIF_Xbox_hasInstalledGamesChanged ( ) && _registry.bLibraryXbox)
       RepopulateGames = true;
 
-    if (runOnce)
-    {
-      PLOG_DEBUG << "[Library Pre-Processing] Xbox took " << (SKIF_Util_timeGetTime1 ( ) - time_current) << " ms.";
+    SK_RunOnce (
+      PLOG_DEBUG << "[Library Pre-Processing] Xbox took "          << (SKIF_Util_timeGetTime1 ( ) - time_current)       << " ms.";
       PLOG_DEBUG << "[Library Pre-Processing] Total process took " << (SKIF_Util_timeGetTime1 ( ) - time_preprocessing) << " ms.";
-      runOnce = false;
-    }
+    )
   }
 
   // We cannot manipulate the apps array while the game worker thread is running, nor any active icon workers
