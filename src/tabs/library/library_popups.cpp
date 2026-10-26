@@ -195,7 +195,7 @@ DrawLibraryPopups (void)
               WCHAR wszWorkingDir[MAX_PATH + 2] = { };
               WCHAR wszArguments [    1024 + 2] = { };
 
-              SKIF_Util_ResolveShortcut (SKIF_ImGui_hWnd, path.c_str(), wszTarget, wszArguments, wszWorkingDir, MAX_PATH * sizeof (WCHAR));
+              SKIF_Util_ResolveShortcut (SKIF_ImGui_hWnd, path.c_str(), wszTarget, wszArguments, wszWorkingDir, MAX_PATH * sizeof (WCHAR), sizeof (wszArguments));
 
               if (! PathFileExists (wszTarget))
               {
@@ -209,6 +209,7 @@ DrawLibraryPopups (void)
 
                 strncpy (charPath,    SK_WideCharToUTF8 (wszTarget).c_str(),                  MAX_PATH);
                 strncpy (charWorkDir, SK_WideCharToUTF8 (wszWorkingDir).c_str(),              MAX_PATH);
+                strncpy (charArgs,    SK_WideCharToUTF8 (wszArguments).c_str(),               1024);
               }
             }
 

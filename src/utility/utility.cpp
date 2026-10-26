@@ -6039,12 +6039,26 @@ SKIF_RegistryWatch::isSignaled (void)
 // lpszTarget      - Address of a buffer that receives the path of the link target,
 //                   including the file name.
 // lpszArguments   - Address of a buffer that receives the arguments of the Shell link.
-// iPathBufferSize - Size of the buffers at lpszLinkFile and lpszTarget. Typically MAX_PATH.
+// lpszWorkingDir  - Address of a buffer that receives the working directory of the Shell link.
+// iPathBufferSize - Size in bytes of the buffers at lpszTarget and lpszWorkingDir. Typically MAX_PATH * sizeof (WCHAR).
+// iArgumentsBufferSize
+//                 - Size in bytes of the buffer at lpszArguments (arguments can be longer than MAX_PATH).
+//
+// Environment variables in the target and working directory (e.g. %ProgramFiles%) are expanded.
 //
 
 void
-SKIF_Util_ResolveShortcut (HWND hwnd, LPCWSTR lpszLinkFile, LPWSTR lpszTarget, LPWSTR lpszArguments, LPWSTR lpszWorkingDir, int iPathBufferSize)
+SKIF_Util_ResolveShortcut (HWND hwnd, LPCWSTR lpszLinkFile, LPWSTR lpszTarget, LPWSTR lpszArguments, LPWSTR lpszWorkingDir, int iPathBufferSize, int iArgumentsBufferSize)
 {
+  // Copies a path with its environment variables expanded (the source as-is if the expansion fails or does not fit)
+  auto _CopyExpanded = [](LPWSTR lpszDest, int iDestSize, const wchar_t* wszSource)
+  {
+    WCHAR wszExpanded [MAX_PATH + 2] = { };
+    DWORD dwChars = ExpandEnvironmentStringsW (wszSource, wszExpanded, ARRAYSIZE (wszExpanded));
+
+    StringCbCopy (lpszDest, iDestSize, (dwChars > 0 && dwChars <= ARRAYSIZE (wszExpanded)) ? wszExpanded : wszSource);
+  };
+
   IShellLink* psl = nullptr;
 
   WCHAR szArguments [1024 + 2]     = { }; // Must be at least as large as what GetArguments ( ) is told below
@@ -6083,19 +6097,20 @@ SKIF_Util_ResolveShortcut (HWND hwnd, LPCWSTR lpszLinkFile, LPWSTR lpszTarget, L
         // Resolve the link.
         if (SUCCEEDED (psl->Resolve (hwnd, flags)))
         {
-          // Get the link target.
-          if (SUCCEEDED (psl->GetPath (szTarget, MAX_PATH, NULL, SLGP_RAWPATH)))
-            StringCbCopy (lpszTarget, iPathBufferSize, szTarget);
+          // Get the link target. Not SLGP_RAWPATH: that returns environment variables unexpanded (e.g. %ProgramFiles%\Game\Game.exe),
+          //   which made the callers' PathFileExists checks fail. Anything left unexpanded is expanded below.
+          if (SUCCEEDED (psl->GetPath (szTarget, MAX_PATH, NULL, 0)))
+            _CopyExpanded (lpszTarget, iPathBufferSize, szTarget);
 
-          // Get the working directory.
+          // Get the working directory (stored as-is, so it can contain environment variables too).
           if (SUCCEEDED (psl->GetWorkingDirectory (szWorkingDir, MAX_PATH)))
-            StringCbCopy (lpszWorkingDir, iPathBufferSize, szWorkingDir);
+            _CopyExpanded (lpszWorkingDir, iPathBufferSize, szWorkingDir);
 
           // Get the arguments of the target.
           // In the case of a Unicode string, there is no limitation on maximum string length.
           // In the case of an ANSI string, the maximum length of the returned string varies depending on the version of Windows; MAX_PATH prior to Windows 2000 and INFOTIPSIZE (defined in Commctrl.h) in Windows 2000 and later.
           if (SUCCEEDED (psl->GetArguments (szArguments, ARRAYSIZE (szArguments))))
-            StringCbCopy (lpszArguments, iPathBufferSize, szArguments);
+            StringCbCopy (lpszArguments, iArgumentsBufferSize, szArguments);
         }
       }
 

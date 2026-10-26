@@ -346,7 +346,7 @@ std::wstring SKIF_Util_URLEncode              (const std::wstring& url);
 
 // Shortcuts (*.lnk)
 
-void         SKIF_Util_ResolveShortcut       (HWND hwnd, LPCWSTR lpszLinkFile, LPWSTR lpszTarget, LPWSTR lpszArguments, LPWSTR lpszWorkingDir, int iPathBufferSize);
+void         SKIF_Util_ResolveShortcut       (HWND hwnd, LPCWSTR lpszLinkFile, LPWSTR lpszTarget, LPWSTR lpszArguments, LPWSTR lpszWorkingDir, int iPathBufferSize, int iArgumentsBufferSize);
 bool         SKIF_Util_CreateShortcut        (LPCWSTR lpszPathLink, LPCWSTR lpszTarget, LPCWSTR lpszArgs = L"\0", LPCWSTR lpszWorkDir = L"\0", LPCWSTR lpszDesc = L"\0", LPCWSTR lpszIconLocation = L"\0", int iIcon = 0);
 
 

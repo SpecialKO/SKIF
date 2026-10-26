@@ -344,9 +344,9 @@ SKIF_Custom_AddGame (void)
       {
         WCHAR wszTarget    [MAX_PATH + 2] = { };
         WCHAR wszWorkingDir[MAX_PATH + 2] = { };
-        WCHAR wszArguments [MAX_PATH + 2] = { };
+        WCHAR wszArguments [    1024 + 2] = { };
 
-        SKIF_Util_ResolveShortcut (SKIF_ImGui_hWnd, path.c_str(), wszTarget, wszArguments, wszWorkingDir, MAX_PATH * sizeof (WCHAR));
+        SKIF_Util_ResolveShortcut (SKIF_ImGui_hWnd, path.c_str(), wszTarget, wszArguments, wszWorkingDir, MAX_PATH * sizeof (WCHAR), sizeof (wszArguments));
 
         if (! PathFileExists (wszTarget))
         {

@@ -708,9 +708,9 @@ SKIF_Startup_AddGame (LPWSTR lpCmdLine)
 
     WCHAR wszTarget    [MAX_PATH + 2] = { };
     WCHAR wszWorkingDir[MAX_PATH + 2] = { };
-    WCHAR wszArguments [MAX_PATH + 2] = { };
+    WCHAR wszArguments [    1024 + 2] = { };
 
-    SKIF_Util_ResolveShortcut (SKIF_ImGui_hWnd, cmdLine.c_str(), wszTarget, wszArguments, wszWorkingDir, MAX_PATH * sizeof (WCHAR));
+    SKIF_Util_ResolveShortcut (SKIF_ImGui_hWnd, cmdLine.c_str(), wszTarget, wszArguments, wszWorkingDir, MAX_PATH * sizeof (WCHAR), sizeof (wszArguments));
 
     cmdLine     = std::wstring(wszTarget);
     cmdLineArgs = std::wstring(wszArguments);
