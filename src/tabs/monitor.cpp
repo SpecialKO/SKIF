@@ -1481,6 +1481,18 @@ SKIF_UI_Tab_DrawMonitor (void)
   ImGui::Spacing          ( );
 
   static standby_record_s static_proc = { };
+
+  // Matches gathered when Reset is selected in the process menu, used by the confirmation prompt
+  struct user_list_reset_s {
+    std::string              filename;           // Empty when the prompt is closed
+    std::vector<std::string> whitelist;          // Matching user patterns in the whitelist
+    std::vector<std::string> blacklist;          // Matching user patterns in the blacklist
+    const char*              builtInWhitelist = nullptr; // Matching built-in patterns, which cannot be removed
+    const char*              builtInBlacklist = nullptr;
+    bool                     failed           = false;   // Removal failed to save
+  };
+
+  static user_list_reset_s static_reset = { };
   static DWORD hoveredPID = 0;
 
   auto _ProcessMenu = [&](standby_record_s proc) -> void
@@ -1521,11 +1533,35 @@ SKIF_UI_Tab_DrawMonitor (void)
 
         if (ImGui::BeginMenu    (ICON_FA_TOOLBOX " Actions:"))
         {
-          if (ImGui::Selectable (ICON_FA_BAN " Blacklist"))
-            _inject.BlacklistPath (p.string());
+          // The blacklist takes precedence, so whitelisting is only offered for items that are neither
+          if (proc.policy == DontCare)
+          {
+            if (ImGui::Selectable (ICON_FA_CHECK " Whitelist"))
+              _inject.WhitelistPath (p.string());
+          }
 
-          if (ImGui::Selectable (ICON_FA_CHECK " Whitelist"))
-            _inject.WhitelistPath (p.string());
+          if (proc.policy != Blacklist)
+          {
+            if (ImGui::Selectable (ICON_FA_BAN " Blacklist"))
+              _inject.BlacklistPath (p.string());
+          }
+
+          if (proc.policy != DontCare)
+          {
+            if (ImGui::Selectable (ICON_FA_ROTATE_LEFT " Reset"))
+            {
+              const std::string path = p.string ();
+
+              static_reset                  = user_list_reset_s { };
+              static_reset.filename         = p.filename ().string ();
+              static_reset.whitelist        = _inject.GetUserListMatches  (path.c_str (), true);
+              static_reset.blacklist        = _inject.GetUserListMatches  (path.c_str (), false);
+              static_reset.builtInWhitelist = _inject.GetBuiltInListMatch (path.c_str (), true);
+              static_reset.builtInBlacklist = _inject.GetBuiltInListMatch (path.c_str (), false);
+            }
+
+            SKIF_ImGui_SetHoverTip ("Remove the whitelist and blacklist patterns matching this process.");
+          }
 
           ImGui::EndMenu ( );
         }
@@ -1907,6 +1943,129 @@ SKIF_UI_Tab_DrawMonitor (void)
                                              25 * SKIF_ImGui_GlobalDPIScale )))
       {
         static_proc = standby_record_s{};
+        ImGui::CloseCurrentPopup ( );
+      }
+
+      ImGui::EndPopup ( );
+    }
+  }
+
+  // Reset whitelist / blacklist prompt
+
+  if (! static_reset.filename.empty ())
+  {
+    ImGui::OpenPopup         ("Reset Whitelist / Blacklist###ResetUserListMonitor");
+
+    ImGui::SetNextWindowSize (ImVec2 (500.0f * SKIF_ImGui_GlobalDPIScale, 0.0f));
+    ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
+
+    if (ImGui::BeginPopupModal ( "Reset Whitelist / Blacklist###ResetUserListMonitor", nullptr,
+                                    ImGuiWindowFlags_NoResize |
+                                    ImGuiWindowFlags_NoMove |
+                                    ImGuiWindowFlags_AlwaysAutoResize )
+        )
+    {
+      const bool hasPatterns = (! static_reset.whitelist.empty () ||
+                                ! static_reset.blacklist.empty ());
+
+      auto _ListPatterns = [](const char* icon, ImGuiCol color, const char* caption, const std::vector<std::string>& patterns)
+      {
+        if (patterns.empty ())
+          return;
+
+        ImGui::TextColored (ImGui::GetStyleColorVec4 (color), icon);
+        ImGui::SameLine    ( );
+        ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption), caption);
+
+        for (const auto& pattern : patterns)
+        {
+          ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
+          ImGui::SameLine        ( );
+          ImGui::TextUnformatted (pattern.c_str ()); // Unformatted as patterns may contain %
+        }
+
+        SKIF_ImGui_Spacing ( );
+      };
+
+      ImGui::Text        ("Patterns matching");
+      ImGui::SameLine    ( );
+      ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), static_reset.filename.c_str ());
+      ImGui::SameLine    ( );
+      ImGui::Text        (":");
+
+      SKIF_ImGui_Spacing ( );
+
+      _ListPatterns (ICON_FA_SQUARE_PLUS,  ImGuiCol_SKIF_Success, "Whitelist:", static_reset.whitelist);
+      _ListPatterns (ICON_FA_SQUARE_MINUS, ImGuiCol_SKIF_Failure, "Blacklist:", static_reset.blacklist);
+
+      if (! hasPatterns)
+      {
+        ImGui::TextWrapped ("No whitelist or blacklist patterns of yours match this process.");
+        SKIF_ImGui_Spacing ( );
+      }
+
+      // Built-in patterns are part of Special K itself and cannot be removed from here
+      for (const char* builtIn : { static_reset.builtInWhitelist, static_reset.builtInBlacklist })
+      {
+        if (builtIn == nullptr)
+          continue;
+
+        ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
+        ImGui::TextWrapped    ("The process is also %s by the built-in pattern \"%s\", which cannot be removed.",
+                                 (builtIn == static_reset.builtInWhitelist) ? "whitelisted" : "blacklisted", builtIn);
+        ImGui::PopStyleColor  ( );
+        SKIF_ImGui_Spacing    ( );
+      }
+
+      if (hasPatterns)
+      {
+        ImGui::TextWrapped ("Removing a pattern affects every application it matches, not just this one. "
+                            "Do you want to remove the patterns listed above?");
+        SKIF_ImGui_Spacing ( );
+      }
+
+      if (static_reset.failed)
+      {
+        ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), "The changes could not be saved!");
+        SKIF_ImGui_Spacing ( );
+      }
+
+      ImGui::SetCursorPos (ImGui::GetCursorPos() + ImVec2(270.0f, 0));
+
+      if (! hasPatterns)
+        SKIF_ImGui_PushDisableState ( );
+
+      if (ImGui::Button ("Remove", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
+                                             25 * SKIF_ImGui_GlobalDPIScale )))
+      {
+        bool white_removed = _inject.RemoveUserListPatterns (static_reset.whitelist, true);
+        bool black_removed = _inject.RemoveUserListPatterns (static_reset.blacklist, false);
+
+        // Remember what was removed so a retry does not attempt it again
+        if (white_removed) static_reset.whitelist.clear ( );
+        if (black_removed) static_reset.blacklist.clear ( );
+
+        if (white_removed && black_removed)
+        {
+          static_reset = user_list_reset_s { };
+          ImGui::CloseCurrentPopup ( );
+        }
+
+        else
+          static_reset.failed = true;
+      }
+
+      if (! hasPatterns)
+        SKIF_ImGui_PopDisableState  ( );
+
+      ImGui::SameLine ( );
+      ImGui::Spacing  ( );
+      ImGui::SameLine ( );
+
+      if (ImGui::Button ("Cancel", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
+                                             25 * SKIF_ImGui_GlobalDPIScale )))
+      {
+        static_reset = user_list_reset_s { };
         ImGui::CloseCurrentPopup ( );
       }
 

@@ -43,6 +43,7 @@
 #include <cstdio>
 #include <array>
 #include <vector>
+#include <algorithm>
 #include <iostream>
 #include <locale>
 #include <codecvt>
@@ -1585,31 +1586,50 @@ void SKIF_InjectionContext::SetInjectExitAckEx (bool newState)
   }
 }
 
-bool SKIF_InjectionContext::_TestUserList (const char* szExecutable, bool whitelist_)
+const char* SKIF_InjectionContext::GetBuiltInListMatch (const char* szExecutable, bool whitelist_)
 {
   // Simplified variant of the internal whitelisting that SK performs
-  if (whitelist_)
-  {
-    if (StrStrIA (szExecutable, R"(SteamApps)")        != NULL ||
-        StrStrIA (szExecutable, R"(Epic Games\)")      != NULL ||
-        StrStrIA (szExecutable, R"(GOG Galaxy\Games)") != NULL ||
-        StrStrIA (szExecutable, R"(Origin Games\)")    != NULL )
-      return true;
+  static constexpr const char* builtInWhitelist [] = {
+    R"(SteamApps)",
+    R"(Epic Games\)",
+    R"(GOG Galaxy\Games)",
+    R"(Origin Games\)"
+  };
 
-    // Auto-detection of Xbox games added in Special K v 24.1.27.1
-    /* TODO: Some more testing is required here
-    if (SKIF_Util_CompareVersionStrings (SKVer32, L"24.1.27.1") >= 0 &&
-        StrStrIA (szExecutable, R"(\Content\)")        != NULL)
-      return true;
-    */
-  }
+  // Auto-detection of Xbox games added in Special K v 24.1.27.1
+  /* TODO: Some more testing is required here
+  if (SKIF_Util_CompareVersionStrings (SKVer32, L"24.1.27.1") >= 0 &&
+      StrStrIA (szExecutable, R"(\Content\)")        != NULL)
+    return R"(\Content\)";
+  */
 
   // Simplified variant of the internal blacklisting that SK performs
-  else {
-    if (StrStrIA(szExecutable, "GameBar")              != NULL/* ||
-        StrStrIA(szExecutable, "Launcher")             != NULL */ )
-      return true;
+  static constexpr const char* builtInBlacklist [] = {
+    "GameBar"
+  //"Launcher"
+  };
+
+  if (whitelist_)
+  {
+    for (const char* pattern : builtInWhitelist)
+      if (StrStrIA (szExecutable, pattern) != NULL)
+        return pattern;
   }
+
+  else
+  {
+    for (const char* pattern : builtInBlacklist)
+      if (StrStrIA (szExecutable, pattern) != NULL)
+        return pattern;
+  }
+
+  return nullptr;
+}
+
+bool SKIF_InjectionContext::_TestUserList (const char* szExecutable, bool whitelist_)
+{
+  if (GetBuiltInListMatch (szExecutable, whitelist_) != nullptr)
+    return true;
 
   std::scoped_lock lock (_userListsMutex);
 
@@ -1643,6 +1663,7 @@ void SKIF_InjectionContext::_CompileUserList (CompiledUserList& list, const char
 
   list.revision = revision;
   list.patterns.clear ();
+  list.lines   .clear ();
 
   std::string_view view (szList);
 
@@ -1663,6 +1684,7 @@ void SKIF_InjectionContext::_CompileUserList (CompiledUserList& list, const char
     try {
       list.patterns.emplace_back (line.data (), line.size (),
         std::regex_constants::icase | std::regex_constants::optimize);
+      list.lines   .emplace_back (line);
     }
     catch (const std::exception& e)
     {
@@ -1670,6 +1692,67 @@ void SKIF_InjectionContext::_CompileUserList (CompiledUserList& list, const char
       UNREFERENCED_PARAMETER(e);
     }
   }
+}
+
+std::vector<std::string> SKIF_InjectionContext::GetUserListMatches (const char* szExecutable, bool whitelist_)
+{
+  std::vector<std::string> matches;
+
+  std::scoped_lock lock (_userListsMutex);
+
+  CompiledUserList& list = (whitelist_) ? _compiledWhitelist : _compiledBlacklist;
+  _CompileUserList (list,  (whitelist_) ?          whitelist :          blacklist,
+                           (whitelist_) ? whitelistRevision  : blacklistRevision);
+
+  try {
+    for (size_t i = 0; i < list.patterns.size (); ++i)
+      if (std::regex_search (szExecutable, list.patterns [i]) &&
+          std::find (matches.begin (), matches.end (), list.lines [i]) == matches.end ()) // Skip duplicate lines
+        matches.push_back (list.lines [i]);
+  }
+  catch (const std::exception& e) // e.g. error_complexity on a pathological pattern
+  {
+    UNREFERENCED_PARAMETER(e);
+  }
+
+  return matches;
+}
+
+bool SKIF_InjectionContext::RemoveUserListPatterns (const std::vector<std::string>& patterns, bool whitelist_)
+{
+  if (patterns.empty ())
+    return true;
+
+  std::string newList;
+
+  {
+    std::scoped_lock lock (_userListsMutex);
+
+    std::string_view view ((whitelist_) ? whitelist : blacklist);
+
+    while (! view.empty ())
+    {
+      size_t           eol  = view.find ('\n');
+      std::string_view line = view.substr (0, eol);
+      view = (eol == std::string_view::npos) ? std::string_view { }
+                                             : view.substr (eol + 1);
+
+      if (! line.empty () && line.back () == '\r')
+        line.remove_suffix (1);
+
+      // Drop the line if it is one of the patterns to remove
+      if (std::find (patterns.begin (), patterns.end (), line) != patterns.end ())
+        continue;
+
+      if (! newList.empty ())
+        newList += '\n';
+
+      newList += line;
+    }
+  }
+
+  // Saves the new list to disk, and commits it (bumping the revision) if that succeeds
+  return SaveUserList (whitelist_, newList.c_str ());
 }
 
 bool SKIF_InjectionContext::AddUserListPattern (std::string pattern, bool whitelist_)

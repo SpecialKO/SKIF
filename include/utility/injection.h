@@ -118,6 +118,10 @@ struct SKIF_InjectionContext {
   void    _RefreshUIQuickToggle   (bool active);
   bool    _TestUserList           (const char* wszExecutable, bool whitelist_);
 
+  const char*              GetBuiltInListMatch    (const char* szExecutable, bool whitelist_); // Returns the built-in pattern matching the executable, or nullptr
+  std::vector<std::string> GetUserListMatches     (const char* szExecutable, bool whitelist_); // Returns the user patterns (lines) matching the executable
+  bool                     RemoveUserListPatterns (const std::vector<std::string>& patterns, bool whitelist_); // Removes the given lines from the list and saves it
+
   bool    WhitelistPath           (std::string fullPath);
   bool    BlacklistPath           (std::string fullPath);
   bool    WhitelistPattern        (std::string pattern);
@@ -149,8 +153,9 @@ private:
 
   // Compiled regex cache for _TestUserList, rebuilt only after a new list has been committed
   struct CompiledUserList {
-    int                     revision = -1; // Revision of the list the patterns were compiled from
-    std::vector<std::regex> patterns;
+    int                      revision = -1; // Revision of the list the patterns were compiled from
+    std::vector<std::regex>  patterns;
+    std::vector<std::string> lines;         // Source line of each compiled pattern (same index)
   };
 
   CompiledUserList _compiledWhitelist;
