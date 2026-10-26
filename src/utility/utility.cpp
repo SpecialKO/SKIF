@@ -2983,6 +2983,47 @@ SKIF_Util_GetIconPixels (HICON hIcon, int& width, int& height, std::vector<uint3
 static bool
 SKIF_Util_SaveExtractExeIconEx (std::wstring sourcePath, std::wstring targetPath, int iconSize);
 
+// Reads the last-write time of a file without opening it; false if it does not exist or could not be read
+static bool
+SKIF_UtilInt_GetLastWriteTime (const std::wstring& path, FILETIME& ftLastWrite)
+{
+  WIN32_FILE_ATTRIBUTE_DATA data = { };
+
+  if (! GetFileAttributesExW (path.c_str ( ), GetFileExInfoStandard, &data))
+    return false;
+
+  ftLastWrite = data.ftLastWriteTime;
+
+  return true;
+}
+
+// Sets the last-write time of a file (only the time is changed, not the contents)
+static bool
+SKIF_UtilInt_SetLastWriteTime (const std::wstring& path, const FILETIME& ftLastWrite)
+{
+  HANDLE hFile =
+    CreateFileW (path.c_str ( ), FILE_WRITE_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+
+  if (hFile == INVALID_HANDLE_VALUE)
+    return false;
+
+  const bool ok = (SetFileTime (hFile, nullptr, nullptr, &ftLastWrite) != FALSE);
+
+  CloseHandle (hFile);
+
+  return ok;
+}
+
+// Whether two file times are the same, within 2 seconds, as FAT/exFAT volumes store last-write times in 2 second steps
+static bool
+SKIF_UtilInt_IsSameFileTime (const FILETIME& ft1, const FILETIME& ft2)
+{
+  const ULONGLONG ull1 = (static_cast<ULONGLONG> (ft1.dwHighDateTime) << 32) | ft1.dwLowDateTime;
+  const ULONGLONG ull2 = (static_cast<ULONGLONG> (ft2.dwHighDateTime) << 32) | ft2.dwLowDateTime;
+
+  return (((ull1 > ull2) ? ull1 - ull2 : ull2 - ull1) < 20'000'000ULL); // FILETIME counts 100-nanosecond intervals
+}
+
 bool
 SKIF_Util_SaveExtractExeIcon (std::wstring sourcePath, std::wstring targetPath)
 {
@@ -2992,28 +3033,52 @@ SKIF_Util_SaveExtractExeIcon (std::wstring sourcePath, std::wstring targetPath)
   static constexpr int iconSizeMax     = 128;
   static constexpr int iconSizeDefault =  32; // If the sizes the file provides cannot be determined (what was always used before)
 
-  // TODO: Return instantly if file exists and do not bother reading its size.
-  //         The only reason we do not atm (2026-10-25) is to allow users to migrate to the new solution.
   bool  ret  = PathFileExists (targetPath.c_str());
 
-  if (PathFileExists (sourcePath.c_str()))
+  // The source file does not exist (or cannot be read): keep any existing icon
+  FILETIME ftSource = { };
+  if (! SKIF_UtilInt_GetLastWriteTime (sourcePath, ftSource))
+    return ret;
+
+  // Once the icon of a source file has been checked, the cached PNG is given the last-write time of that source file.
+  //   A cached icon with the same time is therefore up to date, and is returned without touching the source file.
+  //     A different time means either an icon cached by an older version (always 32 px; its time is when it was
+  //       extracted) or a source file that has changed since (e.g. after a game update), so it is checked again.
+  if (ret)
   {
-    // Icons cached by older versions were always extracted at 32 px, so extract them again if the file provides a larger size
-    const int cachedSize = (ret) ? SKIF_Util_GetPNGSize (targetPath) : 0;
-    int       iconSize   = 0;
-
-    if (! ret || cachedSize < iconSizeMax)
-    {
-      const int largest = SKIF_Util_GetLargestIconSize (sourcePath);
-      iconSize = (largest > 0) ? std::min (largest, iconSizeMax) : iconSizeDefault;
-
-      if (ret && cachedSize >= iconSize)
-        iconSize = 0; // Already as large as it gets
-    }
-
-    if (iconSize > 0)
-      ret = SKIF_Util_SaveExtractExeIconEx (sourcePath, targetPath, iconSize) || ret; // Keep any existing icon if this fails
+    FILETIME ftCached = { };
+    if (SKIF_UtilInt_GetLastWriteTime (targetPath, ftCached) && SKIF_UtilInt_IsSameFileTime (ftCached, ftSource))
+      return true;
   }
+
+  // Icons cached by older versions were always extracted at 32 px, so extract them again if the file provides a larger size
+  const int cachedSize = (ret) ? SKIF_Util_GetPNGSize (targetPath) : 0;
+  int       iconSize   = 0;
+  bool      upToDate   = false; // The cached icon is as large as it gets for this source file
+
+  if (! ret || cachedSize < iconSizeMax)
+  {
+    const int largest = SKIF_Util_GetLargestIconSize (sourcePath);
+    iconSize = (largest > 0) ? std::min (largest, iconSizeMax) : iconSizeDefault;
+
+    if (ret && cachedSize >= iconSize)
+    {
+      iconSize = 0; // Already as large as it gets
+      upToDate = true;
+    }
+  }
+
+  else
+    upToDate = true;
+
+  if (iconSize > 0 && SKIF_Util_SaveExtractExeIconEx (sourcePath, targetPath, iconSize))
+    ret = upToDate = true;
+
+  // Mark the cached icon as up to date for this source file (if the extraction failed, it is tried again next time).
+  //   This is also done when the icon was extracted from an .ico file next to the executable instead (the fallback
+  //     in SKIF_Util_SaveExtractExeIconEx), so the check above compares against the executable either way.
+  if (upToDate)
+    SKIF_UtilInt_SetLastWriteTime (targetPath, ftSource);
 
   return ret;
 }
