@@ -171,6 +171,12 @@ enum class PreferredAppMode //
   Max
 };
 
+enum class SKIF_Elevation {
+  NotElevated,
+  Elevated,
+  Unknown /* no access: likely elevated or protected */
+};
+
 HANDLE          SKIF_Util_GetCurrentProcess           (void);
 HANDLE          SKIF_Util_GetCurrentProcessToken      (void);
 HANDLE          SKIF_Util_GetCurrentUserToken         (void);
@@ -211,6 +217,7 @@ bool            SKIF_Util_IsWindows11orGreater        (void);
 bool            SKIF_Util_IsWindowsVersionOrGreater   (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber);
 bool            SKIF_Util_IsWindowsVersionExactly     (DWORD dwMajorVersion, DWORD dwMinorVersion, DWORD dwBuildNumber);
 bool            SKIF_Util_IsTouchCapable              (void);
+SKIF_Elevation  SKIF_Util_GetProcessElevation         (DWORD PID);
 bool            SKIF_Util_IsProcessAdmin              (DWORD PID);
 bool            SKIF_Util_IsProcessX86                (HANDLE process);
 PROCESSENTRY32W SKIF_Util_FindProcessByName           (const wchar_t* wszName);

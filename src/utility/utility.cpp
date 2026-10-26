@@ -2291,42 +2291,40 @@ SKIF_Util_IsTouchCapable (void)
          (digitizer & NID_INTEGRATED_TOUCH));
 }
 
+SKIF_Elevation
+SKIF_Util_GetProcessElevation (DWORD PID)
+{
+  SK_AutoHandle hProcess (
+    OpenProcess (PROCESS_QUERY_LIMITED_INFORMATION, FALSE, PID)
+  );
+
+  if (hProcess.m_h == NULL)
+    return (GetLastError ( ) == ERROR_ACCESS_DENIED)
+           ? SKIF_Elevation::Unknown
+           : SKIF_Elevation::NotElevated;
+
+  SK_AutoHandle hToken (NULL);
+
+  if (! OpenProcessToken (hProcess, TOKEN_QUERY, &hToken.m_h))
+    return (GetLastError ( ) == ERROR_ACCESS_DENIED)
+           ? SKIF_Elevation::Unknown
+           : SKIF_Elevation::NotElevated;
+
+  TOKEN_ELEVATION elevation = { };
+  DWORD           cbSize    = sizeof (elevation);
+
+  if (! GetTokenInformation (hToken.m_h, TokenElevation, &elevation, sizeof (elevation), &cbSize))
+    return SKIF_Elevation::Unknown;
+
+  return (elevation.TokenIsElevated != 0)
+         ? SKIF_Elevation::Elevated
+         : SKIF_Elevation::NotElevated;
+}
+
 bool
 SKIF_Util_IsProcessAdmin (DWORD PID)
 {
-  bool          bRet = false;
-  SK_AutoHandle hToken (INVALID_HANDLE_VALUE);
-
-  SetLastError (NO_ERROR);
-
-  SK_AutoHandle hProcess = OpenProcess (PROCESS_QUERY_INFORMATION, FALSE, PID);
-
-  if (GetLastError() == ERROR_ACCESS_DENIED)
-    return true;
-
-  if ( OpenProcessToken ( hProcess,
-                            TOKEN_QUERY,
-                              &hToken.m_h )
-     )
-  {
-    TOKEN_ELEVATION Elevation = { };
-
-    DWORD cbSize =
-      sizeof (TOKEN_ELEVATION);
-
-    if ( GetTokenInformation ( hToken.m_h,
-                                 TokenElevation,
-                                   &Elevation,
-                                     sizeof (Elevation),
-                                       &cbSize )
-       )
-    {
-      bRet =
-        ( Elevation.TokenIsElevated != 0 );
-    }
-  }
-
-  return bRet;
+  return (SKIF_Util_GetProcessElevation (PID) != SKIF_Elevation::NotElevated);
 }
 
 bool
