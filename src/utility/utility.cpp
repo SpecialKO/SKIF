@@ -1938,9 +1938,11 @@ SKIF_Util_SetThreadDescription (HANDLE hThread, PCWSTR lpThreadDescription)
   using SetThreadDescription_pfn =
     HRESULT (WINAPI *)(HANDLE hThread, PCWSTR lpThreadDescription);
 
+  // SetThreadDescription is exported by KernelBase.dll from Win10v1607 and onward.
+  // Kernel32.dll just forwards to KernelBase.dll; only from Win10v1703 and onward.
   static SetThreadDescription_pfn
     SKIF_SetThreadDescription =
-        (SetThreadDescription_pfn)GetProcAddress (LoadLibraryEx (L"kernel32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
+        (SetThreadDescription_pfn)GetProcAddress (LoadLibraryEx (L"KernelBase.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
         "SetThreadDescription");
 
   if (SKIF_SetThreadDescription == nullptr)
@@ -2221,36 +2223,64 @@ SKIF_Util_SetCurrentProcessExplicitAppUserModelID (PCWSTR AppID)
   return SKIF_SetCurrentProcessExplicitAppUserModelID (AppID);
 }
 
+// Windows 8 or newer
 bool
-SKIF_Util_IsWindows8Point1OrGreater (void)
+SKIF_Util_IsWindows8OrGreater (void)
 {
-  SK_RunOnce (
-    SetLastError (NO_ERROR)
-  );
-
-  static bool bResult =
-      GetProcAddress (
-        GetModuleHandleW (L"kernel32.dll"),
-                           "GetSystemTimePreciseAsFileTime"
-                     ) != nullptr &&
-      GetLastError  () == NO_ERROR;
+  static const bool bResult =
+    GetProcAddress (
+      GetModuleHandleW (L"kernel32.dll"),
+                         "GetSystemTimePreciseAsFileTime"
+                   ) != nullptr;
 
   return bResult;
 }
 
+// Windows 8.1 or newer
+//   GetDpiForMonitor ( ) was introduced in shcore.dll on Windows 8.1 (shcore.dll exists on Windows 8.0 but lacks it,
+//     and does not exist on Windows 7), so its presence identifies 8.1+ without relying on reported version numbers
+bool
+SKIF_Util_IsWindows8Point1OrGreater (void)
+{
+  static const bool bResult = [](void) -> bool
+  {
+    // Kept loaded (reference counted), as SKIF uses shcore.dll for per-monitor DPI on 8.1+ anyway
+    HMODULE hShcore =
+      LoadLibraryExW (L"shcore.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+
+    return (hShcore != nullptr &&
+            GetProcAddress (hShcore, "GetDpiForMonitor") != nullptr);
+  } ( );
+
+  return bResult;
+}
+
+// Windows 10 or newer
+//   GetSystemCpuSetInformation ( ) was introduced in kernel32.dll with the first Windows 10 release (1507),
+//     so its presence identifies Windows 10+ without relying on reported version numbers
 bool
 SKIF_Util_IsWindows10OrGreater (void)
 {
-  SK_RunOnce (
-    SetLastError (NO_ERROR)
-  );
+  static const bool bResult =
+    GetProcAddress (
+      GetModuleHandleW (L"kernel32.dll"),
+                         "GetSystemCpuSetInformation"
+                   ) != nullptr;
 
-  static bool bResult =
+  return bResult;
+}
+
+// Windows 10 1607+ (Build 14393) or newer
+// SetThreadDescription is exported by KernelBase.dll from Win10v1607 and onward.
+// Kernel32.dll just forwards to KernelBase.dll; only from Win10v1703 and onward.
+bool
+SKIF_Util_IsWindows10v1607OrGreater (void)
+{
+  static const bool bResult =
       GetProcAddress (
-        GetModuleHandleW (L"kernel32.dll"),
+        GetModuleHandleW (L"KernelBase.dll"),
                            "SetThreadDescription"
-                     ) != nullptr &&
-      GetLastError  () == NO_ERROR;
+                     ) != nullptr;
 
   return bResult;
 }
@@ -2259,7 +2289,7 @@ SKIF_Util_IsWindows10OrGreater (void)
 bool
 SKIF_Util_IsWindows10v1709OrGreater (void)
 {
-  static bool bResult =
+  static const bool bResult =
     SKIF_Util_IsWindowsVersionOrGreater (10, 0, 16299);
 
   return bResult;
@@ -2269,7 +2299,7 @@ SKIF_Util_IsWindows10v1709OrGreater (void)
 bool
 SKIF_Util_IsWindows10v1803OrGreater (void)
 {
-  static bool bResult =
+  static const bool bResult =
     SKIF_Util_IsWindowsVersionOrGreater (10, 0, 17134);
 
   return bResult;
@@ -2279,7 +2309,7 @@ SKIF_Util_IsWindows10v1803OrGreater (void)
 bool
 SKIF_Util_IsWindows10v1903OrGreater (void)
 {
-  static bool bResult =
+  static const bool bResult =
     SKIF_Util_IsWindowsVersionOrGreater (10, 0, 18362);
 
   return bResult;
@@ -2289,7 +2319,7 @@ SKIF_Util_IsWindows10v1903OrGreater (void)
 bool
 SKIF_Util_IsWindows11orGreater (void)
 {
-  static bool bResult =
+  static const bool bResult =
     SKIF_Util_IsWindowsVersionOrGreater (10, 0, 22000);
 
   return bResult;
@@ -2299,7 +2329,7 @@ SKIF_Util_IsWindows11orGreater (void)
 bool
 SKIF_Util_IsWindows11v24H2orGreater (void)
 {
-  static bool bResult =
+  static const bool bResult =
     SKIF_Util_IsWindowsVersionOrGreater (10, 0, 26100);
 
   return bResult;

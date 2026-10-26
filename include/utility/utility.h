@@ -243,8 +243,10 @@ bool            SKIF_Util_SetProcessPowerThrottling   (HANDLE processHandle, INT
 bool            SKIF_Util_SetProcessMemoryPriority    (HANDLE processHandle, ULONG memoryPriority);
 DWORD   WINAPI  SKIF_Util_GetProcessImageFileNameW    (HANDLE hProcess, LPWSTR lpImageFileName, DWORD nSize);
 HRESULT WINAPI  SKIF_Util_SetCurrentProcessExplicitAppUserModelID (PCWSTR AppID);
+bool            SKIF_Util_IsWindows8OrGreater         (void);
 bool            SKIF_Util_IsWindows8Point1OrGreater   (void);
 bool            SKIF_Util_IsWindows10OrGreater        (void);
+bool            SKIF_Util_IsWindows10v1607OrGreater   (void);
 bool            SKIF_Util_IsWindows10v1709OrGreater   (void);
 bool            SKIF_Util_IsWindows10v1803OrGreater   (void);
 bool            SKIF_Util_IsWindows10v1903OrGreater   (void);
