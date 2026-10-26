@@ -4094,11 +4094,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if (WaitForSingleObject (SteamProcessHandle, 0) != WAIT_TIMEOUT)
       {
         // Stop waiting for it on all tabs
-        for (auto& vWatchHandle : vWatchHandles)
-        {
-          if (! vWatchHandle.empty())
-            vWatchHandle.erase(std::remove(vWatchHandle.begin(), vWatchHandle.end(), SteamProcessHandle), vWatchHandle.end());
-        }
+        SKIF_Util_RemoveWatchHandle (SteamProcessHandle, UITab_ALL);
 
         PLOG_INFO << "Starting up the Steam client...";
         SKIF_Util_OpenURI (L"steam://open/main");
@@ -4130,7 +4126,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         // Sleep until a message is in the queue or a change notification occurs
         DWORD res =
-          MsgWaitForMultipleObjects (static_cast<DWORD>(vWatchHandles[SKIF_Tab_Selected].size()), vWatchHandles[SKIF_Tab_Selected].data(), false, bWaitTimeoutMsgInputFallback ? msSleep : INFINITE, QS_ALLINPUT);
+          MsgWaitForMultipleObjects (static_cast<DWORD>(std::min (vWatchHandles[SKIF_Tab_Selected].size(), SKIF_MaxWatchHandles)), vWatchHandles[SKIF_Tab_Selected].data(), false, bWaitTimeoutMsgInputFallback ? msSleep : INFINITE, QS_ALLINPUT); // Never more than the 63 handles it accepts
 
         // The below is required as a fallback if V-Sync OFF is forced on SKIF and e.g. analog stick drift is causing constant input.
         // Throttle to monitors refresh rate unless a new event is triggered, or user input is posted, but only if the frame rate is detected as being unlocked

@@ -524,7 +524,7 @@ SKIF_Hardware_RefreshVulkanLayers (void)
       {
         HKEY hKey;
 
-        if (RegOpenKeyExW (watcher._hKeyBase, pKey.second.c_str(), 0, KEY_READ, &hKey) == ERROR_SUCCESS) // Worth using KEY_WOW64_64KEY ?
+        if (RegOpenKeyExW (watcher.getKey ( ), pKey.second.c_str(), 0, KEY_READ, &hKey) == ERROR_SUCCESS) // Worth using KEY_WOW64_64KEY ?
         {
           DWORD dwIndex           = 0, // A variable that receives the number of values that are associated with the key.
                 dwResult          = 0,
@@ -593,10 +593,10 @@ SKIF_Hardware_RefreshVulkanLayers (void)
 
                 VkLayer::reg item;
 
-                item.Key   = ((watcher._init.root == HKEY_LOCAL_MACHINE) ? LR"(HKLM\)" : LR"(HKCU\)") + watcher._init.sub_key + LR"(\)" + pKey.second;
+                item.Key   = ((watcher.getRootKey ( ) == HKEY_LOCAL_MACHINE) ? LR"(HKLM\)" : LR"(HKCU\)") + watcher.getSubKey ( ) + LR"(\)" + pKey.second;
                 item.Value = pValue.get();
                 item.Data  = *((DWORD*)pData);
-                item.WOW6432Node = (watcher._init.wow64_32key == TRUE);
+                item.WOW6432Node = watcher.isWOW6432Key ( );
 
                 if (ptr->isIncompatible)
                   g_VkLayers.first = true;

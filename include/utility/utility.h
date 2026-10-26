@@ -73,6 +73,14 @@ extern UITab       SKIF_Tab_ChangeTo; // Tab we want to change to
 
 extern std::vector<HANDLE> vWatchHandles[UITab_ALL];
 
+// The main loop waits on the handles of the current tab with MsgWaitForMultipleObjects ( ), which accepts at most
+//   MAXIMUM_WAIT_OBJECTS - 1 (63) handles. Always add and remove handles through these helpers, which enforce that
+//     limit per tab (a watch over the limit still works when polled, but no longer wakes the main loop by itself).
+constexpr size_t SKIF_MaxWatchHandles = MAXIMUM_WAIT_OBJECTS - 1;
+
+bool            SKIF_Util_AddWatchHandle              (HANDLE handle, UITab waitTab); // UITab_ALL adds it to every tab; false if any tab was full
+void            SKIF_Util_RemoveWatchHandle           (HANDLE handle, UITab waitTab); // Must be called before the handle is closed
+
 // Generic Utilities
 
 const char *
@@ -410,25 +418,33 @@ struct SKIF_RegistryWatch {
   SKIF_RegistryWatch            (      SKIF_RegistryWatch&& other) noexcept;
   SKIF_RegistryWatch& operator= (      SKIF_RegistryWatch&& other) noexcept;
 
-  LSTATUS registerNotify (void);
-  void reset             (void);
   bool isSignaled        (void);
 
-  struct {
-    HKEY         root        = { };
-    std::wstring sub_key;
-    std::wstring event_name;
-    BOOL         watch_subtree;
-    DWORD        filter_mask;
-    BOOL         wow64_32key; // Access a 32-bit key from either a 32-bit or 64-bit application.
-    BOOL         wow64_64key; // Access a 64-bit key from either a 32-bit or 64-bit application.
-  } _init;
-
-  HKEY         _hKeyBase    = NULL;
-  HANDLE       _hEvent      = NULL; // If the CreateEvent function fails, the return value is NULL.
-  UITab        _waitTab     = UITab_None;
-  std::wstring _eventNameActual = L"";
+  // Read-only access to the watched key, e.g. to read values from the same key that is being watched
+  HKEY                getKey       (void) const; // The opened key, or NULL if it could not be opened
+  HKEY                getRootKey   (void) const;
+  const std::wstring& getSubKey    (void) const;
+  bool                isWOW6432Key (void) const;
+  bool                isWOW6464Key (void) const;
 
 private:
+  LSTATUS registerNotify (void);
+  void    reset          (void);
+
+  struct {
+    HKEY         root          = NULL;
+    std::wstring sub_key;
+    std::wstring event_name;            // Base name given by the caller (see _eventNameActual)
+    BOOL         watch_subtree = FALSE;
+    DWORD        filter_mask   = 0;
+    BOOL         wow64_32key   = FALSE; // Access a 32-bit key from either a 32-bit or 64-bit application.
+    BOOL         wow64_64key   = FALSE; // Access a 64-bit key from either a 32-bit or 64-bit application.
+  } _init;
+
+  HKEY         _hKeyBase        = NULL;
+  HANDLE       _hEvent          = NULL; // If the CreateEvent function fails, the return value is NULL.
+  UITab        _waitTab         = UITab_None;
+  std::wstring _eventNameActual = L"";  // Named, so the event is easy to identify in e.g. Process Explorer (made unique per object)
+
   void swap (SKIF_RegistryWatch& other) noexcept;
 };

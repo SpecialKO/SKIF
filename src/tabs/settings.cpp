@@ -526,8 +526,7 @@ SKIF_UI_Tab_DrawSettings (void)
             if (SteamProcessHandle != NULL)
             {
               // Wait on all tabs as well...
-              for (auto& vWatchHandle : vWatchHandles)
-                vWatchHandle.push_back (SteamProcessHandle);
+              SKIF_Util_AddWatchHandle (SteamProcessHandle, UITab_ALL);
 
               // Signal the Steam client to exit
               PLOG_INFO << "Shutting down the Steam client...";
