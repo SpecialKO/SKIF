@@ -2533,6 +2533,51 @@ GetEncoderClsid (const WCHAR* format, CLSID* pClsid)
   return -1;  // Failure
 }
 
+// Starts GDI+ once, on first use, and keeps it running until SKIF exits, instead of starting it up and shutting it
+//   down again for every icon. GdiplusShutdown ( ) is deliberately never called: worker threads may still be using
+//     GDI+ while SKIF exits, and the process exit releases everything GDI+ holds anyway.
+static bool
+SKIF_UtilInt_StartGdiplus (void)
+{
+  // Thread-safe one-time initialization (magic static), as icons are extracted from several worker threads
+  static const bool started = [](void) -> bool
+  {
+    ULONG_PTR                    gdiplusToken = 0;
+    Gdiplus::GdiplusStartupInput gdiplusStartupInput;
+
+    const bool ok =
+      (Gdiplus::Status::Ok == Gdiplus::GdiplusStartup (&gdiplusToken, &gdiplusStartupInput, NULL));
+
+    PLOG_ERROR_IF (! ok) << "Failed to start GDI+!";
+
+    return ok;
+  } ( );
+
+  return started;
+}
+
+// The class identifier of GDI+'s PNG encoder, looked up once (requires GDI+ to have been started)
+static bool
+SKIF_UtilInt_GetPngEncoderClsid (CLSID* pClsid)
+{
+  static const std::optional <CLSID> clsid = [](void) -> std::optional <CLSID>
+  {
+    CLSID pngEncoderClsId = { };
+
+    if (GetEncoderClsid (L"image/png", &pngEncoderClsId) < 0)
+      return std::nullopt;
+
+    return pngEncoderClsId;
+  } ( );
+
+  if (! clsid.has_value ( ))
+    return false;
+
+  *pClsid = *clsid;
+
+  return true;
+}
+
 // https://msdn.microsoft.com/en-us/library/ms997538.aspx
 typedef struct
 {
@@ -2693,12 +2738,8 @@ SKIF_Util_SaveImageAsICO (const wchar_t* imgFilePath, const wchar_t* icoFilePath
 {
   bool status = false;
 
-  // Initialize GDI+
-  ULONG_PTR gdiplusToken;
-  Gdiplus::GdiplusStartupInput gdiplusStartupInput;
-
-  // Start up GDI+
-  if (Gdiplus::Status::Ok == Gdiplus::GdiplusStartup (&gdiplusToken, &gdiplusStartupInput, NULL))
+  // GDI+ is started once and kept running (see SKIF_UtilInt_StartGdiplus)
+  if (SKIF_UtilInt_StartGdiplus ( ))
   {
     // Load the input image
     Gdiplus::Image* image = new Gdiplus::Image (imgFilePath);
@@ -2707,7 +2748,7 @@ SKIF_Util_SaveImageAsICO (const wchar_t* imgFilePath, const wchar_t* icoFilePath
       INT size = 32;
 
       // Resize the loaded image
-      // On the stack, so it is released (before GdiplusShutdown) instead of leaking
+      // On the stack, so it is released instead of leaking
       Gdiplus::Bitmap   resizedImage (size, size, PixelFormat32bppARGB);
       Gdiplus::Graphics graphics(&resizedImage);
       graphics.DrawImage (image, 0, 0, size, size);
@@ -2745,7 +2786,6 @@ SKIF_Util_SaveImageAsICO (const wchar_t* imgFilePath, const wchar_t* icoFilePath
 
     // Cleanup
     delete image;
-    Gdiplus::GdiplusShutdown (gdiplusToken);
   }
 
   return status;
@@ -2987,19 +3027,17 @@ SKIF_Util_SaveExtractExeIconEx (std::wstring sourcePath, std::wstring targetPath
 
     // Variables
     HICON hIcon;
-    ULONG_PTR gdiplusToken;
-    Gdiplus::GdiplusStartupInput gdiplusStartupInput;
 
     // Extract the icon
     HRESULT hr = SHDefExtractIcon (sourcePath.c_str(), 0, 0, &hIcon, 0, static_cast<UINT> (iconSize));
     if (SUCCEEDED(hr) && hr != S_FALSE) // S_FALSE = The requested icon is not present.
     {
-      // Start up GDI+
-      if (Gdiplus::Status::Ok == Gdiplus::GdiplusStartup (&gdiplusToken, &gdiplusStartupInput, NULL))
+      // GDI+ is started once and kept running (see SKIF_UtilInt_StartGdiplus)
+      if (SKIF_UtilInt_StartGdiplus ( ))
       {
         CLSID pngEncoderClsId;
 
-        if (GetEncoderClsid (L"image/png", &pngEncoderClsId) < 0)
+        if (! SKIF_UtilInt_GetPngEncoderClsid (&pngEncoderClsId))
         {
           PLOG_ERROR << "The PNG encoder is not installed.";
         }
@@ -3026,9 +3064,6 @@ SKIF_Util_SaveExtractExeIconEx (std::wstring sourcePath, std::wstring targetPath
           delete gdiplusImage;
           gdiplusImage = NULL;
         }
-
-        // Shut down GDI+
-        Gdiplus::GdiplusShutdown (gdiplusToken);
       }
 
       // Destroy the icon
