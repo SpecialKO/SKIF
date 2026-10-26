@@ -37,8 +37,15 @@ struct SKIF_InjectionContext {
   UINT_PTR IDT_REFRESH_INJECTACK = 0; // Holds current timer ID
   UINT_PTR IDT_REFRESH_PENDING   = 0; // Holds current timer ID
 
+  // Committed lists, used by _TestUserList. Only modified by Save/Load/AddUserList* (UI thread) while holding _userListsMutex.
+  //   The settings tab edits its own copies and commits them through SaveWhitelist/SaveBlacklist.
   char    whitelist[MAX_PATH * 16 * 2] = { };
   char    blacklist[MAX_PATH * 16 * 2] = { };
+
+  // Incremented whenever a new whitelist/blacklist is committed. Lets the compiled patterns
+  //   and the settings tab's copies know when they need to be refreshed.
+  int     whitelistRevision = 0;
+  int     blacklistRevision = 0;
 
   DWORD   dwLastSignaled    = 0;
 
@@ -115,8 +122,8 @@ struct SKIF_InjectionContext {
   bool    BlacklistPath           (std::string fullPath);
   bool    WhitelistPattern        (std::string pattern);
   bool    BlacklistPattern        (std::string pattern);
-  bool    SaveWhitelist           (void);
-  bool    SaveBlacklist           (void);
+  bool    SaveWhitelist           (const char* szList = nullptr); // Saves and commits szList, or re-saves the current list if nullptr
+  bool    SaveBlacklist           (const char* szList = nullptr); // Saves and commits szList, or re-saves the current list if nullptr
   bool    LoadWhitelist           (void);
   bool    LoadBlacklist           (void);
   void    SetInjectAckEx          (bool newState);
@@ -137,18 +144,18 @@ private:
   SKIF_InjectionContext           (void);
   bool    AddUserListPath         (std::string fullPath,      bool whitelist_);
   bool    AddUserListPattern      (std::string pattern,       bool whitelist_);
-  bool    SaveUserList            (bool whitelist_);
+  bool    SaveUserList            (bool whitelist_, const char* szList = nullptr);
   bool    LoadUserList            (bool whitelist_);
 
-  // Compiled regex cache for _TestUserList, rebuilt only when the list text changes
+  // Compiled regex cache for _TestUserList, rebuilt only after a new list has been committed
   struct CompiledUserList {
-    std::string             source;   // List text the patterns were compiled from
+    int                     revision = -1; // Revision of the list the patterns were compiled from
     std::vector<std::regex> patterns;
   };
 
   CompiledUserList _compiledWhitelist;
   CompiledUserList _compiledBlacklist;
-  std::mutex       _compiledListsMutex; // _TestUserList runs on both the UI thread and the process refresh thread
+  std::mutex       _userListsMutex;     // Guards whitelist/blacklist and the compiled caches; _TestUserList runs on both the UI thread and the process refresh thread
 
-  void    _CompileUserList        (CompiledUserList& list, const char* szList);
+  void    _CompileUserList        (CompiledUserList& list, const char* szList, int revision);
 };

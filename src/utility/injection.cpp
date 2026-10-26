@@ -1403,7 +1403,7 @@ CleanupPatternText (std::wstring& s)
   s.resize (w);
 }
 
-bool SKIF_InjectionContext::SaveUserList (bool whitelist_)
+bool SKIF_InjectionContext::SaveUserList (bool whitelist_, const char* szList)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
@@ -1438,8 +1438,12 @@ bool SKIF_InjectionContext::SaveUserList (bool whitelist_)
       list_file.imbue (std::locale (std::locale (), new (std::nothrow) std::codecvt_utf8 <wchar_t, 0x10ffff> ()));
     }
 
+    // Save the provided text (e.g. the edited copy from the settings tab), or the current list if none was given
+    if (szList == nullptr)
+        szList = (whitelist_) ? whitelist : blacklist;
+
     std::wstring out_text =
-      SK_UTF8ToWideChar((whitelist_) ? whitelist : blacklist);
+      SK_UTF8ToWideChar(szList);
     
     CleanupPatternText (out_text);
 
@@ -1448,11 +1452,15 @@ bool SKIF_InjectionContext::SaveUserList (bool whitelist_)
 
     if (list_file.good())
     {
-      // Update the internal variable with the manipulated string
+      // Commit the manipulated string to the internal variable, and bump its revision
+      std::scoped_lock lock (_userListsMutex);
+
       if (whitelist_)
         snprintf(whitelist, sizeof whitelist, "%s", SK_WideCharToUTF8(out_text).c_str());
       else
         snprintf(blacklist, sizeof blacklist, "%s", SK_WideCharToUTF8(out_text).c_str());
+
+      ++((whitelist_) ? whitelistRevision : blacklistRevision);
 
       ret = true;
     }
@@ -1517,9 +1525,13 @@ bool SKIF_InjectionContext::LoadUserList (bool whitelist_)
 
     list_file.close ();
 
-    strcpy ( (whitelist_) ? whitelist : blacklist,
-                SK_WideCharToUTF8 (full_text).c_str ()
+    std::scoped_lock lock (_userListsMutex);
+
+    strncpy_s ( (whitelist_) ? whitelist : blacklist, sizeof whitelist,
+                SK_WideCharToUTF8 (full_text).c_str (), _TRUNCATE
     );
+
+    ++((whitelist_) ? whitelistRevision : blacklistRevision);
 
     ret = true;
   }
@@ -1527,14 +1539,14 @@ bool SKIF_InjectionContext::LoadUserList (bool whitelist_)
   return ret;
 }
 
-bool SKIF_InjectionContext::SaveWhitelist (void)
+bool SKIF_InjectionContext::SaveWhitelist (const char* szList)
 {
-  return SaveUserList (true);
+  return SaveUserList (true, szList);
 }
 
-bool SKIF_InjectionContext::SaveBlacklist (void)
+bool SKIF_InjectionContext::SaveBlacklist (const char* szList)
 {
-  return SaveUserList (false);
+  return SaveUserList (false, szList);
 }
 
 bool SKIF_InjectionContext::LoadWhitelist (void)
@@ -1599,14 +1611,15 @@ bool SKIF_InjectionContext::_TestUserList (const char* szExecutable, bool whitel
       return true;
   }
 
+  std::scoped_lock lock (_userListsMutex);
+
   if (  whitelist_ && *whitelist == '\0' ||
       ! whitelist_ && *blacklist == '\0')
     return false;
 
-  std::scoped_lock lock (_compiledListsMutex);
-
   CompiledUserList& list = (whitelist_) ? _compiledWhitelist : _compiledBlacklist;
-  _CompileUserList (list,  (whitelist_) ?          whitelist :          blacklist);
+  _CompileUserList (list,  (whitelist_) ?          whitelist :          blacklist,
+                           (whitelist_) ? whitelistRevision  : blacklistRevision);
 
   try {
     for (const auto& regexp : list.patterns)
@@ -1621,18 +1634,17 @@ bool SKIF_InjectionContext::_TestUserList (const char* szExecutable, bool whitel
   return false;
 }
 
-// Must be called with _compiledListsMutex held
-void SKIF_InjectionContext::_CompileUserList (CompiledUserList& list, const char* szList)
+// Must be called with _userListsMutex held
+void SKIF_InjectionContext::_CompileUserList (CompiledUserList& list, const char* szList, int revision)
 {
-  // Comparing the list text is trivial compared to recompiling the regexes,
-  //   and it means no edit/load path can leave the cache stale
-  if (list.source == szList)
+  // Only recompile after Save/Load/AddUserList* has committed a new revision of the list
+  if (list.revision == revision)
     return;
 
-  list.source = szList;
+  list.revision = revision;
   list.patterns.clear ();
 
-  std::string_view view (list.source);
+  std::string_view view (szList);
 
   while (! view.empty ())
   {
@@ -1663,6 +1675,10 @@ void SKIF_InjectionContext::_CompileUserList (CompiledUserList& list, const char
 bool SKIF_InjectionContext::AddUserListPattern (std::string pattern, bool whitelist_)
 {
   size_t cx, size;
+
+  std::scoped_lock lock (_userListsMutex);
+
+  ++((whitelist_) ? whitelistRevision : blacklistRevision);
 
   if (whitelist_)
   {

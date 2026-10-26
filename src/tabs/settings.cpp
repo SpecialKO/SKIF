@@ -1876,6 +1876,29 @@ SKIF_UI_Tab_DrawSettings (void)
                 white_stored = true,
                 black_stored = true;
 
+    // Local copies of the lists that the text boxes edit. Changes are only committed to
+    //   _inject.whitelist/blacklist (which flags the regex patterns for recompilation) on save.
+    static char whitelist_edit[sizeof (SKIF_InjectionContext::whitelist)] = { },
+                blacklist_edit[sizeof (SKIF_InjectionContext::blacklist)] = { };
+
+    // Revisions of the committed lists that the copies were last refreshed from
+    static int  whitelist_rev = -1,
+                blacklist_rev = -1;
+
+    // Refresh the copies when a new revision has been committed and there are no pending edits
+    //   (covers the initial load, saving, and patterns added from the Monitor tab)
+    if (! white_edited && whitelist_rev != _inject.whitelistRevision)
+    {
+      strncpy_s (whitelist_edit, sizeof whitelist_edit, _inject.whitelist, _TRUNCATE);
+      whitelist_rev = _inject.whitelistRevision;
+    }
+
+    if (! black_edited && blacklist_rev != _inject.blacklistRevision)
+    {
+      strncpy_s (blacklist_edit, sizeof blacklist_edit, _inject.blacklist, _TRUNCATE);
+      blacklist_rev = _inject.blacklistRevision;
+    }
+
     auto _CheckWarnings = [](char* szList)->void
     {
       static int i, count;
@@ -2014,7 +2037,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     white_edited |=
       ImGui::InputTextEx ( "###WhitelistPatterns", "SteamApps\nEpic Games\\\\\nGOG Galaxy\\\\Games\nOrigin Games\\\\",
-                              _inject.whitelist, MAX_PATH * 512 - 1,
+                              whitelist_edit, sizeof whitelist_edit,
                                 ImVec2 ( 700 * SKIF_ImGui_GlobalDPIScale,
                                          150 * SKIF_ImGui_GlobalDPIScale ), // 120 // 150
                                   ImGuiInputTextFlags_Multiline );
@@ -2022,7 +2045,7 @@ SKIF_UI_Tab_DrawSettings (void)
     if (ImGui::IsItemActive    ( ))
       allowShortcutCtrlA = false;
 
-    if (*_inject.whitelist == '\0')
+    if (*whitelist_edit == '\0')
     {
       SKIF_ImGui_SetHoverTip (
         "These are the patterns used internally to enable Special K for these specific platforms.\n"
@@ -2030,7 +2053,7 @@ SKIF_UI_Tab_DrawSettings (void)
       );
     }
 
-    _CheckWarnings (_inject.whitelist);
+    _CheckWarnings (whitelist_edit);
 
     ImGui::EndGroup   ();
 
@@ -2114,7 +2137,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     black_edited |=
       ImGui::InputTextEx ( "###BlacklistPatterns", "launcher.exe",
-                              _inject.blacklist, MAX_PATH * 512 - 1,
+                              blacklist_edit, sizeof blacklist_edit,
                                 ImVec2 ( 700 * SKIF_ImGui_GlobalDPIScale,
                                          120 * SKIF_ImGui_GlobalDPIScale ),
                                   ImGuiInputTextFlags_Multiline );
@@ -2122,7 +2145,7 @@ SKIF_UI_Tab_DrawSettings (void)
     if (ImGui::IsItemActive    ( ))
       allowShortcutCtrlA = false;
 
-    _CheckWarnings (_inject.blacklist);
+    _CheckWarnings (blacklist_edit);
 
     ImGui::Separator ();
 
@@ -2142,12 +2165,12 @@ SKIF_UI_Tab_DrawSettings (void)
     if (ImGui::Button (ICON_FA_FLOPPY_DISK " Save Changes") || hotkeyCtrlS)
     {
       // Clear the active ID to prevent ImGui from holding outdated copies of the variable
-      //   if saving succeeds, to allow SaveUserList to update the variable successfully
+      //   if saving succeeds, to allow the copy to be refreshed with the cleaned up list
       ImGui::ClearActiveID();
 
       if (white_edited)
       {
-        white_stored = _inject.SaveWhitelist ( );
+        white_stored = _inject.SaveWhitelist (whitelist_edit);
 
         if (white_stored)
           white_edited = false;
@@ -2155,7 +2178,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
       if (black_edited)
       {
-        black_stored = _inject.SaveBlacklist ( );
+        black_stored = _inject.SaveBlacklist (blacklist_edit);
 
         if (black_stored)
           black_edited = false;
@@ -2166,20 +2189,19 @@ SKIF_UI_Tab_DrawSettings (void)
 
     if (ImGui::Button (ICON_FA_ROTATE_LEFT " Reset"))
     {
+      // Discard the edits and force the copies to be refreshed from the committed lists above
       if (white_edited)
       {
-        _inject.LoadWhitelist ( );
-
-        white_edited = false;
-        white_stored = true;
+        white_edited  = false;
+        whitelist_rev = -1;
+        white_stored  = true;
       }
 
       if (black_edited)
       {
-        _inject.LoadBlacklist ( );
-
-        black_edited = false;
-        black_stored = true;
+        black_edited  = false;
+        blacklist_rev = -1;
+        black_stored  = true;
       }
     }
 
