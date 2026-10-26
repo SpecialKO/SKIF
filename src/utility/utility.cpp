@@ -5897,7 +5897,7 @@ SKIF_Util_ResolveShortcut (HWND hwnd, LPCWSTR lpszLinkFile, LPWSTR lpszTarget, L
       {
         // Disables the UI and hopefully sets a timeout duration of 10ms,
         //   since we don't actually care all that much about resolving the target.
-        DWORD flags = MAKELONG (SLR_NO_UI, 10);
+        DWORD flags = MAKELONG (SLR_NO_UI | SLR_NOSEARCH | SLR_NOTRACK | SLR_NOLINKINFO, 10);
 
         // Resolve the link.
         if (SUCCEEDED (psl->Resolve (hwnd, flags)))
