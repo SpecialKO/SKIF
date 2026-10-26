@@ -3,6 +3,8 @@
 #include <comdef.h>
 #include <Psapi.h>
 #include <cwctype>
+#include <cctype>
+#include <type_traits>
 #include <unordered_set>
 #include <ShlObj.h>
 #include <strsafe.h>
@@ -118,183 +120,170 @@ SKIF_Util_FormatStringRaw (char const* const _Format, ...)
     s_pData.get ();
 }
 
-std::string
-SKIF_Util_ToLower      (std::string_view input)
+// Shared implementations of the narrow (UTF-8) and wide string helpers below. The public functions keep their own names
+//   and signatures and only forward to these, so overload resolution at the call sites is unaffected.
+//
+// The narrow versions work on UTF-8 bytes. That is safe for the delimiters used here (\0, \r, \n, whitespace and literal
+//   substrings), as those byte values never occur inside a multi-byte UTF-8 sequence. Character classification and case
+//     mapping stay specific to each string type (isspace/tolower for char, iswspace/towlower for wchar_t), as before.
+
+template <typename CharT>
+static bool
+SKIF_UtilInt_IsSpace (CharT ch)
 {
-  std::string copy = std::string(input);
-  std::transform (copy.begin(), copy.end(), copy.begin(), [](char c) { return static_cast<char> (std::tolower (static_cast<unsigned char> (c))); });
+  if constexpr (std::is_same_v <CharT, char>)
+    return (std::isspace  (static_cast <unsigned char> (ch)) != 0); // The cast avoids undefined behaviour for bytes above 0x7F
+  else
+    return (std::iswspace (ch) != 0);
+}
+
+template <typename CharT>
+static CharT
+SKIF_UtilInt_ToLowerChar (CharT ch)
+{
+  if constexpr (std::is_same_v <CharT, char>)
+    return static_cast <char>    (std::tolower  (static_cast <unsigned char> (ch)));
+  else
+    return static_cast <wchar_t> (std::towlower (ch));
+}
+
+template <typename CharT>
+static CharT
+SKIF_UtilInt_ToUpperChar (CharT ch)
+{
+  if constexpr (std::is_same_v <CharT, char>)
+    return static_cast <char>    (std::toupper  (static_cast <unsigned char> (ch)));
+  else
+    return static_cast <wchar_t> (std::towupper (ch));
+}
+
+template <typename CharT>
+static std::basic_string <CharT>
+SKIF_UtilInt_ToLower (std::basic_string_view <CharT> input)
+{
+  std::basic_string <CharT> copy (input);
+  std::transform (copy.begin (), copy.end (), copy.begin (), SKIF_UtilInt_ToLowerChar <CharT>);
   return copy;
 }
 
-std::wstring
-SKIF_Util_ToLowerW     (std::wstring_view input)
+template <typename CharT>
+static std::basic_string <CharT>
+SKIF_UtilInt_ToUpper (std::basic_string_view <CharT> input)
 {
-  std::wstring    copy = std::wstring(input);
-  std::transform (copy.begin(), copy.end(), copy.begin(), [](wchar_t c) { return std::towlower(c); });
+  std::basic_string <CharT> copy (input);
+  std::transform (copy.begin (), copy.end (), copy.begin (), SKIF_UtilInt_ToUpperChar <CharT>);
   return copy;
 }
 
-std::string
-SKIF_Util_ToUpper      (std::string_view input)
+// Truncates the string at the first null terminator
+template <typename CharT>
+static void
+SKIF_UtilInt_StripNulls (std::basic_string <CharT>& input)
 {
-  std::string copy = std::string(input);
-  std::transform (copy.begin(), copy.end(), copy.begin(), [](char c) { return static_cast<char> (std::toupper (static_cast<unsigned char> (c))); });
-  return copy;
+  input.erase (std::find (input.begin (), input.end (), CharT ('\0')), input.end ());
 }
 
-std::wstring
-SKIF_Util_ToUpperW     (std::wstring_view input)
+template <typename CharT>
+static void
+SKIF_UtilInt_StripCarriageReturns (std::basic_string <CharT>& input)
 {
-  std::wstring copy = std::wstring(input);
-  std::transform (copy.begin(), copy.end(), copy.begin(), [](wchar_t c) { return std::towupper(c); });
-  return copy;
+  input.erase (std::remove (input.begin (), input.end (), CharT ('\r')), input.end ());
 }
 
-void
-SKIF_Util_CleanString (std::string& input)
+template <typename CharT>
+static void
+SKIF_UtilInt_TrimLeadingSpaces (std::basic_string <CharT>& input)
 {
-  SKIF_Util_StripNulls             (input);
-  SKIF_Util_StripCarriageReturns   (input);
-  SKIF_Util_TrimNewLines           (input);
-  SKIF_Util_TrimSpaces             (input);
+  input.erase (input.begin (), std::find_if (input.begin (), input.end (), [](CharT ch) { return ! SKIF_UtilInt_IsSpace (ch); }));
 }
 
-void
-SKIF_Util_CleanStringW (std::wstring& input)
+template <typename CharT>
+static void
+SKIF_UtilInt_TrimTrailingSpaces (std::basic_string <CharT>& input)
 {
-  SKIF_Util_StripNullsW              (input);
-  SKIF_Util_StripCarriageReturnsW    (input);
-  SKIF_Util_TrimNewLinesW            (input);
-  SKIF_Util_TrimSpacesW              (input);
+  input.erase (std::find_if (input.rbegin (), input.rend (), [](CharT ch) { return ! SKIF_UtilInt_IsSpace (ch); }).base (), input.end ());
 }
 
-void
-SKIF_Util_StripNulls (std::string& input)
+template <typename CharT>
+static void
+SKIF_UtilInt_TrimLeadingNewlines (std::basic_string <CharT>& input)
 {
-  input.erase (std::find (input.begin(), input.end(), '\0'), input.end());
+  input.erase (input.begin (), std::find_if (input.begin (), input.end (), [](CharT ch) { return (ch != CharT ('\n')); }));
 }
 
-void
-SKIF_Util_StripNullsW (std::wstring& input)
+template <typename CharT>
+static void
+SKIF_UtilInt_TrimTrailingNewlines (std::basic_string <CharT>& input)
 {
-  input.erase (std::find (input.begin(), input.end(), L'\0'), input.end());
+  input.erase (std::find_if (input.rbegin (), input.rend (), [](CharT ch) { return (ch != CharT ('\n')); }).base (), input.end ());
 }
 
-void
-SKIF_Util_StripCarriageReturns (std::string& input)
+template <typename CharT>
+static void
+SKIF_UtilInt_TrimSpaces (std::basic_string <CharT>& input)
 {
-  input.erase (std::remove (input.begin(), input.end(), '\r'), input.end());
+  SKIF_UtilInt_TrimLeadingSpaces     (input);
+  SKIF_UtilInt_TrimTrailingSpaces    (input);
 }
 
-void
-SKIF_Util_StripCarriageReturnsW (std::wstring& input)
+template <typename CharT>
+static void
+SKIF_UtilInt_TrimNewLines (std::basic_string <CharT>& input)
 {
-  input.erase (std::remove (input.begin(), input.end(), L'\r'), input.end());
+  SKIF_UtilInt_TrimLeadingNewlines   (input);
+  SKIF_UtilInt_TrimTrailingNewlines  (input);
 }
 
-void
-SKIF_Util_TrimSpaces (std::string& input)
+template <typename CharT>
+static void
+SKIF_UtilInt_CleanString (std::basic_string <CharT>& input)
 {
-  SKIF_Util_TrimLeadingSpaces     (input);
-  SKIF_Util_TrimTrailingSpaces    (input);
+  SKIF_UtilInt_StripNulls            (input);
+  SKIF_UtilInt_StripCarriageReturns  (input);
+  SKIF_UtilInt_TrimNewLines          (input);
+  SKIF_UtilInt_TrimSpaces            (input);
 }
 
-void
-SKIF_Util_TrimSpacesW (std::wstring& input)
-{
-  SKIF_Util_TrimLeadingSpacesW      (input);
-  SKIF_Util_TrimTrailingSpacesW     (input);
-}
-
-void
-SKIF_Util_TrimLeadingSpaces (std::string& input)
-{
-  input.erase (input.begin(), std::find_if (input.begin(), input.end(), [](const unsigned char ch) { return !std::isspace (ch); }));
-}
-
-void
-SKIF_Util_TrimLeadingSpacesW (std::wstring& input)
-{
-  input.erase (input.begin(), std::find_if (input.begin(), input.end(), [](const       wchar_t ch) { return !std::iswspace (ch); }));
-}
-
-void
-SKIF_Util_TrimTrailingSpaces (std::string& input)
-{
-  input.erase (std::find_if (input.rbegin(), input.rend(), [](const unsigned char ch) { return !std::isspace  (ch); }).base(), input.end());
-}
-
-void
-SKIF_Util_TrimTrailingSpacesW (std::wstring& input)
-{
-  input.erase (std::find_if (input.rbegin(), input.rend(), [](const       wchar_t ch) { return !std::iswspace (ch); }).base(), input.end());
-}
-
-void
-SKIF_Util_TrimNewLines (std::string& input)
-{
-  SKIF_Util_TrimLeadingNewlines     (input);
-  SKIF_Util_TrimTrailingNewlines    (input);
-}
-
-void
-SKIF_Util_TrimNewLinesW (std::wstring& input)
-{
-  SKIF_Util_TrimLeadingNewlinesW      (input);
-  SKIF_Util_TrimTrailingNewlinesW     (input);
-}
-
-void
-SKIF_Util_TrimLeadingNewlines (std::string& input)
-{
-  input.erase (input.begin(), std::find_if (input.begin(), input.end(), [](const unsigned char ch) { return (ch != '\n'); }));
-}
-
-void
-SKIF_Util_TrimLeadingNewlinesW (std::wstring& input)
-{
-  input.erase (input.begin(), std::find_if (input.begin(), input.end(), [](const       wchar_t ch) { return (ch != L'\n'); }));
-}
-
-void
-SKIF_Util_TrimTrailingNewlines (std::string& input)
-{
-  input.erase (std::find_if (input.rbegin(), input.rend(), [](const unsigned char ch) { return (ch != '\n'); }).base(), input.end());
-}
-
-void
-SKIF_Util_TrimTrailingNewlinesW (std::wstring& input)
-{
-  input.erase (std::find_if (input.rbegin(), input.rend(), [](const       wchar_t ch) { return (ch != L'\n'); }).base(), input.end());
-}
-
-// Case sensitive Replace All function for std::string
-// 
-// Replaces every occurrence of a literal byte sequence (std::regex would compile a pattern per call,
+// Replaces every occurrence of a literal character sequence (std::regex would compile a pattern per call,
 //    and constructing one takes a process-wide locale lock that the game threads contend on)
-void
-SKIF_Util_ReplaceAll (std::string& input, std::string_view from, std::string_view to)
+template <typename CharT>
+static void
+SKIF_UtilInt_ReplaceAll (std::basic_string <CharT>& input, std::basic_string_view <CharT> from, std::basic_string_view <CharT> to)
 {
   if (from.empty ())
     return;
-  
-  for (size_t pos = input.find (from); pos != std::string::npos; pos = input.find (from, pos + to.length ( )))
+
+  for (size_t pos = input.find (from); pos != std::basic_string <CharT>::npos; pos = input.find (from, pos + to.length ( )))
     input.replace (pos, from.length ( ), to);
 }
 
-// Case sensitive Replace All function for std::wstring
-// 
-// Replaces every occurrence of a literal byte sequence (std::regex would compile a pattern per call,
-//    and constructing one takes a process-wide locale lock that the game threads contend on)
-void
-SKIF_Util_ReplaceAllW (std::wstring& input, std::wstring_view from, std::wstring_view to)
-{
-  if (from.empty ())
-    return;
-  
-  for (size_t pos = input.find (from); pos != std::wstring::npos; pos = input.find (from, pos + to.length ( )))
-    input.replace (pos, from.length ( ), to);
-}
+std::string  SKIF_Util_ToLower                (std:: string_view input) { return SKIF_UtilInt_ToLower (input); }
+std::wstring SKIF_Util_ToLowerW               (std::wstring_view input) { return SKIF_UtilInt_ToLower (input); }
+std::string  SKIF_Util_ToUpper                (std:: string_view input) { return SKIF_UtilInt_ToUpper (input); }
+std::wstring SKIF_Util_ToUpperW               (std::wstring_view input) { return SKIF_UtilInt_ToUpper (input); }
+
+void SKIF_Util_CleanString                    (std:: string&     input) { SKIF_UtilInt_CleanString            (input); }
+void SKIF_Util_CleanStringW                   (std::wstring&     input) { SKIF_UtilInt_CleanString            (input); }
+void SKIF_Util_StripNulls                     (std:: string&     input) { SKIF_UtilInt_StripNulls             (input); }
+void SKIF_Util_StripNullsW                    (std::wstring&     input) { SKIF_UtilInt_StripNulls             (input); }
+void SKIF_Util_StripCarriageReturns           (std:: string&     input) { SKIF_UtilInt_StripCarriageReturns   (input); }
+void SKIF_Util_StripCarriageReturnsW          (std::wstring&     input) { SKIF_UtilInt_StripCarriageReturns   (input); }
+void SKIF_Util_TrimSpaces                     (std:: string&     input) { SKIF_UtilInt_TrimSpaces             (input); }
+void SKIF_Util_TrimSpacesW                    (std::wstring&     input) { SKIF_UtilInt_TrimSpaces             (input); }
+void SKIF_Util_TrimLeadingSpaces              (std:: string&     input) { SKIF_UtilInt_TrimLeadingSpaces      (input); }
+void SKIF_Util_TrimLeadingSpacesW             (std::wstring&     input) { SKIF_UtilInt_TrimLeadingSpaces      (input); }
+void SKIF_Util_TrimTrailingSpaces             (std:: string&     input) { SKIF_UtilInt_TrimTrailingSpaces     (input); }
+void SKIF_Util_TrimTrailingSpacesW            (std::wstring&     input) { SKIF_UtilInt_TrimTrailingSpaces     (input); }
+void SKIF_Util_TrimNewLines                   (std:: string&     input) { SKIF_UtilInt_TrimNewLines           (input); }
+void SKIF_Util_TrimNewLinesW                  (std::wstring&     input) { SKIF_UtilInt_TrimNewLines           (input); }
+void SKIF_Util_TrimLeadingNewlines            (std:: string&     input) { SKIF_UtilInt_TrimLeadingNewlines    (input); }
+void SKIF_Util_TrimLeadingNewlinesW           (std::wstring&     input) { SKIF_UtilInt_TrimLeadingNewlines    (input); }
+void SKIF_Util_TrimTrailingNewlines           (std:: string&     input) { SKIF_UtilInt_TrimTrailingNewlines   (input); }
+void SKIF_Util_TrimTrailingNewlinesW          (std::wstring&     input) { SKIF_UtilInt_TrimTrailingNewlines   (input); }
+
+// Case sensitive Replace All functions
+void SKIF_Util_ReplaceAll  (std:: string& input, std:: string_view from, std:: string_view to) { SKIF_UtilInt_ReplaceAll (input, from, to); }
+void SKIF_Util_ReplaceAllW (std::wstring& input, std::wstring_view from, std::wstring_view to) { SKIF_UtilInt_ReplaceAll (input, from, to); }
 
 // Case insensitive Replace All function for std::string
 //
