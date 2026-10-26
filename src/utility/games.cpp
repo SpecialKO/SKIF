@@ -456,24 +456,24 @@ SKIF_GamingCollection::RefreshRunningApps (app_list_t *apps, bool forced)
             monitored_app.store_id         = -1;
             monitored_app.iReturnCode.store (-1);
 
-            if (hProcess != INVALID_HANDLE_VALUE)
+            if (hProcess != NULL)
             {
               CloseHandle (hProcess);
-              hProcess = INVALID_HANDLE_VALUE;
-              monitored_app.hProcess.store(INVALID_HANDLE_VALUE);
+              hProcess = NULL;
+              monitored_app.hProcess.store(NULL);
             }
 
             // Clean up these as well if they haven't been done so yet
-            if (hWorkerThread != INVALID_HANDLE_VALUE)
+            if (hWorkerThread != NULL)
             {
               CloseHandle(hWorkerThread);
-              hWorkerThread = INVALID_HANDLE_VALUE;
-              monitored_app.hWorkerThread.store(INVALID_HANDLE_VALUE);
+              hWorkerThread = NULL;
+              monitored_app.hWorkerThread.store(NULL);
             }
           }
 
           // Monitor the external process primarily
-          if (hProcess != INVALID_HANDLE_VALUE)
+          if (hProcess != NULL)
           {
             if (WAIT_OBJECT_0 == WaitForSingleObject (hProcess, 0))
             {
@@ -485,15 +485,15 @@ SKIF_GamingCollection::RefreshRunningApps (app_list_t *apps, bool forced)
               monitored_app.store_id        = -1;
 
               CloseHandle (hProcess);
-              hProcess = INVALID_HANDLE_VALUE;
-              monitored_app.hProcess.store(INVALID_HANDLE_VALUE);
+              hProcess = NULL;
+              monitored_app.hProcess.store(NULL);
 
               // Clean up these as well if they haven't been done so yet
-              if (hWorkerThread != INVALID_HANDLE_VALUE)
+              if (hWorkerThread != NULL)
               {
                 CloseHandle(hWorkerThread);
-                hWorkerThread = INVALID_HANDLE_VALUE;
-                monitored_app.hWorkerThread.store(INVALID_HANDLE_VALUE);
+                hWorkerThread = NULL;
+                monitored_app.hWorkerThread.store(NULL);
               }
 
               PostMessage (SKIF_ImGui_hWnd, WM_NULL, 0x0, 0x0);
@@ -501,15 +501,15 @@ SKIF_GamingCollection::RefreshRunningApps (app_list_t *apps, bool forced)
           }
 
           // If we cannot monitor the game process, monitor the worker thread
-          if (hWorkerThread != INVALID_HANDLE_VALUE)
+          if (hWorkerThread != NULL)
           {
             if (WAIT_OBJECT_0 == WaitForSingleObject (hWorkerThread, 0))
             {
               PLOG_DEBUG << "Worker thread for launching app ID " << monitored_app.id << " from platform ID " << monitored_app.store_id << " has ended!";
 
               CloseHandle (hWorkerThread);
-              hWorkerThread = INVALID_HANDLE_VALUE;
-              monitored_app.hWorkerThread.store(INVALID_HANDLE_VALUE);
+              hWorkerThread = NULL;
+              monitored_app.hWorkerThread.store(NULL);
             }
           }
         }

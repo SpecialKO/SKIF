@@ -770,7 +770,7 @@ app_record_xbox_s::Launch (const launch_context_s& ctx)
     launched = true;
   }
 
-  if (proc->hWorkerThread.load() == INVALID_HANDLE_VALUE)
+  if (proc->hWorkerThread.load() == NULL)
   {
     PLOG_DEBUG << "Process creation failed ?!";
 

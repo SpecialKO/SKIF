@@ -740,7 +740,7 @@ DrawGameContextMenu_Running (app_record_s* pApp)
 
       ImGui::Separator ( );
 
-      bool bInvalid = (hProcess == INVALID_HANDLE_VALUE);
+      bool bInvalid = (hProcess == NULL);
 
       if (bInvalid)
         ImGui::BeginDisabled ( );

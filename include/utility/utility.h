@@ -5,6 +5,8 @@
 #include <string>
 #include <map>
 #include <atomic>
+#include <vector>
+#include <stdexcept>
 #include <Windows.h>
 #include <wtypes.h>
 

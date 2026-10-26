@@ -966,14 +966,11 @@ SKIF_Util_OpenURI (
   if (_registry._LoadedSteamOverlay)
     SetEnvironmentVariable (L"SteamNoOverlayUIDrawing", NULL);
 
-  // A wstring_view is not guaranteed to be null-terminated
-  const std::wstring file (path);
-
   SHELLEXECUTEINFOW
     sexi              = { };
     sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
     sexi.lpVerb       = verb;
-    sexi.lpFile       = file.c_str ();
+    sexi.lpFile       = path.c_str ();
     sexi.lpParameters = parameters;
     sexi.lpDirectory  = directory;
     sexi.nShow        = nShow;
@@ -1385,7 +1382,7 @@ BOOL
 WINAPI
 SKIF_Util_TerminateProcess (HANDLE hProcess, UINT uExitCode)
 {
-  if (hProcess == INVALID_HANDLE_VALUE)
+  if (hProcess == NULL || hProcess == INVALID_HANDLE_VALUE) // INVALID_HANDLE_VALUE is also the pseudo-handle of the current process
     return FALSE;
 
   return
