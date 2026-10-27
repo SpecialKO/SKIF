@@ -272,7 +272,7 @@ SKIF_GOG_IdentifyAssetPCGW (uint32_t app_id)
     // We intend to download PCGW's cover
     // https://www.pcgamingwiki.com/w/api.php?action=cargoquery&format=json&tables=Infobox_game&fields=Cover_URL&where=GOGcom_ID+HOLDS+'2099051765'
     // https://www.pcgamingwiki.com/w/api.php?action=cargoquery&format=json&tables=Infobox_game&fields=Cover_URL&where=GOGcom_ID%20HOLDS%20%272099051765%27
-    std::wstring url  = L"https://specialk.aemony.workers.dev/?p=gog&id=";
+    std::wstring url  = L"https://pcgw.special-k.info/?p=gog&id=";
                  url += std::to_wstring (app_id);
 
     // If PCGW cover has not been downloaded

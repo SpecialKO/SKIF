@@ -16,7 +16,7 @@
 
 namespace
 {
-  constexpr const wchar_t* IGDB_PROXY      = L"https://igdb.specialk.aemony.se/v1/cover";
+  constexpr const wchar_t* IGDB_PROXY      = L"https://igdb.special-k.info/v1/cover";
   constexpr const wchar_t* IGDB_IMAGE_BASE = L"https://images.igdb.com/igdb/image/upload/";
 
   // Lookups that found no cover this session, so a game is not queried again on every selection

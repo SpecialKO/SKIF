@@ -4,8 +4,8 @@
 /*
 IGDB covers, through the SKIF IGDB cover proxy (a Cloudflare Worker that holds the Twitch credentials):
 
-  https://igdb.specialk.aemony.se/v1/cover?source=<IGDB external game source>&uid=<store ID>
-  https://igdb.specialk.aemony.se/v1/cover?search=<game name>
+  https://igdb.special-k.info/v1/cover?source=<IGDB external game source>&uid=<store ID>
+  https://igdb.special-k.info/v1/cover?search=<game name>
 
 The proxy only returns the cover's IGDB image ID; the image itself is downloaded from images.igdb.com.
 IGDB covers are portrait (usually 3:4).
