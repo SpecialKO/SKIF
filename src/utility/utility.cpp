@@ -5141,7 +5141,8 @@ SKIF_Util_GetHotKeyStateSVCTemp (void)
 
 // Web
 
-// Performs the request described by get, and saves the response to get->wszLocalPath and/or response_body
+// Performs the request described by get, and saves the response to get->wszLocalPath and/or response_body.
+//   status_code (optional) receives the HTTP status code; it is left untouched if no response was received.
 //
 // Takes ownership of get and deletes it before returning, so it must be heap-allocated (new) and must not be used
 //   by the caller afterwards; never pass an object on the stack (e.g. one returned by SKIF_Util_CrackWebUrl).
@@ -5150,7 +5151,7 @@ SKIF_Util_GetHotKeyStateSVCTemp (void)
 static
 DWORD
 WINAPI
-SKIF_Util_GetWebUri (skif_get_web_uri_t* get, std::string* response_body)
+SKIF_Util_GetWebUri (skif_get_web_uri_t* get, std::string* response_body, DWORD* status_code)
 {
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
 
@@ -5264,6 +5265,9 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get, std::string* response_body)
                        &dwStatusCode,
                          &dwStatusCode_Len,
                            nullptr );
+
+    if (status_code != nullptr)
+      *status_code = dwStatusCode;
 
     if (dwStatusCode == 200)
     {
@@ -5382,8 +5386,11 @@ SKIF_Util_GetWebUri (skif_get_web_uri_t* get, std::string* response_body)
 }
 
 DWORD
-SKIF_Util_GetWebResource (std::wstring url, std::wstring_view file_path, std::wstring method, std::wstring header, std::string body, std::wstring user_agent, std::string* response_body)
+SKIF_Util_GetWebResource (std::wstring url, std::wstring_view file_path, std::wstring method, std::wstring header, std::string body, std::wstring user_agent, std::string* response_body, DWORD* status_code)
 {
+  if (status_code != nullptr)
+    *status_code = 0; // No response (yet)
+
   skif_get_web_uri_t* fallback = nullptr;
   skif_get_web_uri_t* get =
     new skif_get_web_uri_t { };
@@ -5457,14 +5464,14 @@ SKIF_Util_GetWebResource (std::wstring url, std::wstring_view file_path, std::ws
         fallback->header = header.c_str();
     }
 
-    dwRet = SKIF_Util_GetWebUri (get, response_body); // This deletes the get variable
+    dwRet = SKIF_Util_GetWebUri (get, response_body, status_code); // This deletes the get variable
 
     if (fallback)
     {
       if (! dwRet)
       {
         PLOG_WARNING << "Failed to retrieve resource from subdomain endpoint (sk-data.special-k.info), retrying with CDN endpoint (sk-data.nyc3.digitaloceanspaces.com) (Cloudflare bypass)...";
-        dwRet = SKIF_Util_GetWebUri (fallback, response_body); // This deletes the fallback variable
+        dwRet = SKIF_Util_GetWebUri (fallback, response_body, status_code); // This deletes the fallback variable
       }
 
       // Delete fallback manually if the first request was successful

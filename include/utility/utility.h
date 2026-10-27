@@ -338,7 +338,7 @@ struct skif_get_web_uri_t {
   std::wstring user_agent                             = L"Special K - Asset Crawler";
 };
 
-DWORD        SKIF_Util_GetWebResource         (std::wstring url, std::wstring_view file_path, std::wstring method = L"GET", std::wstring header = L"", std::string body = "", std::wstring user_agent = L"", std::string* response_body = nullptr);
+DWORD        SKIF_Util_GetWebResource         (std::wstring url, std::wstring_view file_path, std::wstring method = L"GET", std::wstring header = L"", std::string body = "", std::wstring user_agent = L"", std::string* response_body = nullptr, DWORD* status_code = nullptr); // status_code: the HTTP status, or 0 if no response was received
 skif_get_web_uri_t SKIF_Util_CrackWebUrl      (const std::wstring  url);
 std:: string SKIF_Util_URLEncode              (const std:: string& url);
 std::wstring SKIF_Util_URLEncode              (const std::wstring& url);
