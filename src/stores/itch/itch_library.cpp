@@ -15,6 +15,8 @@
 #include <SKIF.h>
 #include <utility/utility.h>
 #include <utility/fsutil.h>
+#include <utility/igdb.h>
+#include <stores/generic_library2.h>
 
 // See itch_library.h for how itch.io games are found and launched
 
@@ -598,6 +600,83 @@ app_record_itch_s::GetStoreDebugFields (void) const
     { "Classification",    itch.classification             },
     { "Store Page",        itch.url                        }
   };
+}
+
+#pragma endregion
+
+#pragma region Artwork
+
+namespace
+{
+  // Games whose IGDB cover was looked up this session without finding one, so they are not queried again on every
+  //   selection (cleared by a cover refresh). Keyed by the persistent key; used from the cover worker threads.
+  std::mutex             igdbMissesMutex;
+  std::set <std::string> igdbMisses;
+}
+
+std::wstring
+app_record_itch_s::ResolveArtwork (LibraryTexture type, const std::wstring& source, bool& isCustom, bool& isManaged)
+{
+  UNREFERENCED_PARAMETER (source);
+
+  std::wstring assetDir = GetStoreAssetDirectory ( );
+  std::wstring load_str = FindCustomArtwork (type);
+
+  isCustom = (! load_str.empty ( ));
+
+  if (! isCustom)
+  {
+    if      (type == LibraryTexture::Cover &&
+             PathFileExistsW ((assetDir + L"cover-original.jpg").c_str ( )))
+    {
+      load_str  = assetDir + L"cover-original.jpg";
+      isManaged = true; // Downloaded from IGDB: the cover menu offers Refresh
+    }
+
+    else if (type == LibraryTexture::Icon &&
+             SKIF_Util_SaveExtractExeIcon (launch_configs[0].getExecutableFullPath ( ), assetDir + L"icon-original.png"))
+      load_str  = assetDir + L"icon-original.png";
+  }
+
+  return load_str;
+}
+
+// Cover worker thread: the downloaded IGDB cover, else download it
+std::wstring
+app_record_itch_s::PrepareCoverSource (bool queryPCGW)
+{
+  UNREFERENCED_PARAMETER (queryPCGW);
+
+  std::wstring coverPath = GetStoreAssetDirectory ( ) + L"cover-original.jpg";
+
+  if (PathFileExistsW (coverPath.c_str ( )) || itch.game_id == 0 || ! FindCustomArtwork (LibraryTexture::Cover).empty ( ))
+    return coverPath;
+
+  {
+    std::scoped_lock lock (igdbMissesMutex);
+
+    if (igdbMisses.count (itch.key) != 0)
+      return coverPath;
+  }
+
+  if (! SKIF_IGDB_DownloadCover (SKIF_IGDB_Source::itch, std::to_string (itch.game_id), coverPath))
+  {
+    std::scoped_lock lock (igdbMissesMutex);
+    igdbMisses.insert (itch.key);
+  }
+
+  return coverPath;
+}
+
+// Cover refresh: cover-original.jpg itself is deleted by the cover menu; look the game up again
+bool
+app_record_itch_s::DeleteStoreCoverFiles (const std::wstring& assetDir)
+{
+  UNREFERENCED_PARAMETER (assetDir);
+
+  std::scoped_lock lock (igdbMissesMutex);
+
+  return (igdbMisses.erase (itch.key) != 0);
 }
 
 #pragma endregion

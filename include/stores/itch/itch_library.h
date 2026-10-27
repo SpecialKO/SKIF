@@ -69,8 +69,12 @@ struct app_record_itch_s : app_record_store_s <app_record_itch_s, app_record_s::
   std::vector <std::pair <std::string, std::string>>
                GetStoreDebugFields     (void) const override;
 
-  // Artwork: no store cover yet (itch covers are landscape; custom covers only); the icon is extracted from the executable
-  bool         HasStoreCover           (void) const override { return false; }
+  // Artwork (itch_library.cpp): the cover comes from IGDB (looked up by the itch game ID) and is saved as
+  //   Assets\itch\<key>\cover-original.jpg; itch's own covers are landscape, so they are not used.
+  //   The icon is extracted from the executable.
+  std::wstring ResolveArtwork          (LibraryTexture type, const std::wstring& source, bool& isCustom, bool& isManaged) override;
+  std::wstring PrepareCoverSource      (bool queryPCGW) override;
+  bool         DeleteStoreCoverFiles   (const std::wstring& assetDir) override;
 };
 
 
