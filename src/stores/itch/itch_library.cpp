@@ -177,22 +177,45 @@ namespace
 
 namespace
 {
-  // %APPDATA%\itch\db\butler.db
+  std::wstring SKIF_itch_NormalizePath (std::wstring path);
+  // The stable app and the canary app (kitch), which can be installed side by side with separate data folders.
+  //   Stable comes first, so a game installed in both is listed from the stable app.
+  constexpr const char* ITCH_APPS [] = { "itch", "kitch" };
+
+  // %APPDATA%\<app>\db\butler.db
   std::wstring
-  SKIF_itch_GetDatabasePath (void)
+  SKIF_itch_GetDatabasePath (const std::string& app)
   {
     static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
-    return SK_FormatStringW (LR"(%ws\itch\db\butler.db)", _path_cache.app_data_roaming.path);
+    return SK_FormatStringW (LR"(%ws\%hs\db\butler.db)", _path_cache.app_data_roaming.path, app.c_str ( ));
   }
 
-  // %LOCALAPPDATA%\itch\itch-setup.exe
+  // <install folder>\itch-setup.exe: the folder itch-setup recorded in its uninstall entry
+  //   (HKCU\...\Uninstall\<app>\InstallLocation), else its default %LOCALAPPDATA%\<app>
   std::wstring
-  SKIF_itch_GetSetupPath (void)
+  SKIF_itch_GetSetupPath (const std::string& app)
   {
     static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
-    return SK_FormatStringW (LR"(%ws\itch\itch-setup.exe)", _path_cache.app_data_local.path);
+    std::wstring installDir;
+    std::wstring subKey = SK_FormatStringW (LR"(Software\Microsoft\Windows\CurrentVersion\Uninstall\%hs)", app.c_str ( ));
+    DWORD        dwSize = 0;
+
+    if (RegGetValueW (HKEY_CURRENT_USER, subKey.c_str ( ), L"InstallLocation", RRF_RT_REG_SZ, NULL, NULL, &dwSize) == ERROR_SUCCESS && dwSize > sizeof (wchar_t))
+    {
+      installDir.resize (dwSize / sizeof (wchar_t));
+
+      if (RegGetValueW (HKEY_CURRENT_USER, subKey.c_str ( ), L"InstallLocation", RRF_RT_REG_SZ, NULL, installDir.data ( ), &dwSize) == ERROR_SUCCESS)
+        installDir.resize (wcsnlen (installDir.c_str ( ), installDir.size ( )));
+      else
+        installDir.clear ( );
+    }
+
+    if (installDir.empty ( ))
+      installDir = SK_FormatStringW (LR"(%ws\%hs)", _path_cache.app_data_local.path, app.c_str ( ));
+
+    return SKIF_itch_NormalizePath (installDir) + L"\\itch-setup.exe";
   }
 
   // Uses backslashes, and removes the trailing backslash (except for a drive root)
@@ -238,14 +261,14 @@ namespace
     return (excluded.count (classification) != 0);
   }
 
-  // Last write time and size of butler.db and butler.db-wal, to cheaply tell whether the database may have changed
+  // Last write time and size of butler.db and butler.db-wal (of both apps), to cheaply tell whether a database may have changed
   std::wstring
   SKIF_itch_GetDatabaseStamp (void)
   {
     std::wstring stamp;
-    std::wstring path = SKIF_itch_GetDatabasePath ( );
 
-    for (const std::wstring& file : { path, path + L"-wal" })
+    for (const char* app : ITCH_APPS)
+    for (const std::wstring& file : { SKIF_itch_GetDatabasePath (app), SKIF_itch_GetDatabasePath (app) + L"-wal" })
     {
       WIN32_FILE_ATTRIBUTE_DATA fad = { };
 
@@ -266,18 +289,23 @@ namespace
   {
     std::string fingerprint;
 
-    itch_db_c db (SKIF_itch_GetDatabasePath ( ));
+    for (const char* app : ITCH_APPS)
+    {
+      itch_db_c db (SKIF_itch_GetDatabasePath (app));
 
-    db.query (R"(SELECT c.id, c.build_id, c.install_folder_name, c.custom_install_folder, c.verdict, l.path
-                 FROM caves c LEFT JOIN install_locations l ON l.id = c.install_location_id
-                 ORDER BY c.id)",
-      [&](sqlite3_stmt* row)
-      {
-        for (int col = 0; col < 6; col++)
-          fingerprint += db.text (row, col) + "|";
+      fingerprint += std::string (app) + ":\n";
 
-        fingerprint += "\n";
-      });
+      db.query (R"(SELECT c.id, c.build_id, c.install_folder_name, c.custom_install_folder, c.verdict, l.path
+                   FROM caves c LEFT JOIN install_locations l ON l.id = c.install_location_id
+                   ORDER BY c.id)",
+        [&](sqlite3_stmt* row)
+        {
+          for (int col = 0; col < 6; col++)
+            fingerprint += db.text (row, col) + "|";
+
+          fingerprint += "\n";
+        });
+    }
 
     return fingerprint;
   }
@@ -287,17 +315,15 @@ namespace
 
 #pragma region Library
 
-void
-SKIF_itch_GetInstalledAppIDs (app_list_t *apps)
+// Adds the installs of one itch app (itch or kitch). keys and ids are shared between the apps.
+static void
+SKIF_itch_ScanDatabase (const std::string& app, app_list_t *apps, std::set <std::string>& keys, std::set <uint32_t>& ids)
 {
-  if (apps == nullptr)
-    return;
-
-  std::wstring dbPath = SKIF_itch_GetDatabasePath ( );
+  std::wstring dbPath = SKIF_itch_GetDatabasePath (app);
 
   if (! PathFileExistsW (dbPath.c_str ( )))
   {
-    PLOG_VERBOSE << "The itch database was not found: " << dbPath;
+    PLOG_VERBOSE << "The " << app.c_str ( ) << " database was not found: " << dbPath;
     return;
   }
 
@@ -305,9 +331,6 @@ SKIF_itch_GetInstalledAppIDs (app_list_t *apps)
 
   if (! db.isOpen ( ))
     return;
-
-  std::set <std::string> keys; // Persistent keys already added
-  std::set <uint32_t>    ids;  // Internal IDs already added
 
   enum { Col_CaveID, Col_GameID, Col_UploadID, Col_BuildID, Col_FolderName, Col_CustomFolder, Col_Verdict,
          Col_LocationPath, Col_Title, Col_Classification, Col_URL, Col_CoverURL, Col_StillCoverURL };
@@ -452,6 +475,7 @@ SKIF_itch_GetInstalledAppIDs (app_list_t *apps)
     record.names.original       = title;
 
     record.itch.key             = key;
+    record.itch.app             = app;
     record.itch.game_id         = gameID;
     record.itch.upload_id       = uploadID;
     record.itch.build_id        = db.int64 (row, Col_BuildID);
@@ -480,6 +504,19 @@ SKIF_itch_GetInstalledAppIDs (app_list_t *apps)
 
     apps->emplace_back (std::move (itch_entry));
   });
+}
+
+void
+SKIF_itch_GetInstalledAppIDs (app_list_t *apps)
+{
+  if (apps == nullptr)
+    return;
+
+  std::set <std::string> keys; // Persistent keys already added
+  std::set <uint32_t>    ids;  // Internal IDs already added
+
+  for (const char* app : ITCH_APPS)
+    SKIF_itch_ScanDatabase (app, apps, keys, ids);
 }
 
 bool
@@ -515,9 +552,9 @@ SKIF_itch_hasInstalledGamesChanged (void)
 }
 
 bool
-SKIF_itch_IsClientInstalled (void)
+SKIF_itch_IsClientInstalled (const std::string& app)
 {
-  return PathFileExistsW (SKIF_itch_GetSetupPath ( ).c_str ( ));
+  return PathFileExistsW (SKIF_itch_GetSetupPath (app).c_str ( ));
 }
 
 #pragma endregion
@@ -528,7 +565,7 @@ bool
 app_record_itch_s::PrefersInstantLaunch (bool fromGameMenu, launch_config_s* config) const
 {
   // Fallback if the itch app is not installed
-  if (itch.game_id == 0 || ! SKIF_itch_IsClientInstalled ( ))
+  if (itch.game_id == 0 || ! SKIF_itch_IsClientInstalled (itch.app))
     return true;
 
   // The itch app starts its own choice of executable, so other launch configs are run directly
@@ -552,10 +589,10 @@ app_record_itch_s::Launch (const launch_context_s& ctx)
 
   PLOG_VERBOSE << "Performing an itch app launch...";
 
-  // "%LOCALAPPDATA%\itch\itch-setup.exe" --appname itch --run-game 216996
-  std::wstring setupPath     = SKIF_itch_GetSetupPath ( );
+  // "%LOCALAPPDATA%\itch\itch-setup.exe" --appname itch --run-game 216996   (canary: kitch)
+  std::wstring setupPath     = SKIF_itch_GetSetupPath (itch.app);
   std::wstring setupFolder   = std::filesystem::path (setupPath).parent_path ( ).wstring ( );
-  std::wstring launchOptions = SK_FormatStringW (LR"(--appname itch --run-game %lld)", itch.game_id);
+  std::wstring launchOptions = SK_FormatStringW (LR"(--appname %hs --run-game %lld)", itch.app.c_str ( ), itch.game_id);
 
   if (SKIF_Util_CreateProcess (setupPath, launchOptions, setupFolder))
   {
@@ -565,7 +602,7 @@ app_record_itch_s::Launch (const launch_context_s& ctx)
     _status.dwTimeDelayChecks = ctx.timeNow + 7500;
     _status.running           = true;
 
-    SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (names.normal + " (itch)"), setupPath, launchOptions, setupFolder, ctx.config->getExecutableFullPath ( ), (! ctx.localInjection && ctx.usingSK));
+    SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (names.normal + " (" + itch.app + ")"), setupPath, launchOptions, setupFolder, ctx.config->getExecutableFullPath ( ), (! ctx.localInjection && ctx.usingSK));
   }
 }
 
@@ -593,6 +630,7 @@ std::vector <std::pair <std::string, std::string>>
 app_record_itch_s::GetStoreDebugFields (void) const
 {
   return {
+    { "App",               itch.app                        },
     { "Game ID",           std::to_string (itch.game_id)   },
     { "Upload ID",         std::to_string (itch.upload_id) },
     { "Build ID",          std::to_string (itch.build_id)  },

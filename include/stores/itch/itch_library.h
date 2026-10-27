@@ -33,6 +33,11 @@ Launching through the itch app, headless (no confirmation prompt; play time is r
 
     "%LOCALAPPDATA%\itch\itch-setup.exe" --appname itch --run-game <game_id>
 
+  (itch-setup's folder is read from HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\itch\InstallLocation when set.)
+
+The canary app (kitch) can be installed alongside, and is read and launched the same way, with "kitch" in place of
+  "itch": %APPDATA%\kitch\db\butler.db, %LOCALAPPDATA%\kitch\itch-setup.exe --appname kitch.
+
   Note: with the app's "Run games in a sandbox" option enabled, such launches run the game as a separate
   itch-player-* Windows user. Instant launches (running the executable directly) are not affected.
 */
@@ -45,6 +50,7 @@ struct app_record_itch_s : app_record_store_s <app_record_itch_s, app_record_s::
   // itch-specific data
   struct itch_s {
     std::string  key            = ""; // Persistent key: the game ID, or <game ID>-<upload ID> for additional installs of the same game
+    std::string  app            = "itch"; // The itch app it was installed with: "itch", or "kitch" (the canary app)
     int64_t      game_id        =  0;
     int64_t      upload_id      =  0;
     int64_t      build_id       =  0;
@@ -79,4 +85,4 @@ struct app_record_itch_s : app_record_store_s <app_record_itch_s, app_record_s::
 
 void SKIF_itch_GetInstalledAppIDs        (app_list_t *apps); // Library worker (any thread)
 bool SKIF_itch_hasInstalledGamesChanged  (void);             // Main thread
-bool SKIF_itch_IsClientInstalled         (void);             // itch-setup.exe is present (used for headless launches)
+bool SKIF_itch_IsClientInstalled         (const std::string& app = "itch"); // The app's itch-setup.exe is present (used for headless launches)
