@@ -310,6 +310,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
     bUseSystemProxy        =   regKVUseSystemProxy         .getData (&hKey);
   bInstantPlayEA           =   regKVInstantPlayEA          .getData (&hKey);
   bInstantPlayGOG          =   regKVInstantPlayGOG         .getData (&hKey);
+  bInstantPlayitch         =   regKVInstantPlayitch        .getData (&hKey);
   bInstantPlaySteam        =   regKVInstantPlaySteam       .getData (&hKey);
   bInstantPlayXbox         =   regKVInstantPlayXbox        .getData (&hKey);
 
@@ -342,6 +343,9 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 
   if (regKVLibraryEpic.hasData(&hKey))
     bLibraryEpic           =   regKVLibraryEpic            .getData (&hKey);
+
+  if (regKVLibraryitch.hasData(&hKey))
+    bLibraryitch           =   regKVLibraryitch            .getData (&hKey);
 
   if (regKVLibraryGOG.hasData(&hKey))
     bLibraryGOG            =   regKVLibraryGOG             .getData (&hKey);

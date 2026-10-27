@@ -2172,6 +2172,7 @@ DrawEmptySpaceMenu (bool showClearBtn)
       static bool* pbLibraryEA     = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryEA;
       static bool* pbLibraryEpic   = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryEpic;
       static bool* pbLibraryGOG    = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryGOG;
+      static bool* pbLibraryitch   = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryitch;
       static bool* pbLibrarySteam  = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibrarySteam;
       static bool* pbLibraryXbox   = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryXbox;
       static bool* pbLibraryCustom = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryCustom;
@@ -2194,6 +2195,12 @@ DrawEmptySpaceMenu (bool showClearBtn)
       if (ImGui::MenuItem ("GOG",   spaces, pbLibraryGOG,    (! _registry._LibraryHidden)))
       {
         _registry.regKVLibraryGOG.putData   (_registry.bLibraryGOG);
+        RepopulateGames = true;
+      }
+
+      if (ImGui::MenuItem ("itch",  spaces, pbLibraryitch,   (! _registry._LibraryHidden)))
+      {
+        _registry.regKVLibraryitch.putData  (_registry.bLibraryitch);
         RepopulateGames = true;
       }
 
@@ -2222,6 +2229,7 @@ DrawEmptySpaceMenu (bool showClearBtn)
         pbLibraryEA     = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryEA;
         pbLibraryEpic   = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryEpic;
         pbLibraryGOG    = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryGOG;
+        pbLibraryitch   = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryitch;
         pbLibrarySteam  = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibrarySteam;
         pbLibraryXbox   = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryXbox;
         pbLibraryCustom = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryCustom;

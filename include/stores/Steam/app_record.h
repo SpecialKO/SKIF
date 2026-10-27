@@ -75,7 +75,7 @@ struct app_record_s {
   virtual void         CopyFrom                (const app_record_s& src)    { *this = src; }
 
   // Store-specific behavior
-  virtual bool         isInstantPlayCompatible (void) const                 { return false; }                // Steam, GOG, Xbox, EA
+  virtual bool         isInstantPlayCompatible (void) const                 { return false; }                // Steam, GOG, Xbox, EA, itch
   virtual std::string  GetPersistentKey        (void) const                 { return std::to_string (id); }  // Key used in db.json and lc.json
 
   struct client_state_s {
@@ -121,6 +121,7 @@ struct app_record_s {
     Epic        = 0x4,   // Dec 27, 2021
     Xbox        = 0x5,   // Mar  6, 2022
     EA          = 0x6,   // Oct 26, 2026
+    itch        = 0x7,   // Oct 27, 2026
     Unspecified = 0xffff
   };
 

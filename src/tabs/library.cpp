@@ -39,6 +39,7 @@
 #include <stores/GOG/gog_library.h>
 #include <stores/epic/epic_library.h>
 #include <stores/EA/ea_library.h>
+#include <stores/itch/itch_library.h>
 #include <stores/Xbox/xbox_library.h>
 #include <stores/SKIF/custom_library.h>
 
@@ -525,6 +526,15 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     SK_RunOnce (
       PLOG_DEBUG << "[Library Pre-Processing] EA took " << (SKIF_Util_timeGetTime1 ( ) - time_current) << " ms.";
+      time_current = SKIF_Util_timeGetTime1 ( );
+    )
+
+    // Does not set up a wait object; checked only while enabled (it queries butler.db when the database files change)
+    if (_registry.bLibraryitch && SKIF_itch_hasInstalledGamesChanged ( ))
+      RepopulateGames = true;
+
+    SK_RunOnce (
+      PLOG_DEBUG << "[Library Pre-Processing] itch took " << (SKIF_Util_timeGetTime1 ( ) - time_current) << " ms.";
       time_current = SKIF_Util_timeGetTime1 ( );
     )
 

@@ -29,6 +29,7 @@
 #include <stores/GOG/gog_library.h>
 #include <stores/epic/epic_library.h>
 #include <stores/EA/ea_library.h>
+#include <stores/itch/itch_library.h>
 #include <stores/Xbox/xbox_library.h>
 #include <stores/SKIF/custom_library.h>
 
@@ -1121,8 +1122,8 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
   size_t games = _data->apps.size();
 
   // Load the games of the enabled stores in parallel: each store reads its own sources (client files, registry,
-  //   manifests) into its own list. The lists are merged in a fixed order afterwards: Steam, Special K, GOG, Epic, EA, Xbox, custom.
-  enum { Scan_Steam, Scan_GOG, Scan_Epic, Scan_EA, Scan_Xbox, Scan_Custom, Scan_Count };
+  //   manifests) into its own list. The lists are merged in a fixed order afterwards: Steam, Special K, GOG, Epic, EA, itch, Xbox, custom.
+  enum { Scan_Steam, Scan_GOG, Scan_Epic, Scan_EA, Scan_itch, Scan_Xbox, Scan_Custom, Scan_Count };
 
   app_list_t                scanned [Scan_Count];
   worker_task_t             scans   [Scan_Count]; // On threads of their own (see _Start)
@@ -1185,6 +1186,17 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
       DWORD dwStart = SKIF_Util_timeGetTime1 ( );
       SKIF_EA_GetInstalledAppIDs (&scanned [Scan_EA]);
       _LogScan ("EA games", scanned [Scan_EA].size ( ), dwStart);
+    });
+  }
+
+  // Load itch.io titles from the itch app's database (butler.db)
+  if (_registry.bLibraryitch || _registry._LibraryHidden)
+  {
+    scans [Scan_itch] = _Start (L"SKIF_LibraryWorker_itch", [&]
+    {
+      DWORD dwStart = SKIF_Util_timeGetTime1 ( );
+      SKIF_itch_GetInstalledAppIDs (&scanned [Scan_itch]);
+      _LogScan ("itch games", scanned [Scan_itch].size ( ), dwStart);
     });
   }
 
@@ -1263,6 +1275,7 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
   _Merge (scanned [Scan_GOG]);
   _Merge (scanned [Scan_Epic]);
   _Merge (scanned [Scan_EA]);
+  _Merge (scanned [Scan_itch]);
   _Merge (scanned [Scan_Xbox]);
   _Merge (scanned [Scan_Custom]);
   games = _data->apps.size();

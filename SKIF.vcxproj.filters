@@ -70,6 +70,12 @@
     <Filter Include="Source Files\Stores\EA">
       <UniqueIdentifier>{aa03d0ce-e8ac-434e-8b97-26737499ca76}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Stores\itch">
+      <UniqueIdentifier>{fc49f216-1059-4729-b70b-8d4063ea55f4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Stores\itch">
+      <UniqueIdentifier>{251cdafa-71e7-493a-b650-c8b857515b6a}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source Files\Stores\Epic">
       <UniqueIdentifier>{53f1e1d3-2a75-46d0-b743-6e316a734c04}</UniqueIdentifier>
     </Filter>
@@ -221,6 +227,9 @@
     </ClInclude>
     <ClInclude Include="include\stores\EA\ea_library.h">
       <Filter>Header Files\Stores\EA</Filter>
+    </ClInclude>
+    <ClInclude Include="include\stores\itch\itch_library.h">
+      <Filter>Header Files\Stores\itch</Filter>
     </ClInclude>
     <ClInclude Include="include\stores\Epic\epic_library.h">
       <Filter>Header Files\Stores\Epic</Filter>
@@ -382,6 +391,9 @@
     </ClCompile>
     <ClCompile Include="src\stores\EA\ea_library.cpp">
       <Filter>Source Files\Stores\EA</Filter>
+    </ClCompile>
+    <ClCompile Include="src\stores\itch\itch_library.cpp">
+      <Filter>Source Files\Stores\itch</Filter>
     </ClCompile>
     <ClCompile Include="src\stores\Epic\epic_library.cpp">
       <Filter>Source Files\Stores\Epic</Filter>

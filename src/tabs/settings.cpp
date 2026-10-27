@@ -868,6 +868,12 @@ SKIF_UI_Tab_DrawSettings (void)
       RepopulateGames = true;
     }
 
+    if (ImGui::Checkbox         ("GOG",   &_registry.bLibraryGOG))
+    {
+      _registry.regKVLibraryGOG.putData   (_registry.bLibraryGOG);
+      RepopulateGames = true;
+    }
+
     ImGui::EndGroup ( );
 
     ImGui::SameLine ( );
@@ -876,9 +882,9 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::BeginGroup ( );
 
-    if (ImGui::Checkbox         ("GOG",   &_registry.bLibraryGOG))
+    if (ImGui::Checkbox         ("itch",  &_registry.bLibraryitch))
     {
-      _registry.regKVLibraryGOG.putData   (_registry.bLibraryGOG);
+      _registry.regKVLibraryitch.putData  (_registry.bLibraryitch);
       RepopulateGames = true;
     }
 
@@ -934,6 +940,13 @@ SKIF_UI_Tab_DrawSettings (void)
 
     if (ImGui::Checkbox       ("GOG",         &_registry.bInstantPlayGOG))
       _registry.regKVInstantPlayGOG.putData   (_registry.bInstantPlayGOG);
+
+    ImGui::SameLine ( );
+    ImGui::Spacing  ( );
+    ImGui::SameLine ( );
+
+    if (ImGui::Checkbox       ("itch",        &_registry.bInstantPlayitch))
+      _registry.regKVInstantPlayitch.putData  (_registry.bInstantPlayitch);
 
     ImGui::SameLine ( );
     ImGui::Spacing  ( );
