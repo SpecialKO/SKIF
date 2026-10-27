@@ -7,6 +7,7 @@
 #include <utility/utility.h>
 #include <utility/registry.h>
 #include <concurrent_queue.h>
+#include <utility/igdb.h>
 
 
 bool SKIF_RemoveCustomAppID (uint32_t appid)
@@ -634,6 +635,58 @@ app_record_custom_s::GetStoreAssetDirectory (void) const
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
   return SK_FormatStringW (LR"(%ws\Assets\Custom\%i\)", _path_cache.specialk_userdata, id);
+}
+
+#pragma endregion
+
+#pragma region Artwork
+
+std::wstring
+app_record_custom_s::ResolveArtwork (LibraryTexture type, const std::wstring& source, bool& isCustom, bool& isManaged)
+{
+  UNREFERENCED_PARAMETER (source);
+
+  std::wstring assetDir = GetStoreAssetDirectory ( );
+  std::wstring load_str = FindCustomArtwork (type);
+
+  isCustom = (! load_str.empty ( ));
+
+  if (! isCustom)
+  {
+    if      (type == LibraryTexture::Cover &&
+             PathFileExistsW ((assetDir + L"cover-original.jpg").c_str ( )))
+    {
+      load_str  = assetDir + L"cover-original.jpg";
+      isManaged = true; // Downloaded from IGDB: the cover menu offers Refresh
+    }
+
+    else if (type == LibraryTexture::Icon &&
+             SKIF_Util_SaveExtractExeIcon (launch_configs[0].getExecutableFullPath ( ), assetDir + L"icon-original.png"))
+      load_str  = assetDir + L"icon-original.png";
+  }
+
+  return load_str;
+}
+
+// Cover worker thread: the downloaded IGDB cover, else look the game up on IGDB by the name it was added with
+std::wstring
+app_record_custom_s::PrepareCoverSource (bool queryPCGW)
+{
+  UNREFERENCED_PARAMETER (queryPCGW);
+
+  std::wstring coverPath = GetStoreAssetDirectory ( ) + L"cover-original.jpg";
+
+  if (PathFileExistsW (coverPath.c_str ( )) || ! FindCustomArtwork (LibraryTexture::Cover).empty ( ))
+    return coverPath;
+
+  // The cleaned name (without (TM), (R) and (C) signs), then the name shown in SKIF if it differs
+  const std::string& title = (! names.clean.empty ( )) ? names.clean : names.original;
+
+  if (! SKIF_IGDB_DownloadCoverByName (title, coverPath) &&
+        ! names.normal.empty ( ) && names.normal != title)
+    SKIF_IGDB_DownloadCoverByName (names.normal, coverPath);
+
+  return coverPath;
 }
 
 #pragma endregion
