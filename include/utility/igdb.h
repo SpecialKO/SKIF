@@ -23,7 +23,8 @@ enum class SKIF_IGDB_Source : int {
 
 // Worker threads only (blocking network calls). Download the cover of a game to targetPath (created along with
 //   its folder); true if a cover was downloaded. The image is a JPEG: targetPath should end in .jpg.
-//   A lookup that finds no cover is not repeated until SKIF is restarted.
+//   A lookup that finds no cover is not repeated until SKIF is restarted. After a failed request (no response,
+//   rate limited, proxy error), lookups pause for a minute and are then tried again.
 bool SKIF_IGDB_DownloadCover       (SKIF_IGDB_Source source, const std::string& uid, const std::wstring& targetPath);
 
 // By name, for stores IGDB has no source for. Only exact name matches are used unless allowFuzzy is set.

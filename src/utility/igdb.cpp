@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <mutex>
 #include <set>
+#include <atomic>
 
 #include <utility/registry.h>
 #include <utility/utility.h>
@@ -22,6 +23,11 @@ namespace
   //   (the proxy caches misses too, but this also avoids the request). Retried on the next launch of SKIF.
   std::mutex              missesMutex;
   std::set <std::wstring> misses;
+
+  // When a lookup fails for any other reason (no response, rate limited, proxy error), lookups pause for a while
+  //   instead of the game being remembered as a miss, so a temporary failure does not hide covers until a restart
+  constexpr DWORD         FAILURE_PAUSE = 60000; // ms
+  std::atomic <DWORD>     dwLastFailure = 0;     // SKIF_Util_timeGetTime ( ) of the last failure; 0 = none
 
   // Percent-encodes a UTF-8 string for a URL query value
   std::wstring
@@ -53,6 +59,11 @@ namespace
         return false;
     }
 
+    DWORD dwFailure = dwLastFailure.load ( );
+
+    if (dwFailure != 0 && SKIF_Util_timeGetTime ( ) - dwFailure < FAILURE_PAUSE)
+      return false;
+
     auto _Miss = [&](void) -> bool
     {
       std::scoped_lock lock (missesMutex);
@@ -63,12 +74,24 @@ namespace
     std::wstring url = std::wstring (IGDB_PROXY) + L"?" + query;
     std::string  response;
 
-    // 404 (no such game, or no cover) and network errors both end up here
-    if (! SKIF_Util_GetWebResource (url, L"", L"GET", L"", "", L"", &response) || response.empty ( ))
+    DWORD dwStatus = 0;
+
+    if (! SKIF_Util_GetWebResource (url, L"", L"GET", L"", "", L"", &response, &dwStatus) || response.empty ( ))
     {
-      PLOG_VERBOSE << "No IGDB cover found for " << query;
-      return _Miss ( );
+      // 404: IGDB has no such game, or no cover for it. 400: a lookup the proxy refuses. Both are final for this session.
+      if (dwStatus == 404 || dwStatus == 400)
+      {
+        PLOG_VERBOSE << "No IGDB cover found for " << query;
+        return _Miss ( );
+      }
+
+      // Anything else is temporary (no response, 429 rate limited, 5xx): pause lookups, then try again
+      PLOG_WARNING << "IGDB cover lookup failed (HTTP status " << dwStatus << ") for " << query << "; retrying in " << (FAILURE_PAUSE / 1000) << " seconds at the earliest.";
+      dwLastFailure.store (SKIF_Util_timeGetTime ( ));
+      return false;
     }
+
+    dwLastFailure.store (0);
 
     nlohmann::json json = nlohmann::json::parse (response, nullptr, false);
 
