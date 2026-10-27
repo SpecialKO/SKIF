@@ -1799,8 +1799,11 @@ DrawCoverMenu (void)
             if (! pApp->tex_cover.isCustom)
               d3 = pApp->DeleteStoreCoverFiles (targetPath);
 
+            // The preferred IGDB cover (Settings), downloaded again on the reload
+            bool d4 = (! pApp->tex_cover.isCustom && DeleteFile ((targetPath + L"cover-igdb.jpg").c_str()));
+
             // If any file was removed
-            if (d1 || d2 || d3)
+            if (d1 || d2 || d3 || d4)
             {
               update    = true;
               _art.ForgetCover ( ); // Needed as otherwise SKIF would not reload the cover

@@ -8,6 +8,16 @@
 #include <SKIF.h>
 #include <utility/fsutil.h>
 #include <utility/games.h>
+#include <utility/igdb.h>
+
+// The registry's platform flags (SKIF_StoreFlag) are derived from the store IDs: see GetStoreFlag ( )
+static_assert (StoreFlag_Steam  == 1 << (static_cast <int> (app_record_s::Store::Steam)  - 1));
+static_assert (StoreFlag_GOG    == 1 << (static_cast <int> (app_record_s::Store::GOG)    - 1));
+static_assert (StoreFlag_Custom == 1 << (static_cast <int> (app_record_s::Store::Custom) - 1));
+static_assert (StoreFlag_Epic   == 1 << (static_cast <int> (app_record_s::Store::Epic)   - 1));
+static_assert (StoreFlag_Xbox   == 1 << (static_cast <int> (app_record_s::Store::Xbox)   - 1));
+static_assert (StoreFlag_EA     == 1 << (static_cast <int> (app_record_s::Store::EA)     - 1));
+static_assert (StoreFlag_itch   == 1 << (static_cast <int> (app_record_s::Store::itch)   - 1));
 
 // Shorthand, because these are way too long
 using app_launch_config_s =
@@ -817,6 +827,31 @@ app_record_s::GetAssetDirectory (void) const
     return SK_FormatStringW (LR"(%ws\Assets\)", _path_cache.specialk_userdata);
 
   return GetStoreAssetDirectory ( );
+}
+
+// The downloaded IGDB cover, when the user prefers IGDB covers for this store and has no custom cover.
+//   A PCGamingWiki cover (also preferred) takes precedence, as those are typically of a higher resolution.
+std::wstring
+app_record_s::GetPreferredIGDBCover (void) const
+{
+  if (! WantsIGDBCover ( ) || ! FindCustomArtwork (LibraryTexture::Cover).empty ( ))
+    return L"";
+
+  if (WantsPCGWCover ( ) && PathFileExistsW ((GetAssetDirectory ( ) + L"cover-pcgw.png").c_str ( )))
+    return L"";
+
+  std::wstring path = GetAssetDirectory ( ) + L"cover-igdb.jpg";
+
+  return (PathFileExistsW (path.c_str ( ))) ? path : L"";
+}
+
+// Cover worker thread: by the cleaned name (without (TM), (R) and (C) signs), exact matches only
+bool
+app_record_s::DownloadIGDBCover (const std::wstring& targetPath)
+{
+  const std::string& title = (! names.clean.empty ( )) ? names.clean : names.original;
+
+  return SKIF_IGDB_DownloadCoverByName (title, targetPath);
 }
 
 std::wstring

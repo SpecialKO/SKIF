@@ -42,6 +42,7 @@ struct app_record_epic_s : app_record_store_s <app_record_epic_s, app_record_s::
   // Artwork (epic_library.cpp)
   std::wstring ResolveArtwork          (LibraryTexture type, const std::wstring& source, bool& isCustom, bool& isManaged) override;
   std::wstring PrepareCoverSource      (bool queryPCGW) override;
+  bool         WantsIGDBCover          (void) const override; // Looked up by name (base DownloadIGDBCover)
 };
 
 

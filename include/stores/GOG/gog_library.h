@@ -33,6 +33,8 @@ struct app_record_gog_s : app_record_store_s <app_record_gog_s, app_record_s::St
   std::wstring ResolveArtwork          (LibraryTexture type, const std::wstring& source, bool& isCustom, bool& isManaged) override;
   std::wstring PrepareCoverSource      (bool queryPCGW) override;
   bool         WantsPCGWCover          (void) const override;
+  bool         WantsIGDBCover          (void) const override;
+  bool         DownloadIGDBCover       (const std::wstring& targetPath) override;
   std::wstring GetIconSource           (void) const override { return install_dir + L"\\goggame-" + std::to_wstring(id) + L".ico"; }
   bool         DeleteStoreCoverFiles   (const std::wstring& assetDir) override;
   bool         CoverNeedsClientSignIn  (void) const override;

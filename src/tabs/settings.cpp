@@ -818,9 +818,9 @@ SKIF_UI_Tab_DrawSettings (void)
 
     static SKIF_LibraryArtwork& _art = SKIF_LibraryArtwork::Get ( );
 
-    if (ImGui::Checkbox       ("GOG",         &_registry.bPCGWCoversGOG))
+    if (ImGui::CheckboxFlags  ("GOG",         &_registry.iPCGWCovers, StoreFlag_GOG))
     {
-      _registry.regKVPCGWCoversGOG.putData    (_registry.bPCGWCoversGOG);
+      _registry.regKVPCGWCovers.putData       (_registry.iPCGWCovers);
       _art.RefreshShownCover ( );
       _art.ResetCoverAlpha   ( );
     }
@@ -829,12 +829,58 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::Spacing  ( );
     ImGui::SameLine ( );
 
-    if (ImGui::Checkbox       ("Steam",       &_registry.bPCGWCoversSteam))
+    if (ImGui::CheckboxFlags  ("Steam",       &_registry.iPCGWCovers, StoreFlag_Steam))
     {
-      _registry.regKVPCGWCoversSteam.putData  (_registry.bPCGWCoversSteam);
+      _registry.regKVPCGWCovers.putData       (_registry.iPCGWCovers);
       _art.RefreshShownCover ( );
       _art.ResetCoverAlpha   ( );
     }
+
+    ImGui::TreePop          ( );
+
+    ImGui::TextColored (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+        "Prefer covers from IGDB for these platforms:"
+    );
+
+    ImGui::SameLine        ( );
+    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
+    SKIF_ImGui_SetHoverTip ("Games are looked up on IGDB by their store ID where possible, otherwise by their exact name.\n"
+                            "A cover from PCGamingWiki takes precedence over one from IGDB, as those are typically of\n"
+                            "a higher resolution. EA, itch.io and custom games always use IGDB covers, as those platforms\n"
+                            "have none of their own.");
+
+    ImGui::TreePush      ("IGDBCovers");
+
+    auto _IGDBCheckbox = [&](const char* label, int flag)
+    {
+      if (ImGui::CheckboxFlags (label,        &_registry.iIGDBCovers, flag))
+      {
+        _registry.regKVIGDBCovers.putData     (_registry.iIGDBCovers);
+        _art.RefreshShownCover ( );
+        _art.ResetCoverAlpha   ( );
+      }
+    };
+
+    _IGDBCheckbox ("Epic",  StoreFlag_Epic);
+
+    ImGui::SameLine ( );
+    ImGui::Spacing  ( );
+    ImGui::SameLine ( );
+
+    _IGDBCheckbox ("GOG",   StoreFlag_GOG);
+
+    ImGui::SameLine ( );
+    ImGui::Spacing  ( );
+    ImGui::SameLine ( );
+
+    _IGDBCheckbox ("Steam", StoreFlag_Steam);
+
+    ImGui::SameLine ( );
+    ImGui::Spacing  ( );
+    ImGui::SameLine ( );
+
+    _IGDBCheckbox ("Xbox",  StoreFlag_Xbox);
 
     ImGui::TreePop          ( );
 

@@ -135,7 +135,7 @@ LoadLibraryTextureEx (
     const std::filesystem::path fsPath (path);
     std::wstring fileName = SKIF_Util_ToLowerW (fsPath.filename ( ).wstring ( ));
 
-    if ((fileName.rfind (L"cover-original.", 0) == 0 || fileName == L"cover-pcgw.png") &&
+    if ((fileName.rfind (L"cover-original.", 0) == 0 || fileName == L"cover-pcgw.png" || fileName == L"cover-igdb.jpg") &&
         SKIF_Util_ToLowerW (fsPath.parent_path ( ).wstring ( ) + L"\\") == SKIF_Util_ToLowerW (pApp->GetAssetDirectory ( )) &&
         DeleteFileW (path.c_str ( )))
     {
@@ -158,7 +158,13 @@ LoadLibraryTextureEx (
     {
       customAsset  = false;
       managedAsset = true; // Assume true (only GOG and SKIF itself is not managed)
-      load_str     = pApp->ResolveArtwork (libTexToLoad, name, customAsset, managedAsset);
+
+      // A preferred IGDB cover (Settings) comes before the store's own cover, but never before a custom or
+      //   PCGamingWiki cover (GetPreferredIGDBCover returns nothing then, so ResolveArtwork picks those)
+      load_str     = (libTexToLoad == LibraryTexture::Cover) ? pApp->GetPreferredIGDBCover ( ) : L"";
+
+      if (load_str.empty ( ))
+        load_str   = pApp->ResolveArtwork (libTexToLoad, name, customAsset, managedAsset);
 
       if (load_str == L"\0")
         break;

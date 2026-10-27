@@ -509,11 +509,27 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   if (regKVFadeCovers.hasData(&hKey))
     bFadeCovers            =   regKVFadeCovers             .getData (&hKey);
 
-  if (regKVPCGWCoversGOG.hasData(&hKey))
-    bPCGWCoversGOG         =   regKVPCGWCoversGOG          .getData (&hKey);
+  if (regKVPCGWCovers.hasData(&hKey))
+    iPCGWCovers            =   regKVPCGWCovers             .getData (&hKey);
 
-  if (regKVPCGWCoversSteam.hasData(&hKey))
-    bPCGWCoversSteam       =   regKVPCGWCoversSteam        .getData (&hKey);
+  // Migrate the per-platform values of earlier versions, and remove them once the new value is saved
+  else if (regKVPCGWCoversGOG.hasData(&hKey) || regKVPCGWCoversSteam.hasData(&hKey))
+  {
+    bool gog               =  (regKVPCGWCoversGOG  .hasData(&hKey)) ? regKVPCGWCoversGOG  .getData (&hKey) :  true; // Their defaults
+    bool steam             =  (regKVPCGWCoversSteam.hasData(&hKey)) ? regKVPCGWCoversSteam.getData (&hKey) : false;
+
+    iPCGWCovers            =  (gog   ? StoreFlag_GOG   : 0) |
+                              (steam ? StoreFlag_Steam : 0);
+
+    if (regKVPCGWCovers.putData (iPCGWCovers))
+    {
+      regKVPCGWCoversGOG  .deleteData ( );
+      regKVPCGWCoversSteam.deleteData ( );
+    }
+  }
+
+  if (regKVIGDBCovers.hasData(&hKey))
+    iIGDBCovers            =   regKVIGDBCovers             .getData (&hKey);
 
   bLoggingDeveloper        =   regKVLoggingDeveloper       .getData (&hKey);
 

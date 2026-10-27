@@ -4,6 +4,7 @@
 #include <fstream>
 #include <filesystem>
 #include <utility/registry.h>
+#include <utility/igdb.h>
 #include <nlohmann/json.hpp>
 #include <utility/games.h>
 #include <SKIF.h>
@@ -439,7 +440,7 @@ app_record_gog_s::ResolveArtwork (LibraryTexture type, const std::wstring& sourc
     else if (type == LibraryTexture::Cover)
     {
       // Load PCGW cover
-      if (_registry.bPCGWCoversGOG &&
+      if ((_registry.iPCGWCovers & GetStoreFlag ( )) &&
           PathFileExistsW ((SKIFCustomPath + L"-pcgw.png").c_str()))
       {
         load_str =          SKIFCustomPath + L"-pcgw.png";
@@ -493,7 +494,7 @@ app_record_gog_s::WantsPCGWCover (void) const
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
-  return _registry.bPCGWCoversGOG;
+  return (_registry.iPCGWCovers & GetStoreFlag ( )) != 0;
 }
 
 // We may also store a PCGW cover that we must reset
@@ -511,6 +512,26 @@ app_record_gog_s::CoverNeedsClientSignIn (void) const
   extern std::wstring GOGGalaxy_UserID;
 
   return GOGGalaxy_UserID.empty();
+}
+
+#pragma endregion
+
+#pragma region IGDB covers
+
+bool
+app_record_gog_s::WantsIGDBCover (void) const
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  return (_registry.iIGDBCovers & GetStoreFlag ( )) != 0;
+}
+
+// Cover worker thread: by GOG product ID, else by name
+bool
+app_record_gog_s::DownloadIGDBCover (const std::wstring& targetPath)
+{
+  return (SKIF_IGDB_DownloadCover (SKIF_IGDB_Source::GOG, std::to_string (id), targetPath) ||
+          app_record_s::DownloadIGDBCover (targetPath));
 }
 
 #pragma endregion

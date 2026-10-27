@@ -56,4 +56,6 @@ struct app_record_xbox_s : app_record_store_s <app_record_xbox_s, app_record_s::
   std::wstring ResolveArtwork          (LibraryTexture type, const std::wstring& source, bool& isCustom, bool& isManaged) override;
   std::wstring PrepareCoverSource      (bool queryPCGW) override;
   bool         DeleteStoreCoverFiles   (const std::wstring& assetDir) override;
+  bool         WantsIGDBCover          (void) const override;
+  bool         DownloadIGDBCover       (const std::wstring& targetPath) override;
 };

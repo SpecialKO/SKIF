@@ -18,6 +18,17 @@
 #define RRF_WOW64_MASK         0x00030000
 #endif // !RRF_WOW64_MASK
 
+// Platform flags for the "PCGW Covers" and "IGDB Covers" registry values: 1 << (app_record_s::Store - 1)
+enum SKIF_StoreFlag : int {
+  StoreFlag_Steam  = 0x01,
+  StoreFlag_GOG    = 0x02,
+  StoreFlag_Custom = 0x04,
+  StoreFlag_Epic   = 0x08,
+  StoreFlag_Xbox   = 0x10,
+  StoreFlag_EA     = 0x20,
+  StoreFlag_itch   = 0x40
+};
+
 struct SKIF_RegistrySettings {
 
   // TODO: Rework this whole thing to not only hold a registry path but
@@ -62,6 +73,12 @@ struct SKIF_RegistrySettings {
           return true;
 
         return false;
+      };
+
+      // Removes the value from the registry; true if it was removed (false also if it did not exist)
+      bool         deleteData     (void)
+      {
+        return ( ERROR_SUCCESS == RegDeleteKeyValueW (_desc.hKey, _desc.wszSubKey, _desc.wszKeyValue) );
       };
 
       static KeyValue <typename _Tp>
@@ -379,6 +396,16 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Fade Covers)" );
 
+  // Platforms to prefer covers from PCGamingWiki / IGDB for (SKIF_StoreFlag bits)
+  KeyValue <int> regKVPCGWCovers =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(PCGW Covers)" );
+
+  KeyValue <int> regKVIGDBCovers =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(IGDB Covers)" );
+
+  // Legacy per-platform values: migrated to "PCGW Covers" and then removed
   KeyValue <bool> regKVPCGWCoversGOG =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(PCGW Covers GOG)" );
@@ -661,8 +688,8 @@ struct SKIF_RegistrySettings {
   bool bEfficiencyMode          =  true; // Should the main thread try to engage EcoQoS / Efficiency Mode on Windows 11 ?
   bool bHardwareAcceleration    =  true; // D3D11 uses WARP is disabled
   bool bFadeCovers              =  true;
-  bool bPCGWCoversGOG           =  true; // Should SKIF prefer covers from PCGW where available?
-  bool bPCGWCoversSteam         = false; // Should SKIF prefer covers from PCGW where available?
+  int  iPCGWCovers              = StoreFlag_GOG; // Platforms to prefer covers from PCGW for, where available (SKIF_StoreFlag bits)
+  int  iIGDBCovers              = 0;             // Platforms to prefer covers from IGDB for, where available (SKIF_StoreFlag bits)
   bool bControllers             =  true; // Should SKIF support controller input ?
   bool bLoggingDeveloper        = false; // This is a log level "above" verbose logging that also includes stuff like window messages. Only useable for SKIF developers
   bool bLinearFontAlpha         = false; // Only applicable to 16 bpc; restores the original linear alpha blending

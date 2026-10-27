@@ -340,6 +340,8 @@ struct app_record_steam_s : app_record_store_s <app_record_steam_s, app_record_s
   std::wstring ResolveArtwork          (LibraryTexture type, const std::wstring& source, bool& isCustom, bool& isManaged) override;
   std::wstring PrepareCoverSource      (bool queryPCGW) override;
   bool         WantsPCGWCover          (void) const override;
+  bool         WantsIGDBCover          (void) const override;
+  bool         DownloadIGDBCover       (const std::wstring& targetPath) override;
   std::wstring GetIconSource           (void) const override;
   void         PrepareIconSource       (void) override;
   bool         DeleteStoreCoverFiles   (const std::wstring& assetDir) override;

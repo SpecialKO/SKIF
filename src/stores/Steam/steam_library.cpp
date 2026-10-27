@@ -22,6 +22,7 @@
 
 #include <stores/steam/steam_library.h>
 #include <utility/registry.h>
+#include <utility/igdb.h>
 #include <utility/utility.h>
 #include <stores/Steam/apps_ignore.h>
 #include <vdf_parser.hpp>
@@ -2341,7 +2342,7 @@ app_record_steam_s::ResolveArtwork (LibraryTexture type, const std::wstring& sou
   {
     isManaged = false; // Steam's user-specific custom covers are not managed
 
-    if      (type == LibraryTexture::Cover && _registry.bPCGWCoversSteam &&
+    if      (type == LibraryTexture::Cover && (_registry.iPCGWCovers & GetStoreFlag ( )) &&
              PathFileExistsW ((SKIFCustomPath + L"-pcgw.png").c_str()))
     {
       load_str =               SKIFCustomPath + L"-pcgw.png";
@@ -2537,7 +2538,7 @@ app_record_steam_s::WantsPCGWCover (void) const
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
-  return (_registry.bPCGWCoversSteam && ! IsSpecialK ( ));
+  return ((_registry.iPCGWCovers & GetStoreFlag ( )) && ! IsSpecialK ( ));
 }
 
 // We may also store a PCGW cover that we must reset
@@ -2547,6 +2548,26 @@ app_record_steam_s::DeleteStoreCoverFiles (const std::wstring& assetDir)
   tex_cover.queriedPCGW = false;
 
   return DeleteFile ((assetDir + L"cover-pcgw.png").c_str());
+}
+
+#pragma endregion
+
+#pragma region IGDB covers
+
+bool
+app_record_steam_s::WantsIGDBCover (void) const
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  return ((_registry.iIGDBCovers & GetStoreFlag ( )) && ! IsSpecialK ( ));
+}
+
+// Cover worker thread: by Steam app ID, else by name
+bool
+app_record_steam_s::DownloadIGDBCover (const std::wstring& targetPath)
+{
+  return (SKIF_IGDB_DownloadCover (SKIF_IGDB_Source::Steam, std::to_string (id), targetPath) ||
+          app_record_s::DownloadIGDBCover (targetPath));
 }
 
 #pragma endregion

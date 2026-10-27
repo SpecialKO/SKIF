@@ -10,6 +10,7 @@
 #include <process.h>
 
 #include <utility/registry.h>
+#include <utility/igdb.h>
 #include <utility/games.h>
 #include <SKIF.h>
 #include <utility/utility.h>
@@ -827,6 +828,18 @@ app_record_epic_s::PrepareCoverSource (bool queryPCGW)
   }
 
   return load_str;
+}
+
+#pragma endregion
+
+#pragma region IGDB covers
+
+bool
+app_record_epic_s::WantsIGDBCover (void) const
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  return (_registry.iIGDBCovers & GetStoreFlag ( )) != 0;
 }
 
 #pragma endregion

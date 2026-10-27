@@ -12,6 +12,7 @@
 #include <utility/utility.h>
 
 #include <utility/registry.h>
+#include <utility/igdb.h>
 #include <comdef.h>
 #include <utility/games.h>
 #include <utility/injection.h>
@@ -1064,6 +1065,26 @@ app_record_xbox_s::DeleteStoreCoverFiles (const std::wstring& assetDir)
        d2 = DeleteFile ((assetDir + L"cover-fallback.jpg").c_str());
 
   return (d1 || d2);
+}
+
+#pragma endregion
+
+#pragma region IGDB covers
+
+bool
+app_record_xbox_s::WantsIGDBCover (void) const
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  return (_registry.iIGDBCovers & GetStoreFlag ( )) != 0;
+}
+
+// Cover worker thread: by Microsoft Store ID (e.g. 9NBLGGH4R315), else by name
+bool
+app_record_xbox_s::DownloadIGDBCover (const std::wstring& targetPath)
+{
+  return ((! xbox.store_id.empty ( ) && SKIF_IGDB_DownloadCover (SKIF_IGDB_Source::Microsoft, xbox.store_id, targetPath)) ||
+          app_record_s::DownloadIGDBCover (targetPath));
 }
 
 #pragma endregion

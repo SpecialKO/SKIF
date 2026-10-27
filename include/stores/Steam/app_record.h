@@ -477,6 +477,9 @@ struct app_record_s {
   virtual std::wstring ResolveArtwork          (LibraryTexture type, const std::wstring& source, bool& isCustom, bool& isManaged); // File for LoadLibraryTexture to load. Base: custom, else the executable's icon
   virtual std::wstring PrepareCoverSource      (bool queryPCGW) { UNREFERENCED_PARAMETER (queryPCGW); return L""; } // Cover worker thread: fetch / download the store cover; returns the source hint. queryPCGW: also look up a PCGamingWiki cover
   virtual bool         WantsPCGWCover          (void) const { return false; }                  // PCGamingWiki covers are enabled for this store (Settings: Steam, GOG)
+  virtual bool         WantsIGDBCover          (void) const { return false; }                  // IGDB covers are preferred over the store's own cover (Settings: Epic, GOG, Steam, Xbox); a PCGamingWiki cover still comes first
+  virtual bool         DownloadIGDBCover       (const std::wstring& targetPath);               // app_record.cpp, cover worker thread: look the game up on IGDB. Base: by name; stores with an IGDB source try their store ID first
+  std::wstring         GetPreferredIGDBCover   (void) const;                                   // app_record.cpp: <GetAssetDirectory ( )>cover-igdb.jpg when IGDB covers are preferred and there is no custom or PCGamingWiki cover; else empty
   virtual std::wstring GetIconSource           (void) const { return L"icon"; }                // Icon source hint (Steam: library cache icon; GOG: goggame-<id>.ico)
   virtual void         PrepareIconSource       (void)       { }                                // Main thread, before loading the icon (Steam: icon hash from appinfo.vdf)
   virtual bool         HasStoreCover           (void) const { return ! IsSpecialK ( ); }       // A default cover exists, so the cover menu offers Refresh / Reset
@@ -499,6 +502,9 @@ struct app_record_s {
 
   // Special K's own entry in the library
   bool                 IsSpecialK                 (void) const { return (store == Store::Steam && id == SKIF_STEAM_APPID); }
+
+  // This game's platform as a SKIF_StoreFlag bit (registry.h), for the per-platform cover preferences
+  int                  GetStoreFlag               (void) const { const int s = static_cast <int> (store); return (s >= 1 && s <= 31) ? (1 << (s - 1)) : 0; }
 
   // Library population (LibraryWorkerThread in games.cpp), in the order they are called
   virtual void         RefreshInstallState        (void)       { }                   // Steam: queries the client; uninstalled games get id 0

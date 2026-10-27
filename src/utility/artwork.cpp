@@ -158,6 +158,18 @@ SKIF_LibraryArtwork::StartCoverWorker (app_record_s* pApp)
     // Store-specific: fetch or download the store's cover (Steam, Epic, Xbox, PCGamingWiki)
     std::wstring load_str = _pApp->PrepareCoverSource (_queryPCGW);
 
+    // The IGDB cover, when preferred for this store (Settings): downloaded once and kept as cover-igdb.jpg.
+    //   Not needed when there is a PCGamingWiki cover (just prepared above), which takes precedence.
+    if (_pApp->WantsIGDBCover ( ) && _pApp->FindCustomArtwork (LibraryTexture::Cover).empty ( ))
+    {
+      std::wstring assetDir  = _pApp->GetAssetDirectory ( );
+      std::wstring igdbCover = assetDir + L"cover-igdb.jpg";
+
+      if (! PathFileExistsW (igdbCover.c_str ( )) &&
+          ! (_pApp->WantsPCGWCover ( ) && PathFileExistsW ((assetDir + L"cover-pcgw.png").c_str ( ))))
+        _pApp->DownloadIGDBCover (igdbCover);
+    }
+
     LoadLibraryTextureEx ( LibraryTexture::Cover,
                               _pApp->id,
                                 load_str,
