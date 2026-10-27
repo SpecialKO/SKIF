@@ -987,6 +987,83 @@ SKIF_GetVolumeKey (const std::wstring& path)
   return L"";
 }
 
+// Mirrors the profile names in HKCU\SOFTWARE\Kaldaien\Special K\Profiles (game path -> profile name) to
+//   <Special K>\Profiles\AppCache\ProfileNames.json. Special K reads the file when the current Windows user has no
+//   mapping in the registry, which happens for games that run as another user than the one using SKIF (e.g. the
+//   itch.io app's sandbox runs games as an itch-player-* user). Only written when the contents changed.
+//
+//   { "version": 1, "profiles": { "<path>": "<profile name>", ... } }
+static void
+SKIF_Library_WriteSharedProfileNames (HKEY hProfilesKey)
+{
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
+  DWORD dwValues = 0, dwMaxNameLen = 0, dwMaxDataLen = 0;
+
+  if (RegQueryInfoKeyW (hProfilesKey, NULL, NULL, NULL, NULL, NULL, NULL, &dwValues, &dwMaxNameLen, &dwMaxDataLen, NULL, NULL) != ERROR_SUCCESS)
+    return;
+
+  nlohmann::json profiles = nlohmann::json::object ( );
+
+  std::vector <wchar_t> name (static_cast <size_t> (dwMaxNameLen) + 1);
+  std::vector <BYTE>    data (static_cast <size_t> (dwMaxDataLen) + sizeof (wchar_t));
+
+  for (DWORD i = 0; i < dwValues; i++)
+  {
+    DWORD dwNameLen = static_cast <DWORD> (name.size ( ));
+    DWORD dwDataLen = static_cast <DWORD> (data.size ( ) - sizeof (wchar_t));
+    DWORD dwType    = 0;
+
+    if (RegEnumValueW (hProfilesKey, i, name.data ( ), &dwNameLen, NULL, &dwType, data.data ( ), &dwDataLen) != ERROR_SUCCESS || dwType != REG_SZ || dwNameLen == 0)
+      continue;
+
+    std::wstring value (reinterpret_cast <const wchar_t*> (data.data ( )), dwDataLen / sizeof (wchar_t));
+    value.erase (std::find (value.begin ( ), value.end ( ), L'\0'), value.end ( )); // Strip the null terminator(s)
+
+    if (! value.empty ( ))
+      profiles [SK_WideCharToUTF8 (std::wstring (name.data ( ), dwNameLen))] = SK_WideCharToUTF8 (value);
+  }
+
+  std::string contents =
+    nlohmann::json { { "version", 1 }, { "profiles", profiles } }.dump (2, ' ', false, nlohmann::json::error_handler_t::replace);
+
+  std::filesystem::path file =
+    std::filesystem::path (_path_cache.specialk_userdata) / L"Profiles" / L"AppCache" / L"ProfileNames.json";
+
+  // Unchanged: nothing to do
+  {
+    std::ifstream current (file, std::ios::binary);
+
+    if (current.is_open ( ) && std::string (std::istreambuf_iterator <char> (current), { }) == contents)
+      return;
+  }
+
+  std::error_code ec;
+  std::filesystem::create_directories (file.parent_path ( ), ec);
+
+  // Written to a temporary file first, so Special K never reads a partial file
+  std::filesystem::path temp = file;
+  temp += L".tmp";
+
+  {
+    std::ofstream out (temp, std::ios::binary | std::ios::trunc);
+
+    if (! out.is_open ( ) || ! out.write (contents.data ( ), contents.size ( )))
+    {
+      PLOG_WARNING << "Could not write the shared profile names: " << temp.wstring ( );
+      return;
+    }
+  }
+
+  if (MoveFileExW (temp.c_str ( ), file.c_str ( ), MOVEFILE_REPLACE_EXISTING))
+    PLOG_VERBOSE << "Wrote " << profiles.size ( ) << " shared profile names to " << file.wstring ( );
+  else
+  {
+    PLOG_WARNING << "Could not replace the shared profile names: " << file.wstring ( );
+    DeleteFileW (temp.c_str ( ));
+  }
+}
+
 unsigned __stdcall
 SKIF_GamingCollection::LibraryWorkerThread (void* var)
 {
@@ -1821,6 +1898,7 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
   }
 
   if (ERROR_SUCCESS == lsKey) {
+    SKIF_Library_WriteSharedProfileNames (hProfilesKey);
     RegCloseKey (hProfilesKey);
     RegCloseKey (hAppIdsKey);
   }
