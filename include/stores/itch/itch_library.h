@@ -74,7 +74,6 @@ struct app_record_itch_s : app_record_store_s <app_record_itch_s, app_record_s::
   //   The icon is extracted from the executable.
   std::wstring ResolveArtwork          (LibraryTexture type, const std::wstring& source, bool& isCustom, bool& isManaged) override;
   std::wstring PrepareCoverSource      (bool queryPCGW) override;
-  bool         DeleteStoreCoverFiles   (const std::wstring& assetDir) override;
 };
 
 

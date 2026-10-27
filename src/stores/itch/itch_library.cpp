@@ -606,14 +606,6 @@ app_record_itch_s::GetStoreDebugFields (void) const
 
 #pragma region Artwork
 
-namespace
-{
-  // Games whose IGDB cover was looked up this session without finding one, so they are not queried again on every
-  //   selection (cleared by a cover refresh). Keyed by the persistent key; used from the cover worker threads.
-  std::mutex             igdbMissesMutex;
-  std::set <std::string> igdbMisses;
-}
-
 std::wstring
 app_record_itch_s::ResolveArtwork (LibraryTexture type, const std::wstring& source, bool& isCustom, bool& isManaged)
 {
@@ -652,31 +644,9 @@ app_record_itch_s::PrepareCoverSource (bool queryPCGW)
   if (PathFileExistsW (coverPath.c_str ( )) || itch.game_id == 0 || ! FindCustomArtwork (LibraryTexture::Cover).empty ( ))
     return coverPath;
 
-  {
-    std::scoped_lock lock (igdbMissesMutex);
-
-    if (igdbMisses.count (itch.key) != 0)
-      return coverPath;
-  }
-
-  if (! SKIF_IGDB_DownloadCover (SKIF_IGDB_Source::itch, std::to_string (itch.game_id), coverPath))
-  {
-    std::scoped_lock lock (igdbMissesMutex);
-    igdbMisses.insert (itch.key);
-  }
+  SKIF_IGDB_DownloadCover (SKIF_IGDB_Source::itch, std::to_string (itch.game_id), coverPath);
 
   return coverPath;
-}
-
-// Cover refresh: cover-original.jpg itself is deleted by the cover menu; look the game up again
-bool
-app_record_itch_s::DeleteStoreCoverFiles (const std::wstring& assetDir)
-{
-  UNREFERENCED_PARAMETER (assetDir);
-
-  std::scoped_lock lock (igdbMissesMutex);
-
-  return (igdbMisses.erase (itch.key) != 0);
 }
 
 #pragma endregion

@@ -5,6 +5,8 @@
 #include <filesystem>
 #include <cctype>
 #include <algorithm>
+#include <mutex>
+#include <set>
 
 #include <utility/registry.h>
 #include <utility/utility.h>
@@ -15,6 +17,11 @@ namespace
 {
   constexpr const wchar_t* IGDB_PROXY      = L"https://igdb.specialk.aemony.se/v1/cover";
   constexpr const wchar_t* IGDB_IMAGE_BASE = L"https://images.igdb.com/igdb/image/upload/";
+
+  // Lookups that found no cover this session, so a game is not queried again on every selection
+  //   (the proxy caches misses too, but this also avoids the request). Retried on the next launch of SKIF.
+  std::mutex              missesMutex;
+  std::set <std::wstring> misses;
 
   // Percent-encodes a UTF-8 string for a URL query value
   std::wstring
@@ -39,6 +46,20 @@ namespace
   {
     static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
 
+    {
+      std::scoped_lock lock (missesMutex);
+
+      if (misses.count (query) != 0)
+        return false;
+    }
+
+    auto _Miss = [&](void) -> bool
+    {
+      std::scoped_lock lock (missesMutex);
+      misses.insert (query);
+      return false;
+    };
+
     std::wstring url = std::wstring (IGDB_PROXY) + L"?" + query;
     std::string  response;
 
@@ -46,7 +67,7 @@ namespace
     if (! SKIF_Util_GetWebResource (url, L"", L"GET", L"", "", L"", &response) || response.empty ( ))
     {
       PLOG_VERBOSE << "No IGDB cover found for " << query;
-      return false;
+      return _Miss ( );
     }
 
     nlohmann::json json = nlohmann::json::parse (response, nullptr, false);
@@ -54,16 +75,17 @@ namespace
     if (json.is_discarded ( ) || ! json.is_object ( ) || ! json.contains ("cover") || ! json["cover"].is_object ( ))
     {
       PLOG_WARNING << "Unexpected response from the IGDB proxy for " << query;
-      return false;
+      return _Miss ( );
     }
 
     std::string match    = json.value ("match", "");
+    std::string name     = (json.contains ("game") && json["game"].is_object ( )) ? json["game"].value ("name", "") : "";
     std::string image_id = json["cover"].value ("image_id", "");
 
     if (match == "fuzzy" && ! allowFuzzy)
     {
-      PLOG_VERBOSE << "Ignoring the fuzzy IGDB match for " << query << ": " << json["game"].value ("name", "");
-      return false;
+      PLOG_VERBOSE << "Ignoring the fuzzy IGDB match for " << query << ": " << SK_UTF8ToWideChar (name);
+      return _Miss ( );
     }
 
     // The image ID goes into a URL and a file is written from it: only accept what IGDB uses (e.g. co27c8)
@@ -71,7 +93,7 @@ namespace
         ! std::all_of (image_id.begin ( ), image_id.end ( ), [](unsigned char ch) { return std::isalnum (ch) || ch == '_'; }))
     {
       PLOG_WARNING << "Invalid IGDB image ID for " << query;
-      return false;
+      return _Miss ( );
     }
 
     // t_1080p fits the image within 1920x1080 (a 3:4 cover becomes 810x1080); t_cover_big_2x is 528x748
@@ -87,7 +109,7 @@ namespace
       return false;
     }
 
-    PLOG_INFO << "Downloaded the IGDB cover of " << SK_UTF8ToWideChar (json["game"].value ("name", "")) << " (" << match.c_str ( ) << " match) to " << targetPath;
+    PLOG_INFO << "Downloaded the IGDB cover of " << SK_UTF8ToWideChar (name) << " (" << match.c_str ( ) << " match) to " << targetPath;
 
     return true;
   }

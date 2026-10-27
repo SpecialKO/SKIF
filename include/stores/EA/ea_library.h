@@ -61,8 +61,10 @@ struct app_record_ea_s : app_record_store_s <app_record_ea_s, app_record_s::Stor
   std::vector <std::pair <std::string, std::string>>
                GetStoreDebugFields     (void) const override;
 
-  // Artwork: no store cover yet (custom covers only); the icon is extracted from the executable
-  bool         HasStoreCover           (void) const override { return false; }
+  // Artwork (ea_library.cpp): IGDB has no EA source, so the cover is looked up by the cleaned name (exact matches only)
+  //   and saved as Assets\EA\<key>\cover-original.jpg. The icon is extracted from the executable.
+  std::wstring ResolveArtwork          (LibraryTexture type, const std::wstring& source, bool& isCustom, bool& isManaged) override;
+  std::wstring PrepareCoverSource      (bool queryPCGW) override;
 };
 
 
