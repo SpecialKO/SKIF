@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <mutex>
 #include <unordered_map>
+#include <unordered_set>
 
 #include <comdef.h>
 #include <process.h>
@@ -14,6 +15,18 @@
 #include <utility/games.h>
 #include <SKIF.h>
 #include <utility/utility.h>
+
+// Epic covers that could not be found this session (the store has no offer for the game, e.g. as it is no longer on sale,
+//   or the image is gone), so they are not looked up again on every selection. Retried on the next launch of SKIF.
+static std::mutex                      epicCoverMissesMutex;
+static std::unordered_set <std::string> epicCoverMisses; // epic.name_app
+
+// No response, rate limited, or a server error: worth trying again later
+static bool
+SKIF_Epic_IsTemporaryStatus (DWORD dwStatus)
+{
+  return (dwStatus == 0 || dwStatus == 429 || dwStatus >= 500);
+}
 
 /*
 Epic registry / folder struture
@@ -615,7 +628,9 @@ SKIF_EpicCollection::FindInstalledGames1 (app_list_t* apps) const
   return ret;
 }
 
-void
+// Looks the game up in the Epic store and downloads its tall offer image as the cover. The store only lists games
+//   that are currently on sale, so a game removed from sale gets an answer without any elements (NotFound).
+SKIF_EpicCollection::AssetResult
 SKIF_EpicCollection::IdentifyAssetNew (const app_record_epic_s::epic_s& epic)
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
@@ -627,6 +642,8 @@ SKIF_EpicCollection::IdentifyAssetNew (const app_record_epic_s::epic_s& epic)
   // Create any missing directories
   if (! std::filesystem::exists (            targetAssetPath, ec))
         std::filesystem::create_directories (targetAssetPath, ec);
+
+  DWORD dwOfferStatus = 200; // A leftover offer.json (kept when logging verbosely) counts as Epic's answer
 
   // Download JSON for the offered games/edition/base
   if (! PathFileExists ((targetAssetPath + L"offer.json").c_str()))
@@ -651,8 +668,17 @@ SKIF_EpicCollection::IdentifyAssetNew (const app_record_epic_s::epic_s& epic)
     PLOG_DEBUG << "Downloading platform JSON: " << query;
 
     // Epic's GraphQL API now seems to perform a basic User-Agent validation...
-    SKIF_Util_GetWebResource (query, targetAssetPath + L"offer.json", L"GET", L"", "", L"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) EpicGamesLauncher");
+    SKIF_Util_GetWebResource (query, targetAssetPath + L"offer.json", L"GET", L"", "", L"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) EpicGamesLauncher", nullptr, &dwOfferStatus);
   }
+
+  // No answer from Epic (or a temporary error): try again later
+  if (dwOfferStatus != 200)
+  {
+    PLOG_WARNING << "The Epic store lookup failed (HTTP status " << dwOfferStatus << ") for " << epic.name_app;
+    return SKIF_Epic_IsTemporaryStatus (dwOfferStatus) ? AssetResult::Failed : AssetResult::NotFound;
+  }
+
+  AssetResult result = AssetResult::NotFound;
 
   std::wstring query = SK_FormatStringW (
     LR"(https://launcher-public-service-prod06.ol.epicgames.com/launcher/api/public/assets/v2/platform/Windows/namespace/%ws/catalogItem/%ws/app/%ws/label/Live)",
@@ -675,28 +701,49 @@ SKIF_EpicCollection::IdentifyAssetNew (const app_record_epic_s::epic_s& epic)
 
     else
     {
-      if (jf["errors"].is_array())
+      if (jf.contains ("errors") && jf["errors"].is_array())
       {
         PLOG_ERROR << "Could not read platform JSON!";
       }
 
       else
       {
-        for (auto& image : jf["data"]["Catalog"]["searchStore"]["elements"][0]["keyImages"])
+        const nlohmann::json* elements = nullptr;
+
+        try {
+          elements = &jf.at ("data").at ("Catalog").at ("searchStore").at ("elements");
+        }
+        catch (const std::exception&) { }
+
+        // Only games currently on sale are listed
+        if (elements == nullptr || ! elements->is_array ( ) || elements->empty ( ))
+          PLOG_INFO << "The Epic store has no offer for " << epic.name_app << " (it may no longer be on sale).";
+
+        else if (elements->at (0).contains ("keyImages") && elements->at (0).at ("keyImages").is_array ( ))
         {
-          if (image["type"].get <std::string_view>()._Equal(R"(OfferImageTall)")) //.dump() == R"("OfferImageTall")")
+          for (auto& image : elements->at (0).at ("keyImages"))
           {
-            // Convert the URL value to a regular string
-            std::string assetUrl = image["url"]; // will throw exception if "url" does not exist
+            if (image.value ("type", std::string ( )) == "OfferImageTall")
+            {
+              // Convert the URL value to a regular string
+              std::string assetUrl = image.at ("url").get <std::string> ( ); // will throw exception if "url" does not exist
 
-            // Download a downscaled copy of the cover
+              // Download a downscaled copy of the cover
 
-            if (_registry.bLowBandwidthMode)
-              assetUrl += "?h=900&w=600&resize=1"; // TAKES TOO LONG! :D
+              if (_registry.bLowBandwidthMode)
+                assetUrl += "?h=900&w=600&resize=1"; // TAKES TOO LONG! :D
 
-            PLOG_DEBUG << "Downloading cover asset: " << assetUrl;
+              PLOG_DEBUG << "Downloading cover asset: " << assetUrl;
 
-            SKIF_Util_GetWebResource (SK_UTF8ToWideChar (assetUrl), targetAssetPath + L"cover-original.jpg");
+              DWORD dwImageStatus = 0;
+
+              if (SKIF_Util_GetWebResource (SK_UTF8ToWideChar (assetUrl), targetAssetPath + L"cover-original.jpg", L"GET", L"", "", L"", nullptr, &dwImageStatus))
+                result = AssetResult::Downloaded;
+              else
+                result = SKIF_Epic_IsTemporaryStatus (dwImageStatus) ? AssetResult::Failed : AssetResult::NotFound;
+
+              break;
+            }
           }
         }
       }
@@ -710,6 +757,8 @@ SKIF_EpicCollection::IdentifyAssetNew (const app_record_epic_s::epic_s& epic)
   // Delete the JSON file when we are done
   if (_registry.iLogging < 5)
     DeleteFile ((targetAssetPath + L"offer.json").c_str());
+
+  return result;
 }
 
 
@@ -821,10 +870,35 @@ app_record_epic_s::PrepareCoverSource (bool queryPCGW)
 
   if ( ! PathFileExistsW (load_str.   c_str ()) )
   {
+    {
+      std::scoped_lock lock (epicCoverMissesMutex);
+
+      if (epicCoverMisses.count (epic.name_app) != 0)
+        return load_str;
+    }
+
+    SKIF_EpicCollection::AssetResult result;
+
     if (! epic.gamebox_tall.empty())
-      SKIF_Util_GetWebResource (SK_UTF8ToWideChar (epic.gamebox_tall), load_str);
+    {
+      DWORD dwStatus = 0;
+
+      if (SKIF_Util_GetWebResource (SK_UTF8ToWideChar (epic.gamebox_tall), load_str, L"GET", L"", "", L"", nullptr, &dwStatus))
+        result = SKIF_EpicCollection::AssetResult::Downloaded;
+      else
+        result = SKIF_Epic_IsTemporaryStatus (dwStatus) ? SKIF_EpicCollection::AssetResult::Failed
+                                                        : SKIF_EpicCollection::AssetResult::NotFound;
+    }
+
     else
-      _epic.IdentifyAssetNew (epic);
+      result = _epic.IdentifyAssetNew (epic);
+
+    // Temporary failures are retried on the next selection; a missing cover only on the next launch of SKIF
+    if (result == SKIF_EpicCollection::AssetResult::NotFound)
+    {
+      std::scoped_lock lock (epicCoverMissesMutex);
+      epicCoverMisses.insert (epic.name_app);
+    }
   }
 
   return load_str;

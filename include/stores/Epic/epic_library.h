@@ -50,7 +50,11 @@ struct SKIF_EpicCollection {
 
   bool isSignaled         (void);
   void GetInstalledAppIDs (app_list_t *apps) const;
-  void IdentifyAssetNew   (const app_record_epic_s::epic_s& epic);
+  // Result of a cover lookup: Downloaded; NotFound (Epic answered without a cover, e.g. the game is no longer on sale);
+  //   Failed (no answer, or a temporary error)
+  enum class AssetResult { Downloaded, NotFound, Failed };
+
+  AssetResult IdentifyAssetNew (const app_record_epic_s::epic_s& epic);
 
   static SKIF_EpicCollection& GetInstance (void)
   {
