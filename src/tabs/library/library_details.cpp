@@ -612,7 +612,13 @@ DrawGameDetails_Play (app_record_s* pApp)
     GameMenu = PopupState_Open;
   }
 
+  // Warnings next to the launch button: VAC, and store-specific ones (itch.io: sandboxed launches)
+  std::string launchWarning = pApp->GetLaunchWarning ( );
+
   if (pApp->extended_config.vac.enabled == 1)
+    launchWarning = "Warning: VAC protected game; injection is not recommended!" + ((launchWarning.empty ( )) ? std::string ( ) : "\n\n" + launchWarning);
+
+  if (! launchWarning.empty ( ))
   {
     ImGui::SameLine ( );
     // Vertical center-align
@@ -624,7 +630,7 @@ DrawGameDetails_Play (app_record_s* pApp)
     );
     //ImGui::SetCursorPosY (ImGui::GetCursorPosY() + 50.0f + ImGui::GetStyle().FramePadding.y * SKIF_ImGui_GlobalDPIScale);
     ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION); // ImColor::HSV(0.11F, 1.F, 1.F)
-    SKIF_ImGui_SetHoverTip ("Warning: VAC protected game; injection is not recommended!");
+    SKIF_ImGui_SetHoverTip (launchWarning);
   }
 
   ImGui::SetCursorPos (posButton);

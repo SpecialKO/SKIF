@@ -3,6 +3,7 @@
 
 #include <wtypes.h>
 #include <filesystem>
+#include <fstream>
 #include <cstring>
 #include <cstdint>
 #include <algorithm>
@@ -261,6 +262,38 @@ namespace
     return (excluded.count (classification) != 0);
   }
 
+  // %APPDATA%\<app>\preferences.json
+  std::wstring
+  SKIF_itch_GetPreferencesPath (const std::string& app)
+  {
+    static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
+    return SK_FormatStringW (LR"(%ws\%hs\preferences.json)", _path_cache.app_data_roaming.path, app.c_str ( ));
+  }
+
+  // The app's "Run games in a sandbox" preference (isolateApps); a game's own launch setting overrides it
+  bool
+  SKIF_itch_GetIsolateApps (const std::string& app)
+  {
+    std::ifstream  file (std::filesystem::path (SKIF_itch_GetPreferencesPath (app)), std::ios::binary);
+    nlohmann::json prefs = (file.is_open ( )) ? nlohmann::json::parse (file, nullptr, false) : nlohmann::json ( );
+
+    return (prefs.is_object ( ) && prefs.contains ("isolateApps") && prefs ["isolateApps"].is_boolean ( ) && prefs ["isolateApps"].get <bool> ( ));
+  }
+
+  // Whether a game runs sandboxed when launched through the app: its own setting (caves.settings: { "sandbox": bool }),
+  //   else the app's preference (as the itch app's launch settings decide it)
+  bool
+  SKIF_itch_IsSandboxed (const std::string& caveSettings, bool isolateApps)
+  {
+    nlohmann::json settings = nlohmann::json::parse (caveSettings, nullptr, false);
+
+    if (settings.is_object ( ) && settings.contains ("sandbox") && settings ["sandbox"].is_boolean ( ))
+      return settings ["sandbox"].get <bool> ( );
+
+    return isolateApps;
+  }
+
   // Last write time and size of butler.db and butler.db-wal (of both apps), to cheaply tell whether a database may have changed
   std::wstring
   SKIF_itch_GetDatabaseStamp (void)
@@ -268,7 +301,7 @@ namespace
     std::wstring stamp;
 
     for (const char* app : ITCH_APPS)
-    for (const std::wstring& file : { SKIF_itch_GetDatabasePath (app), SKIF_itch_GetDatabasePath (app) + L"-wal" })
+    for (const std::wstring& file : { SKIF_itch_GetDatabasePath (app), SKIF_itch_GetDatabasePath (app) + L"-wal", SKIF_itch_GetPreferencesPath (app) })
     {
       WIN32_FILE_ATTRIBUTE_DATA fad = { };
 
@@ -293,14 +326,14 @@ namespace
     {
       itch_db_c db (SKIF_itch_GetDatabasePath (app));
 
-      fingerprint += std::string (app) + ":\n";
+      fingerprint += std::string (app) + ((SKIF_itch_GetIsolateApps (app)) ? ":sandboxed\n" : ":\n");
 
-      db.query (R"(SELECT c.id, c.build_id, c.install_folder_name, c.custom_install_folder, c.verdict, l.path
+      db.query (R"(SELECT c.id, c.build_id, c.install_folder_name, c.custom_install_folder, c.verdict, l.path, c.settings
                    FROM caves c LEFT JOIN install_locations l ON l.id = c.install_location_id
                    ORDER BY c.id)",
         [&](sqlite3_stmt* row)
         {
-          for (int col = 0; col < 6; col++)
+          for (int col = 0; col < 7; col++)
             fingerprint += db.text (row, col) + "|";
 
           fingerprint += "\n";
@@ -332,11 +365,13 @@ SKIF_itch_ScanDatabase (const std::string& app, app_list_t *apps, std::set <std:
   if (! db.isOpen ( ))
     return;
 
+  const bool isolateApps = SKIF_itch_GetIsolateApps (app);
+
   enum { Col_CaveID, Col_GameID, Col_UploadID, Col_BuildID, Col_FolderName, Col_CustomFolder, Col_Verdict,
-         Col_LocationPath, Col_Title, Col_Classification, Col_URL, Col_CoverURL, Col_StillCoverURL };
+         Col_LocationPath, Col_Title, Col_Classification, Col_URL, Col_CoverURL, Col_StillCoverURL, Col_Settings };
 
   db.query (R"(SELECT c.id, c.game_id, c.upload_id, c.build_id, c.install_folder_name, c.custom_install_folder, c.verdict,
-                      l.path, g.title, g.classification, g.url, g.cover_url, g.still_cover_url
+                      l.path, g.title, g.classification, g.url, g.cover_url, g.still_cover_url, c.settings
                FROM caves c
                LEFT JOIN install_locations l ON l.id = c.install_location_id
                LEFT JOIN games             g ON g.id = c.game_id
@@ -476,6 +511,7 @@ SKIF_itch_ScanDatabase (const std::string& app, app_list_t *apps, std::set <std:
 
     record.itch.key             = key;
     record.itch.app             = app;
+    record.itch.sandboxed       = SKIF_itch_IsSandboxed (db.text (row, Col_Settings), isolateApps);
     record.itch.game_id         = gameID;
     record.itch.upload_id       = uploadID;
     record.itch.build_id        = db.int64 (row, Col_BuildID);
@@ -610,6 +646,17 @@ app_record_itch_s::Launch (const launch_context_s& ctx)
 
 #pragma region Library UI
 
+std::string
+app_record_itch_s::GetLaunchWarning (void) const
+{
+  if (! itch.sandboxed)
+    return "";
+
+  return "The itch app runs this game in its sandbox, as a separate Windows user,\n"
+         "which may affect which saves are accessible from within the game.\n"
+         "Instant Play launches are not affected as they skip the sandbox.";
+}
+
 bool
 app_record_itch_s::GetInstantPlayDefault (void) const
 {
@@ -631,6 +678,7 @@ app_record_itch_s::GetStoreDebugFields (void) const
 {
   return {
     { "App",               itch.app                        },
+    { "Sandboxed",         (itch.sandboxed) ? "Yes" : "No" },
     { "Game ID",           std::to_string (itch.game_id)   },
     { "Upload ID",         std::to_string (itch.upload_id) },
     { "Build ID",          std::to_string (itch.build_id)  },

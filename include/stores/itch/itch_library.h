@@ -51,6 +51,7 @@ struct app_record_itch_s : app_record_store_s <app_record_itch_s, app_record_s::
   struct itch_s {
     std::string  key            = ""; // Persistent key: the game ID, or <game ID>-<upload ID> for additional installs of the same game
     std::string  app            = "itch"; // The itch app it was installed with: "itch", or "kitch" (the canary app)
+    bool         sandboxed      = false;  // Launches through the app run in its sandbox, as a separate Windows user
     int64_t      game_id        =  0;
     int64_t      upload_id      =  0;
     int64_t      build_id       =  0;
@@ -72,6 +73,7 @@ struct app_record_itch_s : app_record_store_s <app_record_itch_s, app_record_s::
   bool         GetInstantPlayDefault   (void) const override;
   std::wstring GetStoreAssetDirectory  (void) const override;
   bool         CanCreateDesktopShortcut(void)       override { return true; }
+  std::string  GetLaunchWarning        (void) const override;     // Sandboxed launches (Special K profile name)
   std::vector <std::pair <std::string, std::string>>
                GetStoreDebugFields     (void) const override;
 
