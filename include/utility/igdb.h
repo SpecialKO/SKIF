@@ -27,5 +27,7 @@ enum class SKIF_IGDB_Source : int {
 //   rate limited, proxy error), lookups pause for a minute and are then tried again.
 bool SKIF_IGDB_DownloadCover       (SKIF_IGDB_Source source, const std::string& uid, const std::wstring& targetPath);
 
-// By name, for stores IGDB has no source for. Only exact name matches are used unless allowFuzzy is set.
+// By name, for stores IGDB has no source for. Only exact name matches are used unless allowFuzzy is set; a fuzzy match
+//   with the same name written differently counts as exact (case, punctuation, ® ™ ©, "&" / "and", and Roman numerals
+//   are ignored: "The Settlers 2 - History Edition" matches "The Settlers II: History Edition").
 bool SKIF_IGDB_DownloadCoverByName (const std::string& name, const std::wstring& targetPath, bool allowFuzzy = false);
