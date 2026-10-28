@@ -1072,14 +1072,14 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
           std::wstring exec_path =
             launch.getExecutableFullPath ( );
 
-          DWORD dwBinaryType = MAXDWORD;
-          if (GetBinaryTypeW (exec_path.c_str (), &dwBinaryType))
-          {
-            if (dwBinaryType == SCS_64BIT_BINARY)
-              launch.injection.injection.bitness = InjectionBitness::SixtyFour;
-            else if (dwBinaryType == SCS_32BIT_BINARY)
-              launch.injection.injection.bitness = InjectionBitness::ThirtyTwo;
-          }
+          // Only the PE headers are read, unlike GetBinaryTypeW ( ) which maps the whole executable as an image
+          //   (which can trigger an antivirus scan that takes seconds for large, freshly installed executables)
+          const PEBitness bitness = SKIF_Util_GetBinaryType (exec_path.c_str ());
+
+          if (bitness == PEBitness_64bit)
+            launch.injection.injection.bitness = InjectionBitness::SixtyFour;
+          else if (bitness == PEBitness_32bit)
+            launch.injection.injection.bitness = InjectionBitness::ThirtyTwo;
         }
       }
     }
@@ -1116,72 +1116,45 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
         if (test_path.empty())
           continue;
 
-        std::wstring test_pattern =
-          test_path + LR"(\*.dll)";
-
-        WIN32_FIND_DATA ffd         = { };
-        HANDLE          hFind       =
-          FindFirstFileExW (test_pattern.c_str(), FindExInfoBasic, &ffd, FindExSearchNameMatch, NULL, NULL);
-
-        if (hFind != INVALID_HANDLE_VALUE)
+        for ( auto& dll : test_dlls )
         {
-          do
+          // Check for the exact file names directly instead of enumerating every DLL file in the folder
+          dll.path = test_path + LR"(\)" + dll.name + L".dll";
+
+          const DWORD dwAttributes = GetFileAttributesW (dll.path.c_str ());
+
+          if (dwAttributes == INVALID_FILE_ATTRIBUTES || (dwAttributes & FILE_ATTRIBUTE_DIRECTORY))
+            continue;
+
+          std::wstring dll_ver =
+            SKIF_Util_GetSpecialKDLLVersion (dll.path.c_str ());
+
+          if (dll_ver.empty ())
+            continue;
+
+          launch.injection.injection.type         = InjectionType::Local;
+
+          launch.injection.dll.shorthand          = dll.name + L".dll";
+          launch.injection.dll.shorthand_utf8     = SK_WideCharToUTF8 (launch.injection.dll.shorthand);
+          launch.injection.dll.full_path          = dll.path;
+          launch.injection.dll.full_path_utf8     = SK_WideCharToUTF8 (launch.injection.dll.full_path);
+          launch.injection.dll.version            = dll_ver;
+          launch.injection.dll.version_utf8       = SK_WideCharToUTF8 (launch.injection.dll.version);
+
+          if (PathFileExistsW ((test_path + LR"(\SpecialK.Central)").c_str ()))
+            launch.injection.config.type          = ConfigType::Centralized;
+          else
           {
-            if ( wcscmp (ffd.cFileName, L"." ) == 0 ||
-                 wcscmp (ffd.cFileName, L"..") == 0 )
-              continue;
+            launch.injection.config.type          = ConfigType::Localized;
+            launch.injection.config.root_dir      = test_path;
+            launch.injection.config.root_dir_utf8 = SK_WideCharToUTF8 (launch.injection.config.root_dir);
+          }
 
-            if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-              continue;
+          launch.injection.config.shorthand       = dll.name + L".ini";
+          launch.injection.config.shorthand_utf8  = SK_WideCharToUTF8 (launch.injection.config.shorthand);
 
-            for ( auto& dll : test_dlls )
-            {
-              // Filename + extension
-              dll.path = dll.name + L".dll";
-
-              if (StrStrIW (ffd.cFileName, dll.path.c_str()) == NULL)
-                continue;
-
-              // Full path
-              dll.path = test_path + LR"(\)" + dll.path;
-
-              std::wstring dll_ver =
-                SKIF_Util_GetSpecialKDLLVersion (dll.path.c_str ());
-
-              if (dll_ver.empty ())
-                continue;
-
-              launch.injection.injection.type         = InjectionType::Local;
-
-              launch.injection.dll.shorthand          = dll.name + L".dll";
-              launch.injection.dll.shorthand_utf8     = SK_WideCharToUTF8 (launch.injection.dll.shorthand);
-              launch.injection.dll.full_path          = dll.path;
-              launch.injection.dll.full_path_utf8     = SK_WideCharToUTF8 (launch.injection.dll.full_path);
-              launch.injection.dll.version            = dll_ver;
-              launch.injection.dll.version_utf8       = SK_WideCharToUTF8 (launch.injection.dll.version);
-
-              if (PathFileExistsW ((test_path + LR"(\SpecialK.Central)").c_str ()))
-                launch.injection.config.type          = ConfigType::Centralized;
-              else
-              {
-                launch.injection.config.type          = ConfigType::Localized;
-                launch.injection.config.root_dir      = test_path;
-                launch.injection.config.root_dir_utf8 = SK_WideCharToUTF8 (launch.injection.config.root_dir);
-              }
-
-              launch.injection.config.shorthand       = dll.name + L".ini";
-              launch.injection.config.shorthand_utf8  = SK_WideCharToUTF8 (launch.injection.config.shorthand);
-
-              breakOuterLoop = true;
-              break;
-            }
-
-            if (breakOuterLoop)
-              break;
-
-          } while (FindNextFile (hFind, &ffd));
-
-          FindClose (hFind);
+          breakOuterLoop = true;
+          break;
         }
 
         if (breakOuterLoop)
