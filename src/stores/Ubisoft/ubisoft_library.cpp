@@ -1084,6 +1084,21 @@ SKIF_Ubisoft_GetInstalledAppIDs (app_list_t *apps)
   {
     const uint32_t productID = install.product_id;
 
+    // Games that take long to scan are logged (the scan only reads the registry and checks that files exist,
+    //   so this points at a slow drive, or a file system filter such as an antivirus)
+    struct slow_scan_s {
+      uint32_t product_id;
+      DWORD    dwStart;
+
+     ~slow_scan_s (void)
+      {
+        DWORD dwTime = SKIF_Util_timeGetTime1 ( ) - dwStart;
+
+        if (dwTime > 100)
+          PLOG_DEBUG << "Ubisoft Connect product " << product_id << " took " << dwTime << " ms to scan.";
+      }
+    } slowScan { productID, SKIF_Util_timeGetTime1 ( ) };
+
     if (! ids.insert (productID).second)
       continue;
 
@@ -1306,13 +1321,6 @@ SKIF_Ubisoft_GetInstalledAppIDs (app_list_t *apps)
       continue;
     }
 
-    // The game executable's product name, which often has the subtitle IGDB knows the game by (used for the cover)
-    {
-      std::wstring productName = SKIF_Util_GetProductName (record.launch_configs.begin ( )->second.executable_path.c_str ( ));
-      SKIF_Util_TrimSpacesW (productName);
-      record.ubisoft.product_name = SK_WideCharToUTF8 (productName);
-    }
-
     record.specialk.injection.injection.type = InjectionType::Global;
 
     // Strip invalid filename characters
@@ -1504,7 +1512,6 @@ app_record_ubisoft_s::GetStoreDebugFields (void) const
   return {
     { "Product ID",        ubisoft.key                                    },
     { "Uninstall Name",    ubisoft.display_name                           },
-    { "Product Name",      ubisoft.product_name                           },
     { "Launch Target",     (ubisoft.updater_fallback) ? "Updater (registry value not written yet)" : "Executable" },
     { "Language",          ubisoft.language                               },
     { "Configuration",     (ubisoft.configuration) ? "Found" : "Missing"  },
@@ -1571,41 +1578,52 @@ app_record_ubisoft_s::PrepareCoverSource (bool queryPCGW)
   //   A fuzzy match is accepted when it is the same name written differently (SKIF_IGDB_DownloadCoverByName).
   const std::string& title = (! names.clean.empty ( )) ? names.clean : names.original;
 
-  std::vector <std::string> candidates;
+  std::vector <std::string> tried;
 
-  auto _Add = [&](const std::string& name)
+  auto _Try = [&](const std::string& name) -> bool
   {
     if (SKIF_Ubisoft_Simplify (name).empty ( ))
-      return;
+      return false;
 
-    for (auto& candidate : candidates)
-      if (SKIF_Ubisoft_Simplify (candidate) == SKIF_Ubisoft_Simplify (name))
-        return;
+    for (auto& previous : tried)
+      if (SKIF_Ubisoft_Simplify (previous) == SKIF_Ubisoft_Simplify (name))
+        return false;
 
-    candidates.push_back (name);
+    tried.push_back (name);
+
+    return SKIF_IGDB_DownloadCoverByName (name, coverPath);
   };
 
-  _Add (title);
-  _Add (names.normal);
+  if (_Try (title) || _Try (names.normal))
+    return coverPath;
 
-  if (! ubisoft.product_name.empty ( ))
+  // The executable is only opened now, when the names did not find a cover: opening it can take seconds for a large,
+  //   freshly installed executable, which an antivirus scans on first access (Immortals Fenyx Rising: 495 MB)
+  auto primary = launch_configs.find (0);
+
+  std::wstring productNameW = (primary != launch_configs.end ( )) ? SKIF_Util_GetProductName (primary->second.getExecutableFullPath ( ).c_str ( )) : L"";
+  SKIF_Util_TrimSpacesW (productNameW);
+  std::string  productName  = SK_WideCharToUTF8 (productNameW);
+
+  PLOG_VERBOSE << "No IGDB cover found by the title of Ubisoft Connect product " << ubisoft.product_id
+               << "; the product name of its executable is: " << ((productName.empty ( )) ? L"(none)" : productNameW);
+
+  if (! productName.empty ( ))
   {
     // "The Settlers 5 - History Edition" -> "History Edition"
     size_t      dash    = title.rfind (" - ");
     std::string edition = (dash != std::string::npos) ? title.substr (dash + 3) : "";
 
     if (! edition.empty ( ) && StrStrIA (edition.c_str ( ), "Edition") != nullptr &&
-        SKIF_Ubisoft_Simplify (ubisoft.product_name).find (SKIF_Ubisoft_Simplify (edition)) == std::string::npos)
-      _Add (ubisoft.product_name + " - " + edition);
+        SKIF_Ubisoft_Simplify (productName).find (SKIF_Ubisoft_Simplify (edition)) == std::string::npos &&
+        _Try (productName + " - " + edition))
+      return coverPath;
 
-    _Add (ubisoft.product_name);
+    if (_Try (productName))
+      return coverPath;
   }
 
-  _Add (ubisoft.display_name);
-
-  for (auto& candidate : candidates)
-    if (SKIF_IGDB_DownloadCoverByName (candidate, coverPath))
-      break;
+  _Try (ubisoft.display_name);
 
   return coverPath;
 }
