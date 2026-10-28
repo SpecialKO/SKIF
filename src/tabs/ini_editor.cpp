@@ -82,16 +82,7 @@ IniWindow::IniWindow (std::vector<IniEntry>  _i, IniType _ty, const std::wstring
 void
 SKIF_UI_IniEditor_NewFile (IniWindow* iniWindow)
 {
-  std::vector<const ConfigEntry*> ini_params = SKIF_IniReader_GetDefaultParams (dll_ini);
-  std::vector <IniEntry> ini_parsed;
-  ini_parsed.reserve (ini_params.size ( ));
-
-  for (auto& default_item : ini_params)
-  {
-    IniEntry& item = ini_parsed.emplace_back (default_item->param_type, default_item->section, default_item->key, "");
-    item.description = default_item->description;
-    item._ignore = true;
-  }
+  std::vector <IniEntry> ini_parsed = SKIF_IniReader_BuildEntries (nullptr, dll_ini);
 
   iniWindow->watch.reset();
   iniWindow->title       = "";
@@ -106,16 +97,7 @@ SKIF_UI_IniEditor_NewFile (IniWindow* iniWindow)
 void
 SKIF_UI_IniEditor_NewWindow (void)
 {
-  std::vector<const ConfigEntry*> ini_params = SKIF_IniReader_GetDefaultParams (dll_ini);
-  std::vector <IniEntry> ini_parsed;
-  ini_parsed.reserve (ini_params.size ( ));
-
-  for (auto& default_item : ini_params)
-  {
-    IniEntry& item = ini_parsed.emplace_back (default_item->param_type, default_item->section, default_item->key, "");
-    item.description = default_item->description;
-    item._ignore = true;
-  }
+  std::vector <IniEntry> ini_parsed = SKIF_IniReader_BuildEntries (nullptr, dll_ini);
 
   vIniWindow.emplace_back (std::move (ini_parsed), dll_ini);
 }

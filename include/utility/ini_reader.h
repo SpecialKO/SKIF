@@ -82,6 +82,7 @@ struct IniEntry {
 };
 
 std::vector <IniEntry>           SKIF_IniReader_ParseIni         (const std::wstring& file_path, IniType ini_type);
+std::vector <IniEntry>           SKIF_IniReader_BuildEntries     (const inih::INIReader* ini, IniType ini_type);
 void                             SKIF_IniReader_WriteIni         (const std::vector <IniEntry>& ini, const std::wstring& file_path);
 void                             SKIF_IniReader_ReadOSDIni       (void);
 void                             SKIF_IniReader_SaveOSDIni       (void);

@@ -6,6 +6,7 @@
 
 #include <stdexcept>
 #include <algorithm>
+#include <iterator>
 #include <set>
 #include <string_view>
 #include <unordered_map>
@@ -635,7 +636,16 @@ SKIF_IniReader_ParseIni (const std::wstring& file_path, IniType ini_type)
     return std::vector <IniEntry>();
   };
 
-  std::vector <IniEntry> ini_parsed;
+  return SKIF_IniReader_BuildEntries (&ini, ini_type);
+}
+
+// Builds the editor's entry list: set entries in file order, followed by the
+//   unset default parameters of each section (in params_to_build order).
+//   Sections missing from the file are added at the end, in params_to_build order.
+//   Pass nullptr to only get the default parameters (used for new files).
+std::vector <IniEntry>
+SKIF_IniReader_BuildEntries (const inih::INIReader* ini, IniType ini_type)
+{
   std::vector<const ConfigEntry*> default_params = SKIF_IniReader_GetDefaultParams (ini_type);
 
   // Combined lookup key for a section + key pair
@@ -649,69 +659,83 @@ SKIF_IniReader_ParseIni (const std::wstring& file_path, IniType ini_type)
     return ret;
   };
 
-  // Index the parsed INI file once. inih's Sections ( ) and Get (section) both return copies,
-  //   so they must not be called once per default parameter (that copied the whole file every time).
-  const std::set <std::string> sections = ini.Sections ( );
+  // Default parameters, by section + key (the first definition wins on duplicates)
+  std::unordered_map <std::string, const ConfigEntry*> defaults;
+  defaults.reserve (default_params.size ( ));
 
-  std::vector <std::pair <std::string, std::unordered_map <std::string, std::string>>> ini_sections;
-  ini_sections.reserve (sections.size ( )); // No reallocation, so the pointers in ini_values stay valid
+  for (const ConfigEntry* param : default_params)
+    defaults.emplace (_MakeKey (param->section, param->key), param);
 
-  std::unordered_map <std::string, const std::string*> ini_values;
+  // One bucket per section, in order of first appearance
+  std::vector <std::vector <IniEntry>>       buckets;
+  std::unordered_map <std::string, size_t>   bucket_idx;
 
-  for (const auto& section : sections)
+  auto _GetBucket = [&](const std::string& section) -> std::vector <IniEntry>&
   {
-    auto& sec = ini_sections.emplace_back (section, ini.Get (section));
+    auto [it, inserted] = bucket_idx.try_emplace (section, buckets.size ( ));
+    if (inserted)
+      buckets.emplace_back ( );
+    return buckets [it->second];
+  };
 
-    for (const auto& kv : sec.second)
-      ini_values.emplace (_MakeKey (sec.first, kv.first), &kv.second);
-  }
+  std::unordered_set <std::string> found_keys;
 
-  ini_parsed.reserve (default_params.size ( ) + ini_values.size ( ));
+  // Set entries, in file order...
 
-  std::unordered_set <std::string> default_keys;
-  default_keys.reserve (default_params.size ( ));
-
-  // Add all default parameters first...
-
-  for (auto& default_item : default_params)
+  if (ini != nullptr)
   {
-    std::string lookup = _MakeKey (default_item->section, default_item->key);
-    const auto  it     = ini_values.find (lookup);
-    const bool  found  = (it != ini_values.end ( ));
+    found_keys.reserve (ini->OrderedKeys ( ).size ( ));
 
-    //PLOG_VERBOSE << "INI item [DEFAULT]: [" << default_item->section << "] " << default_item->key << " = " << (found ? *it->second : "");
-
-    IniEntry& item = ini_parsed.emplace_back (default_item->param_type, default_item->section, default_item->key, found ? *it->second : std::string ( ));
-    item.description = default_item->description;
-    item._ignore = ! found;
-
-    default_keys.emplace (std::move (lookup));
-  }
-
-  // Add any unrecognized parameters...
-
-  for (const auto& [section, values] : ini_sections)
-  {
-    for (const auto& kv : values)
+    for (const auto& [section, key] : ini->OrderedKeys ( ))
     {
-      if (! default_keys.contains (_MakeKey (section, kv.first)))
+      std::string       lookup = _MakeKey (section, key);
+      const std::string value  = ini->Get <std::string> (section, key);
+      const auto        it     = defaults.find (lookup);
+
+      if (it != defaults.end ( ))
       {
-        //PLOG_VERBOSE << "INI item [UNKNOWN]: [" << section << "] " << kv.first << " = " << kv.second;
-        IniEntry& item = ini_parsed.emplace_back (ParameterUnknown, section, kv.first, kv.second);
-        item._ignore = false;
+        IniEntry& item = _GetBucket (section).emplace_back (it->second->param_type, section, key, value);
+        item.description = it->second->description;
+        item._ignore     = false;
       }
+
+      else
+      {
+        // Unrecognized parameter
+        IniEntry& item = _GetBucket (section).emplace_back (ParameterUnknown, section, key, value);
+        item._ignore     = false;
+      }
+
+      found_keys.emplace (std::move (lookup));
     }
   }
 
-  // Sort it all!
+  // Unset default parameters, at the end of their section...
 
-  std::sort (ini_parsed.begin(), ini_parsed.end(), [](const IniEntry& a, const IniEntry& b)
-    {
-      return (strcmp (a.section, b.section)  < 0  ||
-             (strcmp (a.section, b.section) == 0 &&
-             (strcmp (a.key,     b.key)      < 0)));
-    }
-  );
+  for (const ConfigEntry* param : default_params)
+  {
+    std::string lookup = _MakeKey (param->section, param->key);
+
+    // Skip parameters that were set, and duplicate definitions
+    if (! found_keys.emplace (std::move (lookup)).second)
+      continue;
+
+    IniEntry& item = _GetBucket (param->section).emplace_back (param->param_type, param->section, param->key, std::string ( ));
+    item.description = param->description;
+    item._ignore     = true;
+  }
+
+  // Flatten the buckets, which keeps each section contiguous
+
+  size_t total = 0;
+  for (const auto& bucket : buckets)
+    total += bucket.size ( );
+
+  std::vector <IniEntry> ini_parsed;
+  ini_parsed.reserve (total);
+
+  for (auto& bucket : buckets)
+    std::move (bucket.begin ( ), bucket.end ( ), std::back_inserter (ini_parsed));
 
   return ini_parsed;
 }
@@ -719,39 +743,45 @@ SKIF_IniReader_ParseIni (const std::wstring& file_path, IniType ini_type)
 void
 SKIF_IniReader_WriteIni (const std::vector<IniEntry>& ini, const std::wstring& file_path)
 {
-  inih::INIReader new_ini = { };
+  // Write the entries in the order they are listed. The list keeps each section
+  //   contiguous and keys in file order, so the file's own layout is retained.
+  // Build the content as UTF-8 first, then convert it to UTF-16 LE when writing.
+  // The file is opened in binary mode, so line endings are written as CRLF here.
+  std::string                      content;
+  std::string_view                 current_section;
+  std::unordered_set <std::string> written;
+  bool                             first_section = true;
 
   for (const auto& trie : ini)
   {
-    if (! trie._ignore)
+    if (trie._ignore)
+      continue;
+
+    std::string lookup = trie.section;
+    lookup.push_back ('\x1F');
+    lookup.append    (trie.key);
+
+    if (! written.emplace (std::move (lookup)).second)
     {
-      //PLOG_VERBOSE << "Writing INI item: [" << trie.section << "] " << trie.key << " = " << trie.value;
-      try
-      {
-        new_ini.InsertEntry (trie.section, trie.key, trie.value);
-      }
-      catch (const std::exception& e)
-      {
-        // Probably caused by a duplicate key, so just log it and continue
-        PLOG_ERROR << "Error writing INI item: [" << trie.section << "] " << trie.key << " = " << trie.value;
-        PLOG_ERROR << "Error: " << e.what();
-      }
+      // Duplicate key, so just log it and continue
+      PLOG_ERROR << "Error writing INI item: [" << trie.section << "] " << trie.key << " = " << trie.value;
+      PLOG_ERROR << "Error: duplicate key";
+      continue;
     }
-  }
 
-  // Build the content as UTF-8 first, then convert it to UTF-16 LE when writing.
-  // The file is opened in binary mode, so line endings are written as CRLF here.
-  std::string content;
+    //PLOG_VERBOSE << "Writing INI item: [" << trie.section << "] " << trie.key << " = " << trie.value;
 
-  for (std::size_t i = 0; const auto& section : new_ini.Sections ( ))
-  {
-    content += "[" + section + "]\r\n";
+    if (first_section || current_section != trie.section)
+    {
+      if (! first_section)
+        content += "\r\n";
 
-    for (const auto& key : new_ini.Keys (section))
-      content += key + "=" + new_ini.Get (section, key) + "\r\n";
+      content        += "[" + std::string (trie.section) + "]\r\n";
+      current_section = trie.section;
+      first_section   = false;
+    }
 
-    if (++i < new_ini.Sections ( ).size ( ))
-      content += "\r\n";
+    content += std::string (trie.key) + "=" + trie.value + "\r\n";
   }
 
   const std::wstring wide_content = SK_UTF8ToWideChar (content);

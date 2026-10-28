@@ -189,6 +189,14 @@ class INIReader {
      * @brief Return the list of sections found in ini file
      * @return The list of sections found in ini file
      */
+    /**
+     * @brief Return every (section, key) pair in the order it was parsed
+     * @return The parsed keys, in file order
+     */
+    const std::vector<std::pair<std::string, std::string>>& OrderedKeys() const {
+        return _order;
+    }
+
     std::set<std::string> Sections() const {
         std::set<std::string> retval;
         for (const auto& element : _values) {
@@ -393,6 +401,8 @@ class INIReader {
     std::unordered_map<std::string,
                        std::unordered_map<std::string, std::string>>
         _values;
+    /// (section, name) pairs in the order they appear in the parsed content.
+    std::vector<std::pair<std::string, std::string>> _order;
 
     /// Parse `s` as a `T`; throws std::runtime_error on failure.
     template <typename T>
@@ -486,6 +496,7 @@ class INIReader {
         std::unordered_map<std::string, std::string>* values = nullptr;
         int lineno = 0;
         _error = 0;
+        _order.clear();
 
         while (!content.empty()) {
             ++lineno;
@@ -533,6 +544,7 @@ class INIReader {
                                              std::string(name) +
                                              "' in section '" + section + "'.");
                 }
+                _order.emplace_back(section, std::string(name));
             }
         }
     }
