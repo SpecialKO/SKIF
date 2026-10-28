@@ -35,6 +35,7 @@
 
 // Registry Settings
 #include <utility/registry.h>
+#include <utility/launch_behaviors.h>
 #include <stores/Steam/steam_library.h>
 
 // Stuff
@@ -1592,6 +1593,11 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
           app.second->skif.cpu_type       = keyCPU;
           app.second->skif.auto_stop      = keyAutoStop;
           app.second->skif.hidden         = keyHidden;
+
+          // Keep the install folder's auto-stop behavior in the registry in sync so the launcher mode can use it
+          //   without parsing the library (SKIF %COMMAND%). Unchanged values are not written again.
+          if (! app.second->install_dir.empty ( ) && keyAutoStop >= 0 && keyAutoStop <= 3)
+            SKIF_LaunchBehaviors::SetAutoStop (app.second->install_dir, static_cast <SKIF_LaunchBehaviors::AutoStop> (keyAutoStop));
           app.second->skif.uses           = keyUses;
           app.second->skif.used           = keyUsed;
           app.second->skif.category       = keyGroup;

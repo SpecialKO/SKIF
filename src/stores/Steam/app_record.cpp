@@ -9,6 +9,7 @@
 #include <utility/fsutil.h>
 #include <utility/games.h>
 #include <utility/igdb.h>
+#include <utility/launch_behaviors.h>
 
 // The registry's platform flags (SKIF_StoreFlag) are derived from the store IDs: see GetStoreFlag ( )
 static_assert (StoreFlag_Steam  == 1 << (static_cast <int> (app_record_s::Store::Steam)  - 1));
@@ -256,70 +257,90 @@ app_launch_config_s::getBlacklistFilename (void)
     blacklist_file;
 }
 
+// Where a launch config's behaviors are stored: the executable itself, or the
+//   install folder for launch configs without one (URIs, shell execute, etc).
+//     This mirrors the legacy SpecialK.deny.<exe> / SpecialK.deny file locations.
+static std::wstring
+_GetLaunchBehaviorsPath (app_launch_config_s& config)
+{
+  return (config.isExecutableFileNameValid ( ))
+          ? config.getExecutableFullPath   ( )
+          : config.install_dir;
+}
+
 bool
 app_launch_config_s::setBlacklisted (bool blacklist)
 {
+  using Service = SKIF_LaunchBehaviors::Service;
+
+  if (blacklist == isBlacklisted ( ))
+    return blacklisted;
+
+  std::wstring behaviors_path =
+    _GetLaunchBehaviorsPath (*this);
+
+  // Special K itself reads this file to remain disabled for the executable, so it is still maintained
   std::wstring blacklist_path =
     getBlacklistFilename ( );
 
-  auto _Blacklist =
-  [&](bool set) -> bool
+  if (blacklist)
   {
-    blacklisted =
-      PathFileExistsW (blacklist_path.c_str ()) ?
-                                              1 : 0;
+    // This replaces any elevation, as a blocked executable does not use the service at all
+    SKIF_LaunchBehaviors::SetService (behaviors_path, Service::Blocked);
 
-    assert (set == (bool)blacklisted);
+    FILE* fBlacklist =
+      _wfopen (blacklist_path.c_str (), L"w+");
 
-    UNREFERENCED_PARAMETER (set);
-
-    return blacklisted;
-  };
-
-  if (blacklist != isBlacklisted ( ))
-  {
-    if (blacklist)
+    if (fBlacklist != nullptr)
     {
-      FILE* fBlacklist =
-        _wfopen (blacklist_path.c_str (), L"w+");
-
-      if (fBlacklist != nullptr)
-      {
-        fputws (L"This file tells Special K to remain disabled for the executable.", fBlacklist);
-        fclose (           fBlacklist);
-
-        return _Blacklist (blacklist);
-      }
-
-      return _Blacklist (false);
-    }
-
-    else
-    {
-      if (DeleteFileW (blacklist_path.c_str ()))
-        return _Blacklist (blacklist);
-      else
-        return _Blacklist (true);
+      fputws (L"This file tells Special K to remain disabled for the executable.", fBlacklist);
+      fclose (           fBlacklist);
     }
   }
 
-  return _Blacklist (blacklist);
+  else
+  {
+    SKIF_LaunchBehaviors::SetService (behaviors_path, Service::Inherit);
+
+    // Still blocked through a parent folder -- override it for this executable
+    if (SKIF_LaunchBehaviors::Resolve (behaviors_path).service == Service::Blocked)
+      SKIF_LaunchBehaviors::SetService (behaviors_path, Service::Normal);
+
+    if (PathFileExistsW (blacklist_path.c_str ()))
+      DeleteFileW       (blacklist_path.c_str ());
+  }
+
+  // The elevation state might have changed as well
+  elevated = -1;
+
+  return isBlacklisted (true);
 }
 
 bool
 app_launch_config_s::isBlacklisted (bool refresh)
 {
+  using Service = SKIF_LaunchBehaviors::Service;
+
   if (blacklisted != -1 && ! refresh)
     return blacklisted;
 
-  std::wstring full_path =
-    getBlacklistFilename ( );
+  std::wstring behaviors_path =
+    _GetLaunchBehaviorsPath (*this);
 
-  // getBlacklistFilename ( ) can set blacklisted == 1 for
-  //   invalid launch configs, requiring no duplicate testing
-  if (blacklisted == -1 || refresh)
-    blacklisted =
-      PathFileExistsW (full_path.c_str ());
+  Service service =
+    SKIF_LaunchBehaviors::Resolve (behaviors_path).service;
+
+  // Special K honors the legacy file regardless of the registry, so treat it as blocked
+  //   and record it in the registry so the launcher does not need to look for the file
+  if (service != Service::Blocked && PathFileExistsW (getBlacklistFilename ( ).c_str ()))
+  {
+    SKIF_LaunchBehaviors::SetService (behaviors_path, Service::Blocked);
+    service  = Service::Blocked;
+    elevated = -1;
+  }
+
+  blacklisted =
+    (service == Service::Blocked) ? 1 : 0;
 
   return blacklisted;
 }
@@ -374,67 +395,63 @@ app_launch_config_s::getElevatedFilename (void)
 bool
 app_launch_config_s::setElevated (bool elevate)
 {
-  std::wstring elevated_path =
-    getElevatedFilename ( );
+  using Service = SKIF_LaunchBehaviors::Service;
 
-  auto _Elevate =
-  [&](bool set) -> bool
-  {
-    elevated =
-      PathFileExistsW (elevated_path.c_str ()) ?
-                                              1 : 0;
-
-    assert (set == (bool)elevated);
-
-    UNREFERENCED_PARAMETER (set);
-
+  if (elevate == isElevated ( ))
     return elevated;
-  };
 
-  if (elevate != isElevated ( ))
+  // A blocked executable does not use the service, so it cannot be elevated
+  if (elevate && isBlacklisted ( ))
+    return isElevated (true);
+
+  std::wstring behaviors_path =
+    _GetLaunchBehaviorsPath (*this);
+
+  if (elevate)
+    SKIF_LaunchBehaviors::SetService (behaviors_path, Service::Elevated);
+
+  else
   {
-    if (elevate)
-    {
-      FILE* fElevate =
-        _wfopen (elevated_path.c_str (), L"w+");
+    SKIF_LaunchBehaviors::SetService (behaviors_path, Service::Inherit);
 
-      if (fElevate != nullptr)
-      {
-        fputws (L"This file tells Special K Injection Frontend (SKIF) to elevate the injection services for the executable.", fElevate);
-        fclose (           fElevate);
+    // Still elevated through a parent folder -- override it for this executable
+    if (SKIF_LaunchBehaviors::Resolve (behaviors_path).service == Service::Elevated)
+      SKIF_LaunchBehaviors::SetService (behaviors_path, Service::Normal);
 
-        return _Elevate (elevate);
-      }
+    // The legacy file is only read by SKIF, and has been superseded by the registry
+    std::wstring elevated_path =
+      getElevatedFilename ( );
 
-      return _Elevate (false);
-    }
-
-    else
-    {
-      if (DeleteFileW (elevated_path.c_str ()))
-        return _Elevate (elevate);
-      else
-        return _Elevate (true);
-    }
+    if (PathFileExistsW (elevated_path.c_str ()))
+      DeleteFileW       (elevated_path.c_str ());
   }
 
-  return _Elevate (elevate);
+  return isElevated (true);
 }
 
 bool
 app_launch_config_s::isElevated (bool refresh)
 {
+  using Service = SKIF_LaunchBehaviors::Service;
+
   if (elevated != -1 && ! refresh)
     return elevated;
 
-  std::wstring full_path =
-    getElevatedFilename ( );
+  std::wstring behaviors_path =
+    _GetLaunchBehaviorsPath (*this);
 
-  // getElevatedFilename ( ) can set elevated == 1 for
-  //   invalid launch configs, requiring no duplicate testing
-  if (elevated == -1 || refresh)
-    elevated =
-      PathFileExistsW (full_path.c_str ());
+  Service service =
+    SKIF_LaunchBehaviors::Resolve (behaviors_path).service;
+
+  // Migrate the legacy file to the registry if the registry has no service setting yet
+  if (service == Service::Inherit && PathFileExistsW (getElevatedFilename ( ).c_str ()))
+  {
+    SKIF_LaunchBehaviors::SetService (behaviors_path, Service::Elevated);
+    service = Service::Elevated;
+  }
+
+  elevated =
+    (service == Service::Elevated) ? 1 : 0;
 
   return elevated;
 }

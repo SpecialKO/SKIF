@@ -21,6 +21,7 @@
 //
 
 #include "library_ui.h"
+#include <utility/launch_behaviors.h>
 
 // Popups of the library tab (moved verbatim from SKIF_UI_Tab_DrawLibrary)
 void
@@ -422,7 +423,22 @@ DrawLibraryPopups (void)
       );
 
       ImGui::TreePush        ("ManageGame_Miscellaneous");
+
+      // A blocked executable does not use the service, so it cannot be elevated either
+      const bool elevate_blocked =
+        pApp->launch_configs[0].isBlacklisted ( );
+
+      if (elevate_blocked)
+        SKIF_ImGui_PushDisableState ( );
+
       ImGui::Checkbox        ("Elevated service###ElevatedLaunch", &cached_elevate);
+
+      if (elevate_blocked)
+      {
+        SKIF_ImGui_PopDisableState  ( );
+        SKIF_ImGui_SetHoverTip ("Special K is disabled for this executable, so the service is not used.", true, true);
+      }
+
       ImGui::SameLine        ( );
       ImGui::Spacing         ( );
       ImGui::SameLine        ( );
@@ -452,6 +468,10 @@ DrawLibraryPopups (void)
 
         pApp->skif.auto_stop    = cached_auto_stop;
         pApp->skif.instant_play = cached_instant_play;
+
+        // Also store the auto-stop behavior for the install folder so the launcher mode can use it (SKIF %COMMAND%)
+        if (! pApp->install_dir.empty ( ))
+          SKIF_LaunchBehaviors::SetAutoStop (pApp->install_dir, static_cast <SKIF_LaunchBehaviors::AutoStop> (cached_auto_stop));
 
         if (cached_hidden != pApp->IsHidden ( ))
         {

@@ -189,6 +189,9 @@
     <ClInclude Include="include\utility\registry.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
+    <ClInclude Include="include\utility\launch_behaviors.h">
+      <Filter>Header Files\Utility</Filter>
+    </ClInclude>
     <ClInclude Include="include\utility\games.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
@@ -375,6 +378,9 @@
       <Filter>Source Files\Utility</Filter>
     </ClCompile>
     <ClCompile Include="src\utility\registry.cpp">
+      <Filter>Source Files\Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utility\launch_behaviors.cpp">
       <Filter>Source Files\Utility</Filter>
     </ClCompile>
     <ClCompile Include="src\utility\games.cpp">

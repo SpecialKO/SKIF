@@ -75,6 +75,7 @@
 #include <tabs/local.h>
 
 #include <utility/registry.h>
+#include <utility/launch_behaviors.h>
 #include <utility/updater.h>
 
 #include <utility/drvreset.h>
@@ -856,13 +857,40 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
     if (! steamAppId.empty())
       _Signal._SteamAppID    = steamAppId;
 
-    std::wstring blacklistFile = SK_FormatStringW (L"%s\\SpecialK.deny.%ws",
-                                                    std::filesystem::path(path).parent_path().wstring().c_str(),                 // full path to parent folder
-                                                    std::filesystem::path(path).filename().replace_extension().wstring().c_str() // filename without extension
-    );
+    using Service       = SKIF_LaunchBehaviors::Service;
+    using SteamAppIDtxt = SKIF_LaunchBehaviors::SteamAppIDtxt;
+
+    // Per-executable and per-folder launch behaviors (registry; see utility/launch_behaviors.h)
+    SKIF_LaunchBehaviors::Resolved behaviors =
+      SKIF_LaunchBehaviors::Resolve (path);
+
+    // Legacy fallback: SpecialK.deny.<exe> / SpecialK.admin.<exe> next to the executable,
+    //   only consulted when the registry has no service setting for the executable or its folders.
+    //     The library migrates these files to the registry when it reads them.
+    if (behaviors.service == Service::Inherit)
+    {
+      std::wstring blacklistFile = SK_FormatStringW (L"%s\\SpecialK.deny.%ws",
+                                                      std::filesystem::path(path).parent_path().wstring().c_str(),                 // full path to parent folder
+                                                      std::filesystem::path(path).filename().replace_extension().wstring().c_str() // filename without extension
+      );
+
+      std::wstring elevationFile = SK_FormatStringW (L"%s\\SpecialK.admin.%ws",
+                                                      std::filesystem::path(path).parent_path().wstring().c_str(),                 // full path to parent folder
+                                                      std::filesystem::path(path).filename().replace_extension().wstring().c_str() // filename without extension
+      );
+
+      if      (PathFileExistsW (blacklistFile.c_str()))
+        behaviors.service = Service::Blocked;
+      else if (PathFileExistsW (elevationFile.c_str()))
+        behaviors.service = Service::Elevated;
+    }
+
+    PLOG_INFO << "Launch behaviors:  auto-stop " << static_cast <int> (behaviors.autoStop)
+              << ", service "                    << static_cast <int> (behaviors.service)
+              << ", steam_appid.txt "            << static_cast <int> (behaviors.steamAppIDtxt);
 
     // Check if the executable is blacklisted
-    isLocalBlacklisted  = PathFileExistsW (blacklistFile.c_str());
+    isLocalBlacklisted  = (behaviors.service == Service::Blocked);
     isGlobalBlacklisted = _inject._TestUserList (SK_WideCharToUTF8(path).c_str(), false);
 
     _Signal._DoNotUseService = (isLocalBlacklisted || isGlobalBlacklisted);
@@ -872,13 +900,14 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
       // Whitelist the path if it haven't been already
       _inject.WhitelistPath (SK_WideCharToUTF8(path));
 
-      std::wstring elevationFile = SK_FormatStringW (L"%s\\SpecialK.admin.%ws",
-                                                      std::filesystem::path(path).parent_path().wstring().c_str(),                 // full path to parent folder
-                                                      std::filesystem::path(path).filename().replace_extension().wstring().c_str() // filename without extension
-      );
-
-      _Signal._ElevatedService = PathFileExists (elevationFile.c_str());
+      _Signal._ElevatedService = (behaviors.service == Service::Elevated);
     }
+
+    _Signal._AutoStopBehavior = static_cast <int> (behaviors.autoStop);
+
+    // The registry can request the removal as well (an explicit SKIF_SteamAppIDtxt=0 always removes it)
+    if (behaviors.steamAppIDtxt == SteamAppIDtxt::Remove)
+      _Signal._RemoveSteamAppIDtxt = TRUE;
 
     // The user wants us to remove any steam_appid.txt file that might be present in the working directory
     if (_Signal._RemoveSteamAppIDtxt)
@@ -958,6 +987,21 @@ SKIF_Startup_LaunchURIPreparation (LPWSTR lpCmdLine)
         workingDirectory = std::filesystem::path (argSKIF_URI_found).parent_path().wstring();
 
       _Signal._GameWorkDir = workingDirectory;
+
+      // Per-executable and per-folder launch behaviors (registry; see utility/launch_behaviors.h)
+      if (PathFileExistsW (argSKIF_URI_found.c_str()))
+      {
+        using Service = SKIF_LaunchBehaviors::Service;
+
+        SKIF_LaunchBehaviors::Resolved behaviors =
+          SKIF_LaunchBehaviors::Resolve (argSKIF_URI_found);
+
+        if (behaviors.service == Service::Blocked)
+          _Signal._DoNotUseService = true;
+
+        _Signal._ElevatedService  = (behaviors.service == Service::Elevated);
+        _Signal._AutoStopBehavior = static_cast <int> (behaviors.autoStop);
+      }
     }
   }
 
@@ -995,13 +1039,13 @@ SKIF_Startup_LaunchGameService (void)
     PLOG_INFO << "Starting injection service...";
 
     if (_Signal._RunningInstance)
-      SendMessage (_Signal._RunningInstance, WM_SKIF_LAUNCHER, _Signal._ElevatedService, 0x0);
+      SendMessage (_Signal._RunningInstance, WM_SKIF_LAUNCHER, _Signal._ElevatedService, _Signal._AutoStopBehavior);
 
     else if (! _inject.bCurrentState)
     {
-
-      _registry._ExitOnInjection = true;
-      _inject._StartStopInject (false, true, _Signal._ElevatedService);
+      // "Never" keeps the service running, so do not wait for it to stop before exiting
+      _registry._ExitOnInjection = (_Signal._AutoStopBehavior != 3);
+      _inject._StartStopInject (false, true, _Signal._ElevatedService, _Signal._AutoStopBehavior);
     }
   }
 }
@@ -5130,7 +5174,7 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       {
         PLOG_INFO << "Suppressing the initial 'Please launch a game to continue' notification...";
         _registry._SuppressServiceNotification = true;
-        _inject._StartStopInject (false, true, wParam);
+        _inject._StartStopInject (false, true, wParam, static_cast <int> (lParam)); // wParam = elevated, lParam = auto-stop behavior
       }
 
       // Reload the whitelist as it might have been changed

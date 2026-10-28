@@ -141,6 +141,7 @@ struct SKIF_Signals { // Used for command line arguments
   HWND _RunningInstance     = NULL;
   BOOL _DoNotUseService     = FALSE;
   BOOL _ElevatedService     = FALSE;
+  int  _AutoStopBehavior    = 0;     // 0 = use global default, 1 = stop on injection, 2 = stop on game exit, 3 = never stop
   std::wstring _GamePath    = L"";
   std::wstring _GameArgs    = L"";
   std::wstring _GameWorkDir = L"";
