@@ -161,8 +161,8 @@ void SKIF_UI_DrawPlatformStatus (void)
     {"Galaxy",              L"GalaxyClient.exe"},
     {"EA Desktop",          L"EADesktop.exe"},
     {"Epic Games Launcher", L"EpicGamesLauncher.exe"},
-    {"itch",                L"itch.exe"},
-    {"itch (canary)",       L"kitch.exe"},
+    {"itch.io",             L"itch.exe"},
+    {"itch.io (canary)",    L"kitch.exe"},
     {"Ubisoft Connect",     L"upc.exe"},
     {"RTSS",                L"RTSS.exe"}
   };

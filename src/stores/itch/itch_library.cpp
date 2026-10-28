@@ -142,7 +142,7 @@ namespace
 
       if (_sql->prepare_v2 (_db, sql, -1, &stmt, nullptr) != SQLITE_OK)
       {
-        PLOG_WARNING << "itch database query failed: " << _sql->errmsg (_db);
+        PLOG_WARNING << "itch.io database query failed: " << _sql->errmsg (_db);
         return false;
       }
 
@@ -386,7 +386,7 @@ SKIF_itch_ScanDatabase (const std::string& app, app_list_t *apps, std::set <std:
 
     if (SKIF_itch_IsExcludedClassification (classification))
     {
-      PLOG_VERBOSE << "itch cave " << caveID << " (" << title << ") is classified as " << classification << "; skipping...";
+      PLOG_VERBOSE << "itch.io cave " << caveID << " (" << title << ") is classified as " << classification << "; skipping...";
       return;
     }
 
@@ -400,7 +400,7 @@ SKIF_itch_ScanDatabase (const std::string& app, app_list_t *apps, std::set <std:
 
       if (locationPath.empty ( ) || folderName.empty ( ))
       {
-        PLOG_WARNING << "itch cave " << caveID << " has no install location; skipping...";
+        PLOG_WARNING << "itch.io cave " << caveID << " has no install location; skipping...";
         return;
       }
 
@@ -469,7 +469,7 @@ SKIF_itch_ScanDatabase (const std::string& app, app_list_t *apps, std::set <std:
 
     if (launchConfigs.empty ( ))
     {
-      PLOG_WARNING << "itch game " << SK_UTF8ToWideChar (title) << " (" << installDir << ") has no Windows executable; skipping...";
+      PLOG_WARNING << "itch.io game " << SK_UTF8ToWideChar (title) << " (" << installDir << ") has no Windows executable; skipping...";
       return;
     }
 
@@ -482,7 +482,7 @@ SKIF_itch_ScanDatabase (const std::string& app, app_list_t *apps, std::set <std:
 
       if (! keys.insert (key).second)
       {
-        PLOG_VERBOSE << "itch cave " << caveID << " is a duplicate of " << key << "; skipping...";
+        PLOG_VERBOSE << "itch.io cave " << caveID << " is a duplicate of " << key << "; skipping...";
         return;
       }
     }
@@ -503,7 +503,7 @@ SKIF_itch_ScanDatabase (const std::string& app, app_list_t *apps, std::set <std:
 
     app_record_itch_s record (appid);
 
-    record.store_utf8           = "itch";
+    record.store_utf8           = "itch.io";
     record._status.installed    = true;
     record.install_dir          = installDir;
     record.names.normal         = title;

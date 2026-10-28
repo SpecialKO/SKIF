@@ -902,41 +902,21 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::BeginGroup ( );
 
-    if (ImGui::Checkbox          ("EA",   &_registry.bLibraryEA))
+    if (ImGui::Checkbox          ("EA",     &_registry.bLibraryEA))
     {
-      _registry.regKVLibraryEA.putData    (_registry.bLibraryEA);
+      _registry.regKVLibraryEA.putData      (_registry.bLibraryEA);
       RepopulateGames = true;
     }
 
-    if (ImGui::Checkbox        ("Epic",   &_registry.bLibraryEpic))
+    if (ImGui::Checkbox        ("Epic",     &_registry.bLibraryEpic))
     {
-      _registry.regKVLibraryEpic.putData  (_registry.bLibraryEpic);
+      _registry.regKVLibraryEpic.putData    (_registry.bLibraryEpic);
       RepopulateGames = true;
     }
 
-    if (ImGui::Checkbox         ("GOG",   &_registry.bLibraryGOG))
+    if (ImGui::Checkbox         ("GOG",     &_registry.bLibraryGOG))
     {
-      _registry.regKVLibraryGOG.putData   (_registry.bLibraryGOG);
-      RepopulateGames = true;
-    }
-
-    ImGui::EndGroup ( );
-
-    ImGui::SameLine ( );
-    ImGui::Spacing  ( );
-    ImGui::SameLine ( );
-
-    ImGui::BeginGroup ( );
-
-    if (ImGui::Checkbox         ("itch",  &_registry.bLibraryitch))
-    {
-      _registry.regKVLibraryitch.putData  (_registry.bLibraryitch);
-      RepopulateGames = true;
-    }
-
-    if (ImGui::Checkbox         ("Steam", &_registry.bLibrarySteam))
-    {
-      _registry.regKVLibrarySteam.putData (_registry.bLibrarySteam);
+      _registry.regKVLibraryGOG.putData     (_registry.bLibraryGOG);
       RepopulateGames = true;
     }
 
@@ -948,15 +928,35 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::BeginGroup ( );
 
-    if (ImGui::Checkbox        ("Xbox",   &_registry.bLibraryXbox))
+    if (ImGui::Checkbox         ("itch.io", &_registry.bLibraryitch))
     {
-      _registry.regKVLibraryXbox.putData  (_registry.bLibraryXbox);
+      _registry.regKVLibraryitch.putData    (_registry.bLibraryitch);
       RepopulateGames = true;
     }
 
-    if (ImGui::Checkbox        ("Custom", &_registry.bLibraryCustom))
+    if (ImGui::Checkbox         ("Steam",   &_registry.bLibrarySteam))
     {
-      _registry.regKVLibraryCustom.putData(_registry.bLibraryCustom);
+      _registry.regKVLibrarySteam.putData   (_registry.bLibrarySteam);
+      RepopulateGames = true;
+    }
+
+    ImGui::EndGroup ( );
+
+    ImGui::SameLine ( );
+    ImGui::Spacing  ( );
+    ImGui::SameLine ( );
+
+    ImGui::BeginGroup ( );
+
+    if (ImGui::Checkbox        ("Xbox",     &_registry.bLibraryXbox))
+    {
+      _registry.regKVLibraryXbox.putData    (_registry.bLibraryXbox);
+      RepopulateGames = true;
+    }
+
+    if (ImGui::Checkbox        ("Custom",   &_registry.bLibraryCustom))
+    {
+      _registry.regKVLibraryCustom.putData  (_registry.bLibraryCustom);
       RepopulateGames = true;
     }
 
@@ -991,7 +991,7 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::Spacing  ( );
     ImGui::SameLine ( );
 
-    if (ImGui::Checkbox       ("itch",        &_registry.bInstantPlayitch))
+    if (ImGui::Checkbox       ("itch.io",     &_registry.bInstantPlayitch))
       _registry.regKVInstantPlayitch.putData  (_registry.bInstantPlayitch);
 
     ImGui::SameLine ( );

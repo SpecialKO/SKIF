@@ -2183,37 +2183,37 @@ DrawEmptySpaceMenu (bool showClearBtn)
       if (_games.IsPopulating ( ))
         SKIF_ImGui_PushDisableState ( );
 
-      if (ImGui::MenuItem ("EA",    spaces, pbLibraryEA,     (! _registry._LibraryHidden)))
+      if (ImGui::MenuItem ("EA",      spaces, pbLibraryEA,     (! _registry._LibraryHidden)))
       {
         _registry.regKVLibraryEA.putData    (_registry.bLibraryEA);
         RepopulateGames = true;
       }
 
-      if (ImGui::MenuItem ("Epic",  spaces, pbLibraryEpic,   (! _registry._LibraryHidden)))
+      if (ImGui::MenuItem ("Epic",    spaces, pbLibraryEpic,   (! _registry._LibraryHidden)))
       {
         _registry.regKVLibraryEpic.putData  (_registry.bLibraryEpic);
         RepopulateGames = true;
       }
 
-      if (ImGui::MenuItem ("GOG",   spaces, pbLibraryGOG,    (! _registry._LibraryHidden)))
+      if (ImGui::MenuItem ("GOG",     spaces, pbLibraryGOG,    (! _registry._LibraryHidden)))
       {
         _registry.regKVLibraryGOG.putData   (_registry.bLibraryGOG);
         RepopulateGames = true;
       }
 
-      if (ImGui::MenuItem ("itch",  spaces, pbLibraryitch,   (! _registry._LibraryHidden)))
+      if (ImGui::MenuItem ("itch.io", spaces, pbLibraryitch,   (! _registry._LibraryHidden)))
       {
         _registry.regKVLibraryitch.putData  (_registry.bLibraryitch);
         RepopulateGames = true;
       }
 
-      if (ImGui::MenuItem ("Steam", spaces, pbLibrarySteam,  (! _registry._LibraryHidden)))
+      if (ImGui::MenuItem ("Steam",   spaces, pbLibrarySteam,  (! _registry._LibraryHidden)))
       {
         _registry.regKVLibrarySteam.putData (_registry.bLibrarySteam);
         RepopulateGames = true;
       }
 
-      if (ImGui::MenuItem ("Xbox",  spaces, pbLibraryXbox,   (! _registry._LibraryHidden)))
+      if (ImGui::MenuItem ("Xbox",    spaces, pbLibraryXbox,   (! _registry._LibraryHidden)))
       {
         _registry.regKVLibraryXbox.putData  (_registry.bLibraryXbox);
         RepopulateGames = true;
@@ -2221,7 +2221,7 @@ DrawEmptySpaceMenu (bool showClearBtn)
 
       ImGui::Separator ( );
 
-      if (ImGui::MenuItem ("Custom",spaces, pbLibraryCustom, (! _registry._LibraryHidden)))
+      if (ImGui::MenuItem ("Custom",  spaces, pbLibraryCustom, (! _registry._LibraryHidden)))
       {
         _registry.regKVLibraryCustom.putData(_registry.bLibraryCustom);
         RepopulateGames = true;
