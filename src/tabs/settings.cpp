@@ -46,6 +46,8 @@ SKIF_UI_Tab_DrawSettings (void)
 
   static const std::wstring valvePlugPath = SK_FormatStringW (LR"(%ws\XInput1_4.dll)", _path_cache.steam_install);
   static       bool         valvePlug     = false;
+  static       FILETIME     valvePlugLastWriteTime = { }; // Last-write time and size of valvePlugPath as of the last check
+  static       uint64_t     valvePlugFileSize      = 0;
 
   float columnWidth = 0.5f * ImGui::GetContentRegionAvail().x; // Needs to be before the SKIF_ImGui_Columns() call
   bool enableColums = (ImGui::GetContentRegionAvail().x / SKIF_ImGui_GlobalDPIScale >= 750.f);
@@ -57,7 +59,29 @@ SKIF_UI_Tab_DrawSettings (void)
     SKIF_Util_IsHDRActive (NULL);
     SKIF_IniReader_ReadOSDIni ( );
     RefreshSettingsTab  = false;
-    valvePlug = (SKIF_Util_GetProductName (valvePlugPath.c_str()).find(L"Valve Plug") != std::wstring::npos);
+
+    // Only read the version info of the DLL again if it has changed (e.g. through a Steam update) since the last check,
+    //   as a metadata query is cheap while reading the file itself can trigger an antivirus scan
+    WIN32_FILE_ATTRIBUTE_DATA valvePlugAttributes = { };
+
+    if (GetFileAttributesExW (valvePlugPath.c_str(), GetFileExInfoStandard, &valvePlugAttributes))
+    {
+      const uint64_t fileSize = (static_cast<uint64_t> (valvePlugAttributes.nFileSizeHigh) << 32) | valvePlugAttributes.nFileSizeLow;
+
+      if (CompareFileTime (&valvePlugAttributes.ftLastWriteTime, &valvePlugLastWriteTime) != 0 || fileSize != valvePlugFileSize)
+      {
+        valvePlugLastWriteTime = valvePlugAttributes.ftLastWriteTime;
+        valvePlugFileSize      = fileSize;
+        valvePlug              = (SKIF_Util_GetProductName (valvePlugPath.c_str()).find(L"Valve Plug") != std::wstring::npos);
+      }
+    }
+
+    else // The DLL does not exist (anymore)
+    {
+      valvePlugLastWriteTime = { };
+      valvePlugFileSize      = 0;
+      valvePlug              = false;
+    }
 
     if (valvePlug && _registry.regKVValvePlug.hasData())
       _registry.iValvePlug = _registry.regKVValvePlug.getData();
