@@ -2177,6 +2177,7 @@ DrawEmptySpaceMenu (bool showClearBtn)
       static bool* pbLibraryGOG    = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryGOG;
       static bool* pbLibraryitch   = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryitch;
       static bool* pbLibrarySteam  = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibrarySteam;
+      static bool* pbLibraryUbisoft= (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryUbisoft;
       static bool* pbLibraryXbox   = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryXbox;
       static bool* pbLibraryCustom = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryCustom;
 
@@ -2213,6 +2214,12 @@ DrawEmptySpaceMenu (bool showClearBtn)
         RepopulateGames = true;
       }
 
+      if (ImGui::MenuItem ("Ubisoft", spaces, pbLibraryUbisoft,(! _registry._LibraryHidden)))
+      {
+        _registry.regKVLibraryUbisoft.putData (_registry.bLibraryUbisoft);
+        RepopulateGames = true;
+      }
+
       if (ImGui::MenuItem ("Xbox",    spaces, pbLibraryXbox,   (! _registry._LibraryHidden)))
       {
         _registry.regKVLibraryXbox.putData  (_registry.bLibraryXbox);
@@ -2234,6 +2241,7 @@ DrawEmptySpaceMenu (bool showClearBtn)
         pbLibraryGOG    = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryGOG;
         pbLibraryitch   = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryitch;
         pbLibrarySteam  = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibrarySteam;
+        pbLibraryUbisoft= (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryUbisoft;
         pbLibraryXbox   = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryXbox;
         pbLibraryCustom = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryCustom;
 

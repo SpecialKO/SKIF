@@ -19,6 +19,7 @@ static_assert (StoreFlag_Epic   == 1 << (static_cast <int> (app_record_s::Store:
 static_assert (StoreFlag_Xbox   == 1 << (static_cast <int> (app_record_s::Store::Xbox)   - 1));
 static_assert (StoreFlag_EA     == 1 << (static_cast <int> (app_record_s::Store::EA)     - 1));
 static_assert (StoreFlag_itch   == 1 << (static_cast <int> (app_record_s::Store::itch)   - 1));
+static_assert (StoreFlag_Ubisoft== 1 << (static_cast <int> (app_record_s::Store::Ubisoft)- 1));
 
 // Shorthand, because these are way too long
 using app_launch_config_s =

@@ -40,6 +40,7 @@
 #include <stores/epic/epic_library.h>
 #include <stores/EA/ea_library.h>
 #include <stores/itch/itch_library.h>
+#include <stores/Ubisoft/ubisoft_library.h>
 #include <stores/Xbox/xbox_library.h>
 #include <stores/SKIF/custom_library.h>
 
@@ -536,6 +537,16 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     SK_RunOnce (
       PLOG_DEBUG << "[Library Pre-Processing] itch took " << (SKIF_Util_timeGetTime1 ( ) - time_current) << " ms.";
+      time_current = SKIF_Util_timeGetTime1 ( );
+    )
+
+    // Does not set up a wait object; checked only while enabled (it reads Launcher\Installs, and re-reads the
+    //   configurations cache when that file changes)
+    if (_registry.bLibraryUbisoft && SKIF_Ubisoft_hasInstalledGamesChanged ( ))
+      RepopulateGames = true;
+
+    SK_RunOnce (
+      PLOG_DEBUG << "[Library Pre-Processing] Ubisoft took " << (SKIF_Util_timeGetTime1 ( ) - time_current) << " ms.";
       time_current = SKIF_Util_timeGetTime1 ( );
     )
 

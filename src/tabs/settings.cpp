@@ -847,8 +847,8 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
     SKIF_ImGui_SetHoverTip ("Games are looked up on IGDB by their store ID where possible, otherwise by their exact name.\n"
                             "A cover from PCGamingWiki takes precedence over one from IGDB, as those are typically of\n"
-                            "a higher resolution. EA, itch.io and custom games always use IGDB covers, as those platforms\n"
-                            "have none of their own.");
+                            "a higher resolution. EA, itch.io, Ubisoft and custom games always use IGDB covers, as those\n"
+                            "platforms have no suitable covers of their own.");
 
     ImGui::TreePush      ("IGDBCovers");
 
@@ -940,6 +940,12 @@ SKIF_UI_Tab_DrawSettings (void)
       RepopulateGames = true;
     }
 
+    if (ImGui::Checkbox         ("Ubisoft", &_registry.bLibraryUbisoft))
+    {
+      _registry.regKVLibraryUbisoft.putData (_registry.bLibraryUbisoft);
+      RepopulateGames = true;
+    }
+
     ImGui::EndGroup ( );
 
     ImGui::SameLine ( );
@@ -1000,6 +1006,13 @@ SKIF_UI_Tab_DrawSettings (void)
 
     if (ImGui::Checkbox       ("Steam",       &_registry.bInstantPlaySteam))
       _registry.regKVInstantPlaySteam.putData (_registry.bInstantPlaySteam);
+
+    ImGui::SameLine ( );
+    ImGui::Spacing  ( );
+    ImGui::SameLine ( );
+
+    if (ImGui::Checkbox       ("Ubisoft",     &_registry.bInstantPlayUbisoft))
+      _registry.regKVInstantPlayUbisoft.putData (_registry.bInstantPlayUbisoft);
 
     ImGui::SameLine ( );
     ImGui::Spacing  ( );

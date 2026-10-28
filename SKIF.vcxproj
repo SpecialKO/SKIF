@@ -386,6 +386,7 @@
     <ClInclude Include="include\stores\EA\ea_library.h" />
     <ClInclude Include="include\stores\Epic\epic_library.h" />
     <ClInclude Include="include\stores\itch\itch_library.h" />
+    <ClInclude Include="include\stores\Ubisoft\ubisoft_library.h" />
     <ClInclude Include="include\tabs\ini_editor.h" />
     <ClInclude Include="include\tabs\hardware.h" />
     <ClInclude Include="include\tabs\local.h" />
@@ -462,6 +463,7 @@
     <ClCompile Include="src\stores\EA\ea_library.cpp" />
     <ClCompile Include="src\stores\Epic\epic_library.cpp" />
     <ClCompile Include="src\stores\itch\itch_library.cpp" />
+    <ClCompile Include="src\stores\Ubisoft\ubisoft_library.cpp" />
     <ClCompile Include="src\stores\generic_library2.cpp" />
     <ClCompile Include="src\tabs\ini_editor.cpp" />
     <ClCompile Include="src\tabs\hardware.cpp" />

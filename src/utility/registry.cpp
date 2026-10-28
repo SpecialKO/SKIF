@@ -312,6 +312,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   bInstantPlayGOG          =   regKVInstantPlayGOG         .getData (&hKey);
   bInstantPlayitch         =   regKVInstantPlayitch        .getData (&hKey);
   bInstantPlaySteam        =   regKVInstantPlaySteam       .getData (&hKey);
+  bInstantPlayUbisoft      =   regKVInstantPlayUbisoft     .getData (&hKey);
   bInstantPlayXbox         =   regKVInstantPlayXbox        .getData (&hKey);
 
   // UI elements that can be toggled
@@ -349,6 +350,9 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
 
   if (regKVLibraryGOG.hasData(&hKey))
     bLibraryGOG            =   regKVLibraryGOG             .getData (&hKey);
+
+  if (regKVLibraryUbisoft.hasData(&hKey))
+    bLibraryUbisoft        =   regKVLibraryUbisoft         .getData (&hKey);
 
   if (regKVLibraryXbox.hasData(&hKey))
     bLibraryXbox           =   regKVLibraryXbox            .getData (&hKey);

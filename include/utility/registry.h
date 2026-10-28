@@ -26,7 +26,8 @@ enum SKIF_StoreFlag : int {
   StoreFlag_Epic   = 0x08,
   StoreFlag_Xbox   = 0x10,
   StoreFlag_EA     = 0x20,
-  StoreFlag_itch   = 0x40
+  StoreFlag_itch   = 0x40,
+  StoreFlag_Ubisoft= 0x80
 };
 
 struct SKIF_RegistrySettings {
@@ -224,6 +225,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Instant Play Steam)" );
 
+  KeyValue <bool> regKVInstantPlayUbisoft =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Instant Play Ubisoft)" );
+
   KeyValue <bool> regKVInstantPlayXbox =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Instant Play Xbox)" );
@@ -283,6 +288,10 @@ struct SKIF_RegistrySettings {
   KeyValue <bool> regKVLibraryitch =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Library itch)" );
+
+  KeyValue <bool> regKVLibraryUbisoft =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Library Ubisoft)" );
 
   KeyValue <bool> regKVLibraryEpic =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
@@ -655,6 +664,7 @@ struct SKIF_RegistrySettings {
   bool bLibraryEpic             =  true;
   bool bLibraryitch             =  true;
   bool bLibraryGOG              =  true;
+  bool bLibraryUbisoft          =  true;
   bool bLibraryXbox             =  true;
   bool bLibraryCustom           =  true;
 
@@ -675,6 +685,7 @@ struct SKIF_RegistrySettings {
   bool bInstantPlayGOG          = false;
   bool bInstantPlayitch         = false;
   bool bInstantPlaySteam        = false;
+  bool bInstantPlayUbisoft      = false;
   bool bInstantPlayXbox         = false;
   bool bMaximizeOnDoubleClick   = false;
   bool bMinimizeOnGameLaunch    = false;

@@ -76,6 +76,12 @@
     <Filter Include="Source Files\Stores\itch">
       <UniqueIdentifier>{251cdafa-71e7-493a-b650-c8b857515b6a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Stores\Ubisoft">
+      <UniqueIdentifier>{7d1e3c52-9b4a-4f0e-a6c8-2f5b81d94e13}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Stores\Ubisoft">
+      <UniqueIdentifier>{c4a92e7b-3f61-4d85-b0e2-8a7f15c6d390}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source Files\Stores\Epic">
       <UniqueIdentifier>{53f1e1d3-2a75-46d0-b743-6e316a734c04}</UniqueIdentifier>
     </Filter>
@@ -236,6 +242,9 @@
     </ClInclude>
     <ClInclude Include="include\stores\itch\itch_library.h">
       <Filter>Header Files\Stores\itch</Filter>
+    </ClInclude>
+    <ClInclude Include="include\stores\Ubisoft\ubisoft_library.h">
+      <Filter>Header Files\Stores\Ubisoft</Filter>
     </ClInclude>
     <ClInclude Include="include\stores\Epic\epic_library.h">
       <Filter>Header Files\Stores\Epic</Filter>
@@ -406,6 +415,9 @@
     </ClCompile>
     <ClCompile Include="src\stores\itch\itch_library.cpp">
       <Filter>Source Files\Stores\itch</Filter>
+    </ClCompile>
+    <ClCompile Include="src\stores\Ubisoft\ubisoft_library.cpp">
+      <Filter>Source Files\Stores\Ubisoft</Filter>
     </ClCompile>
     <ClCompile Include="src\stores\Epic\epic_library.cpp">
       <Filter>Source Files\Stores\Epic</Filter>
