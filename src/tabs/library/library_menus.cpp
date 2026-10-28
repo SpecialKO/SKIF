@@ -1494,7 +1494,7 @@ DrawGameContextMenu (app_record_s* pApp)
   app_record_s::launch_config_s*
     firstLaunchConfig = (pApp != nullptr && ! pApp->launch_configs.empty ()) ? &pApp->launch_configs.begin ()->second : nullptr;
 
-  bool playDisabled = (pApp->_status.running || pApp->_status.updating);
+  bool playDisabled = (pApp->_status.running || pApp->IsUpdateBlockingLaunch ( ));
 
   // Push styling for Disabled
   ImGui::PushStyleColor      (ImGuiCol_TextDisabled,

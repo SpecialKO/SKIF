@@ -761,6 +761,7 @@ namespace
     std::string working_append;     // working_directory: append:
     std::string arguments;          // play_arguments, else arguments
     std::string arguments_register; // A registry value holding (more) arguments
+    std::string updater;            // evil_updater: path: relative: (run by the client before the game; Far Cry 3's starts the game itself)
   };
 
   // The launchable executables of a product, from start_game's online section (else offline), in order.
@@ -810,6 +811,9 @@ namespace
           exe.arguments        = item.str ("arguments");
 
         exe.arguments_register = item.str ("arguments_register");
+
+        if (const ubisoft_yaml_s* updater = item.path ({ "evil_updater", "path" }))
+          exe.updater          = updater->str ("relative");
 
         if (! exe.relative.empty ( ) || ! exe.path_register.empty ( ))
           executables.push_back (std::move (exe));
@@ -970,6 +974,51 @@ namespace
             PathIsDirectoryW ((install_dir + LR"(\uplay_download\)" + std::to_wstring (productID)).c_str ( )));
   }
 
+  // The current values of the registry references a product's executables are read from (path: register:,
+  //   arguments_register:), which the client writes on the game's first launch (Far Cry 3 Blood Dragon).
+  //   Main thread only: the references are kept per product until its configuration changes.
+  std::string
+  SKIF_Ubisoft_GetRegisterValues (uint32_t productID, const std::string& yaml)
+  {
+    struct references_s {
+      size_t                    hash = 0;
+      std::vector <std::string> references;
+    };
+
+    static std::map <uint32_t, references_s> cache;
+
+    std::hash <std::string> hasher;
+    size_t                  hash = hasher (yaml);
+    references_s&           entry = cache [productID];
+
+    if (entry.hash != hash || hash == 0)
+    {
+      entry.hash = hash;
+      entry.references.clear ( );
+
+      if (! yaml.empty ( ))
+      {
+        SKIF_Ubisoft_YAMLParser parser;
+
+        for (auto& exe : SKIF_Ubisoft_GetExecutables (parser.parse (yaml), ""))
+        {
+          if (! exe.path_register.empty ( ))
+            entry.references.push_back (exe.path_register);
+
+          if (! exe.arguments_register.empty ( ))
+            entry.references.push_back (exe.arguments_register);
+        }
+      }
+    }
+
+    std::string values;
+
+    for (auto& reference : entry.references)
+      values += SK_WideCharToUTF8 (SKIF_Ubisoft_ReadRegisterReference (reference)) + ";";
+
+    return values;
+  }
+
   // Identifies the installed games and their configurations, to tell when the library has to be repopulated
   std::string
   SKIF_Ubisoft_GetFingerprint (void)
@@ -979,11 +1028,17 @@ namespace
 
     std::hash <std::string> hasher;
 
-    // A download finishing (or starting) is part of it: games are only listed once their executable exists
+    // A download finishing (or starting) is part of it: games are only listed once their executable exists.
+    //   So are the registry values executables are read from, which the client writes on a game's first launch.
     for (auto& install : SKIF_Ubisoft_GetInstalls ( ))
+    {
+      std::string yaml = SKIF_Ubisoft_GetConfiguration (clientFolder, install.product_id);
+
       fingerprint += std::to_string (install.product_id) + "|" + SK_WideCharToUTF8 (install.install_dir) + "|" + SK_WideCharToUTF8 (install.language) + "|" +
-                     std::to_string (hasher (SKIF_Ubisoft_GetConfiguration (clientFolder, install.product_id))) + "|" +
-                     ((SKIF_Ubisoft_IsDownloading (install.install_dir, install.product_id)) ? "downloading" : "") + "\n";
+                     std::to_string (hasher (yaml)) + "|" +
+                     ((SKIF_Ubisoft_IsDownloading (install.install_dir, install.product_id)) ? "downloading" : "") + "|" +
+                     SKIF_Ubisoft_GetRegisterValues (install.product_id, yaml) + "\n";
+    }
 
     return fingerprint;
   }
@@ -1102,8 +1157,8 @@ SKIF_Ubisoft_GetInstalledAppIDs (app_list_t *apps)
     record.ubisoft.icon           = displayIcon;
     record.ubisoft.configuration  = (! yaml.empty ( ));
 
-    // A download in progress is shown as updating (the play button is disabled meanwhile). That is an update of an
-    //   installed game: a game downloaded for the first time is left out below, as its executable is still missing.
+    // A download in progress is shown as updating (the game can still be launched, see CanLaunchWhileUpdating). The game
+    //   is only listed if its executable exists: an update, or a progressive install that is already playable.
     record._status.updating       = (SKIF_Ubisoft_IsDownloading (install.install_dir, productID)) ? 0x1 : 0x0;
 
     PLOG_VERBOSE_IF (record._status.updating) << "Ubisoft Connect product " << productID << " is being downloaded";
@@ -1156,7 +1211,24 @@ SKIF_Ubisoft_GetInstalledAppIDs (app_list_t *apps)
       {
         std::wstring value = SKIF_Ubisoft_ReadRegisterReference (exe.path_register);
 
-        if (value.empty ( ))
+        // The value is written by the client on the game's first launch (Far Cry 3 Blood Dragon: ExecutableName =
+        //   bin\fc3_blooddragon_d3d11.exe). Until then, the executable's updater is used: the client runs it before
+        //   the game, and Far Cry 3's updaters start the game themselves (bin\fc3_blooddragon_d3d11_b.exe -language=...).
+        std::wstring updater = (! value.empty ( ) || exe.updater.empty ( )) ? L""
+                             : SKIF_Ubisoft_CombinePath (workingDir, SK_UTF8ToWideChar (exe.updater));
+
+        if (! updater.empty ( ) && PathFileExistsW (updater.c_str ( )))
+        {
+          PLOG_VERBOSE << "Ubisoft Connect product " << productID << ": the executable's registry value is missing (" << SK_UTF8ToWideChar (exe.path_register)
+                       << "), it is written on the first launch through the client; using its updater: " << updater;
+
+          if (! checkedMain)
+            record.ubisoft.updater_fallback = true;
+
+          exePath = updater;
+        }
+
+        else if (value.empty ( ))
         {
           PLOG_VERBOSE << "Ubisoft Connect product " << productID << ": the executable's registry value is missing (" << SK_UTF8ToWideChar (exe.path_register) << ")";
 
@@ -1169,8 +1241,9 @@ SKIF_Ubisoft_GetInstalledAppIDs (app_list_t *apps)
           continue;
         }
 
-        exePath = (PathIsRelativeW (value.c_str ( ))) ? SKIF_Ubisoft_CombinePath (workingDir, value)
-                                                      : SKIF_Ubisoft_NormalizePath (value);
+        else
+          exePath = (PathIsRelativeW (value.c_str ( ))) ? SKIF_Ubisoft_CombinePath (workingDir, value)
+                                                        : SKIF_Ubisoft_NormalizePath (value);
       }
 
       // Native executables only (the Settlers History Editions also list .bat files for their map editors)
@@ -1344,8 +1417,9 @@ app_record_ubisoft_s::Launch (const launch_context_s& ctx)
   }
 }
 
-// List row, main thread: a download in progress is shown as updating (the play button is disabled meanwhile),
-//   which also keeps the constant changes in the install folder from refreshing the selected game over and over
+// List row, main thread: a download in progress is shown as updating, which also keeps the constant changes in the
+//   install folder from refreshing the selected game over and over. The game can still be launched meanwhile
+//   (CanLaunchWhileUpdating): with a progressive install, Ubisoft Connect lets a game be played before it has finished.
 void
 app_record_ubisoft_s::RefreshClientState (DWORD dwTimeNow)
 {
@@ -1357,9 +1431,56 @@ app_record_ubisoft_s::RefreshClientState (DWORD dwTimeNow)
   _status.updating    = (SKIF_Ubisoft_IsDownloading (install_dir, ubisoft.product_id)) ? 0x1 : 0x0;
 }
 
+// Process scan: the primary executable, or another executable in its folder. Ubisoft games are often started through
+//   a stub that runs the actual game next to it: Ubisoft Connect runs Far Cry 3 Blood Dragon as
+//   bin\fc3_blooddragon_d3d11_b.exe, while its launch target is bin\fc3_blooddragon_d3d11.exe (or the updater).
+app_record_s::ProcessMatch
+app_record_ubisoft_s::MatchProcess (const wchar_t* wszExeFile, const wchar_t* wszExePath, DWORD dwExePathLen)
+{
+  ProcessMatch match = app_record_s::MatchProcess (wszExeFile, wszExePath, dwExePathLen);
+
+  if (match != ProcessMatch::None || wszExePath == nullptr || dwExePathLen == 0)
+    return match;
+
+  auto primary = launch_configs.find (0);
+
+  if (primary == launch_configs.end ( ))
+    return ProcessMatch::None;
+
+  std::wstring folder = primary->second.getExecutableDir ( );
+
+  if (folder.empty ( ))
+    return ProcessMatch::None;
+
+  if (folder.back ( ) != L'\\')
+    folder += L'\\';
+
+  std::wstring_view path (wszExePath, wcsnlen (wszExePath, dwExePathLen));
+
+  // Directly in that folder (not in a subfolder), and an executable
+  if (path.size ( ) > folder.size ( ) + 4 &&
+      _wcsnicmp (path.data ( ), folder.c_str ( ), folder.size ( )) == 0 &&
+      path.find (L'\\', folder.size ( )) == std::wstring_view::npos &&
+      _wcsnicmp (path.data ( ) + path.size ( ) - 4, L".exe", 4) == 0)
+    return ProcessMatch::Running;
+
+  return ProcessMatch::None;
+}
+
 #pragma endregion
 
 #pragma region Library UI
+
+std::string
+app_record_ubisoft_s::GetLaunchWarning (void) const
+{
+  if (! _status.updating)
+    return "";
+
+  return "Ubisoft Connect is still installing this game.\n"
+         "It can be played already if Ubisoft Connect allows it (a progressive install), but\n"
+         "Instant Play may run it before all of its files are in place.";
+}
 
 bool
 app_record_ubisoft_s::GetInstantPlayDefault (void) const
@@ -1384,6 +1505,7 @@ app_record_ubisoft_s::GetStoreDebugFields (void) const
     { "Product ID",        ubisoft.key                                    },
     { "Uninstall Name",    ubisoft.display_name                           },
     { "Product Name",      ubisoft.product_name                           },
+    { "Launch Target",     (ubisoft.updater_fallback) ? "Updater (registry value not written yet)" : "Executable" },
     { "Language",          ubisoft.language                               },
     { "Configuration",     (ubisoft.configuration) ? "Found" : "Missing"  },
     { "Client Icon",       SK_WideCharToUTF8 (ubisoft.icon)               }

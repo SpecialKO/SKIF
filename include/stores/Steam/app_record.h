@@ -488,7 +488,9 @@ struct app_record_s {
   virtual bool         CoverNeedsClientSignIn  (void) const { return false; }                  // The cover is missing because the store client is signed out (GOG Galaxy)
   virtual std::string  GetLocalizedName        (void)                     { return names.original; } // Name used for the Special K profile folder
   virtual bool         CanCreateDesktopShortcut(void)                     { return false; }
-  virtual std::string  GetLaunchWarning        (void) const               { return ""; }      // Shown as a warning icon next to the launch button (itch.io: sandboxed launches)
+  virtual std::string  GetLaunchWarning        (void) const               { return ""; }      // Shown as a warning icon next to the launch button (itch.io: sandboxed launches; Ubisoft: still installing)
+  virtual bool         CanLaunchWhileUpdating  (void) const               { return false; }   // The store client lets the game be played before its download has finished (Ubisoft: progressive installs)
+  bool                 IsUpdateBlockingLaunch  (void) const               { return (_status.updating != 0 && ! CanLaunchWhileUpdating ( )); } // Play is disabled while the store client updates the game
   virtual std::wstring GetDesktopShortcutArgs  (void);                                         // app_record.cpp: SKIF arguments that launch the game
   virtual std::wstring GetDesktopShortcutIcon  (void)                     { return launch_configs[0].getExecutableFullPath ( ); }
   virtual std::vector <std::pair <std::string, std::string>>

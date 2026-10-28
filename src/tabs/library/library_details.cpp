@@ -418,7 +418,7 @@ DrawGameDetails_Play (app_record_s* pApp)
   ImVec2 posButton =
      ImGui::GetCursorPos ( );
 
-  if (loading || pApp->_status.running || pApp->_status.updating || buttonPending)
+  if (loading || pApp->_status.running || pApp->IsUpdateBlockingLaunch ( ) || buttonPending)
   {
     buttonLabel =               (loading) ? "Loading..." :
                   (pApp->_status.running) ? "Running..." :
@@ -600,7 +600,7 @@ DrawGameDetails_Play (app_record_s* pApp)
   if (buttonPending)
     SKIF_ImGui_SetHoverTip ("Please finish the ongoing mod installation first.");
 
-  if (loading || pApp->_status.running || pApp->_status.updating || buttonPending)
+  if (loading || pApp->_status.running || pApp->IsUpdateBlockingLaunch ( ) || buttonPending)
   {
     ImGui::EndDisabled   ( );
     ImGui::PopStyleColor ( );
@@ -612,7 +612,7 @@ DrawGameDetails_Play (app_record_s* pApp)
     GameMenu = PopupState_Open;
   }
 
-  // Warnings next to the launch button: VAC, and store-specific ones (itch.io: sandboxed launches)
+  // Warnings next to the launch button: VAC, and store-specific ones (itch.io: sandboxed launches; Ubisoft: still installing)
   std::string launchWarning = pApp->GetLaunchWarning ( );
 
   if (pApp->extended_config.vac.enabled == 1)

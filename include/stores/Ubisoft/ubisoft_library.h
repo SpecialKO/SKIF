@@ -71,6 +71,8 @@ struct app_record_ubisoft_s : app_record_store_s <app_record_ubisoft_s, app_reco
     std::string  language      = ""; // Install language (en-US)
     std::wstring icon          = L""; // The client's .ico for the game (<client>\data\<hash>.ico)
     bool         configuration = false; // Launch configs come from the client's configurations cache
+    bool         updater_fallback = false; // The game's executable is read from a registry value the client only writes on the
+                                           //   first launch, so its updater is the launch target until then (Far Cry 3 Blood Dragon)
   } ubisoft;
 
   DWORD        dwNextDownloadCheck = 0; // RefreshClientState: when to look for a download in progress next
@@ -89,7 +91,8 @@ struct app_record_ubisoft_s : app_record_store_s <app_record_ubisoft_s, app_reco
             ubisoft.product_name  == o.product_name  &&
             ubisoft.language      == o.language      &&
             ubisoft.icon          == o.icon          &&
-            ubisoft.configuration == o.configuration);
+            ubisoft.configuration == o.configuration &&
+            ubisoft.updater_fallback == o.updater_fallback);
   }
 
   std::string  GetPersistentKey        (void) const override { return ubisoft.key; }
@@ -100,11 +103,14 @@ struct app_record_ubisoft_s : app_record_store_s <app_record_ubisoft_s, app_reco
   bool         PrefersInstantLaunch    (bool fromGameMenu, launch_config_s* config) const override;
   void         Launch                  (const launch_context_s& ctx) override;
   void         RefreshClientState      (DWORD dwTimeNow) override; // A download in progress is shown as updating
+  ProcessMatch MatchProcess            (const wchar_t* wszExeFile, const wchar_t* wszExePath, DWORD dwExePathLen) override; // Also executables next to the primary one (stubs)
+  bool         CanLaunchWhileUpdating  (void) const override { return true; } // Progressive installs: Ubisoft Connect lets the game be played before it has finished
 
   // Library UI (ubisoft_library.cpp)
   bool         GetInstantPlayDefault   (void) const override;
   std::wstring GetStoreAssetDirectory  (void) const override;
   bool         CanCreateDesktopShortcut(void)       override { return true; }
+  std::string  GetLaunchWarning        (void) const override;     // Still installing (a progressive install, or an update)
   std::vector <std::pair <std::string, std::string>>
                GetStoreDebugFields     (void) const override;
 

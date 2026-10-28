@@ -345,7 +345,7 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
     static DWORD    timeClicked = 0;
 
     // Handle double click on a game row
-    if ( ImGui::IsItemHovered ( ) && pApp != nullptr && pApp->id != SKIF_STEAM_APPID && ! pApp->_status.running && ! pApp->_status.updating )
+    if ( ImGui::IsItemHovered ( ) && pApp != nullptr && pApp->id != SKIF_STEAM_APPID && ! pApp->_status.running && ! pApp->IsUpdateBlockingLaunch ( ) )
     {
       if ( ImGui::IsMouseDoubleClicked (ImGuiMouseButton_Left) &&
            timeClicked != 0 && (item_clicked.game == pApp->GetKey ( )))
