@@ -556,8 +556,7 @@ skValveDataFile::getAppInfo ( uint32_t appid, app_list_t *apps )
 
               int launch_idx_skif =
                 static_cast<int> (pAppRecord->launch_configs.size());
-              int launch_idx_steam = 0; // We do not currently actually use this for anything.
-                                        // It is also unreliable as developers can remove launch configs...
+              int launch_idx_steam = 0; // Steam's index of the launch option (shown in the launch option's menu)
 
               std::sscanf ( finished_section.name.c_str (),
                               "appinfo.config.launch.%d", &launch_idx_steam);
@@ -565,9 +564,10 @@ skValveDataFile::getAppInfo ( uint32_t appid, app_list_t *apps )
               // The index used solely for parsing
               int idx = launch_idx_steam;
 
-              // Use the Steam launch key to workaround some parsing issue or another...
-              // TODO: Fix this shit -- it's a shitty workaround for stupid duplicate parsing!
-              //       AND it breaks Instant Play custom options... :(
+              // Each launch option is made up of two sections that both end up here, as both match "appinfo.config.launch.":
+              //   appinfo.config.launch.<N>         -- executable, arguments, workingdir, type, description
+              //   appinfo.config.launch.<N>.config  -- oslist, osarch, betakey, ownsdlc
+              // so both are keyed by Steam's index <N> to end up in the same launch config (the map is renumbered below)
               auto& launch_cfg =
                 pAppRecord->launch_configs [launch_idx_steam];
 
@@ -586,7 +586,6 @@ skValveDataFile::getAppInfo ( uint32_t appid, app_list_t *apps )
               // Holds UTF8 strings (internal only)
               std::unordered_map <std::string, std::string*>
                  string_map = {
-              //  { "betakey",     &launch_cfg.beta_key       }, // TODO: Fix this shit -- it's landing on the duplicate launch configs
                   { "ownsdlc",     &launch_cfg.requires_dlc   }
                 };
 
@@ -665,9 +664,6 @@ skValveDataFile::getAppInfo ( uint32_t appid, app_list_t *apps )
                 }
               }
 
-              // There is a really annoying bug in SKIF where parsing the launch configs results in semi-duplicate empty entries,
-              //   though I have no idea why... Maybe has to do with some "padding" between the sections in the appinfo.vdf file?
-
 #if 0
 
               PLOG_VERBOSE << "Steam Launch ID   : " <<       launch_idx_steam;
@@ -679,8 +675,8 @@ skValveDataFile::getAppInfo ( uint32_t appid, app_list_t *apps )
               PLOG_VERBOSE << "Description       : " <<       launch_cfg.description;
               PLOG_VERBOSE << "Operating System  : " << (int) launch_cfg.platforms;
               PLOG_VERBOSE << "CPU Architecture  : " << (int) launch_cfg.cpu_type;
-              PLOG_VERBOSE << "Beta key          : " <<       launch_cfg.beta_key;
-              PLOG_VERBOSE << "Owns DLC          : " <<       launch_cfg.owns_dlc;
+              PLOG_VERBOSE << "Beta branches     : " <<       launch_cfg.branches.size ( );
+              PLOG_VERBOSE << "Requires DLC      : " <<       launch_cfg.requires_dlc;
 
 #endif
 
@@ -766,7 +762,6 @@ skValveDataFile::getAppInfo ( uint32_t appid, app_list_t *apps )
             continue;
 
           // Filter launch configurations lacking an executable
-          // This also skips all the semi-weird duplicate launch configs SKIF randomly creates
           if (launch.executable.empty())
             continue;
 
@@ -786,18 +781,6 @@ skValveDataFile::getAppInfo ( uint32_t appid, app_list_t *apps )
           if (launch.valid)
             launch.executable = std::filesystem::path(launch.executable).lexically_normal();
 
-          // Flag duplicates...
-          //   but not if we found them as not valid above (as that would filter out custom launch configs that matches beta launch configs...)
-          if (launch.isExecutableFileNameValid() && launch.valid)
-          {
-            // Use the executable to identify duplicates (affects Disable Special K menu)
-            if (! _used_executables.emplace (launch.getExecutableFileName()).second)
-              launch.duplicate_exe = true;
-
-            // Use a combination of the executable and arguments to identify duplicates (affects Instant Play menu)
-            if (! _used_executables_arguments.emplace (launch.getExecutableFileName() + launch.getLaunchOptions()).second)
-              launch.duplicate_exe_args = true;
-          }
 
           // Working dir = empty, ., / or \ all need fixups
           if ( wcslen (launch.working_dir.c_str ()) < 2 )
@@ -812,12 +795,24 @@ skValveDataFile::getAppInfo ( uint32_t appid, app_list_t *apps )
           }
 
           // Fix working directories
-          // TODO: Test this out properly with games with different working directories set!
-          //       See if there's any games that uses different working directories between launch configs, but otherwise the same executable and cmd-line arguments!
           if (! launch.working_dir.empty())
           {
             launch.working_dir = std::wstring (pAppRecord->install_dir + LR"(\)" + launch.working_dir + L"\0\0");
             launch.working_dir = std::filesystem::path(launch.working_dir).lexically_normal();
+          }
+
+          // Flag duplicates (after the working directory has been fixed up, as it is part of the comparison below)...
+          //   but not if we found them as not valid above (as that would filter out custom launch configs that matches beta launch configs...)
+          if (launch.isExecutableFileNameValid() && launch.valid)
+          {
+            // Use the executable to identify duplicates (affects Disable Special K menu)
+            if (! _used_executables.emplace (launch.getExecutableFileName()).second)
+              launch.duplicate_exe = true;
+
+            // Use a combination of the executable, arguments, and working directory to identify duplicates (affects Instant Play menu)
+            //   Launch options that only differ in their working directory are different launches
+            if (! _used_executables_arguments.emplace (launch.getExecutableFileName() + launch.getLaunchOptions() + L"|" + launch.working_dir).second)
+              launch.duplicate_exe_args = true;
           }
 
           // Flag the launch config to be added back (launch_configs is cleared below)
@@ -843,8 +838,8 @@ skValveDataFile::getAppInfo ( uint32_t appid, app_list_t *apps )
           PLOG_VERBOSE << "Description       : " <<       launch.description;
           PLOG_VERBOSE << "Operating System  : " << (int) launch.platforms;
           PLOG_VERBOSE << "CPU Architecture  : " << (int) launch.cpu_type;
-          PLOG_VERBOSE << "Beta key          : " <<       launch.beta_key;
-          PLOG_VERBOSE << "Owns DLC          : " <<       launch.owns_dlc;
+          PLOG_VERBOSE << "Beta branches     : " <<       launch.branches_joined;
+          PLOG_VERBOSE << "Requires DLC      : " <<       launch.requires_dlc;
 
 #endif
 
@@ -895,8 +890,8 @@ skValveDataFile::getAppInfo ( uint32_t appid, app_list_t *apps )
           PLOG_VERBOSE << "Description       : " <<       launch.second.description;
           PLOG_VERBOSE << "Operating System  : " << (int) launch.second.platforms;
           PLOG_VERBOSE << "CPU Architecture  : " << (int) launch.second.cpu_type;
-          PLOG_VERBOSE << "Beta key          : " <<       launch.second.beta_key;
-          PLOG_VERBOSE << "Owns DLC          : " <<       launch.second.owns_dlc;
+          PLOG_VERBOSE << "Beta branches     : " <<       launch.second.branches_joined;
+          PLOG_VERBOSE << "Requires DLC      : " <<       launch.second.requires_dlc;
         }
 
 #endif
