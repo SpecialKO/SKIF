@@ -25,6 +25,21 @@ struct app_record_epic_s : app_record_store_s <app_record_epic_s, app_record_s::
     std::string  gamebox_tall      =  "";
   } epic;
 
+  // Library refresh (app_record.h)
+  bool        HasSameLibraryData      (const app_record_s& other) const override
+  {
+    if (! app_record_s::HasSameLibraryData (other))
+      return false;
+
+    const epic_s& o = static_cast <const app_record_epic_s&> (other).epic;
+
+    return (epic.catalog_namespace == o.catalog_namespace &&
+            epic.catalog_item_id   == o.catalog_item_id   &&
+            epic.name_app          == o.name_app          &&
+            epic.name_display      == o.name_display      &&
+            epic.gamebox_tall      == o.gamebox_tall);
+  }
+
   std::string GetPersistentKey        (void) const override { return epic.name_app; }
 
   // Launching (epic_library.cpp)

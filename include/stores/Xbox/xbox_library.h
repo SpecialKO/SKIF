@@ -23,6 +23,22 @@ struct app_record_xbox_s : app_record_store_s <app_record_xbox_s, app_record_s::
     std::wstring directory_program_files = L""; // Program Files directory; Holds the C:\Program Files\WindowsApps\<package-full-name> path
   } xbox;
 
+  // Library refresh (app_record.h)
+  bool        HasSameLibraryData      (const app_record_s& other) const override
+  {
+    if (! app_record_s::HasSameLibraryData (other))
+      return false;
+
+    const xbox_s& o = static_cast <const app_record_xbox_s&> (other).xbox;
+
+    return (xbox.package_name            == o.package_name            &&
+            xbox.package_name_full       == o.package_name_full       &&
+            xbox.package_name_family     == o.package_name_family     &&
+            xbox.store_id                == o.store_id                &&
+            xbox.directory_app           == o.directory_app           &&
+            xbox.directory_program_files == o.directory_program_files);
+  }
+
   bool        isInstantPlayCompatible (void) const override { return true; }
   std::string GetPersistentKey        (void) const override { return xbox.package_name; }
 

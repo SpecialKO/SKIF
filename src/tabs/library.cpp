@@ -97,6 +97,7 @@ int                    numPinnedOnTop    = 0;
 struct SKIF_Lib_GameWorkerThread_s {
   std::unique_ptr <app_record_s>
                         app        = nullptr; // Copy of the record being refreshed (same record type)
+  app_record_s*         target     = nullptr; // The record being refreshed; null once a library swap replaced it
   std::set<std::string> apptickets = std::set<std::string>( );
   HANDLE                hWorker    = NULL;
   bool                  free       = true;
@@ -569,27 +570,70 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // Library population is owned by SKIF_GamingCollection; the UI only decides when to (re)populate
   //   and applies UI-side state (selection, filter, pinned counts) once new data has been swapped in.
+  bool applyLibrary  = false; // The swapped in library changed: apply the UI-side state below
+  bool firstLibrary  = false; // The first library of the session, as opposed to a refresh of the one shown
+  bool keepSelection = false; // A refresh still has the selected game, so it stays selected
+
   if (! PopulatedGames && ! _games.IsPopulating ( ))
     _games.PopulateGames ( );
 
   // Swapping in frees the old records, so it waits until no cover / icon worker still uses one
   else if (! PopulatedGames && _games.IsPopulateFinished ( ) && ! _art.IsUsingRecords ( ))
   {
-    _art.OnIconWorkersReaped (_games.SwapInPopulatedGames ( ));
+    firstLibrary = (! _games.HasPopulatedOnce ( ));
 
-    // Any game worker still running was started on the old library, so its results are outdated
+    const app_record_s* pPrevSelected  = _games.Find (selection.game);
+    bool                libraryChanged = true;
+
+    _art.OnIconWorkersReaped (_games.SwapInPopulatedGames (&libraryChanged));
+
+    // Any game worker still running was started on the old library, so its results are outdated,
+    //   unless the swap kept the record it was started for (SwapInPopulatedGames keeps unchanged records)
     uiLibraryIteration++;
 
+    for (auto& worker : aGameWorkers)
+    {
+      if (! worker.free && worker.app != nullptr && _games.Find (worker.app->GetKey ( )) != worker.target)
+        worker.target = nullptr;
+    }
+
+    frameLibraryRefreshed = ImGui::GetFrameCount ( );
+
+    // Same games, same data, same order: every record was kept, so nothing shown changes
+    if (! libraryChanged)
+    {
+      PopulatedGames = true;
+
+      PLOG_VERBOSE << "Swapped in the new library data (unchanged)!";
+    }
+
+    else
+    {
+      applyLibrary  = true;
+
+      // Unless the last selected game changed meanwhile (a custom game was added) and is in the library
+      keepSelection = (! firstLibrary && _games.Find (selection.game) != nullptr &&
+                        (GetLastSelectedGame ( ) == selection.game || _games.Find (GetLastSelectedGame ( )) == nullptr));
+
+      // The selected game's record was replaced: load its details again
+      if (keepSelection && _games.Find (selection.game) != pPrevSelected)
+        update = true;
+    }
+  }
+
+  if (applyLibrary)
+  {
     std::scoped_lock app_lock (_games.GetMutex());
 
     labelsFiltered   = { };
 
-    fAlphaList = (_registry.bFadeCovers) ? 0.0f : 1.0f;
-
-    frameLibraryRefreshed = ImGui::GetFrameCount ( );
+    // Fade in the games list when the library first shows (on refreshes it would blink)
+    if (firstLibrary)
+      fAlphaList = (_registry.bFadeCovers) ? 0.0f : 1.0f;
 
     // Reset selection to Special K, but only if set to something else than -1
-    if (selection.game.appid != 0)
+    //   (a refresh that still has the selected game keeps it, along with the scroll position and the categories)
+    if (! keepSelection && selection.game.appid != 0)
       selection.reset();
 
     bool resortGames   = false;
@@ -602,7 +646,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         continue;
 
       // Set to last selected if it can be found
-      if (app.second->GetKey ( ) == GetLastSelectedGame ( ))
+      if (! keepSelection && app.second->GetKey ( ) == GetLastSelectedGame ( ))
       {
         PLOG_VERBOSE << "Selected app ID " << app.second->id << " from platform ID " << (int)app.second->store << ".";
         selection.game         =    app.second->GetKey ( );
@@ -615,8 +659,12 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
 
       // Prefill all apps with the current version (solves a single frame flicker the first time a game is selected)
-      app.second->specialk.injection.dll.version      = _inject.SKVer32;
-      app.second->specialk.injection.dll.version_utf8 = SK_WideCharToUTF8 (app.second->specialk.injection.dll.version);
+      //   Records kept from the previous library already have theirs (possibly a local DLL's)
+      if (app.second->specialk.injection.dll.version.empty ( ))
+      {
+        app.second->specialk.injection.dll.version      = _inject.SKVer32;
+        app.second->specialk.injection.dll.version_utf8 = SK_WideCharToUTF8 (app.second->specialk.injection.dll.version);
+      }
 
       // Apply the current filter
       app.second->filtered = (charFilter[0] != '\0' && (StrStrIA (app.first.c_str(), charFilter) == NULL &&                // Name
@@ -664,7 +712,10 @@ SKIF_UI_Tab_DrawLibrary (void)
     numRegular -= numPinnedOnTop;
 
     PopulatedGames = true;
-    sort_changed   = true;
+
+    // Scrolls to the selected game and opens its category (it reselects it, which loads its details again)
+    if (! keepSelection)
+      sort_changed = true;
 
     PLOG_VERBOSE << "Swapped in the new library data!";
   }
@@ -720,8 +771,9 @@ SKIF_UI_Tab_DrawLibrary (void)
       {
         std::scoped_lock app_lock (_games.GetMutex());
 
-        // The worker was started before the current library was swapped in, so its results are outdated
-        const bool outdated = (worker.iteration != uiLibraryIteration);
+        // The worker was started before the current library was swapped in, so its results are outdated,
+        //   unless the swap kept the record it was started for (target)
+        const bool outdated = (worker.iteration != uiLibraryIteration && worker.target == nullptr);
 
         PLOG_VERBOSE_IF (outdated) << "Discarded the outdated results of the game worker for app ID " << worker.app->id;
 
@@ -792,6 +844,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         // Make a copy of pApp that we will use to update all data
         SKIF_Lib_GameWorkerThread_s* worker = &aGameWorkers[availableWorker];
         worker->app        = pApp->Clone ( );
+        worker->target     = pApp;
         worker->apptickets = _games.GetAppTickets ( );
         worker->cpu_pre    = (int)pApp->specialk.injection.injection.bitness;
         worker->iteration  = uiLibraryIteration;

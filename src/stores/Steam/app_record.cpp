@@ -955,3 +955,70 @@ app_record_s::ResolveArtwork (LibraryTexture type, const std::wstring& source, b
 }
 
 #pragma endregion
+
+#pragma region Library Refresh
+
+// The launch config fields the library worker fills in (executable_valid and the other cached values are filled in
+//   later, and the getters used here don't change anything)
+bool
+app_record_s::HasSameLaunchConfigs (const std::map <int, launch_config_s>& a,
+                                    const std::map <int, launch_config_s>& b)
+{
+  if (a.size ( ) != b.size ( ))
+    return false;
+
+  for (auto itA = a.begin ( ), itB = b.begin ( ); itA != a.end ( ); ++itA, ++itB)
+  {
+    const launch_config_s& lcA = itA->second;
+    const launch_config_s& lcB = itB->second;
+
+    if (itA->first                  != itB->first                  ||
+        lcA.id                      != lcB.id                      ||
+        lcA.id_steam                != lcB.id_steam                ||
+        lcA.type                    != lcB.type                    ||
+        lcA.cpu_type                != lcB.cpu_type                ||
+        lcA.platforms               != lcB.platforms               ||
+        lcA.getExecutableFullPath ( ) != lcB.getExecutableFullPath ( ) ||
+        lcA.getLaunchOptions ( )    != lcB.getLaunchOptions ( )    ||
+        lcA.getWorkingDirectory ( ) != lcB.getWorkingDirectory ( ) ||
+        lcA.install_dir             != lcB.install_dir             ||
+        lcA.executable_helper       != lcB.executable_helper       ||
+        lcA.Xbox_ApplicationId      != lcB.Xbox_ApplicationId      ||
+        lcA.branches                != lcB.branches                ||
+        lcA.requires_dlc            != lcB.requires_dlc            ||
+        lcA.custom_skif             != lcB.custom_skif             ||
+        lcA.custom_user             != lcB.custom_user)
+      return false;
+  }
+
+  return true;
+}
+
+bool
+app_record_s::HasSameLibraryData (const app_record_s& other) const
+{
+  // Store overrides cast other to their own record type
+  if (typeid (*this) != typeid (other))
+    return false;
+
+  return (id                == other.id                &&
+          store             == other.store             &&
+          install_dir       == other.install_dir       &&
+          cloud_enabled     == other.cloud_enabled     &&
+          ImGuiLabelID      == other.ImGuiLabelID      &&
+          names.original    == other.names.original    &&
+          names.clean       == other.names.clean       &&
+          names.normal      == other.names.normal      &&
+          skif.name         == other.skif.name         &&
+          skif.cpu_type     == other.skif.cpu_type     &&
+          skif.instant_play == other.skif.instant_play &&
+          skif.auto_stop    == other.skif.auto_stop    &&
+          skif.uses         == other.skif.uses         &&
+          skif.used         == other.skif.used         &&
+          skif.category     == other.skif.category     &&
+          skif.hidden       == other.skif.hidden       &&
+          skif.pinned       == other.skif.pinned       &&
+          HasSameLaunchConfigs (GetPopulatedLaunchConfigs ( ), other.GetPopulatedLaunchConfigs ( )));
+}
+
+#pragma endregion

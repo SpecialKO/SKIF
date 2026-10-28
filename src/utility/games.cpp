@@ -650,21 +650,15 @@ SKIF_GamingCollection::Find (app_record_s::Store store, uint32_t appid)
 }
 
 int
-SKIF_GamingCollection::SwapInPopulatedGames (void)
+SKIF_GamingCollection::SwapInPopulatedGames (bool* pChanged)
 {
+  if (pChanged != nullptr)
+    *pChanged = true;
+
   if (! IsPopulateFinished ( ))
     return 0;
 
   int reaped = 0;
-
-  struct IconCache {
-    app_record_s::tex_registry_s tex_icon;
-    app_record_s::Store store;
-    AppId_t id;
-  };
-
-  std::vector<IconCache> icon_cache;
-  icon_cache.reserve (m_apps.size ( ));
 
   // Clear up any unacknowledged icon workers
   for (auto& app : m_apps)
@@ -679,30 +673,105 @@ SKIF_GamingCollection::SwapInPopulatedGames (void)
         reaped++;
       }
     }
-
-    // Cache any existing icon textures...
-    if (app.second->tex_icon.texture.p != nullptr)
-    {
-      icon_cache.push_back ({
-        app.second->tex_icon,
-        app.second->store,
-        app.second->id
-      });
-
-      //SKIF_ResourcesToFree.push(app.second.tex_icon.texture.p);
-      //app.second.tex_icon.texture.p = nullptr;
-    }
   }
 
   std::scoped_lock app_lock (m_apps_mutex);
 
-  // Clear current data
-  m_apps.clear ( );       // app_entry_t is move-only, so no brace-list assignment
-  m_apptickets = { };
-  m_tLabels    = { };
+  AppList& apps = m_worker->apps;
 
-  // Insert new data
-  m_apps       = std::move (m_worker->apps);
+  // Indexed by store + app ID instead of searching the current list for every game
+  auto _Key = [](const app_record_s& record) -> uint64_t
+  {
+    return (static_cast <uint64_t> (record.store) << 32) | static_cast <uint64_t> (record.id);
+  };
+
+  // The games shown (entries with ID 0 are not), in order
+  auto _ShownKeys = [&](const AppList& list) -> std::vector <uint64_t>
+  {
+    std::vector <uint64_t> keys;
+    keys.reserve (list.size ( ));
+
+    for (auto& app : list)
+      if (app.second != nullptr && app.second->id != 0)
+        keys.push_back (_Key (*app.second));
+
+    return keys;
+  };
+
+  // Nothing shown changes if the same games are shown in the same order and every record is kept
+  bool changed = (! m_populatedOnce.load ( ) || _ShownKeys (m_apps) != _ShownKeys (apps));
+
+  std::unordered_map <uint64_t, app_entry_t*> current;
+  current.reserve (m_apps.size ( ));
+
+  for (auto& app : m_apps)
+    if (app.second->id != 0)
+      current.emplace (_Key (*app.second), &app); // First match wins
+
+  int kept = 0, replaced = 0;
+
+  for (auto& app : apps)
+  {
+    if (app.second->id == 0)
+      continue;
+
+    auto it = current.find (_Key (*app.second));
+
+    // A new game (its icon loads as it is drawn)
+    if (it == current.end ( ))
+    {
+      changed = true;
+      continue;
+    }
+
+    app_entry_t& cur = *it->second;
+    current.erase (it); // Each current record is used once
+
+    // Same library data: keep the current record, along with everything loaded into it since (store details and
+    //   injection state from its selection, run state, icon), so the game is shown exactly as before
+    if (cur.first == app.first && cur.second->HasSameLibraryData (*app.second))
+    {
+      app.second = std::move (cur.second);
+      kept++;
+      continue;
+    }
+
+    // Changed: use the new record, but carry over what doesn't come from the library data
+    changed = true;
+    replaced++;
+
+    // The icon (it stays the same unless the icon itself changed, which reloads it)
+    if (cur.second->tex_icon.texture.p != nullptr)
+    {
+      app.second->tex_icon         = std::move (cur.second->tex_icon); // Move it over
+      app.second->tex_icon.iWorker = 2;
+      cur.second->tex_icon         = { }; // Not for release
+    }
+
+    // The run state, until SKIF_LibRefreshWorker checks it again (it would otherwise blink out for a moment)
+    if (cur.second->_status.running != 0 && app.second->_status.running == 0)
+    {
+      app.second->_status .running     = cur.second->_status .running;
+      app.second->_status .running_pid = cur.second->_status .running_pid;
+      app.second->_staging.running     = cur.second->_staging.running;
+      app.second->_staging.running_pid = cur.second->_staging.running_pid;
+    }
+  }
+
+  PLOG_VERBOSE << "Library refresh: kept " << kept << " records, replaced " << replaced << (changed ? "" : " (unchanged)") << ".";
+
+  // Push the icons of the records not carried over for release
+  for (auto& app : m_apps)
+  {
+    if (app.second != nullptr && app.second->tex_icon.texture.p != nullptr)
+    {
+      SKIF_ResourcesToFree.push(app.second->tex_icon.texture.p);
+      app.second->tex_icon.texture.p = nullptr;
+    }
+  }
+
+  // Insert new data (the current records not kept are freed)
+  m_apps       = std::move (apps);             // app_entry_t is move-only, so no brace-list assignment
   m_apptickets = std::move (m_worker->apptickets); // The worker is discarded after the swap
   m_tLabels    = std::move (m_worker->labels); // Trie is move-only (it owns its nodes)
 
@@ -711,41 +780,8 @@ SKIF_GamingCollection::SwapInPopulatedGames (void)
   // The Steam appinfo.vdf reader the worker created
   appinfo = std::move (m_worker->appinfo);
 
-  // Move cached icons over (indexed by store + app ID instead of searching the cache for every game)
-  auto _IconKey = [](app_record_s::Store store, AppId_t id) -> uint64_t
-  {
-    return (static_cast <uint64_t> (store) << 32) | static_cast <uint64_t> (id);
-  };
-
-  std::unordered_map <uint64_t, IconCache*> icon_index;
-  icon_index.reserve (icon_cache.size ( ));
-
-  for (auto& icon : icon_cache)
-    icon_index.emplace (_IconKey (icon.store, icon.id), &icon); // First match wins, as before
-
-  for (auto& app : m_apps)
-  {
-    if (auto it  = icon_index.find (_IconKey (app.second->store, app.second->id));
-             it != icon_index.end ( ))
-    {
-      IconCache& icon = *it->second;
-
-      app.second->tex_icon = std::move (icon.tex_icon); // Move it over
-      app.second->tex_icon.iWorker = 2;
-      icon.id = 0; // Mark it _not_ for release
-      icon_index.erase (it);
-    }
-  }
-
-  // Push unused icons for release
-  for (auto& icon : icon_cache)
-  {
-    if (icon.id == 0)
-      continue; // Skip icons marked as 0
-
-    SKIF_ResourcesToFree.push(icon.tex_icon.texture.p);
-    icon.tex_icon.texture.p = nullptr;
-  }
+  if (pChanged != nullptr)
+    *pChanged = changed;
 
   CloseHandle (m_worker->hWorker);
   m_worker->hWorker = NULL;
@@ -1274,7 +1310,7 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
     {
       DWORD dwStart = SKIF_Util_timeGetTime1 ( );
       SKIF_itch_GetInstalledAppIDs (&scanned [Scan_itch]);
-      _LogScan ("itch games", scanned [Scan_itch].size ( ), dwStart);
+      _LogScan ("itch.io games", scanned [Scan_itch].size ( ), dwStart);
     });
   }
 

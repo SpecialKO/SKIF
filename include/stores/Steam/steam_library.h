@@ -388,4 +388,24 @@ struct app_record_steam_s : app_record_store_s <app_record_steam_s, app_record_s
   // Steam parses its original launch configs again when a game is selected, so online ones are kept apart and merged then
   std::map <int, launch_config_s>&
               GetOnlineLaunchConfigs  (void) override { return launch_configs_custom; }
+
+  // Library refresh: launch_configs is built on selection (appinfo.vdf), so only the online ones are compared. A game
+  //   update, branch change, etc. changes the app manifest, so its record is replaced then.
+  const std::map <int, launch_config_s>&
+               GetPopulatedLaunchConfigs (void) const override { return launch_configs_custom; }
+  bool         HasSameLibraryData        (const app_record_s& other) const override
+  {
+    if (! app_record_s::HasSameLibraryData (other))
+      return false;
+
+    const steam_s& o = static_cast <const app_record_steam_s&> (other).steam;
+
+    return (steam.manifest_data       == o.manifest_data       &&
+            steam.manifest_path       == o.manifest_path       &&
+            steam.branch              == o.branch              &&
+            steam.local.launch_option == o.local.launch_option &&
+            steam.shared.hidden       == o.shared.hidden       &&
+            steam.shared.favorite     == o.shared.favorite     &&
+            steam.shared.tags         == o.shared.tags);
+  }
 };

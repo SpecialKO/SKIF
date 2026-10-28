@@ -518,6 +518,17 @@ struct app_record_s {
                        GetAdditionalProfilePaths  (void) const { return { }; }       // Extra folders mapped to the profile name (Xbox)
   virtual std::wstring GetStorageLocation         (void) const { return install_dir; } // Where the game's files are: the library worker groups games by its volume (Steam: the app manifest)
 
+  // Library refresh (SwapInPopulatedGames in games.cpp). A refresh produces new records for every game; when the new
+  //   record of a game holds the same library data as the current one, the current record is kept instead, along with
+  //   the state loaded into it since (store details and injection state from its selection, run state, icon), so the
+  //   games list doesn't change at all. Only compares what the library worker fills in: data loaded later (on
+  //   selection) differs between the two by design. Stores compare their own data too (call this first).
+  virtual bool         HasSameLibraryData         (const app_record_s& other) const; // app_record.cpp
+  virtual const std::map <int, launch_config_s>&
+                       GetPopulatedLaunchConfigs  (void) const { return launch_configs; } // Launch configs the library worker fills in (Steam: only the online ones, see GetOnlineLaunchConfigs)
+  static  bool         HasSameLaunchConfigs       (const std::map <int, launch_config_s>& a,
+                                                   const std::map <int, launch_config_s>& b); // app_record.cpp
+
   // Selection
   virtual void         LoadStoreDetails           (void)       { }                   // Main thread, before the game worker runs (Steam: appinfo.vdf)
 

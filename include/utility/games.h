@@ -78,12 +78,15 @@ struct SKIF_GamingCollection {
         //   PopulateGames ( )        starts the background library worker unless one is already running.
         //   IsPopulating ( )         true while a worker exists (running, or finished but not yet swapped in).
         //   IsPopulateFinished ( )   true once the worker has exited and its results can be swapped in.
-        //   SwapInPopulatedGames ( ) replaces the app list with the worker's results, carries over loaded
-        //                            icon textures, and returns the number of icon workers it reaped.
+        //   SwapInPopulatedGames ( ) replaces the app list with the worker's results and returns the number of
+        //                            icon workers it reaped. Current records whose library data is unchanged
+        //                            (app_record_s::HasSameLibraryData) are kept instead of the new ones, and
+        //                            replaced records carry over their icon and run state. pChanged is set to
+        //                            false if every record was kept, in the same order (nothing shown changes).
         bool PopulateGames        (void);
         bool IsPopulating         (void) const;
         bool IsPopulateFinished   (void) const;
-        int  SwapInPopulatedGames (void);
+        int  SwapInPopulatedGames (bool* pChanged = nullptr);
         bool HasPopulatedOnce     (void) const { return m_populatedOnce.load ( ); } // A library has been swapped in (any thread)
 
         // Steam app tickets and the keyboard-hint label trie produced by the last population

@@ -46,6 +46,21 @@ struct app_record_ea_s : app_record_store_s <app_record_ea_s, app_record_s::Stor
     std::string  manifest      = ""; // DiPManifest version ("" if installerdata.xml was not found)
   } ea;
 
+  // Library refresh (app_record.h)
+  bool         HasSameLibraryData      (const app_record_s& other) const override
+  {
+    if (! app_record_s::HasSameLibraryData (other))
+      return false;
+
+    const ea_s& o = static_cast <const app_record_ea_s&> (other).ea;
+
+    return (ea.key           == o.key           &&
+            ea.offer_ids     == o.offer_ids     &&
+            ea.uninstall_key == o.uninstall_key &&
+            ea.installer     == o.installer     &&
+            ea.manifest      == o.manifest);
+  }
+
   std::string  GetPersistentKey        (void) const override { return ea.key; }
 
   // Launching (ea_library.cpp)

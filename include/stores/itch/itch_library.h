@@ -61,6 +61,26 @@ struct app_record_itch_s : app_record_store_s <app_record_itch_s, app_record_s::
     std::string  cover_url      = ""; // Store cover (landscape, 315x250)
   } itch;
 
+  // Library refresh (app_record.h)
+  bool         HasSameLibraryData      (const app_record_s& other) const override
+  {
+    if (! app_record_s::HasSameLibraryData (other))
+      return false;
+
+    const itch_s& o = static_cast <const app_record_itch_s&> (other).itch;
+
+    return (itch.key            == o.key            &&
+            itch.app            == o.app            &&
+            itch.sandboxed      == o.sandboxed      &&
+            itch.game_id        == o.game_id        &&
+            itch.upload_id      == o.upload_id      &&
+            itch.build_id       == o.build_id       &&
+            itch.cave_id        == o.cave_id        &&
+            itch.classification == o.classification &&
+            itch.url            == o.url            &&
+            itch.cover_url      == o.cover_url);
+  }
+
   std::string  GetPersistentKey        (void) const override { return itch.key; }
 
   // Launching (itch_library.cpp)
