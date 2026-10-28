@@ -708,7 +708,8 @@ SKIF_GamingCollection::SwapInPopulatedGames (bool* pChanged)
     if (app.second->id != 0)
       current.emplace (_Key (*app.second), &app); // First match wins
 
-  int kept = 0, replaced = 0;
+  // Counted for the log: shown games that are new, gone, kept or replaced
+  int added = 0, removed = 0, kept = 0, replaced = 0;
 
   for (auto& app : apps)
   {
@@ -721,6 +722,7 @@ SKIF_GamingCollection::SwapInPopulatedGames (bool* pChanged)
     if (it == current.end ( ))
     {
       changed = true;
+      added++;
       continue;
     }
 
@@ -758,7 +760,15 @@ SKIF_GamingCollection::SwapInPopulatedGames (bool* pChanged)
     }
   }
 
-  PLOG_VERBOSE << "Library refresh: kept " << kept << " records, replaced " << replaced << (changed ? "" : " (unchanged)") << ".";
+  // The current records left unmatched are the games no longer shown
+  removed = static_cast <int> (current.size ( ));
+
+  PLOG_VERBOSE << "Library refresh: " << added    << " added, "
+                                      << removed  << " removed, "
+                                      << kept     << " kept, "
+                                      << replaced << " replaced"
+                                      << ((! m_populatedOnce.load ( )) ? " (first library)" :
+                                          (! changed)                  ? " (unchanged)"     : "") << ".";
 
   // Push the icons of the records not carried over for release
   for (auto& app : m_apps)
