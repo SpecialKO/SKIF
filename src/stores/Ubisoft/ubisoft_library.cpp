@@ -1389,11 +1389,11 @@ app_record_ubisoft_s::PrefersInstantLaunch (bool fromGameMenu, launch_config_s* 
   if (ubisoft.product_id == 0 || ! SKIF_Ubisoft_IsClientInstalled ( ))
     return true;
 
-  // Ubisoft Connect always starts the first executable, so the others (editors, expansions) are run directly
-  if (config != nullptr && config->id != 0)
+  // Ubisoft Connect always starts the first executable, so the others (editors, expansions, lc.json / lc_user.json configs) are run directly
+  if (config != nullptr && ! ClientCanLaunch (*config))
     return true;
 
-  return (! fromGameMenu && UsesInstantPlay (GetInstantPlayDefault ( )));
+  return (! fromGameMenu && UsesInstantPlay (GetInstantPlayDefault ( ), config));
 }
 
 // Launch Ubisoft game through Ubisoft Connect, unless an instant launch was requested

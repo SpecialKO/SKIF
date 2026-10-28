@@ -36,6 +36,7 @@
 #include <ImGuiNotify.hpp>
 
 #include <utility/injection.h>
+#include <utility/launch_behaviors.h>
 
 #include "DirectXTex/DirectXTex.h"
 
@@ -218,7 +219,7 @@ extern PopupState             CategoryMenu;
 extern PopupState             PopupCategoryModify;
 extern bool                   sort_changed;
 extern app_record_s::launch_config_s*
-                              launchConfig;      // Used to launch games. Defaults to primary launch config.
+                              launchConfig;      // Used to launch games. Defaults to the game's default launch config (GetDefaultLaunchConfig).
 extern bool                   launchGame;        // Respects Instant Play preference
 extern bool                   launchGameMenu;    // Menu is always explicit
 extern bool                   launchInstant;
@@ -241,6 +242,8 @@ extern concurrency::concurrent_queue <IUnknown *> SKIF_ResourcesToFree;
 
 // library.cpp
 std::string GetEffectiveCategory (const app_record_s* app);
+bool SKIF_Lib_CategoryExists (const std::string& name);
+bool SKIF_Lib_AddCategory    (const std::string& name);  // Adds the category (sorted) and saves the list in the registry; false if empty or it already exists
 void ShowLargeIconToggle     (void);                 // Shared between the Icon menu and the Filter menu
 void ClearCharFilter         (void);
 

@@ -771,6 +771,14 @@ app_record_epic_s::Launch (const launch_context_s& ctx)
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
 
+  // The launcher URI is built from the launch options of the game's own launch config, which hold the AppName.
+  //   lc.json / lc_user.json configs hold arguments there instead, so they are run directly.
+  if (ctx.config != nullptr && ! ClientCanLaunch (*ctx.config))
+  {
+    LaunchInstant (ctx);
+    return;
+  }
+
   PLOG_VERBOSE << "Performing an Epic launch...";
 
   // com.epicgames.launcher://apps/CatalogNamespace%3ACatalogItemId%3AAppName?action=launch&silent=true

@@ -21,6 +21,9 @@ struct app_record_custom_s : app_record_store_s <app_record_custom_s, app_record
   std::wstring GetStoreAssetDirectory  (void) const override;
   bool         IsUserAdded             (void) const override { return true; }
 
+  // Properties (custom_library.cpp): the executable, working directory and launch options of the game
+  void         AddPropertySections     (std::vector <std::unique_ptr <IPropertySection>>& out) override;
+
   // Artwork (custom_library.cpp): without a custom cover, the cover is looked up on IGDB by name (exact matches
   //   only) and saved as Assets\Custom\<id>\cover-original.jpg. The icon is extracted from the executable.
   std::wstring ResolveArtwork          (LibraryTexture type, const std::wstring& source, bool& isCustom, bool& isManaged) override;

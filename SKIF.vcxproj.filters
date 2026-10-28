@@ -135,6 +135,9 @@
     <ClInclude Include="include\tabs\library.h">
       <Filter>Header Files\UI Tabs</Filter>
     </ClInclude>
+    <ClInclude Include="include\tabs\properties.h">
+      <Filter>Header Files\UI Tabs</Filter>
+    </ClInclude>
     <ClInclude Include="src\tabs\library\library_ui.h">
       <Filter>Header Files\UI Tabs</Filter>
     </ClInclude>
@@ -336,6 +339,9 @@
       <Filter>Source Files\UI Tabs</Filter>
     </ClCompile>
     <ClCompile Include="src\tabs\library\library_popups.cpp">
+      <Filter>Source Files\UI Tabs</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tabs\library\library_properties.cpp">
       <Filter>Source Files\UI Tabs</Filter>
     </ClCompile>
     <ClCompile Include="src\tabs\library\library_list.cpp">

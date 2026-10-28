@@ -335,13 +335,15 @@ app_record_gog_s::PrefersInstantLaunch (bool fromGameMenu, launch_config_s* conf
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   extern bool GOGGalaxy_Installed;
 
-  UNREFERENCED_PARAMETER (config);
-
   // Fallback for GOG games if the Galaxy client is not installed
   if (! GOGGalaxy_Installed)
     return true;
 
-  return (! fromGameMenu && UsesInstantPlay (GetInstantPlayDefault ( )));
+  // GOG Galaxy starts the game by its ID, so other launch configs than the primary one are run directly
+  if (config != nullptr && ! ClientCanLaunch (*config))
+    return true;
+
+  return (! fromGameMenu && UsesInstantPlay (GetInstantPlayDefault ( ), config));
 }
 
 // Launch GOG Galaxy game (default for GOG games since 2024-01-05), unless an instant launch was requested

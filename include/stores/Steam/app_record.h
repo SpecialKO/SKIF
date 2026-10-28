@@ -54,6 +54,7 @@ constexpr int SKIF_STEAM_APPID = 1157970;
 //   virtual functions, so consumers should call those instead of switching on `store`.
 enum class LibraryTexture; // stores/generic_library2.h
 struct     app_key_s;      // Below app_record_s
+class      IPropertySection; // tabs/properties.h
 
 struct app_record_s {
   app_record_s (uint32_t id_) : id (id_) { };
@@ -317,6 +318,28 @@ struct app_record_s {
     int          owns_dlc           = -1;    // Does the user own the required DLC ?
     int          blacklisted        = -1;
     int          elevated           = -1;
+    int          instant_play       =  0;    // lc.json / lc_user.json "InstantPlay": 0 = use the game's setting, 1 = always, 2 = never
+  };
+
+  // Where a launch config comes from: the store itself, lc.json (SKIF), or lc_user.json (the user)
+  enum class LaunchSource {
+    Platform,
+    SKIF,
+    User
+  };
+
+  static LaunchSource  GetLaunchSource (const launch_config_s& lc) { return (lc.custom_user) ? LaunchSource::User : (lc.custom_skif) ? LaunchSource::SKIF : LaunchSource::Platform; }
+
+  // Identifies a launch config across library refreshes, as launch_config_s::id is positional (db.json "DefaultLaunch")
+  struct launch_ref_s {
+    std::string  source; // "Platform", "SKIF" or "User"; empty = no reference
+    std::string  exe;    // Relative to the install folder with forward slashes, or the full path if outside of it
+    std::string  args;
+    std::string  desc;   // Tie-breaker only
+
+    bool empty      (void) const                { return source.empty ( ); }
+    bool operator== (const launch_ref_s& o) const { return (source == o.source && exe == o.exe && args == o.args && desc == o.desc); }
+    bool operator!= (const launch_ref_s& o) const { return ! (*this == o); }
   };
 
   struct cloud_save_record_s {
@@ -415,14 +438,15 @@ struct app_record_s {
     std::string        name;
     int            cpu_type =  0; // 0 = Common,             1 = x86,                 2 = x64,                0xFFFF = Any
     int        instant_play =  0; // 0 = use global default, 1 = always instant play, 2 = never instant play
-    int           auto_stop =  0; // 0 = use global default, 1 = stop on injection,   2 = stop on game exit,  3 = never stop
     int                uses =  0; // Number of times game has been launched
     std::string        used = ""; // Unix timestamp (in string) of when the game was last used
     std::string        used_formatted = ""; // Friendly human-readable representation of the Unix timestamp
     std::string    category = ""; // Category to sort the game under
     int              hidden = -1; // Is app hidden?    (-1 = unset;   0 = no;   1 = yes)
     int              pinned = -1; // Is app favorited? (-1 = unset;   0 = no;   1 = yes;   51 = yes (on top);   99 = Special K)
+    launch_ref_s default_launch;  // Launch config SKIF uses by default (db.json "DefaultLaunch"); empty = the primary one
   } skif;
+  // The auto-stop behavior is not part of this: it is stored per install folder / executable in the registry (SKIF_LaunchBehaviors)
 
   bool           launch_failed           = false;
 
@@ -448,7 +472,8 @@ struct app_record_s {
 
   virtual bool         RequiresValidExecutable (void) const               { return true; }   // Steam / Epic launch through their client
   virtual void         WhitelistForInjection   (launch_config_s* config);                     // app_record.cpp
-  virtual bool         PrefersInstantLaunch    (bool fromGameMenu, launch_config_s* config) const { UNREFERENCED_PARAMETER (fromGameMenu); UNREFERENCED_PARAMETER (config); return false; }
+  virtual bool         PrefersInstantLaunch    (bool fromGameMenu, launch_config_s* config) const { UNREFERENCED_PARAMETER (fromGameMenu); return (config != nullptr && ! ClientCanLaunch (*config)); }
+  virtual bool         ClientCanLaunch         (const launch_config_s& lc) const { return (! lc.custom_skif && ! lc.custom_user && ! launch_configs.empty ( ) && lc.id == launch_configs.begin ( )->first); } // The store client can start this exact launch config (base: only the primary one); other configs launch instantly
   virtual void         Launch                  (const launch_context_s& ctx);                 // app_record.cpp: instant launch if requested, else nothing applicable
   void                 LaunchInstant           (const launch_context_s& ctx);                 // app_record.cpp: runs the executable directly
 
@@ -457,9 +482,23 @@ struct app_record_s {
   virtual std::string  GetStoreLaunchOptions   (uint32_t steamAppID)       { UNREFERENCED_PARAMETER (steamAppID); return ""; } // Launch options set in the store client
   virtual std::wstring GetJumpListIconPath     (launch_config_s* config) const { return config->getExecutableFullPath ( ); }
 
-  // Per-game Instant Play preference (skif.instant_play: 0 = global default, 1 = always, 2 = never)
-  bool                 UsesInstantPlay         (bool globalDefault) const { return (skif.instant_play == 1 || (skif.instant_play == 0 && globalDefault)); }
+  // Instant Play preference: the launch config's own (lc.json / lc_user.json "InstantPlay"), else the game's (skif.instant_play), else the store's
+  //   global default. Both use 0 = not set, 1 = always, 2 = never.
+  int                  GetInstantPlay          (const launch_config_s* lc) const { return (lc != nullptr && lc->instant_play != 0) ? lc->instant_play : skif.instant_play; }
+  bool                 UsesInstantPlay         (bool globalDefault, const launch_config_s* lc = nullptr) const { const int v = GetInstantPlay (lc); return (v == 1 || (v == 0 && globalDefault)); }
   virtual bool         GetInstantPlayDefault   (void) const               { return false; }  // The store's global Instant Play setting
+
+  // Default launch config (app_record.cpp). launch_configs is rebuilt on selection for some stores (Steam), so these
+  //   look the config up each time instead of caching a pointer.
+  bool                 IsLaunchConfigAvailable (const launch_config_s& lc) const;              // Valid, not a duplicate, and any required DLC is owned (as in the game menu)
+  static std::wstring  GetPathRelativeTo       (const std::wstring& base, const std::wstring& path); // path relative to base (backslashes), or empty if it is not inside base
+  std::string          GetRelativeExecutable   (const launch_config_s& lc) const;              // Executable relative to the install folder (forward slashes), or the full path if outside of it
+  launch_ref_s         MakeLaunchRef           (const launch_config_s& lc) const;
+  launch_config_s*     FindLaunchConfig        (const launch_ref_s& ref);                       // nullptr if no available launch config matches
+  launch_config_s*     GetDefaultLaunchConfig  (void);                                         // The tagged default if available, else the primary one; nullptr if there are none
+
+  // Properties dialog (tabs/properties.h): store-specific sections added to the common ones
+  virtual void         AddPropertySections     (std::vector <std::unique_ptr <IPropertySection>>& out) { UNREFERENCED_PARAMETER (out); }
 
   // Library UI
   std::wstring         GetAssetDirectory       (void) const;                                   // app_record.cpp: SK's Assets folder for this game (backslash-terminated), or empty

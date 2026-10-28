@@ -364,6 +364,9 @@ struct app_record_steam_s : app_record_store_s <app_record_steam_s, app_record_s
 
   // Context menu hooks (steam_library.cpp)
   void         DrawStoreMenu                  (void) override;
+
+  // Properties (steam_library.cpp): the launch options set in Steam, read-only
+  void         AddPropertySections            (std::vector <std::unique_ptr <IPropertySection>>& out) override;
   void         DrawWebsiteMenuItems           (void) override;
   void         DrawDeveloperDataMenus         (void) override;
   void         DrawDeveloperLaunchConfigItems (launch_config_s& launch) override;

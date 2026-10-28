@@ -442,6 +442,7 @@
     <ClInclude Include="include\tabs\about.h" />
     <ClInclude Include="include\tabs\common_ui.h" />
     <ClInclude Include="include\tabs\library.h" />
+    <ClInclude Include="include\tabs\properties.h" />
     <ClInclude Include="src\tabs\library\library_ui.h" />
     <ClInclude Include="include\tabs\settings.h" />
     <ClInclude Include="include\utility\updater.h" />
@@ -501,6 +502,7 @@
     <ClCompile Include="src\tabs\library\library_list.cpp" />
     <ClCompile Include="src\tabs\library\library_menus.cpp" />
     <ClCompile Include="src\tabs\library\library_popups.cpp" />
+    <ClCompile Include="src\tabs\library\library_properties.cpp" />
     <ClCompile Include="src\tabs\settings.cpp" />
     <ClCompile Include="src\utility\updater.cpp" />
     <ClCompile Include="src\utility\vfs.cpp" />

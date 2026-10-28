@@ -347,6 +347,19 @@ std::wstring SKIF_Util_URLEncode              (const std::wstring& url);
 // Shortcuts (*.lnk)
 
 void         SKIF_Util_ResolveShortcut       (HWND hwnd, LPCWSTR lpszLinkFile, LPWSTR lpszTarget, LPWSTR lpszArguments, LPWSTR lpszWorkingDir, int iPathBufferSize, int iArgumentsBufferSize);
+
+// A file picked as a game's executable (Browse... or drag and drop): .exe and .bat are used as they are, .lnk is resolved to its target
+struct SKIF_Util_ExecutableSelection_s {
+  bool         valid    = false; // A supported file type (and an existing target for a shortcut)
+  bool         shortcut = false; // Picked through a .lnk (args and working_dir come from it)
+  std::wstring path;             // Executable
+  std::wstring working_dir;      // The executable's folder, or the shortcut's working directory
+  std::wstring args;             // The shortcut's arguments
+  std::wstring name;             // Product name of the executable, else the file name without extension; empty for .bat
+};
+
+SKIF_Util_ExecutableSelection_s
+             SKIF_Util_ResolveExecutableSelection (const std::wstring& file);
 bool         SKIF_Util_CreateShortcut        (LPCWSTR lpszPathLink, LPCWSTR lpszTarget, LPCWSTR lpszArgs = L"\0", LPCWSTR lpszWorkDir = L"\0", LPCWSTR lpszDesc = L"\0", LPCWSTR lpszIconLocation = L"\0", int iIcon = 0);
 
 

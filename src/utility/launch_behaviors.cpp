@@ -111,8 +111,20 @@ namespace SKIF_LaunchBehaviors
     return full;
   }
 
-  Resolved
-  Resolve (const std::wstring& path)
+  static Resolved
+  _FromRaw (DWORD raw)
+  {
+    Resolved ret;
+
+    ret.autoStop      = static_cast <AutoStop>      ((raw & MaskAutoStop)      >> ShiftAutoStop);
+    ret.service       = static_cast <Service>       ((raw & MaskService)       >> ShiftService);
+    ret.steamAppIDtxt = static_cast <SteamAppIDtxt> ((raw & MaskSteamAppIDtxt) >> ShiftSteamAppIDtxt);
+
+    return ret;
+  }
+
+  static Resolved
+  _Resolve (const std::wstring& path, bool skipSelf)
   {
     Resolved ret;
     HKEY     hKey = nullptr;
@@ -123,6 +135,17 @@ namespace SKIF_LaunchBehaviors
     std::wstring current  = NormalizePath (path);
     DWORD        resolved = 0,
                  filled   = 0;
+
+    // Start at the parent folder: what the path inherits if it has no entry of its own
+    if (skipSelf)
+    {
+      size_t pos = current.find_last_of (L'\\');
+
+      if (pos == std::wstring::npos || pos == 0)
+        current.clear ( );
+      else
+        current.resize (pos);
+    }
 
     static constexpr DWORD fieldMasks [] = { MaskAutoStop, MaskService, MaskSteamAppIDtxt };
 
@@ -153,11 +176,45 @@ namespace SKIF_LaunchBehaviors
 
     RegCloseKey (hKey);
 
-    ret.autoStop      = static_cast <AutoStop>      ((resolved & MaskAutoStop)      >> ShiftAutoStop);
-    ret.service       = static_cast <Service>       ((resolved & MaskService)       >> ShiftService);
-    ret.steamAppIDtxt = static_cast <SteamAppIDtxt> ((resolved & MaskSteamAppIDtxt) >> ShiftSteamAppIDtxt);
+    return _FromRaw (resolved);
+  }
 
-    return ret;
+  Resolved
+  Resolve (const std::wstring& path)
+  {
+    return _Resolve (path, false);
+  }
+
+  Resolved
+  ResolveParent (const std::wstring& path)
+  {
+    return _Resolve (path, true);
+  }
+
+  bool
+  ReadExact (const std::wstring& path, Resolved& out)
+  {
+    out = Resolved { };
+
+    std::wstring name = NormalizePath (path);
+
+    if (name.empty ( ))
+      return false;
+
+    HKEY hKey = nullptr;
+
+    if (ERROR_SUCCESS != RegOpenKeyExW (HKEY_CURRENT_USER, RegistryPath, 0, KEY_QUERY_VALUE, &hKey))
+      return false;
+
+    DWORD raw    = 0;
+    bool  exists = _ReadValue (hKey, name, raw) && _IsSupportedVersion (raw);
+
+    RegCloseKey (hKey);
+
+    if (exists)
+      out = _FromRaw (raw);
+
+    return exists;
   }
 
   bool

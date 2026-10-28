@@ -1462,11 +1462,25 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
           lc.executable               = SK_UTF8ToWideChar(launch_config.at("Exe"));
           std::replace(lc.executable.begin(), lc.executable.end(), '/', '\\'); // Replaces all forward slashes with backslashes
           lc.working_dir              = SK_UTF8ToWideChar(launch_config.at("Dir"));
+          std::replace(lc.working_dir.begin(), lc.working_dir.end(), '/', '\\'); // Replaces all forward slashes with backslashes
           lc.launch_options           = SK_UTF8ToWideChar(launch_config.at("Args"));
           lc.executable_path          = record.install_dir + LR"(\)" + lc.executable;
           lc.install_dir              = record.install_dir;
           lc.custom_skif              =   lc_file.first;
           lc.custom_user              = ! lc.custom_skif;
+
+          // Dir is relative to the install folder of the game, same as Exe (absolute paths are kept as they are)
+          if (! lc.working_dir.empty ( ) && PathIsRelativeW (lc.working_dir.c_str ( )))
+            lc.working_dir            = record.install_dir + LR"(\)" + lc.working_dir;
+
+          // Optional keys
+          auto keyInstantPlay         = launch_config.find ("InstantPlay");
+
+          if (keyInstantPlay != launch_config.end ( ) && keyInstantPlay->is_number_integer ( ))
+            lc.instant_play           = keyInstantPlay->get <int> ( );
+
+          if (lc.instant_play < 0 || lc.instant_play > 2)
+            lc.instant_play           = 0;
 
           append_cfg.emplace (lc.id, lc);
         }
@@ -1609,7 +1623,9 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
 
           std::string keyName         = "";
           int         keyCPU          =  0;
-          int         keyAutoStop     =  0;
+          int         keyAutoStop     =  0;   // Only read to migrate it to the registry
+          app_record_s::launch_ref_s
+                      keyDefaultLaunch;
           int         keyHidden       = -1;   // will be 1 for hidden Steam games; 0 for the rest
           int         keyUses         =  0;
           std::string keyUsed         = "";
@@ -1645,18 +1661,28 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
 
             if (key.contains("Category"))
               keyGroup      = key.at("Category");
+
+            if (key.contains("DefaultLaunch"))
+              keyDefaultLaunch = SKIF_Library_LaunchRefFromJson (key.at("DefaultLaunch"));
           }
 
           // Populate SKIF's custom variables with the values as well
           app.second->skif.name           = keyName;
           app.second->skif.cpu_type       = keyCPU;
-          app.second->skif.auto_stop      = keyAutoStop;
           app.second->skif.hidden         = keyHidden;
+          app.second->skif.default_launch = keyDefaultLaunch;
 
-          // Keep the install folder's auto-stop behavior in the registry in sync so the launcher mode can use it
-          //   without parsing the library (SKIF %COMMAND%). Unchanged values are not written again.
-          if (! app.second->install_dir.empty ( ) && keyAutoStop >= 0 && keyAutoStop <= 3)
-            SKIF_LaunchBehaviors::SetAutoStop (app.second->install_dir, static_cast <SKIF_LaunchBehaviors::AutoStop> (keyAutoStop));
+          // The auto-stop behavior is stored per install folder in the registry (SKIF_LaunchBehaviors), which is also what
+          //   the launcher mode uses (SKIF %COMMAND%). An old db.json value is migrated once, unless the folder already has
+          //   its own; db.json no longer stores it, so the key is gone after the write below.
+          if (! app.second->install_dir.empty ( ) && keyAutoStop >= 1 && keyAutoStop <= 3)
+          {
+            SKIF_LaunchBehaviors::Resolved existing;
+
+            if (! SKIF_LaunchBehaviors::ReadExact (app.second->install_dir, existing) ||
+                existing.autoStop == SKIF_LaunchBehaviors::AutoStop::Inherit)
+              SKIF_LaunchBehaviors::SetAutoStop (app.second->install_dir, static_cast <SKIF_LaunchBehaviors::AutoStop> (keyAutoStop));
+          }
           app.second->skif.uses           = keyUses;
           app.second->skif.used           = keyUsed;
           app.second->skif.category       = keyGroup;
@@ -1682,7 +1708,6 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
           key = {
             { "Name",     app.second->skif.name      },
             { "CPU",      app.second->skif.cpu_type  },
-            { "AutoStop", app.second->skif.auto_stop },
             { "Hidden",   app.second->skif.hidden    },
             { "Uses",     app.second->skif.uses      },
             { "Used",     app.second->skif.used      },
@@ -1692,6 +1717,9 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
 
           if (app.second->isInstantPlayCompatible ())
             key += { "InstantPlay", app.second->skif.instant_play };
+
+          if (! app.second->skif.default_launch.empty ( ))
+            key ["DefaultLaunch"] = SKIF_Library_LaunchRefToJson (app.second->skif.default_launch);
 
           job.write = true;
         }
@@ -2069,6 +2097,247 @@ SKIF_GamingCollection::MetaDB_WriteFile (void)
   return false;
 }
 
+#pragma region User Launch Configs (lc_user.json)
+
+std::wstring
+SKIF_UserLaunchConfigs::GetPath (void)
+{
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
+  return SK_FormatStringW (LR"(%ws\Assets\lc_user.json)", _path_cache.specialk_userdata);
+}
+
+static bool
+_UserLaunchConfigs_ReadFile (const std::wstring& path, nlohmann::json& out)
+{
+  out = nlohmann::json::object ( );
+
+  if (! PathFileExistsW (path.c_str ( )))
+    return true;
+
+  std::ifstream file (path);
+
+  if (! file.is_open ( ))
+    return false;
+
+  std::string content ((std::istreambuf_iterator <char> (file)), std::istreambuf_iterator <char> ( ));
+  file.close ( );
+
+  // An empty file is the same as no file
+  if (content.find_first_not_of (" \t\r\n") == std::string::npos)
+    return true;
+
+  nlohmann::json jf = nlohmann::json::parse (content, nullptr, false);
+
+  if (jf.is_discarded ( ) || ! jf.is_object ( ))
+    return false;
+
+  out = std::move (jf);
+
+  return true;
+}
+
+bool
+SKIF_UserLaunchConfigs::Get (const app_record_s& app, std::vector <user_launch_config_s>& out)
+{
+  out.clear ( );
+
+  nlohmann::json jf;
+
+  if (! _UserLaunchConfigs_ReadFile (GetPath ( ), jf))
+  {
+    PLOG_ERROR << "Could not parse " << GetPath ( );
+    return false;
+  }
+
+  auto store = jf.find (app.store_utf8);
+
+  if (store == jf.end ( ) || ! store->is_object ( ))
+    return true;
+
+  auto game  = store->find (app.GetPersistentKey ( ));
+
+  if (game == store->end ( ) || ! game->is_array ( ))
+    return true;
+
+  auto _String = [](const nlohmann::json& j, const char* name) -> std::string
+  {
+    auto it = j.find (name);
+    return (it != j.end ( ) && it->is_string ( )) ? it->get <std::string> ( ) : "";
+  };
+
+  for (const auto& entry : *game)
+  {
+    if (! entry.is_object ( ))
+      continue;
+
+    user_launch_config_s lc;
+    lc.desc  = _String (entry, "Desc");
+    lc.exe   = _String (entry, "Exe");
+    lc.dir   = _String (entry, "Dir");
+    lc.args  = _String (entry, "Args");
+
+    auto instantPlay = entry.find ("InstantPlay");
+
+    if (instantPlay != entry.end ( ) && instantPlay->is_number_integer ( ))
+      lc.instant_play = instantPlay->get <int> ( );
+
+    if (lc.instant_play < 0 || lc.instant_play > 2)
+      lc.instant_play = 0;
+
+    lc.extra = entry;
+
+    static const char* knownKeys [] = { "Desc", "Exe", "Dir", "Args", "InstantPlay" };
+
+    for (const char* known : knownKeys)
+      lc.extra.erase (std::string (known));
+
+    out.push_back (lc);
+  }
+
+  return true;
+}
+
+bool
+SKIF_UserLaunchConfigs::Set (const app_record_s& app, const std::vector <user_launch_config_s>& configs)
+{
+  const std::wstring path = GetPath ( );
+
+  // Read the file again right before writing, so edits made elsewhere in the meantime are kept
+  nlohmann::json jf;
+
+  if (! _UserLaunchConfigs_ReadFile (path, jf))
+  {
+    PLOG_ERROR << "Refusing to write " << path << " as the existing file could not be parsed";
+    return false;
+  }
+
+  const std::string key = app.GetPersistentKey ( );
+
+  try {
+    if (jf.contains (app.store_utf8) && ! jf [app.store_utf8].is_object ( ))
+    {
+      PLOG_ERROR << "Refusing to write " << path << " as \"" << app.store_utf8 << "\" is not an object";
+      return false;
+    }
+
+    if (configs.empty ( ))
+    {
+      if (jf.contains (app.store_utf8))
+      {
+        jf [app.store_utf8].erase (key);
+
+        if (jf [app.store_utf8].empty ( ))
+          jf.erase (app.store_utf8);
+      }
+    }
+
+    else
+    {
+      nlohmann::json entries = nlohmann::json::array ( );
+
+      for (const auto& lc : configs)
+      {
+        nlohmann::json entry = (lc.extra.is_object ( )) ? lc.extra : nlohmann::json::object ( );
+
+        // The loader requires all four keys (lc.json format)
+        entry ["Desc"] = lc.desc;
+        entry ["Exe"]  = lc.exe;
+        entry ["Dir"]  = lc.dir;
+        entry ["Args"] = lc.args;
+
+        if (lc.instant_play != 0)
+          entry ["InstantPlay"] = lc.instant_play;
+        else
+          entry.erase ("InstantPlay");
+
+        entries.push_back (entry);
+      }
+
+      jf [app.store_utf8] [key] = entries;
+    }
+
+    std::error_code ec;
+    std::filesystem::create_directories (std::filesystem::path (path).parent_path ( ), ec);
+
+    const std::wstring tmp = path + L".tmp";
+
+    std::ofstream file (tmp, std::ios::binary | std::ios::trunc);
+
+    if (! file.is_open ( ))
+    {
+      PLOG_ERROR << "Could not open " << tmp << " for writing";
+      return false;
+    }
+
+    file << jf.dump (2);
+    file.close ( );
+
+    if (file.fail ( ))
+    {
+      PLOG_ERROR << "Could not write " << tmp;
+      DeleteFileW (tmp.c_str ( ));
+      return false;
+    }
+
+    if (! MoveFileExW (tmp.c_str ( ), path.c_str ( ), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+    {
+      PLOG_ERROR << "Could not replace " << path << ": " << SKIF_Util_GetErrorAsWStr ( );
+      DeleteFileW (tmp.c_str ( ));
+      return false;
+    }
+  }
+
+  catch (const std::exception& e)
+  {
+    PLOG_ERROR << "Error occurred when trying to write " << path << ": " << e.what ( );
+    return false;
+  }
+
+  PLOG_INFO << "Wrote " << configs.size ( ) << " user launch config(s) for " << app.store_utf8 << " " << key << " to " << path;
+
+  return true;
+}
+
+#pragma endregion
+
+// db.json "DefaultLaunch": the launch config SKIF uses by default (app_record_s::launch_ref_s)
+nlohmann::json
+SKIF_Library_LaunchRefToJson (const app_record_s::launch_ref_s& ref)
+{
+  return nlohmann::json {
+    { "Source", ref.source },
+    { "Exe",    ref.exe    },
+    { "Args",   ref.args   },
+    { "Desc",   ref.desc   }
+  };
+}
+
+app_record_s::launch_ref_s
+SKIF_Library_LaunchRefFromJson (const nlohmann::json& j)
+{
+  app_record_s::launch_ref_s ref;
+
+  if (! j.is_object ( ))
+    return ref;
+
+  auto _String = [&](const char* name) -> std::string
+  {
+    auto it = j.find (name);
+    return (it != j.end ( ) && it->is_string ( )) ? it->get <std::string> ( ) : "";
+  };
+
+  ref.source = _String ("Source");
+  ref.exe    = _String ("Exe");
+  ref.args   = _String ("Args");
+  ref.desc   = _String ("Desc");
+
+  if (ref.source != "Platform" && ref.source != "SKIF" && ref.source != "User")
+    ref = app_record_s::launch_ref_s { };
+
+  return ref;
+}
+
 // This both updates the metadata and optionally writes the new object to the disk
 bool
 SKIF_GamingCollection::MetaDB_UpdateApp (app_record_s* pApp, bool bWriteToDisk)
@@ -2084,10 +2353,10 @@ SKIF_GamingCollection::MetaDB_UpdateApp (app_record_s* pApp, bool bWriteToDisk)
       auto& key = m_jsonMetaDB[pApp->store_utf8][item];
 
       // Update the values in the Json object
+      // The auto-stop behavior is no longer stored here (see SKIF_LaunchBehaviors), so an old "AutoStop" is dropped
       key = {
         { "Name",     pApp->skif.name      },
         { "CPU",      pApp->skif.cpu_type  },
-        { "AutoStop", pApp->skif.auto_stop },
         { "Hidden",   pApp->skif.hidden    },
         { "Uses",     pApp->skif.uses      },
         { "Used",     pApp->skif.used      },
@@ -2097,6 +2366,9 @@ SKIF_GamingCollection::MetaDB_UpdateApp (app_record_s* pApp, bool bWriteToDisk)
 
       if (pApp->isInstantPlayCompatible ( ))
         key += { "InstantPlay", pApp->skif.instant_play };
+
+      if (! pApp->skif.default_launch.empty ( ))
+        key ["DefaultLaunch"] = SKIF_Library_LaunchRefToJson (pApp->skif.default_launch);
 
       return ! bWriteToDisk || MetaDB_WriteFile ( );
     }

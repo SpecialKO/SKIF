@@ -6351,6 +6351,60 @@ SKIF_Util_ResolveShortcut (HWND hwnd, LPCWSTR lpszLinkFile, LPWSTR lpszTarget, L
   }
 }
 
+// Shared by Add Game and Properties: resolves a picked or drag-and-dropped file to the executable to launch
+SKIF_Util_ExecutableSelection_s
+SKIF_Util_ResolveExecutableSelection (const std::wstring& file)
+{
+  SKIF_Util_ExecutableSelection_s ret;
+
+  if (file.empty ( ))
+    return ret;
+
+  std::filesystem::path path      = file;
+  std::wstring          extension = SKIF_Util_ToLowerW (path.extension ( ).wstring ( ));
+  std::wstring          filename  = path.stem ( ).wstring ( ); // Without the extension
+
+  if (extension == L".lnk")
+  {
+    WCHAR wszTarget    [MAX_PATH + 2] = { };
+    WCHAR wszWorkingDir[MAX_PATH + 2] = { };
+    WCHAR wszArguments [    1024 + 2] = { };
+
+    SKIF_Util_ResolveShortcut (SKIF_ImGui_hWnd, file.c_str ( ), wszTarget, wszArguments, wszWorkingDir, MAX_PATH * sizeof (WCHAR), sizeof (wszArguments));
+
+    if (PathFileExistsW (wszTarget))
+    {
+      std::wstring productName = SKIF_Util_GetProductName (wszTarget);
+
+      ret.valid       = true;
+      ret.shortcut    = true;
+      ret.path        = wszTarget;
+      ret.working_dir = wszWorkingDir;
+      ret.args        = wszArguments;
+      ret.name        = (! productName.empty ( )) ? productName : filename;
+    }
+  }
+
+  else if (extension == L".exe")
+  {
+    std::wstring productName = SKIF_Util_GetProductName (file.c_str ( ));
+
+    ret.valid       = true;
+    ret.path        = file;
+    ret.working_dir = path.parent_path ( ).lexically_normal ( ).wstring ( );
+    ret.name        = (! productName.empty ( )) ? productName : filename;
+  }
+
+  else if (extension == L".bat")
+  {
+    ret.valid       = true;
+    ret.path        = file;
+    ret.working_dir = path.parent_path ( ).lexically_normal ( ).wstring ( );
+  }
+
+  return ret;
+}
+
 //
 // https://docs.microsoft.com/en-au/windows/win32/shell/links?redirectedfrom=MSDN#creating-a-shortcut-and-a-folder-shortcut-to-a-file
 //
