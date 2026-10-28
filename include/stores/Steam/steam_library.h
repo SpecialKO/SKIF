@@ -55,7 +55,8 @@ enum ConfigStore
 
 // Barely functional Steam Key/Value Parser
 //   -> Does not handle unquoted kv pairs.
-//   -> Does also not handle a hanging { that lacks a closing } (worked around by counting the depth we end up on)
+//   -> Does not unescape: \" and \\ are kept as written (but \" does not end a string)
+//   -> Input with a { or a string that is never closed (e.g. a truncated file) is rejected as a whole
 class SK_Steam_KeyValues
 {
 public:
@@ -69,23 +70,6 @@ public:
 
     if (sections.empty () || input.empty ())
       return ret;
-
-    // TODO: Fix proper solution to the below
-    // This is a halfassed way of ensuring there's a matching set of { and }
-    // ---
-    int depth = 0;
-
-    for (auto c : input)
-    {
-      if (c == '{')
-        depth++;
-      if (c == '}' && depth > 0)
-        depth--;
-    }
-
-    if (depth != 0)
-      return ret;
-    // ---
 
     struct {
       std::deque <std::string> path;
@@ -118,7 +102,11 @@ public:
 
     std::string name   = "";
     std::string value  = "";
-    int         quotes = 0;
+    int         quotes = 0;    // 1 = reading the key, 3 = reading the value, 4 = pair complete
+
+    // Results are only handed over once all of the input has been read (see the check after the loop)
+    std::vector <std::string> found_keys,
+                              found_values;
 
     const auto _clear = [&](void)
     {
@@ -127,33 +115,45 @@ public:
       quotes = 0;
     };
 
-    for (auto c : input)
-    {
-      if (c == '"')
-        ++quotes;
+    const size_t len = input.size ();
 
-      else if (c != '{')
+    for (size_t i = 0; i < len; ++i)
+    {
+      const char c        = input [i];
+      const bool inString = (quotes == 1 || quotes == 3);
+
+      if (inString)
       {
-        if (quotes == 1)
+        std::string& target = (quotes == 1) ? name : value;
+
+        // Escape sequences (\" and \\) are kept as written, but \" does not end the string
+        if (c == '\\' && i + 1 < len)
         {
-          name += c;
+          target += c;
+          target += input [++i];
+          continue;
         }
 
-        if (quotes == 3)
+        // Braces inside a quoted string are just text
+        if (c != '"')
         {
-          value += c;
+          target += c;
+          continue;
         }
       }
+
+      if (c == '"')
+        ++quotes;
 
       if (quotes == 4)
       {
         if (! _stricmp ( search_tree.heap.test.c_str   (),
                          search_tree.heap.actual.c_str () ) )
         {
-          ret.emplace_back (name);
+          found_keys.emplace_back (name);
 
           if (values != nullptr)
-            values->emplace_back (value);
+            found_values.emplace_back (value);
         }
 
         _clear ();
@@ -174,11 +174,22 @@ public:
         else
           PLOG_ERROR << "Corrupt manifest detected!";
 
+        search_tree.heapify ( );
+
         _clear ();
       }
 
       else { search_tree.heapify (); } // Needed to be able to handle key/value pairs placed after { } objects
     }
+
+    // An unclosed { or string means the input is incomplete (e.g. a truncated file)
+    if (! search_tree.path.empty () || quotes == 1 || quotes == 3)
+      return ret;
+
+    ret = std::move (found_keys);
+
+    if (values != nullptr)
+      values->insert (values->end ( ), found_values.begin ( ), found_values.end ( ));
 
     return ret;
   }
