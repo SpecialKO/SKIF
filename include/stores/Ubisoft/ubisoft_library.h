@@ -67,6 +67,7 @@ struct app_record_ubisoft_s : app_record_store_s <app_record_ubisoft_s, app_reco
     std::string  key           = ""; // Persistent key: the product ID
     uint32_t     product_id    =  0;
     std::string  display_name  = ""; // Uninstall entry's DisplayName (also tried for the cover)
+    std::string  product_name  = ""; // The game executable's product name (THE SETTLERS - Heritage of Kings; tried for the cover)
     std::string  language      = ""; // Install language (en-US)
     std::wstring icon          = L""; // The client's .ico for the game (<client>\data\<hash>.ico)
     bool         configuration = false; // Launch configs come from the client's configurations cache
@@ -85,6 +86,7 @@ struct app_record_ubisoft_s : app_record_store_s <app_record_ubisoft_s, app_reco
     return (ubisoft.key           == o.key           &&
             ubisoft.product_id    == o.product_id    &&
             ubisoft.display_name  == o.display_name  &&
+            ubisoft.product_name  == o.product_name  &&
             ubisoft.language      == o.language      &&
             ubisoft.icon          == o.icon          &&
             ubisoft.configuration == o.configuration);
@@ -107,7 +109,8 @@ struct app_record_ubisoft_s : app_record_store_s <app_record_ubisoft_s, app_reco
                GetStoreDebugFields     (void) const override;
 
   // Artwork (ubisoft_library.cpp): IGDB has no Ubisoft source and the client's own thumbnails are small (240x280),
-  //   so the cover is looked up on IGDB by name and saved as Assets\Ubisoft\<key>\cover-original.jpg.
+  //   so the cover is looked up on IGDB by name (the title, then the executable's product name, which often has the
+  //   subtitle IGDB uses, then the uninstall entry's name) and saved as Assets\Ubisoft\<key>\cover-original.jpg.
   //   The icon is extracted from the executable, else the client's .ico is used.
   std::wstring ResolveArtwork          (LibraryTexture type, const std::wstring& source, bool& isCustom, bool& isManaged) override;
   std::wstring PrepareCoverSource      (bool queryPCGW) override;

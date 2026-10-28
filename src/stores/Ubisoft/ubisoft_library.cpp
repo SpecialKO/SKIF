@@ -961,6 +961,15 @@ namespace
     return installs;
   }
 
+  // The client is downloading (or updating) the game: its files are staged in <install folder>\uplay_download\<product ID>\.
+  //   The uplay_download folder itself remains, empty, after the download has finished.
+  bool
+  SKIF_Ubisoft_IsDownloading (const std::wstring& install_dir, uint32_t productID)
+  {
+    return (! install_dir.empty ( ) && productID != 0 &&
+            PathIsDirectoryW ((install_dir + LR"(\uplay_download\)" + std::to_wstring (productID)).c_str ( )));
+  }
+
   // Identifies the installed games and their configurations, to tell when the library has to be repopulated
   std::string
   SKIF_Ubisoft_GetFingerprint (void)
@@ -970,9 +979,11 @@ namespace
 
     std::hash <std::string> hasher;
 
+    // A download finishing (or starting) is part of it: games are only listed once their executable exists
     for (auto& install : SKIF_Ubisoft_GetInstalls ( ))
       fingerprint += std::to_string (install.product_id) + "|" + SK_WideCharToUTF8 (install.install_dir) + "|" + SK_WideCharToUTF8 (install.language) + "|" +
-                     std::to_string (hasher (SKIF_Ubisoft_GetConfiguration (clientFolder, install.product_id))) + "\n";
+                     std::to_string (hasher (SKIF_Ubisoft_GetConfiguration (clientFolder, install.product_id))) + "|" +
+                     ((SKIF_Ubisoft_IsDownloading (install.install_dir, install.product_id)) ? "downloading" : "") + "\n";
 
     return fingerprint;
   }
@@ -994,15 +1005,6 @@ namespace
   SKIF_Ubisoft_HasLowercase (const std::string& str)
   {
     return std::any_of (str.begin ( ), str.end ( ), [](unsigned char c) { return (c >= 'a' && c <= 'z'); });
-  }
-
-  // The client is downloading (or updating) the game: its files are staged in <install folder>\uplay_download\<product ID>\.
-  //   The uplay_download folder itself remains, empty, after the download has finished.
-  bool
-  SKIF_Ubisoft_IsDownloading (const std::wstring& install_dir, uint32_t productID)
-  {
-    return (! install_dir.empty ( ) && productID != 0 &&
-            PathIsDirectoryW ((install_dir + LR"(\uplay_download\)" + std::to_wstring (productID)).c_str ( )));
   }
 }
 
@@ -1100,14 +1102,20 @@ SKIF_Ubisoft_GetInstalledAppIDs (app_list_t *apps)
     record.ubisoft.icon           = displayIcon;
     record.ubisoft.configuration  = (! yaml.empty ( ));
 
-    // Not finished downloading: the game is listed (with its launch configs) but shown as updating, so it can't be launched
+    // A download in progress is shown as updating (the play button is disabled meanwhile). That is an update of an
+    //   installed game: a game downloaded for the first time is left out below, as its executable is still missing.
     record._status.updating       = (SKIF_Ubisoft_IsDownloading (install.install_dir, productID)) ? 0x1 : 0x0;
 
     PLOG_VERBOSE_IF (record._status.updating) << "Ubisoft Connect product " << productID << " is being downloaded";
 
-    // One launch config per executable of the configuration, in its order (the first one is the game)
-    std::set <std::wstring> seen; // Lower-cased executable + arguments
-    int                     lcId = 0;
+    // One launch config per executable of the configuration, in its order (the first one is the game).
+    //   As for the other platforms, the game is only installed if its executable exists: Ubisoft Connect registers
+    //   a game (Launcher\Installs, uninstall entry) as soon as it is queued for download. Other executables that
+    //   are missing (an optional component) are left out.
+    std::set <std::wstring> seen;               // Lower-cased executable + arguments
+    int                     lcId         = 0;
+    bool                    checkedMain  = false; // The first executable (the game itself) was found
+    std::wstring            missingMain;          // The game's executable, when it is missing
 
     for (auto& exe : executables)
     {
@@ -1151,6 +1159,13 @@ SKIF_Ubisoft_GetInstalledAppIDs (app_list_t *apps)
         if (value.empty ( ))
         {
           PLOG_VERBOSE << "Ubisoft Connect product " << productID << ": the executable's registry value is missing (" << SK_UTF8ToWideChar (exe.path_register) << ")";
+
+          if (! checkedMain)
+          {
+            missingMain = SK_UTF8ToWideChar (exe.path_register);
+            break;
+          }
+
           continue;
         }
 
@@ -1164,6 +1179,20 @@ SKIF_Ubisoft_GetInstalledAppIDs (app_list_t *apps)
         PLOG_VERBOSE << "Ubisoft Connect product " << productID << ": skipping the non-executable " << exePath;
         continue;
       }
+
+      if (! PathFileExistsW (exePath.c_str ( )))
+      {
+        if (! checkedMain)
+        {
+          missingMain = exePath;
+          break;
+        }
+
+        PLOG_VERBOSE << "Ubisoft Connect product " << productID << ": leaving out the missing executable " << exePath;
+        continue;
+      }
+
+      checkedMain = true;
 
       std::wstring arguments = SK_UTF8ToWideChar (exe.arguments);
 
@@ -1191,10 +1220,24 @@ SKIF_Ubisoft_GetInstalledAppIDs (app_list_t *apps)
       record.launch_configs.emplace (lcId++, lc);
     }
 
+    if (! missingMain.empty ( ))
+    {
+      PLOG_VERBOSE << "Ubisoft Connect game " << SK_UTF8ToWideChar (title) << " is not installed" << ((record._status.updating) ? " (still downloading)" : "")
+                   << ": its executable is missing (" << missingMain << "); skipping...";
+      continue;
+    }
+
     if (record.launch_configs.empty ( ))
     {
       PLOG_WARNING << "Could not find the executable of Ubisoft Connect game " << SK_UTF8ToWideChar (title) << " (" << install.install_dir << "); skipping...";
       continue;
+    }
+
+    // The game executable's product name, which often has the subtitle IGDB knows the game by (used for the cover)
+    {
+      std::wstring productName = SKIF_Util_GetProductName (record.launch_configs.begin ( )->second.executable_path.c_str ( ));
+      SKIF_Util_TrimSpacesW (productName);
+      record.ubisoft.product_name = SK_WideCharToUTF8 (productName);
     }
 
     record.specialk.injection.injection.type = InjectionType::Global;
@@ -1340,6 +1383,7 @@ app_record_ubisoft_s::GetStoreDebugFields (void) const
   return {
     { "Product ID",        ubisoft.key                                    },
     { "Uninstall Name",    ubisoft.display_name                           },
+    { "Product Name",      ubisoft.product_name                           },
     { "Language",          ubisoft.language                               },
     { "Configuration",     (ubisoft.configuration) ? "Found" : "Missing"  },
     { "Client Icon",       SK_WideCharToUTF8 (ubisoft.icon)               }
@@ -1395,18 +1439,51 @@ app_record_ubisoft_s::PrepareCoverSource (bool queryPCGW)
   if (PathFileExistsW (coverPath.c_str ( )) || ! FindCustomArtwork (LibraryTexture::Cover).empty ( ))
     return coverPath;
 
-  // The cleaned title (without (TM), (R) and (C) signs, which Ubisoft titles often have), the name shown in SKIF
-  //   if the user renamed the game, then the uninstall entry's name
+  // The names to look up, in this order (each name once):
+  //   1. The cleaned title (without (TM), (R) and (C) signs, which Ubisoft titles often have)
+  //   2. The name shown in SKIF, if the user renamed the game
+  //   3. The game executable's product name, which often has the subtitle IGDB knows the game by where Ubisoft numbers
+  //        the games, with the title's edition: The Settlers 5 - History Edition is THE SETTLERS - Heritage of Kings,
+  //        and IGDB's The Settlers: Heritage of Kings - History Edition. Then the product name alone.
+  //   4. The uninstall entry's name
+  //   A fuzzy match is accepted when it is the same name written differently (SKIF_IGDB_DownloadCoverByName).
   const std::string& title = (! names.clean.empty ( )) ? names.clean : names.original;
 
-  if (SKIF_IGDB_DownloadCoverByName (title, coverPath))
-    return coverPath;
+  std::vector <std::string> candidates;
 
-  if (! names.normal.empty ( ) && names.normal != title && SKIF_IGDB_DownloadCoverByName (names.normal, coverPath))
-    return coverPath;
+  auto _Add = [&](const std::string& name)
+  {
+    if (SKIF_Ubisoft_Simplify (name).empty ( ))
+      return;
 
-  if (! ubisoft.display_name.empty ( ) && ubisoft.display_name != title && ubisoft.display_name != names.normal)
-    SKIF_IGDB_DownloadCoverByName (ubisoft.display_name, coverPath);
+    for (auto& candidate : candidates)
+      if (SKIF_Ubisoft_Simplify (candidate) == SKIF_Ubisoft_Simplify (name))
+        return;
+
+    candidates.push_back (name);
+  };
+
+  _Add (title);
+  _Add (names.normal);
+
+  if (! ubisoft.product_name.empty ( ))
+  {
+    // "The Settlers 5 - History Edition" -> "History Edition"
+    size_t      dash    = title.rfind (" - ");
+    std::string edition = (dash != std::string::npos) ? title.substr (dash + 3) : "";
+
+    if (! edition.empty ( ) && StrStrIA (edition.c_str ( ), "Edition") != nullptr &&
+        SKIF_Ubisoft_Simplify (ubisoft.product_name).find (SKIF_Ubisoft_Simplify (edition)) == std::string::npos)
+      _Add (ubisoft.product_name + " - " + edition);
+
+    _Add (ubisoft.product_name);
+  }
+
+  _Add (ubisoft.display_name);
+
+  for (auto& candidate : candidates)
+    if (SKIF_IGDB_DownloadCoverByName (candidate, coverPath))
+      break;
 
   return coverPath;
 }
