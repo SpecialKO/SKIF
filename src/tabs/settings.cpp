@@ -983,43 +983,44 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::TreePush      ("InstantPlay");
 
+    // Three platforms per row: each group is a column of two (EA, GOG, itch.io / Steam, Ubisoft, Xbox)
+    ImGui::BeginGroup ( );
+
     if (ImGui::Checkbox       ("EA",          &_registry.bInstantPlayEA))
       _registry.regKVInstantPlayEA.putData    (_registry.bInstantPlayEA);
-
-    ImGui::SameLine ( );
-    ImGui::Spacing  ( );
-    ImGui::SameLine ( );
-
-    if (ImGui::Checkbox       ("GOG",         &_registry.bInstantPlayGOG))
-      _registry.regKVInstantPlayGOG.putData   (_registry.bInstantPlayGOG);
-
-    ImGui::SameLine ( );
-    ImGui::Spacing  ( );
-    ImGui::SameLine ( );
-
-    if (ImGui::Checkbox       ("itch.io",     &_registry.bInstantPlayitch))
-      _registry.regKVInstantPlayitch.putData  (_registry.bInstantPlayitch);
-
-    ImGui::SameLine ( );
-    ImGui::Spacing  ( );
-    ImGui::SameLine ( );
 
     if (ImGui::Checkbox       ("Steam",       &_registry.bInstantPlaySteam))
       _registry.regKVInstantPlaySteam.putData (_registry.bInstantPlaySteam);
 
+    ImGui::EndGroup ( );
+
     ImGui::SameLine ( );
     ImGui::Spacing  ( );
     ImGui::SameLine ( );
+
+    ImGui::BeginGroup ( );
+
+    if (ImGui::Checkbox       ("GOG",         &_registry.bInstantPlayGOG))
+      _registry.regKVInstantPlayGOG.putData   (_registry.bInstantPlayGOG);
 
     if (ImGui::Checkbox       ("Ubisoft",     &_registry.bInstantPlayUbisoft))
       _registry.regKVInstantPlayUbisoft.putData (_registry.bInstantPlayUbisoft);
 
+    ImGui::EndGroup ( );
+
     ImGui::SameLine ( );
     ImGui::Spacing  ( );
     ImGui::SameLine ( );
 
+    ImGui::BeginGroup ( );
+
+    if (ImGui::Checkbox       ("itch.io",     &_registry.bInstantPlayitch))
+      _registry.regKVInstantPlayitch.putData  (_registry.bInstantPlayitch);
+
     if (ImGui::Checkbox       ("Xbox",        &_registry.bInstantPlayXbox))
       _registry.regKVInstantPlayXbox.putData  (_registry.bInstantPlayXbox);
+
+    ImGui::EndGroup ( );
 
     ImGui::TreePop          ( );
 
