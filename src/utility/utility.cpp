@@ -1409,8 +1409,413 @@ SKIF_Util_TerminateProcess (HANDLE hProcess, UINT uExitCode)
 }
 
 
-using VerQueryValueW_pfn        = BOOL (APIENTRY *)(LPCVOID,LPCWSTR,LPVOID*,PUINT);
-using GetFileVersionInfoExW_pfn = BOOL (APIENTRY *)(DWORD,LPCWSTR,DWORD,DWORD,LPVOID);
+// Version information is read by parsing the RT_VERSION resource directly from the file on disk
+//   instead of going through GetFileVersionInfoExW ( ). That API maps the file as an image through
+//   LoadLibraryExW (LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_AS_IMAGE_RESOURCE), which means the kernel
+//   has to create an image section for it -- a point where real-time antivirus filter drivers commonly
+//   intercept and scan the file, which can take seconds for large executables not yet scanned.
+//   Here only the headers, the resource directory entries along the path to RT_VERSION, and the version
+//   resource itself are read (typically less than 10 KB in total), using ordinary file reads.
+//   Since only the file itself is read, this matches FILE_VER_GET_NEUTRAL (no .mui files are consulted).
+
+// Reads the raw VS_VERSIONINFO resource of a PE file; returns false if it does not have one
+static bool
+SKIF_Util_ReadVersionResource (const wchar_t* wszPath, std::vector <uint8_t>& data)
+{
+  data.clear ( );
+
+  if (wszPath == nullptr || *wszPath == L'\0')
+    return false;
+
+  HANDLE hFile = CreateFileW (wszPath, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (hFile == INVALID_HANDLE_VALUE)
+    return false;
+
+  auto _ReadAt = [&](uint64_t offset, void* buffer, DWORD size) -> bool
+  {
+    LARGE_INTEGER liOffset = { };
+    liOffset.QuadPart      = static_cast<LONGLONG> (offset);
+    DWORD         dwRead   = 0;
+
+    return SetFilePointerEx (hFile, liOffset, nullptr, FILE_BEGIN) &&
+           ReadFile         (hFile, buffer, size, &dwRead, nullptr) && dwRead == size;
+  };
+
+  bool ret = false;
+
+  // Single-pass block so we can break out to the cleanup below
+  do
+  {
+    IMAGE_DOS_HEADER dosHeader = { };
+
+    if (! _ReadAt (0, &dosHeader, sizeof (dosHeader)) ||
+          dosHeader.e_magic  != IMAGE_DOS_SIGNATURE   ||
+          dosHeader.e_lfanew <  static_cast<LONG> (sizeof (IMAGE_DOS_HEADER)))
+      break;
+
+    const uint64_t ntOffset = static_cast<uint64_t> (dosHeader.e_lfanew);
+
+    // The signature and file header are the same for 32-bit and 64-bit images
+    struct {
+      DWORD             Signature;
+      IMAGE_FILE_HEADER FileHeader;
+    } ntHeaders = { };
+
+    static_assert (sizeof (ntHeaders) == sizeof (DWORD) + sizeof (IMAGE_FILE_HEADER), "Unexpected padding");
+
+    if (! _ReadAt (ntOffset, &ntHeaders, sizeof (ntHeaders)) ||
+          ntHeaders.Signature != IMAGE_NT_SIGNATURE)
+      break;
+
+    const uint64_t optOffset  = ntOffset + sizeof (ntHeaders);
+    const WORD     optSize    = ntHeaders.FileHeader.SizeOfOptionalHeader;
+    DWORD          rsrcRVA    = 0;
+    DWORD          hdrSize    = 0; // SizeOfHeaders
+
+    // Read the optional header as the larger (64-bit) variant, capped to the size the file says it is
+    union {
+      WORD                  Magic;
+      IMAGE_OPTIONAL_HEADER32 opt32;
+      IMAGE_OPTIONAL_HEADER64 opt64;
+    } optHeader = { };
+
+    const DWORD optRead = std::min <DWORD> (optSize, sizeof (optHeader));
+
+    if (optRead < sizeof (WORD) || ! _ReadAt (optOffset, &optHeader, optRead))
+      break;
+
+    if (optHeader.Magic == IMAGE_NT_OPTIONAL_HDR32_MAGIC && optRead >= offsetof (IMAGE_OPTIONAL_HEADER32, DataDirectory))
+    {
+      hdrSize = optHeader.opt32.SizeOfHeaders;
+
+      if (optHeader.opt32.NumberOfRvaAndSizes > IMAGE_DIRECTORY_ENTRY_RESOURCE &&
+          optRead >= offsetof (IMAGE_OPTIONAL_HEADER32, DataDirectory) + (IMAGE_DIRECTORY_ENTRY_RESOURCE + 1) * sizeof (IMAGE_DATA_DIRECTORY))
+        rsrcRVA = optHeader.opt32.DataDirectory [IMAGE_DIRECTORY_ENTRY_RESOURCE].VirtualAddress;
+    }
+
+    else if (optHeader.Magic == IMAGE_NT_OPTIONAL_HDR64_MAGIC && optRead >= offsetof (IMAGE_OPTIONAL_HEADER64, DataDirectory))
+    {
+      hdrSize = optHeader.opt64.SizeOfHeaders;
+
+      if (optHeader.opt64.NumberOfRvaAndSizes > IMAGE_DIRECTORY_ENTRY_RESOURCE &&
+          optRead >= offsetof (IMAGE_OPTIONAL_HEADER64, DataDirectory) + (IMAGE_DIRECTORY_ENTRY_RESOURCE + 1) * sizeof (IMAGE_DATA_DIRECTORY))
+        rsrcRVA = optHeader.opt64.DataDirectory [IMAGE_DIRECTORY_ENTRY_RESOURCE].VirtualAddress;
+    }
+
+    if (rsrcRVA == 0)
+      break; // No resources
+
+    // The section table is needed to translate RVAs to file offsets
+    const WORD numSections = ntHeaders.FileHeader.NumberOfSections;
+
+    if (numSections == 0 || numSections > 96) // The Windows loader does not accept more than 96 sections
+      break;
+
+    std::vector <IMAGE_SECTION_HEADER> sections (numSections);
+
+    if (! _ReadAt (optOffset + optSize, sections.data (), static_cast<DWORD> (sections.size () * sizeof (IMAGE_SECTION_HEADER))))
+      break;
+
+    // Translates an RVA to a file offset, also ensuring that 'size' bytes are backed by the file
+    auto _RvaToOffset = [&](DWORD rva, DWORD size, uint64_t& offset) -> bool
+    {
+      for (const auto& section : sections)
+      {
+        if (rva >= section.VirtualAddress && rva - section.VirtualAddress < std::max (section.Misc.VirtualSize, section.SizeOfRawData))
+        {
+          const DWORD delta = rva - section.VirtualAddress;
+
+          if (static_cast<uint64_t> (delta) + size > section.SizeOfRawData)
+            return false; // Not backed by raw data in the file
+
+          offset = static_cast<uint64_t> (section.PointerToRawData) + delta;
+          return true;
+        }
+      }
+
+      // RVAs within the headers map 1:1 to file offsets
+      if (static_cast<uint64_t> (rva) + size <= hdrSize)
+      {
+        offset = rva;
+        return true;
+      }
+
+      return false;
+    };
+
+    // Reads the entries of a resource directory (offset relative to the start of the resource section)
+    auto _ReadDirectory = [&](DWORD dirOffset, std::vector <IMAGE_RESOURCE_DIRECTORY_ENTRY>& entries) -> bool
+    {
+      entries.clear ( );
+
+      IMAGE_RESOURCE_DIRECTORY dir    = { };
+      uint64_t                 offset = 0;
+
+      if (! _RvaToOffset (rsrcRVA + dirOffset, sizeof (dir), offset) ||
+          ! _ReadAt      (offset, &dir, sizeof (dir)))
+        return false;
+
+      const DWORD count = static_cast<DWORD> (dir.NumberOfNamedEntries) + dir.NumberOfIdEntries;
+
+      if (count == 0 || count > 4096) // Sanity limit
+        return false;
+
+      entries.resize (count);
+
+      const DWORD bytes = count * sizeof (IMAGE_RESOURCE_DIRECTORY_ENTRY);
+
+      return _RvaToOffset (rsrcRVA + dirOffset + sizeof (dir), bytes, offset) &&
+             _ReadAt      (offset, entries.data (), bytes);
+    };
+
+    // Picks the entry with the given integer ID, or the first entry if fallbackToFirst is set
+    auto _FindEntry = [](const std::vector <IMAGE_RESOURCE_DIRECTORY_ENTRY>& entries, WORD id, bool fallbackToFirst) -> const IMAGE_RESOURCE_DIRECTORY_ENTRY*
+    {
+      for (const auto& entry : entries)
+        if (! entry.NameIsString && entry.Id == id)
+          return &entry;
+
+      return (fallbackToFirst && ! entries.empty ()) ? &entries.front () : nullptr;
+    };
+
+    std::vector <IMAGE_RESOURCE_DIRECTORY_ENTRY> entries;
+
+    // Level 1: resource type
+    if (! _ReadDirectory (0, entries))
+      break;
+
+    const IMAGE_RESOURCE_DIRECTORY_ENTRY* entry = _FindEntry (entries, static_cast<WORD> (reinterpret_cast<ULONG_PTR> (RT_VERSION)), false);
+
+    if (entry == nullptr || ! entry->DataIsDirectory)
+      break;
+
+    // Level 2: resource name (VS_VERSION_INFO is ID 1)
+    if (! _ReadDirectory (entry->OffsetToDirectory, entries))
+      break;
+
+    entry = _FindEntry (entries, 1, true);
+
+    if (entry == nullptr || ! entry->DataIsDirectory)
+      break;
+
+    // Level 3: language -- prefer neutral, then the user's UI language, then English (US), then whatever comes first
+    if (! _ReadDirectory (entry->OffsetToDirectory, entries))
+      break;
+
+    entry = _FindEntry (entries, MAKELANGID (LANG_NEUTRAL, SUBLANG_NEUTRAL), false);
+    if (entry == nullptr)
+      entry = _FindEntry (entries, GetUserDefaultUILanguage ( ), false);
+    if (entry == nullptr)
+      entry = _FindEntry (entries, MAKELANGID (LANG_ENGLISH, SUBLANG_ENGLISH_US), true);
+
+    if (entry == nullptr || entry->DataIsDirectory)
+      break;
+
+    IMAGE_RESOURCE_DATA_ENTRY dataEntry = { };
+    uint64_t                  offset    = 0;
+
+    if (! _RvaToOffset (rsrcRVA + entry->OffsetToData, sizeof (dataEntry), offset) ||
+        ! _ReadAt      (offset, &dataEntry, sizeof (dataEntry)))
+      break;
+
+    // VS_VERSIONINFO.wLength is a WORD, so a valid version resource can never exceed 64 KB (plus some padding)
+    if (dataEntry.Size < 6 || dataEntry.Size > 0x10000 + 16)
+      break;
+
+    // OffsetToData is an RVA, not an offset relative to the resource section
+    if (! _RvaToOffset (dataEntry.OffsetToData, dataEntry.Size, offset))
+      break;
+
+    data.resize (dataEntry.Size);
+
+    if (! _ReadAt (offset, data.data (), dataEntry.Size))
+      break;
+
+    ret = true;
+  } while (false);
+
+  CloseHandle (hFile);
+
+  if (! ret)
+    data.clear ( );
+
+  return ret;
+}
+
+// A block within a VS_VERSIONINFO resource (VS_VERSIONINFO, StringFileInfo, StringTable, String, VarFileInfo, Var)
+struct SKIF_VersionBlock {
+  size_t         end         = 0;       // Offset of the end of the block
+  const wchar_t* key         = nullptr; // Not necessarily null-terminated within bounds; use keyLength
+  size_t         keyLength   = 0;
+  size_t         valueOffset = 0;
+  size_t         valueBytes  = 0;
+  size_t         childOffset = 0;       // Offset of the first child block
+  bool           isText      = false;
+};
+
+static bool
+SKIF_Util_ParseVersionBlock (const std::vector <uint8_t>& data, size_t offset, size_t limit, SKIF_VersionBlock& block)
+{
+  auto _Align4 = [](size_t value) -> size_t { return (value + 3) & ~static_cast<size_t> (3); };
+
+  limit = std::min (limit, data.size ( ));
+
+  if (offset % 2 != 0 || offset + 6 > limit)
+    return false;
+
+  WORD header [3] = { }; // wLength, wValueLength, wType
+  memcpy (header, &data [offset], sizeof (header));
+
+  if (header [0] < 6 || offset + header [0] > limit)
+    return false;
+
+  block.end       = offset + header [0];
+  block.isText    = (header [2] == 1);
+  block.key       = reinterpret_cast<const wchar_t*> (&data [offset + 6]);
+  block.keyLength = 0;
+
+  // The key is a null-terminated UTF-16 string
+  size_t pos = offset + 6;
+
+  while (pos + 2 <= block.end && (data [pos] != 0 || data [pos + 1] != 0))
+  {
+    pos += 2;
+    block.keyLength++;
+  }
+
+  if (pos + 2 > block.end)
+    return false; // Unterminated key
+
+  block.valueOffset = std::min (_Align4 (pos + 2), block.end);
+
+  // wValueLength is in characters for text values and in bytes for binary values,
+  //   although some tools write it in bytes for text values as well, so clamp it to the block
+  block.valueBytes  = std::min <size_t> (block.isText ? header [1] * sizeof (wchar_t) : header [1], block.end - block.valueOffset);
+  block.childOffset = std::min (_Align4 (block.valueOffset + block.valueBytes), block.end);
+
+  return true;
+}
+
+// Calls the callback for each child block; stops early if the callback returns false
+template <typename _Fn>
+static void
+SKIF_Util_ForEachVersionChild (const std::vector <uint8_t>& data, const SKIF_VersionBlock& parent, _Fn callback)
+{
+  size_t offset = parent.childOffset;
+
+  while (offset + 6 <= parent.end)
+  {
+    SKIF_VersionBlock child;
+
+    if (! SKIF_Util_ParseVersionBlock (data, offset, parent.end, child))
+      break;
+
+    if (! callback (child))
+      break;
+
+    offset = (child.end + 3) & ~static_cast<size_t> (3);
+  }
+}
+
+static bool
+SKIF_Util_VersionKeyEquals (const SKIF_VersionBlock& block, const wchar_t* key)
+{
+  const size_t length = wcslen (key);
+
+  return block.keyLength == length && _wcsnicmp (block.key, key, length) == 0;
+}
+
+// Looks up a string (e.g. L"ProductName") in the StringFileInfo of a raw VS_VERSIONINFO resource.
+//   Uses the string table of the first translation listed in VarFileInfo (same as the previous
+//   VerQueryValueW ( ) based lookups did), falling back to the first string table if there is no match.
+static std::wstring
+SKIF_Util_QueryVersionString (const std::vector <uint8_t>& data, const wchar_t* wszName)
+{
+  SKIF_VersionBlock root;
+
+  if (! SKIF_Util_ParseVersionBlock (data, 0, data.size ( ), root) ||
+      ! SKIF_Util_VersionKeyEquals  (root, L"VS_VERSION_INFO"))
+    return L"";
+
+  // Find the first translation (language + code page)
+  wchar_t wszTranslation [9] = { };
+
+  SKIF_Util_ForEachVersionChild (data, root, [&](const SKIF_VersionBlock& fileInfo)
+  {
+    if (! SKIF_Util_VersionKeyEquals (fileInfo, L"VarFileInfo"))
+      return true;
+
+    SKIF_Util_ForEachVersionChild (data, fileInfo, [&](const SKIF_VersionBlock& var)
+    {
+      if (SKIF_Util_VersionKeyEquals (var, L"Translation") && var.valueBytes >= 4)
+      {
+        WORD translation [2] = { }; // Language, code page
+        memcpy (translation, &data [var.valueOffset], sizeof (translation));
+        _snwprintf_s (wszTranslation, _TRUNCATE, L"%04x%04x", translation [0], translation [1]);
+        return false;
+      }
+
+      return true;
+    });
+
+    return false;
+  });
+
+  std::wstring ret;
+
+  SKIF_Util_ForEachVersionChild (data, root, [&](const SKIF_VersionBlock& fileInfo)
+  {
+    if (! SKIF_Util_VersionKeyEquals (fileInfo, L"StringFileInfo"))
+      return true;
+
+    // Pick the string table of the translation, or the first one if there is no match
+    bool              found = false;
+    SKIF_VersionBlock table;
+
+    SKIF_Util_ForEachVersionChild (data, fileInfo, [&](const SKIF_VersionBlock& child)
+    {
+      if (! found)
+      {
+        table = child;
+        found = true;
+      }
+
+      if (wszTranslation [0] != L'\0' && SKIF_Util_VersionKeyEquals (child, wszTranslation))
+      {
+        table = child;
+        return false;
+      }
+
+      return true;
+    });
+
+    if (! found)
+      return false;
+
+    SKIF_Util_ForEachVersionChild (data, table, [&](const SKIF_VersionBlock& string)
+    {
+      if (! SKIF_Util_VersionKeyEquals (string, wszName))
+        return true;
+
+      // Read up until the null terminator or the end of the value, whichever comes first
+      const wchar_t* value  = reinterpret_cast<const wchar_t*> (&data [string.valueOffset]);
+      size_t         length = 0;
+
+      // Use the whole remainder of the block in case wValueLength is wrong
+      const size_t   maxLength = (string.end - string.valueOffset) / sizeof (wchar_t);
+
+      while (length < maxLength && value [length] != L'\0')
+        length++;
+
+      ret.assign (value, length);
+      return false;
+    });
+
+    return false;
+  });
+
+  return ret;
+}
 
 std::wstring
 SKIF_Util_GetSpecialKDLLVersion (const wchar_t* wszName)
@@ -1418,80 +1823,24 @@ SKIF_Util_GetSpecialKDLLVersion (const wchar_t* wszName)
   if (! wszName)
     return L"";
 
-  /*
-  static VerQueryValueW_pfn
-    SKIF_VerQueryValueW = (VerQueryValueW_pfn)GetProcAddress (
-                LoadLibraryEx ( L"version.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
-        "VerQueryValueW"                                     );
-
-  static GetFileVersionInfoExW_pfn
-    SKIF_GetFileVersionInfoExW = (GetFileVersionInfoExW_pfn)GetProcAddress (
-                LoadLibraryEx ( L"version.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
-        "GetFileVersionInfoExW"                                            );
-  */
-
   DWORD start = SKIF_Util_timeGetTime1 ( );
 
-  UINT cbTranslatedBytes = 0,
-       cbProductBytes    = 0,
-       cbVersionBytes    = 0;
+  std::vector <uint8_t> data;
+  std::wstring          version;
 
-  std::vector <uint8_t>
-    cbData (16384, 0ui8);
-
-  wchar_t* wszProduct    = nullptr; // Will point somewhere in cbData
-  wchar_t* wszVersion    = nullptr;
-
-  struct LANGANDCODEPAGE {
-    WORD wLanguage;
-    WORD wCodePage;
-  } *lpTranslate = nullptr;
-
-  BOOL bRet =
-    GetFileVersionInfoExW ( FILE_VER_GET_PREFETCHED,
-                              wszName,
-                                0x00,
-              static_cast <DWORD> (cbData.size ()),
-                                    cbData.data () );
-
-  if (! bRet) return L"";
-
-  if ( VerQueryValueW ( cbData.data (),
-                          TEXT ("\\VarFileInfo\\Translation"),
-        static_cast_p2p <void> (&lpTranslate),
-                                &cbTranslatedBytes ) &&
-                                  cbTranslatedBytes   && lpTranslate )
+  if (SKIF_Util_ReadVersionResource (wszName, data))
   {
-    wchar_t        wszPropName [64] = { };
-    _snwprintf_s ( wszPropName, 63,
-                   LR"(\StringFileInfo\%04x%04x\ProductName)",
-                     lpTranslate   [0].wLanguage,
-                       lpTranslate [0].wCodePage );
+    std::wstring product = SKIF_Util_QueryVersionString (data, L"ProductName");
 
-    VerQueryValueW ( cbData.data (),
-                       wszPropName,
-      static_cast_p2p <void> (&wszProduct),
-                              &cbProductBytes );
-
-    if ( cbProductBytes && (StrStrIW (wszProduct, L"Special K")) )
-    {
-      _snwprintf_s ( wszPropName, 63,
-                       LR"(\StringFileInfo\%04x%04x\ProductVersion)",
-                         lpTranslate   [0].wLanguage,
-                           lpTranslate [0].wCodePage );
-
-      VerQueryValueW ( cbData.data (),
-                         wszPropName,
-        static_cast_p2p <void> (&wszVersion),
-                                &cbVersionBytes );
-    }
+    if (StrStrIW (product.c_str ( ), L"Special K"))
+      version = SKIF_Util_QueryVersionString (data, L"ProductVersion");
   }
 
   DWORD stop = SKIF_Util_timeGetTime1 ( );
 
   PLOG_DEBUG << "Processing took " << (stop - start) << " ms.";
 
-  return (cbVersionBytes) ? wszVersion : L"";
+  return version;
 }
 
 std::wstring
@@ -1500,115 +1849,31 @@ SKIF_Util_GetFileVersion (const wchar_t* wszName)
   if (! wszName)
     return L"";
 
-  /*
-  static VerQueryValueW_pfn
-    SKIF_VerQueryValueW = (VerQueryValueW_pfn)GetProcAddress (
-                LoadLibraryEx ( L"version.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
-        "VerQueryValueW"                                     );
-
-  static GetFileVersionInfoExW_pfn
-    SKIF_Util_GetFileVersionInfoExW = (GetFileVersionInfoExW_pfn)GetProcAddress (
-                LoadLibraryEx ( L"version.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
-        "GetFileVersionInfoExW"                                            );
-  */
-
   DWORD start = SKIF_Util_timeGetTime1 ( );
 
-  UINT cbTranslatedBytes = 0,
-       cbProductBytes    = 0,
-       cbVersionBytes    = 0;
+  std::vector <uint8_t> data;
 
-  uint8_t cbData [4097] = { };
-  size_t  dwSize= 4096;
-
-  wchar_t* wszFileDescrip = nullptr; // Will point somewhere in cbData
-  wchar_t* wszFileVersion = nullptr; // "
-
-  struct LANGANDCODEPAGE {
-    WORD wLanguage;
-    WORD wCodePage;
-  } *lpTranslate = nullptr;
-
-  BOOL bRet =
-    GetFileVersionInfoExW ( FILE_VER_GET_NEUTRAL,
-                              wszName,
-                                0x00,
-             static_cast <DWORD> (dwSize),
-                                    cbData );
-
-  if (! bRet)
+  if (! SKIF_Util_ReadVersionResource (wszName, data))
     return L"N/A";
 
-  if ( VerQueryValueW ( cbData,
-                          TEXT ("\\VarFileInfo\\Translation"),
-              static_cast_p2p <void> (&lpTranslate),
-                                      &cbTranslatedBytes ) && cbTranslatedBytes &&
-                                                              lpTranslate )
-  {
-    wchar_t        wszPropName [64] = { };
-    _snwprintf_s ( wszPropName, 63,
-                    LR"(\StringFileInfo\%04x%04x\FileDescription)",
-                      lpTranslate   [0].wLanguage,
-                        lpTranslate [0].wCodePage );
+  std::wstring description = SKIF_Util_QueryVersionString (data, L"FileDescription");
 
-    VerQueryValueW ( cbData,
-                       wszPropName,
-           static_cast_p2p <void> (&wszFileDescrip),
-                                   &cbProductBytes );
+  if (description.empty ( ))
+    description = SKIF_Util_QueryVersionString (data, L"ProductName");
 
-    if (cbProductBytes == 0)
-    {
-      _snwprintf_s ( wszPropName, 63,
-                    LR"(\StringFileInfo\%04x%04x\ProductName)",
-                      lpTranslate   [0].wLanguage,
-                        lpTranslate [0].wCodePage );
+  std::wstring version     = SKIF_Util_QueryVersionString (data, L"FileVersion");
 
-      VerQueryValueW ( cbData,
-                         wszPropName,
-             static_cast_p2p <void> (&wszFileDescrip),
-                                     &cbProductBytes );
-    }
+  if (version.empty ( ))
+    version     = SKIF_Util_QueryVersionString (data, L"ProductVersion");
 
-    _snwprintf_s ( wszPropName, 63,
-                    LR"(\StringFileInfo\%04x%04x\FileVersion)",
-                      lpTranslate   [0].wLanguage,
-                        lpTranslate [0].wCodePage );
-
-    VerQueryValueW ( cbData,
-                       wszPropName,
-           static_cast_p2p <void> (&wszFileVersion),
-                                   &cbVersionBytes );
-
-    if (cbVersionBytes == 0)
-    {
-      _snwprintf_s ( wszPropName, 63,
-                      LR"(\StringFileInfo\%04x%04x\ProductVersion)",
-                        lpTranslate   [0].wLanguage,
-                          lpTranslate [0].wCodePage );
-
-      VerQueryValueW ( cbData,
-                         wszPropName,
-             static_cast_p2p <void> (&wszFileVersion),
-                                     &cbVersionBytes );
-    }
-  }
-
-  if ( cbTranslatedBytes == 0 ||
-         (cbProductBytes == 0 && cbVersionBytes == 0) )
-  {
+  if (description.empty ( ) && version.empty ( ))
     return L"  ";
-  }
-
-  std::wstring ret;
-
-  if (cbVersionBytes)
-    ret.append (wszFileVersion);
 
   DWORD stop = SKIF_Util_timeGetTime1 ( );
 
   PLOG_DEBUG << "Processing took " << (stop - start) << " ms.";
 
-  return ret;
+  return version;
 }
 
 std::wstring
@@ -1617,69 +1882,25 @@ SKIF_Util_GetProductName (const wchar_t* wszName)
   if (! wszName)
     return L"";
 
-  /*
-  static VerQueryValueW_pfn
-    SKIF_VerQueryValueW = (VerQueryValueW_pfn)GetProcAddress (
-                LoadLibraryEx ( L"version.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
-        "VerQueryValueW"                                     );
+  DWORD start = SKIF_Util_timeGetTime1 ( );
 
-  static GetFileVersionInfoExW_pfn
-    SKIF_Util_GetFileVersionInfoExW = (GetFileVersionInfoExW_pfn)GetProcAddress (
-                LoadLibraryEx ( L"version.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
-        "GetFileVersionInfoExW"                                            );
-  */
+  std::vector <uint8_t> data;
+  std::wstring          productName;
 
-  UINT cbTranslatedBytes = 0,
-       cbProductBytes    = 0;
-
-  std::vector <uint8_t>
-    cbData (16384, 0ui8);
-
-  wchar_t* wszProduct    = nullptr; // Will point somewhere in cbData
-
-  struct LANGANDCODEPAGE {
-    WORD wLanguage;
-    WORD wCodePage;
-  } *lpTranslate = nullptr;
-
-  BOOL bRet =
-    GetFileVersionInfoExW ( FILE_VER_GET_PREFETCHED,
-                                   wszName,
-                                     0x00,
-                    static_cast <DWORD> (cbData.size ()),
-                                         cbData.data () );
-
-  if (! bRet) return L"";
-
-  if ( VerQueryValueW ( cbData.data (),
-                             TEXT ("\\VarFileInfo\\Translation"),
-            static_cast_p2p <void> (&lpTranslate),
-                                    &cbTranslatedBytes ) &&
-                                     cbTranslatedBytes   && lpTranslate )
+  if (SKIF_Util_ReadVersionResource (wszName, data))
   {
-    wchar_t        wszPropName [64] = { };
-    _snwprintf_s ( wszPropName, 63,
-                   LR"(\StringFileInfo\%04x%04x\ProductName)",
-                     lpTranslate   [0].wLanguage,
-                       lpTranslate [0].wCodePage );
+    productName = SKIF_Util_QueryVersionString (data, L"ProductName");
 
-    VerQueryValueW ( cbData.data (),
-                            wszPropName,
-           static_cast_p2p <void> (&wszProduct),
-                                   &cbProductBytes );
-
-    if ( cbProductBytes )
-    {
-      // The product name can sometimes include leading or trailing spaces
-      //   (e.g. the FarCry.exe executable), so let us trim any of those
-      std::wstring productName = std::wstring(wszProduct);
-      SKIF_Util_TrimSpacesW (productName);
-
-      return productName;
-    }
+    // The product name can sometimes include leading or trailing spaces
+    //   (e.g. the FarCry.exe executable), so let us trim any of those
+    SKIF_Util_TrimSpacesW (productName);
   }
 
-  return L"";
+  DWORD stop = SKIF_Util_timeGetTime1 ( );
+
+  PLOG_DEBUG << "Processing took " << (stop - start) << " ms.";
+
+  return productName;
 }
 
 /*
