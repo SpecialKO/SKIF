@@ -765,6 +765,17 @@ SKIF_UI_Tab_DrawLibrary (void)
         selection.dir_watch.isSignaled (pApp->install_dir, UITab_None, TRUE);
     }
 
+    // While a store client downloads or updates the selected game (Ubisoft Connect stages the files in the install
+    //   folder), the folder changes constantly: those changes are ignored, as they would refresh the game over and over
+    //   (the play button flickering between "Loading..." and "Updating..."). The game is refreshed once it is done instead.
+    static app_key_s updatingApp        = { };
+    bool             refreshAfterUpdate = false;
+
+    if (pApp->_status.updating)
+      updatingApp        = pApp->GetKey ( );
+    else if (updatingApp == pApp->GetKey ( ))
+      refreshAfterUpdate = true; // Until a worker could be started (below)
+
     int availableWorker = -1;
     int idx             = -1;
 
@@ -832,11 +843,15 @@ SKIF_UI_Tab_DrawLibrary (void)
     // Only run this block of code if
     if (availableWorker != -1 && ! pApp->loading       && // We require an available worker
         (update                                        ||
-         selection.dir_watch.isSignaled ( )            || // TODO: Investigate support for multiple launch configs? Right now only the "main" folder is being monitored
+        (selection.dir_watch.isSignaled ( ) && ! pApp->_status.updating) || // TODO: Investigate support for multiple launch configs? Right now only the "main" folder is being monitored
+        refreshAfterUpdate                             || // The store client finished downloading / updating the game
         (_registry.bLibrarySteam && SKIF_Steam_HasActiveProcessChanged (&_games.GetApps(), &_games.GetAppTickets ( ))) || // If Steam user signed in / out
         _inject.libCacheRefresh                       )) // If the global DLL files have been changed
     {
       _inject.libCacheRefresh = false;
+
+      if (refreshAfterUpdate)
+        updatingApp = { };
 
       //PLOG_VERBOSE << "CPU PRE : " << cpu_pre;
 

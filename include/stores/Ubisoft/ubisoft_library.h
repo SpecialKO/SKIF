@@ -46,6 +46,12 @@ The product configurations (names, executables, artwork) are cached by the clien
       default:
         l1: Assassin's Creed® III
 
+While the client downloads (or updates) a game, the files are staged in the install folder, in a folder named after
+  the product ID; the uplay_download folder itself remains, empty, once the download has finished:
+
+    <install folder>\uplay_download\<product ID>\...   (the game's files)
+    <install folder>\uplay_download\slicecache          (the download's cache)
+
 Launching through Ubisoft Connect (the uplay protocol is registered by the client):
 
     uplay://launch/<product ID>/0
@@ -65,6 +71,8 @@ struct app_record_ubisoft_s : app_record_store_s <app_record_ubisoft_s, app_reco
     std::wstring icon          = L""; // The client's .ico for the game (<client>\data\<hash>.ico)
     bool         configuration = false; // Launch configs come from the client's configurations cache
   } ubisoft;
+
+  DWORD        dwNextDownloadCheck = 0; // RefreshClientState: when to look for a download in progress next
 
   // Library refresh (app_record.h)
   bool         HasSameLibraryData      (const app_record_s& other) const override
@@ -89,6 +97,7 @@ struct app_record_ubisoft_s : app_record_store_s <app_record_ubisoft_s, app_reco
   bool         RequiresValidExecutable (void) const override { return false; } // Launches through Ubisoft Connect
   bool         PrefersInstantLaunch    (bool fromGameMenu, launch_config_s* config) const override;
   void         Launch                  (const launch_context_s& ctx) override;
+  void         RefreshClientState      (DWORD dwTimeNow) override; // A download in progress is shown as updating
 
   // Library UI (ubisoft_library.cpp)
   bool         GetInstantPlayDefault   (void) const override;

@@ -430,7 +430,7 @@ struct app_record_s {
   virtual std::string  GetPCGamingWikiURL      (void)       const { return "https://www.pcgamingwiki.com/w/index.php?search=" + names.clean; }
   virtual std::string  GetSteamGridDBURL       (bool icons) const { return SKIF_Util_FormatStringRaw ((icons) ? "https://www.steamgriddb.com/search/icons?term=%s"
                                                                                                                  : "https://www.steamgriddb.com/search/grids?term=%s", names.clean.c_str ( )); }
-  virtual void         RefreshClientState      (DWORD dwTimeNow)  { UNREFERENCED_PARAMETER (dwTimeNow); } // Polls the store client for running/updating state (Steam only)
+  virtual void         RefreshClientState      (DWORD dwTimeNow)  { UNREFERENCED_PARAMETER (dwTimeNow); } // Polls the store client for running/updating state (Steam; Ubisoft: downloads)
 
   // Where launch configs from lc.json / lc_user.json are added
   virtual std::map <int, launch_config_s>&

@@ -995,6 +995,15 @@ namespace
   {
     return std::any_of (str.begin ( ), str.end ( ), [](unsigned char c) { return (c >= 'a' && c <= 'z'); });
   }
+
+  // The client is downloading (or updating) the game: its files are staged in <install folder>\uplay_download\<product ID>\.
+  //   The uplay_download folder itself remains, empty, after the download has finished.
+  bool
+  SKIF_Ubisoft_IsDownloading (const std::wstring& install_dir, uint32_t productID)
+  {
+    return (! install_dir.empty ( ) && productID != 0 &&
+            PathIsDirectoryW ((install_dir + LR"(\uplay_download\)" + std::to_wstring (productID)).c_str ( )));
+  }
 }
 
 #pragma endregion
@@ -1090,6 +1099,11 @@ SKIF_Ubisoft_GetInstalledAppIDs (app_list_t *apps)
     record.ubisoft.language       = language;
     record.ubisoft.icon           = displayIcon;
     record.ubisoft.configuration  = (! yaml.empty ( ));
+
+    // Not finished downloading: the game is listed (with its launch configs) but shown as updating, so it can't be launched
+    record._status.updating       = (SKIF_Ubisoft_IsDownloading (install.install_dir, productID)) ? 0x1 : 0x0;
+
+    PLOG_VERBOSE_IF (record._status.updating) << "Ubisoft Connect product " << productID << " is being downloaded";
 
     // One launch config per executable of the configuration, in its order (the first one is the game)
     std::set <std::wstring> seen; // Lower-cased executable + arguments
@@ -1285,6 +1299,19 @@ app_record_ubisoft_s::Launch (const launch_context_s& ctx)
 
     SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (names.normal), L"", launchOptions, L"", ctx.config->getExecutableFullPath ( ), (! ctx.localInjection && ctx.usingSK));
   }
+}
+
+// List row, main thread: a download in progress is shown as updating (the play button is disabled meanwhile),
+//   which also keeps the constant changes in the install folder from refreshing the selected game over and over
+void
+app_record_ubisoft_s::RefreshClientState (DWORD dwTimeNow)
+{
+  if (dwTimeNow < dwNextDownloadCheck)
+    return;
+
+  dwNextDownloadCheck = dwTimeNow + 2000;
+
+  _status.updating    = (SKIF_Ubisoft_IsDownloading (install_dir, ubisoft.product_id)) ? 0x1 : 0x0;
 }
 
 #pragma endregion
