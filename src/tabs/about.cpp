@@ -24,9 +24,9 @@ SKIF_UI_Tab_DrawAbout (void)
 
   auto _PrintSKIFintro = [](void)
   {
-    ImGui::TextColored      (
-      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), "%s",
-        _("About the Injection Frontend (SKIF):")  );
+    SKIF_ImGui_TextColoredWrapped (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+        _("About the Injection Frontend (SKIF):"));
 
     SKIF_ImGui_Spacing      ( );
 
@@ -57,10 +57,9 @@ SKIF_UI_Tab_DrawAbout (void)
   // ImColor(100, 255, 218); // Teal
   // ImGui::GetStyleColorVec4(ImGuiCol_TabHovered);
 
-  ImGui::TextColored      (
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), "%s",
-                            _("Beginner's Guide to Special K (SK):")
-                            );
+  SKIF_ImGui_TextColoredWrapped (
+    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+      _("Beginner's Guide to Special K (SK):"));
 
   SKIF_ImGui_Spacing      ( );
 
@@ -82,9 +81,13 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGui::NewLine        ( );
   }
 
+  // Leave room for the smiley after the last word
+  ImGui::PushTextWrapPos  (ImGui::GetCursorPosX ( ) + ImGui::GetContentRegionAvail ( ).x
+                           - ImGui::GetStyle ( ).ItemSpacing.x - ImGui::CalcTextSize (ICON_FA_FACE_GRIN_BEAM).x);
   // TRANSLATORS: [Library] is a link to the Library tab; keep the brackets around the name of the tab
   if (SKIF_ImGui_TextRich (_("Just hop over to the [Library] and launch a game!"), { ICON_FA_GAMEPAD }) == 0)
     SKIF_Tab_ChangeTo = UITab_Library;
+  ImGui::PopTextWrapPos   ( );
   ImGui::SameLine         ( );
   ImGui::TextColored      (ImColor::HSV (0.11F, 1.F, 1.F), ICON_FA_FACE_GRIN_BEAM);
 
@@ -95,9 +98,9 @@ SKIF_UI_Tab_DrawAbout (void)
 
   float fY1 = ImGui::GetCursorPosY();
 
-  ImGui::TextColored      (
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), "%s",
-                            _("Getting started with a game:"));
+  SKIF_ImGui_TextColoredWrapped (
+    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+      _("Getting started with a game:"));
 
   SKIF_ImGui_Spacing      ( );
 
@@ -141,10 +144,9 @@ SKIF_UI_Tab_DrawAbout (void)
 
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Failure), ICON_FA_ROCKET);
   ImGui::SameLine         ( );
-  ImGui::TextColored      (
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), "%s",
-      _("Launch Special K for select games through Steam:")
-  );
+  SKIF_ImGui_TextColoredWrapped (
+    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+      _("Launch Special K for select games through Steam:"));
 
   SKIF_ImGui_Spacing      ( );
 
@@ -236,9 +238,9 @@ SKIF_UI_Tab_DrawAbout (void)
 
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_AWARD);//ICON_FA_WRENCH);
   ImGui::SameLine         ( );
-  ImGui::TextColored      (
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), "%s",
-    _("Tips and Tricks:"));
+  SKIF_ImGui_TextColoredWrapped (
+    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+      _("Tips and Tricks:"));
 
   SKIF_ImGui_Spacing      ( );
 
@@ -273,10 +275,9 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGui::NewLine          ( );
   }
 
-  ImGui::TextColored (
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), "%s",
-      _("More on how to inject Special K:")
-  );
+  SKIF_ImGui_TextColoredWrapped (
+    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+      _("More on how to inject Special K:"));
 
   SKIF_ImGui_Spacing      ( );
 
@@ -335,9 +336,9 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGui::NewLine          ( );
   }
 
-  ImGui::TextColored      (
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), "%s",
-      _("Online resources:")  );
+  SKIF_ImGui_TextColoredWrapped (
+    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+      _("Online resources:"));
   SKIF_ImGui_Spacing      ( );
 
   ImGui::BeginGroup       ( );
@@ -448,10 +449,9 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGuiCol_CheckMark, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption)
                             );
 
-  ImGui::TextColored (
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), "%s",
-      _("Components:")
-  );
+  SKIF_ImGui_TextColoredWrapped (
+    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+      _("Components:"));
 
   ImGui::PushStyleColor   (
     ImGuiCol_SKIF_TextBase, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled)

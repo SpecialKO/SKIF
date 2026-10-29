@@ -78,6 +78,7 @@ void     SKIF_ImGui_Columns               (int columns_count, const char* id, bo
 void     SKIF_ImGui_Spacing               (float multiplier);
 void     SKIF_ImGui_Spacing               (void);
 bool     SKIF_ImGui_Selectable            (const char* label);
+void     SKIF_ImGui_TextColoredWrapped    (const ImVec4& col, const char* text); // ImGui::TextColored ( ) that wraps (e.g. translated captions, which may be much longer than in English)
 int      SKIF_ImGui_TextRich              (const char* text, std::initializer_list <const char*> link_icons = { }, const ImVec4& colLink = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption)); // Wrapped text where [words] are links; returns the index of the clicked link, or -1
 bool     SKIF_ImGui_SelectableVAligned    (const char* unique_id, const char* label, bool* p_selected, ImGuiSelectableFlags flags, const ImVec2& size_arg);
 bool     SKIF_ImGui_SeparatorTextClickable(const char* label, const bool* collapsed = nullptr, bool hand_cursor = false);

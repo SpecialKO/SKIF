@@ -720,6 +720,16 @@ SKIF_ImGui_Selectable (const char* label)
   return ImGui::Selectable  (label, false, ImGuiSelectableFlags_None, ImGui::CalcTextSize (label, NULL, true));
 }
 
+// ImGui::TextColored ( ) that wraps like ImGui::TextWrapped ( ): for captions and other single lines of text that may be
+//   much longer once translated. The text is not a format string. Can follow a SameLine ( ) (e.g. after an icon).
+void
+SKIF_ImGui_TextColoredWrapped (const ImVec4& col, const char* text)
+{
+  ImGui::PushStyleColor (ImGuiCol_Text, col);
+  ImGui::TextWrapped    ("%s", text);
+  ImGui::PopStyleColor  ( );
+}
+
 // Wrapped text with links, so sentences stay whole for translation while words within them can be clicked:
 //   "Just hop over to the [Library] and launch a game!"
 //
@@ -727,7 +737,8 @@ SKIF_ImGui_Selectable (const char* label)
 //   the keyboard or a gamepad) in colLink. link_icons optionally has an icon (or nullptr) for each link, drawn in front of
 //     it, which keeps the icons out of the translated text. "[[" and "]]" are literal brackets. "\n" starts a new line.
 //
-// Lines wrap at the right edge of the content region; like ImGui::TextWrapped ( ), the lines after the first start at
+// Lines wrap at the right edge of the content region, or at the position set with ImGui::PushTextWrapPos ( ) (e.g. to
+//   leave room for an icon after the text). Like ImGui::TextWrapped ( ), the lines after the first start at
 //   the position the text started at (so it can follow e.g. a SameLine ( ) after a bullet or a number). The last line can
 //     be followed by SameLine ( ). Returns the index of the link that was clicked, or -1.
 int
@@ -799,7 +810,8 @@ SKIF_ImGui_TextRich (const char* text, std::initializer_list <const char*> link_
   ImFont*     font     = ImGui::GetFont     ( );
   const float size     = ImGui::GetFontSize ( );
   const float start_x  = ImGui::GetCursorPosX ( );
-  const float wrap_x   = start_x + ImGui::GetContentRegionAvail ( ).x;
+  const float wrap_x   = (window->DC.TextWrapPos > 0.0f) ? window->DC.TextWrapPos                      // PushTextWrapPos ( ), window-local like GetCursorPosX ( )
+                                                         : start_x + ImGui::GetContentRegionAvail ( ).x;
   const ImU32 col_link = ImGui::GetColorU32 (colLink);
 
   bool        has_content = false; // Something has been drawn on the current line

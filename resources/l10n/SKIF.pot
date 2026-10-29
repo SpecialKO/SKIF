@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-10-29 23:37+0100\n"
+"POT-Creation-Date: 2026-10-30 00:02+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -32,108 +32,108 @@ msgstr ""
 msgid "Beginner's Guide to Special K (SK):"
 msgstr ""
 
-#: src/tabs/about.cpp:67
+#: src/tabs/about.cpp:66
 msgid "Lovingly referred to as the Swiss Army Knife of PC gaming, Special K does a bit of everything. It is best known for fixing and enhancing graphics, its many detailed performance analysis and correction mods, and a constantly growing palette of tools that solve a wide variety of issues affecting PC games."
 msgstr ""
 
-#: src/tabs/about.cpp:73
+#: src/tabs/about.cpp:72
 msgid "Among its main features are a latency-free borderless window mode, HDR retrofit for SDR games, Nvidia Reflex in unsupported games, as well as texture modding for players and modders alike. While not all features are supported in all games, most DirectX 11 and 12 titles can make use of one or more of its features."
 msgstr ""
 
 #. TRANSLATORS: [Library] is a link to the Library tab; keep the brackets around the name of the tab
-#: src/tabs/about.cpp:86
+#: src/tabs/about.cpp:88
 msgid "Just hop over to the [Library] and launch a game!"
 msgstr ""
 
-#: src/tabs/about.cpp:100
+#: src/tabs/about.cpp:103
 msgid "Getting started with a game:"
 msgstr ""
 
 #. TRANSLATORS: [Library] is a link to the Library tab; keep the brackets around the name of the tab
-#: src/tabs/about.cpp:111
+#: src/tabs/about.cpp:114
 msgid "Go to the [Library] tab."
 msgstr ""
 
-#: src/tabs/about.cpp:120
+#: src/tabs/about.cpp:123
 msgid "Select and launch the game."
 msgstr ""
 
 #. TRANSLATORS: [Add Game] is a link that opens the Add Game prompt; keep the brackets around it
-#: src/tabs/about.cpp:129
+#: src/tabs/about.cpp:132
 msgid "If the game is missing, use [Add Game] to add it."
 msgstr ""
 
-#: src/tabs/about.cpp:146
+#: src/tabs/about.cpp:149
 msgid "Launch Special K for select games through Steam:"
 msgstr ""
 
-#: src/tabs/about.cpp:155
+#: src/tabs/about.cpp:157
 msgid "Your system is set up to quickly launch injection through Steam."
 msgstr ""
 
-#: src/tabs/about.cpp:166
+#: src/tabs/about.cpp:168
 msgid "Right click the desired game in Steam, and select \"Properties...\"."
 msgstr ""
 
-#: src/tabs/about.cpp:176
+#: src/tabs/about.cpp:178
 msgid "Copy and paste the below into the \"Launch Options\" field."
 msgstr ""
 
-#: src/tabs/about.cpp:200
+#: src/tabs/about.cpp:202
 msgid "Launch the game as usual through Steam."
 msgstr ""
 
-#: src/tabs/about.cpp:211
+#: src/tabs/about.cpp:213
 msgid "Your system is not set up to use this install of Special K to launch injection through Steam."
 msgstr ""
 
-#: src/tabs/about.cpp:221
+#: src/tabs/about.cpp:223
 msgid "Set this install as default"
 msgstr ""
 
-#: src/tabs/about.cpp:241
+#: src/tabs/about.cpp:243
 msgid "Tips and Tricks:"
 msgstr ""
 
-#: src/tabs/about.cpp:278
+#: src/tabs/about.cpp:280
 msgid "More on how to inject Special K:"
 msgstr ""
 
-#: src/tabs/about.cpp:291
+#: src/tabs/about.cpp:292
 msgid "Global (system-wide)"
 msgstr ""
 
-#: src/tabs/about.cpp:304
+#: src/tabs/about.cpp:305
 msgid "Local (game-specific)"
 msgstr ""
 
-#: src/tabs/about.cpp:317
+#: src/tabs/about.cpp:318
 msgid "Do not use in multiplayer games!"
 msgstr ""
 
-#: src/tabs/about.cpp:327
+#: src/tabs/about.cpp:328
 msgid ""
 "In particular games where anti-cheat\n"
 "protection might be present."
 msgstr ""
 
-#: src/tabs/about.cpp:340
+#: src/tabs/about.cpp:341
 msgid "Online resources:"
 msgstr ""
 
-#: src/tabs/about.cpp:352
+#: src/tabs/about.cpp:353
 msgid "Wiki"
 msgstr ""
 
-#: src/tabs/about.cpp:412
+#: src/tabs/about.cpp:413
 msgid "Privacy Policy"
 msgstr ""
 
-#: src/tabs/about.cpp:427
+#: src/tabs/about.cpp:428
 msgid "Licenses"
 msgstr ""
 
-#: src/tabs/about.cpp:453
+#: src/tabs/about.cpp:454
 msgid "Components:"
 msgstr ""
 
