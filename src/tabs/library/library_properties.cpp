@@ -1668,7 +1668,6 @@ struct properties_window_s {
   int                                              id           = 0;     // Part of the ImGui window ID
   bool                                             focusRequest = true;  // Bring the window to the front next frame
   app_key_s                                        game;
-  PropertiesPage                                   page         = PropertiesPage::General;
   HWND                                             hwnd         = nullptr;
   std::vector <std::unique_ptr <IPropertySection>> sections;
 
@@ -1764,7 +1763,9 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
     wnd.focusRequest = false;
   }
 
-  const std::string title = std::string ("Properties - ") + pApp->names.normal + windowId;
+  // Unsaved changes are marked in the title (the ID stays the same)
+  const bool        anyDirty = wnd.IsDirty ( );
+  const std::string title    = std::string ("Properties - ") + pApp->names.normal + ((anyDirty) ? " *" : "") + windowId;
 
   bool open   = true;
   bool closed = false;
@@ -1795,60 +1796,29 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
     const float       fIssuesH   = (issueLines > 0) ? issueLines * ImGui::GetTextLineHeightWithSpacing ( ) + style.ItemSpacing.y : 0.0f;
     const float       fFooterH   = fIssuesH + ImGui::GetFrameHeightWithSpacing ( ) + style.ItemSpacing.y * 2.0f;
 
-    static constexpr PropertiesPage pages [] = { PropertiesPage::General, PropertiesPage::Launch, PropertiesPage::SpecialK, PropertiesPage::Store };
+    // Everything on one page, in the order of the pages: each page after the first gets a heading
+    ImGui::BeginChild ("###PropsContent", ImVec2 (0.0f, -fFooterH), ImGuiChildFlags_None);
 
-    auto _HasSections = [&](PropertiesPage page) -> bool
-    {
-      for (auto& section : wnd.sections)
-        if (section->GetPage ( ) == page)
-          return true;
-
-      return false;
-    };
-
-    // The page shown must have sections
-    if (! _HasSections (wnd.page))
-      wnd.page = PropertiesPage::General;
-
-    // Sidebar with the pages
-    bool anyDirty = false;
-
-    ImGui::BeginChild ("###PropsSidebar", ImVec2 (170.0f * SKIF_ImGui_GlobalDPIScale, -fFooterH), ImGuiChildFlags_Borders);
-
-    for (PropertiesPage page : pages)
-    {
-      bool pageDirty = false;
-
-      for (auto& section : wnd.sections)
-        if (section->GetPage ( ) == page && section->IsDirty ( ))
-          pageDirty = true;
-
-      anyDirty = anyDirty || pageDirty;
-
-      if (! _HasSections (page))
-        continue;
-
-      const char* pageName =
-        (page == PropertiesPage::General)  ? "General"        :
-        (page == PropertiesPage::Launch)   ? "Launch options" :
-        (page == PropertiesPage::SpecialK) ? "Special K"      : pApp->store_utf8.c_str ( );
-
-      // Changed pages are marked; the ID stays the same
-      if (ImGui::Selectable (SKIF_Util_FormatStringRaw ("%s%s###PropsPage-%d", pageName, (pageDirty) ? " *" : "", static_cast <int> (page)), wnd.page == page))
-        wnd.page = page;
-    }
-
-    ImGui::EndChild ( );
-
-    ImGui::SameLine ( );
-
-    // The selected page
-    ImGui::BeginChild ("###PropsPage", ImVec2 (0.0f, -fFooterH), ImGuiChildFlags_None);
+    bool           firstSection = true;
+    PropertiesPage lastPage     = PropertiesPage::General;
 
     for (auto& section : wnd.sections)
     {
-      if (section->GetPage ( ) != wnd.page)
-        continue;
+      const PropertiesPage page = section->GetPage ( );
+
+      if (! firstSection && page != lastPage)
+      {
+        const char* pageName =
+          (page == PropertiesPage::Launch)   ? "Launch options" :
+          (page == PropertiesPage::SpecialK) ? "Special K"      : pApp->store_utf8.c_str ( );
+
+        SKIF_ImGui_Spacing ( );
+        ImGui::SeparatorText (pageName);
+        SKIF_ImGui_Spacing ( );
+      }
+
+      firstSection = false;
+      lastPage     = page;
 
       ImGui::PushID (section.get ( ));
 

@@ -39,7 +39,7 @@
 #include <vector>
 #include <memory>
 
-// The pages of the dialog (sidebar); pages without sections are not shown. Today: General and Launch options
+// The groups of the window's single page, in this order; each group after the first gets a heading. Today: General and Launch options
 enum class PropertiesPage {
   General,
   Launch,
@@ -72,7 +72,7 @@ public:
   virtual ~IPropertySection (void) = default;
 
   virtual const char*    GetTitle (void) const = 0;                 // Caption above the section ("" for none)
-  virtual PropertiesPage GetPage  (void) const = 0;                 // The tab the section is on
+  virtual PropertiesPage GetPage  (void) const = 0;                 // The group the section is in
   virtual int            GetOrder (void) const { return 0; }        // Order within the tab (lower first)
 
   virtual void           Load     (app_record_s& app) = 0;          // Copies the current values into the working copy
