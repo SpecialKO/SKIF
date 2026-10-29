@@ -2312,7 +2312,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   // Variable related to continue/pause processing behaviour
   bool HiddenFramesContinueProcessing = true;  // We always have hidden frames that require to continue processing on init
-  int  HiddenFramesRemaining          = 0;
   bool svcTransitionFromPendingState  = false; // This is used to continue processing if we transitioned over from a pending state (which kills the refresh timer)
 
   bool repositionToCenter = false;
@@ -2978,9 +2977,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       );
 
       SK_RunOnce (ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems += 2);
-
-      HiddenFramesRemaining          = ImGui::GetCurrentWindowRead()->HiddenFramesCannotSkipItems;
-      HiddenFramesContinueProcessing = (HiddenFramesRemaining > 0);
+      HiddenFramesContinueProcessing = (ImGui::GetCurrentWindowRead()->HiddenFramesCannotSkipItems > 0);
       HoverTipActive = false;
 
       extern ImGuiPlatformMonitor*
@@ -3735,6 +3732,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
       extern void
         SKIF_ImGui_InfoMessage_Process (void);
       SKIF_ImGui_InfoMessage_Process ( );
+
+      // April Fools' gag: fake "nominal flow" activation theater (purely cosmetic)
+      if (! _registry.bMiniMode && SKIF_ImGui_AprilFools_Process (    ))
+        HiddenFramesContinueProcessing = true;
 
       // Only open the update prompt after the library has appeared
       if (PopulatedGames && UpdatePromptPopup == PopupState_Open && ! _registry.bMiniMode && ! HiddenFramesContinueProcessing && ! ImGui::IsMouseDragging (ImGuiMouseButton_Left))

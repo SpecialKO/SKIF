@@ -83,6 +83,7 @@ bool     SKIF_ImGui_SeparatorTextClickable(const char* label, const bool* collap
 void     SKIF_ImGui_DimBackgroundViewport (const ImGuiViewport* vp = ImGui::GetWindowViewport ( ));
 bool     SKIF_ImGui_BeginPopup            (const char* name, bool* p_open = nullptr, ImVec2 size = ImVec2(0, 0), ImGuiWindowFlags flags = ImGuiWindowFlags_None);
 void     SKIF_ImGui_EndPopup              (void);
+bool     SKIF_ImGui_AprilFools_Process    (void); // April Fools' gag: fake "nominal flow" activation theater (see skif_imgui.cpp)
 DChoice  SKIF_ImGui_DialogPrompt          (const char* name, bool* p_open, const char* message = nullptr, const char* description = nullptr, std::vector<DChoice> choices = { DChoice_None });
 DChoice  SKIF_ImGui_ConfirmPrompt         (const char* name, bool* p_open, const char* message = nullptr, const char* description = nullptr);
 DChoice  SKIF_ImGui_SaveChangesPrompt     (const char* name, bool* p_open, const char* message = nullptr, const char* description = nullptr);
