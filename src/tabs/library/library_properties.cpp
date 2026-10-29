@@ -1791,23 +1791,21 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
     const float       fIssuesH   = (issueLines > 0) ? issueLines * ImGui::GetTextLineHeightWithSpacing ( ) + style.ItemSpacing.y : 0.0f;
     const float       fFooterH   = fIssuesH + ImGui::GetFrameHeightWithSpacing ( ) + style.ItemSpacing.y * 2.0f;
 
-    // The content is limited to a readable width and centered, so a large (maximized) window doesn't stretch it all the way
+    // The content is limited to a readable width and centered, so a large (maximized) window doesn't stretch it all the way.
+    //   Its width and position don't depend on the page's scrollbar: room for the scrollbar is always kept free on both
+    //   sides, so the content never moves when the scrollbar appears or disappears.
     const float fMaxWidth     = 960.0f * SKIF_ImGui_GlobalDPIScale;
-    const float fContentWidth = std::min (fMaxWidth, ImGui::GetContentRegionAvail ( ).x);
-    const float fContentX     = ImGui::GetCursorPosX ( ) + (ImGui::GetContentRegionAvail ( ).x - fContentWidth) / 2.0f;
+    const float fAreaWidth    = ImGui::GetContentRegionAvail ( ).x;
+    const float fContentWidth = std::max (1.0f, std::min (fMaxWidth, fAreaWidth - style.ScrollbarSize * 2.0f));
+    const float fContentX     = ImGui::GetCursorPosX ( ) + (fAreaWidth - fContentWidth) / 2.0f;
 
     // Everything on one page, in the order of the pages: each page after the first gets a heading.
     //   The scrolling area spans the window (scrollbar at its edge); the centered column inside it grows with its content.
-    ImGui::BeginChild ("###PropsContent", ImVec2 (0.0f, -fFooterH), ImGuiChildFlags_None);
+    ImGui::BeginChild ("###PropsContent", ImVec2 (fAreaWidth, -fFooterH), ImGuiChildFlags_None);
 
-    {
-      // Measured inside the scrolling area, so a scrollbar is accounted for
-      const float fAvail  = ImGui::GetContentRegionAvail ( ).x;
-      const float fColumn = std::min (fMaxWidth, fAvail);
-
-      ImGui::SetCursorPosX (ImGui::GetCursorPosX ( ) + (fAvail - fColumn) / 2.0f);
-      ImGui::BeginChild    ("###PropsColumn", ImVec2 (fColumn, 0.0f), ImGuiChildFlags_AutoResizeY, ImGuiWindowFlags_NoScrollWithMouse); // The mouse wheel scrolls the page
-    }
+    // Relative to the scrolling area, which starts where the column's offset was measured from
+    ImGui::SetCursorPosX (ImGui::GetCursorPosX ( ) + (fAreaWidth - fContentWidth) / 2.0f);
+    ImGui::BeginChild    ("###PropsColumn", ImVec2 (fContentWidth, 0.0f), ImGuiChildFlags_AutoResizeY, ImGuiWindowFlags_NoScrollWithMouse); // The mouse wheel scrolls the page
 
     // A bit more room between the rows, so they don't feel cramped
     ImGui::PushStyleVar (ImGuiStyleVar_ItemSpacing, ImVec2 (style.ItemSpacing.x, style.ItemSpacing.y + 6.0f * SKIF_ImGui_GlobalDPIScale));
