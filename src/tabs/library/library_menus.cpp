@@ -1108,27 +1108,8 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
         std::string szName = charCategoryName;
         strncpy (charCategoryName, "\0", maxCategoryNameLen);
 
-        if (! szName.empty() && std::find_if(_registry.vecCategories.begin(), _registry.vecCategories.end(), [&](const SKIF_RegistrySettings::category_s& category) { return category.name == szName; }) == _registry.vecCategories.end())
-        {
-          // Add the new category
-          _registry.vecCategories.push_back (SKIF_RegistrySettings::category_s { szName, false });
-
-          // Sort the list of categories
-          _registry.vecCategories = _registry.SortCategories (_registry.vecCategories);
-
-          // Update the registry
-          std::vector<std::wstring> _inNames, _inBools;
-          _inNames.reserve (_registry.vecCategories.size ( ));
-          _inBools.reserve (_registry.vecCategories.size ( ));
-          for (auto& category : _registry.vecCategories)
-          {
-            _inNames.push_back (SK_UTF8ToWideChar (category.name));
-            _inBools.push_back (std::to_wstring   (category.expanded));
-          }
-
-          _registry.regKVCategories.     putDataMultiSZ (_inNames);
-          _registry.regKVCategoriesState.putDataMultiSZ (_inBools);
-        }
+        // Add the new category (shared with Properties)
+        SKIF_Lib_AddCategory (szName);
 
         pApp->skif.category.clear();
         if (szName == "Favorites")
@@ -1183,7 +1164,7 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
             linkPath.c_str(),
             _path_cache.skif_executable,
             linkArgs.c_str(),
-            pApp->launch_configs[0].getWorkOrExeDirectory().c_str(),
+            (pApp->GetDefaultLaunchConfig ( ) != nullptr) ? pApp->GetDefaultLaunchConfig ( )->getWorkOrExeDirectory().c_str() : L"",
             SK_UTF8ToWideChar(name).c_str(),
             iconPath.c_str()
             )
@@ -1492,7 +1473,7 @@ DrawGameContextMenu (app_record_s* pApp)
   //         is even available (or if "without Special K" is the only option available)
 
   app_record_s::launch_config_s*
-    firstLaunchConfig = (pApp != nullptr && ! pApp->launch_configs.empty ()) ? &pApp->launch_configs.begin ()->second : nullptr;
+    firstLaunchConfig = (pApp != nullptr) ? pApp->GetDefaultLaunchConfig ( ) : nullptr; // The default launch config (Properties > Launch), else the primary one
 
   bool playDisabled = (pApp->_status.running || pApp->IsUpdateBlockingLaunch ( ));
 

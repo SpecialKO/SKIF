@@ -691,9 +691,11 @@ app_record_xbox_s::PrefersInstantLaunch (bool fromGameMenu, launch_config_s* con
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
-  UNREFERENCED_PARAMETER (config);
+  // Only the game's own launch configs have a launch helper; lc.json / lc_user.json ones are run directly
+  if (config != nullptr && ! ClientCanLaunch (*config))
+    return true;
 
-  return (! fromGameMenu && UsesInstantPlay (GetInstantPlayDefault ( )));
+  return (! fromGameMenu && UsesInstantPlay (GetInstantPlayDefault ( ), config));
 }
 
 // Launch Xbox game (through gamelaunchhelper.exe, or Instant Play)
@@ -733,7 +735,7 @@ app_record_xbox_s::Launch (const launch_context_s& ctx)
       L"",
       SK_FormatStringW (
         LR"(powershell.exe -Command "$XmlManifest = Select-Xml -Path 'appxmanifest.xml' -XPath '/'; $Applications = $XmlManifest.Node.Package.Applications.Application; $AppId = if ($null -eq $Applications.Count) { $Applications.Id } else { $Applications[%d].Id }; Invoke-CommandInDesktopPackage -AppId $AppId -PackageFamilyName '%ws' -Command '%ws' -PreventBreakaway:$true")",
-        config->id,
+        (config->custom_skif || config->custom_user) ? 0 : config->id, // lc.json / lc_user.json configs run in the package of the primary application
         SK_UTF8ToWideChar (pApp->xbox.package_name_family).c_str(),
         config->getExecutableFullPath().c_str()
       ),

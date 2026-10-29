@@ -2312,7 +2312,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   // Variable related to continue/pause processing behaviour
   bool HiddenFramesContinueProcessing = true;  // We always have hidden frames that require to continue processing on init
-  int  HiddenFramesRemaining          = 0;
   bool svcTransitionFromPendingState  = false; // This is used to continue processing if we transitioned over from a pending state (which kills the refresh timer)
 
   bool repositionToCenter = false;
@@ -2978,9 +2977,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
       );
 
       SK_RunOnce (ImGui::GetCurrentWindow()->HiddenFramesCannotSkipItems += 2);
-
-      HiddenFramesRemaining          = ImGui::GetCurrentWindowRead()->HiddenFramesCannotSkipItems;
-      HiddenFramesContinueProcessing = (HiddenFramesRemaining > 0);
+      HiddenFramesContinueProcessing = (ImGui::GetCurrentWindowRead()->HiddenFramesCannotSkipItems > 0);
       HoverTipActive = false;
 
       extern ImGuiPlatformMonitor*
@@ -3129,13 +3126,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       if (ImGui::IsKeyPressed (ImGuiKey_Escape))
       {
+        // Properties (ModifyGamePopup) is a window of its own, and handles Escape itself while it has focus
         if (AddGamePopup        != PopupState_Closed ||
-            ModifyGamePopup     != PopupState_Closed ||
             PopupCategoryModify != PopupState_Closed ||
             RemoveGamePopup     != PopupState_Closed  )
         {
           AddGamePopup         = PopupState_Closed;
-          ModifyGamePopup      = PopupState_Closed;
           PopupCategoryModify  = PopupState_Closed;
           RemoveGamePopup      = PopupState_Closed;
 
@@ -3269,6 +3265,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
           _drag_drop.Revoke (SKIF_ImGui_hWnd);
 
 
+        // The max width of the content of the Monitor, Hardware, Settings and About tabs (centered in wider windows)
+        const float fTabColumnMaxWidth = 1000.0f * SKIF_ImGui_GlobalDPIScale;
+
         if (ImGui::BeginTabItem (tabTitleMonitor, nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Monitor) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
         {
           SKIF_ImGui_BeginTabChildFrame ();
@@ -3276,7 +3275,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
           if (SKIF_Tab_Selected != UITab_Monitor)
             PLOG_DEBUG << "Switched to tab: Monitor";
 
+          // Centered, with a max width, and never moved by the frame's scrollbar
+          SKIF_ImGui_BeginCenteredColumn ("###MonitorColumn", fTabColumnMaxWidth);
           SKIF_UI_Tab_DrawMonitor ( );
+          SKIF_ImGui_EndCenteredColumn   ( );
 
           // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
           // Currently not possible since the Monitor tab includes another scrollable child window (the process list)
@@ -3293,7 +3295,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
           if (SKIF_Tab_Selected != UITab_Hardware)
             PLOG_DEBUG << "Switched to tab: Hardware";
 
+          SKIF_ImGui_BeginCenteredColumn ("###HardwareColumn", fTabColumnMaxWidth);
           SKIF_UI_Tab_DrawHardware( );
+          SKIF_ImGui_EndCenteredColumn   (true);
 
           // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
           SKIF_ImGui_AutoScroll  (true, SKIF_ImGuiAxis_Y);
@@ -3309,7 +3313,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
           if (SKIF_Tab_Selected != UITab_Settings)
             PLOG_DEBUG << "Switched to tab: Settings";
 
+          SKIF_ImGui_BeginCenteredColumn ("###SettingsColumn", fTabColumnMaxWidth);
           SKIF_UI_Tab_DrawSettings( );
+          SKIF_ImGui_EndCenteredColumn   (true);
 
           // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
           SKIF_ImGui_AutoScroll  (true, SKIF_ImGuiAxis_Y);
@@ -3336,7 +3342,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
               SKIF_Tab_ChangeTo  = UITab_None;
 
           // About Tab
+          SKIF_ImGui_BeginCenteredColumn ("###AboutColumn", fTabColumnMaxWidth);
           SKIF_UI_Tab_DrawAbout   ( );
+          SKIF_ImGui_EndCenteredColumn   (true);
 
           // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
           SKIF_ImGui_AutoScroll  (true, SKIF_ImGuiAxis_Y);
@@ -3725,6 +3733,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
         SKIF_ImGui_InfoMessage_Process (void);
       SKIF_ImGui_InfoMessage_Process ( );
 
+      // April Fools' gag: fake "nominal flow" activation theater (purely cosmetic)
+      if (! _registry.bMiniMode && SKIF_ImGui_AprilFools_Process (    ))
+        HiddenFramesContinueProcessing = true;
+
       // Only open the update prompt after the library has appeared
       if (PopulatedGames && UpdatePromptPopup == PopupState_Open && ! _registry.bMiniMode && ! HiddenFramesContinueProcessing && ! ImGui::IsMouseDragging (ImGuiMouseButton_Left))
         _updater.Show (SKIF_Updater::WindowType::Updater);
@@ -3803,6 +3815,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
       static SKIF_LocalManager&
         _local  = SKIF_LocalManager::GetInstance ( );
         _local.Process ( );
+
+      // Properties of a game (library_properties.cpp)
+      extern void
+        SKIF_Properties_Draw (void);
+        SKIF_Properties_Draw (    );
 
       // Needs to be processed after all ImGui windows have run
       if (! HoverTipActive)

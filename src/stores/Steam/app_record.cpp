@@ -10,6 +10,8 @@
 #include <utility/games.h>
 #include <utility/igdb.h>
 #include <utility/launch_behaviors.h>
+#include <filesystem>
+#include <algorithm>
 
 // The registry's platform flags (SKIF_StoreFlag) are derived from the store IDs: see GetStoreFlag ( )
 static_assert (StoreFlag_Steam  == 1 << (static_cast <int> (app_record_s::Store::Steam)  - 1));
@@ -815,7 +817,13 @@ app_record_s::LaunchInstant (const launch_context_s& ctx)
 
       std::wstring iconPath = GetJumpListIconPath (ctx.config);
 
-      SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (names.normal),
+      // Launch options other than the one the store client starts (lc.json, lc_user.json, secondary ones) are told apart by their description
+      std::wstring jumpListName = SK_UTF8ToWideChar (names.normal);
+
+      if (! ClientCanLaunch (*ctx.config) && ! ctx.config->description.empty ( ))
+        jumpListName += L" (" + ctx.config->description + L")";
+
+      SKIF_Shell_AddJumpList (jumpListName,
         ctx.config->getExecutableFullPath ( ),
         cmdLine,
         dirPath,
@@ -875,11 +883,129 @@ app_record_s::DownloadIGDBCover (const std::wstring& targetPath)
 std::wstring
 app_record_s::GetDesktopShortcutArgs (void)
 {
-  std::wstring linkArgs = SK_FormatStringW (LR"("%ws" %ws)", launch_configs[0].getExecutableFullPath().c_str(), launch_configs[0].getLaunchOptions().c_str());
+  // The shortcut starts the default launch config through SKIF's launcher mode (a snapshot: later changes don't update it)
+  launch_config_s* lc = GetDefaultLaunchConfig ( );
+
+  if (lc == nullptr)
+    return L"";
+
+  std::wstring linkArgs = SK_FormatStringW (LR"("%ws" %ws)", lc->getExecutableFullPath().c_str(), lc->getLaunchOptions().c_str());
 
   SKIF_Util_TrimTrailingSpacesW (linkArgs);
 
   return linkArgs;
+}
+
+#pragma endregion
+
+#pragma region Default Launch Config
+
+std::wstring
+app_record_s::GetPathRelativeTo (const std::wstring& base, const std::wstring& path)
+{
+  if (base.empty ( ) || path.empty ( ))
+    return L"";
+
+  std::wstring b = std::filesystem::path (base).lexically_normal ( ).wstring ( ),
+               p = std::filesystem::path (path).lexically_normal ( ).wstring ( );
+
+  std::replace (b.begin ( ), b.end ( ), L'/', L'\\');
+  std::replace (p.begin ( ), p.end ( ), L'/', L'\\');
+
+  while (! b.empty ( ) && b.back ( ) == L'\\')
+    b.pop_back ( );
+
+  if (b.empty ( ) || p.length ( ) <= b.length ( ) + 1 || p [b.length ( )] != L'\\')
+    return L"";
+
+  if (_wcsnicmp (p.c_str ( ), b.c_str ( ), b.length ( )) != 0)
+    return L"";
+
+  return p.substr (b.length ( ) + 1);
+}
+
+// Same filter as the launch configs listed in the game menu
+bool
+app_record_s::IsLaunchConfigAvailable (const launch_config_s& lc) const
+{
+  return (lc.valid != 0 && ! lc.duplicate_exe_args && lc.owns_dlc != 0);
+}
+
+std::string
+app_record_s::GetRelativeExecutable (const launch_config_s& lc) const
+{
+  std::wstring full = lc.getExecutableFullPath ( );
+  std::wstring rel  = GetPathRelativeTo (install_dir, full);
+  std::string  ret  = SK_WideCharToUTF8 ((rel.empty ( )) ? full : rel);
+
+  std::replace (ret.begin ( ), ret.end ( ), '\\', '/');
+
+  return ret;
+}
+
+app_record_s::launch_ref_s
+app_record_s::MakeLaunchRef (const launch_config_s& lc) const
+{
+  launch_ref_s ref;
+
+  switch (GetLaunchSource (lc))
+  {
+    case LaunchSource::User:     ref.source = "User";     break;
+    case LaunchSource::SKIF:     ref.source = "SKIF";     break;
+    case LaunchSource::Platform:
+    default:                     ref.source = "Platform"; break;
+  }
+
+  ref.exe  = GetRelativeExecutable (lc);
+  ref.args = SK_WideCharToUTF8     (lc.getLaunchOptions ( ));
+  ref.desc = SK_WideCharToUTF8     (lc.description);
+
+  return ref;
+}
+
+// Matches on source, executable (case-insensitive) and arguments; the description only decides between several matches
+app_record_s::launch_config_s*
+app_record_s::FindLaunchConfig (const launch_ref_s& ref)
+{
+  if (ref.empty ( ))
+    return nullptr;
+
+  launch_config_s* match = nullptr;
+
+  for (auto& it : launch_configs)
+  {
+    launch_config_s& lc = it.second;
+
+    if (! IsLaunchConfigAvailable (lc))
+      continue;
+
+    launch_ref_s cur = MakeLaunchRef (lc);
+
+    if (cur.source != ref.source ||
+        cur.args   != ref.args   ||
+        _stricmp (cur.exe.c_str ( ), ref.exe.c_str ( )) != 0)
+      continue;
+
+    if (cur.desc == ref.desc)
+      return &lc;
+
+    if (match == nullptr)
+      match = &lc;
+  }
+
+  return match;
+}
+
+app_record_s::launch_config_s*
+app_record_s::GetDefaultLaunchConfig (void)
+{
+  if (launch_configs.empty ( ))
+    return nullptr;
+
+  if (launch_config_s* lc = FindLaunchConfig (skif.default_launch))
+    return lc;
+
+  return &launch_configs.begin ( )->second;
 }
 
 #pragma endregion
@@ -988,7 +1114,8 @@ app_record_s::HasSameLaunchConfigs (const std::map <int, launch_config_s>& a,
         lcA.branches                != lcB.branches                ||
         lcA.requires_dlc            != lcB.requires_dlc            ||
         lcA.custom_skif             != lcB.custom_skif             ||
-        lcA.custom_user             != lcB.custom_user)
+        lcA.custom_user             != lcB.custom_user             ||
+        lcA.instant_play            != lcB.instant_play)
       return false;
   }
 
@@ -1013,7 +1140,7 @@ app_record_s::HasSameLibraryData (const app_record_s& other) const
           skif.name         == other.skif.name         &&
           skif.cpu_type     == other.skif.cpu_type     &&
           skif.instant_play == other.skif.instant_play &&
-          skif.auto_stop    == other.skif.auto_stop    &&
+          skif.default_launch == other.skif.default_launch &&
           skif.uses         == other.skif.uses         &&
           skif.used         == other.skif.used         &&
           skif.category     == other.skif.category     &&

@@ -604,11 +604,11 @@ app_record_itch_s::PrefersInstantLaunch (bool fromGameMenu, launch_config_s* con
   if (itch.game_id == 0 || ! SKIF_itch_IsClientInstalled (itch.app))
     return true;
 
-  // The itch app starts its own choice of executable, so other launch configs are run directly
-  if (config != nullptr && config->id != 0)
+  // The itch app starts its own choice of executable, so other launch configs (including lc.json / lc_user.json ones) are run directly
+  if (config != nullptr && ! ClientCanLaunch (*config))
     return true;
 
-  return (! fromGameMenu && UsesInstantPlay (GetInstantPlayDefault ( )));
+  return (! fromGameMenu && UsesInstantPlay (GetInstantPlayDefault ( ), config));
 }
 
 // Launch itch game through the itch app (headless), unless an instant launch was requested

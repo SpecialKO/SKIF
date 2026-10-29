@@ -72,6 +72,12 @@ namespace SKIF_LaunchBehaviors
   // Resolves the effective behaviors for an executable (or folder) path
   Resolved     Resolve          (const std::wstring& path);
 
+  // What the path inherits from its parent folders (its own entry is skipped); fields that remain 0 use the global settings
+  Resolved     ResolveParent    (const std::wstring& path);
+
+  // The path's own entry, without inheritance. Returns false if it has none (out is then all 0)
+  bool         ReadExact        (const std::wstring& path, Resolved& out);
+
   // Sets one field of the exact entry for the path. The entry is removed once all its fields are 0.
   //   Returns false if the registry could not be written, or if the entry uses a newer format.
   bool         SetAutoStop      (const std::wstring& path, AutoStop      value);

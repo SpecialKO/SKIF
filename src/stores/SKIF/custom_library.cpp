@@ -8,6 +8,8 @@
 #include <utility/registry.h>
 #include <concurrent_queue.h>
 #include <utility/igdb.h>
+#include <tabs/properties.h>
+#include <cwctype>
 
 
 bool SKIF_RemoveCustomAppID (uint32_t appid)
@@ -332,63 +334,28 @@ SKIF_Custom_AddGame (void)
 
     auto _ProcessFilePath = [&](LPCWSTR pwszPath) -> bool
     {
-      bool __error = false;
+      // .exe / .bat as they are, .lnk resolved to its target (shared with Properties)
+      SKIF_Util_ExecutableSelection_s selection =
+        SKIF_Util_ResolveExecutableSelection (pwszPath);
 
-      std::filesystem::path path           = pwszPath; // Wide-string std::filesystem::path
-      std::filesystem::path pathDiscard    = pwszPath; // Wide-string std::filesystem::path which will be discarded
-      std::string           pathFullPath   = SK_WideCharToUTF8  (pathDiscard.wstring());
-      std::wstring          pathExtension  = SKIF_Util_ToLowerW (pathDiscard.extension().wstring());
-      std::string           pathInstallDir = SK_WideCharToUTF8  (pathDiscard.parent_path().lexically_normal());
-      std::string           pathFilename   = SK_WideCharToUTF8  (pathDiscard.replace_extension().filename().wstring()); // This removes the extension from pathDiscard
-
-      if (pathExtension == L".lnk")
+      if (! selection.valid)
       {
-        WCHAR wszTarget    [MAX_PATH + 2] = { };
-        WCHAR wszWorkingDir[MAX_PATH + 2] = { };
-        WCHAR wszArguments [    1024 + 2] = { };
-
-        SKIF_Util_ResolveShortcut (SKIF_ImGui_hWnd, path.c_str(), wszTarget, wszArguments, wszWorkingDir, MAX_PATH * sizeof (WCHAR), sizeof (wszArguments));
-
-        if (! PathFileExists (wszTarget))
-        {
-          __error = true;
-          strncpy (charPath, "\0", MAX_PATH);
-        }
-
-        else {
-          std::wstring productName = SKIF_Util_GetProductName (wszTarget);
-
-          strncpy (charPath,    SK_WideCharToUTF8 (wszTarget).c_str(),                  MAX_PATH);
-          strncpy (charWorkDir, SK_WideCharToUTF8 (wszWorkingDir).c_str(),              MAX_PATH);
-          strncpy (charArgs,    SK_WideCharToUTF8 (wszArguments).c_str(),               1024);
-          strncpy (charName, (productName != L"")
-                              ? SK_WideCharToUTF8 (productName).c_str()
-                              : pathFilename.c_str(), MAX_PATH);
-        }
-      }
-
-      else if (pathExtension == L".exe") {
-        std::wstring productName = SKIF_Util_GetProductName (path.c_str());
-
-        strncpy (charPath,    pathFullPath.c_str(),   MAX_PATH);
-        strncpy (charWorkDir, pathInstallDir.c_str(), MAX_PATH);
-        strncpy (charName, (productName != L"")
-                            ? SK_WideCharToUTF8 (productName).c_str()
-                            : pathFilename.c_str(),   MAX_PATH);
-      }
-
-      else if (pathExtension == L".bat") {
-        strncpy (charPath,    pathFullPath.c_str(),   MAX_PATH);
-        strncpy (charWorkDir, pathInstallDir.c_str(), MAX_PATH);
-      }
-
-      else {
-        __error = true;
         strncpy (charPath,    "\0", MAX_PATH);
         strncpy (charWorkDir, "\0", MAX_PATH);
+
+        return true;
       }
 
-      return __error;
+      strncpy (charPath,    SK_WideCharToUTF8 (selection.path).c_str(),        MAX_PATH);
+      strncpy (charWorkDir, SK_WideCharToUTF8 (selection.working_dir).c_str(), MAX_PATH);
+
+      if (selection.shortcut)
+        strncpy (charArgs,  SK_WideCharToUTF8 (selection.args).c_str(),        1024);
+
+      if (! selection.name.empty ( ))
+        strncpy (charName,  SK_WideCharToUTF8 (selection.name).c_str(),        MAX_PATH);
+
+      return false;
     };
 
     // Process drag-n-dropped executables / shortcuts
@@ -687,6 +654,163 @@ app_record_custom_s::PrepareCoverSource (bool queryPCGW)
     SKIF_IGDB_DownloadCoverByName (names.normal, coverPath);
 
   return coverPath;
+}
+
+#pragma endregion
+
+
+#pragma region Properties
+
+// The game's executable, working directory and launch options (stored in the registry, see SKIF_ModifyCustomAppID)
+class PropertiesSection_CustomExecutable : public IPropertySection
+{
+public:
+  const char*    GetTitle (void) const override { return ""; }
+  PropertiesPage GetPage  (void) const override { return PropertiesPage::General; }
+  int            GetOrder (void) const override { return 0; } // Above the name
+
+  void Load (app_record_s& app) override
+  {
+    path.clear    ( );
+    workDir.clear ( );
+    argsOrig.clear( );
+    args [0] = '\0';
+    error.clear   ( );
+
+    if (app.launch_configs.empty ( ))
+      return;
+
+    app_record_s::launch_config_s& lc = app.launch_configs.begin ( )->second;
+
+    path     = pathOrig    = lc.getExecutableFullPath ( );
+    workDir  = workDirOrig = lc.getWorkingDirectory   ( );
+    argsOrig = lc.getLaunchOptionsUTF8 ( );
+
+    strncpy_s (args, argsOrig.c_str ( ), _TRUNCATE);
+  }
+
+  void Draw (app_record_s& app) override
+  {
+    UNREFERENCED_PARAMETER (app);
+
+    const float fButtonWidth = 80.0f * SKIF_ImGui_GlobalDPIScale;
+
+    // Executable
+    SKIF_Properties_Label ("Executable");
+    _PathField            ("###PropsCustomExe", path, fButtonWidth);
+    ImGui::SameLine       ( );
+
+    if (ImGui::Button ("Browse...###PropsCustomBrowseExe", ImVec2 (fButtonWidth, 0.0f)))
+    {
+      std::wstring picked;
+
+      if (SKIF_Properties_BrowseForFile (picked, std::filesystem::path (path).parent_path ( ).wstring ( ).c_str ( )))
+      {
+        // .exe / .bat as they are, .lnk resolved to its target (shared with Add Game)
+        SKIF_Util_ExecutableSelection_s selection =
+          SKIF_Util_ResolveExecutableSelection (picked);
+
+        if (! selection.valid)
+          error = "Incompatible type! Please select another file.";
+
+        else
+        {
+          error.clear ( );
+
+          path    = selection.path;
+          workDir = selection.working_dir;
+
+          if (selection.shortcut)
+            strncpy_s (args, SK_WideCharToUTF8 (selection.args).c_str ( ), _TRUNCATE);
+        }
+      }
+    }
+
+    // Working directory
+    SKIF_Properties_Label ("Working directory");
+    _PathField            ("###PropsCustomWorkDir", workDir, fButtonWidth);
+    ImGui::SameLine       ( );
+
+    if (ImGui::Button ("Change...###PropsCustomBrowseWorkDir", ImVec2 (fButtonWidth, 0.0f)))
+    {
+      std::wstring picked;
+
+      if (SKIF_Properties_BrowseForFolder (picked, workDir.c_str ( )))
+        workDir = picked;
+    }
+
+    // Launch options
+    SKIF_Properties_Label   ("Launch options");
+    ImGui::SetNextItemWidth (-FLT_MIN);
+    ImGui::InputTextWithHint ("###PropsCustomArgs", "Leave empty if unsure", args, 1024);
+    SKIF_ImGui_BlockDragMoveWhenItemActive ( );
+
+    if (! error.empty ( ))
+    {
+      ImGui::SetCursorPosX (ImGui::GetCursorPosX ( ) + SKIF_Properties_GetLabelWidth ( ));
+      ImGui::TextColored   (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), "%s", error.c_str ( ));
+    }
+  }
+
+  void Validate (app_record_s& app, std::vector <property_issue_s>& out) override
+  {
+    UNREFERENCED_PARAMETER (app);
+
+    if (_IsBlank (path) || _IsBlank (workDir))
+      out.push_back ({ property_issue_s::Level::Error, "Select the executable and the working directory of the game." });
+  }
+
+  bool IsDirty (void) const override
+  {
+    return (path != pathOrig || workDir != workDirOrig || std::string (args) != argsOrig);
+  }
+
+  uint32_t Apply (app_record_s& app) override
+  {
+    static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
+    if (SKIF_ModifyCustomAppID (&app, path, SK_UTF8ToWideChar (args), workDir))
+    {
+      // Attempt to extract the icon from the given executable straight away
+      std::wstring SKIFCustomPath = SK_FormatStringW (LR"(%ws\Assets\Custom\%i\icon-original.png)", _path_cache.specialk_userdata, app.id);
+      DeleteFile (SKIFCustomPath.c_str());
+      SKIF_Util_SaveExtractExeIcon (path, SKIFCustomPath);
+    }
+
+    return PropertiesApply_WriteMetaDB;
+  }
+
+private:
+  std::wstring path,    pathOrig;
+  std::wstring workDir, workDirOrig;
+  char         args [1024 + 2] = { };
+  std::string  argsOrig;
+  std::string  error;
+
+  static bool _IsBlank (const std::wstring& value)
+  {
+    return (value.empty ( ) || std::iswspace (value [0]));
+  }
+
+  // A read-only path, leaving room for the button after it
+  static void _PathField (const char* id, const std::wstring& value, float fButtonWidth)
+  {
+    static char buffer [MAX_PATH * 2 + 2] = { };
+
+    strncpy_s (buffer, SK_WideCharToUTF8 (value).c_str ( ), _TRUNCATE);
+
+    ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
+    ImGui::SetNextItemWidth (ImGui::GetContentRegionAvail ( ).x - fButtonWidth - ImGui::GetStyle ( ).ItemSpacing.x);
+    ImGui::InputText        (id, buffer, sizeof (buffer) - 2, ImGuiInputTextFlags_ReadOnly);
+    SKIF_ImGui_BlockDragMoveWhenItemActive ( );
+    ImGui::PopStyleColor    ( );
+  }
+};
+
+void
+app_record_custom_s::AddPropertySections (std::vector <std::unique_ptr <IPropertySection>>& out)
+{
+  out.push_back (std::make_unique <PropertiesSection_CustomExecutable> ( ));
 }
 
 #pragma endregion

@@ -83,6 +83,7 @@ bool     SKIF_ImGui_SeparatorTextClickable(const char* label, const bool* collap
 void     SKIF_ImGui_DimBackgroundViewport (const ImGuiViewport* vp = ImGui::GetWindowViewport ( ));
 bool     SKIF_ImGui_BeginPopup            (const char* name, bool* p_open = nullptr, ImVec2 size = ImVec2(0, 0), ImGuiWindowFlags flags = ImGuiWindowFlags_None);
 void     SKIF_ImGui_EndPopup              (void);
+bool     SKIF_ImGui_AprilFools_Process    (void); // April Fools' gag: fake "nominal flow" activation theater (see skif_imgui.cpp)
 DChoice  SKIF_ImGui_DialogPrompt          (const char* name, bool* p_open, const char* message = nullptr, const char* description = nullptr, std::vector<DChoice> choices = { DChoice_None });
 DChoice  SKIF_ImGui_ConfirmPrompt         (const char* name, bool* p_open, const char* message = nullptr, const char* description = nullptr);
 DChoice  SKIF_ImGui_SaveChangesPrompt     (const char* name, bool* p_open, const char* message = nullptr, const char* description = nullptr);
@@ -104,6 +105,15 @@ void     SKIF_ImGui_BlockDragMove         (void);       // Prevents SKIF from en
 void     SKIF_ImGui_BlockDragMoveWhenItemActive (void); // Prevents SKIF from enabling drag move if the last item is active
 bool     SKIF_ImGui_CanMouseDragMove      (void); // True if drag move using the mouse is allowed, false if not
 void     SKIF_ImGui_AutoScroll            (bool touch_only_on_void, SKIF_ImGuiAxis axis);
+
+// Centered content column: at most max_width wide (pass it DPI-scaled), centered in the current window, so content
+//   doesn't stretch across wide windows. Its width and position don't depend on the window's vertical scrollbar, as
+//   room for the scrollbar is always kept free at the right (and the same at the left): the content never moves when the scrollbar appears.
+//   In a scrolling window (e.g. SKIF_ImGui_BeginTabChildFrame), the column grows with its content and the window scrolls.
+void     SKIF_ImGui_CalcCenteredColumn    (float area_width, float max_width, float* offset, float* width); // For rows outside of a column that should line up with one
+void     SKIF_ImGui_BeginCenteredColumn   (const char* str_id, float max_width);
+void     SKIF_ImGui_EndCenteredColumn     (bool touch_scroll = false, bool touch_only_on_void = true); // touch_scroll: drag-scrolling the window on touch devices (SKIF_ImGui_AutoScroll) also works over the column
+float    SKIF_ImGui_GetColumnAvailHeight  (void); // Height left in the visible area of the window the current column scrolls in (GetContentRegionAvail ( ).y outside of a column)
 void     SKIF_ImGui_UpdateScrollbarState  (void); // Update the internal state tracking scrollbars
 bool     SKIF_ImGui_IsScrollbarX          (void); // Helper function returning true if a horizontal scrollbar is visible
 bool     SKIF_ImGui_IsScrollbarY          (void); // Helper function returning true if a vertical scrollbar is visible

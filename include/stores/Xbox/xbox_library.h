@@ -45,6 +45,7 @@ struct app_record_xbox_s : app_record_store_s <app_record_xbox_s, app_record_s::
   // Launching (xbox_library.cpp)
   void        WhitelistForInjection   (launch_config_s* config) override;
   bool        PrefersInstantLaunch    (bool fromGameMenu, launch_config_s* config) const override;
+  bool        ClientCanLaunch         (const launch_config_s& lc) const override { return (! lc.custom_skif && ! lc.custom_user && ! lc.executable_helper.empty ( )); } // Each of the game's own launch configs has a launch helper
   void        Launch                  (const launch_context_s& ctx) override;
 
   // Library UI (xbox_library.cpp)

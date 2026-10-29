@@ -269,60 +269,12 @@ SKIF_GOG_IdentifyAssetPCGW (uint32_t app_id)
   if (! _registry._UseLowResCovers || _registry._UseLowResCoversHiDPIBypass)
   {
 
-    // We intend to download PCGW's cover
-    // https://www.pcgamingwiki.com/w/api.php?action=cargoquery&format=json&tables=Infobox_game&fields=Cover_URL&where=GOGcom_ID+HOLDS+'2099051765'
-    // https://www.pcgamingwiki.com/w/api.php?action=cargoquery&format=json&tables=Infobox_game&fields=Cover_URL&where=GOGcom_ID%20HOLDS%20%272099051765%27
-    std::wstring url  = L"https://pcgw.special-k.info/?p=gog&id=";
-                 url += std::to_wstring (app_id);
+    // PCGamingWiki's cover, through the SKIF PCGW cover proxy: https://pcgw.special-k.info/v1/gog/<id>
+    std::wstring targetPath = targetAssetPath + L"cover-pcgw.png";
 
     // If PCGW cover has not been downloaded
-    if (! PathFileExistsW ((targetAssetPath + L"cover-pcgw.png").c_str()))
-    {
-      std::string response;
-
-      PLOG_DEBUG << "Downloading PCGW json: " << url;
-
-      SKIF_Util_GetWebResource (url, L"", L"GET", L"", "", L"", &response);
-
-      try
-      {
-        nlohmann::json jf = nlohmann::json::parse (response);
-
-        if (jf.is_discarded ( ))
-        {
-          PLOG_ERROR << "Could not read PCGW JSON!";
-        }
-
-        else
-        {
-          if (jf["errors"].is_array())
-          {
-            PLOG_ERROR << "Could not read PCGW JSON!";
-          }
-
-          else
-          {
-            for (auto& image : jf["cargoquery"][0]["title"]["Cover URL"])
-            {
-              // Convert the URL value to a regular string
-              std::string assetUrl = image; // will throw exception if value does not exist
-
-              PLOG_DEBUG << "Downloading cover asset: " << assetUrl;
-
-              SKIF_Util_GetWebResource (SK_UTF8ToWideChar (assetUrl), targetAssetPath + L"cover-pcgw.png");
-            }
-          }
-        }
-      }
-      catch (const std::exception&)
-      {
-        PLOG_ERROR << "Error parsing PCGW JSON!";
-      }
-
-      // Delete the JSON file when we are done
-      if (_registry.iLogging < 5)
-        DeleteFile ((targetAssetPath + L"pcgw.json").c_str());
-    }
+    if (! PathFileExistsW (targetPath.c_str()))
+      SKIF_PCGW_DownloadCover (SKIF_PCGW_Store::GOG, app_id, targetPath);
   }
 }
 
@@ -335,13 +287,15 @@ app_record_gog_s::PrefersInstantLaunch (bool fromGameMenu, launch_config_s* conf
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   extern bool GOGGalaxy_Installed;
 
-  UNREFERENCED_PARAMETER (config);
-
   // Fallback for GOG games if the Galaxy client is not installed
   if (! GOGGalaxy_Installed)
     return true;
 
-  return (! fromGameMenu && UsesInstantPlay (GetInstantPlayDefault ( )));
+  // GOG Galaxy starts the game by its ID, so other launch configs than the primary one are run directly
+  if (config != nullptr && ! ClientCanLaunch (*config))
+    return true;
+
+  return (! fromGameMenu && UsesInstantPlay (GetInstantPlayDefault ( ), config));
 }
 
 // Launch GOG Galaxy game (default for GOG games since 2024-01-05), unless an instant launch was requested

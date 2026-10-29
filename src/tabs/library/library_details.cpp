@@ -287,7 +287,7 @@ DrawGameDetails_Info (app_record_s* pApp)
 
       // For non-loading games, allow the full functionality
       else
-        _inject._StartStopInject (_inject.bCurrentState, _registry.bStopOnInjection, pApp->launch_configs[0].isElevated ( ), pApp->skif.auto_stop);
+        _inject._StartStopInject (_inject.bCurrentState, _registry.bStopOnInjection, pApp->launch_configs[0].isElevated ( ), static_cast <int> (SKIF_LaunchBehaviors::Resolve (pApp->launch_configs[0].getExecutableFullPath ( )).autoStop));
     }
 
     ImGui::PopStyleColor (3);
@@ -640,7 +640,6 @@ DrawGameDetails_Play (app_record_s* pApp)
   if (ImGui::IsItemClicked (ImGuiMouseButton_Right) &&
       GameMenu       == PopupState_Closed &&
       AddGamePopup   == PopupState_Closed &&
-      ModifyGamePopup== PopupState_Closed &&
       EmptySpaceMenu == PopupState_Closed)
   {
     EmptySpaceMenu = PopupState_Open;

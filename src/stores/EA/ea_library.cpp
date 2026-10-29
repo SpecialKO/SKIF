@@ -931,11 +931,11 @@ app_record_ea_s::PrefersInstantLaunch (bool fromGameMenu, launch_config_s* confi
   if (ea.offer_ids.empty ( ) || ! SKIF_EA_IsClientInstalled ( ))
     return true;
 
-  // The EA app always starts the default launcher, so the manifest's other launchers are run directly
-  if (config != nullptr && config->id != 0)
+  // The EA app always starts the default launcher, so the manifest's other launchers (and lc.json / lc_user.json configs) are run directly
+  if (config != nullptr && ! ClientCanLaunch (*config))
     return true;
 
-  return (! fromGameMenu && UsesInstantPlay (GetInstantPlayDefault ( )));
+  return (! fromGameMenu && UsesInstantPlay (GetInstantPlayDefault ( ), config));
 }
 
 // Launch EA game through the EA app, unless an instant launch was requested

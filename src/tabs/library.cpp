@@ -84,7 +84,7 @@ bool                   bCategoryMgnt     = false;
 bool                   sort_changed      = false;
 
 app_record_s::launch_config_s*
-                       launchConfig      = nullptr; // Used to launch games. Defaults to primary launch config.
+                       launchConfig      = nullptr; // Used to launch games. Defaults to the game's default launch config (GetDefaultLaunchConfig).
 bool                   launchGame        = false;   // Respects Instant Play preference
 bool                   launchGameMenu    = false;   // Menu is always explicit
 bool                   launchInstant     = false;
@@ -186,6 +186,46 @@ GetEffectiveCategory (const app_record_s* app)
          : (! app->skif.category.empty())
          ?    app->skif.category
          :   "Games";
+}
+
+bool
+SKIF_Lib_CategoryExists (const std::string& name)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  return (std::find_if (_registry.vecCategories.begin ( ), _registry.vecCategories.end ( ),
+                         [&](const SKIF_RegistrySettings::category_s& category) { return category.name == name; }) != _registry.vecCategories.end ( ));
+}
+
+// Adds a category to the library (sorted) and saves the list in the registry. Shared by the Category menu and Properties.
+bool
+SKIF_Lib_AddCategory (const std::string& name)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  if (name.empty ( ) || SKIF_Lib_CategoryExists (name))
+    return false;
+
+  // Add the new category
+  _registry.vecCategories.push_back (SKIF_RegistrySettings::category_s { name, false });
+
+  // Sort the list of categories
+  _registry.vecCategories = _registry.SortCategories (_registry.vecCategories);
+
+  // Update the registry
+  std::vector<std::wstring> _inNames, _inBools;
+  _inNames.reserve (_registry.vecCategories.size ( ));
+  _inBools.reserve (_registry.vecCategories.size ( ));
+  for (auto& category : _registry.vecCategories)
+  {
+    _inNames.push_back (SK_UTF8ToWideChar (category.name));
+    _inBools.push_back (std::to_wstring   (category.expanded));
+  }
+
+  _registry.regKVCategories.     putDataMultiSZ (_inNames);
+  _registry.regKVCategoriesState.putDataMultiSZ (_inBools);
+
+  return true;
 }
 
 // This is shared between the Icon menu and the Filter menu
@@ -745,8 +785,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   // This should be the only place where pApp changes during the whole frame!
   pApp = _games.Find (selection.game);
 
-  // Default to primary launch config
-  launchConfig = (pApp != nullptr && ! pApp->launch_configs.empty()) ? &pApp->launch_configs.begin()->second : nullptr;
+  // Default to the game's default launch config (Properties > Launch), else the primary one
+  launchConfig = (pApp != nullptr) ? pApp->GetDefaultLaunchConfig ( ) : nullptr;
 
   bool isSpecialK = (pApp != nullptr && pApp->IsSpecialK ( ));
 
@@ -925,7 +965,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // A finished game worker (CopyFrom) or LoadStoreDetails ( ) above may have rebuilt the launch configs of pApp,
   //   which would leave launchConfig pointing to a freed launch config for the rest of the frame
-  launchConfig = (pApp != nullptr && ! pApp->launch_configs.empty()) ? &pApp->launch_configs.begin()->second : nullptr;
+  launchConfig = (pApp != nullptr) ? pApp->GetDefaultLaunchConfig ( ) : nullptr;
 
   // Apply changes when the selected game changes
   if (update)
@@ -1291,7 +1331,6 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (SKIF_ImGui_IsViewportFocused ( ) &&
       EmptySpaceMenu == PopupState_Closed              &&
       AddGamePopup   == PopupState_Closed              &&
-      ModifyGamePopup== PopupState_Closed              &&
       IconMenu != PopupState_Open                      &&
     ! ImGui::IsAnyItemHovered ( )                      &&
       ImGui::IsMouseClicked   (ImGuiMouseButton_Right) &&
@@ -1438,8 +1477,7 @@ SKIF_UI_Tab_DrawLibrary (void)
   {
     LaunchGame         (pApp);
 
-    launchConfig     = !pApp->launch_configs.empty () ? &pApp->launch_configs.begin()->second
-                                                      : nullptr; // Reset to primary launch config
+    launchConfig     = pApp->GetDefaultLaunchConfig ( ); // Reset to the default launch config
     launchGame       = false;
     launchGameMenu   = false;
     launchInstant    = false;

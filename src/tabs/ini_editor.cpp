@@ -273,8 +273,10 @@ SKIF_UI_IniEditor_Process (void)
     {
       ImGui::SetNextWindowSize (ImVec2 (950.0f, 750.0f) * SKIF_ImGui_MainDPIScale); // Opens centered on the main window
 
+      // Further windows open a bit offset (by their position among the open ones), so they don't cover each other entirely
       extern ImRect windowRect;
-      ImGui::SetNextWindowPos (windowRect.GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
+      const float   fOffset = static_cast <float> ((i % 5) * 24) * SKIF_ImGui_MainDPIScale;
+      ImGui::SetNextWindowPos (windowRect.GetCenter() + ImVec2 (fOffset, fOffset), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
 
       window.state = PopupState_Opened;
     }
@@ -432,12 +434,22 @@ SKIF_UI_IniEditor_Process (void)
       ImFloor (ImGui::GetCursorPosY ( ) + 3.0f * SKIF_ImGui_GlobalDPIScale)
     );
 
+    // The content is drawn in a centered column with a max width that the scrollbar never moves (see the content area
+    //   below); the filter row lines up with that column. The content area is as wide as this row and pads its content by FramePadding.x
+    const float fColumnMaxWidth = 900.0f * SKIF_ImGui_GlobalDPIScale;
+    float       fColumnOffset   = 0.0f,
+                fColumnWidth    = 0.0f;
+
+    SKIF_ImGui_CalcCenteredColumn (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().FramePadding.x * 2.0f, fColumnMaxWidth, &fColumnOffset, &fColumnWidth);
+
+    const float fTopRowX   = ImGui::GetCursorPosX ( );
+
     bool showClearBtn      = (window.charFilter[0] != '\0');
     // Mirrors what ImGui::ButtonEx() does to calculate the height of buttons
     float fTopZoomX        =                           ImGui::CalcTextSize (ICON_FA_MAGNIFYING_GLASS).x + ImGui::GetStyle().FramePadding.x * 2.0f + ImGui::GetStyle().ItemSpacing.x * 2.0f;
     float fTopClearX       = (! showClearBtn ? 0.0f :  ImGui::CalcTextSize (ICON_FA_XMARK ).x           + ImGui::GetStyle().FramePadding.x * 2.0f + ImGui::GetStyle().ItemSpacing.x);
   //float fTopFilterX      =                           ImGui::CalcTextSize (ICON_FA_FILTER).x           + ImGui::GetStyle().FramePadding.x * 2.0f + ImGui::GetStyle().ItemSpacing.x * 2.0f;
-    float fTopFilterFieldX = ImGui::GetContentRegionAvail().x - fTopZoomX - fTopClearX; //  - fTopFilterX
+    float fTopFilterFieldX = std::max (1.0f, fColumnWidth - fTopZoomX - fTopClearX); //  - fTopFilterX
     //static bool bFilterHovered = false;
 
     ImGui::PushStyleColor (ImGuiCol_NavCursor,  ImVec4(0,0,0,0));
@@ -448,6 +460,7 @@ SKIF_UI_IniEditor_Process (void)
 
     ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
 
+    ImGui::SetCursorPosX  (fTopRowX + ImGui::GetStyle().FramePadding.x + fColumnOffset);
     ImGui::PushItemFlag   (ImGuiItemFlags_Disabled, true);
     ImGui::Button         (ICON_FA_MAGNIFYING_GLASS);
     ImGui::PopItemFlag    ( );
@@ -559,6 +572,8 @@ SKIF_UI_IniEditor_Process (void)
       ImGuiWindowFlags_None
     );
 
+    SKIF_ImGui_BeginCenteredColumn ("###SKIE_CONTENT_COLUMN", fColumnMaxWidth);
+
     SKIF_ImGui_BeginHighlightLine ( );
 
     std::string section;
@@ -644,6 +659,9 @@ SKIF_UI_IniEditor_Process (void)
       SKIF_ImGui_Spacing ( );
       SKIF_ImGui_Spacing ( );
     }
+
+    // Drag-scrolling on touch devices also works over the column (anywhere, as below)
+    SKIF_ImGui_EndCenteredColumn (true, false);
 
     // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
     SKIF_ImGui_AutoScroll  (false, SKIF_ImGuiAxis_Y);

@@ -43,6 +43,38 @@ bool           SKIF_Library_GetFileStamp (const std::wstring& path, uint64_t& wr
 nlohmann::json SKIF_Library_ReadCache    (const wchar_t* name); // null if missing or not valid JSON
 void           SKIF_Library_WriteCache   (const wchar_t* name, const nlohmann::json& data);
 
+// db.json "DefaultLaunch" (games.cpp)
+nlohmann::json             SKIF_Library_LaunchRefToJson   (const app_record_s::launch_ref_s& ref);
+app_record_s::launch_ref_s SKIF_Library_LaunchRefFromJson (const nlohmann::json& j); // Empty if missing or not valid
+
+// User launch configs: <SK user data>\Assets\lc_user.json, same format as lc.json:
+//   { "<store>": { "<GetPersistentKey ( )>": [ { "Desc": "", "Exe": "", "Dir": "", "Args": "", "InstantPlay": 0 }, ... ] } }
+//   Exe and Dir are relative to the install folder of the game; InstantPlay is optional (0 / missing = the game's setting).
+//   The file is read when the library is populated (games.cpp); these read and write one game's entries for Properties.
+struct user_launch_config_s {
+  std::string    desc, exe, dir, args;           // UTF-8, as stored (Exe with forward slashes)
+  int            instant_play = 0;               // "InstantPlay"; only written when not 0
+  nlohmann::json extra        = nlohmann::json::object ( ); // Keys SKIF doesn't know, written back unchanged
+
+  bool operator== (const user_launch_config_s& o) const { return (desc == o.desc && exe == o.exe && dir == o.dir && args == o.args && instant_play == o.instant_play && extra == o.extra); }
+  bool operator!= (const user_launch_config_s& o) const { return ! (*this == o); }
+};
+
+struct SKIF_UserLaunchConfigs {
+  static std::wstring GetPath (void);
+  static bool         Get     (const app_record_s& app, std::vector <user_launch_config_s>& out);       // false if the file exists but can't be parsed (out is then empty)
+  static bool         Set     (const app_record_s& app, const std::vector <user_launch_config_s>& configs); // Replaces the game's entries (removed if empty); false on failure. Refuses to touch a file it can't parse
+
+  // One entry in the lc.json format, and back (out is filled as far as possible; false if it is not an object with a string Desc and Exe)
+  static nlohmann::json ToJson   (const user_launch_config_s& lc);
+  static bool           FromJson (const nlohmann::json& entry, user_launch_config_s& out);
+
+  // Clipboard sharing (Properties > Launch > Import / Export), in the same shape as the file: { "<store>": { "<key>": [ ... ] } }
+  //   Import also takes an array of entries or a single entry, and the entries of another game when they are the only ones.
+  static std::string    Export   (const app_record_s& app, const std::vector <user_launch_config_s>& configs);
+  static bool           Import   (const app_record_s& app, const std::string& text, std::vector <user_launch_config_s>& out, std::string& error);
+};
+
 struct SKIF_GamingCollection {
   using AppList = app_list_t;
 

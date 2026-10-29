@@ -1716,7 +1716,7 @@ SKIF_UI_Tab_DrawMonitor (void)
   ImGui::Separator   ( );
 
   SKIF_ImGui_BeginChildFrame (0x68992, ImVec2 (ImGui::GetContentRegionAvail().x,
-                            (std::max (250.0f * SKIF_ImGui_GlobalDPIScale, ImGui::GetContentRegionAvail().y))),
+                            (std::max (250.0f * SKIF_ImGui_GlobalDPIScale, SKIF_ImGui_GetColumnAvailHeight ( )))), // Fills the rest of the tab (the tab is drawn in a centered column that grows with its content)
             ImGuiChildFlags_None,
             ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_HorizontalScrollbar); // | ImGuiWindowFlags_AlwaysVerticalScrollbar
 

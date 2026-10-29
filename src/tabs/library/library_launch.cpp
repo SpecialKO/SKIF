@@ -81,7 +81,7 @@ LaunchGame (app_record_s* pApp)
       {
         // Kickstart service if it is currently not running
         if (usingSK && ! _inject.bCurrentState)
-          _inject._StartStopInject (false, true, launchConfig->isElevated( ), pApp->skif.auto_stop);
+          _inject._StartStopInject (false, true, launchConfig->isElevated( ), static_cast <int> (SKIF_LaunchBehaviors::Resolve (launchConfig->getExecutableFullPath ( )).autoStop));
 
         // Stop the service if the user attempts to launch without SK
         else if (! usingSK && _inject.bCurrentState)

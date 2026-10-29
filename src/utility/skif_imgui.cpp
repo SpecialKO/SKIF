@@ -1164,7 +1164,17 @@ SKIF_ImGui_BeginPopup (const char* name, bool* p_open, ImVec2 size, ImGuiWindowF
 
   // Raise above all other windows (display order only, no focus change)
   if (ret)
-    ImGui::BringWindowToDisplayFront (ImGui::GetCurrentWindow ( ));
+  {
+    ImGuiContext& g      = *ImGui::GetCurrentContext ( );
+    ImGuiWindow*  window =  ImGui::GetCurrentWindow  ( );
+
+    ImGui::BringWindowToDisplayFront (window);
+
+    // ... but keep popups opened from within it (combo boxes, context menus) above it, or they end up hidden behind it
+    for (const ImGuiPopupData& popup : g.OpenPopupStack)
+      if (popup.Window != nullptr && popup.Window != window && ImGui::IsWindowChildOf (popup.Window, window, true, false))
+        ImGui::BringWindowToDisplayFront (popup.Window);
+  }
 
   return ret;
 }
@@ -2135,6 +2145,100 @@ SKIF_ImGui_AutoScroll (bool touch_only_on_void, SKIF_ImGuiAxis axis)
     SKIF_ImGui_MouseWheelScroll (axis);
 }
 
+#pragma region Centered Column
+
+static std::vector <ImGuiWindow*> s_centeredColumns; // The column windows currently being drawn (innermost last)
+static bool                       bColumnTouchScrollActive = false;
+
+void
+SKIF_ImGui_CalcCenteredColumn (float area_width, float max_width, float* offset, float* width)
+{
+  const float scrollbar = ImGui::GetStyle ( ).ScrollbarSize;
+  // The room kept free for the scrollbar on the right is mirrored on the left, so the column is always centered
+  const float w         = std::max (1.0f, std::min (max_width, area_width - scrollbar * 2.0f));
+  const float o         = std::max (0.0f, (area_width - w) / 2.0f);
+
+  if (offset != nullptr) *offset = ImFloor (o);
+  if (width  != nullptr) *width  = ImFloor (w);
+}
+
+void
+SKIF_ImGui_BeginCenteredColumn (const char* str_id, float max_width)
+{
+  ImGuiWindow* window = ImGui::GetCurrentWindow ( );
+
+  // The width of the window's content area as if it had no vertical scrollbar
+  const float area = window->Size.x - window->WindowPadding.x - ImGui::GetCursorPosX ( );
+
+  float offset = 0.0f,
+        width  = 0.0f;
+
+  SKIF_ImGui_CalcCenteredColumn (area, max_width, &offset, &width);
+
+  ImGui::SetCursorPosX (ImGui::GetCursorPosX ( ) + offset);
+
+  // The mouse wheel scrolls the window the column is in (NoScrollWithMouse forwards it to the parent)
+  ImGui::BeginChild (str_id, ImVec2 (width, 0.0f),
+                     ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_NavFlattened,
+                     ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground);
+
+  s_centeredColumns.push_back (ImGui::GetCurrentWindow ( ));
+}
+
+void
+SKIF_ImGui_EndCenteredColumn (bool touch_scroll, bool touch_only_on_void)
+{
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
+  ImGuiContext& g      = *ImGui::GetCurrentContext ( );
+  ImGuiWindow*  window = g.CurrentWindow;
+
+  // Drag-scrolling on touch devices: SKIF_ImGui_AutoScroll ( ) only reacts while its own window is hovered, which
+  //   it isn't over the column, so the same is done here for the window the column is in (with its own held state)
+  if (touch_scroll && _registry._TouchDevice && window->ParentWindow != nullptr)
+  {
+    ImGuiWindow* parent  = window->ParentWindow;
+    ImGuiID      id      = window->GetID ("##columnscrolldragging");
+    bool         hovered = false;
+
+    ImGui::KeepAliveID (id);
+
+    if (! touch_only_on_void || g.HoveredId == 0) // If nothing hovered so far in the frame (not same as IsAnyItemHovered()!)
+      ImGui::ButtonBehavior (window->Rect ( ), id, &hovered, &bColumnTouchScrollActive, ImGuiButtonFlags_MouseButtonLeft);
+
+    if (bColumnTouchScrollActive)
+    {
+      const ImVec2 delta = ImGui::GetIO ( ).MouseDelta;
+
+      if (delta.y != 0.0f)
+        ImGui::SetScrollY (parent, parent->Scroll.y - delta.y);
+    }
+  }
+
+  if (! s_centeredColumns.empty ( ))
+    s_centeredColumns.pop_back ( );
+
+  ImGui::EndChild ( );
+}
+
+float
+SKIF_ImGui_GetColumnAvailHeight (void)
+{
+  ImGuiWindow* window = ImGui::GetCurrentWindow ( );
+
+  // The column grows with its content, so what is left is measured against the visible area of the window it is in
+  if (! s_centeredColumns.empty ( ) && s_centeredColumns.back ( ) == window && window->ParentWindow != nullptr)
+  {
+    ImGuiWindow* parent = window->ParentWindow;
+
+    return parent->InnerRect.Max.y - parent->WindowPadding.y - window->DC.CursorPos.y;
+  }
+
+  return ImGui::GetContentRegionAvail ( ).y;
+}
+
+#pragma endregion
+
 void
 SKIF_ImGui_UpdateScrollbarState (void)
 {
@@ -2333,4 +2437,192 @@ SKIF_ImGui_IsViewportHDRCapable (HWND hWnd)
   }
 
   return false;
+}
+
+// ---------------------------------------------------------------------------
+//  April Fools' gag -- fake "nominal flow" activation theater
+//
+//  On April 1st (local time) it renders a dimmed, centered popup over the main
+//  window for a few seconds -- faking the "missing nominal constant" / server-
+//  activation dance -- then reveals the joke and dismisses on OK. Fires once
+//  per launch.
+//
+//  The machine fingerprint shown is a throwaway hash of the local MachineGuid;
+//  it is only drawn on screen, never stored or transmitted.
+// ---------------------------------------------------------------------------
+#define SKIF_APRIL_FOOLS_FORCE 0
+
+bool
+SKIF_ImGui_AprilFools_Process (void)
+{
+  static bool  bDismissed = false;  // Once dismissed, stay gone for this launch
+  if (bDismissed)
+    return false;
+
+  // Decide once per launch whether the gag is armed
+  static int   iArmed = -1;         // -1 = undecided, 0 = no, 1 = yes
+  if (iArmed == -1)
+  {
+#if SKIF_APRIL_FOOLS_FORCE
+    iArmed = 1;
+#else
+    SYSTEMTIME st = { };
+    GetLocalTime (&st);
+    iArmed = (st.wMonth == 4 && st.wDay == 1) ? 1 : 0;
+#endif
+  }
+
+  if (iArmed == 0)
+    return false;
+
+  // Grab a real-looking machine fingerprint once (HKLM MachineGuid -> short hash)
+  static std::string sFingerprint;
+  if (sFingerprint.empty ())
+  {
+    wchar_t wszGuid [64] = { };
+    DWORD   cbGuid       = sizeof (wszGuid);
+    DWORD   hash         = 0x811C9DC5; // FNV-1a seed, purely decorative
+
+    if (RegGetValueW (HKEY_LOCAL_MACHINE,
+                      L"SOFTWARE\\Microsoft\\Cryptography",
+                      L"MachineGuid", RRF_RT_REG_SZ, nullptr,
+                      wszGuid, &cbGuid) == ERROR_SUCCESS)
+    {
+      for (wchar_t* p = wszGuid; *p != L'\0'; ++p)
+      { hash ^= (DWORD) *p; hash *= 0x01000193; }
+    }
+    else
+      hash ^= SKIF_Util_timeGetTime ( );
+
+    char szFp [40] = { };
+    snprintf (szFp, sizeof (szFp), "%08X-%04X-NOMINAL", hash, (unsigned)((hash >> 16) & 0xFFFF));
+    sFingerprint = szFp;
+  }
+
+  // Timeline (ms since first displayed frame)
+  static DWORD dwStart = SKIF_Util_timeGetTime ( ),
+               dwLast  = dwStart;
+
+  DWORD now = SKIF_Util_timeGetTime ( );
+
+  if (! SKIF_ImGui_IsFocused ( ))
+    dwStart += (now - dwLast);
+  dwLast = now;
+
+  DWORD elapsed = now - dwStart;
+
+  const DWORD PHASE_DETECT  = 1400;  // "constant missing"
+  const DWORD PHASE_CONTACT = 3200;  // "contacting activation server"
+  const DWORD PHASE_RECOVER = 5600;  // "transforming / recovering constant"
+  // >= PHASE_RECOVER -> reveal
+
+  const ImVec4 colAccent = ImVec4 (1.00f, 0.70f, 0.23f, 1.0f); // amber
+  const ImVec4 colWire   = ImVec4 (0.47f, 0.86f, 0.47f, 1.0f); // green
+
+  float fWidth = 520.0f * SKIF_ImGui_GlobalDPIScale;
+
+  if (SKIF_ImGui_BeginPopup ("Special K Activation###PopupAprilFools", nullptr, ImVec2 (fWidth, 0.0f)))
+  {
+    const float fontScale        = ImGui::GetStyle ( ).FontScaleMain * ImGui::GetStyle ( ).FontScaleDpi;
+    const float fontConsolasSize = (fontConsolas != nullptr && fontScale > 0.0f) ? ImFloor (fontConsolas->LegacySize * fontScale) / fontScale : 0.0f;
+
+    ImGui::TreePush     ("AprilFoolsTreePush");
+    SKIF_ImGui_Spacing  ( );
+
+    ImGui::TextColored  (colAccent, "Special K  //  Nominal Flow Activation");
+    ImGui::Separator    ( );
+    SKIF_ImGui_Spacing  ( );
+
+    ImGui::TextDisabled ("Client fingerprint:");
+    ImGui::SameLine     ( );
+    if (fontConsolas != nullptr) ImGui::PushFont (fontConsolas, fontConsolasSize);
+    ImGui::Text         ("%s", sFingerprint.c_str ());
+    if (fontConsolas != nullptr) ImGui::PopFont  ( );
+
+    SKIF_ImGui_Spacing  ( );
+
+    // Scrolling pseudo-hex "wire transcript", refreshed a few times a second
+    static char  szHex [5][49] = { };
+    static DWORD dwHexTick      = 0;
+    static DWORD seed           = 0x5131F001;
+    if (SKIF_Util_timeGetTime ( ) - dwHexTick > 70)
+    {
+      dwHexTick = SKIF_Util_timeGetTime ( );
+      for (int r = 0; r < 4; ++r)
+        memcpy (szHex [r], szHex [r + 1], sizeof (szHex [0]));
+      char* row = szHex [4];
+      for (int i = 0; i < 48; ++i)
+      {
+        seed = seed * 1103515245 + 12345;
+        if ((i % 3) == 2) row [i] = ' ';
+        else              row [i] = "0123456789ABCDEF" [(seed >> ((i & 7) + 8)) & 0xF];
+      }
+      row [48] = '\0';
+    }
+
+    if (fontConsolas != nullptr) ImGui::PushFont (fontConsolas, fontConsolasSize);
+    for (int r = 0; r < 5; ++r)
+      ImGui::TextColored (colWire, "  %s", szHex [r]);
+    if (fontConsolas != nullptr) ImGui::PopFont  ( );
+
+    SKIF_ImGui_Spacing  ( );
+
+    const char* status = "";
+    float       frac   = 0.0f;
+
+    if (elapsed < PHASE_DETECT)
+    {
+      status = "This title is missing its nominal constant (0x00000000).";
+      frac   = 0.08f + 0.10f * ((float) elapsed / (float) PHASE_DETECT);
+    }
+    else if (elapsed < PHASE_CONTACT)
+    {
+      status = "Contacting activation server  sk-activation.local ...";
+      frac   = 0.20f + 0.35f * ((float)(elapsed - PHASE_DETECT) / (float)(PHASE_CONTACT - PHASE_DETECT));
+    }
+    else if (elapsed < PHASE_RECOVER)
+    {
+      status = "Transforming constant against client fingerprint ...";
+      frac   = 0.55f + 0.45f * ((float)(elapsed - PHASE_CONTACT) / (float)(PHASE_RECOVER - PHASE_CONTACT));
+    }
+    else
+    {
+      status = "Nominal flow restored.";
+      frac   = 1.0f;
+    }
+
+    ImGui::ProgressBar  (frac, ImVec2 (-30.0f, 0.0f));
+    SKIF_ImGui_Spacing  ( );
+    ImGui::TextWrapped  ("%s", status);
+
+    SKIF_ImGui_Spacing  ( );
+    SKIF_ImGui_Spacing  ( );
+
+    if (elapsed >= PHASE_RECOVER)
+    {
+      ImGui::Separator   ( );
+      SKIF_ImGui_Spacing ( );
+      ImGui::TextColored (colAccent,
+                          "Just kidding -- Special K needs no such thing. Happy April Fools' Day!");
+      SKIF_ImGui_Spacing ( );
+
+      ImVec2 vButtonSize = ImVec2 (120.0f * SKIF_ImGui_GlobalDPIScale, 0.0f);
+      ImGui::SetCursorPosX (fWidth / 2 - vButtonSize.x / 2);
+      if (ImGui::Button  ("Phew, OK", vButtonSize))
+        bDismissed = true;
+
+      SKIF_ImGui_BlockDragMoveWhenItemActive ( );
+    }
+    else
+    {
+      ImGui::TextDisabled ("Please wait, this will only take a moment ...");
+    }
+
+    SKIF_ImGui_Spacing  ( );
+    ImGui::TreePop      ( );
+  }
+
+  SKIF_ImGui_EndPopup ( );
+
+  return true;
 }
