@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-10-30 00:31+0100\n"
+"POT-Creation-Date: 2026-10-30 00:41+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -137,205 +137,205 @@ msgstr ""
 msgid "Components:"
 msgstr ""
 
-#: src/tabs/hardware.cpp:157
+#: src/tabs/hardware.cpp:160
 msgctxt "display"
 msgid "Unknown"
 msgstr ""
 
 #. TRANSLATORS: The text in [brackets] is the name of the capability, as reported by dxdiag; keep it as it is
-#: src/tabs/hardware.cpp:263
+#: src/tabs/hardware.cpp:266
 msgid "Supports {0} plane containing RGB data. [RGB]"
 msgid_plural "Supports {0} planes containing RGB data. [RGB]"
 msgstr[0] ""
 msgstr[1] ""
 
 #. TRANSLATORS: The text in [brackets] is the name of the capability, as reported by dxdiag; keep it as it is
-#: src/tabs/hardware.cpp:267
+#: src/tabs/hardware.cpp:270
 msgid "Supports {0} plane containing YUV data. [YUV]"
 msgid_plural "Supports {0} planes containing YUV data. [YUV]"
 msgstr[0] ""
 msgstr[1] ""
 
 #. TRANSLATORS: The text in [brackets] is the name of the capability, as reported by dxdiag; keep it as it is
-#: src/tabs/hardware.cpp:271
+#: src/tabs/hardware.cpp:274
 msgid "Supports full rotation of the MPO plane with Independent Flip. [ROTATION]"
 msgstr ""
 
-#: src/tabs/hardware.cpp:274
+#: src/tabs/hardware.cpp:277
 msgid "Supports full rotation of the MPO plane, but without Independent Flip. [ROTATION_WITHOUT_INDEPENDENT_FLIP]"
 msgstr ""
 
-#: src/tabs/hardware.cpp:277
+#: src/tabs/hardware.cpp:280
 msgid "Supports flipping the data vertically. [VERTICAL_FLIP]"
 msgstr ""
 
-#: src/tabs/hardware.cpp:280
+#: src/tabs/hardware.cpp:283
 msgid "Supports flipping the data horizontally. [HORIZONTAL_FLIP]"
 msgstr ""
 
-#: src/tabs/hardware.cpp:283
+#: src/tabs/hardware.cpp:286
 msgid "Supports stretching any plane containing RGB data. [STRETCH_RGB]"
 msgstr ""
 
-#: src/tabs/hardware.cpp:286
+#: src/tabs/hardware.cpp:289
 msgid "Supports stretching any plane containing YUV data. [STRETCH_YUV]"
 msgstr ""
 
-#: src/tabs/hardware.cpp:289
+#: src/tabs/hardware.cpp:292
 msgid "Supports bilinear filtering. [BILINEAR]"
 msgstr ""
 
-#: src/tabs/hardware.cpp:292
+#: src/tabs/hardware.cpp:295
 msgid "Supports better than bilinear filtering. [HIGH_FILTER]"
 msgstr ""
 
-#: src/tabs/hardware.cpp:295
+#: src/tabs/hardware.cpp:298
 msgid "MPO resources are shared across video present network (VidPN) sources. [SHARED]"
 msgstr ""
 
-#: src/tabs/hardware.cpp:298
+#: src/tabs/hardware.cpp:301
 msgid "Supports immediate flips (allows tearing) of the MPO plane. [IMMEDIATE]"
 msgstr ""
 
-#: src/tabs/hardware.cpp:304
+#: src/tabs/hardware.cpp:307
 msgid "Will always apply the stretch factor of plane 0 to the hardware cursor as well as the plane. [PLANE0_FOR_VIRTUAL_MODE_ONLY]"
 msgstr ""
 
-#: src/tabs/hardware.cpp:774
+#: src/tabs/hardware.cpp:777
 msgid "SwapChain Presentation Monitor"
 msgstr ""
 
-#: src/tabs/hardware.cpp:798
+#: src/tabs/hardware.cpp:801
 msgid "Tell at a glance whether:"
 msgstr ""
 
-#: src/tabs/hardware.cpp:805
+#: src/tabs/hardware.cpp:808
 msgid "DirectFlip has engaged, bypassing desktop composition (DWM)."
 msgstr ""
 
 #. TRANSLATORS: The presentation modes in quotes ('Hardware: Independent Flip', ...) are shown like that by Special K; keep them as they are
-#: src/tabs/hardware.cpp:809
+#: src/tabs/hardware.cpp:812
 msgid "Appears as 'Hardware: Independent Flip' or 'Hardware Composed: Independent Flip'."
 msgstr ""
 
 #. TRANSLATORS: The presentation modes in quotes ('Hardware: Independent Flip', ...) are shown like that by Special K; keep them as they are
-#: src/tabs/hardware.cpp:812
+#: src/tabs/hardware.cpp:815
 msgid ""
 "DirectFlip appears as 'Hardware: Independent Flip' or 'Hardware Composed: Independent Flip'.\n"
 "Lack of it appears as 'Composed: Flip'."
 msgstr ""
 
-#: src/tabs/hardware.cpp:825
+#: src/tabs/hardware.cpp:828
 msgid "Legacy Exclusive Fullscreen (FSE) mode is being used or if Fullscreen Optimizations (FSO) overrides it."
 msgstr ""
 
 #. TRANSLATORS: The presentation modes in quotes ('Hardware: Independent Flip', ...) are shown like that by Special K; keep them as they are
-#: src/tabs/hardware.cpp:829
+#: src/tabs/hardware.cpp:832
 msgid ""
 "FSE appears as 'Hardware: Legacy Flip' or 'Hardware: Legacy Copy to front buffer'.\n"
 "FSO appears as 'Hardware: Independent Flip' or 'Hardware Composed: Independent Flip'."
 msgstr ""
 
-#: src/tabs/hardware.cpp:842
+#: src/tabs/hardware.cpp:845
 msgid "The game is running in a suboptimal presentation mode."
 msgstr ""
 
 #. TRANSLATORS: The presentation modes in quotes ('Hardware: Independent Flip', ...) are shown like that by Special K; keep them as they are
-#: src/tabs/hardware.cpp:846
+#: src/tabs/hardware.cpp:849
 msgid ""
 "Appears as 'Composed: Flip', 'Composed: Composition Atlas',\n"
 "'Composed: Copy with GPU GDI', or 'Composed: Copy with CPU GDI'."
 msgstr ""
 
-#: src/tabs/hardware.cpp:854
-#: src/tabs/hardware.cpp:1358
+#: src/tabs/hardware.cpp:857
+#: src/tabs/hardware.cpp:1361
 msgid "Requirement:"
 msgstr ""
 
 #. TRANSLATORS: 'Performance Log Users' is a group in Windows; use its name in the Windows of your language
-#: src/tabs/hardware.cpp:878
+#: src/tabs/hardware.cpp:881
 msgid "Granted 'Performance Log Users' permission?"
 msgstr ""
 
-#: src/tabs/hardware.cpp:881
+#: src/tabs/hardware.cpp:884
 msgid "Yes"
 msgstr ""
 
-#: src/tabs/hardware.cpp:883
+#: src/tabs/hardware.cpp:886
 #: src/tabs/settings.cpp:1555
 msgid "No"
 msgstr ""
 
-#: src/tabs/hardware.cpp:885
+#: src/tabs/hardware.cpp:888
 msgid "Restart required"
 msgstr ""
 
-#: src/tabs/hardware.cpp:895
+#: src/tabs/hardware.cpp:898
 msgid "Permissions granted!"
 msgstr ""
 
-#: src/tabs/hardware.cpp:896
+#: src/tabs/hardware.cpp:899
 msgid "Grant permissions"
 msgstr ""
 
-#: src/tabs/hardware.cpp:897
+#: src/tabs/hardware.cpp:900
 msgid "Sign out to apply"
 msgstr ""
 
-#: src/tabs/hardware.cpp:946
+#: src/tabs/hardware.cpp:949
 msgid "Administrative privileges are required on the system to toggle this."
 msgstr ""
 
-#: src/tabs/hardware.cpp:961
+#: src/tabs/hardware.cpp:964
 msgid "Minimal latency:"
 msgstr ""
 
-#: src/tabs/hardware.cpp:983
+#: src/tabs/hardware.cpp:986
 msgid "Quite uncommon to see compared to the other models listed here."
 msgstr ""
 
-#: src/tabs/hardware.cpp:991
+#: src/tabs/hardware.cpp:994
 msgid "Undesirable latency:"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1033
+#: src/tabs/hardware.cpp:1036
 msgid "Multi-Plane Overlay (MPO) Support"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1036
+#: src/tabs/hardware.cpp:1039
 msgid "MPOs are additional dedicated hardware scanout planes enabling the GPU to partially take over composition from the DWM. This allows games to bypass the DWM in various mixed scenarios or window modes, eliminating the presentation latency that would otherwise be incurred."
 msgstr ""
 
-#: src/tabs/hardware.cpp:1058
+#: src/tabs/hardware.cpp:1061
 msgid "Support among connected displays:"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1065
+#: src/tabs/hardware.cpp:1068
 msgid "Display"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1066
+#: src/tabs/hardware.cpp:1069
 msgid "Planes"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1067
+#: src/tabs/hardware.cpp:1070
 msgid "Stretch"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1068
+#: src/tabs/hardware.cpp:1071
 msgid "Capabilities"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1069
+#: src/tabs/hardware.cpp:1072
 msgid "No support"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1135
+#: src/tabs/hardware.cpp:1138
 msgid "Disabled through the registry! Click to reset."
 msgstr ""
 
-#: src/tabs/hardware.cpp:1140
-#: src/tabs/hardware.cpp:1269
+#: src/tabs/hardware.cpp:1143
+#: src/tabs/hardware.cpp:1272
 msgid ""
 "Restart the display drivers and desktop window manager (DWM) to apply the changes.\n"
 "\n"
@@ -344,162 +344,162 @@ msgid ""
 "Do you want to restart the display drivers and DWM now?"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1145
-#: src/tabs/hardware.cpp:1274
+#: src/tabs/hardware.cpp:1148
+#: src/tabs/hardware.cpp:1277
 msgid "Restart the display drivers and desktop window manager (DWM)?"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1170
+#: src/tabs/hardware.cpp:1173
 msgid "A restart of the display drivers is required for the changes to be applied."
 msgstr ""
 
-#: src/tabs/hardware.cpp:1175
+#: src/tabs/hardware.cpp:1178
 msgid "Reporting MPO capabilities requires Windows 10 or newer."
 msgstr ""
 
-#: src/tabs/hardware.cpp:1195
+#: src/tabs/hardware.cpp:1198
 msgid "Minimum requirement:"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1202
+#: src/tabs/hardware.cpp:1205
 msgid "AMD: Radeon RX Vega + Adrenalin Edition 22.5.2 drivers"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1212
+#: src/tabs/hardware.cpp:1215
 msgid "Intel: HD Graphics 510-515 (Core 6th gen)"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1221
+#: src/tabs/hardware.cpp:1224
 msgid "Nvidia: GTX 16/RTX 20 series (Turing) + R460 drivers"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1228
+#: src/tabs/hardware.cpp:1231
 msgid "Support depends on the GPU and display configuration. Unusual driver or display configurations might disable MPO support, such as by using 10 bpc in SDR mode or custom GPU scaling (NIS/RSR/integer etc)."
 msgstr ""
 
-#: src/tabs/hardware.cpp:1256
+#: src/tabs/hardware.cpp:1259
 msgid "Refresh"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1263
+#: src/tabs/hardware.cpp:1266
 msgid "Enable MPOs"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1264
+#: src/tabs/hardware.cpp:1267
 msgid "Disable MPOs"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1302
+#: src/tabs/hardware.cpp:1305
 msgid "Restart display driver"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1308
+#: src/tabs/hardware.cpp:1311
 msgid "Restart DWM"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1328
+#: src/tabs/hardware.cpp:1331
 msgid "Extended CPU Hardware Reporting"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1340
+#: src/tabs/hardware.cpp:1343
 msgid "Special K can make use of an optional kernel driver to provide additional metrics in the CPU widget."
 msgstr ""
 
-#: src/tabs/hardware.cpp:1350
+#: src/tabs/hardware.cpp:1353
 msgid "Extends the CPU widget with thermals, energy, and precise clock rate on modern hardware."
 msgstr ""
 
-#: src/tabs/hardware.cpp:1365
+#: src/tabs/hardware.cpp:1368
 msgid "Kernel Driver:"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1375
+#: src/tabs/hardware.cpp:1378
 msgid "Please Wait..."
 msgstr ""
 
-#: src/tabs/hardware.cpp:1376
+#: src/tabs/hardware.cpp:1379
 msgid "Pending..."
 msgstr ""
 
-#: src/tabs/hardware.cpp:1382
+#: src/tabs/hardware.cpp:1385
 msgid "Uninstall Driver"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1383
+#: src/tabs/hardware.cpp:1386
 msgid "Installed"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1390
+#: src/tabs/hardware.cpp:1393
 msgid "Unavailable"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1391
+#: src/tabs/hardware.cpp:1394
 msgid "Unsupported"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1396
+#: src/tabs/hardware.cpp:1399
 msgid "Conflict With:"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1404
+#: src/tabs/hardware.cpp:1407
 msgid "Migrate Driver"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1405
+#: src/tabs/hardware.cpp:1408
 msgid "Obsolete driver installed"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1411
+#: src/tabs/hardware.cpp:1414
 msgid "Install Driver"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1412
+#: src/tabs/hardware.cpp:1415
 msgid "Not Installed"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1431
+#: src/tabs/hardware.cpp:1434
 msgid "Administrative privileges are required on the system to enable this."
 msgstr ""
 
-#: src/tabs/hardware.cpp:1460
+#: src/tabs/hardware.cpp:1463
 msgid "Option is unavailable as another application have already installed a copy of the driver."
 msgstr ""
 
-#: src/tabs/hardware.cpp:1471
+#: src/tabs/hardware.cpp:1474
 msgid "An older version of the driver is installed."
 msgstr ""
 
-#: src/tabs/hardware.cpp:1486
+#: src/tabs/hardware.cpp:1489
 msgid "Vulkan Layer Management"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1497
+#: src/tabs/hardware.cpp:1500
 msgid "The Vulkan API includes support for defining third-party layers that can be implicitly or explicitly loaded by applications. These third-party layers has been known to cause compatibility issues with other third-party injectors and tools such as Special K, and might therefor be of interest to disable. Note that any change made below will affect all apps/games on the system!"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1507
-#: src/tabs/hardware.cpp:1516
+#: src/tabs/hardware.cpp:1510
+#: src/tabs/hardware.cpp:1519
 msgid "Implicit layers are automatically enabled in any running games/apps."
 msgstr ""
 
-#: src/tabs/hardware.cpp:1513
-#: src/tabs/hardware.cpp:1517
+#: src/tabs/hardware.cpp:1516
+#: src/tabs/hardware.cpp:1520
 msgid "Explicit layers are only enabled if the game/app requires it."
 msgstr ""
 
-#: src/tabs/hardware.cpp:1516
+#: src/tabs/hardware.cpp:1519
 msgid "Implicit Vulkan Layers"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1517
+#: src/tabs/hardware.cpp:1520
 msgid "Explicit Vulkan Layers"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1558
+#: src/tabs/hardware.cpp:1561
 msgid "This layer has known compatibility issues with Special K and may cause issues."
 msgstr ""
 
-#: src/tabs/hardware.cpp:1577
+#: src/tabs/hardware.cpp:1580
 msgid "No layer of this kind was found."
 msgstr ""
 
@@ -752,6 +752,14 @@ msgstr ""
 #: src/tabs/settings.cpp:788
 #: src/tabs/settings.cpp:1243
 #: src/tabs/settings.cpp:1265
+#: src/tabs/library/library_properties.cpp:183
+#: src/tabs/library/library_properties.cpp:407
+#: src/tabs/library/library_properties.cpp:409
+#: src/tabs/library/library_properties.cpp:410
+#: src/tabs/library/library_properties.cpp:483
+#: src/tabs/library/library_properties.cpp:1456
+#: src/tabs/library/library_properties.cpp:1592
+#: src/tabs/library/library_properties.cpp:1593
 msgid "Never"
 msgstr ""
 
@@ -787,6 +795,13 @@ msgstr ""
 #: src/tabs/settings.cpp:1246
 #: src/tabs/settings.cpp:1267
 #: src/tabs/settings.cpp:1268
+#: src/tabs/library/library_properties.cpp:183
+#: src/tabs/library/library_properties.cpp:407
+#: src/tabs/library/library_properties.cpp:412
+#: src/tabs/library/library_properties.cpp:413
+#: src/tabs/library/library_properties.cpp:1456
+#: src/tabs/library/library_properties.cpp:1594
+#: src/tabs/library/library_properties.cpp:1595
 msgid "Always"
 msgstr ""
 
@@ -796,6 +811,7 @@ msgid "When unfocused"
 msgstr ""
 
 #: src/tabs/settings.cpp:813
+#: src/tabs/library/library_properties.cpp:224
 msgid "Library"
 msgstr ""
 
@@ -840,6 +856,7 @@ msgid "Custom"
 msgstr ""
 
 #: src/tabs/settings.cpp:1011
+#: src/tabs/library/library_properties.cpp:417
 msgid ""
 "Warning: This skips the regular platform launch process for the game,\n"
 "including steps like the cloud saves synchronization that usually occurs."
@@ -1381,4 +1398,564 @@ msgstr ""
 
 #: src/tabs/settings.cpp:2435
 msgid "The blacklist could not be saved! Please remove any non-Latin characters and try again."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:183
+msgid "Default"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:218
+msgid "Name"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:218
+msgid "Leave empty to use the name of the game."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:225
+msgid "Favorited"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:228
+#: src/tabs/library/library_properties.cpp:229
+msgid "Hidden"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:234
+msgid "Category"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:234
+msgid "Favorited games are always shown under Favorites."
+msgstr ""
+
+#. TRANSLATORS: The default category of the library
+#: src/tabs/library/library_properties.cpp:242
+#: src/tabs/library/library_properties.cpp:244
+msgctxt "category"
+msgid "Games"
+msgstr ""
+
+#. TRANSLATORS: {0} is the name of a category that does not exist yet
+#: src/tabs/library/library_properties.cpp:262
+msgid "{0} (new)"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:270
+msgid "New category..."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:403
+#: src/tabs/library/library_properties.cpp:1583
+#: src/tabs/library/library_properties.cpp:1652
+msgid "Instant Play"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:403
+msgid ""
+"Used by the launch options of the game that the platform client can start itself.\n"
+"Other launch options always use Instant Play."
+msgstr ""
+
+#. TRANSLATORS: {0} is what the default is: "Always" or "Never"
+#: src/tabs/library/library_properties.cpp:407
+msgid "Default ({0})"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:408
+msgid "The game will use the default behavior configured in the Settings tab."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:411
+msgid ""
+"The game will never use instant play except\n"
+"when launched through the right click menu."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:414
+msgid ""
+"The game will always use instant play except\n"
+"when launched through the right click menu."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:422
+msgid "Auto-stop"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:422
+msgid ""
+"This determines how long the service will remain running when launching the game.\n"
+"Move the mouse over each option to get more information."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:426
+msgid "Not available for this game."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:467
+msgid "Default (Inject, parent folder)"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:468
+msgid "Default (Exit, parent folder)"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:469
+msgid "Default (Never, parent folder)"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:470
+msgid "Default (Inject)"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:470
+msgid "Default (Exit)"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:473
+msgid "The service will use the behavior set for a parent folder of the game."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:474
+msgid "The service will use the default behavior configured in the Settings tab."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:475
+#: src/tabs/library/library_properties.cpp:476
+msgid "On inject"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:477
+msgid ""
+"The service will be stopped when Special K\n"
+"successfully injects into a game."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:478
+#: src/tabs/library/library_properties.cpp:479
+msgid "On exit"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:480
+msgid ""
+"The service will be stopped when Special K\n"
+"detects that the game is being closed."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:487
+msgid ""
+"Warning: The service will remain even\n"
+"after the game has been closed."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:556
+msgid "This launch option has no executable that can be started directly."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:559
+msgid "The executable of this launch option is outside of the game's install folder."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:619
+msgid "This game has no launch options."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:632
+msgid "Add"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:635
+msgid "Adds a new launch option of your own (lc_user.json)."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:642
+msgid "Duplicate"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:645
+msgid "Creates an editable copy of the selected launch option."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:650
+msgid "Remove"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:653
+msgid "Removes the selected launch option."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:653
+msgid "Launch options of the platform and Special K can't be removed."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:663
+msgid "Clear default"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:663
+msgid "Set as default"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:668
+msgid "SKIF goes back to using the primary launch option of the game."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:669
+msgid "SKIF uses this launch option when the game is launched through the Play button."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:681
+msgid "Moves the launch option up among your own."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:689
+msgid "Moves the launch option down among your own."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:697
+#: src/tabs/library/library_properties.cpp:711
+msgid "Import..."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:697
+#: src/tabs/library/library_properties.cpp:719
+msgid "Export..."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:697
+#: src/tabs/library/library_properties.cpp:728
+msgid "Export All..."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:714
+msgid ""
+"Adds launch options from the clipboard to your own,\n"
+"as copied by Export / Export All."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:722
+msgid "Copies the selected launch option to the clipboard."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:723
+msgid "Only your own launch options can be exported."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:731
+msgid "Copies all of your own launch options to the clipboard."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:767
+#: src/tabs/library/library_properties.cpp:845
+msgid "<no description>"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:776
+msgid "The default launch option."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:776
+msgid "The default launch option (the primary one, as no other is set)."
+msgstr ""
+
+#. TRANSLATORS: {0} is the name of a launch option
+#: src/tabs/library/library_properties.cpp:802
+msgid "The default launch option ({0}) is not available, so the primary one is used."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:804
+msgid "Clear"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:826
+msgid "lc_user.json could not be read, so your own launch options can't be changed here. Fix or remove the file to edit them."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:843
+msgid "More than one launch option is called \"{0}\"."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:848
+msgid "Every launch option of your own needs a description."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:851
+msgid "\"{0}\" has no executable."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:854
+msgid "The executable of \"{0}\" must be inside the install folder of the game."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:857
+msgid "The executable of \"{0}\" was not found."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:860
+msgid "The working directory of \"{0}\" must be inside the install folder of the game."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:890
+msgid "Your launch options could not be saved to lc_user.json. See the log for details."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:983
+msgid "Special K"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:983
+msgid "Applies to the executable, so to every launch option that starts it."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:989
+msgid "Special K is unavailable due to missing files."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:998
+msgid "Save first to change these for this executable."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1007
+msgid "Disable Special K"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1012
+msgid "Special K is disabled through a blacklist pattern in the Settings tab."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1024
+msgid "Elevated service"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1029
+msgid "Special K is disabled for this executable, so the service is not used."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1186
+msgid "New launch option"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1239
+msgid "Launch option"
+msgstr ""
+
+#. TRANSLATORS: {0} is the name of the launch option that was copied
+#: src/tabs/library/library_properties.cpp:1242
+msgid "{0} (Instant Play)"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1242
+msgid "{0} (copy)"
+msgstr ""
+
+#. TRANSLATORS: {0} is the name of the copy, {1} the name of the launch option it is a copy of
+#: src/tabs/library/library_properties.cpp:1315
+msgid "\"{0}\" is already a copy of \"{1}\" with Instant Play."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1336
+msgid "Created an editable copy of \"{0}\" with Instant Play. The original launch option stays unchanged."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1339
+msgid "The copy is now the default launch option."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1342
+msgid "The launch options set in the platform client were added to its arguments."
+msgstr ""
+
+#. TRANSLATORS: %command% is the placeholder of Steam's launch options, keep it as it is; {0} is what came before it
+#: src/tabs/library/library_properties.cpp:1346
+msgid "The part before %command% ({0}) could not be copied."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1367
+msgid "The launch options could not be exported."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1374
+msgid "Copied \"{0}\" to the clipboard."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1375
+msgid "Copied {0} launch option to the clipboard."
+msgid_plural "Copied {0} launch options to the clipboard."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/tabs/library/library_properties.cpp:1387
+msgid "The clipboard does not contain any launch options."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1398
+msgid "Imported launch option"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1409
+msgid "Imported \"{0}\" from the clipboard. Save to keep it."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1410
+msgid "Imported {0} launch option from the clipboard. Save to keep it."
+msgid_plural "Imported {0} launch options from the clipboard. Save to keep them."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/tabs/library/library_properties.cpp:1461
+msgid "Always (required)"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1462
+msgid "The platform client can't start this launch option itself, so it always uses Instant Play."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1471
+#: src/tabs/library/library_properties.cpp:1637
+msgid "Description"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1472
+msgid "Shown in the menus"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1475
+#: src/tabs/library/library_properties.cpp:1640
+msgid "Executable"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1475
+msgid "Relative to the install folder of the game."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1477
+#: src/tabs/library/library_properties.cpp:1492
+msgid "Browse..."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1485
+msgid "Select an executable"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1504
+msgid "Please select an executable (.exe or .bat), or a shortcut to one."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1507
+msgid "The executable must be inside the install folder of the game."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1531
+#: src/tabs/library/library_properties.cpp:1643
+msgid "Working directory"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1531
+msgid ""
+"Relative to the install folder of the game.\n"
+"Leave it as the executable's folder if unsure."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1533
+#: src/tabs/library/library_properties.cpp:1549
+msgid "Change..."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1540
+msgid "(install folder)"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1542
+#: src/tabs/library/library_properties.cpp:1644
+msgid "(executable folder)"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1564
+msgid "The working directory must be inside the install folder of the game."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1572
+msgid "Use the folder of the executable."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1577
+#: src/tabs/library/library_properties.cpp:1646
+msgid "Arguments"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1578
+msgid "Leave empty if unsure"
+msgstr ""
+
+#. TRANSLATORS: {0} is what the game's setting is: "Always" or "Never"
+#: src/tabs/library/library_properties.cpp:1591
+#: src/tabs/library/library_properties.cpp:1663
+msgid "Game setting ({0})"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1612
+msgid "Starts:"
+msgstr ""
+
+#. TRANSLATORS: {0} is the platform (e.g. Steam), {1} its launch options for the game
+#: src/tabs/library/library_properties.cpp:1622
+msgid "The launch options set in {0} ({1}) are not used by this launch option."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1634
+msgid "Provided by Special K (lc.json). Duplicate it to make changes."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1635
+msgid "Provided by the platform. Duplicate it to make changes."
+msgstr ""
+
+#. TRANSLATORS: {0} is "Always" or "Never"
+#: src/tabs/library/library_properties.cpp:1661
+msgid "{0} (set by Special K)"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1670
+msgid "Use Instant Play"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1675
+msgid ""
+"Creates an editable copy of this launch option among your own,\n"
+"set to always use Instant Play. The original stays unchanged."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1685
+msgid "Client options"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1685
+msgid "Set in the platform client. SKIF does not change these."
+msgstr ""
+
+#. TRANSLATORS: Title of the Properties window; {0} is the name of the game
+#: src/tabs/library/library_properties.cpp:1803
+msgid "Properties - {0}"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1864
+msgid "Launch options"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1923
+#: src/tabs/library/library_properties.cpp:1933
+msgid "Save"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1924
+#: src/tabs/library/library_properties.cpp:1989
+msgid "Cancel"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1949
+msgid "Some of the changes could not be saved."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:1979
+msgid "Could not save"
 msgstr ""
