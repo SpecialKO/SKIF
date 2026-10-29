@@ -1,5 +1,6 @@
 #include <utility/skif_imgui.h>
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <unordered_set>
@@ -17,6 +18,9 @@
 #include <fonts/fa_solid_900.ttf.h>
 #include <fonts/fa_brands_400.ttf.h>
 #include <imgui/imgui_impl_dx11.h>
+
+// Last, as it defines short macros such as _ ( )
+#include <utility/l10n.h>
 
 bool                  bAutoScrollActive;
 bool                  bScrollbarX;
@@ -56,6 +60,39 @@ static bool           SKIF_ImGui_ExtFontWanted [SKIF_ImGui_ExtFont_COUNT] = { };
 
 static const ImWchar  SKIF_ImGui_GlyphsHangul [] = { SKIF_IMGUI_GLYPHS_HANGUL, 0 };
 static const ImWchar  SKIF_ImGui_GlyphsCJK    [] = { SKIF_IMGUI_GLYPHS_CJK,    0 };
+
+// Han characters (shared by Chinese and Japanese) are drawn differently in Japanese, Simplified and Traditional Chinese,
+//   so the font that provides them first should match the language of the UI (SKIF_ImGui_SetUILanguage), or else the
+//     system's ANSI code page (Japanese first for ACP 932, Simplified Chinese otherwise)
+enum SKIF_ImGui_HanPreference {
+  SKIF_ImGui_Han_Default,
+  SKIF_ImGui_Han_Japanese,
+  SKIF_ImGui_Han_ChineseSimplified,
+  SKIF_ImGui_Han_ChineseTraditional
+};
+static SKIF_ImGui_HanPreference SKIF_ImGui_HanPreferred = SKIF_ImGui_Han_Default;
+
+// The fonts to try for Han characters, in order (also the order they are added in)
+static std::vector <SKIF_ImGui_ExtFont>
+SKIF_ImGui_GetHanFontOrder (void)
+{
+  static UINT acp = GetACP();
+
+  switch (SKIF_ImGui_HanPreferred)
+  {
+    case SKIF_ImGui_Han_Japanese:           return { SKIF_ImGui_ExtFont_Japanese,          SKIF_ImGui_ExtFont_ChineseSimplified, SKIF_ImGui_ExtFont_ChineseFull };
+    case SKIF_ImGui_Han_ChineseSimplified:  return { SKIF_ImGui_ExtFont_ChineseSimplified, SKIF_ImGui_ExtFont_Japanese,          SKIF_ImGui_ExtFont_ChineseFull };
+    case SKIF_ImGui_Han_ChineseTraditional: return { SKIF_ImGui_ExtFont_ChineseFull,       SKIF_ImGui_ExtFont_ChineseSimplified, SKIF_ImGui_ExtFont_Japanese    };
+    default:
+      break;
+  }
+
+  // Japanese takes priority for ACP 932, and the Simplified Chinese font (which also has almost all of the Japanese characters) otherwise
+  if (acp == 932)
+    return { SKIF_ImGui_ExtFont_Japanese,          SKIF_ImGui_ExtFont_ChineseSimplified, SKIF_ImGui_ExtFont_ChineseFull };
+  else
+    return { SKIF_ImGui_ExtFont_ChineseSimplified, SKIF_ImGui_ExtFont_Japanese,          SKIF_ImGui_ExtFont_ChineseFull };
+}
 
 static bool
 SKIF_ImGui_IsInGlyphRanges (const ImWchar* ranges, unsigned int cp)
@@ -681,6 +718,179 @@ bool
 SKIF_ImGui_Selectable (const char* label)
 {
   return ImGui::Selectable  (label, false, ImGuiSelectableFlags_None, ImGui::CalcTextSize (label, NULL, true));
+}
+
+// Wrapped text with links, so sentences stay whole for translation while words within them can be clicked:
+//   "Just hop over to the [Library] and launch a game!"
+//
+// Each [...] is a link, numbered from 0 in order of appearance, and drawn as a selectable (so it can also be reached using
+//   the keyboard or a gamepad) in colLink. link_icons optionally has an icon (or nullptr) for each link, drawn in front of
+//     it, which keeps the icons out of the translated text. "[[" and "]]" are literal brackets. "\n" starts a new line.
+//
+// Lines wrap at the right edge of the content region; like ImGui::TextWrapped ( ), the lines after the first start at
+//   the position the text started at (so it can follow e.g. a SameLine ( ) after a bullet or a number). The last line can
+//     be followed by SameLine ( ). Returns the index of the link that was clicked, or -1.
+int
+SKIF_ImGui_TextRich (const char* text, std::initializer_list <const char*> link_icons, const ImVec4& colLink)
+{
+  ImGuiWindow* window = ImGui::GetCurrentWindow ( );
+  if (window->SkipItems || text == nullptr)
+    return -1;
+
+  struct Segment {
+    std::string text;
+    int         link = -1;
+  };
+
+  // Split the text into plain text and links
+  std::vector <Segment> segments (1);
+  int                   links    = 0;
+
+  for (const char* p = text; *p != '\0'; )
+  {
+    if ((p [0] == '[' && p [1] == '[') ||
+        (p [0] == ']' && p [1] == ']'))
+    {
+      segments.back ( ).text += *p;
+      p += 2;
+    }
+
+    else if (p [0] == '[' && segments.back ( ).link < 0 && strchr (p + 1, ']') != nullptr)
+    {
+      segments.push_back ({ "", links });
+
+      // A no-break space keeps the icon on the same line as the text of the link
+      if (static_cast <size_t> (links) < link_icons.size ( ) && link_icons.begin ( ) [links] != nullptr)
+        segments.back ( ).text = std::string (link_icons.begin ( ) [links]) + "\xC2\xA0";
+
+      links++;
+      p++;
+    }
+
+    else if (p [0] == ']' && segments.back ( ).link >= 0)
+    {
+      segments.push_back ({ });
+      p++;
+    }
+
+    else
+      segments.back ( ).text += *p++;
+  }
+
+  // Whether a line may break at pos (when ImGui cut a word that does not fit the rest of the line, it is moved to the next line instead)
+  auto _IsBreakOpportunity = [](const char* begin, const char* pos, const char* end) -> bool
+  {
+    if (pos <= begin || pos >= end)
+      return true;
+
+    const char* prev_pos = pos - 1;
+    while (prev_pos > begin && (static_cast <unsigned char> (*prev_pos) & 0xC0) == 0x80)
+      prev_pos--;
+
+    unsigned int prev = 0, curr = 0;
+    ImTextCharFromUtf8 (&prev, prev_pos, end);
+    ImTextCharFromUtf8 (&curr, pos,      end);
+
+    return (curr == ' ' || curr == '\t' || prev == ' ' || prev == '\t' ||
+           (prev < 0x80 && strchr (".,;:!?\")-/", static_cast <int> (prev)) != nullptr) ||
+            prev >= 0x2E80 || curr >= 0x2E80); // CJK: a line may break between characters
+  };
+
+  ImFont*     font     = ImGui::GetFont     ( );
+  const float size     = ImGui::GetFontSize ( );
+  const float start_x  = ImGui::GetCursorPosX ( );
+  const float wrap_x   = start_x + ImGui::GetContentRegionAvail ( ).x;
+  const ImU32 col_link = ImGui::GetColorU32 (colLink);
+
+  bool        has_content = false; // Something has been drawn on the current line
+  bool        placed_any  = false; // Something has been drawn at all (the first line starts wherever the cursor is)
+  int         clicked     = -1;
+  int         piece_id    = 0;
+
+  ImGui::PushID (text);
+
+  for (auto& segment : segments)
+  {
+    const char* s   = segment.text.c_str ( );
+    const char* end = s + segment.text.size ( );
+
+    while (s < end)
+    {
+      if (*s == '\n')
+      {
+        if (! has_content)
+          ImGui::NewLine ( ); // Empty line
+        has_content = false;
+        s++;
+        continue;
+      }
+
+      const char* line_end = static_cast <const char*> (memchr (s, '\n', end - s));
+      if (line_end == nullptr)
+        line_end = end;
+
+      if (has_content)
+        ImGui::SameLine (0.0f, 0.0f);
+      else if (placed_any)
+        ImGui::SetCursorPosX (start_x);
+
+      const char* e = font->CalcWordWrapPosition (size, s, line_end, wrap_x - ImGui::GetCursorPosX ( ));
+
+      // Does not fit the rest of the line, or only the blanks before a word do: continue on the next one
+      if (has_content && (e <= s || ! _IsBreakOpportunity (s, e, line_end) || (e < line_end && strspn (s, " \t") >= static_cast <size_t> (e - s))))
+      {
+        ImGui::NewLine       ( );
+        ImGui::SetCursorPosX (start_x);
+
+        while (s < line_end && (*s == ' ' || *s == '\t'))
+          s++;
+        if (s >= line_end)
+        {
+          has_content = false;
+          continue;
+        }
+
+        e = font->CalcWordWrapPosition (size, s, line_end, wrap_x - start_x);
+      }
+
+      if (e <= s)
+        e = s + ImTextCountUtf8BytesFromChar (s, line_end);
+
+      if (segment.link < 0)
+        ImGui::TextUnformatted (s, e);
+
+      else
+      {
+        ImVec2 pos = ImGui::GetCursorScreenPos ( );
+        pos.y += window->DC.CurrLineTextBaseOffset;
+
+        ImGui::PushID (piece_id++);
+        if (ImGui::Selectable ("##SKIF_TextRichLink", false, ImGuiSelectableFlags_None, ImGui::CalcTextSize (s, e)))
+          clicked = segment.link;
+        ImGui::PopID ( );
+
+        SKIF_ImGui_SetMouseCursorHand ( );
+        window->DrawList->AddText (pos, col_link, s, e);
+      }
+
+      has_content = true;
+      placed_any  = true;
+
+      // Wrapped: the rest goes on the next line, without the blanks it was wrapped at
+      if (e < line_end)
+      {
+        has_content = false;
+        while (e < line_end && (*e == ' ' || *e == '\t'))
+          e++;
+      }
+
+      s = e;
+    }
+  }
+
+  ImGui::PopID ( );
+
+  return clicked;
 }
 
 // Vertical aligned label
@@ -1457,32 +1667,20 @@ void SKIF_ImGui_ServiceMenu (void)
 void
 SKIF_ImGui_MissingGlyphCallback (wchar_t c)
 {
-  static UINT acp = GetACP();
-
   const unsigned int cp = static_cast <unsigned int> (c);
 
   const bool hangul =          SKIF_ImGui_IsInGlyphRanges (SKIF_ImGui_GlyphsHangul, cp);
   const bool cjk    = ! hangul && SKIF_ImGui_IsInGlyphRanges (SKIF_ImGui_GlyphsCJK,    cp);
 
-  // The fonts to try for the character, in order. As before, Japanese takes priority for ACP 932,
-  //   and the Simplified Chinese font (which also has almost all of the Japanese characters) otherwise.
-  static const SKIF_ImGui_ExtFont chain_korean   [] = { SKIF_ImGui_ExtFont_Korean };
-  static const SKIF_ImGui_ExtFont chain_japanese [] = { SKIF_ImGui_ExtFont_Japanese,          SKIF_ImGui_ExtFont_ChineseSimplified, SKIF_ImGui_ExtFont_ChineseFull };
-  static const SKIF_ImGui_ExtFont chain_chinese  [] = { SKIF_ImGui_ExtFont_ChineseSimplified, SKIF_ImGui_ExtFont_Japanese,          SKIF_ImGui_ExtFont_ChineseFull };
-
-  const SKIF_ImGui_ExtFont* chain      = nullptr;
-  size_t                    chain_size = 0;
+  // The fonts to try for the character, in order (for Han characters, see SKIF_ImGui_GetHanFontOrder)
+  std::vector <SKIF_ImGui_ExtFont> chain;
 
   if (hangul)
-  {
-    chain      = chain_korean;
-    chain_size = IM_COUNTOF (chain_korean);
-  }
+    chain = { SKIF_ImGui_ExtFont_Korean };
   else if (cjk)
-  {
-    chain      = (acp == 932) ? chain_japanese              : chain_chinese;
-    chain_size = (acp == 932) ? IM_COUNTOF (chain_japanese) : IM_COUNTOF (chain_chinese);
-  }
+    chain = SKIF_ImGui_GetHanFontOrder ( );
+
+  const size_t chain_size = chain.size ( );
 
   for (size_t i = 0; i < chain_size; i++)
   {
@@ -1505,6 +1703,57 @@ SKIF_ImGui_MissingGlyphCallback (wchar_t c)
       break;
     }
   }
+}
+
+// Applies the UI language to the fonts: the order of the Han fonts (see SKIF_ImGui_GetHanFontOrder), and the regional
+//   font of the language is added up front instead of once its first character turns up. Returns true if the fonts
+//     need to be rebuilt (call before SKIF_ImGui_InitFonts ( ), or set invalidateFonts).
+bool
+SKIF_ImGui_SetUILanguage (const std::string& tag)
+{
+  std::string lower = tag;
+  std::transform (lower.begin ( ), lower.end ( ), lower.begin ( ), [](char ch) { return static_cast <char> ((ch >= 'A' && ch <= 'Z') ? ch - 'A' + 'a' : ch); });
+  std::string primary = lower.substr (0, lower.find ('-'));
+
+  SKIF_ImGui_HanPreference preferred = SKIF_ImGui_Han_Default;
+  SKIF_ImGui_ExtFont       font      = SKIF_ImGui_ExtFont_COUNT;
+
+  if (primary == "ja")
+  {
+    preferred = SKIF_ImGui_Han_Japanese;
+    font      = SKIF_ImGui_ExtFont_Japanese;
+  }
+
+  else if (primary == "zh")
+  {
+    preferred = (SKIF_L10n::IsTraditionalChinese (tag)) ? SKIF_ImGui_Han_ChineseTraditional : SKIF_ImGui_Han_ChineseSimplified;
+    font      = (SKIF_L10n::IsTraditionalChinese (tag)) ? SKIF_ImGui_ExtFont_ChineseFull     : SKIF_ImGui_ExtFont_ChineseSimplified;
+
+#ifndef _WIN64
+    // 32-bit SKIF omits the Chinese Full character set (see SKIF_ImGui_MissingGlyphCallback)
+    if (font == SKIF_ImGui_ExtFont_ChineseFull)
+      font = SKIF_ImGui_ExtFont_ChineseSimplified;
+#endif
+  }
+
+  else if (primary == "ko")
+    font = SKIF_ImGui_ExtFont_Korean;
+
+  bool rebuild = false;
+
+  if (SKIF_ImGui_HanPreferred != preferred)
+  {
+    SKIF_ImGui_HanPreferred = preferred;
+    rebuild = true; // The order of fonts that are already loaded may change
+  }
+
+  if (font != SKIF_ImGui_ExtFont_COUNT && ! SKIF_ImGui_ExtFontWanted [font])
+  {
+    SKIF_ImGui_ExtFontWanted [font] = true;
+    rebuild = true;
+  }
+
+  return rebuild;
 }
 
 ImFont*
@@ -1550,8 +1799,6 @@ SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
 
   // Font size should always be rounded down to the nearest integer
   fontSize = floor(fontSize);
-
-  static UINT acp = GetACP();
 
   auto& io =
     ImGui::GetIO ();
@@ -1621,42 +1868,41 @@ SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
   {
     font_cfg.GlyphExcludeRanges = exclude_hangul_and_font_awesome;
 
-    // Japanese character set
-    // Load before Chinese for ACP 932 so that the Japanese font is not overwritten
-    if (SKIF_ImGui_ExtFontWanted [SKIF_ImGui_ExtFont_Japanese] && acp == 932)
+    // Japanese and Chinese character sets: Han characters come from the first of these fonts that is loaded,
+    //   so the order follows the UI language or the ANSI code page (see SKIF_ImGui_GetHanFontOrder)
+    for (auto ext : SKIF_ImGui_GetHanFontOrder ( ))
     {
-      //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansJP-Regular.ttf"), fontSize, &font_cfg);
-      ///*
-      if (SKIF_Util_IsWindows10OrGreater ( ))
-        SKIF_ImGui_LoadFont (L"YuGothR.ttc",  fontSize, &font_cfg);
-      else
-        SKIF_ImGui_LoadFont (L"yugothic.ttf", fontSize, &font_cfg);
-      //*/
+      if (! SKIF_ImGui_ExtFontWanted [ext])
+        continue;
+
+      switch (ext)
+      {
+        // Japanese character set
+        case SKIF_ImGui_ExtFont_Japanese:
+          //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansJP-Regular.ttf"), fontSize, &font_cfg);
+          if (SKIF_Util_IsWindows10OrGreater ( ))
+            SKIF_ImGui_LoadFont (L"YuGothR.ttc",  fontSize, &font_cfg);
+          else
+            SKIF_ImGui_LoadFont (L"yugothic.ttf", fontSize, &font_cfg);
+          break;
+
+        // Simplified Chinese character set
+        // Also includes almost all of the Japanese characters except for some Kanjis
+        case SKIF_ImGui_ExtFont_ChineseSimplified:
+          SKIF_ImGui_LoadFont   (L"msyh.ttc",     fontSize, &font_cfg);
+          //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansSC-Regular.ttf"), fontSize, &font_cfg);
+          break;
+
+        // All Chinese character sets
+        case SKIF_ImGui_ExtFont_ChineseFull:
+          SKIF_ImGui_LoadFont   (L"msjh.ttc",     fontSize, &font_cfg);
+          //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansTC-Regular.ttf"), fontSize, &font_cfg);
+          break;
+
+        default:
+          break;
+      }
     }
-
-    // Simplified Chinese character set
-    // Also includes almost all of the Japanese characters except for some Kanjis
-    if (SKIF_ImGui_ExtFontWanted [SKIF_ImGui_ExtFont_ChineseSimplified])
-      SKIF_ImGui_LoadFont   (L"msyh.ttc",     fontSize, &font_cfg);
-      //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansSC-Regular.ttf"), fontSize, &font_cfg);
-
-    // Japanese character set
-    // Load after Chinese for the rest of ACP's so that the Chinese font is not overwritten
-    if (SKIF_ImGui_ExtFontWanted [SKIF_ImGui_ExtFont_Japanese] && acp != 932)
-    {
-      //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansJP-Regular.ttf"), fontSize, &font_cfg);
-      ///*
-      if (SKIF_Util_IsWindows10OrGreater ( ))
-        SKIF_ImGui_LoadFont (L"YuGothR.ttc",  fontSize, &font_cfg);
-      else
-        SKIF_ImGui_LoadFont (L"yugothic.ttf", fontSize, &font_cfg);
-      //*/
-    }
-
-    // All Chinese character sets
-    if (SKIF_ImGui_ExtFontWanted [SKIF_ImGui_ExtFont_ChineseFull])
-      SKIF_ImGui_LoadFont   (L"msjh.ttc",     fontSize, &font_cfg);
-      //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansTC-Regular.ttf"), fontSize, &font_cfg);
 
     // Korean character set
     font_cfg.GlyphExcludeRanges = exclude_cjk_and_font_awesome;

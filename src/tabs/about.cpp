@@ -11,6 +11,9 @@
 #include <utility/updater.h>
 #include <tabs/common_ui.h>
 
+// Last, as it defines short macros such as _ ( )
+#include <utility/l10n.h>
+
 void
 SKIF_UI_Tab_DrawAbout (void)
 {
@@ -22,14 +25,15 @@ SKIF_UI_Tab_DrawAbout (void)
   auto _PrintSKIFintro = [](void)
   {
     ImGui::TextColored      (
-      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-        "About the Injection Frontend (SKIF):"    );
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), "%s",
+        _("About the Injection Frontend (SKIF):")  );
 
     SKIF_ImGui_Spacing      ( );
 
-    ImGui::TextWrapped      ("You are looking at the Special K Injection Frontend app, commonly shortened as 'SKIF'. "
-                             "This app injects Special K into any games launched from it, or even into games that are already running!\n\n"
-                             "The frontend also provides convenient alternative launch options, shortcuts to useful resources, and a few other helpful things.");
+    ImGui::TextWrapped      ("%s", _("You are looking at the Special K Injection Frontend app, commonly shortened as 'SKIF'. "
+                                     "This app injects Special K into any games launched from it, or even into games that are already running!"));
+    ImGui::NewLine          ( );
+    ImGui::TextWrapped      ("%s", _("The frontend also provides convenient alternative launch options, shortcuts to useful resources, and a few other helpful things."));
   };
 
   SKIF_ImGui_Spacing      ( );
@@ -54,23 +58,22 @@ SKIF_UI_Tab_DrawAbout (void)
   // ImGui::GetStyleColorVec4(ImGuiCol_TabHovered);
 
   ImGui::TextColored      (
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-                            "Beginner's Guide to Special K (SK):"
+    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), "%s",
+                            _("Beginner's Guide to Special K (SK):")
                             );
 
   SKIF_ImGui_Spacing      ( );
 
-  ImGui::TextWrapped      ("Lovingly referred to as the Swiss Army Knife of PC gaming, Special K does a bit of everything. "
-                            "It is best known for fixing and enhancing graphics, its many detailed performance analysis and correction mods, "
-                            "and a constantly growing palette of tools that solve a wide variety of issues affecting PC games.");
+  ImGui::TextWrapped      ("%s", _("Lovingly referred to as the Swiss Army Knife of PC gaming, Special K does a bit of everything. "
+                                   "It is best known for fixing and enhancing graphics, its many detailed performance analysis and correction mods, "
+                                   "and a constantly growing palette of tools that solve a wide variety of issues affecting PC games."));
 
   SKIF_ImGui_Spacing      ( );
 
-  ImGui::TextWrapped      ("Among its main features are a latency-free borderless window mode, HDR retrofit for "
-                            "SDR games, Nvidia Reflex in unsupported games, as well as texture modding "
-                            "for players and modders alike. While not all features are supported in all games, most "
-                            "DirectX 11 and 12 titles can make use of one or more of its features."
-  );
+  ImGui::TextWrapped      ("%s", _("Among its main features are a latency-free borderless window mode, HDR retrofit for "
+                                   "SDR games, Nvidia Reflex in unsupported games, as well as texture modding "
+                                   "for players and modders alike. While not all features are supported in all games, most "
+                                   "DirectX 11 and 12 titles can make use of one or more of its features."));
   ImGui::NewLine          ( );
 
   if (! enableColums)
@@ -79,15 +82,9 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGui::NewLine        ( );
   }
 
-  ImGui::Text             ("Just hop over to the");
-  ImGui::SameLine         ( );
-  ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption));
-  if (SKIF_ImGui_Selectable (ICON_FA_GAMEPAD " Library###About-Lib1"))
+  // TRANSLATORS: [Library] is a link to the Library tab; keep the brackets around the name of the tab
+  if (SKIF_ImGui_TextRich (_("Just hop over to the [Library] and launch a game!"), { ICON_FA_GAMEPAD }) == 0)
     SKIF_Tab_ChangeTo = UITab_Library;
-  ImGui::PopStyleColor    ( );
-  SKIF_ImGui_SetMouseCursorHand ( );
-  ImGui::SameLine         ( );
-  ImGui::Text             ("and launch a game!");
   ImGui::SameLine         ( );
   ImGui::TextColored      (ImColor::HSV (0.11F, 1.F, 1.F), ICON_FA_FACE_GRIN_BEAM);
 
@@ -99,8 +96,8 @@ SKIF_UI_Tab_DrawAbout (void)
   float fY1 = ImGui::GetCursorPosY();
 
   ImGui::TextColored      (
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-                            "Getting started with a game:");
+    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), "%s",
+                            _("Getting started with a game:"));
 
   SKIF_ImGui_Spacing      ( );
 
@@ -110,15 +107,9 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
                         "1 ");
   ImGui::SameLine         ( );
-  ImGui::Text             ("Go to the");
-  ImGui::SameLine         ( );
-  ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption));
-  if (SKIF_ImGui_Selectable (ICON_FA_GAMEPAD " Library###About-Lib2"))
+  // TRANSLATORS: [Library] is a link to the Library tab; keep the brackets around the name of the tab
+  if (SKIF_ImGui_TextRich (_("Go to the [Library] tab."), { ICON_FA_GAMEPAD }) == 0)
     SKIF_Tab_ChangeTo = UITab_Library;
-  ImGui::PopStyleColor    ( );
-  SKIF_ImGui_SetMouseCursorHand ( );
-  ImGui::SameLine         ( );
-  ImGui::Text             ("tab.");
 
   ImGui::Spacing          ( );
   ImGui::SameLine         ( );
@@ -126,7 +117,7 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
                         "2 ");
   ImGui::SameLine         ( );
-  ImGui::TextWrapped      ("Select and launch the game.");
+  ImGui::TextWrapped      ("%s", _("Select and launch the game."));
 
   ImGui::Spacing          ( );
   ImGui::SameLine         ( );
@@ -134,18 +125,12 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
                         "3 ");
   ImGui::SameLine         ( );
-  ImGui::Text             ("If the game is missing, use");
-  ImGui::SameLine         ( );
-  ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption));
-  if (SKIF_ImGui_Selectable (ICON_FA_SQUARE_PLUS " Add Game"))
+  // TRANSLATORS: [Add Game] is a link that opens the Add Game prompt; keep the brackets around it
+  if (SKIF_ImGui_TextRich (_("If the game is missing, use [Add Game] to add it."), { ICON_FA_SQUARE_PLUS }) == 0)
   {
     AddGamePopup      = PopupState_Open;
     SKIF_Tab_ChangeTo = UITab_Library;
   }
-  ImGui::PopStyleColor    ( );
-  SKIF_ImGui_SetMouseCursorHand ( );
-  ImGui::SameLine         ( );
-  ImGui::Text             ("to add it.");
 
   ImGui::NewLine          ( );
   ImGui::NewLine          ( );
@@ -157,8 +142,8 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Failure), ICON_FA_ROCKET);
   ImGui::SameLine         ( );
   ImGui::TextColored      (
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-      "Launch Special K for select games through Steam:"
+    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), "%s",
+      _("Launch Special K for select games through Steam:")
   );
 
   SKIF_ImGui_Spacing      ( );
@@ -167,7 +152,7 @@ SKIF_UI_Tab_DrawAbout (void)
       SKIF_Util_RegisterApp (bool force = false);
   if (SKIF_Util_RegisterApp ( ) > 0)
   {
-    ImGui::TextWrapped      ("Your system is set up to quickly launch injection through Steam.");
+    ImGui::TextWrapped      ("%s", _("Your system is set up to quickly launch injection through Steam."));
 
     SKIF_ImGui_Spacing      ( );
 
@@ -178,7 +163,7 @@ SKIF_UI_Tab_DrawAbout (void)
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
                           "1 ");
     ImGui::SameLine         ( );
-    ImGui::TextWrapped      ("Right click the desired game in Steam, and select \"Properties...\".");
+    ImGui::TextWrapped      ("%s", _("Right click the desired game in Steam, and select \"Properties...\"."));
     ImGui::EndGroup         ( );
 
     ImGui::BeginGroup       ( );
@@ -188,7 +173,7 @@ SKIF_UI_Tab_DrawAbout (void)
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
                           "2 ");
     ImGui::SameLine         ( );
-    ImGui::TextWrapped      ("Copy and paste the below into the \"Launch Options\" field.");
+    ImGui::TextWrapped      ("%s", _("Copy and paste the below into the \"Launch Options\" field."));
     ImGui::EndGroup         ( );
 
     ImGui::TreePush         ("SteamSKIFCommand");
@@ -212,7 +197,7 @@ SKIF_UI_Tab_DrawAbout (void)
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
                           "3 ");
     ImGui::SameLine         ( );
-    ImGui::TextWrapped      ("Launch the game as usual through Steam.");
+    ImGui::TextWrapped      ("%s", _("Launch the game as usual through Steam."));
     ImGui::EndGroup         ( );
   }
 
@@ -223,7 +208,7 @@ SKIF_UI_Tab_DrawAbout (void)
       ImColor::HSV (0.11F,   1.F, 1.F),
         ICON_FA_TRIANGLE_EXCLAMATION " ");
     ImGui::SameLine         ( );
-    ImGui::TextWrapped      ("Your system is not set up to use this install of Special K to launch injection through Steam.");
+    ImGui::TextWrapped      ("%s", _("Your system is not set up to use this install of Special K to launch injection through Steam."));
 
     SKIF_ImGui_Spacing      ( );
 
@@ -231,8 +216,11 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGui::SameLine         ( );
 
     ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption));
-    if (ImGui::Button       ("  Set this install as default  "))
+    // Wider padding instead of spaces around the label (which would end up in the translated text)
+    ImGui::PushStyleVar     (ImGuiStyleVar_FramePadding, ImGui::GetStyle ( ).FramePadding + ImVec2 (ImGui::CalcTextSize ("  ").x, 0.0f));
+    if (ImGui::Button       (L_("Set this install as default")))
       SKIF_Util_RegisterApp (true);
+    ImGui::PopStyleVar      ( );
     ImGui::PopStyleColor    ( );
 
     // We need som additional spacing at the bottom here to push down the Components section in the right column
@@ -249,8 +237,8 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_AWARD);//ICON_FA_WRENCH);
   ImGui::SameLine         ( );
   ImGui::TextColored      (
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-    "Tips and Tricks:");
+    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), "%s",
+    _("Tips and Tricks:"));
 
   SKIF_ImGui_Spacing      ( );
 
@@ -286,8 +274,8 @@ SKIF_UI_Tab_DrawAbout (void)
   }
 
   ImGui::TextColored (
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-      "More on how to inject Special K:"
+    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), "%s",
+      _("More on how to inject Special K:")
   );
 
   SKIF_ImGui_Spacing      ( );
@@ -300,7 +288,7 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
       ICON_FA_UP_RIGHT_FROM_SQUARE " "      );
   ImGui::SameLine         ( );
-  if (ImGui::Selectable   ("Global (system-wide)"))
+  if (ImGui::Selectable   (L_("Global (system-wide)")))
     SKIF_Util_OpenURI     (L"https://wiki.special-k.info/SpecialK/Global");
   SKIF_ImGui_SetMouseCursorHand ();
   SKIF_ImGui_SetHoverText ( "https://wiki.special-k.info/SpecialK/Global");
@@ -313,7 +301,7 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
     ICON_FA_UP_RIGHT_FROM_SQUARE " "      );
   ImGui::SameLine         ( );
-  if (ImGui::Selectable   ("Local (game-specific)"))
+  if (ImGui::Selectable   (L_("Local (game-specific)")))
     SKIF_Util_OpenURI     (L"https://wiki.special-k.info/SpecialK/Local");
   SKIF_ImGui_SetMouseCursorHand ();
   SKIF_ImGui_SetHoverText ( "https://wiki.special-k.info/SpecialK/Local");
@@ -326,7 +314,7 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
       ICON_FA_UP_RIGHT_FROM_SQUARE " "      );
   ImGui::SameLine         ( );
-  if (ImGui::Selectable   ("Do not use in multiplayer games!"))
+  if (ImGui::Selectable   (L_("Do not use in multiplayer games!")))
     SKIF_Util_OpenURI     (L"https://wiki.special-k.info/en/SpecialK/Global#multiplayer-games");
   SKIF_ImGui_SetMouseCursorHand ();
   SKIF_ImGui_SetHoverText ( "https://wiki.special-k.info/en/SpecialK/Global#multiplayer-games");
@@ -336,7 +324,7 @@ SKIF_UI_Tab_DrawAbout (void)
       ICON_FA_TRIANGLE_EXCLAMATION " ");
   ImGui::EndGroup         ( );
 
-  SKIF_ImGui_SetHoverTip ("In particular games where anti-cheat\nprotection might be present.");
+  SKIF_ImGui_SetHoverTip (_("In particular games where anti-cheat\nprotection might be present."));
 
   if (enableColums)
   {
@@ -348,8 +336,8 @@ SKIF_UI_Tab_DrawAbout (void)
   }
 
   ImGui::TextColored      (
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-      "Online resources:"   );
+    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), "%s",
+      _("Online resources:")  );
   SKIF_ImGui_Spacing      ( );
 
   ImGui::BeginGroup       ( );
@@ -361,7 +349,7 @@ SKIF_UI_Tab_DrawAbout (void)
   ImGui::SameLine         ( );
 
   //if (SKIF_ImGui_MenuItemEx2 ("Wiki", ICON_FA_BOOK, ImColor(25, 118, 210)))
-  if (ImGui::Selectable   ("Wiki"))
+  if (ImGui::Selectable   (L_("Wiki")))
     SKIF_Util_OpenURI     (L"https://wiki.special-k.info/");
 
   SKIF_ImGui_SetMouseCursorHand ();
@@ -421,7 +409,7 @@ SKIF_UI_Tab_DrawAbout (void)
     (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255), // ImColor (226, 67, 40)
       ICON_FA_FILE_CONTRACT " ");
   ImGui::SameLine         (0.0f, 10.0f);
-  if (ImGui::Selectable   ("Privacy Policy"))
+  if (ImGui::Selectable   (L_("Privacy Policy")))
     SKIF_Util_OpenURI     (L"https://wiki.special-k.info/Privacy");
 
   SKIF_ImGui_SetMouseCursorHand ();
@@ -436,7 +424,7 @@ SKIF_UI_Tab_DrawAbout (void)
     (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255), // ImColor (226, 67, 40)
       ICON_FA_FILE_CONTRACT " ");
   ImGui::SameLine         (0.0f, 10.0f);
-  if (ImGui::Selectable   ("Licenses"))
+  if (ImGui::Selectable   (L_("Licenses")))
     SKIF_Util_OpenURI     (L"https://github.com/SpecialKO/SKIF/blob/master/LICENSE-3RD-PARTY");
 
   SKIF_ImGui_SetMouseCursorHand ();
@@ -461,8 +449,8 @@ SKIF_UI_Tab_DrawAbout (void)
                             );
 
   ImGui::TextColored (
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-      "Components:"
+    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), "%s",
+      _("Components:")
   );
 
   ImGui::PushStyleColor   (

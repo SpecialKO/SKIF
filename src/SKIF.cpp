@@ -93,6 +93,9 @@
 #include <dwmapi.h>
 #include <utility/artwork.h>
 
+// Last, as it defines short macros such as _ ( )
+#include <utility/l10n.h>
+
 bool  RecreateD3DDevice         = false;
 bool  RecreateSwapChains        = false;
 bool  RecreateSwapChainsPending = false;
@@ -1977,6 +1980,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   PLOG_INFO << "Max severity to log was set to " << _registry.iLogging;
 
+  // Load the translations and apply the language of the UI (relies on logging and _path_cache)
+  SKIF_L10n::GetInstance ( ).Initialize (std::wstring (_path_cache.specialk_install) + LR"(\Languages)", SK_WideCharToUTF8 (_registry.wsLanguage));
+  _StartupStep ("localization");
+
   // Detect if the system is running on a hybrid CPU (e.g. Intel Alder Lake). It moves a thread across every logical
   //   processor, which can take tens of ms (e.g. right after a restart), and nothing needs the result until SKIF has
   //   started (SKIF_OnStartupFinished sets _registry._ProcessorHasECores), so it runs on a thread of its own
@@ -2280,6 +2287,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
   // Initialize ImGui fonts
   PLOG_INFO << "Initializing ImGui fonts...";
+  SKIF_ImGui_SetUILanguage (SKIF_L10n::GetInstance ( ).GetLanguage ( )); // Font order and regional font of the UI language
   SKIF_ImGui_InitFonts (SKIF_ImGui_FontSizeDefault, (! _Signal.Launcher && ! _Signal.LauncherURI && ! _Signal.Quit && ! _Signal.ServiceMode) );
 
   // Since ImGui 1.92 there is no font atlas to build up front: glyphs are rasterized when they are first drawn,
@@ -2825,6 +2833,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
         _registry.iSDRMode = (_registry.iSDRMode + 1) % 3; // Cycle between 0 (8 bpc), 1 (10 bpc), and 2 (16 bpc)
 
       RecreateSwapChains = true;
+    }
+
+    // Apply a change of the UI language (Settings tab) at the beginning of frames, so a frame never mixes two languages
+    if (SKIF_L10n::GetInstance ( ).ApplyPendingLanguage ( ))
+    {
+      if (SKIF_ImGui_SetUILanguage (SKIF_L10n::GetInstance ( ).GetLanguage ( )))
+        invalidateFonts = true;
+
+      // TODO (l10n): rebuild what is built once in the language at the time: the notification area menu, the jump list, ...
     }
 
     // Should we invalidate the fonts and/or recreate them?

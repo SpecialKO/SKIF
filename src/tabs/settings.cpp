@@ -19,6 +19,9 @@
 #include <utility/ini_reader.h>
 #include <utility/artwork.h>
 
+// Last, as it defines short macros such as _ ( )
+#include <utility/l10n.h>
+
 extern bool allowShortcutCtrlA;
 bool saveIniOSD = false;
 
@@ -1091,6 +1094,101 @@ SKIF_UI_Tab_DrawSettings (void)
       // This is needed to reproduce the same padding on the left side as when using columns
       ImGui::SetCursorPosX (ImGui::GetCursorPosX ( ) + ImGui::GetStyle().FramePadding.x);
       ImGui::BeginGroup    ( );
+    }
+
+    // Language of the UI (applied at the beginning of the next frame)
+    {
+      static SKIF_L10n& _l10n = SKIF_L10n::GetInstance ( );
+
+      // The pseudo-locale (long, accented text for finding untranslated text and clipped layouts) is listed in developer mode
+      const bool showPseudo = _registry.bDeveloperMode || _l10n.GetPreferred ( ) == SKIF_L10n::TagPseudo;
+
+      // The list does not change while SKIF runs (and the native names come from Windows), so it is only built once,
+      //   along with the language that following Windows results in
+      static std::vector <SKIF_L10n::Language> languages;
+      static bool                              languagesPseudo = false;
+      static std::string                       windowsName;
+      if (languages.empty ( ) || languagesPseudo != showPseudo)
+      {
+        languages       = _l10n.GetLanguages (showPseudo);
+        languagesPseudo = showPseudo;
+
+        const std::string windowsTag = _l10n.ResolveLanguage ("");
+        for (auto& lang : languages)
+          if (lang.tag == windowsTag)
+            windowsName = lang.name;
+      }
+
+      auto _DisplayName = [](const SKIF_L10n::Language& lang) -> std::string
+      {
+        return (lang.completion < 100) ? (lang.name + " (" + std::to_string (lang.completion) + "%)")
+                                       :  lang.name;
+      };
+
+      const std::string preferred = _l10n.GetPreferred ( );
+      const std::string active    = _l10n.GetLanguage  ( );
+
+      ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
+      SKIF_ImGui_SetHoverTip (_("Translations are contributed by the community. Text that has not been translated yet is shown in English."));
+      ImGui::SameLine        ( );
+      ImGui::TextColored     (
+        ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), "%s",
+          _("Language:")
+      );
+      ImGui::TreePush        ("Language");
+
+      // TRANSLATORS: {0} is the name of the language that Windows uses (or English, if there is no translation for it)
+      const std::string previewFollowWindows = F_("Same as Windows ({0})", windowsName);
+      std::string       preview              = previewFollowWindows;
+      for (auto& lang : languages)
+        if (! preferred.empty ( ) && lang.tag == active)
+          preview = _DisplayName (lang);
+
+      if (ImGui::BeginCombo ("###SKIF_LanguageCombo", preview.c_str ( )))
+      {
+        std::string selected  = preferred;
+        bool        hasChange = false;
+
+        if (ImGui::Selectable ((previewFollowWindows + "###SKIF_Language-").c_str ( ), preferred.empty ( )))
+        {
+          selected  = "";
+          hasChange = true;
+        }
+        if (preferred.empty ( ))
+          ImGui::SetItemDefaultFocus ( );
+
+        for (auto& lang : languages)
+        {
+          bool is_selected = (! preferred.empty ( ) && lang.tag == active);
+
+          // Language names are shown in their own language, so they are not translated
+          if (ImGui::Selectable ((_DisplayName (lang) + "###SKIF_Language-" + lang.tag).c_str ( ), is_selected))
+          {
+            selected  = lang.tag;
+            hasChange = true;
+          }
+          if (is_selected)
+            ImGui::SetItemDefaultFocus ( );
+        }
+
+        ImGui::EndCombo  ( );
+
+        if (hasChange && selected != preferred)
+        {
+          _registry.wsLanguage = SK_UTF8ToWideChar (selected);
+
+          if (selected.empty ( ))
+            _registry.regKVLanguage.deleteData ( );
+          else
+            _registry.regKVLanguage.putData    (_registry.wsLanguage);
+
+          _l10n.SetLanguage (selected);
+        }
+      }
+
+      ImGui::TreePop         ( );
+
+      ImGui::Spacing         ( );
     }
 
     constexpr char* StyleItems[UIStyle_COUNT] =

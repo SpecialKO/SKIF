@@ -447,6 +447,9 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   if (regKVUpdateChannel.hasData(&hKey))
     wsUpdateChannel        =   regKVUpdateChannel          .getData (&hKey);
 
+  if (regKVLanguage.hasData(&hKey))
+    wsLanguage             =   regKVLanguage               .getData (&hKey);
+
   wsInstallGUID            =   regKVInstallGUID            .getData (&hKey);
 
   // Remember Last Selected Game

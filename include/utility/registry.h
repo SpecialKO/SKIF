@@ -567,6 +567,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Follow Update Channel)" );
 
+  KeyValue <std::wstring> regKVLanguage =
+    SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(UI Language)" );
+
   KeyValue <std::wstring> regKVPath =
     SKIF_MakeRegKeyWS ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Path)" );
@@ -720,6 +724,7 @@ struct SKIF_RegistrySettings {
 
   // Wide strings
   std::wstring wsUpdateChannel  = L"Website"; // Default to stable channel
+  std::wstring wsLanguage;                    // Language of the UI as a BCP 47 tag, e.g. "de" or "pt-BR" (empty = follow Windows)
   std::wstring wsIgnoreUpdate;
   std::wstring wsPath;
   std::wstring wsAutoUpdateVersion; // Holds the version the auto-updater is trying to install
