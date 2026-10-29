@@ -702,20 +702,20 @@ public:
 
     ImGui::SameLine ( );
 
+    SKIF_ImGui_PushDisableState (! selectedUser);
+    if (ImGui::Button ("Export...###PropsLaunchExportCurrent", vButtonSize))
+      _Export (app, true);
+    SKIF_ImGui_PopDisableState  (! selectedUser);
+    SKIF_ImGui_SetHoverTip ((selectedUser) ? "Copies the selected launch option to the clipboard."
+                                           : "Only your own launch options can be exported.", false, true);
+
+    ImGui::SameLine ( );
+
     SKIF_ImGui_PushDisableState (! hasUserRows);
     if (ImGui::Button ("Export All...###PropsLaunchExportAll", vButtonSize))
       _Export (app, false);
     SKIF_ImGui_PopDisableState  (! hasUserRows);
     SKIF_ImGui_SetHoverTip ("Copies all of your own launch options to the clipboard.", false, true);
-
-    ImGui::SameLine ( );
-
-    SKIF_ImGui_PushDisableState (! selectedUser);
-    if (ImGui::Button ("Export Current...###PropsLaunchExportCurrent", vButtonSize))
-      _Export (app, true);
-    SKIF_ImGui_PopDisableState  (! selectedUser);
-    SKIF_ImGui_SetHoverTip ((selectedUser) ? "Copies the selected launch option to the clipboard."
-                                           : "Only your own launch options can be exported.", false, true);
 
     ImGui::EndGroup ( );
 
