@@ -1331,7 +1331,6 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (SKIF_ImGui_IsViewportFocused ( ) &&
       EmptySpaceMenu == PopupState_Closed              &&
       AddGamePopup   == PopupState_Closed              &&
-      ModifyGamePopup== PopupState_Closed              &&
       IconMenu != PopupState_Open                      &&
     ! ImGui::IsAnyItemHovered ( )                      &&
       ImGui::IsMouseClicked   (ImGuiMouseButton_Right) &&

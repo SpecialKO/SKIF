@@ -3129,13 +3129,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       if (ImGui::IsKeyPressed (ImGuiKey_Escape))
       {
+        // Properties (ModifyGamePopup) is a window of its own, and handles Escape itself while it has focus
         if (AddGamePopup        != PopupState_Closed ||
-            ModifyGamePopup     != PopupState_Closed ||
             PopupCategoryModify != PopupState_Closed ||
             RemoveGamePopup     != PopupState_Closed  )
         {
           AddGamePopup         = PopupState_Closed;
-          ModifyGamePopup      = PopupState_Closed;
           PopupCategoryModify  = PopupState_Closed;
           RemoveGamePopup      = PopupState_Closed;
 
@@ -3803,6 +3802,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
       static SKIF_LocalManager&
         _local  = SKIF_LocalManager::GetInstance ( );
         _local.Process ( );
+
+      // Properties of a game (library_properties.cpp)
+      extern void
+        SKIF_Properties_Draw (void);
+        SKIF_Properties_Draw (    );
 
       // Needs to be processed after all ImGui windows have run
       if (! HoverTipActive)

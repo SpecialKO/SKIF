@@ -640,7 +640,6 @@ DrawGameDetails_Play (app_record_s* pApp)
   if (ImGui::IsItemClicked (ImGuiMouseButton_Right) &&
       GameMenu       == PopupState_Closed &&
       AddGamePopup   == PopupState_Closed &&
-      ModifyGamePopup== PopupState_Closed &&
       EmptySpaceMenu == PopupState_Closed)
   {
     EmptySpaceMenu = PopupState_Open;

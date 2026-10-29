@@ -42,7 +42,6 @@
 #include <SKIF.h>
 #include <fonts/fa_621.h>
 #include <fonts/fa_621b.h>
-#include <tabs/properties.h>
 
 // Steam client state (declared in steam_library.h)
 bool steamRunning  = false;
@@ -2018,60 +2017,6 @@ app_record_steam_s::GetStoreDebugFields (void) const
     { "Favorited",        std::to_string (steam.shared.favorite)          },
     { "Hidden",           std::to_string (steam.shared.hidden)            }
   };
-}
-
-#pragma endregion
-
-#pragma region Properties
-
-// The launch options set in Steam (right click > Properties > General). Shown only: SKIF never changes them.
-class PropertiesSection_SteamClient : public IPropertySection
-{
-public:
-  const char*    GetTitle (void) const override { return ""; }
-  PropertiesPage GetPage  (void) const override { return PropertiesPage::Store; }
-  int            GetOrder (void) const override { return 10; }
-
-  void Load (app_record_s& app) override
-  {
-    options = app.GetClientLaunchOptions ( );
-  }
-
-  void Draw (app_record_s& app) override
-  {
-    UNREFERENCED_PARAMETER (app);
-
-    static char buffer [4096 + 2] = { };
-
-    strncpy_s (buffer, options.c_str ( ), _TRUNCATE);
-
-    SKIF_Properties_Label    ("Launch options", "Set in Steam: right click the game > Properties > General.");
-    ImGui::PushStyleColor    (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
-    ImGui::SetNextItemWidth  (-FLT_MIN);
-    ImGui::InputTextWithHint ("###PropsSteamClientOptions", "(none)", buffer, sizeof (buffer) - 2, ImGuiInputTextFlags_ReadOnly);
-    SKIF_ImGui_BlockDragMoveWhenItemActive ( );
-    ImGui::PopStyleColor     ( );
-
-    ImGui::SetCursorPosX     (ImGui::GetCursorPosX ( ) + SKIF_Properties_GetLabelWidth ( ));
-    ImGui::PushTextWrapPos   (0.0f);
-    ImGui::TextDisabled      ("These are added to the game's own launch options, but not to the ones from Special K or your own. "
-                              "SKIF does not change them: edit them in Steam.");
-    ImGui::PopTextWrapPos    ( );
-  }
-
-  bool     IsDirty (void) const override              { return false; }
-  uint32_t Apply   (app_record_s& app) override       { UNREFERENCED_PARAMETER (app); return PropertiesApply_None; }
-
-private:
-  std::string options;
-};
-
-void
-app_record_steam_s::AddPropertySections (std::vector <std::unique_ptr <IPropertySection>>& out)
-{
-  // Not for Special K's own entry
-  if (! IsSpecialK ( ))
-    out.push_back (std::make_unique <PropertiesSection_SteamClient> ( ));
 }
 
 #pragma endregion

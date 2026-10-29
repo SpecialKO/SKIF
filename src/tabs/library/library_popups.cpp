@@ -65,8 +65,7 @@ DrawLibraryPopups (void)
     _art.ReleaseCurrentCover ( );
   }
 
-  // Popup: Properties (library_properties.cpp)
-  SKIF_Properties_Draw ( );
+  // Properties: a window of its own, drawn after the main window (SKIF_Properties_Draw in SKIF.cpp)
 
 
 

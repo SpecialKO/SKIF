@@ -149,21 +149,6 @@ _SamePath (const std::wstring& a, const std::wstring& b)
   return (_wcsicmp (x.c_str ( ), y.c_str ( )) == 0);
 }
 
-// An icon in a fixed-width slot before a label, so rows with different icons line up
-static void
-_LeadingIcon (const ImVec4& color, const char* icon, const char* tooltip)
-{
-  const float x = ImGui::GetCursorPosX ( );
-
-  ImGui::AlignTextToFramePadding ( );
-  ImGui::TextColored (color, "%s", icon);
-
-  if (tooltip != nullptr)
-    SKIF_ImGui_SetHoverTip (tooltip);
-
-  ImGui::SameLine (x + ImGui::GetFrameHeight ( ) + ImGui::GetStyle ( ).ItemSpacing.x);
-}
-
 static const char*
 _InstantPlayName (int value)
 {
@@ -343,15 +328,15 @@ private:
 
 #pragma region Launch behavior
 
-// How the game is launched, above its launch options:
+// How the game is launched (General page, below the library settings):
 //   Instant Play: the game's setting (db.json), used by the launch options the platform client can start itself
 //   Auto-stop:    the injection service's behavior, stored for the install folder in the registry (SKIF_LaunchBehaviors)
 class PropertiesSection_LaunchBehavior : public IPropertySection
 {
 public:
   const char*    GetTitle (void) const override { return ""; }
-  PropertiesPage GetPage  (void) const override { return PropertiesPage::Launch; }
-  int            GetOrder (void) const override { return 5; }
+  PropertiesPage GetPage  (void) const override { return PropertiesPage::General; }
+  int            GetOrder (void) const override { return 20; }
 
   // The working copy, for PropertiesSection_LaunchOptions
   const int*     GetInstantPlay (void) const { return &instantPlay; }
@@ -379,14 +364,14 @@ public:
   {
     UNREFERENCED_PARAMETER (app);
 
+    ImGui::Separator   ( );
+    SKIF_ImGui_Spacing ( );
+
     // Instant Play (the game's setting)
     if (instantPlayCompatible)
     {
-      _LeadingIcon           (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION,
-                              "Warning: This skips the regular platform launch process for the game,\n"
-                              "including steps like the cloud saves synchronization that usually occurs.");
-      SKIF_Properties_Label  ("Instant Play:", "Used by the launch options of the game that the platform client can start itself.\n"
-                                               "Other launch options always use Instant Play.");
+      SKIF_Properties_Label  ("Instant Play", "Used by the launch options of the game that the platform client can start itself.\n"
+                                              "Other launch options always use Instant Play.");
 
       ImGui::RadioButton     (SKIF_Util_FormatStringRaw ("Default (%s)###PropsIPDefault", (instantPlayGlobal) ? "Always" : "Never"), &instantPlay, 0);
       SKIF_ImGui_SetHoverTip ("The game will use the default behavior configured in the Settings tab.");
@@ -396,21 +381,20 @@ public:
       ImGui::SameLine        ( );
       ImGui::RadioButton     ("Always###PropsIPAlways", &instantPlay, 1);
       SKIF_ImGui_SetHoverTip ("The game will always use instant play except\nwhen launched through the right click menu.");
+      ImGui::SameLine        ( );
+      ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
+      SKIF_ImGui_SetHoverTip ("Warning: This skips the regular platform launch process for the game,\n"
+                              "including steps like the cloud saves synchronization that usually occurs.");
     }
 
     // Auto-stop
-    _LeadingIcon           (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB,
-                            "This determines how long the service will remain running when launching the game.\n"
-                            "Move the mouse over each option to get more information.");
-    SKIF_Properties_Label  ("Auto-stop:");
+    SKIF_Properties_Label  ("Auto-stop", "This determines how long the service will remain running when launching the game.\n"
+                                         "Move the mouse over each option to get more information.");
 
     if (folder.empty ( ))
       ImGui::TextDisabled ("Not available for this game.");
     else
       _DrawAutoStop ( );
-
-    SKIF_ImGui_Spacing ( );
-    ImGui::Separator   ( );
   }
 
   bool IsDirty (void) const override
@@ -550,6 +534,31 @@ public:
       }
     }
 
+    // Special K per executable (Disable Special K / Elevated service), shared by all launch configs starting it
+    {
+      static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
+
+      services.clear ( );
+      hasServlet = _inject.bHasServlet;
+
+      for (auto& it : app.launch_configs)
+      {
+        app_record_s::launch_config_s& lc = it.second;
+
+        if (! app.IsLaunchConfigAvailable (lc) || _FindService (lc.getExecutableFullPath ( )) != -1)
+          continue;
+
+        service_s svc;
+        svc.configId       = lc.id;
+        svc.path           = lc.getExecutableFullPath ( );
+        svc.blocked        = svc.blockedOrig  = lc.isBlacklisted ( );
+        svc.elevated       = svc.elevatedOrig = lc.isElevated    ( );
+        svc.blockedPattern = _inject._TestUserList (lc.getExecutableFullPathUTF8 ( ).c_str ( ), false);
+
+        services.push_back (svc);
+      }
+    }
+
     // lc_user.json, in the order of the file
     userReadable = SKIF_UserLaunchConfigs::Get (app, userOrig);
 
@@ -574,8 +583,6 @@ public:
   {
     using LaunchSource = app_record_s::LaunchSource;
 
-    ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption), "Launch options:");
-
     if (rows.empty ( ))
     {
       ImGui::TextDisabled ("This game has no launch options.");
@@ -585,18 +592,22 @@ public:
     if (selected < 0 || selected >= static_cast <int> (rows.size ( )))
       selected = 0;
 
-    const int   effectiveDefault = (defaultRow != -1) ? defaultRow : primaryRow;
-    // Fill the page: the list, the three button rows below it, and room for two lines of notes
-    const float fHeight          = std::max (150.0f * SKIF_ImGui_GlobalDPIScale,
-                                             ImGui::GetContentRegionAvail ( ).y - ImGui::GetFrameHeightWithSpacing ( ) * 3.0f
-                                                                                - ImGui::GetTextLineHeightWithSpacing ( ) * 2.0f
-                                                                                - ImGui::GetStyle ( ).ItemSpacing.y * 2.0f);
-    const float fListWidth       = std::max (330.0f * SKIF_ImGui_GlobalDPIScale, ImGui::GetContentRegionAvail ( ).x * 0.4f);
+    const ImGuiStyle& style            = ImGui::GetStyle ( );
+    const int         effectiveDefault = (defaultRow != -1) ? defaultRow : primaryRow;
 
-    // The list
-    ImGui::BeginGroup ( );
+    // The launch options at the top: room for up to six of them, the list scrolls for more
+    int separators = 0;
 
-    ImGui::BeginChild ("###PropsLaunchList", ImVec2 (fListWidth, fHeight), ImGuiChildFlags_Borders);
+    for (size_t i = 1; i < rows.size ( ); i++)
+      if (rows [i].source != rows [i - 1].source)
+        separators++;
+
+    const int   visibleRows = std::clamp (static_cast <int> (rows.size ( )), 3, 6);
+    const float fListHeight = visibleRows * ImGui::GetTextLineHeightWithSpacing ( )
+                            + std::min (separators, 2) * style.ItemSpacing.y
+                            + style.WindowPadding.y * 2.0f;
+
+    ImGui::BeginChild ("###PropsLaunchList", ImVec2 (0.0f, fListHeight), ImGuiChildFlags_Borders);
 
     LaunchSource lastSource = rows.front ( ).source;
 
@@ -613,7 +624,16 @@ public:
 
       const std::string label = _RowLabel (row);
 
-      if (ImGui::Selectable (SKIF_Util_FormatStringRaw ("%s%s###PropsLaunchRow-%d", (i == effectiveDefault) ? ICON_FA_STAR "  " : "", (label.empty ( )) ? "<no description>" : label.c_str ( ), i), selected == i))
+      // As in the game menu: Special K disabled / elevated service for the executable
+      const int  svcIdx   = _FindService (_RowFullExe (row));
+      const bool blocked  = (svcIdx != -1 && (services [svcIdx].blocked || services [svcIdx].blockedPattern));
+      const bool elevated = (svcIdx != -1 && ! blocked && services [svcIdx].elevated);
+
+      if (ImGui::Selectable (SKIF_Util_FormatStringRaw ("%s%s%s%s###PropsLaunchRow-%d",
+                                (i == effectiveDefault) ? ICON_FA_STAR        "  " : "",
+                                (blocked)               ? ICON_FA_LOCK        "  " : "",
+                                (elevated)              ? ICON_FA_USER_SHIELD "  " : "",
+                                (label.empty ( )) ? "<no description>" : label.c_str ( ), i), selected == i))
       {
         if (selected != i)
           pickError.clear ( );
@@ -627,22 +647,21 @@ public:
 
     ImGui::EndChild ( );
 
-    // Buttons below the list
-    const bool   isUser      = (rows [selected].source == LaunchSource::User);
-    const ImVec2 vButtonSize = ImVec2 ((fListWidth - ImGui::GetStyle ( ).ItemSpacing.x * 2.0f) / 3.0f, 0.0f);
+    // Buttons below the list: editing at the left, sharing through the clipboard at the right (below, if there is no room)
+    const bool isUser = (rows [selected].source == LaunchSource::User);
 
     SKIF_ImGui_PushDisableState (! userReadable);
-    if (ImGui::Button ("Add###PropsLaunchAdd", vButtonSize))
+    if (ImGui::Button ("Add###PropsLaunchAdd"))
       _AddUserRow (app);
     SKIF_ImGui_PopDisableState  (! userReadable);
-    SKIF_ImGui_SetHoverTip ("Adds a new launch option of your own (lc_user.json).");
+    SKIF_ImGui_SetHoverTip ("Adds a new launch option of your own (lc_user.json).", false, true);
 
     ImGui::SameLine ( );
 
     const bool canDuplicate = (userReadable && (isUser || rows [selected].duplicateBlocker.empty ( )));
 
     SKIF_ImGui_PushDisableState (! canDuplicate);
-    if (ImGui::Button ("Duplicate###PropsLaunchDuplicate", vButtonSize))
+    if (ImGui::Button ("Duplicate###PropsLaunchDuplicate"))
       _Duplicate (selected, 0, false);
     SKIF_ImGui_PopDisableState  (! canDuplicate);
     SKIF_ImGui_SetHoverTip ((canDuplicate || ! userReadable) ? "Creates an editable copy of the selected launch option." : rows [selected].duplicateBlocker.c_str ( ), false, true);
@@ -650,22 +669,20 @@ public:
     ImGui::SameLine ( );
 
     SKIF_ImGui_PushDisableState (! isUser);
-    if (ImGui::Button ("Remove###PropsLaunchRemove", vButtonSize))
+    if (ImGui::Button ("Remove###PropsLaunchRemove"))
       _RemoveRow (selected);
     SKIF_ImGui_PopDisableState  (! isUser);
     SKIF_ImGui_SetHoverTip ((isUser) ? "Removes the selected launch option." : "Launch options of the platform and Special K can't be removed.", false, true);
 
     // The last launch option was removed
     if (rows.empty ( ))
-    {
-      ImGui::EndGroup ( );
       return;
-    }
 
-    const bool   isDefault   = (selected == defaultRow);
-    const ImVec2 vDefaultBtn = ImVec2 (fListWidth - vButtonSize.x - ImGui::GetStyle ( ).ItemSpacing.x, 0.0f); // The two arrows take up the width of one button
+    ImGui::SameLine ( );
 
-    if (ImGui::Button ((isDefault) ? "Clear default###PropsLaunchDefault" : ICON_FA_STAR "  Set as default###PropsLaunchDefault", vDefaultBtn))
+    const bool isDefault = (selected == defaultRow);
+
+    if (ImGui::Button ((isDefault) ? "Clear default###PropsLaunchDefault" : ICON_FA_STAR "  Set as default###PropsLaunchDefault"))
     {
       defaultRow  = (isDefault) ? -1 : selected;
       keepMissing = false;
@@ -675,35 +692,53 @@ public:
 
     ImGui::SameLine ( );
 
-    const bool canUp   = (isUser && selected > 0                                     && rows [selected - 1].source == LaunchSource::User);
-    const bool canDown = (isUser && selected < static_cast <int> (rows.size ( )) - 1 && rows [selected + 1].source == LaunchSource::User);
+    const bool selectedUser = (rows [selected].source == LaunchSource::User);
+    const bool canUp        = (selectedUser && selected > 0                                     && rows [selected - 1].source == LaunchSource::User);
+    const bool canDown      = (selectedUser && selected < static_cast <int> (rows.size ( )) - 1 && rows [selected + 1].source == LaunchSource::User);
 
     SKIF_ImGui_PushDisableState (! canUp);
-    if (ImGui::Button (ICON_FA_CHEVRON_UP "###PropsLaunchUp", ImVec2 ((vButtonSize.x - ImGui::GetStyle ( ).ItemSpacing.x) / 2.0f, 0.0f)))
+    if (ImGui::Button (ICON_FA_CHEVRON_UP "###PropsLaunchUp"))
       _MoveRow (selected, -1);
     SKIF_ImGui_PopDisableState  (! canUp);
+    SKIF_ImGui_SetHoverTip ("Moves the launch option up among your own.", false, true);
 
     ImGui::SameLine ( );
 
     SKIF_ImGui_PushDisableState (! canDown);
-    if (ImGui::Button (ICON_FA_CHEVRON_DOWN "###PropsLaunchDown", ImVec2 ((vButtonSize.x - ImGui::GetStyle ( ).ItemSpacing.x) / 2.0f, 0.0f)))
+    if (ImGui::Button (ICON_FA_CHEVRON_DOWN "###PropsLaunchDown"))
       _MoveRow (selected, +1);
     SKIF_ImGui_PopDisableState  (! canDown);
+    SKIF_ImGui_SetHoverTip ("Moves the launch option down among your own.", false, true);
 
     // Sharing your own launch options through the clipboard
-    const bool hasUserRows  = std::any_of (rows.begin ( ), rows.end ( ), [](const row_s& row) { return row.source == LaunchSource::User; });
-    const bool selectedUser = (rows [selected].source == LaunchSource::User);
+    auto _ButtonWidth = [&](const char* label) -> float
+    {
+      return ImGui::CalcTextSize (label, nullptr, true).x + style.FramePadding.x * 2.0f;
+    };
+
+    const float fShareWidth = _ButtonWidth ("Import...") + _ButtonWidth ("Export...") + _ButtonWidth ("Export All...") + style.ItemSpacing.x * 2.0f;
+
+    ImGui::SameLine ( );
+
+    const float fAvail = ImGui::GetContentRegionAvail ( ).x;
+
+    if (fAvail >= fShareWidth)
+      ImGui::SetCursorPosX (ImGui::GetCursorPosX ( ) + fAvail - fShareWidth);
+    else
+      ImGui::NewLine ( );
+
+    const bool hasUserRows = std::any_of (rows.begin ( ), rows.end ( ), [](const row_s& row) { return row.source == LaunchSource::User; });
 
     SKIF_ImGui_PushDisableState (! userReadable);
-    if (ImGui::Button ("Import...###PropsLaunchImport", vButtonSize))
+    if (ImGui::Button ("Import...###PropsLaunchImport"))
       _Import (app);
     SKIF_ImGui_PopDisableState  (! userReadable);
-    SKIF_ImGui_SetHoverTip ("Adds launch options from the clipboard to your own,\nas copied by Export All / Export Current.", false, true);
+    SKIF_ImGui_SetHoverTip ("Adds launch options from the clipboard to your own,\nas copied by Export / Export All.", false, true);
 
     ImGui::SameLine ( );
 
     SKIF_ImGui_PushDisableState (! selectedUser);
-    if (ImGui::Button ("Export...###PropsLaunchExportCurrent", vButtonSize))
+    if (ImGui::Button ("Export...###PropsLaunchExportCurrent"))
       _Export (app, true);
     SKIF_ImGui_PopDisableState  (! selectedUser);
     SKIF_ImGui_SetHoverTip ((selectedUser) ? "Copies the selected launch option to the clipboard."
@@ -712,25 +747,12 @@ public:
     ImGui::SameLine ( );
 
     SKIF_ImGui_PushDisableState (! hasUserRows);
-    if (ImGui::Button ("Export All...###PropsLaunchExportAll", vButtonSize))
+    if (ImGui::Button ("Export All...###PropsLaunchExportAll"))
       _Export (app, false);
     SKIF_ImGui_PopDisableState  (! hasUserRows);
     SKIF_ImGui_SetHoverTip ("Copies all of your own launch options to the clipboard.", false, true);
 
-    ImGui::EndGroup ( );
-
-    ImGui::SameLine ( );
-
-    // The selected launch option
-    ImGui::BeginChild ("###PropsLaunchEditor", ImVec2 (0.0f, fHeight + ImGui::GetFrameHeightWithSpacing ( ) * 3.0f), ImGuiChildFlags_None);
-
-    if (rows [selected].source == LaunchSource::User)
-      _DrawUserRow     (app, rows [selected]);
-    else
-      _DrawReadOnlyRow (app, selected);
-
-    ImGui::EndChild ( );
-
+    // Notes / errors of the buttons above
     if (! pickError.empty ( ))
     {
       ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
@@ -755,6 +777,16 @@ public:
       if (ImGui::SmallButton ("Clear###PropsLaunchClearMissing"))
         keepMissing = false;
     }
+
+    // The fields of the selected launch option, below the list
+    SKIF_ImGui_Spacing ( );
+    ImGui::Separator   ( );
+    SKIF_ImGui_Spacing ( );
+
+    if (rows [selected].source == LaunchSource::User)
+      _DrawUserRow     (app, rows [selected]);
+    else
+      _DrawReadOnlyRow (app, selected);
   }
 
   void Validate (app_record_s& app, std::vector <property_issue_s>& out) override
@@ -802,10 +834,13 @@ public:
     }
   }
 
+  std::string GetApplyError (void) const override { return applyError; }
+
   bool IsDirty (void) const override
   {
     return (_CollectUsers ( )    != userOrig    ||
-            _GetDefaultRef ( )   != defaultOrig);
+            _GetDefaultRef ( )   != defaultOrig ||
+            _ServicesDirty ( ));
   }
 
   uint32_t Apply (app_record_s& app) override
@@ -814,13 +849,38 @@ public:
 
     std::vector <user_launch_config_s> users = _CollectUsers ( );
 
+    applyError.clear ( );
+
     if (users != userOrig)
     {
       // Launch configs are only read when the library is populated
       if (SKIF_UserLaunchConfigs::Set (app, users))
         ret |= PropertiesApply_Repopulate;
+
+      // Nothing else of this section is applied either, so all of it can be saved again
       else
-        SKIF_ImGui_InfoMessage ("Launch options", "Your launch options could not be saved to lc_user.json.\n\nSee the log for details.");
+      {
+        applyError = "Your launch options could not be saved to lc_user.json. See the log for details.";
+        return PropertiesApply_Failed;
+      }
+    }
+
+    // Special K per executable, through one of the launch configs starting it (also maintains Special K's own files)
+    for (auto& svc : services)
+    {
+      auto it = app.launch_configs.find (svc.configId);
+
+      // Only if it is still the same launch config (the library may have been refreshed meanwhile)
+      if (it == app.launch_configs.end ( ) || it->second.getExecutableFullPath ( ) != svc.path)
+        continue;
+
+      app_record_s::launch_config_s& lc = it->second;
+
+      if (svc.blocked != svc.blockedOrig)
+        lc.setBlacklisted (svc.blocked);
+
+      if (! svc.blocked && svc.elevated != svc.elevatedOrig)
+        lc.setElevated (svc.elevated);
     }
 
     app_record_s::launch_ref_s ref = _GetDefaultRef ( );
@@ -852,6 +912,95 @@ private:
     // User rows: the lc_user.json entry being edited
     user_launch_config_s       user;
   };
+
+  // Special K settings of an executable (as in the details panel), applied through a launch config that starts it
+  struct service_s {
+    int          configId       = -1;
+    std::wstring path;
+    bool         blocked        = false,
+                 blockedOrig    = false;
+    bool         elevated       = false,
+                 elevatedOrig   = false;
+    bool         blockedPattern = false; // Blocked through a blacklist pattern in the Settings tab
+  };
+
+  std::vector <service_s>            services;
+  std::string                        applyError;                    // Why the last Apply failed
+  bool                               hasServlet            = true;
+
+  int _FindService (const std::wstring& path) const
+  {
+    for (int i = 0; i < static_cast <int> (services.size ( )); i++)
+      if (_SamePath (services [i].path, path))
+        return i;
+
+    return -1;
+  }
+
+  bool _ServicesDirty (void) const
+  {
+    for (const auto& svc : services)
+      if (svc.blocked != svc.blockedOrig || (! svc.blocked && svc.elevated != svc.elevatedOrig))
+        return true;
+
+    return false;
+  }
+
+  std::wstring _RowFullExe (const row_s& row) const
+  {
+    return (row.source == app_record_s::LaunchSource::User) ? _UserFullExe (row.user) : SK_UTF8ToWideChar (row.fullExe);
+  }
+
+  void _DrawService (const std::wstring& path)
+  {
+    SKIF_Properties_Label ("Special K", "Applies to the executable, so to every launch option that starts it.");
+
+    if (! hasServlet)
+    {
+      ImGui::TextColored  (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
+      ImGui::SameLine     ( );
+      ImGui::TextDisabled ("Special K is unavailable due to missing files.");
+      return;
+    }
+
+    const int idx = _FindService (path);
+
+    // A new executable: the library has no launch config for it until the launch options are saved
+    if (idx == -1)
+    {
+      ImGui::TextDisabled ("Save first to change these for this executable.");
+      return;
+    }
+
+    service_s& svc = services [idx];
+
+    bool blocked = (svc.blocked || svc.blockedPattern);
+
+    SKIF_ImGui_PushDisableState (svc.blockedPattern);
+    if (ImGui::Checkbox ("Disable Special K###PropsSvcBlocked", &blocked) && ! svc.blockedPattern)
+      svc.blocked = blocked;
+    SKIF_ImGui_PopDisableState  (svc.blockedPattern);
+
+    if (svc.blockedPattern)
+      SKIF_ImGui_SetHoverTip ("Special K is disabled through a blacklist pattern in the Settings tab.", true, true);
+
+    ImGui::SameLine ( );
+    ImGui::Spacing  ( );
+    ImGui::SameLine ( );
+
+    // A blocked executable does not use the service, so it cannot be elevated either
+    const bool elevateDisabled = (svc.blocked || svc.blockedPattern);
+
+    bool elevated = (svc.elevated && ! elevateDisabled);
+
+    SKIF_ImGui_PushDisableState (elevateDisabled);
+    if (ImGui::Checkbox ("Elevated service###PropsSvcElevated", &elevated) && ! elevateDisabled)
+      svc.elevated = elevated;
+    SKIF_ImGui_PopDisableState  (elevateDisabled);
+
+    if (elevateDisabled)
+      SKIF_ImGui_SetHoverTip ("Special K is disabled for this executable, so the service is not used.", true, true);
+  }
 
   std::vector <row_s>                rows;           // Platform, SKIF, then User (in lc_user.json order)
   std::vector <user_launch_config_s> userOrig;       // lc_user.json as loaded
@@ -1418,6 +1567,8 @@ private:
 
     SKIF_ImGui_PopDisableState (! userReadable);
 
+    _DrawService (_UserFullExe (user));
+
 
     // Preview of what is started
     SKIF_ImGui_Spacing ( );
@@ -1491,6 +1642,8 @@ private:
       }
     }
 
+    _DrawService (SK_UTF8ToWideChar (row.fullExe));
+
     // The client's own launch options (Steam), never edited by SKIF
     if (row.source == app_record_s::LaunchSource::Platform && ! clientOptions.empty ( ))
     {
@@ -1505,205 +1658,50 @@ private:
 #pragma endregion
 
 
-#pragma region Special K
+#pragma region Dialog
 
-// Per launch option: Special K disabled (blocked) and elevated service, as in the details panel
-class PropertiesSection_Service : public IPropertySection
-{
-public:
-  const char*    GetTitle (void) const override { return "Injection service per launch option:"; }
-  PropertiesPage GetPage  (void) const override { return PropertiesPage::SpecialK; }
-  int            GetOrder (void) const override { return 10; }
+// Each Properties window is a window of its own (a separate platform window, like Local Installs and the INI editor),
+//   so it is usable whatever the size or mode of the main window, and several can be open at once: one per game.
+//   A window edits the game it was opened for, looked up again every frame, so it doesn't depend on the library tab
+//   being drawn or on the selection.
+struct properties_window_s {
+  int                                              id           = 0;     // Part of the ImGui window ID
+  bool                                             focusRequest = true;  // Bring the window to the front next frame
+  app_key_s                                        game;
+  PropertiesPage                                   page         = PropertiesPage::General;
+  HWND                                             hwnd         = nullptr;
+  std::vector <std::unique_ptr <IPropertySection>> sections;
 
-  void Load (app_record_s& app) override
+  bool IsDirty (void) const
   {
-    static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
-
-    rows.clear ( );
-
-    for (auto& it : app.launch_configs)
-    {
-      app_record_s::launch_config_s& lc = it.second;
-
-      if (! app.IsLaunchConfigAvailable (lc))
-        continue;
-
-      row_s row;
-      row.configId       = lc.id;
-      row.path           = lc.getExecutableFullPath ( );
-      row.label          = (! lc.description.empty ( )) ? SK_WideCharToUTF8 (lc.description) : lc.getExecutableFileNameUTF8 ( );
-      row.blocked        = row.blockedOrig  = lc.isBlacklisted ( );
-      row.elevated       = row.elevatedOrig = lc.isElevated    ( );
-      row.blockedPattern = _inject._TestUserList (lc.getExecutableFullPathUTF8 ( ).c_str ( ), false);
-
-      switch (app_record_s::GetLaunchSource (lc))
-      {
-        case app_record_s::LaunchSource::SKIF: row.label += "  (Special K)"; break;
-        case app_record_s::LaunchSource::User: row.label += "  (yours)";     break;
-        default:                                                             break;
-      }
-
-      rows.push_back (row);
-    }
-  }
-
-  void Draw (app_record_s& app) override
-  {
-    static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
-
-    UNREFERENCED_PARAMETER (app);
-
-    if (! _inject.bHasServlet)
-    {
-      ImGui::TextColored  (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
-      ImGui::SameLine     ( );
-      ImGui::TextDisabled ("Special K is unavailable due to missing files.");
-    }
-
-    if (rows.empty ( ))
-    {
-      ImGui::TextDisabled ("This game has no launch options.");
-      return;
-    }
-
-    // Two checkbox columns after the names
-    const float fNameWidth = std::max (150.0f * SKIF_ImGui_GlobalDPIScale,
-                                       ImGui::GetContentRegionAvail ( ).x - (ImGui::CalcTextSize ("Disable Special K").x + ImGui::CalcTextSize ("Elevated service").x) - ImGui::GetFrameHeight ( ) * 2.0f - ImGui::GetStyle ( ).ItemSpacing.x * 6.0f);
-
-    for (int i = 0; i < static_cast <int> (rows.size ( )); i++)
-    {
-      row_s& row = rows [i];
-
-      ImGui::PushID (i);
-
-      const float x = ImGui::GetCursorPosX ( );
-
-      ImGui::AlignTextToFramePadding ( );
-      ImGui::TextUnformatted         (row.label.c_str ( ));
-      SKIF_ImGui_SetHoverText        (SK_WideCharToUTF8 (row.path).c_str ( ));
-
-      ImGui::SameLine (x + fNameWidth);
-
-      // Blocked through a pattern in the Settings tab
-      bool blocked = (row.blocked || row.blockedPattern);
-
-      SKIF_ImGui_PushDisableState (row.blockedPattern);
-      if (ImGui::Checkbox ("Disable Special K###PropsSvcBlocked", &blocked) && ! row.blockedPattern)
-        row.blocked = blocked;
-      SKIF_ImGui_PopDisableState  (row.blockedPattern);
-
-      if (row.blockedPattern)
-        SKIF_ImGui_SetHoverTip ("Special K is disabled through a blacklist pattern in the Settings tab.", true, true);
-
-      ImGui::SameLine ( );
-      ImGui::Spacing  ( );
-      ImGui::SameLine ( );
-
-      // A blocked executable does not use the service, so it cannot be elevated either
-      const bool elevateDisabled = (row.blocked || row.blockedPattern);
-
-      bool elevated = (row.elevated && ! elevateDisabled);
-
-      SKIF_ImGui_PushDisableState (elevateDisabled);
-      if (ImGui::Checkbox ("Elevated service###PropsSvcElevated", &elevated) && ! elevateDisabled)
-        row.elevated = elevated;
-      SKIF_ImGui_PopDisableState  (elevateDisabled);
-
-      if (elevateDisabled)
-        SKIF_ImGui_SetHoverTip ("Special K is disabled for this executable, so the service is not used.", true, true);
-
-      ImGui::PopID ( );
-    }
-  }
-
-  bool IsDirty (void) const override
-  {
-    for (const auto& row : rows)
-      if (row.blocked != row.blockedOrig || (! row.blocked && row.elevated != row.elevatedOrig))
+    for (auto& section : sections)
+      if (section->IsDirty ( ))
         return true;
 
     return false;
   }
-
-  uint32_t Apply (app_record_s& app) override
-  {
-    for (auto& row : rows)
-    {
-      auto it = app.launch_configs.find (row.configId);
-
-      // Only if it is still the same launch config (the library may have been refreshed meanwhile)
-      if (it == app.launch_configs.end ( ) || it->second.getExecutableFullPath ( ) != row.path)
-        continue;
-
-      app_record_s::launch_config_s& lc = it->second;
-
-      if (row.blocked != row.blockedOrig)
-        lc.setBlacklisted (row.blocked);
-
-      if (! row.blocked && row.elevated != row.elevatedOrig)
-        lc.setElevated (row.elevated);
-    }
-
-    return PropertiesApply_None;
-  }
-
-private:
-  struct row_s {
-    int          configId       = -1;
-    std::wstring path;
-    std::string  label;
-    bool         blocked        = false,
-                 blockedOrig    = false;
-    bool         elevated       = false,
-                 elevatedOrig   = false;
-    bool         blockedPattern = false;
-  };
-
-  std::vector <row_s> rows;
 };
 
-#pragma endregion
+static std::vector <std::unique_ptr <properties_window_s>> s_windows;
 
-
-#pragma region Dialog
-
-static struct properties_dialog_s {
-  bool                                             active = false;
-  app_key_s                                        game;
-  std::vector <std::unique_ptr <IPropertySection>> sections;
-} s_dialog;
-
-static void
-_SKIF_Properties_Close (app_record_s* pApp)
+static std::unique_ptr <properties_window_s>
+_SKIF_Properties_Create (app_record_s* pApp)
 {
-  s_dialog.sections.clear ( );
-  s_dialog.active = false;
+  static int nextId = 0;
 
-  ModifyGamePopup = PopupState_Closed;
-
-  if (pApp != nullptr)
-    pApp->launch_failed = false;
-}
-
-static void
-_SKIF_Properties_Build (app_record_s* pApp)
-{
-  s_dialog.sections.clear ( );
+  auto wnd = std::make_unique <properties_window_s> ( );
 
   auto launchBehavior = std::make_unique <PropertiesSection_LaunchBehavior> ( );
   auto launchOptions  = std::make_unique <PropertiesSection_LaunchOptions>  (launchBehavior->GetInstantPlay ( ));
 
-  s_dialog.sections.push_back (std::make_unique <PropertiesSection_General>       ( ));
-  s_dialog.sections.push_back (std::move (launchBehavior));
-  s_dialog.sections.push_back (std::move (launchOptions));
+  wnd->sections.push_back (std::make_unique <PropertiesSection_General> ( ));
+  wnd->sections.push_back (std::move (launchBehavior));
+  wnd->sections.push_back (std::move (launchOptions));
 
-  if (! pApp->launch_configs.empty ( ))
-    s_dialog.sections.push_back (std::make_unique <PropertiesSection_Service>     ( ));
+  // Store-specific sections (Custom: the executable)
+  pApp->AddPropertySections (wnd->sections);
 
-  // Store-specific sections (Custom: the executable; Steam: the client's launch options)
-  pApp->AddPropertySections (s_dialog.sections);
-
-  std::stable_sort (s_dialog.sections.begin ( ), s_dialog.sections.end ( ),
+  std::stable_sort (wnd->sections.begin ( ), wnd->sections.end ( ),
     [](const std::unique_ptr <IPropertySection>& a, const std::unique_ptr <IPropertySection>& b)
     {
       if (a->GetPage ( ) != b->GetPage ( ))
@@ -1712,74 +1710,82 @@ _SKIF_Properties_Build (app_record_s* pApp)
       return (a->GetOrder ( ) < b->GetOrder ( ));
     });
 
-  for (auto& section : s_dialog.sections)
+  for (auto& section : wnd->sections)
     section->Load (*pApp);
 
-  s_dialog.game   = pApp->GetKey ( );
-  s_dialog.active = true;
+  wnd->id   = nextId++;
+  wnd->game = pApp->GetKey ( );
+
+  return wnd;
 }
 
-void
-SKIF_Properties_Draw (void)
+// Draws one window; returns false once it has been closed
+static bool
+_SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
 {
   static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
-  static app_record_s*&         pApp        = GetLibraryTab ( ).pApp;
   static bool&                  update      = GetLibraryTab ( ).update;
-
-  if (ModifyGamePopup == PopupState_Closed)
-  {
-    // Closed from elsewhere
-    if (s_dialog.active)
-      _SKIF_Properties_Close (nullptr);
-
-    return;
-  }
-
-  if (pApp == nullptr)
-  {
-    _SKIF_Properties_Close (nullptr);
-    return;
-  }
-
-  // The edits belong to the game the dialog was opened for: a different selection discards them
-  if (s_dialog.active && s_dialog.game != pApp->GetKey ( ))
-  {
-    _SKIF_Properties_Close (pApp);
-    return;
-  }
-
-  if (! s_dialog.active)
-    _SKIF_Properties_Build (pApp);
 
   // Validated before drawing, as the footer is sized after the number of issues
   std::vector <property_issue_s> issues;
 
-  for (auto& section : s_dialog.sections)
+  for (auto& section : wnd.sections)
     section->Validate (*pApp, issues);
 
-  // A fixed size (80% of the main window, within limits), so the tab bar and buttons stay in place between tabs
-  const ImVec2 vpSize      = ImGui::GetWindowViewport ( )->Size;
-  const ImVec2 vPopupSize  = ImVec2 (
-    std::min (vpSize.x * 0.95f, std::max (vpSize.x * 0.8f, 640.0f * SKIF_ImGui_GlobalDPIScale)),
-    std::min (vpSize.y * 0.95f, std::max (vpSize.y * 0.8f, 480.0f * SKIF_ImGui_GlobalDPIScale))
-  );
+  // A window of its own (never merged into the main window), centered on the main window when it appears
+  ImGuiWindowClass wc;
+  wc.ClassId                  = ImGui::GetID ("PropertiesClass");
+  wc.ViewportFlagsOverrideSet = ImGuiViewportFlags_NoAutoMerge;
+  ImGui::SetNextWindowClass (&wc);
 
-  const std::string title =
-    SKIF_Util_FormatStringRaw ("Properties - %s###ModifyGamePopup", pApp->names.normal.c_str ( ));
+  const std::string windowId = SKIF_Util_FormatStringRaw ("###SKIF_Properties-%d", wnd.id);
+  const float       fDPI     = SKIF_ImGui_GetDPIScaleForWindow (windowId.c_str ( ));
 
-  // Not auto-resizing; the page scrolls instead of the window
-  if (SKIF_ImGui_BeginPopup (title.c_str ( ), nullptr, vPopupSize, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
+  // Further windows open a bit offset, so they don't cover each other entirely
+  extern ImRect windowRect;
+  const float   fOffset = static_cast <float> ((wnd.id % 5) * 24) * fDPI;
+
+  ImGui::SetNextWindowPos             (windowRect.GetCenter ( ) + ImVec2 (fOffset, fOffset), ImGuiCond_Appearing, ImVec2 (0.5f, 0.5f));
+  ImGui::SetNextWindowSize            (ImVec2 (900.0f, 620.0f) * fDPI, ImGuiCond_Appearing);
+  ImGui::SetNextWindowSizeConstraints (ImVec2 (720.0f, 460.0f) * fDPI, ImVec2 (FLT_MAX, FLT_MAX));
+
+  if (wnd.focusRequest)
   {
-    if (ModifyGamePopup == PopupState_Open)
+    ImGui::SetNextWindowFocus ( );
+
+    if (wnd.hwnd != nullptr)
     {
-      // Set the popup as opened after it has appeared (fixes popup not opening from other tabs)
-      ImGuiWindow* window = ImGui::FindWindowByName ("###ModifyGamePopup");
-      if (window != nullptr && ! window->Appearing)
-        ModifyGamePopup = PopupState_Opened;
+      if (IsIconic (wnd.hwnd))
+        ShowWindow (wnd.hwnd, SW_RESTORE);
+
+      SetForegroundWindow (wnd.hwnd);
     }
 
-    // Keep Ctrl+A (Add Game) from triggering while the dialog is open
-    allowShortcutCtrlA = false;
+    wnd.focusRequest = false;
+  }
+
+  const std::string title = std::string ("Properties - ") + pApp->names.normal + windowId;
+
+  bool open   = true;
+  bool closed = false;
+
+  if (ImGui::Begin (title.c_str ( ), &open, ImGuiWindowFlags_NoCollapse      |
+                                            ImGuiWindowFlags_NoScrollbar     |
+                                            ImGuiWindowFlags_NoDocking       |
+                                            ImGuiWindowFlags_NoSavedSettings))
+  {
+    if (ImGui::GetWindowViewport ( )->PlatformHandleRaw != nullptr)
+      wnd.hwnd = (HWND)ImGui::GetWindowViewport ( )->PlatformHandleRaw;
+
+    const bool focused = ImGui::IsWindowFocused (ImGuiFocusedFlags_RootAndChildWindows);
+
+    // Keep Ctrl+A (Add Game) from triggering while the window has focus
+    if (focused)
+      allowShortcutCtrlA = false;
+
+    // Escape closes the window (discarding the changes), unless it closes a combo box or menu of ours first
+    if (focused && ImGui::IsKeyPressed (ImGuiKey_Escape, false) && ! ImGui::IsPopupOpen (0u, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
+      closed = true;
 
     ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
 
@@ -1789,73 +1795,76 @@ SKIF_Properties_Draw (void)
     const float       fIssuesH   = (issueLines > 0) ? issueLines * ImGui::GetTextLineHeightWithSpacing ( ) + style.ItemSpacing.y : 0.0f;
     const float       fFooterH   = fIssuesH + ImGui::GetFrameHeightWithSpacing ( ) + style.ItemSpacing.y * 2.0f;
 
+    static constexpr PropertiesPage pages [] = { PropertiesPage::General, PropertiesPage::Launch, PropertiesPage::SpecialK, PropertiesPage::Store };
+
+    auto _HasSections = [&](PropertiesPage page) -> bool
+    {
+      for (auto& section : wnd.sections)
+        if (section->GetPage ( ) == page)
+          return true;
+
+      return false;
+    };
+
+    // The page shown must have sections
+    if (! _HasSections (wnd.page))
+      wnd.page = PropertiesPage::General;
+
+    // Sidebar with the pages
     bool anyDirty = false;
 
-    if (ImGui::BeginTabBar ("###PropsTabs"))
+    ImGui::BeginChild ("###PropsSidebar", ImVec2 (170.0f * SKIF_ImGui_GlobalDPIScale, -fFooterH), ImGuiChildFlags_Borders);
+
+    for (PropertiesPage page : pages)
     {
-      static constexpr PropertiesPage pages [] = { PropertiesPage::General, PropertiesPage::Launch, PropertiesPage::SpecialK, PropertiesPage::Store };
+      bool pageDirty = false;
 
-      for (PropertiesPage page : pages)
-      {
-        bool hasSections = false,
-             pageDirty   = false;
+      for (auto& section : wnd.sections)
+        if (section->GetPage ( ) == page && section->IsDirty ( ))
+          pageDirty = true;
 
-        for (auto& section : s_dialog.sections)
-        {
-          if (section->GetPage ( ) != page)
-            continue;
+      anyDirty = anyDirty || pageDirty;
 
-          hasSections = true;
-          pageDirty   = pageDirty || section->IsDirty ( );
-        }
+      if (! _HasSections (page))
+        continue;
 
-        anyDirty = anyDirty || pageDirty;
+      const char* pageName =
+        (page == PropertiesPage::General)  ? "General"        :
+        (page == PropertiesPage::Launch)   ? "Launch options" :
+        (page == PropertiesPage::SpecialK) ? "Special K"      : pApp->store_utf8.c_str ( );
 
-        if (! hasSections)
-          continue;
-
-        const char* pageName =
-          (page == PropertiesPage::General)  ? "General"   :
-          (page == PropertiesPage::Launch)   ? "Launch"    :
-          (page == PropertiesPage::SpecialK) ? "Special K" : pApp->store_utf8.c_str ( );
-
-        // Changed tabs are marked; the ID stays the same
-        std::string label = SKIF_Util_FormatStringRaw ("%s%s###PropsTab-%d", pageName, (pageDirty) ? " *" : "", static_cast <int> (page));
-
-        if (ImGui::BeginTabItem (label.c_str ( )))
-        {
-          // Every page gets the same area
-          ImGui::BeginChild ("###PropsPage", ImVec2 (0.0f, -fFooterH), ImGuiChildFlags_None);
-
-          SKIF_ImGui_Spacing ( );
-
-          for (auto& section : s_dialog.sections)
-          {
-            if (section->GetPage ( ) != page)
-              continue;
-
-            ImGui::PushID (section.get ( ));
-
-            const char* sectionTitle = section->GetTitle ( );
-
-            if (sectionTitle != nullptr && sectionTitle [0] != '\0')
-              ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption), "%s", sectionTitle);
-
-            section->Draw (*pApp);
-
-            ImGui::PopID ( );
-
-            SKIF_ImGui_Spacing ( );
-          }
-
-          ImGui::EndChild ( );
-
-          ImGui::EndTabItem ( );
-        }
-      }
-
-      ImGui::EndTabBar ( );
+      // Changed pages are marked; the ID stays the same
+      if (ImGui::Selectable (SKIF_Util_FormatStringRaw ("%s%s###PropsPage-%d", pageName, (pageDirty) ? " *" : "", static_cast <int> (page)), wnd.page == page))
+        wnd.page = page;
     }
+
+    ImGui::EndChild ( );
+
+    ImGui::SameLine ( );
+
+    // The selected page
+    ImGui::BeginChild ("###PropsPage", ImVec2 (0.0f, -fFooterH), ImGuiChildFlags_None);
+
+    for (auto& section : wnd.sections)
+    {
+      if (section->GetPage ( ) != wnd.page)
+        continue;
+
+      ImGui::PushID (section.get ( ));
+
+      const char* sectionTitle = section->GetTitle ( );
+
+      if (sectionTitle != nullptr && sectionTitle [0] != '\0')
+        ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption), "%s", sectionTitle);
+
+      section->Draw (*pApp);
+
+      ImGui::PopID ( );
+
+      SKIF_ImGui_Spacing ( );
+    }
+
+    ImGui::EndChild ( );
 
     // Warnings and errors of all sections (errors block Save)
     bool hasErrors = false;
@@ -1863,7 +1872,7 @@ SKIF_Properties_Draw (void)
     for (const auto& issue : issues)
       hasErrors = hasErrors || (issue.level == property_issue_s::Level::Error);
 
-    // Pin the footer to the bottom of the dialog
+    // Pin the footer to the bottom of the window
     ImGui::SetCursorPosY (ImGui::GetWindowHeight ( ) - style.WindowPadding.y - fFooterH + style.ItemSpacing.y);
 
     if (issueLines > 0)
@@ -1882,24 +1891,42 @@ SKIF_Properties_Draw (void)
       ImGui::EndChild ( );
     }
 
+    // Save / Cancel, at the right
     ImVec2 vButtonSize = ImVec2 (80.0f * SKIF_ImGui_GlobalDPIScale, 0.0f);
 
-    const bool  saveDisabled = (! anyDirty || hasErrors);
-    const float fCenterX     = ImGui::GetWindowWidth ( ) / 2.0f;
+    const bool saveDisabled = (! anyDirty || hasErrors);
 
-    ImGui::SetCursorPosX (fCenterX - vButtonSize.x - 20.0f * SKIF_ImGui_GlobalDPIScale);
+    ImGui::SetCursorPosX (ImGui::GetWindowWidth ( ) - style.WindowPadding.x - vButtonSize.x * 2.0f - style.ItemSpacing.x);
 
     SKIF_ImGui_PushDisableState (saveDisabled);
 
-    bool closed = false;
-
     if (ImGui::Button ("Save###PropsSave", vButtonSize))
     {
-      uint32_t effects = PropertiesApply_None;
+      uint32_t                 effects = PropertiesApply_None;
+      std::vector <std::string> errors;
 
-      for (auto& section : s_dialog.sections)
-        if (section->IsDirty ( ))
-          effects |= section->Apply (*pApp);
+      for (auto& section : wnd.sections)
+      {
+        if (! section->IsDirty ( ))
+          continue;
+
+        const uint32_t ret = section->Apply (*pApp);
+
+        if (ret & PropertiesApply_Failed)
+        {
+          // Its changes are kept, so Save can be tried again
+          std::string error = section->GetApplyError ( );
+          errors.push_back ((error.empty ( )) ? std::string ("Some of the changes could not be saved.") : error);
+        }
+
+        else
+        {
+          effects |= ret;
+
+          // Saved: what it shows is what is stored now, so it doesn't apply the same changes again on a later Save
+          section->Load (*pApp);
+        }
+      }
 
       // Update any locally stored metadata
       if (effects != PropertiesApply_None)
@@ -1917,34 +1944,78 @@ SKIF_Properties_Draw (void)
         sort_changed = true;
       }
 
-      closed = true;
-    }
+      // The window stays open on failure, with the error shown as a toast in it
+      for (const auto& error : errors)
+        ImGui::InsertNotification ({ ImGuiToastType::Error, 8000, "Could not save", "%s", error.c_str ( ) });
 
-    SKIF_ImGui_BlockDragMoveWhenItemActive ( );
+      if (errors.empty ( ))
+        closed = true;
+    }
 
     SKIF_ImGui_PopDisableState (saveDisabled);
 
-    ImGui::SameLine      ( );
-    ImGui::SetCursorPosX (fCenterX + 20.0f * SKIF_ImGui_GlobalDPIScale);
+    ImGui::SameLine ( );
 
     if (ImGui::Button ("Cancel###PropsCancel", vButtonSize))
       closed = true;
 
-    SKIF_ImGui_BlockDragMoveWhenItemActive ( );
-
     ImGui::PopStyleColor ( );
 
-    if (closed)
+    // Toasts of this window only (bound to its platform window)
+    ImGui::RenderNotifications ( );
+  }
+
+  ImGui::End ( );
+
+  // The title bar's close button discards the changes, same as Cancel
+  if (closed || ! open)
+  {
+    pApp->launch_failed = false;
+    return false;
+  }
+
+  return true;
+}
+
+void
+SKIF_Properties_Draw (void)
+{
+  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
+
+  // Manage > Properties: a window for the selected game, or the one already open for it
+  if (ModifyGamePopup == PopupState_Open)
+  {
+    app_record_s* pSelected = GetLibraryTab ( ).pApp;
+
+    if (pSelected != nullptr)
     {
-      _SKIF_Properties_Close (pApp);
-      ImGui::CloseCurrentPopup ( );
+      auto existing = std::find_if (s_windows.begin ( ), s_windows.end ( ),
+        [&](const std::unique_ptr <properties_window_s>& wnd) { return wnd->game == pSelected->GetKey ( ); });
+
+      if (existing != s_windows.end ( ))
+        (*existing)->focusRequest = true;
+      else
+        s_windows.push_back (_SKIF_Properties_Create (pSelected));
     }
   }
 
-  else
-    _SKIF_Properties_Close (pApp);
+  // Closed from elsewhere
+  else if (ModifyGamePopup == PopupState_Closed)
+    s_windows.clear ( );
 
-  SKIF_ImGui_EndPopup ( );
+  for (auto it = s_windows.begin ( ); it != s_windows.end ( ); )
+  {
+    // The game the window is for (records are replaced when the library is refreshed); closed if it is gone
+    app_record_s* pApp = _games.Find ((*it)->game);
+
+    if (pApp == nullptr || ! _SKIF_Properties_DrawWindow (**it, pApp))
+      it = s_windows.erase (it);
+    else
+      ++it;
+  }
+
+  // Opened while any window is
+  ModifyGamePopup = (s_windows.empty ( )) ? PopupState_Closed : PopupState_Opened;
 }
 
 #pragma endregion
