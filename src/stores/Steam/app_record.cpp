@@ -817,7 +817,13 @@ app_record_s::LaunchInstant (const launch_context_s& ctx)
 
       std::wstring iconPath = GetJumpListIconPath (ctx.config);
 
-      SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (names.normal),
+      // Launch options other than the one the store client starts (lc.json, lc_user.json, secondary ones) are told apart by their description
+      std::wstring jumpListName = SK_UTF8ToWideChar (names.normal);
+
+      if (! ClientCanLaunch (*ctx.config) && ! ctx.config->description.empty ( ))
+        jumpListName += L" (" + ctx.config->description + L")";
+
+      SKIF_Shell_AddJumpList (jumpListName,
         ctx.config->getExecutableFullPath ( ),
         cmdLine,
         dirPath,

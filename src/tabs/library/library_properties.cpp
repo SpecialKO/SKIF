@@ -26,6 +26,7 @@
 #include <tabs/properties.h>
 
 #include <algorithm>
+#include <cctype>
 
 #pragma region Helpers
 
@@ -585,12 +586,12 @@ public:
       selected = 0;
 
     const int   effectiveDefault = (defaultRow != -1) ? defaultRow : primaryRow;
-    // Fill the page: the list, the two button rows below it, and room for two lines of notes
+    // Fill the page: the list, the three button rows below it, and room for two lines of notes
     const float fHeight          = std::max (150.0f * SKIF_ImGui_GlobalDPIScale,
-                                             ImGui::GetContentRegionAvail ( ).y - ImGui::GetFrameHeightWithSpacing ( ) * 2.0f
+                                             ImGui::GetContentRegionAvail ( ).y - ImGui::GetFrameHeightWithSpacing ( ) * 3.0f
                                                                                 - ImGui::GetTextLineHeightWithSpacing ( ) * 2.0f
                                                                                 - ImGui::GetStyle ( ).ItemSpacing.y * 2.0f);
-    const float fListWidth       = 250.0f * SKIF_ImGui_GlobalDPIScale;
+    const float fListWidth       = std::max (330.0f * SKIF_ImGui_GlobalDPIScale, ImGui::GetContentRegionAvail ( ).x * 0.4f);
 
     // The list
     ImGui::BeginGroup ( );
@@ -689,12 +690,39 @@ public:
       _MoveRow (selected, +1);
     SKIF_ImGui_PopDisableState  (! canDown);
 
+    // Sharing your own launch options through the clipboard
+    const bool hasUserRows  = std::any_of (rows.begin ( ), rows.end ( ), [](const row_s& row) { return row.source == LaunchSource::User; });
+    const bool selectedUser = (rows [selected].source == LaunchSource::User);
+
+    SKIF_ImGui_PushDisableState (! userReadable);
+    if (ImGui::Button ("Import...###PropsLaunchImport", vButtonSize))
+      _Import (app);
+    SKIF_ImGui_PopDisableState  (! userReadable);
+    SKIF_ImGui_SetHoverTip ("Adds launch options from the clipboard to your own,\nas copied by Export All / Export Current.", false, true);
+
+    ImGui::SameLine ( );
+
+    SKIF_ImGui_PushDisableState (! hasUserRows);
+    if (ImGui::Button ("Export All...###PropsLaunchExportAll", vButtonSize))
+      _Export (app, false);
+    SKIF_ImGui_PopDisableState  (! hasUserRows);
+    SKIF_ImGui_SetHoverTip ("Copies all of your own launch options to the clipboard.", false, true);
+
+    ImGui::SameLine ( );
+
+    SKIF_ImGui_PushDisableState (! selectedUser);
+    if (ImGui::Button ("Export Current...###PropsLaunchExportCurrent", vButtonSize))
+      _Export (app, true);
+    SKIF_ImGui_PopDisableState  (! selectedUser);
+    SKIF_ImGui_SetHoverTip ((selectedUser) ? "Copies the selected launch option to the clipboard."
+                                           : "Only your own launch options can be exported.", false, true);
+
     ImGui::EndGroup ( );
 
     ImGui::SameLine ( );
 
     // The selected launch option
-    ImGui::BeginChild ("###PropsLaunchEditor", ImVec2 (0.0f, fHeight + ImGui::GetFrameHeightWithSpacing ( ) * 2.0f), ImGuiChildFlags_None);
+    ImGui::BeginChild ("###PropsLaunchEditor", ImVec2 (0.0f, fHeight + ImGui::GetFrameHeightWithSpacing ( ) * 3.0f), ImGuiChildFlags_None);
 
     if (rows [selected].source == LaunchSource::User)
       _DrawUserRow     (app, rows [selected]);
@@ -703,7 +731,14 @@ public:
 
     ImGui::EndChild ( );
 
-    if (! note.empty ( ))
+    if (! pickError.empty ( ))
+    {
+      ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
+      ImGui::SameLine    ( );
+      ImGui::TextWrapped ("%s", pickError.c_str ( ));
+    }
+
+    else if (! note.empty ( ))
     {
       ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info));
       ImGui::TextWrapped    ("%s", note.c_str ( ));
@@ -1043,10 +1078,52 @@ private:
   }
 
   // Instant Play on a platform / lc.json launch option: those are read-only, so an editable copy is made instead
+  // The launch options set in the store client (Steam) as plain arguments: launching a platform config adds them, but
+  //   lc_user.json configs never get them, so an Instant Play copy carries them in its own arguments instead.
+  //   With %command%, only what follows it can be kept (dropped: what precedes it, e.g. another program).
+  static std::string _FoldClientOptions (const std::string& options, std::string& dropped)
+  {
+    auto _Trim = [](std::string str) -> std::string
+    {
+      const size_t first = str.find_first_not_of (" \t");
+      const size_t last  = str.find_last_not_of  (" \t");
+      return (first == std::string::npos) ? "" : str.substr (first, last - first + 1);
+    };
+
+    dropped.clear ( );
+
+    std::string lower = options;
+    std::transform (lower.begin ( ), lower.end ( ), lower.begin ( ), [](unsigned char c) { return static_cast <char> (std::tolower (c)); });
+
+    const std::string command = "%command%";
+    const size_t      pos     = lower.find (command);
+
+    if (pos == std::string::npos)
+      return _Trim (options);
+
+    dropped = _Trim (options.substr (0, pos));
+
+    // SKIF %COMMAND% (the launcher mode of SKIF itself) is not needed, as SKIF does the launching
+    if (lower.rfind ("skif", 0) == 0 && (dropped.length ( ) == 4 || std::isspace (static_cast <unsigned char> (dropped [4]))))
+      dropped.clear ( );
+
+    return _Trim (options.substr (pos + command.length ( )));
+  }
+
   void _InstantPlayCopy (int index)
   {
     const row_s       src   = rows [index];
     const std::string label = _RowLabel (src);
+
+    // Only launches of the game's own launch configs get the client's launch options
+    std::string dropped,
+                folded  = (src.source == app_record_s::LaunchSource::Platform && ! clientOptions.empty ( ))
+                        ? _FoldClientOptions (clientOptions, dropped) : "";
+
+    std::string args    = src.args;
+
+    if (! folded.empty ( ))
+      args = (args.empty ( )) ? folded : args + " " + folded;
 
     // A copy made before
     for (int i = 0; i < static_cast <int> (rows.size ( )); i++)
@@ -1054,7 +1131,7 @@ private:
       const row_s& row = rows [i];
 
       if (row.source == app_record_s::LaunchSource::User && row.user.instant_play == 1 &&
-          row.user.args == src.args && _SamePath (_UserFullExe (row.user), SK_UTF8ToWideChar (src.fullExe)))
+          row.user.args == args && _SamePath (_UserFullExe (row.user), SK_UTF8ToWideChar (src.fullExe)))
       {
         selected = i;
         note     = "\"" + row.user.desc + "\" is already a copy of \"" + label + "\" with Instant Play.";
@@ -1069,6 +1146,8 @@ private:
     if (newIndex == -1)
       return;
 
+    rows [newIndex].user.args = args;
+
     // Otherwise the Play button would keep using the original without Instant Play
     if (wasDefault)
     {
@@ -1081,8 +1160,75 @@ private:
     if (wasDefault)
       note += " The copy is now the default launch option.";
 
-    if (! clientOptions.empty ( ))
-      note += " The launch options set in the platform client are not used by the copy.";
+    if (! folded.empty ( ))
+      note += " The launch options set in the platform client were added to its arguments.";
+
+    if (! dropped.empty ( ))
+      note += " The part before %command% (" + dropped + ") could not be copied.";
+  }
+
+  // Clipboard sharing of your own launch options (the lc_user.json format)
+  void _Export (app_record_s& app, bool currentOnly)
+  {
+    std::vector <user_launch_config_s> users;
+
+    if (! currentOnly)
+      users = _CollectUsers ( );
+
+    else if (rows [selected].source == app_record_s::LaunchSource::User)
+      users.push_back (rows [selected].user);
+
+    if (users.empty ( ))
+      return;
+
+    std::string text = SKIF_UserLaunchConfigs::Export (app, users);
+
+    if (text.empty ( ))
+    {
+      pickError = "The launch options could not be exported.";
+      return;
+    }
+
+    ImGui::SetClipboardText (text.c_str ( ));
+
+    pickError.clear ( );
+    note = (users.size ( ) == 1) ? "Copied \"" + users.front ( ).desc + "\" to the clipboard."
+                                 : "Copied " + std::to_string (users.size ( )) + " launch options to the clipboard.";
+  }
+
+  void _Import (app_record_s& app)
+  {
+    const char* clipboard = ImGui::GetClipboardText ( );
+
+    std::vector <user_launch_config_s> imported;
+    std::string                        error;
+
+    if (clipboard == nullptr || ! SKIF_UserLaunchConfigs::Import (app, clipboard, imported, error))
+    {
+      pickError = (! error.empty ( )) ? error : "The clipboard does not contain any launch options.";
+      return;
+    }
+
+    int first = -1;
+
+    for (const auto& lc : imported)
+    {
+      row_s row;
+      row.source    = app_record_s::LaunchSource::User;
+      row.user      = lc;
+      row.user.desc = _UniqueDescription ((lc.desc.empty ( )) ? "Imported launch option" : lc.desc);
+
+      rows.push_back (row);
+
+      if (first == -1)
+        first = static_cast <int> (rows.size ( )) - 1;
+    }
+
+    selected = first;
+
+    pickError.clear ( );
+    note = (imported.size ( ) == 1) ? "Imported \"" + rows [first].user.desc + "\" from the clipboard. Save to keep it."
+                                    : "Imported " + std::to_string (imported.size ( )) + " launch options from the clipboard. Save to keep them.";
   }
 
   void _RemoveRow (int index)
@@ -1272,12 +1418,6 @@ private:
 
     SKIF_ImGui_PopDisableState (! userReadable);
 
-    if (! pickError.empty ( ))
-    {
-      ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
-      ImGui::SameLine    ( );
-      ImGui::TextWrapped ("%s", pickError.c_str ( ));
-    }
 
     // Preview of what is started
     SKIF_ImGui_Spacing ( );

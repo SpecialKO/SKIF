@@ -2160,39 +2160,187 @@ SKIF_UserLaunchConfigs::Get (const app_record_s& app, std::vector <user_launch_c
   if (game == store->end ( ) || ! game->is_array ( ))
     return true;
 
-  auto _String = [](const nlohmann::json& j, const char* name) -> std::string
-  {
-    auto it = j.find (name);
-    return (it != j.end ( ) && it->is_string ( )) ? it->get <std::string> ( ) : "";
-  };
-
   for (const auto& entry : *game)
   {
-    if (! entry.is_object ( ))
-      continue;
-
     user_launch_config_s lc;
-    lc.desc  = _String (entry, "Desc");
-    lc.exe   = _String (entry, "Exe");
-    lc.dir   = _String (entry, "Dir");
-    lc.args  = _String (entry, "Args");
 
-    auto instantPlay = entry.find ("InstantPlay");
+    // Entries without a Desc / Exe are kept too, so saving doesn't lose them (Properties reports them as errors)
+    FromJson (entry, lc);
 
-    if (instantPlay != entry.end ( ) && instantPlay->is_number_integer ( ))
-      lc.instant_play = instantPlay->get <int> ( );
+    if (entry.is_object ( ))
+      out.push_back (lc);
+  }
 
-    if (lc.instant_play < 0 || lc.instant_play > 2)
-      lc.instant_play = 0;
+  return true;
+}
 
-    lc.extra = entry;
+nlohmann::json
+SKIF_UserLaunchConfigs::ToJson (const user_launch_config_s& lc)
+{
+  nlohmann::json entry = (lc.extra.is_object ( )) ? lc.extra : nlohmann::json::object ( );
 
-    static const char* knownKeys [] = { "Desc", "Exe", "Dir", "Args", "InstantPlay" };
+  // The loader requires all four keys (lc.json format)
+  entry ["Desc"] = lc.desc;
+  entry ["Exe"]  = lc.exe;
+  entry ["Dir"]  = lc.dir;
+  entry ["Args"] = lc.args;
 
-    for (const char* known : knownKeys)
-      lc.extra.erase (std::string (known));
+  if (lc.instant_play != 0)
+    entry ["InstantPlay"] = lc.instant_play;
+  else
+    entry.erase ("InstantPlay");
 
-    out.push_back (lc);
+  return entry;
+}
+
+bool
+SKIF_UserLaunchConfigs::FromJson (const nlohmann::json& entry, user_launch_config_s& out)
+{
+  out = user_launch_config_s { };
+
+  if (! entry.is_object ( ))
+    return false;
+
+  auto _String = [&](const char* name, bool& found) -> std::string
+  {
+    auto it = entry.find (name);
+    found   = (it != entry.end ( ) && it->is_string ( ));
+    return (found) ? it->get <std::string> ( ) : "";
+  };
+
+  bool hasDesc = false, hasExe = false, unused = false;
+
+  out.desc = _String ("Desc", hasDesc);
+  out.exe  = _String ("Exe",  hasExe);
+  out.dir  = _String ("Dir",  unused);
+  out.args = _String ("Args", unused);
+
+  auto instantPlay = entry.find ("InstantPlay");
+
+  if (instantPlay != entry.end ( ) && instantPlay->is_number_integer ( ))
+    out.instant_play = instantPlay->get <int> ( );
+
+  if (out.instant_play < 0 || out.instant_play > 2)
+    out.instant_play = 0;
+
+  out.extra = entry;
+
+  static const char* knownKeys [] = { "Desc", "Exe", "Dir", "Args", "InstantPlay" };
+
+  for (const char* known : knownKeys)
+    out.extra.erase (std::string (known));
+
+  // The loader of the library requires these
+  return (hasDesc && hasExe);
+}
+
+std::string
+SKIF_UserLaunchConfigs::Export (const app_record_s& app, const std::vector <user_launch_config_s>& configs)
+{
+  nlohmann::json entries = nlohmann::json::array ( );
+
+  for (const auto& lc : configs)
+    entries.push_back (ToJson (lc));
+
+  nlohmann::json jf = nlohmann::json::object ( );
+  jf [app.store_utf8] [app.GetPersistentKey ( )] = entries;
+
+  try {
+    return jf.dump (2);
+  }
+
+  catch (const std::exception& e)
+  {
+    PLOG_ERROR << "Error occurred when trying to export launch configs: " << e.what ( );
+  }
+
+  return "";
+}
+
+bool
+SKIF_UserLaunchConfigs::Import (const app_record_s& app, const std::string& text, std::vector <user_launch_config_s>& out, std::string& error)
+{
+  out.clear   ( );
+  error.clear ( );
+
+  nlohmann::json jf = nlohmann::json::parse (text, nullptr, false);
+
+  if (jf.is_discarded ( ) || (! jf.is_object ( ) && ! jf.is_array ( )))
+  {
+    error = "The clipboard does not contain any launch options.";
+    return false;
+  }
+
+  const nlohmann::json* entries = nullptr;
+  nlohmann::json        single  = nlohmann::json::array ( );
+
+  // A single entry
+  if (jf.is_object ( ) && jf.contains ("Desc"))
+  {
+    single.push_back (jf);
+    entries = &single;
+  }
+
+  // An array of entries
+  else if (jf.is_array ( ))
+    entries = &jf;
+
+  // { "<store>": { "<key>": [ ... ] } }: the entries of this game, else those of the only game in it
+  else
+  {
+    auto store = jf.find (app.store_utf8);
+
+    if (store != jf.end ( ) && store->is_object ( ))
+    {
+      auto game = store->find (app.GetPersistentKey ( ));
+
+      if (game != store->end ( ) && game->is_array ( ))
+        entries = &(*game);
+    }
+
+    if (entries == nullptr)
+    {
+      int games = 0;
+
+      for (const auto& s : jf)
+      {
+        if (! s.is_object ( ))
+          continue;
+
+        for (const auto& g : s)
+        {
+          if (! g.is_array ( ))
+            continue;
+
+          games++;
+          entries = &g;
+        }
+      }
+
+      if (games > 1)
+      {
+        error   = "The clipboard holds launch options of several games. Copy the ones of this game only.";
+        entries = nullptr;
+        return false;
+      }
+    }
+  }
+
+  if (entries != nullptr)
+  {
+    for (const auto& entry : *entries)
+    {
+      user_launch_config_s lc;
+
+      if (FromJson (entry, lc))
+        out.push_back (lc);
+    }
+  }
+
+  if (out.empty ( ))
+  {
+    error = "The clipboard does not contain any launch options.";
+    return false;
   }
 
   return true;
@@ -2237,22 +2385,7 @@ SKIF_UserLaunchConfigs::Set (const app_record_s& app, const std::vector <user_la
       nlohmann::json entries = nlohmann::json::array ( );
 
       for (const auto& lc : configs)
-      {
-        nlohmann::json entry = (lc.extra.is_object ( )) ? lc.extra : nlohmann::json::object ( );
-
-        // The loader requires all four keys (lc.json format)
-        entry ["Desc"] = lc.desc;
-        entry ["Exe"]  = lc.exe;
-        entry ["Dir"]  = lc.dir;
-        entry ["Args"] = lc.args;
-
-        if (lc.instant_play != 0)
-          entry ["InstantPlay"] = lc.instant_play;
-        else
-          entry.erase ("InstantPlay");
-
-        entries.push_back (entry);
-      }
+        entries.push_back (ToJson (lc));
 
       jf [app.store_utf8] [key] = entries;
     }

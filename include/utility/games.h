@@ -64,6 +64,15 @@ struct SKIF_UserLaunchConfigs {
   static std::wstring GetPath (void);
   static bool         Get     (const app_record_s& app, std::vector <user_launch_config_s>& out);       // false if the file exists but can't be parsed (out is then empty)
   static bool         Set     (const app_record_s& app, const std::vector <user_launch_config_s>& configs); // Replaces the game's entries (removed if empty); false on failure. Refuses to touch a file it can't parse
+
+  // One entry in the lc.json format, and back (out is filled as far as possible; false if it is not an object with a string Desc and Exe)
+  static nlohmann::json ToJson   (const user_launch_config_s& lc);
+  static bool           FromJson (const nlohmann::json& entry, user_launch_config_s& out);
+
+  // Clipboard sharing (Properties > Launch > Import / Export), in the same shape as the file: { "<store>": { "<key>": [ ... ] } }
+  //   Import also takes an array of entries or a single entry, and the entries of another game when they are the only ones.
+  static std::string    Export   (const app_record_s& app, const std::vector <user_launch_config_s>& configs);
+  static bool           Import   (const app_record_s& app, const std::string& text, std::vector <user_launch_config_s>& out, std::string& error);
 };
 
 struct SKIF_GamingCollection {
