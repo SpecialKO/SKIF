@@ -2145,6 +2145,101 @@ SKIF_ImGui_AutoScroll (bool touch_only_on_void, SKIF_ImGuiAxis axis)
     SKIF_ImGui_MouseWheelScroll (axis);
 }
 
+#pragma region Centered Column
+
+static std::vector <ImGuiWindow*> s_centeredColumns; // The column windows currently being drawn (innermost last)
+static bool                       bColumnTouchScrollActive = false;
+
+void
+SKIF_ImGui_CalcCenteredColumn (float area_width, float max_width, float* offset, float* width)
+{
+  const float scrollbar = ImGui::GetStyle ( ).ScrollbarSize;
+  const float w         = std::max (1.0f, std::min (max_width, area_width - scrollbar));
+
+  // Centered, but never into the room kept free for the scrollbar
+  const float o         = std::max (0.0f, std::min ((area_width - w) / 2.0f, area_width - scrollbar - w));
+
+  if (offset != nullptr) *offset = ImFloor (o);
+  if (width  != nullptr) *width  = ImFloor (w);
+}
+
+void
+SKIF_ImGui_BeginCenteredColumn (const char* str_id, float max_width)
+{
+  ImGuiWindow* window = ImGui::GetCurrentWindow ( );
+
+  // The width of the window's content area as if it had no vertical scrollbar
+  const float area = window->Size.x - window->WindowPadding.x - ImGui::GetCursorPosX ( );
+
+  float offset = 0.0f,
+        width  = 0.0f;
+
+  SKIF_ImGui_CalcCenteredColumn (area, max_width, &offset, &width);
+
+  ImGui::SetCursorPosX (ImGui::GetCursorPosX ( ) + offset);
+
+  // The mouse wheel scrolls the window the column is in (NoScrollWithMouse forwards it to the parent)
+  ImGui::BeginChild (str_id, ImVec2 (width, 0.0f),
+                     ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_NavFlattened,
+                     ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground);
+
+  s_centeredColumns.push_back (ImGui::GetCurrentWindow ( ));
+}
+
+void
+SKIF_ImGui_EndCenteredColumn (bool touch_scroll, bool touch_only_on_void)
+{
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
+  ImGuiContext& g      = *ImGui::GetCurrentContext ( );
+  ImGuiWindow*  window = g.CurrentWindow;
+
+  // Drag-scrolling on touch devices: SKIF_ImGui_AutoScroll ( ) only reacts while its own window is hovered, which
+  //   it isn't over the column, so the same is done here for the window the column is in (with its own held state)
+  if (touch_scroll && _registry._TouchDevice && window->ParentWindow != nullptr)
+  {
+    ImGuiWindow* parent  = window->ParentWindow;
+    ImGuiID      id      = window->GetID ("##columnscrolldragging");
+    bool         hovered = false;
+
+    ImGui::KeepAliveID (id);
+
+    if (! touch_only_on_void || g.HoveredId == 0) // If nothing hovered so far in the frame (not same as IsAnyItemHovered()!)
+      ImGui::ButtonBehavior (window->Rect ( ), id, &hovered, &bColumnTouchScrollActive, ImGuiButtonFlags_MouseButtonLeft);
+
+    if (bColumnTouchScrollActive)
+    {
+      const ImVec2 delta = ImGui::GetIO ( ).MouseDelta;
+
+      if (delta.y != 0.0f)
+        ImGui::SetScrollY (parent, parent->Scroll.y - delta.y);
+    }
+  }
+
+  if (! s_centeredColumns.empty ( ))
+    s_centeredColumns.pop_back ( );
+
+  ImGui::EndChild ( );
+}
+
+float
+SKIF_ImGui_GetColumnAvailHeight (void)
+{
+  ImGuiWindow* window = ImGui::GetCurrentWindow ( );
+
+  // The column grows with its content, so what is left is measured against the visible area of the window it is in
+  if (! s_centeredColumns.empty ( ) && s_centeredColumns.back ( ) == window && window->ParentWindow != nullptr)
+  {
+    ImGuiWindow* parent = window->ParentWindow;
+
+    return parent->InnerRect.Max.y - parent->WindowPadding.y - window->DC.CursorPos.y;
+  }
+
+  return ImGui::GetContentRegionAvail ( ).y;
+}
+
+#pragma endregion
+
 void
 SKIF_ImGui_UpdateScrollbarState (void)
 {

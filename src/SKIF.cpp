@@ -3268,6 +3268,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
           _drag_drop.Revoke (SKIF_ImGui_hWnd);
 
 
+        // The max width of the content of the Monitor, Hardware, Settings and About tabs (centered in wider windows)
+        const float fTabColumnMaxWidth = 1000.0f * SKIF_ImGui_GlobalDPIScale;
+
         if (ImGui::BeginTabItem (tabTitleMonitor, nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Monitor) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
         {
           SKIF_ImGui_BeginTabChildFrame ();
@@ -3275,7 +3278,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
           if (SKIF_Tab_Selected != UITab_Monitor)
             PLOG_DEBUG << "Switched to tab: Monitor";
 
+          // Centered, with a max width, and never moved by the frame's scrollbar
+          SKIF_ImGui_BeginCenteredColumn ("###MonitorColumn", fTabColumnMaxWidth);
           SKIF_UI_Tab_DrawMonitor ( );
+          SKIF_ImGui_EndCenteredColumn   ( );
 
           // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
           // Currently not possible since the Monitor tab includes another scrollable child window (the process list)
@@ -3292,7 +3298,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
           if (SKIF_Tab_Selected != UITab_Hardware)
             PLOG_DEBUG << "Switched to tab: Hardware";
 
+          SKIF_ImGui_BeginCenteredColumn ("###HardwareColumn", fTabColumnMaxWidth);
           SKIF_UI_Tab_DrawHardware( );
+          SKIF_ImGui_EndCenteredColumn   (true);
 
           // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
           SKIF_ImGui_AutoScroll  (true, SKIF_ImGuiAxis_Y);
@@ -3308,7 +3316,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
           if (SKIF_Tab_Selected != UITab_Settings)
             PLOG_DEBUG << "Switched to tab: Settings";
 
+          SKIF_ImGui_BeginCenteredColumn ("###SettingsColumn", fTabColumnMaxWidth);
           SKIF_UI_Tab_DrawSettings( );
+          SKIF_ImGui_EndCenteredColumn   (true);
 
           // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
           SKIF_ImGui_AutoScroll  (true, SKIF_ImGuiAxis_Y);
@@ -3335,7 +3345,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
               SKIF_Tab_ChangeTo  = UITab_None;
 
           // About Tab
+          SKIF_ImGui_BeginCenteredColumn ("###AboutColumn", fTabColumnMaxWidth);
           SKIF_UI_Tab_DrawAbout   ( );
+          SKIF_ImGui_EndCenteredColumn   (true);
 
           // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
           SKIF_ImGui_AutoScroll  (true, SKIF_ImGuiAxis_Y);
