@@ -16,6 +16,9 @@
 #include <utility/fsutil.h>
 #include <utility/registry.h>
 
+// Last, as it defines short macros such as _ ( )
+#include <utility/l10n.h>
+
 // Global Vulkan layer object (incompatible, layers)
 std::pair<bool, std::vector<VkLayer>> g_VkLayers = { false, { } };
 
@@ -154,7 +157,7 @@ GetMPOSupport (void)
     result = SKIF_Util_DisplayConfigGetDeviceInfo (&targetName.header);
 
     std::wstring monitorName = (targetName.flags.friendlyNameFromEdid ? targetName.monitorFriendlyDeviceName
-                                                                      : L"Unknown");
+                                                                      : CW_("display", "Unknown"));
 
     if (result != ERROR_SUCCESS)
     {
@@ -259,46 +262,49 @@ GetMPOSupport (void)
         // See https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/dxgiddi/ne-dxgiddi-dxgi_ddi_multiplane_overlay_feature_caps
 
         if (monitor.MaxRGBPlanes > 1) // Dxdiag doesn't seem to report this if there's only 1 plane supported
-          monitor.OverlayCapsAsString += "Supports " + std::to_string(monitor.MaxRGBPlanes) + " planes containing RGB data. [RGB]\n";
+          // TRANSLATORS: The text in [brackets] is the name of the capability, as reported by dxdiag; keep it as it is
+          monitor.OverlayCapsAsString += FP_("Supports {0} plane containing RGB data. [RGB]", "Supports {0} planes containing RGB data. [RGB]", monitor.MaxRGBPlanes) + "\n";
 
         if (monitor.MaxYUVPlanes > 1) // Dxdiag doesn't seem to report this if there's only 1 plane supported
-          monitor.OverlayCapsAsString += "Supports " + std::to_string(monitor.MaxYUVPlanes) + " planes containing YUV data. [YUV]\n";
+          // TRANSLATORS: The text in [brackets] is the name of the capability, as reported by dxdiag; keep it as it is
+          monitor.OverlayCapsAsString += FP_("Supports {0} plane containing YUV data. [YUV]", "Supports {0} planes containing YUV data. [YUV]", monitor.MaxYUVPlanes) + "\n";
 
+        // TRANSLATORS: The text in [brackets] is the name of the capability, as reported by dxdiag; keep it as it is
         if (monitor.OverlayCaps.Rotation)
-          monitor.OverlayCapsAsString += "Supports full rotation of the MPO plane with Independent Flip. [ROTATION]\n";
+          monitor.OverlayCapsAsString += std::string (_("Supports full rotation of the MPO plane with Independent Flip. [ROTATION]")) + "\n";
 
         if (monitor.OverlayCaps.RotationWithoutIndependentFlip)
-          monitor.OverlayCapsAsString += "Supports full rotation of the MPO plane, but without Independent Flip. [ROTATION_WITHOUT_INDEPENDENT_FLIP]\n";
+          monitor.OverlayCapsAsString += std::string (_("Supports full rotation of the MPO plane, but without Independent Flip. [ROTATION_WITHOUT_INDEPENDENT_FLIP]")) + "\n";
 
         if (monitor.OverlayCaps.VerticalFlip)
-          monitor.OverlayCapsAsString += "Supports flipping the data vertically. [VERTICAL_FLIP]\n";
+          monitor.OverlayCapsAsString += std::string (_("Supports flipping the data vertically. [VERTICAL_FLIP]")) + "\n";
 
         if (monitor.OverlayCaps.HorizontalFlip)
-          monitor.OverlayCapsAsString += "Supports flipping the data horizontally. [HORIZONTAL_FLIP]\n";
+          monitor.OverlayCapsAsString += std::string (_("Supports flipping the data horizontally. [HORIZONTAL_FLIP]")) + "\n";
 
         if (monitor.OverlayCaps.StretchRGB && monitor.MaxRGBPlanes > 1) // Dxdiag doesn't seem to report this if there's only 1 plane supported
-          monitor.OverlayCapsAsString += "Supports stretching any plane containing RGB data. [STRETCH_RGB]\n";
+          monitor.OverlayCapsAsString += std::string (_("Supports stretching any plane containing RGB data. [STRETCH_RGB]")) + "\n";
 
         if (monitor.OverlayCaps.StretchYUV && monitor.MaxYUVPlanes > 1) // Dxdiag doesn't seem to report this if there's only 1 plane supported
-          monitor.OverlayCapsAsString += "Supports stretching any plane containing YUV data. [STRETCH_YUV]\n";
+          monitor.OverlayCapsAsString += std::string (_("Supports stretching any plane containing YUV data. [STRETCH_YUV]")) + "\n";
 
         if (monitor.OverlayCaps.BilinearFilter)
-          monitor.OverlayCapsAsString += "Supports bilinear filtering. [BILINEAR]\n";
+          monitor.OverlayCapsAsString += std::string (_("Supports bilinear filtering. [BILINEAR]")) + "\n";
 
         if (monitor.OverlayCaps.HighFilter)
-          monitor.OverlayCapsAsString += "Supports better than bilinear filtering. [HIGH_FILTER]\n";
+          monitor.OverlayCapsAsString += std::string (_("Supports better than bilinear filtering. [HIGH_FILTER]")) + "\n";
 
         if (monitor.OverlayCaps.Shared)
-          monitor.OverlayCapsAsString += "MPO resources are shared across video present network (VidPN) sources. [SHARED]\n";
+          monitor.OverlayCapsAsString += std::string (_("MPO resources are shared across video present network (VidPN) sources. [SHARED]")) + "\n";
 
         if (monitor.OverlayCaps.Immediate)
-          monitor.OverlayCapsAsString += "Supports immediate flips (allows tearing) of the MPO plane. [IMMEDIATE]\n";
+          monitor.OverlayCapsAsString += std::string (_("Supports immediate flips (allows tearing) of the MPO plane. [IMMEDIATE]")) + "\n";
         // When TRUE, the HW supports immediate flips of the MPO plane.
         // If the flip contains changes that cannot be performed as an immediate flip,
         //  the driver can promote the flip to a VSYNC flip using the new HSync completion infrastructure.
 
         if (monitor.OverlayCaps.Plane0ForVirtualModeOnly)
-          monitor.OverlayCapsAsString += "Will always apply the stretch factor of plane 0 to the hardware cursor as well as the plane. [PLANE0_FOR_VIRTUAL_MODE_ONLY]\n";
+          monitor.OverlayCapsAsString += std::string (_("Will always apply the stretch factor of plane 0 to the hardware cursor as well as the plane. [PLANE0_FOR_VIRTUAL_MODE_ONLY]")) + "\n";
         // When TRUE, the hardware will always apply the stretch factor of plane 0 to the hardware cursor as well as the plane.
         //  This implies that stretching/shrinking of plane 0 should only occur when plane 0 is the desktop plane and when the
         //   stretching/shrinking is used for virtual mode support.
@@ -768,7 +774,7 @@ SKIF_UI_Tab_DrawHardware (void)
   ImGui::Spacing ();
 
 #pragma region Section: SwapChain Presentation Monitor
-  if (ImGui::CollapsingHeader ("SwapChain Presentation Monitor###SKIF_HardwareHeader-1", ImGuiTreeNodeFlags_DefaultOpen))
+  if (ImGui::CollapsingHeader (L_("SwapChain Presentation Monitor###SKIF_HardwareHeader-1"), ImGuiTreeNodeFlags_DefaultOpen))
   {
     ImGui::PushStyleColor (
       ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
@@ -790,23 +796,24 @@ SKIF_UI_Tab_DrawHardware (void)
       ImGui::BeginGroup    ( );
     }
 
-    ImGui::TextColored (
+    SKIF_ImGui_TextColoredWrapped (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-                        "Tell at a glance whether:"
-    );
+                        _("Tell at a glance whether:"));
 
     ImGui::BeginGroup  ();
     ImGui::Spacing     ();
     ImGui::SameLine    ();
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_UP_RIGHT_FROM_SQUARE);
     ImGui::SameLine    ();
-    ImGui::TextWrapped ("DirectFlip has engaged, bypassing desktop composition (DWM).");
+    ImGui::TextWrapped ("%s", _("DirectFlip has engaged, bypassing desktop composition (DWM)."));
     ImGui::EndGroup    ();
 
-    SKIF_ImGui_SetHoverTip        ("Appears as 'Hardware: Independent Flip' or 'Hardware Composed: Independent Flip'.");
+    // TRANSLATORS: The presentation modes in quotes ('Hardware: Independent Flip', ...) are shown like that by Special K; keep them as they are
+    SKIF_ImGui_SetHoverTip        (_("Appears as 'Hardware: Independent Flip' or 'Hardware Composed: Independent Flip'."));
 
-    SKIF_ImGui_SetHoverTip        ("DirectFlip appears as 'Hardware: Independent Flip' or 'Hardware Composed: Independent Flip'.\n"
-                                   "Lack of it appears as 'Composed: Flip'.");
+    // TRANSLATORS: The presentation modes in quotes ('Hardware: Independent Flip', ...) are shown like that by Special K; keep them as they are
+    SKIF_ImGui_SetHoverTip        (_("DirectFlip appears as 'Hardware: Independent Flip' or 'Hardware Composed: Independent Flip'.\n"
+                                   "Lack of it appears as 'Composed: Flip'."));
     SKIF_ImGui_SetMouseCursorHand ();
     SKIF_ImGui_SetHoverText       ("https://wiki.special-k.info/en/SwapChain#fse-fso-independent-flip-etc-sorry-but-what");
 
@@ -818,11 +825,12 @@ SKIF_UI_Tab_DrawHardware (void)
     ImGui::SameLine    ();
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_UP_RIGHT_FROM_SQUARE);
     ImGui::SameLine    ();
-    ImGui::TextWrapped ("Legacy Exclusive Fullscreen (FSE) mode is being used or if Fullscreen Optimizations (FSO) overrides it.");
+    ImGui::TextWrapped ("%s", _("Legacy Exclusive Fullscreen (FSE) mode is being used or if Fullscreen Optimizations (FSO) overrides it."));
     ImGui::EndGroup    ();
 
-    SKIF_ImGui_SetHoverTip        ("FSE appears as 'Hardware: Legacy Flip' or 'Hardware: Legacy Copy to front buffer'.\n"
-                                   "FSO appears as 'Hardware: Independent Flip' or 'Hardware Composed: Independent Flip'.");
+    // TRANSLATORS: The presentation modes in quotes ('Hardware: Independent Flip', ...) are shown like that by Special K; keep them as they are
+    SKIF_ImGui_SetHoverTip        (_("FSE appears as 'Hardware: Legacy Flip' or 'Hardware: Legacy Copy to front buffer'.\n"
+                                   "FSO appears as 'Hardware: Independent Flip' or 'Hardware Composed: Independent Flip'."));
     SKIF_ImGui_SetMouseCursorHand ();
     SKIF_ImGui_SetHoverText       ("https://www.pcgamingwiki.com/wiki/Windows#Fullscreen_optimizations");
 
@@ -834,19 +842,19 @@ SKIF_UI_Tab_DrawHardware (void)
     ImGui::SameLine    ();
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
     ImGui::SameLine    ();
-    ImGui::TextWrapped ("The game is running in a suboptimal presentation mode.");
+    ImGui::TextWrapped ("%s", _("The game is running in a suboptimal presentation mode."));
     ImGui::EndGroup    ();
 
-    SKIF_ImGui_SetHoverTip        ("Appears as 'Composed: Flip', 'Composed: Composition Atlas',\n"
-                                   "'Composed: Copy with GPU GDI', or 'Composed: Copy with CPU GDI'.");
+    // TRANSLATORS: The presentation modes in quotes ('Hardware: Independent Flip', ...) are shown like that by Special K; keep them as they are
+    SKIF_ImGui_SetHoverTip        (_("Appears as 'Composed: Flip', 'Composed: Composition Atlas',\n"
+                                   "'Composed: Copy with GPU GDI', or 'Composed: Copy with CPU GDI'."));
 
     ImGui::Spacing();
     ImGui::Spacing();
 
-    ImGui::TextColored (
+    SKIF_ImGui_TextColoredWrapped (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-                        "Requirement:"
-    );
+                        _("Requirement:"));
 
     static BOOL  pfuAccessToken = FALSE;
     static BYTE  pfuSID[SECURITY_MAX_SID_SIZE];
@@ -869,14 +877,15 @@ SKIF_UI_Tab_DrawHardware (void)
     ImGui::SameLine    ();
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
-    ImGui::Text        ("Granted 'Performance Log Users' permission?");
+    // TRANSLATORS: 'Performance Log Users' is a group in Windows; use its name in the Windows of your language
+    ImGui::TextWrapped ("%s", _("Granted 'Performance Log Users' permission?"));
     ImGui::SameLine    ();
     if      (pfuState == Granted)
-      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "Yes");
+      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "%s", _("Yes"));
     else if (pfuState == Missing)
-      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),    "No");
+      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),    "%s", _("No"));
     else // (pfuState == Pending)
-      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),    "Restart required"); //"Yes, but a sign out from Windows is needed to allow the changes to take effect.");
+      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),    "%s", _("Restart required")); //"Yes, but a sign out from Windows is needed to allow the changes to take effect.");
     ImGui::EndGroup    ();
 
     ImGui::Spacing  ();
@@ -886,11 +895,12 @@ SKIF_UI_Tab_DrawHardware (void)
     if (pfuState != Missing)
       SKIF_ImGui_PushDisableState ( );
 
-    std::string btnPfuLabel = (pfuState == Granted) ?                         ICON_FA_CHECK              " Permissions granted!" // Granted
-                                                    : (pfuState == Missing) ? ICON_FA_USER_SHIELD        " Grant permissions"    // Missing
-                                                                            : ICON_FA_RIGHT_FROM_BRACKET " Sign out to apply";   // Pending
+    const char* btnPfuLabel = (pfuState == Granted) ? LI_(ICON_FA_CHECK,              "Permissions granted!") // Granted
+                                                    : (pfuState == Missing) ? LI_(ICON_FA_USER_SHIELD,        "Grant permissions")    // Missing
+                                                                            : LI_(ICON_FA_RIGHT_FROM_BRACKET, "Sign out to apply");   // Pending
 
-    if ( ImGui::ButtonEx ( btnPfuLabel.c_str(), ImVec2( 200 * SKIF_ImGui_GlobalDPIScale,
+    // At least as wide as before, wider if the translation needs it
+    if ( ImGui::ButtonEx ( btnPfuLabel, ImVec2( std::max (200 * SKIF_ImGui_GlobalDPIScale, ImGui::CalcTextSize (btnPfuLabel, NULL, true).x + 2 * ImGui::GetStyle ( ).FramePadding.x),
                                                          25 * SKIF_ImGui_GlobalDPIScale)))
     {
       std::wstring exeArgs;
@@ -936,7 +946,7 @@ SKIF_UI_Tab_DrawHardware (void)
 
     else
     {
-      SKIF_ImGui_SetHoverTip ("Administrative privileges are required on the system to toggle this.");
+      SKIF_ImGui_SetHoverTip (_("Administrative privileges are required on the system to toggle this."));
     }
 
     if (enableColums)
@@ -951,7 +961,7 @@ SKIF_UI_Tab_DrawHardware (void)
 
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), ICON_FA_THUMBS_UP);
     ImGui::SameLine    ( );
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "Minimal latency:");
+    SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), _("Minimal latency:"));
 
     ImGui::TreePush    ("LatencyMinimal");
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
@@ -973,7 +983,7 @@ SKIF_UI_Tab_DrawHardware (void)
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled), "Hardware: Legacy Copy to front buffer");
     ImGui::EndGroup    ();
 
-    SKIF_ImGui_SetHoverTip ("Quite uncommon to see compared to the other models listed here.");
+    SKIF_ImGui_SetHoverTip (_("Quite uncommon to see compared to the other models listed here."));
 
     ImGui::TreePop     ();
 
@@ -981,7 +991,7 @@ SKIF_UI_Tab_DrawHardware (void)
 
     ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), ICON_FA_THUMBS_DOWN);
     ImGui::SameLine    ();
-    ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), "Undesirable latency:");
+    SKIF_ImGui_TextColoredWrapped (ImColor::HSV (0.11F, 1.F, 1.F), _("Undesirable latency:"));
 
     ImGui::TreePush    ("LatencyUndesirable");
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
@@ -1021,17 +1031,15 @@ SKIF_UI_Tab_DrawHardware (void)
 
     ImVec2 mpoTop = ImGui::GetCursorScreenPos ( );
 
-    ImGui::TextColored (
+    SKIF_ImGui_TextColoredWrapped (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-                        "Multi-Plane Overlay (MPO) Support"
-    );
+                        _("Multi-Plane Overlay (MPO) Support"));
 
-    ImGui::TextWrapped    (
-      "MPOs are additional dedicated hardware scanout planes"
+    ImGui::TextWrapped    ("%s",
+      _("MPOs are additional dedicated hardware scanout planes"
       " enabling the GPU to partially take over composition from the DWM. This allows"
       " games to bypass the DWM in various mixed scenarios or window modes,"
-      " eliminating the presentation latency that would otherwise be incurred."
-    );
+      " eliminating the presentation latency that would otherwise be incurred."));
 
     SKIF_ImGui_Spacing ();
 
@@ -1048,28 +1056,38 @@ SKIF_UI_Tab_DrawHardware (void)
 
     ImGui::BeginGroup  ();
 
-    ImGui::TextColored (
+    SKIF_ImGui_TextColoredWrapped (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-                        "Support among connected displays:"
-    );
+                        _("Support among connected displays:"));
 
     if (SKIF_Util_IsWindows10OrGreater ( ))
     {
       ImGui::BeginChild  ("##MPOChild", ImVec2 (0, (Monitors.size() + 1) * ImGui::GetTextLineHeightWithSpacing() + ImGui::GetStyle().ScrollbarSize), ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar); // (Monitors.size() + 1) * ImGui::GetTextLineHeightWithSpacing()
 
-      ImGui::Text        ("Display");
+      // The columns are where they always were, but move to the right if a (translated) heading or "No support" needs more room
+      const char* headDisplay      = _("Display");
+      const char* headPlanes       = _("Planes");
+      const char* headStretch      = _("Stretch");
+      const char* headCapabilities = _("Capabilities");
+      const char* textNoSupport    = _("No support");
+      const float gap              = ImGui::GetStyle ( ).ItemSpacing.x;
+      const float addPlanes        = std::max (0.0f,       ImGui::CalcTextSize (headDisplay).x + gap - 150.0f * SKIF_ImGui_GlobalDPIScale);
+      const float addStretch       = std::max (addPlanes,  150.0f * SKIF_ImGui_GlobalDPIScale + addPlanes  + ImGui::CalcTextSize (headPlanes).x + gap - 235.0f * SKIF_ImGui_GlobalDPIScale);
+      const float addCapabilities  = std::max (addStretch, 235.0f * SKIF_ImGui_GlobalDPIScale + addStretch + std::max (ImGui::CalcTextSize (headStretch).x, ImGui::CalcTextSize (textNoSupport).x) + gap - 360.0f * SKIF_ImGui_GlobalDPIScale);
+
+      ImGui::TextUnformatted (headDisplay);
       ImGui::SameLine    ( );
-      ImGui::ItemSize    (ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::ItemSize    (ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale + addPlanes       - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine    ( );
-      ImGui::Text        ("Planes");
+      ImGui::TextUnformatted (headPlanes);
       ImGui::SameLine    ( );
-      ImGui::ItemSize    (ImVec2 (235.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::ItemSize    (ImVec2 (235.0f * SKIF_ImGui_GlobalDPIScale + addStretch      - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine    ( );
-      ImGui::Text        ("Stretch");
+      ImGui::TextUnformatted (headStretch);
       ImGui::SameLine    ( );
-      ImGui::ItemSize    (ImVec2 (360.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::ItemSize    (ImVec2 (360.0f * SKIF_ImGui_GlobalDPIScale + addCapabilities - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine    ( );
-      ImGui::Text        ("Capabilities");
+      ImGui::TextUnformatted (headCapabilities);
 
       // MPO support is a bloody mystery...
       for (auto& monitor : Monitors)
@@ -1084,25 +1102,27 @@ SKIF_UI_Tab_DrawHardware (void)
         ImGui::BeginGroup    ( );
         //ImGui::Text        ("%u", monitor.Index);
         //ImGui::SameLine    ( );
-        ImGui::TextColored   (colName, monitor.Name.c_str());
+        ImGui::TextColored   (colName, "%s", monitor.Name.c_str());
         SKIF_ImGui_SetHoverTip (monitor.DeviceNameGdi.c_str());
         ImGui::SameLine      ( );
-        ImGui::ItemSize      (ImVec2 (170.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize      (ImVec2 (170.0f * SKIF_ImGui_GlobalDPIScale + addPlanes  - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine      ( );
         ImGui::Text          ("%u", (monitor.Supported) ? monitor.MaxPlanes : 1);
         if (! monitor.Supported && monitor.MaxPlanes > 1)
           SKIF_ImGui_SetHoverTip (std::to_string(monitor.MaxPlanes));
         ImGui::SameLine      ( );
-        ImGui::ItemSize      (ImVec2 (235.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize      (ImVec2 (235.0f * SKIF_ImGui_GlobalDPIScale + addStretch - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine      ( );
-        ImGui::Text          ((monitor.Supported) ? stretchFormat.c_str() : "No support",
-                               monitor.MaxStretchFactor, monitor.MaxShrinkFactor);
+        if (monitor.Supported)
+          ImGui::Text        (stretchFormat.c_str(), monitor.MaxStretchFactor, monitor.MaxShrinkFactor);
+        else
+          ImGui::TextUnformatted (textNoSupport);
         if (! monitor.Supported && monitor.MaxStretchFactor != monitor.MaxShrinkFactor)
           SKIF_ImGui_SetHoverTip (SKIF_Util_FormatStringRaw (stretchFormat.c_str(), monitor.MaxStretchFactor, monitor.MaxShrinkFactor));
         ImGui::SameLine      ( );
-        ImGui::ItemSize      (ImVec2 (((monitor.Supported) ? 390.0f : 360.0f) * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+        ImGui::ItemSize      (ImVec2 (((monitor.Supported) ? 390.0f : 360.0f) * SKIF_ImGui_GlobalDPIScale + addCapabilities - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine      ( );
-        ImGui::TextColored   (colCaps, (monitor.Supported) ? ICON_FA_LIGHTBULB : "No support");
+        ImGui::TextColored   (colCaps, "%s", (monitor.Supported) ? ICON_FA_LIGHTBULB : textNoSupport);
         if (monitor.Supported)
           SKIF_ImGui_SetHoverTip (monitor.OverlayCapsAsString.c_str(), true);
         ImGui::EndGroup      ( );
@@ -1115,17 +1135,17 @@ SKIF_UI_Tab_DrawHardware (void)
         // Move up the line 2 pixels as otherwise a scroll would appear...
         //ImGui::SetCursorPosY    (ImGui::GetCursorPosY ( ) - (2.0f * SKIF_ImGui_GlobalDPIScale));
         ImGui::PushStyleColor     (ImGuiCol_Text, ImColor::HSV (0.11F,   1.F, 1.F).Value);
-        if (ImGui::Selectable (ICON_FA_TRIANGLE_EXCLAMATION "  Disabled through the registry! Click to reset."))
+        if (ImGui::Selectable (LI_(ICON_FA_TRIANGLE_EXCLAMATION, "Disabled through the registry! Click to reset.")))
         {
           std::wstring cmd = L"";
 
           switch (MessageBox (NULL,
-            L"Restart the display drivers and desktop window manager (DWM) to apply the changes.\n"
-            L"\n"
-            L"Some games and applications (e.g. Steam, Discord) may close or crash when the drivers or DWM are restarted.\n"
-            L"\n"
-            L"Do you want to restart the display drivers and DWM now?",
-            L"Restart the display drivers and desktop window manager (DWM)?", MB_ICONQUESTION | MB_YESNOCANCEL))
+            W_("Restart the display drivers and desktop window manager (DWM) to apply the changes.\n"
+               "\n"
+               "Some games and applications (e.g. Steam, Discord) may close or crash when the drivers or DWM are restarted.\n"
+               "\n"
+               "Do you want to restart the display drivers and DWM now?"),
+            W_("Restart the display drivers and desktop window manager (DWM)?"), MB_ICONQUESTION | MB_YESNOCANCEL))
           {
 
           // When YES is used, we reset the registry keys and restart the display drivers and DWM
@@ -1150,12 +1170,12 @@ SKIF_UI_Tab_DrawHardware (void)
           }
         }
         ImGui::PopStyleColor          ( );
-        SKIF_ImGui_SetHoverTip        ("A restart of the display drivers is required for the changes to be applied.");
+        SKIF_ImGui_SetHoverTip        (_("A restart of the display drivers is required for the changes to be applied."));
         SKIF_ImGui_SetMouseCursorHand ( );
       }
     }
     else {
-      ImGui::Text      ("Reporting MPO capabilities requires Windows 10 or newer.");
+      ImGui::TextWrapped      ("%s", _("Reporting MPO capabilities requires Windows 10 or newer."));
     }
 
     ImGui::EndGroup    ();
@@ -1173,17 +1193,16 @@ SKIF_UI_Tab_DrawHardware (void)
     ImGui::PushStyleColor (ImGuiCol_Text,
       ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
 
-    ImGui::TextColored (
+    SKIF_ImGui_TextColoredWrapped (
       ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption),
-                        "Minimum requirement:"
-    );
+                        _("Minimum requirement:"));
 
     ImGui::BeginGroup  ();
     ImGui::Spacing     ();
     ImGui::SameLine    ();
     ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
-    ImGui::Text        ("AMD: Radeon RX Vega + Adrenalin Edition 22.5.2 drivers");
+    ImGui::TextWrapped        ("%s", _("AMD: Radeon RX Vega + Adrenalin Edition 22.5.2 drivers"));
     ImGui::EndGroup    ();
     // Exact hardware models are unknown, but a bunch of dxdiag.txt files dropped online suggests Radeon RX Vega and newer had MPO support.
     // ID3D13Sylveon on the DirectX Discord mentioned that driver support was added in 22.20, so AMD Software: Adrenalin Edition 22.5.2.
@@ -1193,7 +1212,7 @@ SKIF_UI_Tab_DrawHardware (void)
     ImGui::SameLine    ();
     ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
-    ImGui::Text        ("Intel: HD Graphics 510-515 (Core 6th gen)");
+    ImGui::TextWrapped        ("%s", _("Intel: HD Graphics 510-515 (Core 6th gen)"));
     ImGui::EndGroup    ();
     // From https://www.intel.com/content/www/us/en/developer/articles/training/tutorial-migrating-your-apps-to-directx-12-part-4.html
 
@@ -1202,16 +1221,16 @@ SKIF_UI_Tab_DrawHardware (void)
     ImGui::SameLine    ();
     ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
-    ImGui::Text        ("Nvidia: GTX 16/RTX 20 series (Turing) + R460 drivers");
+    ImGui::TextWrapped        ("%s", _("Nvidia: GTX 16/RTX 20 series (Turing) + R460 drivers"));
     ImGui::EndGroup    ();
     // Official Nvidia requirement from their driver release notes is Volta and later GPUs and the Release 460 driver and later
     // As Volta only had the Titan V and Quadro GV100 models we can just say GTX 16/RTX 20 series
 
     ImGui::Spacing     ();
 
-    ImGui::TextWrapped ("Support depends on the GPU and display configuration. Unusual driver "
+    ImGui::TextWrapped ("%s", _("Support depends on the GPU and display configuration. Unusual driver "
                         "or display configurations might disable MPO support, such as by using "
-                        "10 bpc in SDR mode or custom GPU scaling (NIS/RSR/integer etc).");
+                        "10 bpc in SDR mode or custom GPU scaling (NIS/RSR/integer etc)."));
 
     ImGui::PopStyleColor ();
 
@@ -1237,25 +1256,25 @@ SKIF_UI_Tab_DrawHardware (void)
 
     if (ImGui::BeginPopup ("DisplayDriverMenu", ImGuiWindowFlags_NoMove))
     {
-      if (ImGui::Selectable (ICON_FA_ROTATE " Refresh"))
+      if (ImGui::Selectable (LI_(ICON_FA_ROTATE, "Refresh")))
         RefreshHardwareTab = true;
 
       ImGui::Separator ( );
 
       bool disabled = SKIF_Util_IsMPOsDisabledInRegistry ( );
 
-      if (ImGui::Selectable (disabled ? ICON_FA_USER_SHIELD " Enable MPOs"
-                                      : ICON_FA_USER_SHIELD " Disable MPOs"))
+      if (ImGui::Selectable (disabled ? LI_(ICON_FA_USER_SHIELD, "Enable MPOs")
+                                      : LI_(ICON_FA_USER_SHIELD, "Disable MPOs")))
       {
         std::wstring cmd = L"";
 
         switch (MessageBox (NULL,
-          L"Restart the display drivers and desktop window manager (DWM) to apply the changes.\n"
-          L"\n"
-          L"Some games and applications (e.g. Steam, Discord) may close or crash when the drivers or DWM are restarted.\n"
-          L"\n"
-          L"Do you want to restart the display drivers and DWM now?",
-          L"Restart the display drivers and desktop window manager (DWM)?", MB_ICONQUESTION | MB_YESNOCANCEL))
+          W_("Restart the display drivers and desktop window manager (DWM) to apply the changes.\n"
+             "\n"
+             "Some games and applications (e.g. Steam, Discord) may close or crash when the drivers or DWM are restarted.\n"
+             "\n"
+             "Do you want to restart the display drivers and DWM now?"),
+          W_("Restart the display drivers and desktop window manager (DWM)?"), MB_ICONQUESTION | MB_YESNOCANCEL))
         {
 
         // When YES is used, we reset the registry keys and restart the display drivers and DWM
@@ -1283,13 +1302,13 @@ SKIF_UI_Tab_DrawHardware (void)
 
       ImGui::Separator ( );
 
-      if (ImGui::Selectable (ICON_FA_USER_SHIELD " Restart display driver"))
+      if (ImGui::Selectable (LI_(ICON_FA_USER_SHIELD, "Restart display driver")))
       {
         PLOG_DEBUG << "Restarting the display driver...";
         ShellExecuteW (nullptr, L"runas", _path_cache.skif_executable, L"RestartDisplDrv", nullptr, SW_SHOWNORMAL);
       }
 
-      if (ImGui::Selectable (ICON_FA_USER_SHIELD " Restart DWM"))
+      if (ImGui::Selectable (LI_(ICON_FA_USER_SHIELD, "Restart DWM")))
       {
         PLOG_DEBUG << "Restarting the Desktop Window Manager (DWM)...";
         ShellExecuteW (nullptr, L"runas", _path_cache.skif_executable, L"RestartDWM", nullptr, SW_SHOWNORMAL);
@@ -1309,7 +1328,7 @@ SKIF_UI_Tab_DrawHardware (void)
 
 #pragma region Section: Extended CPU Hardware Reporting [64-bit only]
 #ifdef _WIN64
-  if (ImGui::CollapsingHeader ("Extended CPU Hardware Reporting###SKIF_HardwareHeader-2"))
+  if (ImGui::CollapsingHeader (L_("Extended CPU Hardware Reporting###SKIF_HardwareHeader-2")))
   {
     ImGui::PushStyleColor (
       ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
@@ -1320,9 +1339,8 @@ SKIF_UI_Tab_DrawHardware (void)
     // WinRing0
     ImGui::BeginGroup  ();
 
-    ImGui::TextWrapped    (
-      "Special K can make use of an optional kernel driver to provide additional metrics in the CPU widget."
-    );
+    ImGui::TextWrapped    ("%s",
+      _("Special K can make use of an optional kernel driver to provide additional metrics in the CPU widget."));
 
     ImGui::Spacing     ();
     ImGui::Spacing     ();
@@ -1332,23 +1350,22 @@ SKIF_UI_Tab_DrawHardware (void)
     ImGui::SameLine    ();
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
-    ImGui::Text        ("Extends the CPU widget with thermals, energy, and precise clock rate on modern hardware.");
+    ImGui::TextWrapped        ("%s", _("Extends the CPU widget with thermals, energy, and precise clock rate on modern hardware."));
     ImGui::EndGroup    ();
 
     ImGui::Spacing();
     ImGui::Spacing();
 
-    ImGui::TextColored (
+    SKIF_ImGui_TextColoredWrapped (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-                        "Requirement:"
-    );
+                        _("Requirement:"));
 
     ImGui::BeginGroup  ();
     ImGui::Spacing     ();
     ImGui::SameLine    ();
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
-    ImGui::Text        ("Kernel Driver:");
+    ImGui::TextWrapped        ("%s", _("Kernel Driver:"));
     ImGui::SameLine    ();
 
     static std::string btnDriverLabel;
@@ -1358,44 +1375,44 @@ SKIF_UI_Tab_DrawHardware (void)
     // Status is pending...
     if (driverStatus != driverStatusPending)
     {
-      btnDriverLabel = ICON_FA_SPINNER " Please Wait...";
-      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), "Pending...");
+      btnDriverLabel = LI_(ICON_FA_SPINNER, "Please Wait...");
+      SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), _("Pending..."));
     }
 
     // Driver is installed
     else if (driverStatus == Installed)
     {
-      btnDriverLabel    = ICON_FA_USER_SHIELD " Uninstall Driver";
-      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "Installed");
+      btnDriverLabel    = LI_(ICON_FA_USER_SHIELD, "Uninstall Driver");
+      SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), _("Installed"));
       wszDriverTaskCmd = L"Uninstall";
     }
 
     // Other driver is installed
     else if (driverStatus == OtherDriverInstalled)
     {
-      btnDriverLabel    = ICON_FA_BAN " Unavailable";
-      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), "Unsupported");
+      btnDriverLabel    = LI_(ICON_FA_BAN, "Unavailable");
+      SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), _("Unsupported"));
       ImGui::Spacing     ();
       ImGui::SameLine    ();
       ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
       ImGui::SameLine    ();
-      ImGui::Text        ("Conflict With:");
+      ImGui::TextWrapped        ("%s", _("Conflict With:"));
       ImGui::SameLine    ();
-      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), SK_WideCharToUTF8 (driverBinaryPath).c_str ());
+      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), "%s", SK_WideCharToUTF8 (driverBinaryPath).c_str ());
     }
 
     // Obsolete driver is installed
     else if (driverStatus == ObsoleteInstalled)
     {
-      btnDriverLabel    = ICON_FA_USER_SHIELD " Migrate Driver";
-      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), "Obsolete driver installed");
+      btnDriverLabel    = LI_(ICON_FA_USER_SHIELD, "Migrate Driver");
+      SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), _("Obsolete driver installed"));
       wszDriverTaskCmd = L"Migrate Install";
     }
 
     // Driver is not installed
     else {
-      btnDriverLabel    = ICON_FA_USER_SHIELD " Install Driver";
-      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), "Not Installed");
+      btnDriverLabel    = LI_(ICON_FA_USER_SHIELD, "Install Driver");
+      SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), _("Not Installed"));
       wszDriverTaskCmd = L"Install";
     }
 
@@ -1411,11 +1428,10 @@ SKIF_UI_Tab_DrawHardware (void)
 
     // Show button
     bool driverButton =
-      ImGui::ButtonEx (btnDriverLabel.c_str(), ImVec2(200 * SKIF_ImGui_GlobalDPIScale,
+      ImGui::ButtonEx (btnDriverLabel.c_str(), ImVec2(std::max (200 * SKIF_ImGui_GlobalDPIScale, ImGui::CalcTextSize (btnDriverLabel.c_str(), NULL, true).x + 2 * ImGui::GetStyle ( ).FramePadding.x), // At least as wide as before
                                                        25 * SKIF_ImGui_GlobalDPIScale));
     SKIF_ImGui_SetHoverTip (
-      "Administrative privileges are required on the system to enable this."
-    );
+      _("Administrative privileges are required on the system to enable this."));
 
     if ( driverButton )
     {
@@ -1443,9 +1459,8 @@ SKIF_UI_Tab_DrawHardware (void)
       ImGui::SameLine   ();
       ImGui::BeginGroup ();
       ImGui::Spacing    ();
-      ImGui::SameLine   (); ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),
-                                                "Option is unavailable as another application have already installed a copy of the driver."
-      );
+      ImGui::SameLine   (); SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning),
+                                                _("Option is unavailable as another application have already installed a copy of the driver."));
       ImGui::EndGroup   ();
     }
 
@@ -1455,9 +1470,8 @@ SKIF_UI_Tab_DrawHardware (void)
       ImGui::SameLine();
       ImGui::BeginGroup();
       ImGui::Spacing();
-      ImGui::SameLine(); ImGui::TextColored(ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
-        "An older version of the driver is installed."
-      );
+      ImGui::SameLine(); SKIF_ImGui_TextColoredWrapped(ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
+        _("An older version of the driver is installed."));
       ImGui::EndGroup();
     }
 
@@ -1472,7 +1486,7 @@ SKIF_UI_Tab_DrawHardware (void)
 #pragma endregion
 
 #pragma region Section: Vulkan Layer Management
-  if (ImGui::CollapsingHeader ("Vulkan Layer Management###SKIF_HardwareHeader-3"))
+  if (ImGui::CollapsingHeader (L_("Vulkan Layer Management###SKIF_HardwareHeader-3")))
   {
     ImGui::PushStyleColor (
       ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
@@ -1482,11 +1496,10 @@ SKIF_UI_Tab_DrawHardware (void)
 
     ImGui::BeginGroup  ();
 
-    ImGui::TextWrapped    (
-      "The Vulkan API includes support for defining third-party layers that can be implicitly or explicitly loaded by applications."
+    ImGui::TextWrapped    ("%s",
+      _("The Vulkan API includes support for defining third-party layers that can be implicitly or explicitly loaded by applications."
       " These third-party layers has been known to cause compatibility issues with other third-party injectors and tools such as Special K,"
-      " and might therefor be of interest to disable. Note that any change made below will affect all apps/games on the system!"
-    );
+      " and might therefor be of interest to disable. Note that any change made below will affect all apps/games on the system!"));
 
     SKIF_ImGui_Spacing ( );
 
@@ -1494,27 +1507,26 @@ SKIF_UI_Tab_DrawHardware (void)
     ImGui::SameLine    ();
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
-    ImGui::TextWrapped ("Implicit layers are automatically enabled in any running games/apps.");
+    ImGui::TextWrapped ("%s", _("Implicit layers are automatically enabled in any running games/apps."));
 
     ImGui::Spacing     ();
     ImGui::SameLine    ();
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
-    ImGui::TextWrapped ("Explicit layers are only enabled if the game/app requires it.");
+    ImGui::TextWrapped ("%s", _("Explicit layers are only enabled if the game/app requires it."));
 
     static const std::tuple<VkLayerType, std::string, std::string> types[] = {
-      { VkLayerType_Implicit, "Implicit Vulkan Layers", "Implicit layers are automatically enabled in any running games/apps." },
-      { VkLayerType_Explicit, "Explicit Vulkan Layers", "Explicit layers are only enabled if the game/app requires it."        }
+      { VkLayerType_Implicit, N_("Implicit Vulkan Layers"), N_("Implicit layers are automatically enabled in any running games/apps.") },
+      { VkLayerType_Explicit, N_("Explicit Vulkan Layers"), N_("Explicit layers are only enabled if the game/app requires it.")        }
     };
 
     for (auto& type : types)
     {
       SKIF_ImGui_Spacing ( );
 
-      ImGui::TextColored (
+      SKIF_ImGui_TextColoredWrapped (
         ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-          std::get<1>(type).c_str()
-      );
+          T_(std::get<1>(type).c_str()));
 
       ImGui::SameLine    ( );
 
@@ -1523,7 +1535,7 @@ SKIF_UI_Tab_DrawHardware (void)
           ICON_FA_LIGHTBULB
       );
 
-      SKIF_ImGui_SetHoverTip (std::get<2>(type).c_str());
+      SKIF_ImGui_SetHoverTip (T_(std::get<2>(type).c_str()));
 
       SKIF_ImGui_Spacing ( );
 
@@ -1546,7 +1558,7 @@ SKIF_UI_Tab_DrawHardware (void)
           ImGui::SetCursorPosY (posXY.y + ImGui::GetStyle().FramePadding.y);
           ImGui::TextColored   (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Yellow), ICON_FA_TRIANGLE_EXCLAMATION);
 
-          SKIF_ImGui_SetHoverTip ("This layer has known compatibility issues with Special K and may cause issues.");
+          SKIF_ImGui_SetHoverTip (_("This layer has known compatibility issues with Special K and may cause issues."));
 
           ImGui::SameLine ( );
           ImGui::SetCursorPos (posXY);
@@ -1554,7 +1566,7 @@ SKIF_UI_Tab_DrawHardware (void)
 
         ImGui::TreePush("");
         bool dontCare = l.isEnabled;
-        if (ImGui::Checkbox     (l.Name.c_str(), &dontCare))
+        if (SKIF_ImGui_Checkbox     (l.Name.c_str(), &dontCare))
           l.Toggle ( );
         ImGui::TreePop();
 
@@ -1565,7 +1577,7 @@ SKIF_UI_Tab_DrawHardware (void)
       if (! foundAny)
       {
         ImGui::TreePush("");
-        ImGui::Text             ("No layer of this kind was found.");
+        ImGui::TextWrapped             ("%s", _("No layer of this kind was found."));
         ImGui::TreePop();
       }
     }
