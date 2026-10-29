@@ -22,6 +22,9 @@
 
 #include "library_ui.h"
 
+// Last, as it defines short macros such as _ ( )
+#include <utility/l10n.h>
+
 #pragma region PrintInjectionSummary
 
 // Details panel, top frame: Special K DLL / profile folder / config file / platform, and the service toggle (moved verbatim from the former GetInjectionSummary)
@@ -276,7 +279,7 @@ DrawGameDetails_Info (app_record_s* pApp)
     ImGui::PushStyleColor(ImGuiCol_Text, (quickServiceHover) ? _inject.ui_game_summary.color_hover.Value
                                                              : _inject.ui_game_summary.color.Value);
 
-    if (ImGui::Selectable (_inject.ui_game_summary.text.c_str(), false, ImGuiSelectableFlags_SpanAllColumns, ImVec2 (360.0f * SKIF_ImGui_GlobalDPIScale, 0.0f)))
+    if (ImGui::Selectable (TL_(_inject.ui_game_summary.text.c_str()), false, ImGuiSelectableFlags_SpanAllColumns, ImVec2 (360.0f * SKIF_ImGui_GlobalDPIScale, 0.0f)))
     {
       // Only allow the toggle to work to disable the service while a game is loading
       if (pApp->loading)
@@ -295,7 +298,7 @@ DrawGameDetails_Info (app_record_s* pApp)
     quickServiceHover = ImGui::IsItemHovered ();
 
     SKIF_ImGui_SetMouseCursorHand ();
-    SKIF_ImGui_SetHoverTip        (_inject.ui_game_summary.hover_tip.c_str ());
+    SKIF_ImGui_SetHoverTip        (T_(_inject.ui_game_summary.hover_tip.c_str ()));
 
     if ( ! ImGui::IsPopupOpen ("ServiceMenu") &&
            ImGui::IsItemClicked (ImGuiMouseButton_Right))

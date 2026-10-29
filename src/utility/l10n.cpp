@@ -753,6 +753,10 @@ SKIF_L10n_PseudoLocalize (std::string_view in)
       out += ch;
   }
 
+  // Nothing to translate (blank labels, numbers, symbols): as is
+  if (letters == 0)
+    return std::string (in);
+
   size_t padding = (letters * 35 + 99) / 100;
   if (padding > 0)
     out += ' ' + std::string (padding, '~');

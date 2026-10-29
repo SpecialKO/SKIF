@@ -25,6 +25,8 @@
 //     T_(variable)                  Translates text that is not a literal, but was marked with N_ ( ) elsewhere
 //                                     (not extracted itself).
 //     NC_("context", "text")        N_ ( ) with a context; translate the entry with CT_("context", variable).
+//     NL_("label")                  N_ ( ) for a widget label (as with L_, only the text before "##" is translated);
+//                                     show the entry with TL_(variable).
 //     P_("singular", "plural", n)   Plural forms, following the Plural-Forms header of the language.
 //     F_("{0} of {1}", a, b)        Translates, then formats with std::vformat (translators can reorder {0}, {1}, ...).
 //     FP_("{0} game", "{0} games", n, ...)
@@ -125,6 +127,8 @@ private:
 #define T_(s)               SKIF_L10n::GetInstance ( ).Get       (nullptr, s)
 #define NC_(ctx, s)         (s)
 #define CT_(ctx, s)         SKIF_L10n::GetInstance ( ).Get       (ctx,     s)
+#define NL_(s)              (s)
+#define TL_(s)              SKIF_L10n::GetInstance ( ).GetLabel  (nullptr, nullptr, s)
 
 // Formats a translated pattern; falls back to the English pattern if the translation does not format (and to the
 //   pattern itself if neither does), so a bad translation never takes SKIF down

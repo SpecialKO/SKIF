@@ -8,7 +8,7 @@
   translation tools (Weblate, Crowdin, Poedit) use to create and update the .po file of each language.
 
     _("text")             C_("context", "text")    W_("text")     CW_("context", "text")
-    N_("text")            NC_("context", "text")
+    N_("text")            NC_("context", "text")    NL_("label")
     L_("label")           LI_(icon, "label")       CL_("context", "label")
     P_("one", "many", n)  F_("text", ...)          FP_("one", "many", n, ...)
 
@@ -52,6 +52,7 @@ $keywords = @{
   'CW_' = @{ Ctx =  0; Id = 1; Plural = -1; Label = $false }
   'N_'  = @{ Ctx = -1; Id = 0; Plural = -1; Label = $false }
   'NC_' = @{ Ctx =  0; Id = 1; Plural = -1; Label = $false }
+  'NL_' = @{ Ctx = -1; Id = 0; Plural = -1; Label = $true  }
   'P_'  = @{ Ctx = -1; Id = 0; Plural =  1; Label = $false }
   'F_'  = @{ Ctx = -1; Id = 0; Plural = -1; Label = $false }
   'FP_' = @{ Ctx = -1; Id = 0; Plural =  1; Label = $false }
@@ -64,7 +65,7 @@ $tokenizerPattern =
   '|(?<raw>(?:u8|L|u|U)?R"(?<delim>[^()\\\s]{0,16})\((?<rawval>.*?)\)\k<delim>")' +
   '|(?<str>(?:u8|L|u|U)?"(?<strval>(?:[^"\\\n]|\\.)*)")' +
   '|(?<chr>''(?:[^''\\\n]|\\.)+'')' +
-  '|(?<kw>(?<![A-Za-z0-9_])(?:FP_|LI_|CL_|NC_|CW_|C_|L_|W_|N_|P_|F_|_)(?=\s*\())' +
+  '|(?<kw>(?<![A-Za-z0-9_])(?:FP_|LI_|CL_|NC_|NL_|CW_|C_|L_|W_|N_|P_|F_|_)(?=\s*\())' +
   '|(?<punct>[(),])'
 $tokenizer = New-Object -TypeName System.Text.RegularExpressions.Regex -ArgumentList $tokenizerPattern, ([System.Text.RegularExpressions.RegexOptions]::Singleline)
 
