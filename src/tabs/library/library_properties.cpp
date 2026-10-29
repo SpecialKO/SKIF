@@ -148,6 +148,21 @@ _SamePath (const std::wstring& a, const std::wstring& b)
   return (_wcsicmp (x.c_str ( ), y.c_str ( )) == 0);
 }
 
+// An icon in a fixed-width slot before a label, so rows with different icons line up
+static void
+_LeadingIcon (const ImVec4& color, const char* icon, const char* tooltip)
+{
+  const float x = ImGui::GetCursorPosX ( );
+
+  ImGui::AlignTextToFramePadding ( );
+  ImGui::TextColored (color, "%s", icon);
+
+  if (tooltip != nullptr)
+    SKIF_ImGui_SetHoverTip (tooltip);
+
+  ImGui::SameLine (x + ImGui::GetFrameHeight ( ) + ImGui::GetStyle ( ).ItemSpacing.x);
+}
+
 static const char*
 _InstantPlayName (int value)
 {
@@ -325,12 +340,155 @@ private:
 #pragma endregion
 
 
+#pragma region Launch behavior
+
+// How the game is launched, above its launch options:
+//   Instant Play: the game's setting (db.json), used by the launch options the platform client can start itself
+//   Auto-stop:    the injection service's behavior, stored for the install folder in the registry (SKIF_LaunchBehaviors)
+class PropertiesSection_LaunchBehavior : public IPropertySection
+{
+public:
+  const char*    GetTitle (void) const override { return ""; }
+  PropertiesPage GetPage  (void) const override { return PropertiesPage::Launch; }
+  int            GetOrder (void) const override { return 5; }
+
+  // The working copy, for PropertiesSection_LaunchOptions
+  const int*     GetInstantPlay (void) const { return &instantPlay; }
+
+  void Load (app_record_s& app) override
+  {
+    instantPlayCompatible = app.isInstantPlayCompatible ( );
+    instantPlayGlobal     = app.GetInstantPlayDefault   ( );
+    instantPlay           = instantPlayOrig = app.skif.instant_play;
+
+    folder = app.install_dir;
+    value  = valueOrig = 0;
+
+    if (folder.empty ( ))
+      return;
+
+    SKIF_LaunchBehaviors::Resolved exact;
+    SKIF_LaunchBehaviors::ReadExact (folder, exact);
+
+    value     = valueOrig = static_cast <int> (exact.autoStop);
+    inherited = SKIF_LaunchBehaviors::ResolveParent (folder).autoStop;
+  }
+
+  void Draw (app_record_s& app) override
+  {
+    UNREFERENCED_PARAMETER (app);
+
+    // Instant Play (the game's setting)
+    if (instantPlayCompatible)
+    {
+      _LeadingIcon           (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION,
+                              "Warning: This skips the regular platform launch process for the game,\n"
+                              "including steps like the cloud saves synchronization that usually occurs.");
+      SKIF_Properties_Label  ("Instant Play:", "Used by the launch options of the game that the platform client can start itself.\n"
+                                               "Other launch options always use Instant Play.");
+
+      ImGui::RadioButton     (SKIF_Util_FormatStringRaw ("Default (%s)###PropsIPDefault", (instantPlayGlobal) ? "Always" : "Never"), &instantPlay, 0);
+      SKIF_ImGui_SetHoverTip ("The game will use the default behavior configured in the Settings tab.");
+      ImGui::SameLine        ( );
+      ImGui::RadioButton     ("Never###PropsIPNever",   &instantPlay, 2);
+      SKIF_ImGui_SetHoverTip ("The game will never use instant play except\nwhen launched through the right click menu.");
+      ImGui::SameLine        ( );
+      ImGui::RadioButton     ("Always###PropsIPAlways", &instantPlay, 1);
+      SKIF_ImGui_SetHoverTip ("The game will always use instant play except\nwhen launched through the right click menu.");
+    }
+
+    // Auto-stop
+    _LeadingIcon           (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB,
+                            "This determines how long the service will remain running when launching the game.\n"
+                            "Move the mouse over each option to get more information.");
+    SKIF_Properties_Label  ("Auto-stop:");
+
+    if (folder.empty ( ))
+      ImGui::TextDisabled ("Not available for this game.");
+    else
+      _DrawAutoStop ( );
+
+    SKIF_ImGui_Spacing ( );
+    ImGui::Separator   ( );
+  }
+
+  bool IsDirty (void) const override
+  {
+    return (value != valueOrig || instantPlay != instantPlayOrig);
+  }
+
+  uint32_t Apply (app_record_s& app) override
+  {
+    uint32_t ret = PropertiesApply_None;
+
+    if (instantPlay != app.skif.instant_play)
+    {
+      app.skif.instant_play = instantPlay;
+      ret |= PropertiesApply_WriteMetaDB;
+    }
+
+    // Also what the launcher mode uses (SKIF %COMMAND%)
+    if (value != valueOrig && ! folder.empty ( ) && ! SKIF_LaunchBehaviors::SetAutoStop (folder, static_cast <SKIF_LaunchBehaviors::AutoStop> (value)))
+      PLOG_ERROR << "Could not save the auto-stop behavior for " << folder;
+
+    return ret;
+  }
+
+private:
+  bool                           instantPlayCompatible = false;
+  bool                           instantPlayGlobal     = false; // The store's global Instant Play setting (Settings tab)
+  int                            instantPlay           = 0,
+                                 instantPlayOrig       = 0;
+
+  void _DrawAutoStop (void)
+  {
+    static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+    using AutoStop = SKIF_LaunchBehaviors::AutoStop;
+
+    // What Default resolves to: a parent folder's setting, else the Settings tab
+    std::string defaultLabel =
+      (inherited == AutoStop::OnInjection) ? "Default (Inject, parent folder)" :
+      (inherited == AutoStop::OnGameExit)  ? "Default (Exit, parent folder)"   :
+      (inherited == AutoStop::Never)       ? "Default (Never, parent folder)"  :
+      (_registry.iAutoStopBehavior == 1)   ? "Default (Inject)"                : "Default (Exit)";
+
+    ImGui::RadioButton     ((defaultLabel + "###PropsAutoStopDefault").c_str ( ), &value, 0);
+    SKIF_ImGui_SetHoverTip ((inherited != AutoStop::Inherit) ? "The service will use the behavior set for a parent folder of the game."
+                                                             : "The service will use the default behavior configured in the Settings tab.");
+    ImGui::SameLine        ( );
+    ImGui::RadioButton     ("On inject###PropsAutoStopInject", &value, 1);
+    SKIF_ImGui_SetHoverTip ("The service will be stopped when Special K\nsuccessfully injects into a game.");
+    ImGui::SameLine        ( );
+    ImGui::RadioButton     ("On exit###PropsAutoStopExit",     &value, 2);
+    SKIF_ImGui_SetHoverTip ("The service will be stopped when Special K\ndetects that the game is being closed.");
+    ImGui::SameLine        ( );
+    ImGui::BeginGroup      ( );
+    ImGui::RadioButton     ("Never###PropsAutoStopNever",      &value, 3);
+    ImGui::SameLine        ( );
+    ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
+    ImGui::EndGroup        ( );
+    SKIF_ImGui_SetHoverTip ("Warning: The service will remain even\nafter the game has been closed.");
+  }
+
+  std::wstring                   folder;
+  int                            value     = 0,
+                                 valueOrig = 0;
+  SKIF_LaunchBehaviors::AutoStop inherited = SKIF_LaunchBehaviors::AutoStop::Inherit;
+};
+
+#pragma endregion
+
+
 #pragma region Launch options
 
 // Instant Play (game), the launch options of the game (platform, lc.json and lc_user.json), and the default one
 class PropertiesSection_LaunchOptions : public IPropertySection
 {
 public:
+  // gameInstantPlay_: the working copy of the game's Instant Play setting (PropertiesSection_LaunchBehavior), shown on the rows that use it
+  explicit PropertiesSection_LaunchOptions (const int* gameInstantPlay_) : gameInstantPlay (gameInstantPlay_) { }
+
   const char*    GetTitle (void) const override { return ""; }
   PropertiesPage GetPage  (void) const override { return PropertiesPage::Launch; }
   int            GetOrder (void) const override { return 10; }
@@ -344,7 +502,6 @@ public:
     installDir              = app.install_dir;
     instantPlayCompatible   = app.isInstantPlayCompatible ( );
     instantPlayGlobal       = app.GetInstantPlayDefault   ( );
-    gameInstantPlay         = gameInstantPlayOrig = app.skif.instant_play;
     clientOptions           = app.GetClientLaunchOptions ( );
     note.clear              ( );
     pickError.clear         ( );
@@ -416,28 +573,6 @@ public:
   {
     using LaunchSource = app_record_s::LaunchSource;
 
-    // Instant Play (the game's setting)
-    if (instantPlayCompatible)
-    {
-      ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
-      SKIF_ImGui_SetHoverTip ("Warning: This skips the regular platform launch process for the game,\n"
-                              "including steps like the cloud saves synchronization that usually occurs.");
-      ImGui::SameLine        ( );
-      SKIF_Properties_Label  ("Instant Play:", "Used by the launch options of the game that the platform client can start itself.\n"
-                                               "Other launch options always use Instant Play.");
-
-      ImGui::RadioButton     (SKIF_Util_FormatStringRaw ("Default (%s)###PropsIPDefault", (app.GetInstantPlayDefault ( )) ? "Always" : "Never"), &gameInstantPlay, 0);
-      SKIF_ImGui_SetHoverTip ("The game will use the default behavior configured in the Settings tab.");
-      ImGui::SameLine        ( );
-      ImGui::RadioButton     ("Never###PropsIPNever",   &gameInstantPlay, 2);
-      SKIF_ImGui_SetHoverTip ("The game will never use instant play except\nwhen launched through the right click menu.");
-      ImGui::SameLine        ( );
-      ImGui::RadioButton     ("Always###PropsIPAlways", &gameInstantPlay, 1);
-      SKIF_ImGui_SetHoverTip ("The game will always use instant play except\nwhen launched through the right click menu.");
-
-      SKIF_ImGui_Spacing     ( );
-    }
-
     ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption), "Launch options:");
 
     if (rows.empty ( ))
@@ -450,7 +585,11 @@ public:
       selected = 0;
 
     const int   effectiveDefault = (defaultRow != -1) ? defaultRow : primaryRow;
-    const float fHeight          = 230.0f * SKIF_ImGui_GlobalDPIScale;
+    // Fill the page: the list, the two button rows below it, and room for two lines of notes
+    const float fHeight          = std::max (150.0f * SKIF_ImGui_GlobalDPIScale,
+                                             ImGui::GetContentRegionAvail ( ).y - ImGui::GetFrameHeightWithSpacing ( ) * 2.0f
+                                                                                - ImGui::GetTextLineHeightWithSpacing ( ) * 2.0f
+                                                                                - ImGui::GetStyle ( ).ItemSpacing.y * 2.0f);
     const float fListWidth       = 250.0f * SKIF_ImGui_GlobalDPIScale;
 
     // The list
@@ -631,8 +770,7 @@ public:
   bool IsDirty (void) const override
   {
     return (_CollectUsers ( )    != userOrig    ||
-            _GetDefaultRef ( )   != defaultOrig ||
-            gameInstantPlay      != gameInstantPlayOrig);
+            _GetDefaultRef ( )   != defaultOrig);
   }
 
   uint32_t Apply (app_record_s& app) override
@@ -655,12 +793,6 @@ public:
     if (ref != app.skif.default_launch)
     {
       app.skif.default_launch = ref;
-      ret |= PropertiesApply_WriteMetaDB;
-    }
-
-    if (gameInstantPlay != app.skif.instant_play)
-    {
-      app.skif.instant_play = gameInstantPlay;
       ret |= PropertiesApply_WriteMetaDB;
     }
 
@@ -698,8 +830,7 @@ private:
   app_record_s::launch_ref_s         defaultOrig;                   // As loaded (db.json "DefaultLaunch")
   bool                               defaultMissing        = false; // defaultOrig is set but matches no row
   bool                               keepMissing           = true;  // Keep defaultOrig while it matches no row (until changed or cleared)
-  int                                gameInstantPlay       =  0,
-                                     gameInstantPlayOrig   =  0;
+  const int*                         gameInstantPlay       = nullptr; // Owned by PropertiesSection_LaunchBehavior
   std::wstring                       installDir;
   std::string                        clientOptions;                 // Launch options set in the store client (Steam)
   std::string                        note;                          // Shown below the editor (auto-duplicate)
@@ -995,7 +1126,9 @@ private:
   // What the game's Instant Play setting resolves to
   const char* _GameInstantPlayName (void) const
   {
-    return (gameInstantPlay != 0) ? _InstantPlayName (gameInstantPlay) : (instantPlayGlobal) ? "Always" : "Never";
+    const int value = (gameInstantPlay != nullptr) ? *gameInstantPlay : 0;
+
+    return (value != 0) ? _InstantPlayName (value) : (instantPlayGlobal) ? "Always" : "Never";
   }
 
   void _DrawInstantPlayRequired (void)
@@ -1232,104 +1365,6 @@ private:
 #pragma endregion
 
 
-#pragma region Auto-stop
-
-// Auto-stop behavior of the injection service, stored for the install folder in the registry (SKIF_LaunchBehaviors)
-class PropertiesSection_AutoStop : public IPropertySection
-{
-public:
-  const char*    GetTitle (void) const override { return ""; }
-  PropertiesPage GetPage  (void) const override { return PropertiesPage::Launch; }
-  int            GetOrder (void) const override { return 20; }
-
-  void Load (app_record_s& app) override
-  {
-    folder = app.install_dir;
-    value  = valueOrig = 0;
-
-    if (folder.empty ( ))
-      return;
-
-    SKIF_LaunchBehaviors::Resolved exact;
-    SKIF_LaunchBehaviors::ReadExact (folder, exact);
-
-    value     = valueOrig = static_cast <int> (exact.autoStop);
-    inherited = SKIF_LaunchBehaviors::ResolveParent (folder).autoStop;
-  }
-
-  void Draw (app_record_s& app) override
-  {
-    static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
-
-    UNREFERENCED_PARAMETER (app);
-
-    SKIF_ImGui_Spacing     ( );
-
-    ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
-    SKIF_ImGui_SetHoverTip ("This determines how long the service will remain running when launching the game.\n"
-                            "Move the mouse over each option to get more information.");
-    ImGui::SameLine        ( );
-    SKIF_Properties_Label  ("Auto-stop:");
-
-    if (folder.empty ( ))
-    {
-      ImGui::TextDisabled ("Not available for this game.");
-      return;
-    }
-
-    using AutoStop = SKIF_LaunchBehaviors::AutoStop;
-
-    // What Default resolves to: a parent folder's setting, else the Settings tab
-    std::string defaultLabel =
-      (inherited == AutoStop::OnInjection) ? "Default (Inject, parent folder)" :
-      (inherited == AutoStop::OnGameExit)  ? "Default (Exit, parent folder)"   :
-      (inherited == AutoStop::Never)       ? "Default (Never, parent folder)"  :
-      (_registry.iAutoStopBehavior == 1)   ? "Default (Inject)"                : "Default (Exit)";
-
-    ImGui::RadioButton     ((defaultLabel + "###PropsAutoStopDefault").c_str ( ), &value, 0);
-    SKIF_ImGui_SetHoverTip ((inherited != AutoStop::Inherit) ? "The service will use the behavior set for a parent folder of the game."
-                                                             : "The service will use the default behavior configured in the Settings tab.");
-    ImGui::SameLine        ( );
-    ImGui::RadioButton     ("On inject###PropsAutoStopInject", &value, 1);
-    SKIF_ImGui_SetHoverTip ("The service will be stopped when Special K\nsuccessfully injects into a game.");
-    ImGui::SameLine        ( );
-    ImGui::RadioButton     ("On exit###PropsAutoStopExit",     &value, 2);
-    SKIF_ImGui_SetHoverTip ("The service will be stopped when Special K\ndetects that the game is being closed.");
-    ImGui::SameLine        ( );
-    ImGui::BeginGroup      ( );
-    ImGui::RadioButton     ("Never###PropsAutoStopNever",      &value, 3);
-    ImGui::SameLine        ( );
-    ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
-    ImGui::EndGroup        ( );
-    SKIF_ImGui_SetHoverTip ("Warning: The service will remain even\nafter the game has been closed.");
-  }
-
-  bool IsDirty (void) const override
-  {
-    return (value != valueOrig);
-  }
-
-  uint32_t Apply (app_record_s& app) override
-  {
-    UNREFERENCED_PARAMETER (app);
-
-    // Also what the launcher mode uses (SKIF %COMMAND%)
-    if (! folder.empty ( ) && ! SKIF_LaunchBehaviors::SetAutoStop (folder, static_cast <SKIF_LaunchBehaviors::AutoStop> (value)))
-      PLOG_ERROR << "Could not save the auto-stop behavior for " << folder;
-
-    return PropertiesApply_None;
-  }
-
-private:
-  std::wstring                   folder;
-  int                            value     = 0,
-                                 valueOrig = 0;
-  SKIF_LaunchBehaviors::AutoStop inherited = SKIF_LaunchBehaviors::AutoStop::Inherit;
-};
-
-#pragma endregion
-
-
 #pragma region Special K
 
 // Per launch option: Special K disabled (blocked) and elevated service, as in the details panel
@@ -1515,9 +1550,12 @@ _SKIF_Properties_Build (app_record_s* pApp)
 {
   s_dialog.sections.clear ( );
 
+  auto launchBehavior = std::make_unique <PropertiesSection_LaunchBehavior> ( );
+  auto launchOptions  = std::make_unique <PropertiesSection_LaunchOptions>  (launchBehavior->GetInstantPlay ( ));
+
   s_dialog.sections.push_back (std::make_unique <PropertiesSection_General>       ( ));
-  s_dialog.sections.push_back (std::make_unique <PropertiesSection_LaunchOptions> ( ));
-  s_dialog.sections.push_back (std::make_unique <PropertiesSection_AutoStop>      ( ));
+  s_dialog.sections.push_back (std::move (launchBehavior));
+  s_dialog.sections.push_back (std::move (launchOptions));
 
   if (! pApp->launch_configs.empty ( ))
     s_dialog.sections.push_back (std::make_unique <PropertiesSection_Service>     ( ));
@@ -1573,13 +1611,24 @@ SKIF_Properties_Draw (void)
   if (! s_dialog.active)
     _SKIF_Properties_Build (pApp);
 
-  // Always use same size
-  const float fPopupWidth = 720.0f * SKIF_ImGui_GlobalDPIScale;
+  // Validated before drawing, as the footer is sized after the number of issues
+  std::vector <property_issue_s> issues;
+
+  for (auto& section : s_dialog.sections)
+    section->Validate (*pApp, issues);
+
+  // A fixed size (80% of the main window, within limits), so the tab bar and buttons stay in place between tabs
+  const ImVec2 vpSize      = ImGui::GetWindowViewport ( )->Size;
+  const ImVec2 vPopupSize  = ImVec2 (
+    std::min (vpSize.x * 0.95f, std::max (vpSize.x * 0.8f, 640.0f * SKIF_ImGui_GlobalDPIScale)),
+    std::min (vpSize.y * 0.95f, std::max (vpSize.y * 0.8f, 480.0f * SKIF_ImGui_GlobalDPIScale))
+  );
 
   const std::string title =
     SKIF_Util_FormatStringRaw ("Properties - %s###ModifyGamePopup", pApp->names.normal.c_str ( ));
 
-  if (SKIF_ImGui_BeginPopup (title.c_str ( ), nullptr, ImVec2 (fPopupWidth, 0.0f)))
+  // Not auto-resizing; the page scrolls instead of the window
+  if (SKIF_ImGui_BeginPopup (title.c_str ( ), nullptr, vPopupSize, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
   {
     if (ModifyGamePopup == PopupState_Open)
     {
@@ -1589,9 +1638,16 @@ SKIF_Properties_Draw (void)
         ModifyGamePopup = PopupState_Opened;
     }
 
+    // Keep Ctrl+A (Add Game) from triggering while the dialog is open
+    allowShortcutCtrlA = false;
+
     ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
 
-    SKIF_ImGui_Spacing ( );
+    // The footer below the pages: up to three lines of warnings / errors, then the buttons
+    const ImGuiStyle& style      = ImGui::GetStyle ( );
+    const int         issueLines = std::min (static_cast <int> (issues.size ( )), 3);
+    const float       fIssuesH   = (issueLines > 0) ? issueLines * ImGui::GetTextLineHeightWithSpacing ( ) + style.ItemSpacing.y : 0.0f;
+    const float       fFooterH   = fIssuesH + ImGui::GetFrameHeightWithSpacing ( ) + style.ItemSpacing.y * 2.0f;
 
     bool anyDirty = false;
 
@@ -1628,6 +1684,9 @@ SKIF_Properties_Draw (void)
 
         if (ImGui::BeginTabItem (label.c_str ( )))
         {
+          // Every page gets the same area
+          ImGui::BeginChild ("###PropsPage", ImVec2 (0.0f, -fFooterH), ImGuiChildFlags_None);
+
           SKIF_ImGui_Spacing ( );
 
           for (auto& section : s_dialog.sections)
@@ -1649,6 +1708,8 @@ SKIF_Properties_Draw (void)
             SKIF_ImGui_Spacing ( );
           }
 
+          ImGui::EndChild ( );
+
           ImGui::EndTabItem ( );
         }
       }
@@ -1657,36 +1718,36 @@ SKIF_Properties_Draw (void)
     }
 
     // Warnings and errors of all sections (errors block Save)
-    std::vector <property_issue_s> issues;
-
-    for (auto& section : s_dialog.sections)
-      section->Validate (*pApp, issues);
-
     bool hasErrors = false;
 
-    if (! issues.empty ( ))
+    for (const auto& issue : issues)
+      hasErrors = hasErrors || (issue.level == property_issue_s::Level::Error);
+
+    // Pin the footer to the bottom of the dialog
+    ImGui::SetCursorPosY (ImGui::GetWindowHeight ( ) - style.WindowPadding.y - fFooterH + style.ItemSpacing.y);
+
+    if (issueLines > 0)
     {
-      ImGui::Separator ( );
+      ImGui::BeginChild ("###PropsIssues", ImVec2 (0.0f, fIssuesH - style.ItemSpacing.y), ImGuiChildFlags_None);
 
       for (const auto& issue : issues)
       {
         const bool isError = (issue.level == property_issue_s::Level::Error);
 
-        hasErrors = hasErrors || isError;
-
         ImGui::TextColored (ImGui::GetStyleColorVec4 ((isError) ? ImGuiCol_SKIF_Failure : ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
         ImGui::SameLine    ( );
         ImGui::TextWrapped ("%s", issue.message.c_str ( ));
       }
-    }
 
-    SKIF_ImGui_Spacing ( );
+      ImGui::EndChild ( );
+    }
 
     ImVec2 vButtonSize = ImVec2 (80.0f * SKIF_ImGui_GlobalDPIScale, 0.0f);
 
-    const bool saveDisabled = (! anyDirty || hasErrors);
+    const bool  saveDisabled = (! anyDirty || hasErrors);
+    const float fCenterX     = ImGui::GetWindowWidth ( ) / 2.0f;
 
-    ImGui::SetCursorPosX (fPopupWidth / 2 - vButtonSize.x - 20.0f * SKIF_ImGui_GlobalDPIScale);
+    ImGui::SetCursorPosX (fCenterX - vButtonSize.x - 20.0f * SKIF_ImGui_GlobalDPIScale);
 
     SKIF_ImGui_PushDisableState (saveDisabled);
 
@@ -1724,14 +1785,12 @@ SKIF_Properties_Draw (void)
     SKIF_ImGui_PopDisableState (saveDisabled);
 
     ImGui::SameLine      ( );
-    ImGui::SetCursorPosX (fPopupWidth / 2 + 20.0f * SKIF_ImGui_GlobalDPIScale);
+    ImGui::SetCursorPosX (fCenterX + 20.0f * SKIF_ImGui_GlobalDPIScale);
 
     if (ImGui::Button ("Cancel###PropsCancel", vButtonSize))
       closed = true;
 
     SKIF_ImGui_BlockDragMoveWhenItemActive ( );
-
-    SKIF_ImGui_Spacing ( );
 
     ImGui::PopStyleColor ( );
 

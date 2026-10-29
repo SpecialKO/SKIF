@@ -1164,7 +1164,17 @@ SKIF_ImGui_BeginPopup (const char* name, bool* p_open, ImVec2 size, ImGuiWindowF
 
   // Raise above all other windows (display order only, no focus change)
   if (ret)
-    ImGui::BringWindowToDisplayFront (ImGui::GetCurrentWindow ( ));
+  {
+    ImGuiContext& g      = *ImGui::GetCurrentContext ( );
+    ImGuiWindow*  window =  ImGui::GetCurrentWindow  ( );
+
+    ImGui::BringWindowToDisplayFront (window);
+
+    // ... but keep popups opened from within it (combo boxes, context menus) above it, or they end up hidden behind it
+    for (const ImGuiPopupData& popup : g.OpenPopupStack)
+      if (popup.Window != nullptr && popup.Window != window && ImGui::IsWindowChildOf (popup.Window, window, true, false))
+        ImGui::BringWindowToDisplayFront (popup.Window);
+  }
 
   return ret;
 }
