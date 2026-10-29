@@ -1,13 +1,20 @@
 #pragma once
 #include <string>
+#include <cstdint>
 
 /*
-IGDB covers, through the SKIF IGDB cover proxy (a Cloudflare Worker that holds the Twitch credentials):
+Covers through the SKIF cover proxies (Cloudflare Workers that hold the IGDB / PCGamingWiki credentials).
+Both have the same API and response format:
 
-  https://igdb.special-k.info/v1/cover?source=<IGDB external game source>&uid=<store ID>
-  https://igdb.special-k.info/v1/cover?search=<game name>
+  https://igdb.special-k.info/v1/{store}/{id}     By store ID (IGDB external_games), e.g. /v1/itch/216996
+  https://igdb.special-k.info/v1/search/{name}    By name (IGDB only), e.g. /v1/search/Sea%20of%20Solitude
+  https://pcgw.special-k.info/v1/{store}/{id}     By store ID (Cargo table Game; steam and gog only), e.g. /v1/steam/1245620
 
-The proxy only returns the cover's IGDB image ID; the image itself is downloaded from images.igdb.com.
+  200: { "game": { "id", "name" }, "cover": { "url", "url_original", "width", "height", "animated", "image_id" (IGDB) },
+         "match": "id" | "exact" | "base" | "fuzzy" }
+  404 not_found, 400 bad request, 502 upstream failure, 500 misconfigured: { "error": "<code>" }
+
+The proxies only return the cover's location; the image itself is downloaded from images.igdb.com / images.pcgamingwiki.com.
 IGDB covers are portrait (usually 3:4).
 */
 
@@ -31,3 +38,13 @@ bool SKIF_IGDB_DownloadCover       (SKIF_IGDB_Source source, const std::string& 
 //   with the same name written differently counts as exact (case, punctuation, ® ™ ©, "&" / "and", and Roman numerals
 //   are ignored: "The Settlers 2 - History Edition" matches "The Settlers II: History Edition").
 bool SKIF_IGDB_DownloadCoverByName (const std::string& name, const std::wstring& targetPath, bool allowFuzzy = false);
+
+// PCGamingWiki stores the PCGW cover proxy can look up by ID
+enum class SKIF_PCGW_Store : int {
+  Steam,
+  GOG
+};
+
+// Worker threads only (blocking network calls). Download the PCGamingWiki cover of a game to targetPath (created along
+//   with its folder); true if a cover was downloaded. Misses and failed requests are handled as for IGDB covers.
+bool SKIF_PCGW_DownloadCover       (SKIF_PCGW_Store store, uint32_t id, const std::wstring& targetPath);
