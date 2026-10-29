@@ -19,8 +19,12 @@
 //     LI_(ICON_FA_..., "label")     L_ () with an icon in front: the icon stays out of the translated text.
 //     CL_("context", "label")       L_ () with a context.
 //     W_("text")                    Wide display text for Win32 (MessageBox, tray menu, jump list, notifications).
+//     CW_("context", "text")        W_ ( ) with a context.
 //     N_("text")                    Marks text for translation without translating it (static arrays);
-//                                     translate the entry where it is shown with _ ().
+//                                     translate the entry where it is shown with T_ ().
+//     T_(variable)                  Translates text that is not a literal, but was marked with N_ ( ) elsewhere
+//                                     (not extracted itself).
+//     NC_("context", "text")        N_ ( ) with a context; translate the entry with CT_("context", variable).
 //     P_("singular", "plural", n)   Plural forms, following the Plural-Forms header of the language.
 //     F_("{0} of {1}", a, b)        Translates, then formats with std::vformat (translators can reorder {0}, {1}, ...).
 //     FP_("{0} game", "{0} games", n, ...)
@@ -42,6 +46,7 @@
 #include <format>
 #include <atomic>
 #include <cstdint>
+#include <cstring>
 
 class SKIF_L10n
 {
@@ -114,8 +119,12 @@ private:
 #define LI_(icon, s)        SKIF_L10n::GetInstance ( ).GetLabel  (nullptr, icon,    s)
 #define CL_(ctx, s)         SKIF_L10n::GetInstance ( ).GetLabel  (ctx,     nullptr, s)
 #define W_(s)               SKIF_L10n::GetInstance ( ).GetW      (nullptr, s)
+#define CW_(ctx, s)         SKIF_L10n::GetInstance ( ).GetW      (ctx,     s)
 #define P_(s, p, n)         SKIF_L10n::GetInstance ( ).GetPlural (nullptr, s, p, static_cast <unsigned long long> (n))
 #define N_(s)               (s)
+#define T_(s)               SKIF_L10n::GetInstance ( ).Get       (nullptr, s)
+#define NC_(ctx, s)         (s)
+#define CT_(ctx, s)         SKIF_L10n::GetInstance ( ).Get       (ctx,     s)
 
 // Formats a translated pattern; falls back to the English pattern if the translation does not format (and to the
 //   pattern itself if neither does), so a bad translation never takes SKIF down
@@ -135,6 +144,36 @@ SKIF_L10n_Format (const char* pattern, const char* fallback, const Args&... args
   }
 
   return std::string (pattern);
+}
+
+// A printf format for ImGui widgets that take one (SliderInt, SliderFloat, DragFloat, ...), from a translated pattern with
+//   {0} for the value, which becomes spec (e.g. "%d" or "%.1f"). Any other "%" in the translation is escaped, so a
+//     translation never acts as a printf format of its own:
+//
+//   ImGui::SliderInt (L_("Brightness"), &value, 80, 400, SKIF_L10n_PrintfFormat (_("{0} nits"), "%d").c_str ( ));
+inline std::string
+SKIF_L10n_PrintfFormat (const char* translated, const char* spec)
+{
+  std::string out;
+  bool        placed = false;
+
+  for (const char* p = translated; p != nullptr && *p != '\0'; p++)
+  {
+    if (*p == '%')
+      out += "%%";
+    else if (! placed && strncmp (p, "{0}", 3) == 0)
+    {
+      out   += spec;
+      placed = true;
+      p     += 2;
+    }
+    else if ((p [0] == '{' && p [1] == '{') || (p [0] == '}' && p [1] == '}'))
+      out += *p++;
+    else
+      out += *p;
+  }
+
+  return out;
 }
 
 template <class... Args>

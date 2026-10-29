@@ -730,6 +730,100 @@ SKIF_ImGui_TextColoredWrapped (const ImVec4& col, const char* text)
   ImGui::PopStyleColor  ( );
 }
 
+// Width of a checkbox or radio button (the box/circle and its label, as ImGui lays them out)
+float
+SKIF_ImGui_CheckboxWidth (const char* label)
+{
+  const float label_width = ImGui::CalcTextSize (label, NULL, true).x;
+
+  return ImGui::GetFrameHeight ( ) + ((label_width > 0.0f) ? ImGui::GetStyle ( ).ItemInnerSpacing.x + label_width : 0.0f);
+}
+
+// For rows of items (e.g. radio buttons) that may not fit once translated: continues the row with SameLine ( ) if an item of
+//   the given width fits the rest of the line, and starts a new line (at the current indentation) otherwise. Returns true if
+//     the item is on the same line.
+bool
+SKIF_ImGui_SameLineIfFits (float width)
+{
+  ImGui::SameLine ( );
+
+  if (ImGui::GetContentRegionAvail ( ).x >= width)
+    return true;
+
+  ImGui::NewLine ( );
+  return false;
+}
+
+// The label of a checkbox or radio button wider than the space left: the box, followed by the label as wrapped text that
+//   can also be clicked (ImGui does not wrap the labels of widgets). Returns true if the label was clicked.
+static bool
+SKIF_ImGui_WrappedLabel (const char* label)
+{
+  const char* label_end = ImGui::FindRenderedTextEnd (label);
+
+  ImGui::SameLine    (0.0f, ImGui::GetStyle ( ).ItemInnerSpacing.x);
+  ImGui::TextWrapped ("%.*s", static_cast <int> (label_end - label), label);
+
+  // Disabled items are not hovered, so neither is the label of a disabled checkbox clicked
+  return ImGui::IsItemClicked ( );
+}
+
+// ImGui::Checkbox ( ) whose label wraps when it is wider than the space left (e.g. once translated)
+bool
+SKIF_ImGui_Checkbox (const char* label, bool* v)
+{
+  if (SKIF_ImGui_CheckboxWidth (label) <= ImGui::GetContentRegionAvail ( ).x)
+    return ImGui::Checkbox (label, v);
+
+  ImGui::PushID      (label);
+  ImGui::BeginGroup  ( );
+  bool changed = ImGui::Checkbox ("##SKIF_Checkbox", v);
+
+  if (SKIF_ImGui_WrappedLabel (label))
+  {
+    *v      = ! *v;
+    changed = true;
+  }
+
+  ImGui::EndGroup    ( );
+  ImGui::PopID       ( );
+
+  return changed;
+}
+
+// ImGui::RadioButton ( ) whose label wraps when it is wider than the space left (e.g. once translated)
+bool
+SKIF_ImGui_RadioButton (const char* label, int* v, int v_button)
+{
+  if (SKIF_ImGui_CheckboxWidth (label) <= ImGui::GetContentRegionAvail ( ).x)
+    return ImGui::RadioButton (label, v, v_button);
+
+  ImGui::PushID      (label);
+  ImGui::BeginGroup  ( );
+  bool pressed = ImGui::RadioButton ("##SKIF_RadioButton", *v == v_button);
+
+  if (SKIF_ImGui_WrappedLabel (label))
+    pressed = true;
+
+  ImGui::EndGroup    ( );
+  ImGui::PopID       ( );
+
+  if (pressed)
+    *v = v_button;
+
+  return pressed;
+}
+
+// For items with a label on the right (e.g. combos): narrows the next item, if needed, so the label fits the space left
+void
+SKIF_ImGui_SetNextItemWidthForLabel (const char* label)
+{
+  const float label_width = ImGui::CalcTextSize (label, NULL, true).x;
+  const float available   = ImGui::GetContentRegionAvail ( ).x - ((label_width > 0.0f) ? ImGui::GetStyle ( ).ItemInnerSpacing.x + label_width : 0.0f);
+
+  ImGui::SetNextItemWidth (std::max (ImGui::GetFrameHeight ( ) * 4.0f, std::min (ImGui::CalcItemWidth ( ), available)));
+}
+
 // Wrapped text with links, so sentences stay whole for translation while words within them can be clicked:
 //   "Just hop over to the [Library] and launch a game!"
 //
