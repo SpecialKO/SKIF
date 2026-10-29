@@ -1095,14 +1095,14 @@ SKIF_UI_Tab_DrawHardware (void)
         ImGui::SameLine      ( );
         ImGui::ItemSize      (ImVec2 (235.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine      ( );
-        ImGui::Text          ((monitor.Supported) ? stretchFormat.c_str() : "Not Supported",
+        ImGui::Text          ((monitor.Supported) ? stretchFormat.c_str() : "No support",
                                monitor.MaxStretchFactor, monitor.MaxShrinkFactor);
         if (! monitor.Supported && monitor.MaxStretchFactor != monitor.MaxShrinkFactor)
           SKIF_ImGui_SetHoverTip (SKIF_Util_FormatStringRaw (stretchFormat.c_str(), monitor.MaxStretchFactor, monitor.MaxShrinkFactor));
         ImGui::SameLine      ( );
         ImGui::ItemSize      (ImVec2 (((monitor.Supported) ? 390.0f : 360.0f) * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
         ImGui::SameLine      ( );
-        ImGui::TextColored   (colCaps, (monitor.Supported) ? ICON_FA_LIGHTBULB : "Not Supported");
+        ImGui::TextColored   (colCaps, (monitor.Supported) ? ICON_FA_LIGHTBULB : "No support");
         if (monitor.Supported)
           SKIF_ImGui_SetHoverTip (monitor.OverlayCapsAsString.c_str(), true);
         ImGui::EndGroup      ( );
