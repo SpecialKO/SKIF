@@ -592,62 +592,9 @@ public:
     if (selected < 0 || selected >= static_cast <int> (rows.size ( )))
       selected = 0;
 
-    const ImGuiStyle& style            = ImGui::GetStyle ( );
-    const int         effectiveDefault = (defaultRow != -1) ? defaultRow : primaryRow;
+    const ImGuiStyle& style = ImGui::GetStyle ( );
 
-    // The launch options at the top: room for up to six of them, the list scrolls for more
-    int separators = 0;
-
-    for (size_t i = 1; i < rows.size ( ); i++)
-      if (rows [i].source != rows [i - 1].source)
-        separators++;
-
-    const int   visibleRows = std::clamp (static_cast <int> (rows.size ( )), 3, 6);
-    const float fListHeight = visibleRows * ImGui::GetTextLineHeightWithSpacing ( )
-                            + std::min (separators, 2) * style.ItemSpacing.y
-                            + style.WindowPadding.y * 2.0f;
-
-    ImGui::BeginChild ("###PropsLaunchList", ImVec2 (0.0f, fListHeight), ImGuiChildFlags_Borders);
-
-    LaunchSource lastSource = rows.front ( ).source;
-
-    for (int i = 0; i < static_cast <int> (rows.size ( )); i++)
-    {
-      const row_s& row = rows [i];
-
-      // Separators between the platform, SKIF and user launch options (as in the game menu)
-      if (row.source != lastSource)
-      {
-        lastSource = row.source;
-        ImGui::Separator ( );
-      }
-
-      const std::string label = _RowLabel (row);
-
-      // As in the game menu: Special K disabled / elevated service for the executable
-      const int  svcIdx   = _FindService (_RowFullExe (row));
-      const bool blocked  = (svcIdx != -1 && (services [svcIdx].blocked || services [svcIdx].blockedPattern));
-      const bool elevated = (svcIdx != -1 && ! blocked && services [svcIdx].elevated);
-
-      if (ImGui::Selectable (SKIF_Util_FormatStringRaw ("%s%s%s%s###PropsLaunchRow-%d",
-                                (i == effectiveDefault) ? ICON_FA_STAR        "  " : "",
-                                (blocked)               ? ICON_FA_LOCK        "  " : "",
-                                (elevated)              ? ICON_FA_USER_SHIELD "  " : "",
-                                (label.empty ( )) ? "<no description>" : label.c_str ( ), i), selected == i))
-      {
-        if (selected != i)
-          pickError.clear ( );
-
-        selected = i;
-      }
-
-      if (i == effectiveDefault)
-        SKIF_ImGui_SetHoverTip ((defaultRow != -1) ? "The default launch option." : "The default launch option (the primary one, as no other is set).");
-    }
-
-    ImGui::EndChild ( );
-
-    // Buttons below the list: editing at the left, sharing through the clipboard at the right (below, if there is no room)
+    // Buttons above the list: editing at the left, sharing through the clipboard at the right (below, if there is no room)
     const bool isUser = (rows [selected].source == LaunchSource::User);
 
     SKIF_ImGui_PushDisableState (! userReadable);
@@ -752,7 +699,55 @@ public:
     SKIF_ImGui_PopDisableState  (! hasUserRows);
     SKIF_ImGui_SetHoverTip ("Copies all of your own launch options to the clipboard.", false, true);
 
-    // Notes / errors of the buttons above
+    // The launch options, below the buttons: always room for six of them, the list scrolls for more
+    //   (after the buttons, which may have changed the rows, the selection or the default)
+    const int   effectiveDefault = (defaultRow != -1) ? defaultRow : primaryRow;
+
+    const float fListHeight = 6.0f * ImGui::GetTextLineHeightWithSpacing ( )
+                            + 2.0f * style.ItemSpacing.y // The separators between the platform, SKIF and user launch options
+                            + style.WindowPadding.y * 2.0f;
+
+    ImGui::BeginChild ("###PropsLaunchList", ImVec2 (0.0f, fListHeight), ImGuiChildFlags_Borders);
+
+    LaunchSource lastSource = rows.front ( ).source;
+
+    for (int i = 0; i < static_cast <int> (rows.size ( )); i++)
+    {
+      const row_s& row = rows [i];
+
+      // Separators between the platform, SKIF and user launch options (as in the game menu)
+      if (row.source != lastSource)
+      {
+        lastSource = row.source;
+        ImGui::Separator ( );
+      }
+
+      const std::string label = _RowLabel (row);
+
+      // As in the game menu: Special K disabled / elevated service for the executable
+      const int  svcIdx   = _FindService (_RowFullExe (row));
+      const bool blocked  = (svcIdx != -1 && (services [svcIdx].blocked || services [svcIdx].blockedPattern));
+      const bool elevated = (svcIdx != -1 && ! blocked && services [svcIdx].elevated);
+
+      if (ImGui::Selectable (SKIF_Util_FormatStringRaw ("%s%s%s%s###PropsLaunchRow-%d",
+                                (i == effectiveDefault) ? ICON_FA_STAR        "  " : "",
+                                (blocked)               ? ICON_FA_LOCK        "  " : "",
+                                (elevated)              ? ICON_FA_USER_SHIELD "  " : "",
+                                (label.empty ( )) ? "<no description>" : label.c_str ( ), i), selected == i))
+      {
+        if (selected != i)
+          pickError.clear ( );
+
+        selected = i;
+      }
+
+      if (i == effectiveDefault)
+        SKIF_ImGui_SetHoverTip ((defaultRow != -1) ? "The default launch option." : "The default launch option (the primary one, as no other is set).");
+    }
+
+    ImGui::EndChild ( );
+
+    // Notes / errors of the buttons
     if (! pickError.empty ( ))
     {
       ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
@@ -1745,7 +1740,7 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
   const float   fOffset = static_cast <float> ((wnd.id % 5) * 24) * fDPI;
 
   ImGui::SetNextWindowPos             (windowRect.GetCenter ( ) + ImVec2 (fOffset, fOffset), ImGuiCond_Appearing, ImVec2 (0.5f, 0.5f));
-  ImGui::SetNextWindowSize            (ImVec2 (900.0f, 620.0f) * fDPI, ImGuiCond_Appearing);
+  ImGui::SetNextWindowSize            (ImVec2 (1030.0f, 920.0f) * fDPI, ImGuiCond_Appearing);
   ImGui::SetNextWindowSizeConstraints (ImVec2 (720.0f, 460.0f) * fDPI, ImVec2 (FLT_MAX, FLT_MAX));
 
   if (wnd.focusRequest)
@@ -1763,9 +1758,8 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
     wnd.focusRequest = false;
   }
 
-  // Unsaved changes are marked in the title (the ID stays the same)
   const bool        anyDirty = wnd.IsDirty ( );
-  const std::string title    = std::string ("Properties - ") + pApp->names.normal + ((anyDirty) ? " *" : "") + windowId;
+  const std::string title    = std::string ("Properties - ") + pApp->names.normal + windowId;
 
   bool open   = true;
   bool closed = false;
@@ -1773,7 +1767,8 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
   if (ImGui::Begin (title.c_str ( ), &open, ImGuiWindowFlags_NoCollapse      |
                                             ImGuiWindowFlags_NoScrollbar     |
                                             ImGuiWindowFlags_NoDocking       |
-                                            ImGuiWindowFlags_NoSavedSettings))
+                                            ImGuiWindowFlags_NoSavedSettings |
+                                          ((anyDirty) ? ImGuiWindowFlags_UnsavedDocument : ImGuiWindowFlags_None))) // Unsaved changes: a dot next to the close button
   {
     if (ImGui::GetWindowViewport ( )->PlatformHandleRaw != nullptr)
       wnd.hwnd = (HWND)ImGui::GetWindowViewport ( )->PlatformHandleRaw;
@@ -1796,8 +1791,26 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
     const float       fIssuesH   = (issueLines > 0) ? issueLines * ImGui::GetTextLineHeightWithSpacing ( ) + style.ItemSpacing.y : 0.0f;
     const float       fFooterH   = fIssuesH + ImGui::GetFrameHeightWithSpacing ( ) + style.ItemSpacing.y * 2.0f;
 
-    // Everything on one page, in the order of the pages: each page after the first gets a heading
+    // The content is limited to a readable width and centered, so a large (maximized) window doesn't stretch it all the way
+    const float fMaxWidth     = 960.0f * SKIF_ImGui_GlobalDPIScale;
+    const float fContentWidth = std::min (fMaxWidth, ImGui::GetContentRegionAvail ( ).x);
+    const float fContentX     = ImGui::GetCursorPosX ( ) + (ImGui::GetContentRegionAvail ( ).x - fContentWidth) / 2.0f;
+
+    // Everything on one page, in the order of the pages: each page after the first gets a heading.
+    //   The scrolling area spans the window (scrollbar at its edge); the centered column inside it grows with its content.
     ImGui::BeginChild ("###PropsContent", ImVec2 (0.0f, -fFooterH), ImGuiChildFlags_None);
+
+    {
+      // Measured inside the scrolling area, so a scrollbar is accounted for
+      const float fAvail  = ImGui::GetContentRegionAvail ( ).x;
+      const float fColumn = std::min (fMaxWidth, fAvail);
+
+      ImGui::SetCursorPosX (ImGui::GetCursorPosX ( ) + (fAvail - fColumn) / 2.0f);
+      ImGui::BeginChild    ("###PropsColumn", ImVec2 (fColumn, 0.0f), ImGuiChildFlags_AutoResizeY, ImGuiWindowFlags_NoScrollWithMouse); // The mouse wheel scrolls the page
+    }
+
+    // A bit more room between the rows, so they don't feel cramped
+    ImGui::PushStyleVar (ImGuiStyleVar_ItemSpacing, ImVec2 (style.ItemSpacing.x, style.ItemSpacing.y + 6.0f * SKIF_ImGui_GlobalDPIScale));
 
     bool           firstSection = true;
     PropertiesPage lastPage     = PropertiesPage::General;
@@ -1834,7 +1847,10 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
       SKIF_ImGui_Spacing ( );
     }
 
-    ImGui::EndChild ( );
+    ImGui::PopStyleVar ( ); // ImGuiStyleVar_ItemSpacing
+
+    ImGui::EndChild ( ); // ###PropsColumn
+    ImGui::EndChild ( ); // ###PropsContent
 
     // Warnings and errors of all sections (errors block Save)
     bool hasErrors = false;
@@ -1847,7 +1863,9 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
 
     if (issueLines > 0)
     {
-      ImGui::BeginChild ("###PropsIssues", ImVec2 (0.0f, fIssuesH - style.ItemSpacing.y), ImGuiChildFlags_None);
+      // Lined up with the content above
+      ImGui::SetCursorPosX (fContentX);
+      ImGui::BeginChild    ("###PropsIssues", ImVec2 (fContentWidth, fIssuesH - style.ItemSpacing.y), ImGuiChildFlags_None);
 
       for (const auto& issue : issues)
       {
@@ -1861,12 +1879,12 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
       ImGui::EndChild ( );
     }
 
-    // Save / Cancel, at the right
     ImVec2 vButtonSize = ImVec2 (80.0f * SKIF_ImGui_GlobalDPIScale, 0.0f);
 
     const bool saveDisabled = (! anyDirty || hasErrors);
 
-    ImGui::SetCursorPosX (ImGui::GetWindowWidth ( ) - style.WindowPadding.x - vButtonSize.x * 2.0f - style.ItemSpacing.x);
+    // Save / Cancel, centered
+    ImGui::SetCursorPosX ((ImGui::GetWindowWidth ( ) - vButtonSize.x * 2.0f - style.ItemSpacing.x) / 2.0f);
 
     SKIF_ImGui_PushDisableState (saveDisabled);
 
