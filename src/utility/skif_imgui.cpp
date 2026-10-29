@@ -2154,10 +2154,9 @@ void
 SKIF_ImGui_CalcCenteredColumn (float area_width, float max_width, float* offset, float* width)
 {
   const float scrollbar = ImGui::GetStyle ( ).ScrollbarSize;
-  const float w         = std::max (1.0f, std::min (max_width, area_width - scrollbar));
-
-  // Centered, but never into the room kept free for the scrollbar
-  const float o         = std::max (0.0f, std::min ((area_width - w) / 2.0f, area_width - scrollbar - w));
+  // The room kept free for the scrollbar on the right is mirrored on the left, so the column is always centered
+  const float w         = std::max (1.0f, std::min (max_width, area_width - scrollbar * 2.0f));
+  const float o         = std::max (0.0f, (area_width - w) / 2.0f);
 
   if (offset != nullptr) *offset = ImFloor (o);
   if (width  != nullptr) *width  = ImFloor (w);

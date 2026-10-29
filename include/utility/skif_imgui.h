@@ -107,7 +107,7 @@ void     SKIF_ImGui_AutoScroll            (bool touch_only_on_void, SKIF_ImGuiAx
 
 // Centered content column: at most max_width wide (pass it DPI-scaled), centered in the current window, so content
 //   doesn't stretch across wide windows. Its width and position don't depend on the window's vertical scrollbar, as
-//   room for the scrollbar is always kept free at the right: the content never moves when the scrollbar appears.
+//   room for the scrollbar is always kept free at the right (and the same at the left): the content never moves when the scrollbar appears.
 //   In a scrolling window (e.g. SKIF_ImGui_BeginTabChildFrame), the column grows with its content and the window scrolls.
 void     SKIF_ImGui_CalcCenteredColumn    (float area_width, float max_width, float* offset, float* width); // For rows outside of a column that should line up with one
 void     SKIF_ImGui_BeginCenteredColumn   (const char* str_id, float max_width);
