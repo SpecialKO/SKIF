@@ -1591,6 +1591,8 @@ private:
   {
     const row_s& row = rows [index];
 
+    ImGui::TextColored  (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), ICON_FA_CIRCLE_EXCLAMATION);
+    ImGui::SameLine     ( );
     ImGui::TextDisabled ((row.source == app_record_s::LaunchSource::SKIF)
                           ? "Provided by Special K (lc.json). Duplicate it to make changes."
                           : "Provided by the platform. Duplicate it to make changes.");
