@@ -273,8 +273,10 @@ SKIF_UI_IniEditor_Process (void)
     {
       ImGui::SetNextWindowSize (ImVec2 (950.0f, 750.0f) * SKIF_ImGui_MainDPIScale); // Opens centered on the main window
 
+      // Further windows open a bit offset (by their position among the open ones), so they don't cover each other entirely
       extern ImRect windowRect;
-      ImGui::SetNextWindowPos (windowRect.GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
+      const float   fOffset = static_cast <float> ((i % 5) * 24) * SKIF_ImGui_MainDPIScale;
+      ImGui::SetNextWindowPos (windowRect.GetCenter() + ImVec2 (fOffset, fOffset), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
 
       window.state = PopupState_Opened;
     }
