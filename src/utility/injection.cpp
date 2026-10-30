@@ -234,9 +234,15 @@ SKIF_InjectionContext::_TestServletRunlevel (bool forcedCheck)
         if (! _registry._SuppressServiceNotification)
         {
           if (bAckInj)
-            SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_SERVICE, W_("Please launch a game to continue."),           W_("Special K is ready to be injected into your game!"));
+            SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_SERVICE,
+              W_("Please launch a game to continue."),
+              // TRANSLATORS: Title of a notification (at most 63 characters)
+              W_("Special K is ready to be injected into your game!"));
           else
-            SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_SERVICE, W_("The injection service was started."),          W_("Special K is now being injected into games!"));
+            SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_SERVICE,
+              W_("The injection service was started."),
+              // TRANSLATORS: Title of a notification (at most 63 characters)
+              W_("Special K is now being injected into games!"));
         }
 
         else
@@ -248,10 +254,16 @@ SKIF_InjectionContext::_TestServletRunlevel (bool forcedCheck)
         runState          = Stopped;
 
         if (bAckInjSignaled)
-          // TRANSLATORS: Ctrl, Shift and Backspace are keys of the keyboard (use the names printed on keyboards in your language)
-          SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_SERVICE, W_("Press Ctrl + Shift + Backspace while in-game."), W_("Special K has been injected into your game!"));
+          SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_SERVICE,
+            // TRANSLATORS: Ctrl, Shift and Backspace are keys of the keyboard (use the names printed on keyboards in your language)
+            W_("Press Ctrl + Shift + Backspace while in-game."),
+            // TRANSLATORS: Title of a notification (at most 63 characters)
+            W_("Special K has been injected into your game!"));
         else
-          SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_SERVICE, W_("The injection service was stopped."),            W_("Special K will no longer be injected into games."));
+          SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_SERVICE,
+            W_("The injection service was stopped."),
+            // TRANSLATORS: Title of a notification (at most 63 characters)
+            W_("Special K will no longer be injected into games."));
 
         bAckInj = false;
         bAckInjSignaled = false;

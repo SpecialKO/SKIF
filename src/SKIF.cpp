@@ -1320,8 +1320,18 @@ void SKIF_Shell_CreateNotifyToast (UINT type, std::wstring message, std::wstring
       (type == SKIF_NTOAST_SERVICE)
       ? NIIF_NONE | NIIF_RESPECT_QUIET_TIME | NIIF_NOSOUND // Mute the sound for service notifications
       : NIIF_NONE | NIIF_RESPECT_QUIET_TIME;
-    wcsncpy_s (niData.szInfoTitle, 64,   title.c_str(),  64);
-    wcsncpy_s (niData.szInfo,     256, message.c_str(), 256);
+    // Cut to fit (translations may be longer than the English text); not between the two halves of a surrogate pair
+    auto _CopyTruncated = [](wchar_t* dest, size_t size, const std::wstring& src)
+    {
+      wcsncpy_s (dest, size, src.c_str(), _TRUNCATE);
+
+      size_t len = wcslen (dest);
+      if (len < src.length() && len > 0 && IS_HIGH_SURROGATE (dest [len - 1]))
+        dest [len - 1] = L'\0';
+    };
+
+    _CopyTruncated (niData.szInfoTitle, _countof (niData.szInfoTitle), title);
+    _CopyTruncated (niData.szInfo,      _countof (niData.szInfo),      message);
 
     Shell_NotifyIcon (NIM_MODIFY, &niData);
 
