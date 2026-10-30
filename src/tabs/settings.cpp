@@ -1657,6 +1657,16 @@ SKIF_UI_Tab_DrawSettings (void)
   {
     SKIF_ImGui_Spacing      ( );
 
+    // The fields start at 200 px, or after the widest (translated) name, so they line up in every language
+    float fKeybindFieldX = 200.0f * SKIF_ImGui_GlobalDPIScale;
+
+    for (auto& keybind : keybinds)
+    {
+      if (keybind._show())
+        fKeybindFieldX = std::max (fKeybindFieldX, ImGui::GetCursorPosX ( ) + ImGui::GetStyle ( ).ItemSpacing.x * 2.0f +
+                                                   ImGui::CalcTextSize (T_(keybind._key->bind_name.c_str())).x);
+    }
+
     for (auto& keybind : keybinds)
     {
       if (! keybind._show())
@@ -1666,9 +1676,10 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::SameLine         ( );
       ImGui::TextColored      (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), "%s", T_(keybind._key->bind_name.c_str()));
       ImGui::SameLine         ( );
-      ImGui::ItemSize         (ImVec2 (200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::ItemSize         (ImVec2 (fKeybindFieldX - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine         ( );
-      ImGui::SetNextItemWidth (300.0f * SKIF_ImGui_GlobalDPIScale);
+      // 300 px wide, narrower if the window is
+      ImGui::SetNextItemWidth (std::max (ImGui::GetFrameHeight ( ) * 4.0f, std::min (300.0f * SKIF_ImGui_GlobalDPIScale, ImGui::GetContentRegionAvail ( ).x)));
       if (SK_ImGui_Keybinding (keybind._key))
       {
         // Only update the registry if we are done assigning

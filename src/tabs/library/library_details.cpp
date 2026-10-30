@@ -119,6 +119,34 @@ DrawGameDetails_Info (app_record_s* pApp)
 
   ImGui::SameLine         ();
 
+  // Column 3 has content on its first row only: the service quick toggle, or the update button of an outdated local DLL.
+  //   Where there is not room enough for it after column 2 (longer translations), it moves left over the rows below of column 2,
+  //     and the first row of column 2 (the version) is shortened with an ellipsis to make room for it, down to a minimum width.
+  //       Only if that is still not enough is the toggle shortened itself. Its full text is then shown in its tooltip.
+  const ImVec2 posColumn2          = ImGui::GetCursorPos       ( );
+  const float  fColumnsRight       = posColumn2.x + ImGui::GetContentRegionAvail ( ).x;
+  const float  fSpacing            = ImGui::GetStyle ( ).ItemSpacing.x;
+  float        fColumn2Row1        = 0.0f; // The width of the first row of column 2, as drawn
+
+  // Column 3: what it shows, and how wide that is
+  //   Also show the toggle while a game is loading since it is more likely to be using global than local! (and it's safe to show nowadays!)
+  const bool  bQuickToggle     = (/* ! pApp->loading && */ pApp->specialk.injection.injection.type != InjectionType::Local && ! _inject.isPending());
+  const bool  bUpdateLocal     = (! pApp->loading && pApp->specialk.injection.injection.type == InjectionType::Local && _IsLocalDLLFileOutdated ( ));
+  const char* szQuickToggle    = TL_(_inject.ui_game_summary.text.c_str());
+  const char* szQuickToggleId  = strstr (szQuickToggle, "###"); // The end of the text
+  const char* szQuickToggleEnd = (szQuickToggleId != nullptr) ? szQuickToggleId : szQuickToggle + strlen (szQuickToggle);
+
+  while (szQuickToggleEnd > szQuickToggle && szQuickToggleEnd [-1] == ' ') // The blank label (stopped) has no width
+    szQuickToggleEnd--;
+
+  const float fColumn3Width    = (bQuickToggle) ? ImGui::CalcTextSize (szQuickToggle, szQuickToggleEnd).x
+                               : (bUpdateLocal) ? ImGui::CalcTextSize (ICON_FA_ARROW_UP).x + ImGui::GetStyle ( ).FramePadding.x * 2.0f
+                                                : 0.0f;
+
+  // The widest the first row of column 2 may be with column 3 after it, though never narrower than about a version number
+  const float fColumn2Row1Max  = (fColumn3Width > 0.0f) ? std::max (ImGui::GetFontSize ( ) * 5.0f, fColumnsRight - posColumn2.x - fSpacing - fColumn3Width)
+                                                        : FLT_MAX;
+
   // Column 2
   ImGui::BeginGroup       ();
 
@@ -133,9 +161,25 @@ DrawGameDetails_Info (app_record_s* pApp)
 
     bool openLocalMenu = false;
 
+    // Shortened with an ellipsis if column 3 needs the room (the full path is shown in the status bar on hover)
+    const float  fVersionWidth = ImGui::CalcTextSize (pApp->ui.label_version.c_str(), nullptr, true).x;
+    const bool   bShortened    = (fVersionWidth > fColumn2Row1Max);
+    const ImVec2 posVersion    = ImGui::GetCursorScreenPos ( );
+
+    fColumn2Row1 = std::min (fVersionWidth, fColumn2Row1Max);
+
     ImGui::PushStyleColor(ImGuiCol_TextDisabled, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption));
-    if (ImGui::Selectable (pApp->ui.label_version.c_str(), false, flags))
+    if (ImGui::Selectable ((bShortened) ? "###LabelVersion" : pApp->ui.label_version.c_str(), false, flags, ImVec2 ((bShortened) ? fColumn2Row1 : 0.0f, 0.0f)))
       openLocalMenu = true;
+
+    if (bShortened)
+    {
+      // As the selectable draws its text: disabled for global injection
+      ImGui::PushStyleColor     (ImGuiCol_Text, ImGui::GetStyleColorVec4 ((flags & ImGuiSelectableFlags_Disabled) ? ImGuiCol_TextDisabled : ImGuiCol_Text));
+      ImGui::RenderTextEllipsis (ImGui::GetWindowDrawList ( ), posVersion, ImVec2 (posVersion.x + fColumn2Row1, posVersion.y + ImGui::GetTextLineHeight ( )),
+                                 posVersion.x + fColumn2Row1, pApp->ui.label_version.c_str(), nullptr, nullptr);
+      ImGui::PopStyleColor      ( );
+    }
     ImGui::PopStyleColor();
 
     if (pApp->specialk.injection.injection.type == InjectionType::Local)
@@ -187,7 +231,10 @@ DrawGameDetails_Info (app_record_s* pApp)
   {
     // Most will use global injection, so default to this in situations where the data is actually being loaded.
     if (! pApp->specialk.injection.dll.version_utf8.empty())
+    {
       ImGui::Text    ("v %s", pApp->specialk.injection.dll.version_utf8.c_str());
+      fColumn2Row1 = ImGui::GetItemRectSize ( ).x;
+    }
     else
       ImGui::NewLine ( );
   }
@@ -266,7 +313,17 @@ DrawGameDetails_Info (app_record_s* pApp)
 
   ImGui::ItemSize         (ImVec2 (95.f * SKIF_ImGui_GlobalDPIScale, 0.f)); // Column 2 should have min-width 95px (scaled with the DPI) (a bit smaller to allow for some right-hand padding for "Waiting for game...")
   ImGui::EndGroup         ( );
+
+  const float fColumn2Width = ImGui::GetItemRectSize ( ).x; // As wide as its widest row, at least 95 px
+
+  // After column 2 (as wide as its widest row, at least 95 px), else as far right as it fits, but never over the first row of column 2
+  float fColumn3X = posColumn2.x + fColumn2Width + fSpacing;
+
+  if (fColumn3X + fColumn3Width > fColumnsRight)
+    fColumn3X = std::max (posColumn2.x + fColumn2Row1 + fSpacing, fColumnsRight - fColumn3Width);
+
   ImGui::SameLine         ( );
+  ImGui::SetCursorPosX    (fColumn3X);
 
   // Column 3
   ImGui::BeginGroup       ( );
@@ -274,15 +331,20 @@ DrawGameDetails_Info (app_record_s* pApp)
   static bool quickServiceHover = false;
 
   // Service quick toogle / Waiting for game...
-  // Also show this while a game is loading since it is more likely to be using global than local! (and it's safe to show nowadays!)
-  if (/* ! pApp->loading && */ pApp->specialk.injection.injection.type != InjectionType::Local && ! _inject.isPending())
+  if (bQuickToggle)
   {
+    // Still too wide (a narrow window, or a very long text): shortened with an ellipsis, and shown in full in the tooltip.
+    //   Drawn from where the toggle starts: it spans all columns, so its item rect starts at the left edge of the frame.
+    const bool   bTruncated    = (szQuickToggleId != nullptr && fColumn3X + fColumn3Width > fColumnsRight);
+    const ImVec2 posToggle     = ImGui::GetCursorScreenPos ( );
+    const float  fToggleRight  = posToggle.x + (fColumnsRight - fColumn3X);
+
     ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImColor(0, 0, 0, 0).Value);
     ImGui::PushStyleColor(ImGuiCol_HeaderActive,  ImColor(0, 0, 0, 0).Value);
     ImGui::PushStyleColor(ImGuiCol_Text, (quickServiceHover) ? _inject.ui_game_summary.color_hover.Value
                                                              : _inject.ui_game_summary.color.Value);
 
-    if (ImGui::Selectable (TL_(_inject.ui_game_summary.text.c_str()), false, ImGuiSelectableFlags_SpanAllColumns, ImVec2 (360.0f * SKIF_ImGui_GlobalDPIScale, 0.0f)))
+    if (ImGui::Selectable ((bTruncated) ? szQuickToggleId : szQuickToggle, false, ImGuiSelectableFlags_SpanAllColumns, ImVec2 (360.0f * SKIF_ImGui_GlobalDPIScale, 0.0f)))
     {
       // Only allow the toggle to work to disable the service while a game is loading
       if (pApp->loading)
@@ -296,27 +358,31 @@ DrawGameDetails_Info (app_record_s* pApp)
         _inject._StartStopInject (_inject.bCurrentState, _registry.bStopOnInjection, pApp->launch_configs[0].isElevated ( ), static_cast <int> (SKIF_LaunchBehaviors::Resolve (pApp->launch_configs[0].getExecutableFullPath ( )).autoStop));
     }
 
+    if (bTruncated)
+      ImGui::RenderTextEllipsis (ImGui::GetWindowDrawList ( ), posToggle, ImVec2 (fToggleRight, posToggle.y + ImGui::GetTextLineHeight ( )),
+                                 fToggleRight, szQuickToggle, szQuickToggleEnd, nullptr);
+
     ImGui::PopStyleColor (3);
 
     quickServiceHover = ImGui::IsItemHovered ();
 
     SKIF_ImGui_SetMouseCursorHand ();
-    SKIF_ImGui_SetHoverTip        (T_(_inject.ui_game_summary.hover_tip.c_str ()));
+    SKIF_ImGui_SetHoverTip        ((bTruncated) ? std::string (szQuickToggle, szQuickToggleEnd) + "\n" + T_(_inject.ui_game_summary.hover_tip.c_str ())
+                                                : std::string (T_(_inject.ui_game_summary.hover_tip.c_str ())));
 
     if ( ! ImGui::IsPopupOpen ("ServiceMenu") &&
            ImGui::IsItemClicked (ImGuiMouseButton_Right))
       ServiceMenu = PopupState_Open;
   }
 
-  else
+  // The update button is the first item of the column (at fColumn3X, where its width was reserved)
+  else if (! bUpdateLocal)
     ImGui::NewLine ( );
 
   if (! pApp->loading && pApp->specialk.injection.injection.type == InjectionType::Local)
   {
-    if (_IsLocalDLLFileOutdated ( ))
+    if (bUpdateLocal)
     {
-      ImGui::SameLine        ( );
-
       ImGui::PushStyleColor  (ImGuiCol_Button, ImVec4 (.1f, .1f, .1f, .5f));
       if (ImGui::SmallButton (ICON_FA_ARROW_UP))
       {
