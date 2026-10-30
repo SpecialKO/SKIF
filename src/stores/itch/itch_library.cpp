@@ -19,6 +19,9 @@
 #include <utility/igdb.h>
 #include <stores/generic_library2.h>
 
+// Last, as it defines short macros such as _ ( )
+#include <utility/l10n.h>
+
 // See itch_library.h for how itch.io games are found and launched
 
 #pragma region SQLite
@@ -652,9 +655,9 @@ app_record_itch_s::GetLaunchWarning (void) const
   if (! itch.sandboxed)
     return "";
 
-  return "The itch app runs this game in its sandbox, as a separate Windows user,\n"
-         "which may affect which saves are accessible from within the game.\n"
-         "Instant Play launches are not affected as they skip the sandbox.";
+  return _("The itch app runs this game in its sandbox, as a separate Windows user,\n"
+           "which may affect which saves are accessible from within the game.\n"
+           "Instant Play launches are not affected as they skip the sandbox.");
 }
 
 bool

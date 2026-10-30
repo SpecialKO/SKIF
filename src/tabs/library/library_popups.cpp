@@ -23,6 +23,9 @@
 #include "library_ui.h"
 #include <tabs/properties.h>
 
+// Last, as it defines short macros such as _ ( )
+#include <utility/l10n.h>
+
 // Popups of the library tab (moved verbatim from SKIF_UI_Tab_DrawLibrary)
 void
 DrawLibraryPopups (void)
@@ -77,9 +80,9 @@ DrawLibraryPopups (void)
     ImGui::SetNextWindowSize   (ImVec2 (0.0f, 0.0f));
     ImGui::SetNextWindowPos    (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
 
-    constexpr char* titleRemove =  "Remove category###PopupCategoryModify";
-    constexpr char* titleMerge  = "Merge categories###PopupCategoryModify";
-    constexpr char* titleRename =  "Rename category###PopupCategoryModify";
+    const char* titleRemove = L_( "Remove category###PopupCategoryModify");
+    const char* titleMerge  = L_("Merge categories###PopupCategoryModify");
+    const char* titleRename = L_( "Rename category###PopupCategoryModify");
 
     if (ImGui::BeginPopupModal ( (static_category.remove) ? titleRemove :
                                  (static_category.exists) ? titleMerge  :
@@ -104,46 +107,26 @@ DrawLibraryPopups (void)
 
       if (static_category.remove)
       {
-        ImGui::Text        ("Are you sure you want to remove the");
-        ImGui::SameLine    ( );
-        ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), static_category.Name.c_str());
-        ImGui::SameLine    ( );
-        ImGui::Text        ("category?");
+        // TRANSLATORS: {0} is the name of a category of the library
+        SKIF_ImGui_TextHighlighted (_("Are you sure you want to remove the {0} category?"), { static_category.Name.c_str() }, ImColor::HSV (0.11F, 1.F, 1.F));
       }
 
       else if (static_category.exists)
       {
-        ImGui::Text        ("Are you sure you want to merge the");
-        ImGui::SameLine    ( );
-        ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), static_category.Name.c_str());
-        ImGui::SameLine    ( );
-        ImGui::Text        ("category with the");
-        ImGui::SameLine    ( );
-        ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), static_category.newName.c_str());
-        ImGui::SameLine    ( );
-        ImGui::Text        ("category?");
+        // TRANSLATORS: {0} and {1} are the names of two categories of the library
+        SKIF_ImGui_TextHighlighted (_("Are you sure you want to merge the {0} category with the {1} category?"), { static_category.Name.c_str(), static_category.newName.c_str() }, ImColor::HSV (0.11F, 1.F, 1.F));
       }
 
       else if (! static_category.newName.empty())
       {
-        ImGui::Text        ("Are you sure you want to rename");
-        ImGui::SameLine    ( );
-        ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), static_category.Name.c_str());
-        ImGui::SameLine    ( );
-        ImGui::Text        ("to");
-        ImGui::SameLine    ( );
-        ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), static_category.newName.c_str());
-        ImGui::SameLine    ( );
-        ImGui::Text        ("?");
+        // TRANSLATORS: {0} is the current name of a category of the library, {1} the new one
+        SKIF_ImGui_TextHighlighted (_("Are you sure you want to rename {0} to {1}?"), { static_category.Name.c_str(), static_category.newName.c_str() }, ImColor::HSV (0.11F, 1.F, 1.F));
       }
 
       else
       {
-        ImGui::Text        ("What do you want to rename the");
-        ImGui::SameLine    ( );
-        ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), static_category.Name.c_str());
-        ImGui::SameLine    ( );
-        ImGui::Text        ("category to?");
+        // TRANSLATORS: {0} is the name of a category of the library
+        SKIF_ImGui_TextHighlighted (_("What do you want to rename the {0} category to?"), { static_category.Name.c_str() }, ImColor::HSV (0.11F, 1.F, 1.F));
 
         SKIF_ImGui_Spacing ( );
 
@@ -163,17 +146,21 @@ DrawLibraryPopups (void)
       }
 
       SKIF_ImGui_Spacing ( );
-      ImGui::Text        ("This will affect all games that makes use of the category.");
+      ImGui::TextUnformatted (_("This will affect all games that make use of the category."));
       SKIF_ImGui_Spacing ( );
 
-      float fX = (ImGui::GetContentRegionAvail().x - 200 * SKIF_ImGui_GlobalDPIScale) / 2;
+      const float fButtonWidth = std::max ({ 100.0f * SKIF_ImGui_GlobalDPIScale,
+                                             ImGui::CalcTextSize (L_("Yes"),    nullptr, true).x + ImGui::GetStyle ( ).FramePadding.x * 2.0f,
+                                             ImGui::CalcTextSize (L_("Cancel"), nullptr, true).x + ImGui::GetStyle ( ).FramePadding.x * 2.0f });
+
+      float fX = (ImGui::GetContentRegionAvail().x - fButtonWidth * 2.0f) / 2;
 
       ImGui::SetCursorPosX (fX);
 
       if (static_category.rename && ! renamedName)
         SKIF_ImGui_PushDisableState ( );
 
-      if (ImGui::Button ("Yes", ImVec2 (  100 * SKIF_ImGui_GlobalDPIScale,
+      if (ImGui::Button (L_("Yes"), ImVec2 (  fButtonWidth,
                                            25 * SKIF_ImGui_GlobalDPIScale )))
       {
         if (static_category.rename)
@@ -248,7 +235,7 @@ DrawLibraryPopups (void)
       ImGui::Spacing  ( );
       ImGui::SameLine ( );
 
-      if (ImGui::Button ("Cancel", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
+      if (ImGui::Button (L_("Cancel"), ImVec2 ( fButtonWidth,
                                              25 * SKIF_ImGui_GlobalDPIScale )))
       {
         hasFocus        = false;
@@ -271,44 +258,47 @@ DrawLibraryPopups (void)
   {
     ImGui::OpenPopup         ("###TaskManagerLibrary");
 
-    static std::string warning = "Any unsaved game data may be lost.";
-    float fXwarning = ImGui::CalcTextSize (warning.c_str()).x; // DPI related so cannot be static
+    // TRANSLATORS: {0} is the name of a game
+    const char* question = _("Do you want to end {0}?");
+    const char* warning  = _("Any unsaved game data may be lost.");
+    float fXwarning = ImGui::CalcTextSize (warning).x; // DPI related so cannot be static
+
+    const float fButtonWidth = std::max ({ 100.0f * SKIF_ImGui_GlobalDPIScale,
+                                           ImGui::CalcTextSize (L_("End Process"), nullptr, true).x + ImGui::GetStyle ( ).FramePadding.x * 2.0f,
+                                           ImGui::CalcTextSize (L_("Cancel"),      nullptr, true).x + ImGui::GetStyle ( ).FramePadding.x * 2.0f });
 
     ImGui::SetNextWindowSize (
       ImVec2 (
-        std::max (ImGui::CalcTextSize (static_proc.name.c_str()).x + 170.0f * SKIF_ImGui_GlobalDPIScale,
-                  fXwarning + ImGui::GetStyle().ItemSpacing.x * 2),
+        std::max ({ ImGui::CalcTextSize (SKIF_L10n_Format (question, nullptr, static_proc.name).c_str ()).x + 20.0f * SKIF_ImGui_GlobalDPIScale,
+                    fXwarning + ImGui::GetStyle().ItemSpacing.x * 2,
+                    fButtonWidth * 2.0f + ImGui::GetStyle().ItemSpacing.x * 4 }),
         0.0f
       )
     );
     ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
 
-    if (ImGui::BeginPopupModal ( "Task Manager###TaskManagerLibrary", nullptr,
+    if (ImGui::BeginPopupModal ( L_("Task Manager###TaskManagerLibrary"), nullptr,
                                     ImGuiWindowFlags_NoResize |
                                     ImGuiWindowFlags_NoMove   |
                                     ImGuiWindowFlags_AlwaysAutoResize )
         )
     {
 
-      ImGui::Text        ("Do you want to end");
-      ImGui::SameLine    ( );
-      ImGui::TextColored (ImColor::HSV (0.11F, 1.F, 1.F), static_proc.name.c_str());
-      ImGui::SameLine    ( );
-      ImGui::Text        ("?");
+      SKIF_ImGui_TextHighlighted (question, { static_proc.name.c_str() }, ImColor::HSV (0.11F, 1.F, 1.F));
       SKIF_ImGui_Spacing ( );
 
 
       float fX = (ImGui::GetContentRegionAvail().x - fXwarning) / 2 + ImGui::GetStyle().ItemSpacing.x;
       ImGui::SetCursorPosX (fX);
-      ImGui::Text        (warning.c_str());
+      ImGui::TextUnformatted (warning);
 
       SKIF_ImGui_Spacing ( );
 
-      fX = (ImGui::GetContentRegionAvail().x - 200 * SKIF_ImGui_GlobalDPIScale) / 2;
+      fX = (ImGui::GetContentRegionAvail().x - fButtonWidth * 2.0f) / 2;
 
       ImGui::SetCursorPosX (fX);
 
-      if (ImGui::Button ("End Process", ImVec2 (  100 * SKIF_ImGui_GlobalDPIScale,
+      if (ImGui::Button (L_("End Process"), ImVec2 (  fButtonWidth,
                                                    25 * SKIF_ImGui_GlobalDPIScale )))
       {
         if (static_proc.handle != INVALID_HANDLE_VALUE)
@@ -324,7 +314,7 @@ DrawLibraryPopups (void)
       ImGui::Spacing  ( );
       ImGui::SameLine ( );
 
-      if (ImGui::Button ("Cancel", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
+      if (ImGui::Button (L_("Cancel"), ImVec2 ( fButtonWidth,
                                              25 * SKIF_ImGui_GlobalDPIScale )))
       {
         static_proc = terminate_process_s { };

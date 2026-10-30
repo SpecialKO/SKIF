@@ -1,0 +1,14 @@
+// Translations of the UI, embedded in SKIF.exe (see include\utility\l10n.h)
+//
+// Kept by hand: this file is not maintained by the Visual Studio resource editor, unlike SKIF.rc.
+//
+// One line per language:  <name>  SKIF_PO  "resources\\l10n\\<file>.po"
+//   The language is taken from the "Language:" header of the .po file, or else from <name>.
+//   <name> must be a plain identifier (letters, digits and underscores), e.g. de, pt_BR, zh_Hans.
+//
+// Translations in <Special K folder>\Languages\*.po are loaded as well, and take priority over these.
+//
+// Example:
+//   de      SKIF_PO "resources\\l10n\\de.po"
+//   pt_BR   SKIF_PO "resources\\l10n\\pt_BR.po"
+

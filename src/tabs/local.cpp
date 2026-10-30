@@ -16,21 +16,24 @@
 #include <fonts/fa_621.h>
 #include <fonts/fa_621b.h>
 
+// Last, as it defines short macros such as _ ( )
+#include <utility/l10n.h>
+
 static constexpr wchar_t LocalRegPath[] = LR"(Software\Kaldaien\Special K\Local)";
 
 // DLL filenames Special K can be installed as, in the order of most expected (same list as UpdateInjectionStrategy)
 static const struct {
   const wchar_t* name;
   const char*    name_utf8;
-  const char*    hint;
+  const char*    hint;      // English, translated where shown
 } LocalDLLs [] = {
-  { L"DXGI.dll",     "DXGI.dll",     "Direct3D 10/11/12 games (most common)."                  },
-  { L"D3D11.dll",    "D3D11.dll",    "Direct3D 11 games where DXGI.dll does not work."         },
-  { L"D3D9.dll",     "D3D9.dll",     "Direct3D 9 games."                                       },
-  { L"OpenGL32.dll", "OpenGL32.dll", "OpenGL games."                                           },
-  { L"DInput8.dll",  "DInput8.dll",  "Games that load DirectInput 8; can work as a fallback."  },
-  { L"D3D8.dll",     "D3D8.dll",     "Direct3D 8 games."                                       },
-  { L"DDraw.dll",    "DDraw.dll",    "DirectDraw games."                                       },
+  { L"DXGI.dll",     "DXGI.dll",     N_("Direct3D 10/11/12 games (most common).")              },
+  { L"D3D11.dll",    "D3D11.dll",    N_("Direct3D 11 games where DXGI.dll does not work.")     },
+  { L"D3D9.dll",     "D3D9.dll",     N_("Direct3D 9 games.")                                   },
+  { L"OpenGL32.dll", "OpenGL32.dll", N_("OpenGL games.")                                       },
+  { L"DInput8.dll",  "DInput8.dll",  N_("Games that load DirectInput 8; can work as a fallback.")},
+  { L"D3D8.dll",     "D3D8.dll",     N_("Direct3D 8 games.")                                   },
+  { L"DDraw.dll",    "DDraw.dll",    N_("DirectDraw games.")                                   },
 };
 enum class LocalAction {
   None,
@@ -250,7 +253,7 @@ SKIF_LocalManager::InstallNew (const std::wstring& dll_path, PEBitness iBinaryTy
 
     ImGui::InsertNotification ({
       ImGuiToastType::Success, 5000,
-      "Special K Installed",
+      _("Special K Installed"),
       "%s", install.path_utf8.c_str ()
     });
   }
@@ -259,8 +262,8 @@ SKIF_LocalManager::InstallNew (const std::wstring& dll_path, PEBitness iBinaryTy
   {
     ImGui::InsertNotification ({
       ImGuiToastType::Error, 5000,
-      "Install Failed",
-      "Could not install Special K as %s", install.path_utf8.c_str ()
+      _("Install Failed"),
+      "%s", F_("Could not install Special K as {0}", install.path_utf8).c_str ()
     });
 
     if (added)
@@ -587,7 +590,7 @@ SKIF_LocalManager::Show (void)
              ShowWindow (       this->hwnd, SW_SHOW);
     SetForegroundWindow (       this->hwnd);
   } else {
-    this->label      = "Local Installs###LocalManager-" + std::to_string (id++);
+    this->label      = NL_("Local Installs###LocalManager-") + std::to_string (id++);
     this->hwnd       = nullptr;
     this->showWindow = true;
 
@@ -678,9 +681,9 @@ SKIF_LocalManager::Process (void)
           CycleSelectAll (true);
 
         if (ImGui::IsItemHovered ())
-          ImGui::SetTooltip ("%s", allRowsSelected                        ? "Deselect all"    :
-                                   (allOutdatedSelected || outdated == 0) ? "Select all"      :
-                                                                            "Select outdated");
+          ImGui::SetTooltip ("%s", allRowsSelected                        ? _("Deselect all")    :
+                                   (allOutdatedSelected || outdated == 0) ? _("Select all")      :
+                                                                            _("Select outdated"));
 
         ImGui::PopStyleColor ( ); // ImGuiCol_FrameBgActive
         ImGui::PopStyleColor ( ); // ImGuiCol_FrameBgHovered
@@ -699,7 +702,7 @@ SKIF_LocalManager::Process (void)
   auto _SelectionMenu = [&](void) -> void
   {
     SKIF_ImGui_PushDisableState (! anyOutdated);
-    if (ImGui::MenuItem ("Select Outdated"))
+    if (ImGui::MenuItem (L_("Select Outdated")))
     {
       for (auto& install : installs)
         install.selected = install.outdated && install.exists;
@@ -707,14 +710,14 @@ SKIF_LocalManager::Process (void)
     }
     SKIF_ImGui_PopDisableState  (! anyOutdated);
 
-    if (anyMissing && ImGui::MenuItem ("Select Missing"))
+    if (anyMissing && ImGui::MenuItem (L_("Select Missing")))
     {
       for (auto& install : installs)
         install.selected = ! install.exists;
       action = LocalAction::AnySelected;
     }
 
-    if (ImGui::MenuItem ("Select All"))
+    if (ImGui::MenuItem (L_("Select All")))
     {
       for (auto& install : installs)
         install.selected = true;
@@ -723,7 +726,7 @@ SKIF_LocalManager::Process (void)
     }
 
     SKIF_ImGui_PushDisableState (! anySelected);
-    if (ImGui::MenuItem ("Deselect All"))
+    if (ImGui::MenuItem (L_("Deselect All")))
     {
       for (auto& install : installs)
         install.selected = false;
@@ -735,18 +738,18 @@ SKIF_LocalManager::Process (void)
     ImGui::Separator ();
 
     SKIF_ImGui_PushDisableState (! anyOutdatedSelected);
-    if (ImGui::MenuItem ("Update Selected"))
+    if (ImGui::MenuItem (L_("Update Selected")))
       action = LocalAction::Update;
     SKIF_ImGui_PopDisableState  (! anyOutdatedSelected);
 
     SKIF_ImGui_PushDisableState (! anySelected);
-    if (ImGui::MenuItem ("Delete Selected"))
+    if (ImGui::MenuItem (L_("Delete Selected")))
       action = LocalAction::Delete;
     SKIF_ImGui_PopDisableState  (! anySelected);
 
     ImGui::Separator ();
 
-    if (ImGui::MenuItem ("Refresh"))
+    if (ImGui::MenuItem (L_("Refresh")))
       RefreshInstalls ();
   };
 
@@ -778,7 +781,7 @@ SKIF_LocalManager::Process (void)
   extern ImRect windowRect;
   ImGui::SetNextWindowPos (windowRect.GetCenter(), ImGuiCond_Appearing, ImVec2 (0.5f, 0.5f));
 
-  if (ImGui::Begin (this->label.c_str(), &showWindow,
+  if (ImGui::Begin (TL_(this->label.c_str()), &showWindow,
                       ImGuiWindowFlags_NoCollapse        |
                       ImGuiWindowFlags_NoScrollbar       |
                       ImGuiWindowFlags_MenuBar           |
@@ -817,18 +820,20 @@ SKIF_LocalManager::Process (void)
 
     if (ImGui::BeginMenuBar ( ))
     {
-      if (ImGui::BeginMenu ("File"))
+      if (ImGui::BeginMenu (L_("File")))
       {
-        if (ImGui::MenuItem ("New", "Ctrl+N", false, ! anyPrompt))
+        if (ImGui::MenuItem (L_("New"), "Ctrl+N", false, ! anyPrompt))
           want_new = true;
 
-        if (ImGui::MenuItem ("Close", "Escape"))
+        if (ImGui::MenuItem (L_("Close"),
+                             // TRANSLATORS: The Escape key of the keyboard
+                             C_("key", "Escape")))
           showWindow = false;
 
         ImGui::EndMenu();
       }
 
-      if (ImGui::BeginMenu ("Selection"))
+      if (ImGui::BeginMenu (L_("Selection")))
       {
         _SelectionMenu ( );
 
@@ -840,12 +845,16 @@ SKIF_LocalManager::Process (void)
 
     if (installs.empty ())
     {
-      ImGui::TextDisabled     ("No local installs found.");
+      // Disabled text, with the highlighted parts in the regular color
+      const ImVec4 colText = ImGui::GetStyleColorVec4 (ImGuiCol_Text);
+      ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
+
+      ImGui::TextWrapped      ("%s", _("No local installs found."));
 
       SKIF_ImGui_Spacing      ( );
       SKIF_ImGui_Spacing      ( );
 
-      ImGui::TextDisabled     ("To perform a local install of Special K:");
+      ImGui::TextWrapped      ("%s", _("To perform a local install of Special K:"));
 
       ImGui::BeginGroup       ( );
       ImGui::Spacing          ( );
@@ -854,9 +863,9 @@ SKIF_LocalManager::Process (void)
         ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
                             (const char *)u8"\u2022 ");
       ImGui::SameLine         ( );
-      ImGui::TextDisabled     ("While in-game, use");
-      ImGui::SameLine         ( );
-      ImGui::Text             (ICON_FA_FLOPPY_DISK " File -> Install Wrapper DLL.");
+      // TRANSLATORS: The text in [brackets] is highlighted (keep the brackets); {0} is a floppy disk icon.
+      //   "File -> Install Wrapper DLL" is a menu of Special K itself (in-game), which is in English.
+      SKIF_ImGui_TextRichHighlight (F_("While in-game, use [{0} File -> Install Wrapper DLL].", ICON_FA_FLOPPY_DISK).c_str ( ), { }, colText);
       ImGui::EndGroup         ( );
 
       ImGui::BeginGroup       ( );
@@ -866,12 +875,11 @@ SKIF_LocalManager::Process (void)
         ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
                             (const char *)u8"\u2022 ");
       ImGui::SameLine         ( );
-      ImGui::TextDisabled     ("During launch, hold down");
-      ImGui::SameLine         ( );
-      ImGui::Text             ("Ctrl + Shift");
-      ImGui::SameLine         ( );
-      ImGui::TextDisabled     ("to access the compatibility options.");
+      // TRANSLATORS: The text in [brackets] is highlighted (keep the brackets); Ctrl and Shift are keys of the keyboard
+      SKIF_ImGui_TextRichHighlight (_("During launch, hold down [Ctrl + Shift] to access the compatibility options."), { }, colText);
       ImGui::EndGroup         ( );
+
+      ImGui::PopStyleColor    ( );
     }
 
     else if (ImGui::BeginTable ("##LocalInstalls", 6,
@@ -880,10 +888,10 @@ SKIF_LocalManager::Process (void)
                                 ImGuiTableFlags_Sortable))
     {
       ImGui::TableSetupColumn ("Select",    _colFlagsMisc,     30.0f * SKIF_ImGui_GlobalDPIScale, Col_Select);
-      ImGui::TableSetupColumn ("Path",      _colFlagsPath,      0.0f,                             Col_Path);
-      ImGui::TableSetupColumn ("Version",   _colFlagsVersion, 100.0f * SKIF_ImGui_GlobalDPIScale, Col_Version);
+      ImGui::TableSetupColumn (C_("column", "Path"), _colFlagsPath,      0.0f,                             Col_Path);
+      ImGui::TableSetupColumn (C_("column", "Version"), _colFlagsVersion, 100.0f * SKIF_ImGui_GlobalDPIScale, Col_Version);
       ImGui::TableSetupColumn ("Updater",   _colFlagsMisc,     20.0f * SKIF_ImGui_GlobalDPIScale, Col_Updater);
-      ImGui::TableSetupColumn ("Status",    _colFlagsStatus,   20.0f * SKIF_ImGui_GlobalDPIScale, Col_Status);
+      ImGui::TableSetupColumn (C_("column", "Status"), _colFlagsStatus,   20.0f * SKIF_ImGui_GlobalDPIScale, Col_Status);
       ImGui::TableSetupColumn ("Folder",    _colFlagsMisc,     40.0f * SKIF_ImGui_GlobalDPIScale, Col_Folder);
       
       ImGui::PushStyleColor   (ImGuiCol_TableHeaderBg, ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg));
@@ -1008,9 +1016,9 @@ SKIF_LocalManager::Process (void)
             ImGui::PopStyleColor ( );
 
             if (ImGui::IsItemHovered ())
-              ImGui::SetTooltip ("The local DLL file is outdated.\n"
-                                 "Click to update it to v %s.",
-                                 _inject.SKVer32_utf8.c_str());
+              ImGui::SetTooltip ("%s", F_("The local DLL file is outdated.\n"
+                                          "Click to update it to v {0}.",
+                                          _inject.SKVer32_utf8).c_str());
           }
 
           // Reinstall
@@ -1022,9 +1030,9 @@ SKIF_LocalManager::Process (void)
             ImGui::PopStyleColor ( );
 
             if (ImGui::IsItemHovered ())
-              ImGui::SetTooltip ("The local DLL file could not be found.\n"
-                                 "Click to reinstall it as v %s.",
-                                 _inject.SKVer32_utf8.c_str());
+              ImGui::SetTooltip ("%s", F_("The local DLL file could not be found.\n"
+                                          "Click to reinstall it as v {0}.",
+                                          _inject.SKVer32_utf8).c_str());
           }
         }
 
@@ -1037,7 +1045,7 @@ SKIF_LocalManager::Process (void)
                                 ICON_FA_CIRCLE_XMARK);
 
             if (ImGui::IsItemHovered ())
-              ImGui::SetTooltip ("Folder no longer exists");
+              ImGui::SetTooltip ("%s", _("Folder no longer exists"));
           }
 
           else if (! install.exists)
@@ -1046,7 +1054,7 @@ SKIF_LocalManager::Process (void)
                                 ICON_FA_CIRCLE_XMARK);
 
             if (ImGui::IsItemHovered ())
-              ImGui::SetTooltip ("Local DLL file no longer exists");
+              ImGui::SetTooltip ("%s", _("Local DLL file no longer exists"));
           }
 
           else if (install.outdated)
@@ -1055,8 +1063,8 @@ SKIF_LocalManager::Process (void)
                                 ICON_FA_TRIANGLE_EXCLAMATION);
 
             if (ImGui::IsItemHovered ())
-              ImGui::SetTooltip ("Outdated (latest: %s)",
-                                 _inject.SKVer32_utf8.c_str ());
+              ImGui::SetTooltip ("%s", F_("Outdated (latest: {0})",
+                                          _inject.SKVer32_utf8).c_str ());
           }
 
           else
@@ -1116,7 +1124,8 @@ SKIF_LocalManager::Process (void)
     if (want_install)
     {
       bool dontCare = true;
-      switch (SKIF_ImGui_6432bitnessPrompt ("Select the bitness to install", &dontCare, nullptr, "Or while ingame, use " ICON_FA_FLOPPY_DISK " File -> Install Wrapper DLL."))
+      // TRANSLATORS: {0} is a floppy disk icon. "File -> Install Wrapper DLL" is a menu of Special K itself (in-game), which is in English.
+      switch (SKIF_ImGui_6432bitnessPrompt (L_("Select the bitness to install"), &dontCare, nullptr, F_("Or while in-game, use {0} File -> Install Wrapper DLL.", ICON_FA_FLOPPY_DISK).c_str ( )))
       {
       case DChoice_32bit:
         UpdateInstall (want_install, PEBitness_32bit);
@@ -1143,8 +1152,8 @@ SKIF_LocalManager::Process (void)
     else if (! new_uptodate_desc.empty ())
     {
       bool dontCare = true;
-      if (DChoice_None != SKIF_ImGui_InfoPrompt ("Already Up-to-Date###LocalNewUpToDate", &dontCare,
-                                                 "Special K is already installed in this folder and is fully up-to-date.",
+      if (DChoice_None != SKIF_ImGui_InfoPrompt (L_("Already Up-to-Date###LocalNewUpToDate"), &dontCare,
+                                                 _("Special K is already installed in this folder and is fully up-to-date."),
                                                  new_uptodate_desc.c_str ()))
         new_uptodate_desc.clear ( );
     }
@@ -1155,24 +1164,25 @@ SKIF_LocalManager::Process (void)
       int  picked = -1;
       bool cancel = false;
 
-      if (SKIF_ImGui_BeginPopup ("Install Special K###LocalNewInstall"))
+      if (SKIF_ImGui_BeginPopup (L_("Install Special K###LocalNewInstall")))
       {
-        ImGui::Text         ("Which DLL filename should Special K be installed as?");
+        ImGui::TextWrapped         ("%s", _("Which DLL filename should Special K be installed as?"));
         ImGui::TextDisabled ("%s", new_exe_path_utf8.c_str ());
 
         if (new_bitness == PEBitness_64bit)
-          ImGui::TextDisabled ("64-bit executable");
+          SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), _("64-bit executable"));
         else if (new_bitness == PEBitness_32bit)
-          ImGui::TextDisabled ("32-bit executable");
+          SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), _("32-bit executable"));
         else
-          ImGui::TextDisabled ("Could not detect the bitness of the executable; you will be asked next.");
+          SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), _("Could not detect the bitness of the executable; you will be asked next."));
 
         if (std::find (new_dll_states.begin (), new_dll_states.end (), 1) != new_dll_states.end ())
-          ImGui::TextDisabled ("Special K is already installed in this folder; only that file can be updated.");
+          SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), _("Special K is already installed in this folder; only that file can be updated."));
 
         ImGui::Separator ( );
 
-        const ImVec2 btn = ImVec2 (110.0f, 0.0f) * SKIF_ImGui_GlobalDPIScale;
+        const ImVec2 btn = ImVec2 (std::max (110.0f * SKIF_ImGui_GlobalDPIScale,
+                                             ImGui::CalcTextSize (L_("Cancel"), nullptr, true).x + ImGui::GetStyle ( ).FramePadding.x * 2.0f), 0.0f);
 
         for (int i = 0; i < static_cast<int> (IM_ARRAYSIZE (LocalDLLs)); ++i)
         {
@@ -1189,15 +1199,15 @@ SKIF_LocalManager::Process (void)
           SKIF_ImGui_EndDisabled   (state == 2 || state == 3);
 
           if (ImGui::IsItemHovered (ImGuiHoveredFlags_AllowWhenDisabled))
-            ImGui::SetTooltip ("%s%s", LocalDLLs [i].hint,
-                               (state == 1) ? "\n\nSpecial K is already installed as this file and will be updated." :
-                               (state == 2) ? "\n\nA different file with this name already exists in the folder."    :
-                               (state == 3) ? "\n\nSpecial K is already installed in this folder under another name." : "");
+            ImGui::SetTooltip ("%s%s%s", T_(LocalDLLs [i].hint), (state >= 1 && state <= 3) ? "\n\n" : "",
+                               (state == 1) ? _("Special K is already installed as this file and will be updated.") :
+                               (state == 2) ? _("A different file with this name already exists in the folder.")    :
+                               (state == 3) ? _("Special K is already installed in this folder under another name.") : "");
         }
 
         ImGui::Separator ( );
 
-        cancel = ImGui::Button ("Cancel", btn) ||
+        cancel = ImGui::Button (L_("Cancel"), btn) ||
                  (ImGui::IsWindowFocused ( ) && ImGui::IsKeyPressed (ImGuiKey_Escape, false));
       }
 
@@ -1228,8 +1238,8 @@ SKIF_LocalManager::Process (void)
     else if (! new_dll_path.empty ())
     {
       bool dontCare = true;
-      switch (SKIF_ImGui_6432bitnessPrompt ("Select the bitness to install###LocalNewBitness", &dontCare,
-                                            "Could not detect the bitness of the executable.\nShould 64-bit or 32-bit be used?"))
+      switch (SKIF_ImGui_6432bitnessPrompt (L_("Select the bitness to install###LocalNewBitness"), &dontCare,
+                                            _("Could not detect the bitness of the executable.\nShould 64-bit or 32-bit be used?")))
       {
       case DChoice_32bit:
         InstallNew (new_dll_path, PEBitness_32bit);
@@ -1274,21 +1284,21 @@ SKIF_LocalManager::Process (void)
         action = LocalAction::None;
       };
 
-      static constexpr char* titUpdate     = "Update Installs?";
-      static constexpr char* titDelete     = "Delete Installs?";
-      static constexpr char* msgUpdate     = "Are you sure you want to update all selected installs?";
-      static constexpr char* msgDelete     = "Are you sure you want to delete all selected installs?";
-      static constexpr char* msgDeleteDesc = "Some leftover files may still be present in the game folder.";
+      const char* titUpdate     = L_("Update Installs?");
+      const char* titDelete     = L_("Delete Installs?");
+      const char* msgUpdate     = _("Are you sure you want to update all selected installs?");
+      const char* msgDelete     = _("Are you sure you want to delete all selected installs?");
+      const char* msgDeleteDesc = _("Some leftover files may still be present in the game folder.");
 
-      char* name = (action == LocalAction::Update ? titUpdate     :
-                    action == LocalAction::Delete ? titDelete     :
-                    nullptr);
-      char* text = (action == LocalAction::Update ? msgUpdate     :
-                    action == LocalAction::Delete ? msgDelete     :
-                    nullptr);
-      char* desc = (action == LocalAction::Update ? nullptr       :
-                    action == LocalAction::Delete ? msgDeleteDesc :
-                    nullptr);
+      const char* name = (action == LocalAction::Update ? titUpdate     :
+                          action == LocalAction::Delete ? titDelete     :
+                          nullptr);
+      const char* text = (action == LocalAction::Update ? msgUpdate     :
+                          action == LocalAction::Delete ? msgDelete     :
+                          nullptr);
+      const char* desc = (action == LocalAction::Update ? nullptr       :
+                          action == LocalAction::Delete ? msgDeleteDesc :
+                          nullptr);
 
       bool dontCare = true;
       switch (SKIF_ImGui_ConfirmPrompt (name, &dontCare, text, desc))

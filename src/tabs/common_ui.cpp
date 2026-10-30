@@ -21,6 +21,9 @@
 
 #include <tabs/hardware.h>
 
+// Last, as it defines short macros such as _ ( )
+#include <utility/l10n.h>
+
 void SKIF_UI_DrawComponentVersion (void)
 {
   static SKIF_InjectionContext& _inject   = SKIF_InjectionContext::GetInstance ( );
@@ -34,21 +37,21 @@ void SKIF_UI_DrawComponentVersion (void)
   ImGui::SameLine         ( );
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_CheckMark), (const char *)u8"\u2022 ");
   ImGui::SameLine         ( );
-  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),    "Special K 32-bit");
+  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),    "%s", "Special K 32-bit");
 
 #ifdef _WIN64
   ImGui::Spacing          ( );
   ImGui::SameLine         ( );
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_CheckMark), (const char *)u8"\u2022 ");
   ImGui::SameLine         ( );
-  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),    "Special K 64-bit");
+  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),    "%s", "Special K 64-bit");
 #endif
 
   ImGui::Spacing          ( );
   ImGui::SameLine         ( );
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_CheckMark), (const char *)u8"\u2022 ");
   ImGui::SameLine         ( );
-  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),    "Frontend (SKIF)");
+  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),    "%s", _("Frontend (SKIF)"));
 
   ImGui::EndGroup         ( );
   ImGui::SameLine         ( );
@@ -56,12 +59,12 @@ void SKIF_UI_DrawComponentVersion (void)
 
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled), "v");
   ImGui::SameLine         ( );
-  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),    _inject.SKVer32_utf8.c_str());
+  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),    "%s", _inject.SKVer32_utf8.c_str());
 
 #ifdef _WIN64
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled), "v");
   ImGui::SameLine         ( );
-  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),    _inject.SKVer64_utf8.c_str());
+  ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),    "%s", _inject.SKVer64_utf8.c_str());
 #endif
 
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled), "v");
@@ -78,7 +81,7 @@ void SKIF_UI_DrawComponentVersion (void)
   ImGui::TextColored      (ImGui::GetStyleColorVec4(ImGuiCol_CheckMark), (const char *)u8"\u2022 ");
   ImGui::SameLine         ( );
   ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
-  if (SKIF_ImGui_Selectable ("View release notes..."))
+  if (SKIF_ImGui_Selectable (L_("View release notes...")))
     _updater.Show         (SKIF_Updater::WindowType::ChangesFull);
   ImGui::PopStyleColor    ( );
   SKIF_ImGui_SetMouseCursorHand ( );
@@ -92,13 +95,13 @@ void SKIF_UI_DrawComponentVersion (void)
 
     ImGui::SameLine         ( );
 
-    std::string btnLabel = ICON_FA_WRENCH "  Update";
-
-    if ((_updater.GetState() & UpdateFlags_Older) == UpdateFlags_Older)
-      btnLabel = ICON_FA_WRENCH "  Rollback";
+    const char* btnLabel = ((_updater.GetState() & UpdateFlags_Older) == UpdateFlags_Older)
+                         ? LI_(ICON_FA_WRENCH " ", "Rollback")
+                         : LI_(ICON_FA_WRENCH " ", "Update");
 
     ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning));
-    if (ImGui::Button (btnLabel.c_str(), ImVec2(150.0f * SKIF_ImGui_GlobalDPIScale,
+    if (ImGui::Button (btnLabel, ImVec2(std::max (150.0f * SKIF_ImGui_GlobalDPIScale,
+                                                  ImGui::CalcTextSize (btnLabel, nullptr, true).x + ImGui::GetStyle ( ).FramePadding.x * 2.0f),
                                                  30.0f * SKIF_ImGui_GlobalDPIScale )))
       UpdatePromptPopup = PopupState_Open;
     ImGui::PopStyleColor ( );
@@ -121,22 +124,22 @@ void SKIF_UI_DrawPlatformStatus (void)
   {
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_TRIANGLE_EXCLAMATION " ");
     ImGui::SameLine        ( );
-    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), "App is running as an administrator!");
-    SKIF_ImGui_SetHoverTip ( "Running elevated is not recommended as it will inject Special K into system processes.\n"
-                             "Please restart this app and the injection service as a regular user.");
+    SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), _("App is running as an administrator!"));
+    SKIF_ImGui_SetHoverTip ( _("Running elevated is not recommended as it will inject Special K into system processes.\n"
+                             "Please restart this app and the injection service as a regular user."));
   }
   else {
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), ICON_FA_CHECK " ");
     ImGui::SameLine        ( );
-    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "App is running with normal privileges.");
-    SKIF_ImGui_SetHoverTip ( "This is the recommended option as Special K will not be injected\n"
-                             "into system processes nor games running as an administrator.");
+    SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), _("App is running with normal privileges."));
+    SKIF_ImGui_SetHoverTip ( _("This is the recommended option as Special K will not be injected\n"
+                             "into system processes nor games running as an administrator."));
   }
 
   ImGui::EndGroup         ( );
 
   struct Platform {
-    std::string     Name;
+    std::string     Name;        // English; for the services, translated where shown (GetName)
     std::wstring    ProcessName;
     DWORD           ProcessID   = 0,
                     PreviousPID = 0;
@@ -148,13 +151,17 @@ void SKIF_UI_DrawPlatformStatus (void)
       Name        =  n;
       ProcessName = pn;
     }
+
+    bool isService (void) const { return (ProcessName == L"SKIFsvc32.exe" || ProcessName == L"SKIFsvc64.exe"); }
+
+    std::string GetName (void) const { return (isService ( )) ? T_(Name.c_str ( )) : Name; }
   };
 
   static DWORD    dwLastRefresh = 0;
   static Platform Platforms[]   = {
-    {"32-bit service",      L"SKIFsvc32.exe"},
+    {N_("32-bit service"),  L"SKIFsvc32.exe"},
 #ifdef _WIN64
-    {"64-bit service",      L"SKIFsvc64.exe"},
+    {N_("64-bit service"),  L"SKIFsvc64.exe"},
 #endif
     {"Steam",               L"steam.exe"},
     {"Origin",              L"Origin.exe"},
@@ -227,45 +234,46 @@ void SKIF_UI_DrawPlatformStatus (void)
         ImGui::BeginGroup      ( );
         ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_TRIANGLE_EXCLAMATION " ");
         ImGui::SameLine        ( );
+        // TRANSLATORS: {0} is the name of an app (e.g. Steam) or of a service ("32-bit service")
         if (p.ProcessName == L"RTSS.exe")
-          ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), (p.Name + " is running and may conflict with Special K!").c_str() );
+          SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), F_("{0} is running and may conflict with Special K!", p.GetName ( )).c_str() );
         else
-          ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), (p.Name + " is running as an administrator!").c_str() );
+          SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), F_("{0} is running as an administrator!", p.GetName ( )).c_str() );
         ImGui::EndGroup        ( );
 
         if (isSKIFAdmin)
-          SKIF_ImGui_SetHoverTip (("It is not recommended to run either " + p.Name + " or this app as an administrator.\n"
-                                   "Please restart both as a normal user.").c_str());
+          SKIF_ImGui_SetHoverTip (F_("It is not recommended to run either {0} or this app as an administrator.\n"
+                                     "Please restart both as a normal user.", p.GetName ( )));
         else if (p.ProcessName == L"RTSS.exe")
-          SKIF_ImGui_SetHoverTip ( "RivaTuner Statistics Server (RTSS) occasionally conflicts with Special K.\n"
+          SKIF_ImGui_SetHoverTip ( _("RivaTuner Statistics Server (RTSS) occasionally conflicts with Special K.\n"
                                    "Try closing it down if Special K does not behave as expected, or enable\n"
                                    "the option 'Use Microsoft Detours API hooking' in the settings of RTSS.\n"
                                    "\n"
                                    "If you use MSI Afterburner, try closing it as well as otherwise it will\n"
-                                   "automatically restart RTSS silently in the background.", true);
-        else if (p.ProcessName == L"SKIFsvc32.exe" || p.ProcessName == L"SKIFsvc64.exe")
-          SKIF_ImGui_SetHoverTip ( "Running elevated is not recommended as it will inject Special K into system processes.\n"
-                                   "Please restart the frontend and the injection service as a regular user.");
+                                   "automatically restart RTSS silently in the background."), true);
+        else if (p.isService ( ))
+          SKIF_ImGui_SetHoverTip ( _("Running elevated is not recommended as it will inject Special K into system processes.\n"
+                                   "Please restart the frontend and the injection service as a regular user."));
         else
-          SKIF_ImGui_SetHoverTip (("Running elevated will prevent injection into these games.\n"
-                                   "Please restart " + p.Name + " as a normal user.").c_str());
+          SKIF_ImGui_SetHoverTip (F_("Running elevated will prevent injection into these games.\n"
+                                     "Please restart {0} as a normal user.", p.GetName ( )));
       }
       else {
         ImGui::BeginGroup      ( );
         ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), ICON_FA_CHECK " ");
         ImGui::SameLine        ( );
-        ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), (p.Name + " is running.").c_str());
+        SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), F_("{0} is running.", p.GetName ( )).c_str());
         ImGui::EndGroup        ( );
       }
     }
-    else if (p.ProcessName == L"SKIFsvc32.exe" || p.ProcessName == L"SKIFsvc64.exe")
+    else if (p.isService ( ))
     {
       ImGui::Spacing          ( );
       ImGui::SameLine         ( );
       ImGui::ItemSize         (ImVec2 (ImGui::CalcTextSize (ICON_FA_CHECK " ") .x, ImGui::GetTextLineHeight()));
       //ImGui::TextColored      (ImColor (0.68F, 0.68F, 0.68F), " " ICON_FA_MINUS " ");
       ImGui::SameLine         ( );
-      ImGui::TextColored      (ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), (p.Name + " is stopped.").c_str());
+      SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), F_("{0} is stopped.", p.GetName ( )).c_str());
     }
 
 #ifdef _WIN64
@@ -282,8 +290,8 @@ void SKIF_UI_DrawPlatformStatus (void)
     SKIF_ImGui_Spacing      ( );
 
     ImGui::TextColored (
-      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-        "Problematic Vulkan layers:"
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption), "%s",
+        _("Problematic Vulkan layers:")
     );
 
     ImGui::SameLine         ( );
@@ -293,8 +301,8 @@ void SKIF_UI_DrawPlatformStatus (void)
         ICON_FA_LIGHTBULB
     );
 
-    SKIF_ImGui_SetHoverTip ("The Vulkan layers listed below have known compatibility issues with Special K and may cause issues.\n"
-                            "Click on the layers to toggle them on/off. Note however that this will affects all apps/games.");
+    SKIF_ImGui_SetHoverTip (_("The Vulkan layers listed below have known compatibility issues with Special K and may cause issues.\n"
+                            "Click on the layers to toggle them on/off. Note however that this will affects all apps/games."));
 
     SKIF_ImGui_Spacing      ( );
 
@@ -311,26 +319,26 @@ void SKIF_UI_DrawPlatformStatus (void)
       bool dontCare = l.isEnabled;
       ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4 ((l.isEnabled) ? ImGuiCol_SKIF_Yellow : ImGuiCol_SKIF_Success));
       ImGui::BeginGroup       ( );
-      if (ImGui::Checkbox     (l.uiWarnLabel.c_str(), &dontCare))
+      if (SKIF_ImGui_Checkbox     (l.uiWarnLabel.c_str(), &dontCare))
         l.Toggle ( );
 
       ImGui::EndGroup         ( );
       ImGui::PopStyleColor    ( );
 
       SKIF_ImGui_SetHoverText (l.uiHoverTxt);
-      SKIF_ImGui_SetHoverTip  ((l.isEnabled) ? "This layer is enabled and may cause issues. Click to disable it." : "This layer is disabled. Click to re-enable it.");
+      SKIF_ImGui_SetHoverTip  ((l.isEnabled) ? _("This layer is enabled and may cause issues. Click to disable it.") : _("This layer is disabled. Click to re-enable it."));
     }
   }
 
   SKIF_ImGui_Spacing      ( );
 
-  ImGui::Text             ("Connected XInput gamepads:");
+  ImGui::Text             ("%s", _("Connected XInput gamepads:"));
   ImGui::SameLine         ( );
 
   if (! _registry.bControllers)
   {
-    ImGui::TextDisabled     ("Disabled");
-    SKIF_ImGui_SetHoverTip  ("Controller support can be re-enabled in the Settings tab.");
+    ImGui::TextDisabled     ("%s", _("Disabled"));
+    SKIF_ImGui_SetHoverTip  (_("Controller support can be re-enabled in the Settings tab."));
   }
 
   else
@@ -348,7 +356,7 @@ void SKIF_UI_DrawPlatformStatus (void)
         ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Yellow ), ICON_FA_XMARK);
     }
     ImGui::EndGroup         ( );
-    SKIF_ImGui_SetHoverTip  ("Indicates which Xbox (XInput) controller slots are currently in use/connected.");
+    SKIF_ImGui_SetHoverTip  (_("Indicates which Xbox (XInput) controller slots are currently in use/connected."));
 
     // If the primary slot is false and one of the other are true, show a warning
     if (slots[0] == false &&
@@ -364,12 +372,12 @@ void SKIF_UI_DrawPlatformStatus (void)
       ImGui::SameLine         ( );
       ImGui::Text             (ICON_FA_TRIANGLE_EXCLAMATION " ");
       ImGui::SameLine         ( );
-      ImGui::Text             ("Some games may not detect the gamepad!");
+      ImGui::TextWrapped      ("%s", _("Some games may not detect the gamepad!"));
       ImGui::EndGroup         ( );
       ImGui::PopStyleColor    ( );
 
-      SKIF_ImGui_SetHoverTip  ("Some games may not be able to detect the controller if it is not connected to the first slot.\n"
-                               "Disconnect and reconnect the controller to the system usually takes care of the issue.");
+      SKIF_ImGui_SetHoverTip  (_("Some games may not be able to detect the controller if it is not connected to the first slot.\n"
+                               "Disconnect and reconnect the controller to the system usually takes care of the issue."));
     }
   }
 }
@@ -437,13 +445,8 @@ void SKIF_UI_TipsAndTricks (void)
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
                         (const char *)u8"\u2022 ");
   ImGui::SameLine         ( );
-  ImGui::Text             ("Start typing");
-  ImGui::SameLine         ( );
-  ImGui::TextColored      (
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-    ICON_FA_KEYBOARD);
-  ImGui::SameLine         ( );
-  ImGui::Text             ("the name of a game in the library tab to quicky find it.");
+  // TRANSLATORS: The text in [brackets] is highlighted (keep the brackets); {0} is a keyboard icon
+  SKIF_ImGui_TextRichHighlight (F_("Start typing [{0}] the name of a game in the Library tab to quickly find it.", ICON_FA_KEYBOARD).c_str ( ));
   ImGui::EndGroup         ( );
 
 
@@ -475,19 +478,8 @@ void SKIF_UI_TipsAndTricks (void)
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
                           (const char *)u8"\u2022 ");
     ImGui::SameLine         ( );
-    ImGui::Text             ("Use");
-    ImGui::SameLine         ( );
-    ImGui::TextColored      (
-      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-          _cache.bind.c_str() );
-    ImGui::SameLine         ( );
-    ImGui::Text             ("to toggle HDR where the");
-    ImGui::SameLine         ( );
-    ImGui::TextColored      (
-      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-        ICON_FA_ARROW_POINTER);
-    ImGui::SameLine         ( );
-    ImGui::Text             ("is.");
+    // TRANSLATORS: The text in [brackets] is highlighted (keep the brackets); {0} is a keyboard shortcut, {1} a mouse pointer icon
+    SKIF_ImGui_TextRichHighlight (F_("Use [{0}] to toggle HDR where the [{1}] is.", SKIF_ImGui_TextRichEscape (_cache.bind), ICON_FA_ARROW_POINTER).c_str ( ));
     ImGui::EndGroup         ( );
   }
 
@@ -516,13 +508,8 @@ void SKIF_UI_TipsAndTricks (void)
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
                           (const char *)u8"\u2022 ");
     ImGui::SameLine         ( );
-    ImGui::Text             ("Use");
-    ImGui::SameLine         ( );
-    ImGui::TextColored      (
-      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-          _cache.bind.c_str() );
-    ImGui::SameLine         ( );
-    ImGui::Text             ("to start the injection service.");
+    // TRANSLATORS: The text in [brackets] is highlighted (keep the brackets); {0} is a keyboard shortcut
+    SKIF_ImGui_TextRichHighlight (F_("Use [{0}] to start the injection service.", SKIF_ImGui_TextRichEscape (_cache.bind)).c_str ( ));
     ImGui::EndGroup         ( );
   }
 
@@ -534,15 +521,8 @@ void SKIF_UI_TipsAndTricks (void)
     ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info),
                         (const char *)u8"\u2022 ");
   ImGui::SameLine         ( );
-  float fX1 = ImGui::GetCursorPosX();
-  ImGui::Text             ("Hold down");
-  ImGui::SameLine         ( );
-  ImGui::TextColored      (
-    ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-    "Ctrl + Shift");
-  ImGui::SameLine         ( );
-  ImGui::Text             ("when starting a game for compatibility options");
-  ImGui::SetCursorPosX    (fX1);
-  ImGui::Text             ("or perform a local install of the appropriate wrapper DLL for the game.");
+  // TRANSLATORS: The text in [brackets] is highlighted (keep the brackets); Ctrl and Shift are keys of the keyboard
+  SKIF_ImGui_TextRichHighlight (_("Hold down [Ctrl + Shift] when starting a game for compatibility options "
+                                  "or perform a local install of the appropriate wrapper DLL for the game."));
   ImGui::EndGroup         ( );
 }

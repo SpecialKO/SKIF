@@ -154,6 +154,11 @@ namespace ImGui
 }
 */
 
+//---- SKIF (l10n): line breaks between Chinese and Japanese characters, with simple "kinsoku shori" (no closing punctuation at the
+//     start of a line, no opening bracket at the end of one). A patch of ImFontCalcWordWrapPositionEx ( ) in imgui_draw.cpp,
+//       between "#ifdef SKIF_L10N_CJK_LINE_BREAKS" and "#endif", to carry over when updating ImGui. Also used by SKIF_ImGui_TextRich ( ).
+#define SKIF_L10N_CJK_LINE_BREAKS
+
 #include <plog/Log.h>
 
 #define IMGUI_DEBUG_PRINTF(_FMT,...)   PLOG_VERBOSE.printf(_FMT, __VA_ARGS__)

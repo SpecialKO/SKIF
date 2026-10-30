@@ -408,6 +408,7 @@
     <ClInclude Include="include\utility\artwork.h" />
     <ClInclude Include="include\utility\games.h" />
     <ClInclude Include="include\utility\igdb.h" />
+    <ClInclude Include="include\utility\l10n.h" />
     <ClInclude Include="include\utility\launch_behaviors.h" />
     <ClInclude Include="include\utility\registry.h" />
     <ClInclude Include="include\utility\skif_imgui.h" />
@@ -475,6 +476,7 @@
     <ClCompile Include="src\utility\games.cpp" />
     <ClCompile Include="src\utility\ini_reader.cpp" />
     <ClCompile Include="src\utility\igdb.cpp" />
+    <ClCompile Include="src\utility\l10n.cpp" />
     <ClCompile Include="src\utility\launch_behaviors.cpp" />
     <ClCompile Include="src\utility\registry.cpp" />
     <ClCompile Include="src\utility\skif_imgui.cpp" />
@@ -509,6 +511,7 @@
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="SKIF.rc" />
+    <ResourceCompile Include="l10n.rc" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="resources\icons\SKIF.ico" />
@@ -587,6 +590,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="resources\l10n\SKIF.pot" />
+    <None Include="tools\l10n_extract.ps1" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

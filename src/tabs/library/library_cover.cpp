@@ -22,6 +22,9 @@
 
 #include "library_ui.h"
 
+// Last, as it defines short macros such as _ ( )
+#include <utility/l10n.h>
+
 // Layout of the current cover, the previous (fading out) one, and the Special K logo
 #pragma region ImagePosition
 
@@ -158,13 +161,14 @@ DrawGameCover (bool sameLine, bool& isCoverHovered, ImVec2& vecPosCover)
 
   bool isSpecialK = (pApp != nullptr && pApp->IsSpecialK ( )); // pApp only changes once per frame, at the top of SKIF_UI_Tab_DrawLibrary ( )
 
-  static char   cstrLabelLoading[] = "...";
-  static char   cstrLabelMissing[] = "                      Missing cover :(\n"
-                                      "           Right-click to set one manually\n\n"
-                                      "You can drag and drop an image file or URL here";
-  static char   cstrLabelGOGUser[] = "Please sign in to GOG Galaxy to\n"
-                                      "allow the cover to be populated :)";
-  char*         pcstrLabel         =  nullptr;
+  // Each line is centered on its own (the text may be translated)
+  static const char cstrLabelLoading[] = "...";
+  const char*   cstrLabelMissing   = _("Missing cover :(\n"
+                                       "Right-click to set one manually\n\n"
+                                       "You can drag and drop an image file or URL here");
+  const char*   cstrLabelGOGUser   = _("Please sign in to GOG Galaxy to\n"
+                                       "allow the cover to be populated :)");
+  const char*   pcstrLabel         =  nullptr;
 
   if (uiCoverVisible)
   {
@@ -213,17 +217,56 @@ DrawGameCover (bool sameLine, bool& isCoverHovered, ImVec2& vecPosCover)
 
       if (pcstrLabel != nullptr)
       {
-        ImVec2 labelSize = ImGui::CalcTextSize (pcstrLabel);
-        ImGui::SetCursorPos (ImFloor (ImVec2 (
-            (vecContentRegionAvail.x - labelSize.x) / 2,
-            (vecContentRegionAvail.y - labelSize.y) / 2)));
-
         // The loading label ("...") is faded in, like the cover once it is loaded
         const bool isLoadingLabel = (pcstrLabel == cstrLabelLoading);
         if (isLoadingLabel)
           ImGui::PushStyleVar (ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * LibraryFadeIn (fadeLoadingCover));
 
-        ImGui::TextDisabled (pcstrLabel);
+        // Lines wider than the cover area (translations) are wrapped
+        const float fWrapWidth = std::max (1.0f, vecContentRegionAvail.x - ImGui::GetStyle ( ).ItemSpacing.x * 4.0f);
+        std::vector <std::pair <const char*, const char*>> lines;
+
+        for (const char* line = pcstrLabel; ; )
+        {
+          const char* line_end = strchr (line, '\n');
+          if (line_end == nullptr)
+            line_end = line + strlen (line);
+
+          if (line == line_end)
+            lines.emplace_back (line, line_end); // Empty line
+
+          for (const char* s = line; s < line_end; )
+          {
+            const char* e = ImGui::GetFont ( )->CalcWordWrapPosition (ImGui::GetFontSize ( ), s, line_end, fWrapWidth);
+            if (e <= s)
+              e = s + ImTextCountUtf8BytesFromChar (s, line_end);
+
+            lines.emplace_back (s, e);
+
+            // The next line starts after the blanks it was wrapped at
+            for (s = e; s < line_end && (*s == ' ' || *s == '\t'); s++) { }
+          }
+
+          if (*line_end == '\0')
+            break;
+
+          line = line_end + 1;
+        }
+
+        // Centered as a block, and each line centered on its own
+        ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
+
+        float fLineY = ImFloor ((vecContentRegionAvail.y - ImGui::GetFontSize ( ) * static_cast <float> (lines.size ( ))) / 2);
+
+        for (const auto& [line, line_end] : lines)
+        {
+          ImGui::SetCursorPos    (ImFloor (ImVec2 ((vecContentRegionAvail.x - ImGui::CalcTextSize (line, line_end).x) / 2, fLineY)));
+          ImGui::TextUnformatted (line, line_end);
+
+          fLineY += ImGui::GetFontSize ( ); // As CalcTextSize ( ) counts the lines
+        }
+
+        ImGui::PopStyleColor ( );
 
         if (isLoadingLabel)
           ImGui::PopStyleVar ( );
@@ -382,7 +425,7 @@ DrawSpecialKPatreon (bool& isCoverHovered, ImVec2 vecPosCover)
                                                           ImGuiChildFlags_AlwaysUseWindowPadding, // Never use a border
                                                           ImGuiWindowFlags_NoScrollbar); // ((pApp->tex_cover.isCustom) ? ImGuiWindowFlags_None : ImGuiWindowFlags_NoBackground))
 
-        ImGui::TextColored        (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption) * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f), "Special Kudos to our Patrons:");
+        SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption) * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f), _("Special Kudos to our Patrons:"));
 
         std::string patrons_ = SKIF_Updater::GetInstance ( ).GetPatrons ( );
 

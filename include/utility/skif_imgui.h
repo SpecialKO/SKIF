@@ -78,6 +78,20 @@ void     SKIF_ImGui_Columns               (int columns_count, const char* id, bo
 void     SKIF_ImGui_Spacing               (float multiplier);
 void     SKIF_ImGui_Spacing               (void);
 bool     SKIF_ImGui_Selectable            (const char* label);
+void     SKIF_ImGui_TextColoredWrapped    (const ImVec4& col, const char* text); // ImGui::TextColored ( ) that wraps (e.g. translated captions, which may be much longer than in English)
+void     SKIF_ImGui_TextColoredEllipsis   (const ImVec4& col, const char* text); // ImGui::TextColored ( ) shortened with an ellipsis if it does not fit the rest of the line (full text in a tooltip)
+// Layout helpers for text whose length is not known up front (translations)
+float    SKIF_ImGui_CheckboxWidth         (const char* label);                   // Width of a checkbox or radio button with this label
+bool     SKIF_ImGui_SameLineIfFits        (float width);                         // SameLine ( ) if an item of this width fits the rest of the line, else a new line; true if on the same line
+bool     SKIF_ImGui_Checkbox              (const char* label, bool* v);          // ImGui::Checkbox ( ) whose label wraps if it is wider than the space left
+bool     SKIF_ImGui_RadioButton           (const char* label, int* v, int v_button); // ImGui::RadioButton ( ) whose label wraps if it is wider than the space left
+void     SKIF_ImGui_SetNextItemWidthForLabel (const char* label);                // Narrows the next item (e.g. a combo) so its label on the right fits
+float    SKIF_ImGui_ComboWidth            (std::initializer_list <const char*> items, float min_width = 0.0f); // Width of a combo that fits the widest of these items (at least min_width)
+void     SKIF_ImGui_TextHighlighted       (const char* text, const char* value, const ImVec4& colValue); // One line of text where {0} is value, drawn in colValue: "Do you want to end {0}?"
+void     SKIF_ImGui_TextHighlighted       (const char* text, std::initializer_list <const char*> values, const ImVec4& colValue); // The same, with {0}, {1}, ...
+int      SKIF_ImGui_TextRich              (const char* text, std::initializer_list <const char*> link_icons = { }, const ImVec4& colLink = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption)); // Wrapped text where [words] are links; returns the index of the clicked link, or -1
+void     SKIF_ImGui_TextRichHighlight     (const char* text, std::initializer_list <const char*> icons = { }, const ImVec4& colHighlight = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption)); // Wrapped text where [words] are highlighted (not clickable)
+std::string SKIF_ImGui_TextRichEscape     (const std::string& text);             // Doubles the brackets of text put in a [...] of the two above
 bool     SKIF_ImGui_SelectableVAligned    (const char* unique_id, const char* label, bool* p_selected, ImGuiSelectableFlags flags, const ImVec2& size_arg);
 bool     SKIF_ImGui_SeparatorTextClickable(const char* label, const bool* collapsed = nullptr, bool hand_cursor = false);
 void     SKIF_ImGui_DimBackgroundViewport (const ImGuiViewport* vp = ImGui::GetWindowViewport ( ));
@@ -94,6 +108,7 @@ bool     SKIF_ImGui_CheckboxTriState      (const char* label, SKIF_ImGuiCheckSta
 void     SKIF_ImGui_ServiceMenu           (void);
 ImFont*  SKIF_ImGui_LoadFont              (const std::wstring& filename, float point_size, ImFontConfig* cfg = nullptr);
 void     SKIF_ImGui_InitFonts             (float fontSize, bool extendedCharsets = true);
+bool     SKIF_ImGui_SetUILanguage         (const std::string& tag); // Font order and preloading for the UI language; true if the fonts need a rebuild
 void     SKIF_ImGui_SetStyle              (ImGuiStyle* dst = nullptr);
 void     SKIF_ImGui_BeginDisabled         (bool disabled = true);
 void     SKIF_ImGui_EndDisabled           (bool disabled = true);

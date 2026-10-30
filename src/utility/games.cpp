@@ -42,6 +42,9 @@
 // Stuff
 #include <utility/skif_imgui.h>
 
+// Last, as it defines short macros such as _ ( )
+#include <utility/l10n.h>
+
 CONDITION_VARIABLE LibRefreshPaused = { };
 
 #pragma region Trie Keyboard Hint Search
@@ -407,17 +410,17 @@ SKIF_GamingCollection::RefreshRunningApps (app_list_t *apps, bool forced)
             _registry.bWarningRTSS = true;
             _registry.regKVWarningRTSS.putData (_registry.bWarningRTSS);
 
-            constexpr char* error_title =
-              "One-time warning about RTSS.exe";
-            constexpr char* error_label =
-              "RivaTuner Statistics Server (RTSS) occasionally conflicts with Special K.\n"
-              "Try closing it down if Special K does not behave as expected, or enable\n"
-              "the option 'Use Microsoft Detours API hooking' in the settings of RTSS.\n"
-              "\n"
-              "If you use MSI Afterburner, try closing it as well as otherwise it will\n"
-              "automatically restart RTSS silently in the background.\n"
-              "\n"
-              "This warning will not appear again.";
+            const char* error_title =
+              _("One-time warning about RTSS.exe");
+            // TRANSLATORS: 'Use Microsoft Detours API hooking' is an option of RTSS (in English)
+            const std::string error_label =
+              std::string (_("RivaTuner Statistics Server (RTSS) occasionally conflicts with Special K.\n"
+                             "Try closing it down if Special K does not behave as expected, or enable\n"
+                             "the option 'Use Microsoft Detours API hooking' in the settings of RTSS.\n"
+                             "\n"
+                             "If you use MSI Afterburner, try closing it as well as otherwise it will\n"
+                             "automatically restart RTSS silently in the background."))
+              + "\n\n" + _("This warning will not appear again.");
 
             SKIF_ImGui_InfoMessage (error_title, error_label);
           }

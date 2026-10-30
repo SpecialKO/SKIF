@@ -1,5 +1,6 @@
 #include <utility/skif_imgui.h>
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <unordered_set>
@@ -17,6 +18,9 @@
 #include <fonts/fa_solid_900.ttf.h>
 #include <fonts/fa_brands_400.ttf.h>
 #include <imgui/imgui_impl_dx11.h>
+
+// Last, as it defines short macros such as _ ( )
+#include <utility/l10n.h>
 
 bool                  bAutoScrollActive;
 bool                  bScrollbarX;
@@ -56,6 +60,39 @@ static bool           SKIF_ImGui_ExtFontWanted [SKIF_ImGui_ExtFont_COUNT] = { };
 
 static const ImWchar  SKIF_ImGui_GlyphsHangul [] = { SKIF_IMGUI_GLYPHS_HANGUL, 0 };
 static const ImWchar  SKIF_ImGui_GlyphsCJK    [] = { SKIF_IMGUI_GLYPHS_CJK,    0 };
+
+// Han characters (shared by Chinese and Japanese) are drawn differently in Japanese, Simplified and Traditional Chinese,
+//   so the font that provides them first should match the language of the UI (SKIF_ImGui_SetUILanguage), or else the
+//     system's ANSI code page (Japanese first for ACP 932, Simplified Chinese otherwise)
+enum SKIF_ImGui_HanPreference {
+  SKIF_ImGui_Han_Default,
+  SKIF_ImGui_Han_Japanese,
+  SKIF_ImGui_Han_ChineseSimplified,
+  SKIF_ImGui_Han_ChineseTraditional
+};
+static SKIF_ImGui_HanPreference SKIF_ImGui_HanPreferred = SKIF_ImGui_Han_Default;
+
+// The fonts to try for Han characters, in order (also the order they are added in)
+static std::vector <SKIF_ImGui_ExtFont>
+SKIF_ImGui_GetHanFontOrder (void)
+{
+  static UINT acp = GetACP();
+
+  switch (SKIF_ImGui_HanPreferred)
+  {
+    case SKIF_ImGui_Han_Japanese:           return { SKIF_ImGui_ExtFont_Japanese,          SKIF_ImGui_ExtFont_ChineseSimplified, SKIF_ImGui_ExtFont_ChineseFull };
+    case SKIF_ImGui_Han_ChineseSimplified:  return { SKIF_ImGui_ExtFont_ChineseSimplified, SKIF_ImGui_ExtFont_Japanese,          SKIF_ImGui_ExtFont_ChineseFull };
+    case SKIF_ImGui_Han_ChineseTraditional: return { SKIF_ImGui_ExtFont_ChineseFull,       SKIF_ImGui_ExtFont_ChineseSimplified, SKIF_ImGui_ExtFont_Japanese    };
+    default:
+      break;
+  }
+
+  // Japanese takes priority for ACP 932, and the Simplified Chinese font (which also has almost all of the Japanese characters) otherwise
+  if (acp == 932)
+    return { SKIF_ImGui_ExtFont_Japanese,          SKIF_ImGui_ExtFont_ChineseSimplified, SKIF_ImGui_ExtFont_ChineseFull };
+  else
+    return { SKIF_ImGui_ExtFont_ChineseSimplified, SKIF_ImGui_ExtFont_Japanese,          SKIF_ImGui_ExtFont_ChineseFull };
+}
 
 static bool
 SKIF_ImGui_IsInGlyphRanges (const ImWchar* ranges, unsigned int cp)
@@ -431,16 +468,16 @@ SKIF_ImGui_InfoMessage_Process (void)
 
       SKIF_ImGui_Spacing ( );
 
-      ImGui::Text        (vInfoMessages.back().second.c_str());
+      ImGui::Text        ("%s", vInfoMessages.back().second.c_str()); // Never as a format: the text may be translated
 
       SKIF_ImGui_Spacing ( );
       SKIF_ImGui_Spacing ( );
 
-      ImVec2 vButtonSize = ImVec2(80.0f * SKIF_ImGui_GlobalDPIScale, 0.0f);
+      ImVec2 vButtonSize = ImVec2(std::max (80.0f * SKIF_ImGui_GlobalDPIScale, ImGui::CalcTextSize (L_("OK"), nullptr, true).x + ImGui::GetStyle ( ).FramePadding.x * 2.0f), 0.0f);
 
       ImGui::SetCursorPosX (fPopupWidth / 2 - vButtonSize.x / 2);
 
-      if (ImGui::Button  ("OK", vButtonSize))
+      if (ImGui::Button  (L_("OK"), vButtonSize))
       {
         vInfoMessages.pop_back();
 
@@ -593,7 +630,7 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText, bool ignoreDisabledToolt
     else
     {
       SKIF_StatusBarText =
-        "Info: ";
+        _("Info: ");
 
       SKIF_ImGui_SetHoverText (
         szText.data (), true
@@ -681,6 +718,447 @@ bool
 SKIF_ImGui_Selectable (const char* label)
 {
   return ImGui::Selectable  (label, false, ImGuiSelectableFlags_None, ImGui::CalcTextSize (label, NULL, true));
+}
+
+// ImGui::TextColored ( ) that wraps like ImGui::TextWrapped ( ): for captions and other single lines of text that may be
+//   much longer once translated. The text is not a format string. Can follow a SameLine ( ) (e.g. after an icon).
+void
+SKIF_ImGui_TextColoredWrapped (const ImVec4& col, const char* text)
+{
+  ImGui::PushStyleColor (ImGuiCol_Text, col);
+  ImGui::TextWrapped    ("%s", text);
+  ImGui::PopStyleColor  ( );
+}
+
+// One line of text, shortened with an ellipsis if it is wider than the rest of the line (e.g. a translated status in a narrow
+//   column), with the full text shown in a tooltip
+void
+SKIF_ImGui_TextColoredEllipsis (const ImVec4& col, const char* text)
+{
+  const float width = ImGui::CalcTextSize (text).x;
+  const float avail = ImGui::GetContentRegionAvail ( ).x;
+
+  if (width <= avail || avail <= 0.0f)
+  {
+    ImGui::TextColored (col, "%s", text);
+    return;
+  }
+
+  const ImVec2 pos    = ImGui::GetCursorScreenPos ( );
+  const float  height = ImGui::GetTextLineHeight  ( );
+
+  ImGui::PushStyleColor     (ImGuiCol_Text, col);
+  ImGui::RenderTextEllipsis (ImGui::GetWindowDrawList ( ), pos, ImVec2 (pos.x + avail, pos.y + height), pos.x + avail, text, nullptr, nullptr);
+  ImGui::PopStyleColor      ( );
+
+  ImGui::Dummy              (ImVec2 (avail, height));
+  SKIF_ImGui_SetHoverTip    (text);
+}
+
+// Width of a combo (its frame, arrow button and the text) that fits the widest of the items, and is at least min_width wide
+float
+SKIF_ImGui_ComboWidth (std::initializer_list <const char*> items, float min_width)
+{
+  float text_width = 0.0f;
+
+  for (const char* item : items)
+    if (item != nullptr)
+      text_width = std::max (text_width, ImGui::CalcTextSize (item, NULL, true).x);
+
+  return std::max (min_width, text_width + ImGui::GetStyle ( ).FramePadding.x * 2.0f + ImGui::GetFrameHeight ( ));
+}
+
+// One line of text with values drawn in their own color where the (translated) text has {0}, {1}, ... (up to {9}), so the
+//   sentence stays whole for translators: SKIF_ImGui_TextHighlighted (_("Do you want to end {0}?"), { filename }, colHighlight).
+//     "{{" and "}}" are literal braces; placeholders without a value are left out.
+void
+SKIF_ImGui_TextHighlighted (const char* text, std::initializer_list <const char*> values, const ImVec4& colValue)
+{
+  std::string_view view ((text != nullptr) ? text : "");
+
+  ImGui::BeginGroup ( );
+
+  bool        first = true;
+  std::string plain;
+
+  auto _Draw = [&](const char* str, bool highlighted)
+  {
+    if (str == nullptr || *str == '\0')
+      return;
+
+    if (! first)
+      ImGui::SameLine (0.0f, 0.0f);
+    first = false;
+
+    if (highlighted)
+      ImGui::PushStyleColor (ImGuiCol_Text, colValue);
+
+    ImGui::TextUnformatted (str);
+
+    if (highlighted)
+      ImGui::PopStyleColor ( );
+  };
+
+  for (size_t i = 0; i < view.size ( ); i++)
+  {
+    const char ch = view [i];
+
+    // Escaped braces
+    if ((ch == '{' || ch == '}') && i + 1 < view.size ( ) && view [i + 1] == ch)
+    {
+      plain += ch;
+      i++;
+    }
+
+    // {0} - {9}
+    else if (ch == '{' && i + 2 < view.size ( ) && view [i + 1] >= '0' && view [i + 1] <= '9' && view [i + 2] == '}')
+    {
+      const size_t index = static_cast <size_t> (view [i + 1] - '0');
+
+      _Draw (plain.c_str ( ), false);
+      plain.clear ( );
+
+      if (index < values.size ( ))
+        _Draw (values.begin ( ) [index], true);
+
+      i += 2;
+    }
+
+    else
+      plain += ch;
+  }
+
+  _Draw (plain.c_str ( ), false);
+
+  // Nothing at all: keep the line
+  if (first)
+    ImGui::NewLine ( );
+
+  ImGui::EndGroup ( );
+}
+
+void
+SKIF_ImGui_TextHighlighted (const char* text, const char* value, const ImVec4& colValue)
+{
+  SKIF_ImGui_TextHighlighted (text, { value }, colValue);
+}
+
+// Width of a checkbox or radio button (the box/circle and its label, as ImGui lays them out)
+float
+SKIF_ImGui_CheckboxWidth (const char* label)
+{
+  const float label_width = ImGui::CalcTextSize (label, NULL, true).x;
+
+  return ImGui::GetFrameHeight ( ) + ((label_width > 0.0f) ? ImGui::GetStyle ( ).ItemInnerSpacing.x + label_width : 0.0f);
+}
+
+// For rows of items (e.g. radio buttons) that may not fit once translated: continues the row with SameLine ( ) if an item of
+//   the given width fits the rest of the line, and starts a new line (at the current indentation) otherwise. Returns true if
+//     the item is on the same line.
+bool
+SKIF_ImGui_SameLineIfFits (float width)
+{
+  ImGui::SameLine ( );
+
+  if (ImGui::GetContentRegionAvail ( ).x >= width)
+    return true;
+
+  ImGui::NewLine ( );
+  return false;
+}
+
+// The label of a checkbox or radio button wider than the space left: the box, followed by the label as wrapped text that
+//   can also be clicked (ImGui does not wrap the labels of widgets). Returns true if the label was clicked.
+static bool
+SKIF_ImGui_WrappedLabel (const char* label)
+{
+  const char* label_end = ImGui::FindRenderedTextEnd (label);
+
+  ImGui::SameLine    (0.0f, ImGui::GetStyle ( ).ItemInnerSpacing.x);
+  ImGui::TextWrapped ("%.*s", static_cast <int> (label_end - label), label);
+
+  // Disabled items are not hovered, so neither is the label of a disabled checkbox clicked
+  return ImGui::IsItemClicked ( );
+}
+
+// ImGui::Checkbox ( ) whose label wraps when it is wider than the space left (e.g. once translated)
+bool
+SKIF_ImGui_Checkbox (const char* label, bool* v)
+{
+  if (SKIF_ImGui_CheckboxWidth (label) <= ImGui::GetContentRegionAvail ( ).x)
+    return ImGui::Checkbox (label, v);
+
+  ImGui::PushID      (label);
+  ImGui::BeginGroup  ( );
+  bool changed = ImGui::Checkbox ("##SKIF_Checkbox", v);
+
+  if (SKIF_ImGui_WrappedLabel (label))
+  {
+    *v      = ! *v;
+    changed = true;
+  }
+
+  ImGui::EndGroup    ( );
+  ImGui::PopID       ( );
+
+  return changed;
+}
+
+// ImGui::RadioButton ( ) whose label wraps when it is wider than the space left (e.g. once translated)
+bool
+SKIF_ImGui_RadioButton (const char* label, int* v, int v_button)
+{
+  if (SKIF_ImGui_CheckboxWidth (label) <= ImGui::GetContentRegionAvail ( ).x)
+    return ImGui::RadioButton (label, v, v_button);
+
+  ImGui::PushID      (label);
+  ImGui::BeginGroup  ( );
+  bool pressed = ImGui::RadioButton ("##SKIF_RadioButton", *v == v_button);
+
+  if (SKIF_ImGui_WrappedLabel (label))
+    pressed = true;
+
+  ImGui::EndGroup    ( );
+  ImGui::PopID       ( );
+
+  if (pressed)
+    *v = v_button;
+
+  return pressed;
+}
+
+// For items with a label on the right (e.g. combos): narrows the next item, if needed, so the label fits the space left
+void
+SKIF_ImGui_SetNextItemWidthForLabel (const char* label)
+{
+  const float label_width = ImGui::CalcTextSize (label, NULL, true).x;
+  const float available   = ImGui::GetContentRegionAvail ( ).x - ((label_width > 0.0f) ? ImGui::GetStyle ( ).ItemInnerSpacing.x + label_width : 0.0f);
+
+  ImGui::SetNextItemWidth (std::max (ImGui::GetFrameHeight ( ) * 4.0f, std::min (ImGui::CalcItemWidth ( ), available)));
+}
+
+// Wrapped text with links, so sentences stay whole for translation while words within them can be clicked:
+//   "Just hop over to the [Library] and launch a game!"
+//
+// Each [...] is a link, numbered from 0 in order of appearance, and drawn as a selectable (so it can also be reached using
+//   the keyboard or a gamepad) in colLink. link_icons optionally has an icon (or nullptr) for each link, drawn in front of
+//     it, which keeps the icons out of the translated text. "[[" and "]]" are literal brackets. "\n" starts a new line.
+//
+// Lines wrap at the right edge of the content region, or at the position set with ImGui::PushTextWrapPos ( ) (e.g. to
+//   leave room for an icon after the text). Like ImGui::TextWrapped ( ), the lines after the first start at
+//   the position the text started at (so it can follow e.g. a SameLine ( ) after a bullet or a number). The last line can
+//     be followed by SameLine ( ). Returns the index of the link that was clicked, or -1.
+//
+// SKIF_ImGui_TextRichHighlight ( ) is the same, but the [...] parts are only highlighted (drawn in colLink), not clickable.
+//   Text put in a [...] from elsewhere (e.g. a key binding) should have its brackets doubled: SKIF_ImGui_TextRichEscape ( ).
+
+#ifdef SKIF_L10N_CJK_LINE_BREAKS
+// imgui_draw.cpp: whether a line may break between two characters because of CJK text (the same rules as ImGui's wrapping)
+bool ImTextIsCJKBreakOpportunity (unsigned int prev, unsigned int curr);
+#endif
+
+static int
+SKIF_ImGui_TextRichImpl (const char* text, std::initializer_list <const char*> link_icons, const ImVec4& colLink, bool clickable)
+{
+  ImGuiWindow* window = ImGui::GetCurrentWindow ( );
+  if (window->SkipItems || text == nullptr)
+    return -1;
+
+  struct Segment {
+    std::string text;
+    int         link = -1;
+  };
+
+  // Split the text into plain text and links
+  std::vector <Segment> segments (1);
+  int                   links    = 0;
+
+  for (const char* p = text; *p != '\0'; )
+  {
+    if ((p [0] == '[' && p [1] == '[') ||
+        (p [0] == ']' && p [1] == ']'))
+    {
+      segments.back ( ).text += *p;
+      p += 2;
+    }
+
+    else if (p [0] == '[' && segments.back ( ).link < 0 && strchr (p + 1, ']') != nullptr)
+    {
+      segments.push_back ({ "", links });
+
+      // A no-break space keeps the icon on the same line as the text of the link
+      if (static_cast <size_t> (links) < link_icons.size ( ) && link_icons.begin ( ) [links] != nullptr)
+        segments.back ( ).text = std::string (link_icons.begin ( ) [links]) + "\xC2\xA0";
+
+      links++;
+      p++;
+    }
+
+    else if (p [0] == ']' && segments.back ( ).link >= 0)
+    {
+      segments.push_back ({ });
+      p++;
+    }
+
+    else
+      segments.back ( ).text += *p++;
+  }
+
+  // Whether a line may break at pos (when ImGui cut a word that does not fit the rest of the line, it is moved to the next line instead)
+  auto _IsBreakOpportunity = [](const char* begin, const char* pos, const char* end) -> bool
+  {
+    if (pos <= begin || pos >= end)
+      return true;
+
+    const char* prev_pos = pos - 1;
+    while (prev_pos > begin && (static_cast <unsigned char> (*prev_pos) & 0xC0) == 0x80)
+      prev_pos--;
+
+    unsigned int prev = 0, curr = 0;
+    ImTextCharFromUtf8 (&prev, prev_pos, end);
+    ImTextCharFromUtf8 (&curr, pos,      end);
+
+    return (curr == ' ' || curr == '\t' || prev == ' ' || prev == '\t' ||
+           (prev < 0x80 && strchr (".,;:!?\")-/", static_cast <int> (prev)) != nullptr) ||
+#ifdef SKIF_L10N_CJK_LINE_BREAKS
+            ImTextIsCJKBreakOpportunity (prev, curr)); // CJK: between characters, but not before closing or after opening punctuation
+#else
+            prev >= 0x2E80 || curr >= 0x2E80);          // CJK: a line may break between characters
+#endif
+  };
+
+  ImFont*     font     = ImGui::GetFont     ( );
+  const float size     = ImGui::GetFontSize ( );
+  const float start_x  = ImGui::GetCursorPosX ( );
+  const float wrap_x   = (window->DC.TextWrapPos > 0.0f) ? window->DC.TextWrapPos                      // PushTextWrapPos ( ), window-local like GetCursorPosX ( )
+                                                         : start_x + ImGui::GetContentRegionAvail ( ).x;
+  const ImU32 col_link = ImGui::GetColorU32 (colLink);
+
+  bool        has_content = false; // Something has been drawn on the current line
+  bool        placed_any  = false; // Something has been drawn at all (the first line starts wherever the cursor is)
+  int         clicked     = -1;
+  int         piece_id    = 0;
+
+  ImGui::PushID (text);
+
+  for (auto& segment : segments)
+  {
+    const char* s   = segment.text.c_str ( );
+    const char* end = s + segment.text.size ( );
+
+    while (s < end)
+    {
+      if (*s == '\n')
+      {
+        if (! has_content)
+          ImGui::NewLine ( ); // Empty line
+        has_content = false;
+        s++;
+        continue;
+      }
+
+      const char* line_end = static_cast <const char*> (memchr (s, '\n', end - s));
+      if (line_end == nullptr)
+        line_end = end;
+
+      if (has_content)
+        ImGui::SameLine (0.0f, 0.0f);
+      else if (placed_any)
+        ImGui::SetCursorPosX (start_x);
+
+      const char* e = font->CalcWordWrapPosition (size, s, line_end, wrap_x - ImGui::GetCursorPosX ( ));
+
+      // Does not fit the rest of the line, or only the blanks before a word do: continue on the next one
+      if (has_content && (e <= s || ! _IsBreakOpportunity (s, e, line_end) || (e < line_end && strspn (s, " \t") >= static_cast <size_t> (e - s))))
+      {
+        ImGui::NewLine       ( );
+        ImGui::SetCursorPosX (start_x);
+
+        while (s < line_end && (*s == ' ' || *s == '\t'))
+          s++;
+        if (s >= line_end)
+        {
+          has_content = false;
+          continue;
+        }
+
+        e = font->CalcWordWrapPosition (size, s, line_end, wrap_x - start_x);
+      }
+
+      if (e <= s)
+        e = s + ImTextCountUtf8BytesFromChar (s, line_end);
+
+      if (segment.link < 0)
+        ImGui::TextUnformatted (s, e);
+
+      else if (! clickable)
+      {
+        ImGui::PushStyleColor  (ImGuiCol_Text, colLink);
+        ImGui::TextUnformatted (s, e);
+        ImGui::PopStyleColor   ( );
+      }
+
+      else
+      {
+        ImVec2 pos = ImGui::GetCursorScreenPos ( );
+        pos.y += window->DC.CurrLineTextBaseOffset;
+
+        ImGui::PushID (piece_id++);
+        if (ImGui::Selectable ("##SKIF_TextRichLink", false, ImGuiSelectableFlags_None, ImGui::CalcTextSize (s, e)))
+          clicked = segment.link;
+        ImGui::PopID ( );
+
+        SKIF_ImGui_SetMouseCursorHand ( );
+        window->DrawList->AddText (pos, col_link, s, e);
+      }
+
+      has_content = true;
+      placed_any  = true;
+
+      // Wrapped: the rest goes on the next line, without the blanks it was wrapped at
+      if (e < line_end)
+      {
+        has_content = false;
+        while (e < line_end && (*e == ' ' || *e == '\t'))
+          e++;
+      }
+
+      s = e;
+    }
+  }
+
+  ImGui::PopID ( );
+
+  return clicked;
+}
+
+int
+SKIF_ImGui_TextRich (const char* text, std::initializer_list <const char*> link_icons, const ImVec4& colLink)
+{
+  return SKIF_ImGui_TextRichImpl (text, link_icons, colLink, true);
+}
+
+void
+SKIF_ImGui_TextRichHighlight (const char* text, std::initializer_list <const char*> icons, const ImVec4& colHighlight)
+{
+  SKIF_ImGui_TextRichImpl (text, icons, colHighlight, false);
+}
+
+// Doubles the brackets of text put in a [...] of SKIF_ImGui_TextRich ( ) / SKIF_ImGui_TextRichHighlight ( ), so they are drawn as is
+std::string
+SKIF_ImGui_TextRichEscape (const std::string& text)
+{
+  std::string out;
+  out.reserve (text.size ( ));
+
+  for (char ch : text)
+  {
+    out += ch;
+    if (ch == '[' || ch == ']')
+      out += ch;
+  }
+
+  return out;
 }
 
 // Vertical aligned label
@@ -1203,33 +1681,51 @@ SKIF_ImGui_DialogPrompt (const char* name, bool* p_open, const char* message, co
   if (SKIF_ImGui_BeginPopup (name))
   {
     if (message != nullptr)
-      ImGui::Text         (message);
+      ImGui::Text         ("%s", message); // Never as a format: the text may be translated
 
     if (description != nullptr)
-      ImGui::TextDisabled (description);
+      ImGui::TextDisabled ("%s", description);
 
     if (message || description)
     ImGui::Separator ( );
 
-    ImVec2
-      btn       = ImVec2(110, 0) * SKIF_ImGui_GlobalDPIScale;
+    // The labels are in English (also the IDs of the buttons), translated where shown
     static const std::vector<std::pair<const DChoice, const char*>>
       btnTxtVec = {
         // Generic
-        { DChoice_None,     "None"       },
-        { DChoice_Cancel,   "Cancel"     },
+        { DChoice_None,     NL_("None")       },
+        { DChoice_Cancel,   NL_("Cancel")     },
         // Confirm
-        { DChoice_Yes,      "Yes"        },
-        { DChoice_No,       "No"         },
+        { DChoice_Yes,      NL_("Yes")        },
+        { DChoice_No,       NL_("No")         },
         // Save
-        { DChoice_Save,     "Save"       },
-        { DChoice_DontSave, "Don't Save" },
+        { DChoice_Save,     NL_("Save")       },
+        { DChoice_DontSave, NL_("Don't Save") },
         // CPU bitness
-        { DChoice_32bit,    "32-bit"     },
-        { DChoice_64bit,    "64-bit"     },
+        {   DChoice_32bit,    "32-bit"        },
+        {   DChoice_64bit,    "64-bit"        },
         // Info
-        { DChoice_OK,       "OK"         },
+        { DChoice_OK,       NL_("OK")         },
     };
+
+    // The bitness is not translated
+    auto _Label = [](const std::pair<const DChoice, const char*>& p) -> const char*
+    {
+      return (p.first == DChoice_32bit || p.first == DChoice_64bit) ? p.second : TL_(p.second);
+    };
+
+    // All buttons as wide as the widest (translated) label, at least 110 px
+    ImVec2
+      btn       = ImVec2(110, 0) * SKIF_ImGui_GlobalDPIScale;
+
+    for (auto& choice : choices)
+    {
+      auto it = std::find_if (btnTxtVec.begin(), btnTxtVec.end(),
+        [choice](const auto& p) { return p.first == choice; });
+
+      if (it != btnTxtVec.end())
+        btn.x = std::max (btn.x, ImGui::CalcTextSize (_Label (*it), nullptr, true).x + ImGui::GetStyle ( ).FramePadding.x * 2.0f);
+    }
 
     for (auto& choice : choices)
     {
@@ -1239,7 +1735,7 @@ SKIF_ImGui_DialogPrompt (const char* name, bool* p_open, const char* message, co
       if (it == btnTxtVec.end())
         continue;
 
-      if (ImGui::Button (it->second, btn))
+      if (ImGui::Button (_Label (*it), btn))
         result = it->first;
 
       ImGui::SameLine ( );
@@ -1262,8 +1758,8 @@ SKIF_ImGui_DialogPrompt (const char* name, bool* p_open, const char* message, co
 DChoice
 SKIF_ImGui_ConfirmPrompt (const char* name, bool* p_open, const char* message, const char* description)
 {
-  static constexpr char* default_message =
-    "Are you sure you want to continue?";
+  const char* default_message =
+    _("Are you sure you want to continue?");
 
   return SKIF_ImGui_DialogPrompt (
     name,
@@ -1279,8 +1775,8 @@ SKIF_ImGui_ConfirmPrompt (const char* name, bool* p_open, const char* message, c
 DChoice
 SKIF_ImGui_SaveChangesPrompt (const char* name, bool* p_open, const char* message, const char* description)
 {
-  static constexpr char* default_msg  = "Do you want to save the changes made?";
-  static constexpr char* default_desc = "Your changes will be lost if you don't save them.";
+  const char* default_msg  = _("Do you want to save the changes made?");
+  const char* default_desc = _("Your changes will be lost if you don't save them.");
 
   return SKIF_ImGui_DialogPrompt (
     name,
@@ -1308,8 +1804,8 @@ SKIF_ImGui_InfoPrompt (const char* name, bool* p_open, const char* message, cons
 DChoice
 SKIF_ImGui_6432bitnessPrompt (const char* name, bool* p_open, const char* message, const char* description)
 {
-  static constexpr char* default_msg  = "Should 64-bit or 32-bit be used?";
-  static constexpr char* default_desc = "Processes can only load DLL files of the same bitness.";
+  const char* default_msg  = _("Should 64-bit or 32-bit be used?");
+  const char* default_desc = _("Processes can only load DLL files of the same bitness.");
 
   return SKIF_ImGui_DialogPrompt (
     name,
@@ -1415,25 +1911,25 @@ void SKIF_ImGui_ServiceMenu (void)
   {
     ImGui::PushStyleColor (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
     ImGui::TextColored (
-      ImColor::HSV (0.11F, 1.F, 1.F),
-        "Troubleshooting:"
+      ImColor::HSV (0.11F, 1.F, 1.F), "%s",
+        _("Troubleshooting:")
     );
 
     ImGui::Separator ( );
 
-    if (ImGui::Selectable("Force start service###ServiceMenuStart"))
+    if (ImGui::Selectable(L_("Force start service###ServiceMenuStart")))
       _inject._StartStopInject (false, _registry.bStopOnInjection);
 
     ImGui::PushStyleColor      (ImGuiCol_Text,
       ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
     );
 
-    if (ImGui::Selectable("\xe2\x94\x94 Elevated###ServiceMenuStartElevated"))
+    if (ImGui::Selectable(LI_("\xe2\x94\x94", "Elevated###ServiceMenuStartElevated")))
       _inject._StartStopInject (false, _registry.bStopOnInjection, true);
 
     ImGui::PopStyleColor   ( );
 
-    if (ImGui::Selectable("Force stop service###ServiceMenuStop"))
+    if (ImGui::Selectable(L_("Force stop service###ServiceMenuStop")))
       _inject._StartStopInject (true);
 
     ImGui::PopStyleColor ( );
@@ -1457,32 +1953,20 @@ void SKIF_ImGui_ServiceMenu (void)
 void
 SKIF_ImGui_MissingGlyphCallback (wchar_t c)
 {
-  static UINT acp = GetACP();
-
   const unsigned int cp = static_cast <unsigned int> (c);
 
   const bool hangul =          SKIF_ImGui_IsInGlyphRanges (SKIF_ImGui_GlyphsHangul, cp);
   const bool cjk    = ! hangul && SKIF_ImGui_IsInGlyphRanges (SKIF_ImGui_GlyphsCJK,    cp);
 
-  // The fonts to try for the character, in order. As before, Japanese takes priority for ACP 932,
-  //   and the Simplified Chinese font (which also has almost all of the Japanese characters) otherwise.
-  static const SKIF_ImGui_ExtFont chain_korean   [] = { SKIF_ImGui_ExtFont_Korean };
-  static const SKIF_ImGui_ExtFont chain_japanese [] = { SKIF_ImGui_ExtFont_Japanese,          SKIF_ImGui_ExtFont_ChineseSimplified, SKIF_ImGui_ExtFont_ChineseFull };
-  static const SKIF_ImGui_ExtFont chain_chinese  [] = { SKIF_ImGui_ExtFont_ChineseSimplified, SKIF_ImGui_ExtFont_Japanese,          SKIF_ImGui_ExtFont_ChineseFull };
-
-  const SKIF_ImGui_ExtFont* chain      = nullptr;
-  size_t                    chain_size = 0;
+  // The fonts to try for the character, in order (for Han characters, see SKIF_ImGui_GetHanFontOrder)
+  std::vector <SKIF_ImGui_ExtFont> chain;
 
   if (hangul)
-  {
-    chain      = chain_korean;
-    chain_size = IM_COUNTOF (chain_korean);
-  }
+    chain = { SKIF_ImGui_ExtFont_Korean };
   else if (cjk)
-  {
-    chain      = (acp == 932) ? chain_japanese              : chain_chinese;
-    chain_size = (acp == 932) ? IM_COUNTOF (chain_japanese) : IM_COUNTOF (chain_chinese);
-  }
+    chain = SKIF_ImGui_GetHanFontOrder ( );
+
+  const size_t chain_size = chain.size ( );
 
   for (size_t i = 0; i < chain_size; i++)
   {
@@ -1505,6 +1989,57 @@ SKIF_ImGui_MissingGlyphCallback (wchar_t c)
       break;
     }
   }
+}
+
+// Applies the UI language to the fonts: the order of the Han fonts (see SKIF_ImGui_GetHanFontOrder), and the regional
+//   font of the language is added up front instead of once its first character turns up. Returns true if the fonts
+//     need to be rebuilt (call before SKIF_ImGui_InitFonts ( ), or set invalidateFonts).
+bool
+SKIF_ImGui_SetUILanguage (const std::string& tag)
+{
+  std::string lower = tag;
+  std::transform (lower.begin ( ), lower.end ( ), lower.begin ( ), [](char ch) { return static_cast <char> ((ch >= 'A' && ch <= 'Z') ? ch - 'A' + 'a' : ch); });
+  std::string primary = lower.substr (0, lower.find ('-'));
+
+  SKIF_ImGui_HanPreference preferred = SKIF_ImGui_Han_Default;
+  SKIF_ImGui_ExtFont       font      = SKIF_ImGui_ExtFont_COUNT;
+
+  if (primary == "ja")
+  {
+    preferred = SKIF_ImGui_Han_Japanese;
+    font      = SKIF_ImGui_ExtFont_Japanese;
+  }
+
+  else if (primary == "zh")
+  {
+    preferred = (SKIF_L10n::IsTraditionalChinese (tag)) ? SKIF_ImGui_Han_ChineseTraditional : SKIF_ImGui_Han_ChineseSimplified;
+    font      = (SKIF_L10n::IsTraditionalChinese (tag)) ? SKIF_ImGui_ExtFont_ChineseFull     : SKIF_ImGui_ExtFont_ChineseSimplified;
+
+#ifndef _WIN64
+    // 32-bit SKIF omits the Chinese Full character set (see SKIF_ImGui_MissingGlyphCallback)
+    if (font == SKIF_ImGui_ExtFont_ChineseFull)
+      font = SKIF_ImGui_ExtFont_ChineseSimplified;
+#endif
+  }
+
+  else if (primary == "ko")
+    font = SKIF_ImGui_ExtFont_Korean;
+
+  bool rebuild = false;
+
+  if (SKIF_ImGui_HanPreferred != preferred)
+  {
+    SKIF_ImGui_HanPreferred = preferred;
+    rebuild = true; // The order of fonts that are already loaded may change
+  }
+
+  if (font != SKIF_ImGui_ExtFont_COUNT && ! SKIF_ImGui_ExtFontWanted [font])
+  {
+    SKIF_ImGui_ExtFontWanted [font] = true;
+    rebuild = true;
+  }
+
+  return rebuild;
 }
 
 ImFont*
@@ -1550,8 +2085,6 @@ SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
 
   // Font size should always be rounded down to the nearest integer
   fontSize = floor(fontSize);
-
-  static UINT acp = GetACP();
 
   auto& io =
     ImGui::GetIO ();
@@ -1621,42 +2154,41 @@ SKIF_ImGui_InitFonts (float fontSize, bool extendedCharsets)
   {
     font_cfg.GlyphExcludeRanges = exclude_hangul_and_font_awesome;
 
-    // Japanese character set
-    // Load before Chinese for ACP 932 so that the Japanese font is not overwritten
-    if (SKIF_ImGui_ExtFontWanted [SKIF_ImGui_ExtFont_Japanese] && acp == 932)
+    // Japanese and Chinese character sets: Han characters come from the first of these fonts that is loaded,
+    //   so the order follows the UI language or the ANSI code page (see SKIF_ImGui_GetHanFontOrder)
+    for (auto ext : SKIF_ImGui_GetHanFontOrder ( ))
     {
-      //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansJP-Regular.ttf"), fontSize, &font_cfg);
-      ///*
-      if (SKIF_Util_IsWindows10OrGreater ( ))
-        SKIF_ImGui_LoadFont (L"YuGothR.ttc",  fontSize, &font_cfg);
-      else
-        SKIF_ImGui_LoadFont (L"yugothic.ttf", fontSize, &font_cfg);
-      //*/
+      if (! SKIF_ImGui_ExtFontWanted [ext])
+        continue;
+
+      switch (ext)
+      {
+        // Japanese character set
+        case SKIF_ImGui_ExtFont_Japanese:
+          //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansJP-Regular.ttf"), fontSize, &font_cfg);
+          if (SKIF_Util_IsWindows10OrGreater ( ))
+            SKIF_ImGui_LoadFont (L"YuGothR.ttc",  fontSize, &font_cfg);
+          else
+            SKIF_ImGui_LoadFont (L"yugothic.ttf", fontSize, &font_cfg);
+          break;
+
+        // Simplified Chinese character set
+        // Also includes almost all of the Japanese characters except for some Kanjis
+        case SKIF_ImGui_ExtFont_ChineseSimplified:
+          SKIF_ImGui_LoadFont   (L"msyh.ttc",     fontSize, &font_cfg);
+          //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansSC-Regular.ttf"), fontSize, &font_cfg);
+          break;
+
+        // All Chinese character sets
+        case SKIF_ImGui_ExtFont_ChineseFull:
+          SKIF_ImGui_LoadFont   (L"msjh.ttc",     fontSize, &font_cfg);
+          //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansTC-Regular.ttf"), fontSize, &font_cfg);
+          break;
+
+        default:
+          break;
+      }
     }
-
-    // Simplified Chinese character set
-    // Also includes almost all of the Japanese characters except for some Kanjis
-    if (SKIF_ImGui_ExtFontWanted [SKIF_ImGui_ExtFont_ChineseSimplified])
-      SKIF_ImGui_LoadFont   (L"msyh.ttc",     fontSize, &font_cfg);
-      //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansSC-Regular.ttf"), fontSize, &font_cfg);
-
-    // Japanese character set
-    // Load after Chinese for the rest of ACP's so that the Chinese font is not overwritten
-    if (SKIF_ImGui_ExtFontWanted [SKIF_ImGui_ExtFont_Japanese] && acp != 932)
-    {
-      //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansJP-Regular.ttf"), fontSize, &font_cfg);
-      ///*
-      if (SKIF_Util_IsWindows10OrGreater ( ))
-        SKIF_ImGui_LoadFont (L"YuGothR.ttc",  fontSize, &font_cfg);
-      else
-        SKIF_ImGui_LoadFont (L"yugothic.ttf", fontSize, &font_cfg);
-      //*/
-    }
-
-    // All Chinese character sets
-    if (SKIF_ImGui_ExtFontWanted [SKIF_ImGui_ExtFont_ChineseFull])
-      SKIF_ImGui_LoadFont   (L"msjh.ttc",     fontSize, &font_cfg);
-      //SKIF_ImGui_LoadFont ((fontDir / L"NotoSansTC-Regular.ttf"), fontSize, &font_cfg);
 
     // Korean character set
     font_cfg.GlyphExcludeRanges = exclude_cjk_and_font_awesome;
@@ -2521,7 +3053,8 @@ SKIF_ImGui_AprilFools_Process (void)
 
   float fWidth = 520.0f * SKIF_ImGui_GlobalDPIScale;
 
-  if (SKIF_ImGui_BeginPopup ("Special K Activation###PopupAprilFools", nullptr, ImVec2 (fWidth, 0.0f)))
+  // TRANSLATORS: An April Fools' Day joke (a fake activation of Special K, with technobabble), shown on April 1st
+  if (SKIF_ImGui_BeginPopup (L_("Special K Activation###PopupAprilFools"), nullptr, ImVec2 (fWidth, 0.0f)))
   {
     const float fontScale        = ImGui::GetStyle ( ).FontScaleMain * ImGui::GetStyle ( ).FontScaleDpi;
     const float fontConsolasSize = (fontConsolas != nullptr && fontScale > 0.0f) ? ImFloor (fontConsolas->LegacySize * fontScale) / fontScale : 0.0f;
@@ -2529,11 +3062,11 @@ SKIF_ImGui_AprilFools_Process (void)
     ImGui::TreePush     ("AprilFoolsTreePush");
     SKIF_ImGui_Spacing  ( );
 
-    ImGui::TextColored  (colAccent, "Special K  //  Nominal Flow Activation");
+    ImGui::TextColored  (colAccent, "%s", _("Special K  //  Nominal Flow Activation"));
     ImGui::Separator    ( );
     SKIF_ImGui_Spacing  ( );
 
-    ImGui::TextDisabled ("Client fingerprint:");
+    ImGui::TextDisabled ("%s", _("Client fingerprint:"));
     ImGui::SameLine     ( );
     if (fontConsolas != nullptr) ImGui::PushFont (fontConsolas, fontConsolasSize);
     ImGui::Text         ("%s", sFingerprint.c_str ());
@@ -2572,22 +3105,22 @@ SKIF_ImGui_AprilFools_Process (void)
 
     if (elapsed < PHASE_DETECT)
     {
-      status = "This title is missing its nominal constant (0x00000000).";
+      status = _("This title is missing its nominal constant (0x00000000).");
       frac   = 0.08f + 0.10f * ((float) elapsed / (float) PHASE_DETECT);
     }
     else if (elapsed < PHASE_CONTACT)
     {
-      status = "Contacting activation server  sk-activation.local ...";
+      status = _("Contacting activation server  sk-activation.local ...");
       frac   = 0.20f + 0.35f * ((float)(elapsed - PHASE_DETECT) / (float)(PHASE_CONTACT - PHASE_DETECT));
     }
     else if (elapsed < PHASE_RECOVER)
     {
-      status = "Transforming constant against client fingerprint ...";
+      status = _("Transforming constant against client fingerprint ...");
       frac   = 0.55f + 0.45f * ((float)(elapsed - PHASE_CONTACT) / (float)(PHASE_RECOVER - PHASE_CONTACT));
     }
     else
     {
-      status = "Nominal flow restored.";
+      status = _("Nominal flow restored.");
       frac   = 1.0f;
     }
 
@@ -2602,20 +3135,20 @@ SKIF_ImGui_AprilFools_Process (void)
     {
       ImGui::Separator   ( );
       SKIF_ImGui_Spacing ( );
-      ImGui::TextColored (colAccent,
-                          "Just kidding -- Special K needs no such thing. Happy April Fools' Day!");
+      SKIF_ImGui_TextColoredWrapped (colAccent,
+                          _("Just kidding -- Special K needs no such thing. Happy April Fools' Day!"));
       SKIF_ImGui_Spacing ( );
 
-      ImVec2 vButtonSize = ImVec2 (120.0f * SKIF_ImGui_GlobalDPIScale, 0.0f);
+      ImVec2 vButtonSize = ImVec2 (std::max (120.0f * SKIF_ImGui_GlobalDPIScale, ImGui::CalcTextSize (L_("Phew, OK"), nullptr, true).x + ImGui::GetStyle ( ).FramePadding.x * 2.0f), 0.0f);
       ImGui::SetCursorPosX (fWidth / 2 - vButtonSize.x / 2);
-      if (ImGui::Button  ("Phew, OK", vButtonSize))
+      if (ImGui::Button  (L_("Phew, OK"), vButtonSize))
         bDismissed = true;
 
       SKIF_ImGui_BlockDragMoveWhenItemActive ( );
     }
     else
     {
-      ImGui::TextDisabled ("Please wait, this will only take a moment ...");
+      ImGui::TextDisabled ("%s", _("Please wait, this will only take a moment ..."));
     }
 
     SKIF_ImGui_Spacing  ( );

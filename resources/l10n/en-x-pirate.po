@@ -1,0 +1,4042 @@
+# Pirate English, an example translation of the Special K Injection Frontend (SKIF).
+#
+# Arr! This be a complete translation into the tongue o' the seven seas, meant as an example
+#   fer translators: it shows a finished .po file, with every placeholder, [link], line break
+#     and plural form kept as the README (resources\l10n\README.md) asks. It is not embedded
+#       in SKIF.exe. To try it, copy it to <Special K folder>\Languages\, restart SKIF, and pick
+#         "Pirate English" in Settings > Appearance > Language.
+#
+# "en-x-pirate" is a private-use language tag, so Windows has no name for it; the X-Language-Name
+#   header gives the name shown in the language picker. Real translations use a regular tag
+#     (e.g. de, pt-BR) and do not need that header. SKIF never picks this language on its own:
+#       it has to be chosen in the settings.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: SKIF\n"
+"Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
+"POT-Creation-Date: 2026-10-30 21:55+0100\n"
+"PO-Revision-Date: 2026-10-30 22:00+0100\n"
+"Last-Translator: The Crew o' SKIF\n"
+"Language-Team: Pirate English\n"
+"Language: en-x-pirate\n"
+"X-Language-Name: Pirate English\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: src/SKIF.cpp:1249
+#: src/SKIF.cpp:1403
+#: src/tabs/settings.cpp:45
+msgid "Start Service"
+msgstr "Hoist the Service"
+
+#: src/SKIF.cpp:1250
+#: src/SKIF.cpp:1422
+msgid "Start Service (manual stop)"
+msgstr "Hoist the Service (strike it by hand)"
+
+#: src/SKIF.cpp:1251
+#: src/SKIF.cpp:1440
+msgid "Stop Service"
+msgstr "Strike the Service"
+
+#: src/SKIF.cpp:1253
+#: src/tabs/settings.cpp:734
+msgid "Check for updates"
+msgstr "Scan the horizon fer updates"
+
+#: src/SKIF.cpp:1258
+#: src/SKIF.cpp:1506
+msgid "Exit"
+msgstr "Abandon Ship"
+
+#: src/SKIF.cpp:1401
+msgid ""
+"Starts the injection service and\n"
+"stops it after injection."
+msgstr ""
+"Hoists the boardin' service an'\n"
+"strikes it once she's boarded."
+
+#: src/SKIF.cpp:1420
+msgid ""
+"Starts the injection service but\n"
+"does not stop it after injection."
+msgstr ""
+"Hoists the boardin' service but\n"
+"leaves it flyin' after boardin'."
+
+#: src/SKIF.cpp:1439
+msgid "Stops the injection service"
+msgstr "Strikes the boardin' service"
+
+#: src/SKIF.cpp:1471
+msgid "Checks for any available updates"
+msgstr "Scans the horizon fer any updates"
+
+#: src/SKIF.cpp:1472
+msgid "Check for Updates"
+msgstr "Scan Fer Updates"
+
+#. TRANSLATORS: Controlled Folder Access is a feature of Windows (use the name Windows uses in your language)
+#: src/SKIF.cpp:2107
+msgid ""
+"Controlled Folder Access is enabled in Windows and may prevent Special K and even some games from working properly. It is recommended to either disable the feature or add exclusions for games where Special K is used as well as SKIF (this application).\n"
+"\n"
+"Do you want to disable this warning for all future launches?\n"
+"\n"
+"Microsoft's support page with more information will open when you select any of the options below."
+msgstr ""
+"Controlled Folder Access be enabled in Windows an' may keep Special K an' even some games from sailin' proper. Ye'd best either scuttle the feature or add exclusions fer games where Special K be used, as well as SKIF (this here app).\n"
+"\n"
+"Do ye want to silence this warnin' fer all future voyages?\n"
+"\n"
+"Microsoft's support page with more information will open when ye pick any o' the options below."
+
+#: src/SKIF.cpp:2113
+msgid "Warning about Controlled Folder Access"
+msgstr "Warnin' about Controlled Folder Access"
+
+#: src/SKIF.cpp:3254
+msgctxt "tab"
+msgid "Library"
+msgstr "Treasure Hold"
+
+#: src/SKIF.cpp:3255
+msgctxt "tab"
+msgid "Monitor"
+msgstr "Crow's Nest"
+
+#: src/SKIF.cpp:3256
+msgctxt "tab"
+msgid "Hardware"
+msgstr "Riggin'"
+
+#: src/SKIF.cpp:3257
+msgctxt "tab"
+msgid "Settings"
+msgstr "Ship's Articles"
+
+#: src/SKIF.cpp:3258
+msgctxt "tab"
+msgid "About"
+msgstr "Ship's Log"
+
+#: src/SKIF.cpp:3473
+#: src/stores/SKIF/custom_library.cpp:311
+#: src/stores/SKIF/custom_library.cpp:380
+#: src/stores/SKIF/custom_library.cpp:518
+msgid "Add Game"
+msgstr "Plunder a Game"
+
+#: src/SKIF.cpp:3486
+msgid "Local Manager"
+msgstr "Local Quartermaster"
+
+#: src/SKIF.cpp:3630
+msgid "Toggle horizontal mode"
+msgstr "Turn the ship sideways"
+
+#: src/SKIF.cpp:3638
+msgid "Toggle mini mode"
+msgstr "Shrink the ship to a dinghy"
+
+#: src/SKIF.cpp:3672
+msgid "This app will close to the notification area."
+msgstr "This app will slip away to the notification area."
+
+#: src/SKIF.cpp:3674
+#: src/utility/injection.cpp:992
+msgid "Service continues running after this app is closed."
+msgstr "The service keeps sailin' after this app be closed."
+
+#: src/SKIF.cpp:5311
+msgid "Blink and you'll miss it ;)"
+msgstr "Blink an' ye'll miss it ;)"
+
+#. TRANSLATORS: Title of a notification (at most 63 characters)
+#: src/SKIF.cpp:5313
+msgid "An update is being installed..."
+msgstr "A refit be bein' installed..."
+
+#: src/SKIF.cpp:5339
+msgid "Open the app to continue."
+msgstr "Open the app to carry on."
+
+#. TRANSLATORS: Title of a notification (at most 63 characters)
+#: src/SKIF.cpp:5341
+msgid "An update to Special K is available!"
+msgstr "A refit fer Special K be on the horizon!"
+
+#: src/SKIF.cpp:5353
+msgid "The update will be retried later."
+msgstr "The refit will be tried again later, matey."
+
+#. TRANSLATORS: Title of a notification (at most 63 characters)
+#: src/SKIF.cpp:5355
+msgid "Update failed :("
+msgstr "Refit failed, blast it! :("
+
+#: src/stores/Ubisoft/ubisoft_library.cpp:1491
+msgid ""
+"Ubisoft Connect is still installing this game.\n"
+"It can be played already if Ubisoft Connect allows it (a progressive install), but\n"
+"Instant Play may run it before all of its files are in place."
+msgstr ""
+"Ubisoft Connect still be loadin' this game into the hold.\n"
+"It can be played already if Ubisoft Connect allows it (a progressive install), but\n"
+"Instant Play may launch it afore all o' its files be stowed."
+
+#: src/stores/Steam/app_record.cpp:671
+#: src/stores/Steam/steam_library.cpp:1888
+msgid "Conflicting configuration"
+msgstr "Clashin' orders"
+
+#: src/stores/Steam/app_record.cpp:672
+#: src/stores/Steam/steam_library.cpp:1889
+msgid "Could not launch game due to conflicting launch options in Steam:"
+msgstr "Couldn't launch the game on account o' clashin' launch options in Steam:"
+
+#: src/stores/Steam/app_record.cpp:676
+#: src/stores/Steam/steam_library.cpp:1893
+msgid "Please change the launch options in Steam before trying again."
+msgstr "Change the launch options in Steam afore tryin' again, if ye please."
+
+#: src/stores/Steam/steam_library.cpp:1982
+msgid "Details"
+msgstr "Particulars"
+
+#: src/stores/Steam/steam_library.cpp:1992
+msgid "A controller must be connected."
+msgstr "A controller must be lashed on."
+
+#: src/stores/Steam/steam_library.cpp:1995
+msgid "Game properties"
+msgstr "Game particulars"
+
+#: src/stores/SKIF/custom_library.cpp:378
+#: src/stores/SKIF/custom_library.cpp:393
+#: src/stores/SKIF/custom_library.cpp:716
+#: src/stores/SKIF/custom_library.cpp:724
+#: src/tabs/library/library_properties.cpp:1477
+#: src/tabs/library/library_properties.cpp:1492
+msgid "Browse..."
+msgstr "Rummage..."
+
+#: src/stores/SKIF/custom_library.cpp:379
+#: src/stores/SKIF/custom_library.cpp:439
+#: src/stores/SKIF/custom_library.cpp:717
+#: src/stores/SKIF/custom_library.cpp:755
+#: src/tabs/library/library_properties.cpp:1533
+#: src/tabs/library/library_properties.cpp:1549
+msgid "Change..."
+msgstr "Swap it out..."
+
+#: src/stores/SKIF/custom_library.cpp:381
+#: src/stores/SKIF/custom_library.cpp:560
+#: src/tabs/local.cpp:1185
+#: src/tabs/local.cpp:1210
+#: src/tabs/monitor.cpp:1985
+#: src/tabs/monitor.cpp:2003
+#: src/tabs/monitor.cpp:2090
+#: src/tabs/monitor.cpp:2123
+#: src/tabs/library/library_popups.cpp:154
+#: src/tabs/library/library_popups.cpp:238
+#: src/tabs/library/library_popups.cpp:268
+#: src/tabs/library/library_popups.cpp:317
+#: src/tabs/library/library_properties.cpp:1924
+#: src/tabs/library/library_properties.cpp:1989
+#: src/utility/skif_imgui.cpp:1697
+#: src/utility/updater.cpp:1547
+#: src/utility/updater.cpp:1604
+msgid "Cancel"
+msgstr "Belay that"
+
+#: src/stores/SKIF/custom_library.cpp:384
+#: src/stores/SKIF/custom_library.cpp:428
+msgid "Path"
+msgstr "Heading"
+
+#: src/stores/SKIF/custom_library.cpp:384
+#: src/stores/SKIF/custom_library.cpp:474
+msgid "Working Directory"
+msgstr "Workin' Directory"
+
+#: src/stores/SKIF/custom_library.cpp:385
+#: src/stores/SKIF/custom_library.cpp:492
+#: src/tabs/library/library_properties.cpp:218
+msgid "Name"
+msgstr "Name o' the vessel"
+
+#: src/stores/SKIF/custom_library.cpp:385
+#: src/stores/SKIF/custom_library.cpp:499
+msgid "Launch Options"
+msgstr "Launch Orders"
+
+#: src/stores/SKIF/custom_library.cpp:397
+msgid "Executables"
+msgstr "Executables"
+
+#: src/stores/SKIF/custom_library.cpp:433
+#: src/stores/SKIF/custom_library.cpp:735
+msgid "Incompatible type! Please select another file."
+msgstr "That be the wrong sort! Pick another file, ye scallywag."
+
+#: src/stores/SKIF/custom_library.cpp:479
+msgid "Incompatible folder! Please select another folder."
+msgstr "That be the wrong folder! Pick another one."
+
+#: src/stores/SKIF/custom_library.cpp:496
+#: src/stores/SKIF/custom_library.cpp:766
+#: src/tabs/library/library_properties.cpp:1578
+msgid "Leave empty if unsure"
+msgstr "Leave it empty if ye be unsure"
+
+#: src/stores/SKIF/custom_library.cpp:600
+msgid "Remove Game?"
+msgstr "Toss the Game Overboard?"
+
+#: src/stores/SKIF/custom_library.cpp:600
+msgid "Are you sure you want to remove the game from the library?"
+msgstr "Be ye sure ye want to toss this game out o' the Treasure Hold?"
+
+#: src/stores/SKIF/custom_library.cpp:600
+msgid "No changes will be made to the game files."
+msgstr "No changes will be made to the game's files, on me honor."
+
+#: src/stores/SKIF/custom_library.cpp:720
+#: src/tabs/library/library_properties.cpp:1475
+#: src/tabs/library/library_properties.cpp:1640
+msgid "Executable"
+msgstr "Executable"
+
+#: src/stores/SKIF/custom_library.cpp:751
+#: src/tabs/library/library_properties.cpp:1531
+#: src/tabs/library/library_properties.cpp:1643
+msgid "Working directory"
+msgstr "Workin' directory"
+
+#: src/stores/SKIF/custom_library.cpp:764
+#: src/tabs/library/library_properties.cpp:1864
+msgid "Launch options"
+msgstr "Launch orders"
+
+#: src/stores/SKIF/custom_library.cpp:781
+msgid "Select the executable and the working directory of the game."
+msgstr "Pick the executable an' the workin' directory o' the game."
+
+#: src/stores/itch/itch_library.cpp:658
+msgid ""
+"The itch app runs this game in its sandbox, as a separate Windows user,\n"
+"which may affect which saves are accessible from within the game.\n"
+"Instant Play launches are not affected as they skip the sandbox."
+msgstr ""
+"The itch app runs this game in its sandbox, as a separate Windows sailor,\n"
+"which may change which saves can be reached from within the game.\n"
+"Instant Play voyages be not affected, as they skip the sandbox."
+
+#: src/stores/Xbox/xbox_library.cpp:928
+#: src/stores/Xbox/xbox_library.cpp:946
+msgid "Open Terminal"
+msgstr "Open the Terminal"
+
+#: src/stores/Xbox/xbox_library.cpp:993
+msgid "This invokes a terminal in the context of the desktop package."
+msgstr "This summons a terminal in the context o' the desktop package."
+
+#: src/tabs/about.cpp:29
+msgid "About the Injection Frontend (SKIF):"
+msgstr "About the Boardin' Frontend (SKIF):"
+
+#: src/tabs/about.cpp:33
+msgid "You are looking at the Special K Injection Frontend app, commonly shortened as 'SKIF'. This app injects Special K into any games launched from it, or even into games that are already running!"
+msgstr "Ye be lookin' at the Special K Injection Frontend app, commonly called 'SKIF' by the crew. This app sends Special K aboard any games launched from it, or even aboard games already under sail!"
+
+#: src/tabs/about.cpp:36
+msgid "The frontend also provides convenient alternative launch options, shortcuts to useful resources, and a few other helpful things."
+msgstr "The frontend also offers handy alternative launch options, shortcuts to useful charts, an' a few other helpful trinkets."
+
+#: src/tabs/about.cpp:62
+msgid "Beginner's Guide to Special K (SK):"
+msgstr "Greenhorn's Guide to Special K (SK):"
+
+#: src/tabs/about.cpp:66
+msgid "Lovingly referred to as the Swiss Army Knife of PC gaming, Special K does a bit of everything. It is best known for fixing and enhancing graphics, its many detailed performance analysis and correction mods, and a constantly growing palette of tools that solve a wide variety of issues affecting PC games."
+msgstr "Lovingly known as the Swiss Army Knife o' PC gamin', Special K does a bit o' everythin'. It be best known fer fixin' an' polishin' graphics, its many detailed performance analysis an' correction mods, an' an ever-growin' chest o' tools that mend all manner o' troubles plaguin' PC games."
+
+#: src/tabs/about.cpp:72
+msgid "Among its main features are a latency-free borderless window mode, HDR retrofit for SDR games, Nvidia Reflex in unsupported games, as well as texture modding for players and modders alike. While not all features are supported in all games, most DirectX 11 and 12 titles can make use of one or more of its features."
+msgstr "Among its finest features be a latency-free borderless window mode, HDR retrofit fer SDR games, Nvidia Reflex in games that lack it, an' texture moddin' fer players an' modders alike. Not every feature works in every game, but most DirectX 11 an' 12 titles can make use o' one or more o' its features."
+
+#. TRANSLATORS: [Library] is a link to the Library tab; keep the brackets around the name of the tab
+#: src/tabs/about.cpp:88
+msgid "Just hop over to the [Library] and launch a game!"
+msgstr "Just hop on over to the [Treasure Hold] an' launch a game!"
+
+#: src/tabs/about.cpp:103
+msgid "Getting started with a game:"
+msgstr "Settin' sail with a game:"
+
+#. TRANSLATORS: [Library] is a link to the Library tab; keep the brackets around the name of the tab
+#: src/tabs/about.cpp:114
+msgid "Go to the [Library] tab."
+msgstr "Head to the [Treasure Hold] tab."
+
+#: src/tabs/about.cpp:123
+msgid "Select and launch the game."
+msgstr "Pick the game an' launch it."
+
+#. TRANSLATORS: [Add Game] is a link that opens the Add Game prompt; keep the brackets around it
+#: src/tabs/about.cpp:132
+msgid "If the game is missing, use [Add Game] to add it."
+msgstr "If the game be missin', use [Plunder a Game] to add it."
+
+#: src/tabs/about.cpp:149
+msgid "Launch Special K for select games through Steam:"
+msgstr "Launch Special K fer chosen games through Steam:"
+
+#: src/tabs/about.cpp:157
+msgid "Your system is set up to quickly launch injection through Steam."
+msgstr "Yer system be rigged to quickly launch boardin' through Steam."
+
+#: src/tabs/about.cpp:168
+msgid "Right click the desired game in Steam, and select \"Properties...\"."
+msgstr "Right click the game ye want in Steam, an' pick \"Properties...\"."
+
+#: src/tabs/about.cpp:178
+msgid "Copy and paste the below into the \"Launch Options\" field."
+msgstr "Copy an' paste the below into the \"Launch Options\" field."
+
+#: src/tabs/about.cpp:202
+msgid "Launch the game as usual through Steam."
+msgstr "Launch the game as ye always do through Steam."
+
+#: src/tabs/about.cpp:213
+msgid "Your system is not set up to use this install of Special K to launch injection through Steam."
+msgstr "Yer system be not rigged to use this install o' Special K fer boardin' through Steam."
+
+#: src/tabs/about.cpp:223
+msgid "Set this install as default"
+msgstr "Make this install the ship's default"
+
+#: src/tabs/about.cpp:243
+msgid "Tips and Tricks:"
+msgstr "Tips an' Tricks o' the Trade:"
+
+#: src/tabs/about.cpp:279
+msgid "More on how to inject Special K:"
+msgstr "More on how to send Special K aboard:"
+
+#: src/tabs/about.cpp:291
+msgid "Global (system-wide)"
+msgstr "Global (the whole fleet)"
+
+#: src/tabs/about.cpp:304
+msgid "Local (game-specific)"
+msgstr "Local (one ship only)"
+
+#: src/tabs/about.cpp:317
+msgid "Do not use in multiplayer games!"
+msgstr "Don't use it in multiplayer games, ye bilge rat!"
+
+#: src/tabs/about.cpp:327
+msgid ""
+"In particular games where anti-cheat\n"
+"protection might be present."
+msgstr ""
+"Especially games where anti-cheat\n"
+"lookouts might be keepin' watch."
+
+#: src/tabs/about.cpp:340
+msgid "Online resources:"
+msgstr "Charts on the web:"
+
+#: src/tabs/about.cpp:352
+#: src/tabs/library/library_menus.cpp:1603
+msgid "Wiki"
+msgstr "Wiki o' the Seven Seas"
+
+#: src/tabs/about.cpp:412
+msgid "Privacy Policy"
+msgstr "Code o' Silence (Privacy Policy)"
+
+#: src/tabs/about.cpp:427
+msgid "Licenses"
+msgstr "Letters o' Marque (Licenses)"
+
+#: src/tabs/about.cpp:453
+#: src/tabs/monitor.cpp:919
+msgid "Components:"
+msgstr "Parts o' the ship:"
+
+#: src/tabs/common_ui.cpp:54
+msgid "Frontend (SKIF)"
+msgstr "Frontend (SKIF)"
+
+#: src/tabs/common_ui.cpp:84
+msgid "View release notes..."
+msgstr "Read the refit notes..."
+
+#: src/tabs/common_ui.cpp:99
+#: src/utility/updater.cpp:1541
+msgid "Rollback"
+msgstr "Sail back"
+
+#: src/tabs/common_ui.cpp:100
+#: src/utility/updater.cpp:1540
+msgid "Update"
+msgstr "Refit"
+
+#: src/tabs/common_ui.cpp:127
+msgid "App is running as an administrator!"
+msgstr "The app be runnin' as the captain (administrator)!"
+
+#: src/tabs/common_ui.cpp:128
+msgid ""
+"Running elevated is not recommended as it will inject Special K into system processes.\n"
+"Please restart this app and the injection service as a regular user."
+msgstr ""
+"Runnin' as the captain be not recommended, as it'll send Special K aboard system processes.\n"
+"Restart this app an' the boardin' service as a regular deckhand, if ye please."
+
+#: src/tabs/common_ui.cpp:134
+msgid "App is running with normal privileges."
+msgstr "The app be runnin' as a regular deckhand."
+
+#: src/tabs/common_ui.cpp:135
+msgid ""
+"This is the recommended option as Special K will not be injected\n"
+"into system processes nor games running as an administrator."
+msgstr ""
+"This be the recommended way, as Special K won't be sent aboard\n"
+"system processes nor games runnin' as the captain."
+
+#: src/tabs/common_ui.cpp:162
+msgid "32-bit service"
+msgstr "32-bit service"
+
+#: src/tabs/common_ui.cpp:164
+msgid "64-bit service"
+msgstr "64-bit service"
+
+#. TRANSLATORS: {0} is the name of an app (e.g. Steam) or of a service ("32-bit service")
+#: src/tabs/common_ui.cpp:239
+msgid "{0} is running and may conflict with Special K!"
+msgstr "{0} be runnin' an' may cross swords with Special K!"
+
+#: src/tabs/common_ui.cpp:241
+msgid "{0} is running as an administrator!"
+msgstr "{0} be runnin' as the captain (administrator)!"
+
+#: src/tabs/common_ui.cpp:245
+msgid ""
+"It is not recommended to run either {0} or this app as an administrator.\n"
+"Please restart both as a normal user."
+msgstr ""
+"Ye shouldn't run either {0} or this app as the captain.\n"
+"Restart both as a regular deckhand, if ye please."
+
+#. TRANSLATORS: 'Use Microsoft Detours API hooking' is an option of RTSS (in English)
+#: src/tabs/common_ui.cpp:248
+#: src/utility/games.cpp:417
+msgid ""
+"RivaTuner Statistics Server (RTSS) occasionally conflicts with Special K.\n"
+"Try closing it down if Special K does not behave as expected, or enable\n"
+"the option 'Use Microsoft Detours API hooking' in the settings of RTSS.\n"
+"\n"
+"If you use MSI Afterburner, try closing it as well as otherwise it will\n"
+"automatically restart RTSS silently in the background."
+msgstr ""
+"RivaTuner Statistics Server (RTSS) crosses swords with Special K now an' then.\n"
+"Try closin' it down if Special K don't behave as expected, or enable\n"
+"the option 'Use Microsoft Detours API hooking' in the settings o' RTSS.\n"
+"\n"
+"If ye use MSI Afterburner, close it as well, or else it'll quietly\n"
+"hoist RTSS again in the background."
+
+#: src/tabs/common_ui.cpp:255
+msgid ""
+"Running elevated is not recommended as it will inject Special K into system processes.\n"
+"Please restart the frontend and the injection service as a regular user."
+msgstr ""
+"Runnin' as the captain be not recommended, as it'll send Special K aboard system processes.\n"
+"Restart the frontend an' the boardin' service as a regular deckhand, if ye please."
+
+#: src/tabs/common_ui.cpp:258
+msgid ""
+"Running elevated will prevent injection into these games.\n"
+"Please restart {0} as a normal user."
+msgstr ""
+"Runnin' as the captain will keep Special K from boardin' these games.\n"
+"Restart {0} as a regular deckhand, if ye please."
+
+#: src/tabs/common_ui.cpp:265
+msgid "{0} is running."
+msgstr "{0} be under sail."
+
+#: src/tabs/common_ui.cpp:276
+msgid "{0} is stopped."
+msgstr "{0} be anchored."
+
+#: src/tabs/common_ui.cpp:294
+msgid "Problematic Vulkan layers:"
+msgstr "Troublesome Vulkan layers:"
+
+#: src/tabs/common_ui.cpp:304
+msgid ""
+"The Vulkan layers listed below have known compatibility issues with Special K and may cause issues.\n"
+"Click on the layers to toggle them on/off. Note however that this will affects all apps/games."
+msgstr ""
+"The Vulkan layers listed below be known to cross swords with Special K an' may cause trouble.\n"
+"Click on the layers to switch 'em on or off. Mind ye, this affects all apps an' games."
+
+#: src/tabs/common_ui.cpp:329
+msgid "This layer is enabled and may cause issues. Click to disable it."
+msgstr "This layer be enabled an' may cause trouble. Click to scuttle it."
+
+#: src/tabs/common_ui.cpp:329
+msgid "This layer is disabled. Click to re-enable it."
+msgstr "This layer be scuttled. Click to raise it again."
+
+#: src/tabs/common_ui.cpp:335
+msgid "Connected XInput gamepads:"
+msgstr "Lashed-on XInput gamepads:"
+
+#: src/tabs/common_ui.cpp:340
+msgid "Disabled"
+msgstr "Scuttled"
+
+#: src/tabs/common_ui.cpp:341
+msgid "Controller support can be re-enabled in the Settings tab."
+msgstr "Controller support can be raised again in the Ship's Articles tab."
+
+#: src/tabs/common_ui.cpp:359
+msgid "Indicates which Xbox (XInput) controller slots are currently in use/connected."
+msgstr "Shows which Xbox (XInput) controller berths be in use or lashed on."
+
+#: src/tabs/common_ui.cpp:375
+msgid "Some games may not detect the gamepad!"
+msgstr "Some games may not spot the gamepad!"
+
+#: src/tabs/common_ui.cpp:379
+msgid ""
+"Some games may not be able to detect the controller if it is not connected to the first slot.\n"
+"Disconnect and reconnect the controller to the system usually takes care of the issue."
+msgstr ""
+"Some games may not spot the controller if it ain't lashed to the first berth.\n"
+"Unplug an' plug the controller back in, an' that usually sorts it out."
+
+#. TRANSLATORS: The text in [brackets] is highlighted (keep the brackets); {0} is a keyboard icon
+#: src/tabs/common_ui.cpp:449
+msgid "Start typing [{0}] the name of a game in the Library tab to quickly find it."
+msgstr "Start typin' [{0}] the name o' a game in the Treasure Hold tab to find it quick."
+
+#. TRANSLATORS: The text in [brackets] is highlighted (keep the brackets); {0} is a keyboard shortcut, {1} a mouse pointer icon
+#: src/tabs/common_ui.cpp:482
+msgid "Use [{0}] to toggle HDR where the [{1}] is."
+msgstr "Use [{0}] to toggle HDR where the [{1}] be."
+
+#. TRANSLATORS: The text in [brackets] is highlighted (keep the brackets); {0} is a keyboard shortcut
+#: src/tabs/common_ui.cpp:512
+msgid "Use [{0}] to start the injection service."
+msgstr "Use [{0}] to hoist the boardin' service."
+
+#. TRANSLATORS: The text in [brackets] is highlighted (keep the brackets); Ctrl and Shift are keys of the keyboard
+#: src/tabs/common_ui.cpp:525
+msgid "Hold down [Ctrl + Shift] when starting a game for compatibility options or perform a local install of the appropriate wrapper DLL for the game."
+msgstr "Hold down [Ctrl + Shift] when launchin' a game fer compatibility options, or do a local install o' the right wrapper DLL fer the game."
+
+#: src/tabs/hardware.cpp:160
+msgctxt "display"
+msgid "Unknown"
+msgstr "Unknown waters"
+
+#. TRANSLATORS: The text in [brackets] is the name of the capability, as reported by dxdiag; keep it as it is
+#: src/tabs/hardware.cpp:266
+msgid "Supports {0} plane containing RGB data. [RGB]"
+msgid_plural "Supports {0} planes containing RGB data. [RGB]"
+msgstr[0] "Supports {0} plane holdin' RGB data. [RGB]"
+msgstr[1] "Supports {0} planes holdin' RGB data. [RGB]"
+
+#. TRANSLATORS: The text in [brackets] is the name of the capability, as reported by dxdiag; keep it as it is
+#: src/tabs/hardware.cpp:270
+msgid "Supports {0} plane containing YUV data. [YUV]"
+msgid_plural "Supports {0} planes containing YUV data. [YUV]"
+msgstr[0] "Supports {0} plane holdin' YUV data. [YUV]"
+msgstr[1] "Supports {0} planes holdin' YUV data. [YUV]"
+
+#. TRANSLATORS: The text in [brackets] is the name of the capability, as reported by dxdiag; keep it as it is
+#: src/tabs/hardware.cpp:274
+msgid "Supports full rotation of the MPO plane with Independent Flip. [ROTATION]"
+msgstr "Supports full rotation o' the MPO plane with Independent Flip. [ROTATION]"
+
+#: src/tabs/hardware.cpp:277
+msgid "Supports full rotation of the MPO plane, but without Independent Flip. [ROTATION_WITHOUT_INDEPENDENT_FLIP]"
+msgstr "Supports full rotation o' the MPO plane, but without Independent Flip. [ROTATION_WITHOUT_INDEPENDENT_FLIP]"
+
+#: src/tabs/hardware.cpp:280
+msgid "Supports flipping the data vertically. [VERTICAL_FLIP]"
+msgstr "Supports flippin' the data upside down. [VERTICAL_FLIP]"
+
+#: src/tabs/hardware.cpp:283
+msgid "Supports flipping the data horizontally. [HORIZONTAL_FLIP]"
+msgstr "Supports flippin' the data port to starboard. [HORIZONTAL_FLIP]"
+
+#: src/tabs/hardware.cpp:286
+msgid "Supports stretching any plane containing RGB data. [STRETCH_RGB]"
+msgstr "Supports stretchin' any plane holdin' RGB data. [STRETCH_RGB]"
+
+#: src/tabs/hardware.cpp:289
+msgid "Supports stretching any plane containing YUV data. [STRETCH_YUV]"
+msgstr "Supports stretchin' any plane holdin' YUV data. [STRETCH_YUV]"
+
+#: src/tabs/hardware.cpp:292
+msgid "Supports bilinear filtering. [BILINEAR]"
+msgstr "Supports bilinear filterin'. [BILINEAR]"
+
+#: src/tabs/hardware.cpp:295
+msgid "Supports better than bilinear filtering. [HIGH_FILTER]"
+msgstr "Supports better-than-bilinear filterin'. [HIGH_FILTER]"
+
+#: src/tabs/hardware.cpp:298
+msgid "MPO resources are shared across video present network (VidPN) sources. [SHARED]"
+msgstr "MPO resources be shared across video present network (VidPN) sources. [SHARED]"
+
+#: src/tabs/hardware.cpp:301
+msgid "Supports immediate flips (allows tearing) of the MPO plane. [IMMEDIATE]"
+msgstr "Supports immediate flips (tearin' allowed) o' the MPO plane. [IMMEDIATE]"
+
+#: src/tabs/hardware.cpp:307
+msgid "Will always apply the stretch factor of plane 0 to the hardware cursor as well as the plane. [PLANE0_FOR_VIRTUAL_MODE_ONLY]"
+msgstr "Will always apply the stretch factor o' plane 0 to the hardware cursor as well as the plane. [PLANE0_FOR_VIRTUAL_MODE_ONLY]"
+
+#: src/tabs/hardware.cpp:777
+msgid "SwapChain Presentation Monitor"
+msgstr "SwapChain Presentation Spyglass"
+
+#: src/tabs/hardware.cpp:801
+msgid "Tell at a glance whether:"
+msgstr "Tell with one squint through the spyglass whether:"
+
+#: src/tabs/hardware.cpp:808
+msgid "DirectFlip has engaged, bypassing desktop composition (DWM)."
+msgstr "DirectFlip has engaged, sailin' past desktop composition (DWM)."
+
+#. TRANSLATORS: The presentation modes in quotes ('Hardware: Independent Flip', ...) are shown like that by Special K; keep them as they are
+#: src/tabs/hardware.cpp:812
+msgid "Appears as 'Hardware: Independent Flip' or 'Hardware Composed: Independent Flip'."
+msgstr "Shows up as 'Hardware: Independent Flip' or 'Hardware Composed: Independent Flip'."
+
+#. TRANSLATORS: The presentation modes in quotes ('Hardware: Independent Flip', ...) are shown like that by Special K; keep them as they are
+#: src/tabs/hardware.cpp:815
+msgid ""
+"DirectFlip appears as 'Hardware: Independent Flip' or 'Hardware Composed: Independent Flip'.\n"
+"Lack of it appears as 'Composed: Flip'."
+msgstr ""
+"DirectFlip shows up as 'Hardware: Independent Flip' or 'Hardware Composed: Independent Flip'.\n"
+"Without it, ye'll see 'Composed: Flip'."
+
+#: src/tabs/hardware.cpp:828
+msgid "Legacy Exclusive Fullscreen (FSE) mode is being used or if Fullscreen Optimizations (FSO) overrides it."
+msgstr "Legacy Exclusive Fullscreen (FSE) mode be in use, or Fullscreen Optimizations (FSO) be overridin' it."
+
+#. TRANSLATORS: The presentation modes in quotes ('Hardware: Independent Flip', ...) are shown like that by Special K; keep them as they are
+#: src/tabs/hardware.cpp:832
+msgid ""
+"FSE appears as 'Hardware: Legacy Flip' or 'Hardware: Legacy Copy to front buffer'.\n"
+"FSO appears as 'Hardware: Independent Flip' or 'Hardware Composed: Independent Flip'."
+msgstr ""
+"FSE shows up as 'Hardware: Legacy Flip' or 'Hardware: Legacy Copy to front buffer'.\n"
+"FSO shows up as 'Hardware: Independent Flip' or 'Hardware Composed: Independent Flip'."
+
+#: src/tabs/hardware.cpp:845
+msgid "The game is running in a suboptimal presentation mode."
+msgstr "The game be sailin' in a sorry presentation mode."
+
+#. TRANSLATORS: The presentation modes in quotes ('Hardware: Independent Flip', ...) are shown like that by Special K; keep them as they are
+#: src/tabs/hardware.cpp:849
+msgid ""
+"Appears as 'Composed: Flip', 'Composed: Composition Atlas',\n"
+"'Composed: Copy with GPU GDI', or 'Composed: Copy with CPU GDI'."
+msgstr ""
+"Shows up as 'Composed: Flip', 'Composed: Composition Atlas',\n"
+"'Composed: Copy with GPU GDI', or 'Composed: Copy with CPU GDI'."
+
+#: src/tabs/hardware.cpp:857
+#: src/tabs/hardware.cpp:1361
+msgid "Requirement:"
+msgstr "Ye'll be needin':"
+
+#. TRANSLATORS: 'Performance Log Users' is a group in Windows; use its name in the Windows of your language
+#: src/tabs/hardware.cpp:881
+msgid "Granted 'Performance Log Users' permission?"
+msgstr "Granted 'Performance Log Users' permission?"
+
+#: src/tabs/hardware.cpp:884
+#: src/tabs/monitor.cpp:1704
+#: src/tabs/monitor.cpp:1897
+#: src/tabs/library/library_popups.cpp:153
+#: src/tabs/library/library_popups.cpp:163
+#: src/utility/skif_imgui.cpp:1699
+msgid "Yes"
+msgstr "Aye"
+
+#: src/tabs/hardware.cpp:886
+#: src/tabs/monitor.cpp:1704
+#: src/tabs/monitor.cpp:1897
+#: src/tabs/settings.cpp:1555
+#: src/utility/skif_imgui.cpp:1700
+msgid "No"
+msgstr "Nay"
+
+#: src/tabs/hardware.cpp:888
+msgid "Restart required"
+msgstr "Restart needed"
+
+#: src/tabs/hardware.cpp:898
+msgid "Permissions granted!"
+msgstr "Permission granted, matey!"
+
+#: src/tabs/hardware.cpp:899
+msgid "Grant permissions"
+msgstr "Grant permission"
+
+#: src/tabs/hardware.cpp:900
+msgid "Sign out to apply"
+msgstr "Sign out to make it so"
+
+#: src/tabs/hardware.cpp:949
+msgid "Administrative privileges are required on the system to toggle this."
+msgstr "Ye need the captain's privileges (administrator) on the system to toggle this."
+
+#: src/tabs/hardware.cpp:964
+msgid "Minimal latency:"
+msgstr "Swift as the wind:"
+
+#: src/tabs/hardware.cpp:986
+msgid "Quite uncommon to see compared to the other models listed here."
+msgstr "Rare as a mermaid compared to the other models listed here."
+
+#: src/tabs/hardware.cpp:994
+msgid "Undesirable latency:"
+msgstr "Wretched latency:"
+
+#: src/tabs/hardware.cpp:1036
+msgid "Multi-Plane Overlay (MPO) Support"
+msgstr "Multi-Plane Overlay (MPO) Support"
+
+#: src/tabs/hardware.cpp:1039
+msgid "MPOs are additional dedicated hardware scanout planes enabling the GPU to partially take over composition from the DWM. This allows games to bypass the DWM in various mixed scenarios or window modes, eliminating the presentation latency that would otherwise be incurred."
+msgstr "MPOs be extra dedicated hardware scanout planes that let the GPU take over part o' the composition from the DWM. This lets games slip past the DWM in various mixed situations or window modes, castin' off the presentation latency they'd otherwise suffer."
+
+#: src/tabs/hardware.cpp:1061
+msgid "Support among connected displays:"
+msgstr "Support among the lashed-on displays:"
+
+#: src/tabs/hardware.cpp:1068
+msgid "Display"
+msgstr "Display"
+
+#: src/tabs/hardware.cpp:1069
+msgid "Planes"
+msgstr "Planes"
+
+#: src/tabs/hardware.cpp:1070
+msgid "Stretch"
+msgstr "Stretch"
+
+#: src/tabs/hardware.cpp:1071
+msgid "Capabilities"
+msgstr "Capabilities"
+
+#: src/tabs/hardware.cpp:1072
+msgid "No support"
+msgstr "No support, sorry matey"
+
+#: src/tabs/hardware.cpp:1138
+msgid "Disabled through the registry! Click to reset."
+msgstr "Scuttled through the registry! Click to reset."
+
+#: src/tabs/hardware.cpp:1143
+#: src/tabs/hardware.cpp:1272
+msgid ""
+"Restart the display drivers and desktop window manager (DWM) to apply the changes.\n"
+"\n"
+"Some games and applications (e.g. Steam, Discord) may close or crash when the drivers or DWM are restarted.\n"
+"\n"
+"Do you want to restart the display drivers and DWM now?"
+msgstr ""
+"Restart the display drivers an' the desktop window manager (DWM) to make the changes stick.\n"
+"\n"
+"Some games an' apps (e.g. Steam, Discord) may close or run aground when the drivers or DWM be restarted.\n"
+"\n"
+"Do ye want to restart the display drivers an' DWM now?"
+
+#: src/tabs/hardware.cpp:1148
+#: src/tabs/hardware.cpp:1277
+msgid "Restart the display drivers and desktop window manager (DWM)?"
+msgstr "Restart the display drivers an' the desktop window manager (DWM)?"
+
+#: src/tabs/hardware.cpp:1173
+msgid "A restart of the display drivers is required for the changes to be applied."
+msgstr "The display drivers need a restart fer the changes to take hold."
+
+#: src/tabs/hardware.cpp:1178
+msgid "Reporting MPO capabilities requires Windows 10 or newer."
+msgstr "Reportin' MPO capabilities needs Windows 10 or newer."
+
+#: src/tabs/hardware.cpp:1198
+msgid "Minimum requirement:"
+msgstr "The least ye'll need:"
+
+#: src/tabs/hardware.cpp:1205
+msgid "AMD: Radeon RX Vega + Adrenalin Edition 22.5.2 drivers"
+msgstr "AMD: Radeon RX Vega + Adrenalin Edition 22.5.2 drivers"
+
+#: src/tabs/hardware.cpp:1215
+msgid "Intel: HD Graphics 510-515 (Core 6th gen)"
+msgstr "Intel: HD Graphics 510-515 (Core 6th gen)"
+
+#: src/tabs/hardware.cpp:1224
+msgid "Nvidia: GTX 16/RTX 20 series (Turing) + R460 drivers"
+msgstr "Nvidia: GTX 16/RTX 20 series (Turing) + R460 drivers"
+
+#: src/tabs/hardware.cpp:1231
+msgid "Support depends on the GPU and display configuration. Unusual driver or display configurations might disable MPO support, such as by using 10 bpc in SDR mode or custom GPU scaling (NIS/RSR/integer etc)."
+msgstr "Support depends on the GPU an' the display riggin'. Odd driver or display riggin' might scuttle MPO support, such as usin' 10 bpc in SDR mode or custom GPU scalin' (NIS/RSR/integer etc)."
+
+#: src/tabs/hardware.cpp:1259
+#: src/tabs/local.cpp:752
+#: src/tabs/library/library_menus.cpp:1739
+#: src/tabs/library/library_menus.cpp:1994
+#: src/tabs/library/library_menus.cpp:2248
+msgid "Refresh"
+msgstr "Swab the deck (Refresh)"
+
+#: src/tabs/hardware.cpp:1266
+msgid "Enable MPOs"
+msgstr "Raise the MPOs"
+
+#: src/tabs/hardware.cpp:1267
+msgid "Disable MPOs"
+msgstr "Scuttle the MPOs"
+
+#: src/tabs/hardware.cpp:1305
+msgid "Restart display driver"
+msgstr "Restart the display driver"
+
+#: src/tabs/hardware.cpp:1311
+msgid "Restart DWM"
+msgstr "Restart DWM"
+
+#: src/tabs/hardware.cpp:1331
+msgid "Extended CPU Hardware Reporting"
+msgstr "Extended CPU Hardware Reportin'"
+
+#: src/tabs/hardware.cpp:1343
+msgid "Special K can make use of an optional kernel driver to provide additional metrics in the CPU widget."
+msgstr "Special K can make use o' an optional kernel driver to give ye more readings in the CPU widget."
+
+#: src/tabs/hardware.cpp:1353
+msgid "Extends the CPU widget with thermals, energy, and precise clock rate on modern hardware."
+msgstr "Fills out the CPU widget with temperatures, energy, an' precise clock rate on modern hardware."
+
+#: src/tabs/hardware.cpp:1368
+msgid "Kernel Driver:"
+msgstr "Kernel Driver (deep in the bilge):"
+
+#: src/tabs/hardware.cpp:1378
+msgid "Please Wait..."
+msgstr "Hold fast..."
+
+#: src/tabs/hardware.cpp:1379
+#: src/tabs/library/library_details.cpp:466
+msgid "Pending..."
+msgstr "Waitin' on the tide..."
+
+#: src/tabs/hardware.cpp:1385
+msgid "Uninstall Driver"
+msgstr "Throw the Driver Overboard"
+
+#: src/tabs/hardware.cpp:1386
+msgid "Installed"
+msgstr "Stowed aboard"
+
+#: src/tabs/hardware.cpp:1393
+msgid "Unavailable"
+msgstr "Not to be had"
+
+#: src/tabs/hardware.cpp:1394
+msgid "Unsupported"
+msgstr "Not supported"
+
+#: src/tabs/hardware.cpp:1399
+msgid "Conflict With:"
+msgstr "Crossin' swords with:"
+
+#: src/tabs/hardware.cpp:1407
+msgid "Migrate Driver"
+msgstr "Move the Driver"
+
+#: src/tabs/hardware.cpp:1408
+msgid "Obsolete driver installed"
+msgstr "A barnacled old driver be installed"
+
+#: src/tabs/hardware.cpp:1414
+msgid "Install Driver"
+msgstr "Install the Driver"
+
+#: src/tabs/hardware.cpp:1415
+msgid "Not Installed"
+msgstr "Not stowed aboard"
+
+#: src/tabs/hardware.cpp:1434
+msgid "Administrative privileges are required on the system to enable this."
+msgstr "Ye need the captain's privileges (administrator) on the system to enable this."
+
+#: src/tabs/hardware.cpp:1463
+msgid "Option is unavailable as another application have already installed a copy of the driver."
+msgstr "This option ain't available, as another app has already installed a copy o' the driver."
+
+#: src/tabs/hardware.cpp:1474
+msgid "An older version of the driver is installed."
+msgstr "An older version o' the driver be installed."
+
+#: src/tabs/hardware.cpp:1489
+msgid "Vulkan Layer Management"
+msgstr "Vulkan Layer Management"
+
+#: src/tabs/hardware.cpp:1500
+msgid "The Vulkan API includes support for defining third-party layers that can be implicitly or explicitly loaded by applications. These third-party layers has been known to cause compatibility issues with other third-party injectors and tools such as Special K, and might therefor be of interest to disable. Note that any change made below will affect all apps/games on the system!"
+msgstr "The Vulkan API lets third-party layers be loaded by apps, either implicitly or explicitly. These third-party layers be known to cross swords with other third-party injectors an' tools such as Special K, so ye may want to scuttle 'em. Mind ye: any change made below will affect all apps an' games on the system!"
+
+#: src/tabs/hardware.cpp:1510
+#: src/tabs/hardware.cpp:1519
+msgid "Implicit layers are automatically enabled in any running games/apps."
+msgstr "Implicit layers be automatically enabled in any runnin' games or apps."
+
+#: src/tabs/hardware.cpp:1516
+#: src/tabs/hardware.cpp:1520
+msgid "Explicit layers are only enabled if the game/app requires it."
+msgstr "Explicit layers be only enabled if the game or app asks fer 'em."
+
+#: src/tabs/hardware.cpp:1519
+msgid "Implicit Vulkan Layers"
+msgstr "Implicit Vulkan Layers"
+
+#: src/tabs/hardware.cpp:1520
+msgid "Explicit Vulkan Layers"
+msgstr "Explicit Vulkan Layers"
+
+#: src/tabs/hardware.cpp:1561
+msgid "This layer has known compatibility issues with Special K and may cause issues."
+msgstr "This layer be known to cross swords with Special K an' may cause trouble."
+
+#: src/tabs/hardware.cpp:1580
+msgid "No layer of this kind was found."
+msgstr "No layer o' this kind was found."
+
+#: src/tabs/ini_editor.cpp:57
+msgid "Untitled"
+msgstr "Nameless"
+
+#. TRANSLATORS: Title of the editor of INI files of Special K; {0} is the name of the file (or of the game)
+#: src/tabs/ini_editor.cpp:59
+msgid "{0} - Editor"
+msgstr "{0} - Scribe"
+
+#: src/tabs/ini_editor.cpp:80
+msgid "Save Changes?"
+msgstr "Save Yer Changes?"
+
+#: src/tabs/ini_editor.cpp:137
+#: src/tabs/ini_editor.cpp:164
+msgid "Configuration Files"
+msgstr "Configuration Scrolls"
+
+#: src/tabs/ini_editor.cpp:137
+#: src/tabs/ini_editor.cpp:164
+msgid "All files"
+msgstr "All the cargo"
+
+#: src/tabs/ini_editor.cpp:147
+#: src/tabs/ini_editor.cpp:174
+msgid "Unknown error attempting to retrieve file path!"
+msgstr "Unknown mishap tryin' to fetch the file's path!"
+
+#: src/tabs/ini_editor.cpp:147
+#: src/tabs/ini_editor.cpp:174
+msgid "Error"
+msgstr "Blunder"
+
+#: src/tabs/ini_editor.cpp:342
+msgid "File was reloaded."
+msgstr "The file was reloaded."
+
+#: src/tabs/ini_editor.cpp:354
+#: src/tabs/local.cpp:823
+msgid "File"
+msgstr "File"
+
+#: src/tabs/ini_editor.cpp:356
+#: src/tabs/local.cpp:825
+msgid "New"
+msgstr "New"
+
+#: src/tabs/ini_editor.cpp:359
+msgid "New Window"
+msgstr "New Porthole"
+
+#: src/tabs/ini_editor.cpp:362
+msgid "Open"
+msgstr "Open"
+
+#: src/tabs/ini_editor.cpp:365
+#: src/tabs/library/library_properties.cpp:1923
+#: src/tabs/library/library_properties.cpp:1933
+#: src/utility/skif_imgui.cpp:1702
+msgid "Save"
+msgstr "Stow"
+
+#: src/tabs/ini_editor.cpp:368
+msgid "Save As"
+msgstr "Stow As"
+
+#: src/tabs/ini_editor.cpp:371
+#: src/tabs/local.cpp:828
+#: src/utility/updater.cpp:1386
+#: src/utility/updater.cpp:1392
+msgid "Close"
+msgstr "Shove off"
+
+#. TRANSLATORS: The Escape key of the keyboard
+#: src/tabs/ini_editor.cpp:371
+#: src/tabs/local.cpp:830
+msgctxt "key"
+msgid "Escape"
+msgstr "Escape"
+
+#: src/tabs/ini_editor.cpp:377
+#: src/tabs/library/library_menus.cpp:262
+#: src/tabs/library/library_menus.cpp:298
+msgid "Edit"
+msgstr "Edit"
+
+#: src/tabs/ini_editor.cpp:382
+msgid "Undo Changes"
+msgstr "Undo Yer Changes"
+
+#: src/tabs/ini_editor.cpp:393
+msgid "Reload File"
+msgstr "Reload the File"
+
+#: src/tabs/ini_editor.cpp:402
+msgid "View"
+msgstr "Spyglass"
+
+#: src/tabs/ini_editor.cpp:404
+msgid "Collapse/Expand"
+msgstr "Furl/Unfurl"
+
+#: src/tabs/ini_editor.cpp:414
+msgid "Unused Settings"
+msgstr "Idle Settings"
+
+#: src/tabs/ini_editor.cpp:420
+msgid "Tools"
+msgstr "Ship's Tools"
+
+#: src/tabs/ini_editor.cpp:425
+#: src/tabs/library/library_menus.cpp:211
+msgid "External Editor"
+msgstr "Outside Scribe"
+
+#: src/tabs/ini_editor.cpp:648
+msgid "Unused settings are hidden by default."
+msgstr "Idle settings be hidden by default."
+
+#: src/tabs/ini_editor.cpp:649
+msgid "View unused settings"
+msgstr "Show idle settings"
+
+#. TRANSLATORS: {0} is the name of a file (or of a game)
+#: src/tabs/ini_editor.cpp:762
+msgid "Do you want to save changes to {0}?"
+msgstr "Do ye want to stow the changes to {0}?"
+
+#: src/tabs/library.cpp:247
+#: src/tabs/settings.cpp:1326
+#: src/tabs/settings.cpp:1343
+msgid "Large icons"
+msgstr "Big icons"
+
+#: src/tabs/library.cpp:253
+#: src/tabs/settings.cpp:1349
+msgid "Currently enforced by touch input mode."
+msgstr "Currently forced by touch input mode."
+
+#: src/tabs/library.cpp:1446
+#: src/tabs/library/library_details.cpp:495
+msgid "Loading..."
+msgstr "Loadin' the cargo..."
+
+#: src/tabs/library.cpp:1604
+msgid "New 32-bit DLL Installed"
+msgstr "New 32-bit DLL Stowed Aboard"
+
+#: src/tabs/library.cpp:1605
+msgid "New 64-bit DLL Installed"
+msgstr "New 64-bit DLL Stowed Aboard"
+
+#: src/tabs/library.cpp:1724
+#: src/tabs/library.cpp:1832
+msgid "Missing Files"
+msgstr "Missin' Files"
+
+#: src/tabs/library.cpp:1725
+#: src/tabs/library.cpp:1833
+msgid "Unable to extract Special K DLL files from the provided {0} file."
+msgstr "Couldn't pry the Special K DLL files out o' the {0} file ye gave."
+
+#: src/tabs/library.cpp:1871
+msgid "Unsupported Feature"
+msgstr "A Feature Beyond Our Ken"
+
+#: src/tabs/library.cpp:1872
+msgid "SKIF cannot perform a drag-n-drop update because Special K {0} or newer is required."
+msgstr "SKIF can't do a drag-n-drop refit, as it needs Special K {0} or newer."
+
+#: src/tabs/library.cpp:1887
+msgid "Unsupported file format"
+msgstr "A file format beyond our ken"
+
+#: src/tabs/library.cpp:1889
+msgid "Add a game to the library:"
+msgstr "Add a game to the Treasure Hold:"
+
+#: src/tabs/library.cpp:1895
+msgid "Update the cover for the current selected game:"
+msgstr "Change the cover o' the chosen game:"
+
+#: src/tabs/library.cpp:1906
+msgid "Note that the app has no support for animated images."
+msgstr "Mind ye, the app can't handle animated images."
+
+#: src/tabs/local.cpp:30
+msgid "Direct3D 10/11/12 games (most common)."
+msgstr "Direct3D 10/11/12 games (the most common)."
+
+#: src/tabs/local.cpp:31
+msgid "Direct3D 11 games where DXGI.dll does not work."
+msgstr "Direct3D 11 games where DXGI.dll won't work."
+
+#: src/tabs/local.cpp:32
+msgid "Direct3D 9 games."
+msgstr "Direct3D 9 games (old salts)."
+
+#: src/tabs/local.cpp:33
+msgid "OpenGL games."
+msgstr "OpenGL games, arr."
+
+#: src/tabs/local.cpp:34
+msgid "Games that load DirectInput 8; can work as a fallback."
+msgstr "Games that load DirectInput 8; can serve as a fallback."
+
+#: src/tabs/local.cpp:35
+msgid "Direct3D 8 games."
+msgstr "Direct3D 8 games (barnacled old salts)."
+
+#: src/tabs/local.cpp:36
+msgid "DirectDraw games."
+msgstr "DirectDraw games (ancient galleons)."
+
+#: src/tabs/local.cpp:256
+msgid "Special K Installed"
+msgstr "Special K Stowed Aboard"
+
+#: src/tabs/local.cpp:265
+msgid "Install Failed"
+msgstr "The Install Ran Aground"
+
+#: src/tabs/local.cpp:266
+msgid "Could not install Special K as {0}"
+msgstr "Couldn't install Special K as {0}"
+
+#: src/tabs/local.cpp:593
+msgid "Local Installs"
+msgstr "Local Stashes"
+
+#: src/tabs/local.cpp:684
+msgid "Deselect all"
+msgstr "Unmark all"
+
+#: src/tabs/local.cpp:685
+msgid "Select all"
+msgstr "Mark all"
+
+#: src/tabs/local.cpp:686
+msgid "Select outdated"
+msgstr "Mark the barnacled ones"
+
+#: src/tabs/local.cpp:705
+msgid "Select Outdated"
+msgstr "Mark the Barnacled"
+
+#: src/tabs/local.cpp:713
+msgid "Select Missing"
+msgstr "Mark the Missin'"
+
+#: src/tabs/local.cpp:720
+msgid "Select All"
+msgstr "Mark All"
+
+#: src/tabs/local.cpp:729
+msgid "Deselect All"
+msgstr "Unmark All"
+
+#: src/tabs/local.cpp:741
+msgid "Update Selected"
+msgstr "Refit the Marked"
+
+#: src/tabs/local.cpp:746
+msgid "Delete Selected"
+msgstr "Scuttle the Marked"
+
+#: src/tabs/local.cpp:836
+msgid "Selection"
+msgstr "Marked"
+
+#: src/tabs/local.cpp:852
+msgid "No local installs found."
+msgstr "No local installs to be found."
+
+#: src/tabs/local.cpp:857
+msgid "To perform a local install of Special K:"
+msgstr "To do a local install o' Special K:"
+
+#. TRANSLATORS: The text in [brackets] is highlighted (keep the brackets); {0} is a floppy disk icon. "File -> Install Wrapper DLL" is a menu of Special K itself (in-game), which is in English.
+#: src/tabs/local.cpp:868
+msgid "While in-game, use [{0} File -> Install Wrapper DLL]."
+msgstr "While in-game, use [{0} File -> Install Wrapper DLL]."
+
+#. TRANSLATORS: The text in [brackets] is highlighted (keep the brackets); Ctrl and Shift are keys of the keyboard
+#: src/tabs/local.cpp:879
+msgid "During launch, hold down [Ctrl + Shift] to access the compatibility options."
+msgstr "While launchin', hold down [Ctrl + Shift] to reach the compatibility options."
+
+#: src/tabs/local.cpp:891
+msgctxt "column"
+msgid "Path"
+msgstr "Heading"
+
+#: src/tabs/local.cpp:892
+msgctxt "column"
+msgid "Version"
+msgstr "Version"
+
+#: src/tabs/local.cpp:894
+msgctxt "column"
+msgid "Status"
+msgstr "State"
+
+#: src/tabs/local.cpp:1019
+#: src/tabs/library/library_details.cpp:393
+msgid ""
+"The local DLL file is outdated.\n"
+"Click to update it to v {0}."
+msgstr ""
+"The local DLL file be barnacled.\n"
+"Click to refit it to v {0}."
+
+#: src/tabs/local.cpp:1033
+msgid ""
+"The local DLL file could not be found.\n"
+"Click to reinstall it as v {0}."
+msgstr ""
+"The local DLL file be lost at sea.\n"
+"Click to reinstall it as v {0}."
+
+#: src/tabs/local.cpp:1048
+msgid "Folder no longer exists"
+msgstr "The folder be lost at sea"
+
+#: src/tabs/local.cpp:1057
+msgid "Local DLL file no longer exists"
+msgstr "The local DLL file be lost at sea"
+
+#: src/tabs/local.cpp:1066
+msgid "Outdated (latest: {0})"
+msgstr "Barnacled (latest: {0})"
+
+#. TRANSLATORS: {0} is a floppy disk icon. "File -> Install Wrapper DLL" is a menu of Special K itself (in-game), which is in English.
+#: src/tabs/local.cpp:1128
+#: src/tabs/local.cpp:1241
+msgid "Select the bitness to install"
+msgstr "Pick the bitness to install"
+
+#: src/tabs/local.cpp:1128
+msgid "Or while in-game, use {0} File -> Install Wrapper DLL."
+msgstr "Or while in-game, use {0} File -> Install Wrapper DLL."
+
+#: src/tabs/local.cpp:1155
+msgid "Already Up-to-Date"
+msgstr "Already Shipshape"
+
+#: src/tabs/local.cpp:1156
+msgid "Special K is already installed in this folder and is fully up-to-date."
+msgstr "Special K be already installed in this folder an' fully shipshape."
+
+#: src/tabs/local.cpp:1167
+msgid "Install Special K"
+msgstr "Stow Special K Aboard"
+
+#: src/tabs/local.cpp:1169
+msgid "Which DLL filename should Special K be installed as?"
+msgstr "What DLL filename should Special K be installed as?"
+
+#: src/tabs/local.cpp:1173
+msgid "64-bit executable"
+msgstr "64-bit executable"
+
+#: src/tabs/local.cpp:1175
+msgid "32-bit executable"
+msgstr "32-bit executable"
+
+#: src/tabs/local.cpp:1177
+msgid "Could not detect the bitness of the executable; you will be asked next."
+msgstr "Couldn't make out the bitness o' the executable; ye'll be asked next."
+
+#: src/tabs/local.cpp:1180
+msgid "Special K is already installed in this folder; only that file can be updated."
+msgstr "Special K be already installed in this folder; only that file can be refitted."
+
+#: src/tabs/local.cpp:1203
+msgid "Special K is already installed as this file and will be updated."
+msgstr "Special K be already installed as this file an' will be refitted."
+
+#: src/tabs/local.cpp:1204
+msgid "A different file with this name already exists in the folder."
+msgstr "A different file with this name already be in the folder."
+
+#: src/tabs/local.cpp:1205
+msgid "Special K is already installed in this folder under another name."
+msgstr "Special K be already installed in this folder under another name."
+
+#: src/tabs/local.cpp:1242
+msgid ""
+"Could not detect the bitness of the executable.\n"
+"Should 64-bit or 32-bit be used?"
+msgstr ""
+"Couldn't make out the bitness o' the executable.\n"
+"Should 64-bit or 32-bit be used?"
+
+#: src/tabs/local.cpp:1287
+msgid "Update Installs?"
+msgstr "Refit the Installs?"
+
+#: src/tabs/local.cpp:1288
+msgid "Delete Installs?"
+msgstr "Scuttle the Installs?"
+
+#: src/tabs/local.cpp:1289
+msgid "Are you sure you want to update all selected installs?"
+msgstr "Be ye sure ye want to refit all the marked installs?"
+
+#: src/tabs/local.cpp:1290
+msgid "Are you sure you want to delete all selected installs?"
+msgstr "Be ye sure ye want to scuttle all the marked installs?"
+
+#: src/tabs/local.cpp:1291
+msgid "Some leftover files may still be present in the game folder."
+msgstr "Some leftover flotsam may still be in the game folder."
+
+#. TRANSLATORS: {0} is a circle icon
+#: src/tabs/monitor.cpp:727
+msgid "Use the below list to identify injected processes using the {0} status indicator to the left. Note that while a lot of processes might have Special K injected in them, only those that are whitelisted and use a render API will see Special K active. Remaining processes have it inert and can be ignored."
+msgstr "Use the list below to spot boarded processes by the {0} status marker to the left. Mind ye, while a great many processes might have Special K aboard, only those that be whitelisted an' use a render API will see Special K active. The rest have it sleepin' in the hold an' can be ignored."
+
+#: src/tabs/monitor.cpp:736
+msgid "Show misc processes"
+msgstr "Show other processes"
+
+#. TRANSLATORS: {0} is a circle icon
+#: src/tabs/monitor.cpp:740
+msgid ""
+"If this is enabled the below list will also include uninjected processes.\n"
+"This is indicated by the lack of a {0} icon under the Status column."
+msgstr ""
+"If this be enabled, the list below will also show processes that weren't boarded.\n"
+"Ye can tell by the missin' {0} icon under the State column."
+
+#: src/tabs/monitor.cpp:745
+msgctxt "update speed"
+msgid "Paused"
+msgstr "Becalmed"
+
+#: src/tabs/monitor.cpp:746
+msgctxt "update speed"
+msgid "Slow"
+msgstr "Slow"
+
+#: src/tabs/monitor.cpp:747
+msgctxt "update speed"
+msgid "Normal"
+msgstr "Steady"
+
+#: src/tabs/monitor.cpp:748
+msgctxt "update speed"
+msgid "High"
+msgstr "Full sail"
+
+#: src/tabs/monitor.cpp:759
+#: src/tabs/monitor.cpp:767
+msgid "Update speed:"
+msgstr "Speed o' the lookout:"
+
+#: src/tabs/monitor.cpp:818
+#: src/tabs/monitor.cpp:1781
+msgid "Real-time updates are paused."
+msgstr "Real-time updates be becalmed."
+
+#: src/tabs/monitor.cpp:828
+msgid "Toggle Service:"
+msgstr "Toggle the Service:"
+
+#: src/tabs/monitor.cpp:832
+msgid "A forced stop of the service may sometime help in case of an issue, even if the service is not currently running."
+msgstr "Forcin' the service to strike may sometimes help when there be trouble, even if the service ain't runnin' right now."
+
+#: src/tabs/monitor.cpp:839
+msgid "Force start"
+msgstr "Force it to hoist"
+
+#: src/tabs/monitor.cpp:840
+msgid "Force stop"
+msgstr "Force it to strike"
+
+#: src/tabs/monitor.cpp:874
+#: src/utility/injection.cpp:1048
+msgid "Stop automatically"
+msgstr "Strike on its own"
+
+#: src/tabs/monitor.cpp:880
+#: src/utility/injection.cpp:1054
+msgid ""
+"This controls whether the configured auto-stop behavior (see Settings tab) should be used when the service is manually started.\n"
+"Note that having this unchecked does not disable the auto-stop behavior if a game is launched without the service already running."
+msgstr ""
+"This decides whether the auto-strike behavior (see the Ship's Articles tab) be used when the service be hoisted by hand.\n"
+"Mind ye, leavin' this unchecked don't scuttle the auto-strike behavior if a game be launched without the service already runnin'."
+
+#: src/tabs/monitor.cpp:886
+#: src/tabs/library/library_menus.cpp:1586
+msgid "Install folder"
+msgstr "Stash folder"
+
+#: src/tabs/monitor.cpp:909
+msgid "Status:"
+msgstr "State:"
+
+#: src/tabs/monitor.cpp:1549
+msgid "Actions:"
+msgstr "Orders:"
+
+#: src/tabs/monitor.cpp:1554
+msgid "Whitelist"
+msgstr "Friend"
+
+#: src/tabs/monitor.cpp:1560
+msgid "Blacklist"
+msgstr "Foe"
+
+#: src/tabs/monitor.cpp:1566
+#: src/tabs/settings.cpp:2414
+#: src/tabs/library/library_menus.cpp:394
+#: src/tabs/library/library_menus.cpp:1738
+#: src/tabs/library/library_menus.cpp:1993
+msgid "Reset"
+msgstr "Back to port"
+
+#: src/tabs/monitor.cpp:1578
+msgid "Remove the whitelist and blacklist patterns matching this process."
+msgstr "Remove the whitelist an' blacklist patterns matchin' this process."
+
+#: src/tabs/monitor.cpp:1621
+#: src/tabs/library/library_menus.cpp:803
+#: src/tabs/library/library_menus.cpp:1584
+msgid "Browse"
+msgstr "Rummage"
+
+#: src/tabs/monitor.cpp:1630
+msgid "End task"
+msgstr "Make it walk the plank"
+
+#: src/tabs/monitor.cpp:1693
+#: src/tabs/monitor.cpp:1713
+msgid "Status"
+msgstr "State"
+
+#: src/tabs/monitor.cpp:1693
+#: src/tabs/monitor.cpp:1721
+msgid "PID"
+msgstr "PID"
+
+#: src/tabs/monitor.cpp:1693
+#: src/tabs/monitor.cpp:1729
+msgid "Type"
+msgstr "Kind o' vessel"
+
+#: src/tabs/monitor.cpp:1693
+#: src/tabs/monitor.cpp:1733
+msgid "Handles"
+msgstr "Handles"
+
+#: src/tabs/monitor.cpp:1693
+#: src/tabs/monitor.cpp:1737
+msgid "Arch"
+msgstr "Arch"
+
+#: src/tabs/monitor.cpp:1693
+#: src/tabs/monitor.cpp:1745
+msgid "Admin"
+msgstr "Captain"
+
+#: src/tabs/monitor.cpp:1693
+#: src/tabs/monitor.cpp:1753
+msgid "Process Name"
+msgstr "Vessel Name"
+
+#: src/tabs/monitor.cpp:1715
+msgid "Injection status"
+msgstr "Boardin' status"
+
+#: src/tabs/monitor.cpp:1723
+msgid "Process ID"
+msgstr "Vessel ID"
+
+#: src/tabs/monitor.cpp:1738
+msgid "CPU architecture"
+msgstr "CPU architecture"
+
+#: src/tabs/monitor.cpp:1746
+msgid "Elevated process"
+msgstr "Process with captain's privileges"
+
+#: src/tabs/monitor.cpp:1754
+msgid "Process name"
+msgstr "Vessel name"
+
+#: src/tabs/monitor.cpp:1779
+msgid "Error occurred when trying to locate type index for events!"
+msgstr "A blunder happened while tryin' to find the type index fer events!"
+
+#: src/tabs/monitor.cpp:1783
+msgid "Special K is currently not injected in any process."
+msgstr "Special K ain't aboard any process right now."
+
+#: src/tabs/monitor.cpp:1819
+msgid "Process is blacklisted"
+msgstr "The process be blacklisted"
+
+#: src/tabs/monitor.cpp:1825
+msgid "Process is whitelisted"
+msgstr "The process be whitelisted"
+
+#: src/tabs/monitor.cpp:1838
+msgctxt "injection status"
+msgid "Active"
+msgstr "Boarded"
+
+#: src/tabs/monitor.cpp:1842
+msgctxt "injection status"
+msgid "Local"
+msgstr "Local"
+
+#: src/tabs/monitor.cpp:1847
+msgctxt "injection status"
+msgid "Inert"
+msgstr "Sleepin'"
+
+#: src/tabs/monitor.cpp:1850
+#: src/tabs/monitor.cpp:1859
+msgctxt "injection status"
+msgid "Stuck (end the process to eject Special K)"
+msgstr "Stuck fast (make the process walk the plank to free Special K)"
+
+#: src/tabs/monitor.cpp:1856
+msgctxt "injection status"
+msgid "Inert (potentially stuck)"
+msgstr "Sleepin' (maybe stuck fast)"
+
+#: src/tabs/monitor.cpp:1917
+msgid "Injection status cannot be determined due to a lack of permissions."
+msgstr "The boardin' status can't be made out fer lack o' permissions."
+
+#: src/tabs/monitor.cpp:1970
+#: src/tabs/library/library_popups.cpp:280
+msgid "Task Manager"
+msgstr "Ship's Quartermaster (Task Manager)"
+
+#. TRANSLATORS: {0} is the file name of a process
+#. TRANSLATORS: {0} is the name of a game
+#: src/tabs/monitor.cpp:1975
+#: src/tabs/library/library_popups.cpp:262
+msgid "Do you want to end {0}?"
+msgstr "Do ye want to make {0} walk the plank?"
+
+#: src/tabs/monitor.cpp:1977
+msgid "If an open program is associated with this process, it will close and you will lose any unsaved data. If you end a system process, it might result in system instability. Are you sure you want to continue?"
+msgstr "If an open program be tied to this process, it'll close an' ye'll lose any unsaved booty. If ye end a system process, the whole ship might start listin'. Be ye sure ye want to carry on?"
+
+#: src/tabs/monitor.cpp:1984
+#: src/tabs/monitor.cpp:1989
+#: src/tabs/library/library_popups.cpp:267
+#: src/tabs/library/library_popups.cpp:301
+msgid "End Process"
+msgstr "Walk the Plank"
+
+#: src/tabs/monitor.cpp:2020
+msgid "Reset Whitelist / Blacklist"
+msgstr "Reset the Whitelist / Blacklist"
+
+#. TRANSLATORS: {0} is the file name of a process
+#: src/tabs/monitor.cpp:2047
+msgid "Patterns matching {0}:"
+msgstr "Patterns matchin' {0}:"
+
+#: src/tabs/monitor.cpp:2051
+msgid "Whitelist:"
+msgstr "Friends (whitelist):"
+
+#: src/tabs/monitor.cpp:2052
+msgid "Blacklist:"
+msgstr "Foes (blacklist):"
+
+#: src/tabs/monitor.cpp:2056
+msgid "No whitelist or blacklist patterns of yours match this process."
+msgstr "None o' yer whitelist or blacklist patterns match this process."
+
+#: src/tabs/monitor.cpp:2068
+msgid "The process is also whitelisted by the built-in pattern \"{0}\", which cannot be removed."
+msgstr "The process be also whitelisted by the built-in pattern \"{0}\", which can't be removed."
+
+#: src/tabs/monitor.cpp:2069
+msgid "The process is also blacklisted by the built-in pattern \"{0}\", which cannot be removed."
+msgstr "The process be also blacklisted by the built-in pattern \"{0}\", which can't be removed."
+
+#: src/tabs/monitor.cpp:2076
+msgid "Removing a pattern affects every application it matches, not just this one. Do you want to remove the patterns listed above?"
+msgstr "Removin' a pattern affects every app it matches, not just this one. Do ye want to remove the patterns listed above?"
+
+#: src/tabs/monitor.cpp:2083
+msgid "The changes could not be saved!"
+msgstr "The changes couldn't be stowed!"
+
+#: src/tabs/monitor.cpp:2089
+#: src/tabs/monitor.cpp:2097
+#: src/tabs/library/library_list.cpp:265
+#: src/tabs/library/library_menus.cpp:1075
+#: src/tabs/library/library_menus.cpp:1197
+#: src/tabs/library/library_properties.cpp:650
+msgid "Remove"
+msgstr "Throw overboard"
+
+#: src/tabs/settings.cpp:45
+msgid "Toggle Display HDR"
+msgstr "Toggle the Display's HDR"
+
+#: src/tabs/settings.cpp:118
+msgid "Low bandwidth mode"
+msgstr "Light cargo mode"
+
+#: src/tabs/settings.cpp:124
+msgid ""
+"For new games/covers, low resolution images will be preferred over high-resolution ones.\n"
+"This only affects new downloads of covers. It does not affect already downloaded covers.\n"
+"This will also disable automatic downloads of new updates to Special K."
+msgstr ""
+"Fer new games an' covers, low resolution images will be favored over high resolution ones.\n"
+"This only affects new downloads o' covers, not covers already in the hold.\n"
+"This will also scuttle automatic downloads o' new refits fer Special K."
+
+#: src/tabs/settings.cpp:128
+msgid "Minimize when launching a game"
+msgstr "Drop below deck when launchin' a game"
+
+#: src/tabs/settings.cpp:131
+msgid "Restore after closing a game"
+msgstr "Come back up after closin' a game"
+
+#: src/tabs/settings.cpp:136
+msgid "Requires Special K injected to work as intended."
+msgstr "Needs Special K aboard to work as intended."
+
+#: src/tabs/settings.cpp:144
+msgid "Close to the notification area"
+msgstr "Slip away to the notification area"
+
+#: src/tabs/settings.cpp:153
+msgid "Requires 'Allow multiple instances of this app' to be disabled."
+msgstr "Needs 'Allow multiple instances of this app' to be scuttled."
+
+#: src/tabs/settings.cpp:159
+msgid "Controller support"
+msgstr "Ship's wheel support (controllers)"
+
+#. TRANSLATORS: {0} and {1} are the Xbox and PlayStation logos
+#: src/tabs/settings.cpp:178
+msgid "Allows the UI to be controlled using {0} or {1} controllers, and adds special features while SKIF is running."
+msgstr "Lets ye steer the UI with {0} or {1} controllers, an' adds special features while SKIF be runnin'."
+
+#: src/tabs/settings.cpp:186
+msgid "Config"
+msgstr "Config"
+
+#: src/tabs/settings.cpp:197
+msgid "General Controller Settings"
+msgstr "General Ship's Wheel Settings"
+
+#. TRANSLATORS: {0} are the Xbox and PlayStation logos; the label is followed by "+ <button>", the button to press with them
+#: src/tabs/settings.cpp:202
+msgid "Activate Screen Saver Using {0}"
+msgstr "Lower the Screen Saver Usin' {0}"
+
+#. TRANSLATORS: {0} is the logo of one or more controllers (Xbox, PlayStation)
+#: src/tabs/settings.cpp:226
+#: src/tabs/settings.cpp:387
+msgid "The controller binding is configurable by clicking the text after {0}"
+msgstr "The controller bindin' can be changed by clickin' the text after {0}"
+
+#: src/tabs/settings.cpp:247
+#: src/tabs/settings.cpp:258
+msgctxt "gamepad button"
+msgid "A / Cross"
+msgstr "A / Cross"
+
+#: src/tabs/settings.cpp:249
+#: src/tabs/settings.cpp:410
+msgctxt "gamepad button"
+msgid "Up"
+msgstr "Up"
+
+#: src/tabs/settings.cpp:250
+#: src/tabs/settings.cpp:411
+msgctxt "gamepad button"
+msgid "Down"
+msgstr "Down"
+
+#: src/tabs/settings.cpp:251
+#: src/tabs/settings.cpp:412
+msgctxt "gamepad button"
+msgid "Left"
+msgstr "Left"
+
+#: src/tabs/settings.cpp:252
+#: src/tabs/settings.cpp:413
+msgctxt "gamepad button"
+msgid "Right"
+msgstr "Right"
+
+#: src/tabs/settings.cpp:254
+#: src/tabs/settings.cpp:415
+msgctxt "gamepad button"
+msgid "Start"
+msgstr "Start"
+
+#: src/tabs/settings.cpp:255
+msgctxt "gamepad button"
+msgid "Back / Select"
+msgstr "Back / Select"
+
+#: src/tabs/settings.cpp:257
+msgctxt "gamepad button"
+msgid "Y / Triangle"
+msgstr "Y / Triangle"
+
+#: src/tabs/settings.cpp:259
+msgctxt "gamepad button"
+msgid "X / Square"
+msgstr "X / Square"
+
+#: src/tabs/settings.cpp:260
+msgctxt "gamepad button"
+msgid "B / Circle"
+msgstr "B / Circle"
+
+#: src/tabs/settings.cpp:342
+msgid "Gamepad Input Deactivates Screen Saver"
+msgstr "Gamepad Input Raises the Screen Saver"
+
+#. TRANSLATORS: {0} is the Xbox logo (the Xbox button)
+#: src/tabs/settings.cpp:352
+msgid "Pressing {0} on Xbox controllers always deactivates."
+msgstr "Pressin' {0} on Xbox controllers always raises it."
+
+#: src/tabs/settings.cpp:357
+msgid "PlayStation Power Management"
+msgstr "PlayStation Powder Management"
+
+#. TRANSLATORS: {0} is the PlayStation logo; the label is followed by "+ <button>", the button to press with it
+#: src/tabs/settings.cpp:363
+msgid "Power Off Controllers Using {0}"
+msgstr "Power Off Controllers Usin' {0}"
+
+#: src/tabs/settings.cpp:408
+#: src/tabs/settings.cpp:418
+msgctxt "gamepad button"
+msgid "Triangle"
+msgstr "Triangle"
+
+#: src/tabs/settings.cpp:416
+msgctxt "gamepad button"
+msgid "Select"
+msgstr "Select"
+
+#: src/tabs/settings.cpp:419
+msgctxt "gamepad button"
+msgid "Cross"
+msgstr "Cross"
+
+#: src/tabs/settings.cpp:420
+msgctxt "gamepad button"
+msgid "Square"
+msgstr "Square"
+
+#: src/tabs/settings.cpp:421
+msgctxt "gamepad button"
+msgid "Circle"
+msgstr "Circle"
+
+#: src/tabs/settings.cpp:506
+msgid "Never Power Off"
+msgstr "Never Douse the Lanterns"
+
+#. TRANSLATORS: {0} is a number of minutes
+#: src/tabs/settings.cpp:508
+msgid "Power Off After {0} Minutes"
+msgstr "Douse the Lanterns After {0} Minutes"
+
+#: src/tabs/settings.cpp:510
+msgid "Idle Behavior"
+msgstr "Becalmed Behavior"
+
+#: src/tabs/settings.cpp:522
+msgid "This only applies when this app is running and no game is actively using Special K."
+msgstr "This only applies when this app be runnin' an' no game be usin' Special K."
+
+#: src/tabs/settings.cpp:528
+msgid "Third-Party Setup\tXInput Assignment: "
+msgstr "Third-Party Setup\tXInput Assignment: "
+
+#. TRANSLATORS: {0} is the Steam logo (as in "Steam Input")
+#: src/tabs/settings.cpp:556
+msgid "Disable {0} Input (will restart Steam)"
+msgstr "Scuttle {0} Input (will restart Steam)"
+
+#: src/tabs/settings.cpp:584
+msgid "Restarting Steam..."
+msgstr "Restartin' Steam..."
+
+#. TRANSLATORS: {0} is the Steam logo (as in "Steam Input")
+#: src/tabs/settings.cpp:593
+msgid "Install {0} Input Kill Switch"
+msgstr "Install the {0} Input Kill Switch"
+
+#: src/tabs/settings.cpp:599
+msgid ""
+"Allows Steam Input to be Fully Disabled or Enabled.\n"
+"\n"
+" * Steam Input usually does stuff whether or not it is enabled per-game.\n"
+" * No registry settings need to be set if you use this config menu."
+msgstr ""
+"Lets Steam Input be fully scuttled or raised.\n"
+"\n"
+" * Steam Input usually meddles whether or not it be enabled per game.\n"
+" * No registry settings need be set if ye use this config menu."
+
+#: src/tabs/settings.cpp:626
+msgid ""
+"This determines how long the service will remain running when launching a game.\n"
+"Move the mouse over each option to get more information."
+msgstr ""
+"This decides how long the service stays under sail when launchin' a game.\n"
+"Hover the mouse over each option to learn more."
+
+#: src/tabs/settings.cpp:631
+msgid "Auto-stop behavior when launching a game:"
+msgstr "Auto-strike behavior when launchin' a game:"
+
+#: src/tabs/settings.cpp:639
+msgid "Stop on injection"
+msgstr "Strike once boarded"
+
+#: src/tabs/settings.cpp:642
+msgid "The service will be stopped when Special K successfully injects into a game."
+msgstr "The service will be struck when Special K successfully boards a game."
+
+#: src/tabs/settings.cpp:644
+#: src/tabs/settings.cpp:645
+msgid "Stop on game exit"
+msgstr "Strike when the game exits"
+
+#: src/tabs/settings.cpp:648
+msgid "The service will be stopped when Special K detects that the game is being closed."
+msgstr "The service will be struck when Special K sees the game bein' closed."
+
+#: src/tabs/settings.cpp:655
+msgid "This setting has no effect if low bandwidth mode is enabled."
+msgstr "This settin' does nothin' if low bandwidth mode be enabled."
+
+#: src/tabs/settings.cpp:659
+msgid "Check for updates:"
+msgstr "Scan fer updates:"
+
+#: src/tabs/settings.cpp:667
+#: src/tabs/settings.cpp:788
+#: src/tabs/settings.cpp:1243
+#: src/tabs/settings.cpp:1265
+#: src/tabs/library/library_properties.cpp:183
+#: src/tabs/library/library_properties.cpp:407
+#: src/tabs/library/library_properties.cpp:409
+#: src/tabs/library/library_properties.cpp:410
+#: src/tabs/library/library_properties.cpp:483
+#: src/tabs/library/library_properties.cpp:1456
+#: src/tabs/library/library_properties.cpp:1592
+#: src/tabs/library/library_properties.cpp:1593
+msgid "Never"
+msgstr "Never, on me oath"
+
+#: src/tabs/settings.cpp:669
+#: src/tabs/settings.cpp:670
+msgid "Weekly"
+msgstr "Every week"
+
+#: src/tabs/settings.cpp:672
+#: src/tabs/settings.cpp:673
+msgid "On each launch"
+msgstr "On every launch"
+
+#: src/tabs/settings.cpp:764
+msgid "Roll back to the previous version"
+msgstr "Sail back to the previous version"
+
+#: src/tabs/settings.cpp:782
+msgid "This provides contextual notifications in Windows when the service starts or stops."
+msgstr "This gives ye notifications in Windows when the service hoists or strikes."
+
+#: src/tabs/settings.cpp:786
+msgid "Show injection service desktop notifications:"
+msgstr "Show desktop notifications from the boardin' service:"
+
+#: src/tabs/settings.cpp:790
+#: src/tabs/settings.cpp:791
+#: src/tabs/settings.cpp:1245
+#: src/tabs/settings.cpp:1246
+#: src/tabs/settings.cpp:1267
+#: src/tabs/settings.cpp:1268
+#: src/tabs/library/library_properties.cpp:183
+#: src/tabs/library/library_properties.cpp:407
+#: src/tabs/library/library_properties.cpp:412
+#: src/tabs/library/library_properties.cpp:413
+#: src/tabs/library/library_properties.cpp:1456
+#: src/tabs/library/library_properties.cpp:1594
+#: src/tabs/library/library_properties.cpp:1595
+msgid "Always"
+msgstr "Always, by thunder"
+
+#: src/tabs/settings.cpp:793
+#: src/tabs/settings.cpp:794
+msgid "When unfocused"
+msgstr "When out o' focus"
+
+#: src/tabs/settings.cpp:813
+#: src/tabs/library/library_properties.cpp:224
+msgid "Library"
+msgstr "Treasure Hold"
+
+#: src/tabs/settings.cpp:832
+msgid "Ignore articles when sorting"
+msgstr "Ignore articles when sortin'"
+
+#: src/tabs/settings.cpp:840
+msgid "Ignore articles like 'THE', 'A', and 'AN' when sorting games."
+msgstr "Ignore articles like 'THE', 'A', an' 'AN' when sortin' games."
+
+#: src/tabs/settings.cpp:842
+msgid "Remember the last selected game"
+msgstr "Remember the last game ye picked"
+
+#: src/tabs/settings.cpp:845
+msgid "Remember category collapsible state"
+msgstr "Remember whether categories be furled"
+
+#: src/tabs/settings.cpp:852
+msgid "Prefer covers from PCGamingWiki for these platforms:"
+msgstr "Favor covers from PCGamingWiki fer these platforms:"
+
+#: src/tabs/settings.cpp:880
+msgid "Prefer covers from IGDB for these platforms:"
+msgstr "Favor covers from IGDB fer these platforms:"
+
+#: src/tabs/settings.cpp:884
+msgid ""
+"Games are looked up on IGDB by their store ID where possible, otherwise by their exact name.\n"
+"A cover from PCGamingWiki takes precedence over one from IGDB, as those are typically of\n"
+"a higher resolution. EA, itch.io, Ubisoft and custom games always use IGDB covers, as those\n"
+"platforms have no suitable covers of their own."
+msgstr ""
+"Games be looked up on IGDB by their store ID where possible, otherwise by their exact name.\n"
+"A cover from PCGamingWiki wins over one from IGDB, as those be usually\n"
+"higher resolution. EA, itch.io, Ubisoft an' custom games always use IGDB covers, as those\n"
+"platforms have no fittin' covers o' their own."
+
+#: src/tabs/settings.cpp:935
+msgid "Include games from these platforms:"
+msgstr "Take aboard games from these platforms:"
+
+#: src/tabs/settings.cpp:998
+msgid "Custom"
+msgstr "Custom"
+
+#: src/tabs/settings.cpp:1011
+#: src/tabs/library/library_properties.cpp:417
+msgid ""
+"Warning: This skips the regular platform launch process for the game,\n"
+"including steps like the cloud saves synchronization that usually occurs."
+msgstr ""
+"Warnin': This skips the platform's regular launch routine fer the game,\n"
+"includin' steps like the cloud saves synchronization that usually happens."
+
+#: src/tabs/settings.cpp:1016
+msgid "Prefer Instant Play for these platforms:"
+msgstr "Favor Instant Play fer these platforms:"
+
+#: src/tabs/settings.cpp:1082
+msgid "Appearance"
+msgstr "Lookin' Shipshape"
+
+#: src/tabs/settings.cpp:1139
+msgid "Translations are contributed by the community. Text that has not been translated yet is shown in English."
+msgstr "Translations be brought aboard by the community. Text that ain't been translated yet be shown in English (the landlubber kind)."
+
+#: src/tabs/settings.cpp:1143
+msgid "Language:"
+msgstr "Tongue:"
+
+#. TRANSLATORS: {0} is the name of the language that Windows uses (or English, if there is no translation for it)
+#: src/tabs/settings.cpp:1148
+msgid "Same as Windows ({0})"
+msgstr "Same as Windows ({0}), matey"
+
+#: src/tabs/settings.cpp:1202
+msgid "Dynamic"
+msgstr "Shiftin' Tides"
+
+#: src/tabs/settings.cpp:1203
+msgid "SKIF Dark"
+msgstr "SKIF Dark"
+
+#: src/tabs/settings.cpp:1204
+msgid "SKIF Light"
+msgstr "SKIF Light"
+
+#: src/tabs/settings.cpp:1205
+msgid "ImGui Classic"
+msgstr "ImGui Classic"
+
+#: src/tabs/settings.cpp:1206
+msgid "ImGui Dark"
+msgstr "ImGui Dark"
+
+#: src/tabs/settings.cpp:1214
+msgid "Color theme:"
+msgstr "Colors o' the flag:"
+
+#: src/tabs/settings.cpp:1237
+msgid "Useful if you find bright white covers an annoyance."
+msgstr "Handy if bright white covers make ye squint."
+
+#: src/tabs/settings.cpp:1241
+msgid "Dim game covers by 25%:"
+msgstr "Dim the game covers by 25%:"
+
+#: src/tabs/settings.cpp:1248
+#: src/tabs/settings.cpp:1249
+msgid "Based on mouse cursor"
+msgstr "Wherever the mouse cursor be"
+
+#: src/tabs/settings.cpp:1256
+msgid "Every time the UI renders a frame, Shelly the Ghost moves a little bit."
+msgstr "Every time the UI draws a frame, Shelly the Ghost drifts a wee bit."
+
+#: src/tabs/settings.cpp:1260
+msgid "Show Shelly the Ghost:"
+msgstr "Show Shelly the Ghost o' the Seas:"
+
+#: src/tabs/settings.cpp:1263
+msgid ""
+"A critical rendering optimization will not function properly when Shelly is visibly moving.\n"
+"It is therefor recommended to leave Shelly hidden in favor of a reduced GPU usage."
+msgstr ""
+"A crucial renderin' trick won't work proper while Shelly be visibly driftin'.\n"
+"So ye'd best leave Shelly hidden in favor o' less GPU usage."
+
+#: src/tabs/settings.cpp:1270
+#: src/tabs/settings.cpp:1271
+msgid "While service is running"
+msgstr "While the service be under sail"
+
+#: src/tabs/settings.cpp:1278
+msgid "Move the mouse over each option to get more information."
+msgstr "Hover the mouse over each option to learn more."
+
+#: src/tabs/settings.cpp:1282
+msgid "UI elements:"
+msgstr "UI trimmings:"
+
+#: src/tabs/settings.cpp:1287
+msgid "Borders"
+msgstr "Gunwales (borders)"
+
+#: src/tabs/settings.cpp:1296
+msgid "Use borders around UI elements."
+msgstr "Use borders around UI trimmings."
+
+#: src/tabs/settings.cpp:1298
+msgid "Tooltips"
+msgstr "Whispers (tooltips)"
+
+#: src/tabs/settings.cpp:1307
+#: src/utility/skif_imgui.cpp:633
+msgid "Info: "
+msgstr "Scuttlebutt: "
+
+#: src/tabs/settings.cpp:1309
+msgid "This is instead where additional information will be displayed."
+msgstr "This be where extra scuttlebutt will be shown instead."
+
+#: src/tabs/settings.cpp:1310
+msgid ""
+"If tooltips are disabled the status bar will be used for additional information.\n"
+"Note that some links cannot be previewed as a result."
+msgstr ""
+"If tooltips be scuttled, the status bar will be used fer extra scuttlebutt.\n"
+"Mind ye, some links can't be previewed as a result."
+
+#: src/tabs/settings.cpp:1313
+msgid "Status bar"
+msgstr "Ship's bell (status bar)"
+
+#: src/tabs/settings.cpp:1321
+msgid "Disabling the status bar as well as tooltips will hide all additional information or tips."
+msgstr "Scuttlin' the status bar as well as the tooltips will hide all extra scuttlebutt an' tips."
+
+#: src/tabs/settings.cpp:1327
+#: src/tabs/settings.cpp:1353
+msgid "Fade covers"
+msgstr "Fade covers like fog"
+
+#: src/tabs/settings.cpp:1328
+#: src/tabs/settings.cpp:1364
+msgid "Win11 corners"
+msgstr "Win11 corners"
+
+#: src/tabs/settings.cpp:1351
+msgid "Use larger game icons in the library tab."
+msgstr "Use bigger game icons in the Treasure Hold tab."
+
+#: src/tabs/settings.cpp:1360
+msgid "Fade between game covers when switching games."
+msgstr "Fade between game covers when switchin' games."
+
+#: src/tabs/settings.cpp:1372
+msgid "Use rounded window corners."
+msgstr "Use rounded porthole corners."
+
+#: src/tabs/settings.cpp:1378
+#: src/tabs/settings.cpp:1387
+msgid "Touch input"
+msgstr "Finger pokin' (touch input)"
+
+#: src/tabs/settings.cpp:1379
+#: src/tabs/settings.cpp:1398
+msgid "HiDPI scaling"
+msgstr "HiDPI scalin'"
+
+#: src/tabs/settings.cpp:1396
+msgid "Make the UI easier to use on touch input capable devices automatically."
+msgstr "Make the UI easier to use on devices with touch input, all on its own."
+
+#: src/tabs/settings.cpp:1405
+msgid "Disabling HiDPI scaling will make the application appear smaller on HiDPI displays."
+msgstr "Scuttlin' HiDPI scalin' will make the app look smaller on HiDPI displays."
+
+#: src/tabs/settings.cpp:1422
+msgid "Context based information and tips will not appear!"
+msgstr "Handy scuttlebutt an' tips won't show up!"
+
+#: src/tabs/settings.cpp:1425
+msgid "Restore context based information and tips by enabling tooltips or the status bar."
+msgstr "Bring back the handy scuttlebutt an' tips by enablin' tooltips or the status bar."
+
+#: src/tabs/settings.cpp:1441
+msgid "Move the mouse over each option to get more information"
+msgstr "Hover the mouse over each option to learn more"
+
+#: src/tabs/settings.cpp:1444
+msgid "UI mode:"
+msgstr "Sailin' mode:"
+
+#: src/tabs/settings.cpp:1450
+msgid "VRR Compatibility"
+msgstr "VRR Compatibility"
+
+#: src/tabs/settings.cpp:1455
+msgid "Avoids signal loss and flickering on VRR displays."
+msgstr "Keeps VRR displays from losin' signal an' flickerin'."
+
+#: src/tabs/settings.cpp:1456
+#: src/tabs/settings.cpp:1458
+msgid "Normal"
+msgstr "Steady"
+
+#: src/tabs/settings.cpp:1463
+msgid "Improves UI response on low fixed-refresh rate displays."
+msgstr "Makes the UI more responsive on low fixed-refresh rate displays."
+
+#: src/tabs/settings.cpp:1464
+#: src/tabs/settings.cpp:1465
+msgid "Safe Mode"
+msgstr "Safe Harbor"
+
+#: src/tabs/settings.cpp:1470
+msgid "Compatibility mode for users experiencing issues with the other two modes."
+msgstr "Compatibility mode fer sailors havin' trouble with the other two modes."
+
+#: src/tabs/settings.cpp:1476
+msgid "Increases the color depth of the app."
+msgstr "Deepens the color depth o' the app."
+
+#: src/tabs/settings.cpp:1480
+msgid "Color depth:"
+msgstr "Depth o' the colors:"
+
+#: src/tabs/settings.cpp:1527
+msgid "Linear font alpha blending"
+msgstr "Linear font alpha blendin'"
+
+#: src/tabs/settings.cpp:1530
+msgid ""
+"Disables the correction that makes text blend\n"
+"like they do in 8 bpc and 10 bpc modes."
+msgstr ""
+"Scuttles the correction that makes text blend\n"
+"like it does in 8 bpc an' 10 bpc modes."
+
+#: src/tabs/settings.cpp:1540
+msgid "Makes the app pop more on HDR displays."
+msgstr "Makes the app shine like doubloons on HDR displays."
+
+#: src/tabs/settings.cpp:1544
+msgid "High dynamic range (HDR):"
+msgstr "High dynamic range (HDR):"
+
+#: src/tabs/settings.cpp:1550
+msgid "HDR support is disabled while the UI is in Safe Mode."
+msgstr "HDR support be scuttled while the UI be in Safe Harbor."
+
+#. TRANSLATORS: {0} is the brightness in nits (cd/m2)
+#: src/tabs/settings.cpp:1584
+msgid "{0} nits"
+msgstr "{0} nits"
+
+#: src/tabs/settings.cpp:1586
+msgid "HDR brightness"
+msgstr "HDR brightness (fer the lighthouse)"
+
+#: src/tabs/settings.cpp:1605
+msgid "Your display(s) supports HDR, but does not use it."
+msgstr "Yer display(s) support HDR, but don't use it."
+
+#. TRANSLATORS: {0} is the keyboard shortcut (Ctrl + Windows logo + Shift + H), {1} is a mouse cursor icon
+#: src/tabs/settings.cpp:1620
+msgid "Use {0} to toggle HDR where the {1} is."
+msgstr "Use {0} to toggle HDR where the {1} be."
+
+#: src/tabs/settings.cpp:1656
+msgid "Keybindings"
+msgstr "Knots an' Bindings"
+
+#: src/tabs/settings.cpp:1699
+msgid "Keybindings (In-Game)"
+msgstr "Knots an' Bindings (In-Game)"
+
+#: src/tabs/settings.cpp:1760
+msgid "Launch a game with Special K at least once to populate this section."
+msgstr "Launch a game with Special K at least once to fill up this section."
+
+#: src/tabs/settings.cpp:1771
+msgid "Advanced"
+msgstr "Fer Old Salts"
+
+#: src/tabs/settings.cpp:1790
+msgid "Automatically install new updates"
+msgstr "Install new refits on their own"
+
+#. TRANSLATORS: {0} is a mouse cursor icon
+#: src/tabs/settings.cpp:1794
+msgid "Open this app on the same monitor as the {0}"
+msgstr "Open this app on the same monitor as the {0}"
+
+#: src/tabs/settings.cpp:1797
+msgid "Open this app in the mini service mode view"
+msgstr "Open this app as the wee dinghy (mini service mode)"
+
+#: src/tabs/settings.cpp:1816
+msgid "Do not stop the injection service on exit"
+msgstr "Don't strike the boardin' service when leavin'"
+
+#: src/tabs/settings.cpp:1820
+msgid "This allows the injection service to remain running even after this app has been closed."
+msgstr "This lets the boardin' service stay under sail even after this app be closed."
+
+#: src/tabs/settings.cpp:1822
+msgid "Use hardware acceleration"
+msgstr "Put wind in the sails (hardware acceleration)"
+
+#: src/tabs/settings.cpp:1834
+msgid "The app will be less responsive if disabled on hybrid CPUs."
+msgstr "The app will be less nimble if this be scuttled on hybrid CPUs."
+
+#: src/tabs/settings.cpp:1839
+msgid "The app may be less responsive if disabled."
+msgstr "The app may be less nimble if this be scuttled."
+
+#: src/tabs/settings.cpp:1842
+msgid "Use system proxy settings"
+msgstr "Use the system's proxy settings"
+
+#: src/tabs/settings.cpp:1845
+msgid ""
+"Downloads go through the proxy configured in Windows.\n"
+"Automatic proxy detection and setup scripts are not used.\n"
+"If disabled, the app always connects directly."
+msgstr ""
+"Downloads go through the proxy set up in Windows.\n"
+"Automatic proxy detection an' setup scripts be not used.\n"
+"If scuttled, the app always sails straight to its destination."
+
+#: src/tabs/settings.cpp:1856
+msgid "Allow multiple instances of this app"
+msgstr "Allow more than one o' this app at once"
+
+#: src/tabs/settings.cpp:1891
+msgid "Requires 'Close to the notification area' to be disabled."
+msgstr "Needs 'Close to the notification area' to be scuttled."
+
+#: src/tabs/settings.cpp:1914
+#: src/tabs/library/library_menus.cpp:56
+#: src/utility/skif_imgui.cpp:1915
+msgid "Troubleshooting:"
+msgstr "Patchin' the hull:"
+
+#: src/tabs/settings.cpp:1918
+msgctxt "log level"
+msgid "None"
+msgstr "None at all"
+
+#: src/tabs/settings.cpp:1919
+msgctxt "log level"
+msgid "Fatal"
+msgstr "Fatal"
+
+#: src/tabs/settings.cpp:1920
+msgctxt "log level"
+msgid "Error"
+msgstr "Blunder"
+
+#: src/tabs/settings.cpp:1921
+msgctxt "log level"
+msgid "Warning"
+msgstr "Warnin'"
+
+#: src/tabs/settings.cpp:1922
+msgctxt "log level"
+msgid "Info"
+msgstr "Info"
+
+#: src/tabs/settings.cpp:1923
+msgctxt "log level"
+msgid "Debug"
+msgstr "Debug"
+
+#: src/tabs/settings.cpp:1924
+msgctxt "log level"
+msgid "Verbose"
+msgstr "Long-winded"
+
+#: src/tabs/settings.cpp:1927
+msgid "Log level"
+msgstr "Ship's log level"
+
+#: src/tabs/settings.cpp:1956
+msgid "Enable excessive development logging"
+msgstr "Enable excessive development loggin'"
+
+#: src/tabs/settings.cpp:1966
+msgid "Only intended for SKIF developers as this enables excessive logging (e.g. window messages)."
+msgstr "Only meant fer SKIF developers, as this enables excessive loggin' (e.g. window messages)."
+
+#: src/tabs/settings.cpp:1970
+msgctxt "diagnostics"
+msgid "None"
+msgstr "None at all"
+
+#: src/tabs/settings.cpp:1971
+msgctxt "diagnostics"
+msgid "Normal"
+msgstr "Normal"
+
+#: src/tabs/settings.cpp:1972
+msgctxt "diagnostics"
+msgid "Enhanced"
+msgstr "Spyglass-sharp"
+
+#: src/tabs/settings.cpp:1975
+msgid "Diagnostics"
+msgstr "Ship's surgeon (diagnostics)"
+
+#: src/tabs/settings.cpp:1999
+msgid ""
+"Help improve Special K by allowing anonymized diagnostics to be sent.\n"
+"The data is used to identify issues, highlight common use cases, and\n"
+"facilitates the continued development of the application."
+msgstr ""
+"Help improve Special K by lettin' anonymized diagnostics be sent.\n"
+"The data be used to spot troubles, see what the crew uses most, an'\n"
+"keep the app's development under way."
+
+#: src/tabs/settings.cpp:2011
+msgid "Developer mode"
+msgstr "Shipwright mode"
+
+#: src/tabs/settings.cpp:2020
+msgid "Exposes additional information and context menu items that may be of interest for developers."
+msgstr "Shows extra information an' context menu items that may be of interest to developers."
+
+#: src/tabs/settings.cpp:2022
+#: src/tabs/settings.cpp:2024
+msgid "Efficiency mode"
+msgstr "Ration the grog (efficiency mode)"
+
+#: src/tabs/settings.cpp:2027
+msgid ""
+"Engage efficiency mode for this app when idle.\n"
+"Not recommended for Windows 10 and earlier."
+msgstr ""
+"Drop anchor in efficiency mode fer this app when idle.\n"
+"Not recommended fer Windows 10 an' earlier."
+
+#: src/tabs/settings.cpp:2032
+msgid "Nvidia users: Use the below button to prevent GeForce Experience from mistaking this app for a game."
+msgstr "Nvidia users: Use the button below to keep GeForce Experience from mistakin' this app fer a game."
+
+#: src/tabs/settings.cpp:2042
+msgid "Disable GFE notifications"
+msgstr "Scuttle GFE notifications"
+
+#: src/tabs/settings.cpp:2092
+msgid ""
+"This only needs to be used if GeForce Experience notifications\n"
+"appear on the screen whenever this app is being used."
+msgstr ""
+"This only needs usin' if GeForce Experience notifications\n"
+"show up on the screen whenever this app be in use."
+
+#: src/tabs/settings.cpp:2111
+msgid "Whitelist / Blacklist"
+msgstr "Friends an' Foes (Whitelist / Blacklist)"
+
+#. TRANSLATORS: {0} is a double quote character
+#: src/tabs/settings.cpp:2151
+msgid "Please remove all double quotes {0} from the list."
+msgstr "Remove all double quotes {0} from the list, if ye please."
+
+#. TRANSLATORS: {0} is two backslashes, {1} is one backslash
+#: src/tabs/settings.cpp:2166
+msgid "Folders must be separated using two backslashes {0} instead of one {1} backslash."
+msgstr "Folders must be separated usin' two backslashes {0} instead o' one {1} backslash."
+
+#. TRANSLATORS: {0} is the maximum number of lines (512), {1} is the pipe character
+#: src/tabs/settings.cpp:2184
+msgid "The list can only include {0} lines, though multiple can be combined using a pipe {1} character."
+msgstr "The list can only hold {0} lines, though several can be lashed together usin' a pipe {1} character."
+
+#: src/tabs/settings.cpp:2188
+msgid ""
+"(e.g. \"NieRAutomataPC|Epic Games\" will match any application\n"
+"installed under a NieRAutomataPC or Epic Games folder.)"
+msgstr ""
+"(e.g. \"NieRAutomataPC|Epic Games\" will match any app\n"
+"installed under a NieRAutomataPC or Epic Games folder.)"
+
+#: src/tabs/settings.cpp:2197
+msgid "The following lists manage Special K in processes as patterns are matched against the full path of the injected process."
+msgstr "The lists below manage Special K in processes, as the patterns be matched against the full path o' the boarded process."
+
+#: src/tabs/settings.cpp:2205
+msgid "Easiest is to use the name of the executable or folder of the game."
+msgstr "Easiest be to use the name o' the game's executable or folder."
+
+#: src/tabs/settings.cpp:2209
+msgid ""
+"e.g. a pattern like \"Assassin's Creed Valhalla\" will match an application at\n"
+"C:\\Games\\Uplay\\games\\Assassin's Creed Valhalla\\ACValhalla.exe"
+msgstr ""
+"e.g. a pattern like \"Assassin's Creed Valhalla\" will match an app at\n"
+"C:\\Games\\Uplay\\games\\Assassin's Creed Valhalla\\ACValhalla.exe"
+
+#: src/tabs/settings.cpp:2215
+msgid "Typing the name of a shared parent folder will match all applications below that folder."
+msgstr "Typin' the name o' a shared parent folder will match all apps below that folder."
+
+#: src/tabs/settings.cpp:2219
+msgid ""
+"e.g. a pattern like \"Epic Games\" will match any\n"
+"application installed under the Epic Games folder."
+msgstr ""
+"e.g. a pattern like \"Epic Games\" will match any\n"
+"app installed under the Epic Games folder."
+
+#: src/tabs/settings.cpp:2228
+msgid "Note that these lists do not prevent Special K from being injected into processes."
+msgstr "Mind ye, these lists don't keep Special K from boardin' processes."
+
+#: src/tabs/settings.cpp:2234
+msgid ""
+"These lists control whether Special K should be enabled (the whitelist) to hook APIs etc,\n"
+"or remain disabled/idle/inert (the blacklist) within the injected process."
+msgstr ""
+"These lists decide whether Special K should be enabled (the whitelist) to hook APIs an' such,\n"
+"or stay scuttled/idle/sleepin' (the blacklist) within the boarded process."
+
+#: src/tabs/settings.cpp:2241
+msgid ""
+"The injection service injects Special K into any process that deals\n"
+"with system input or some sort of window or kb/mouse input activity.\n"
+"\n"
+"These lists control whether Special K should be enabled (the whitelist),\n"
+"or remain idle/inert (the blacklist) within the injected process."
+msgstr ""
+"The boardin' service sends Special K aboard any process that deals\n"
+"with system input or some sort o' window or kb/mouse input activity.\n"
+"\n"
+"These lists decide whether Special K should be enabled (the whitelist),\n"
+"or stay idle/sleepin' (the blacklist) within the boarded process."
+
+#: src/tabs/settings.cpp:2260
+msgid "Whitelist Patterns:"
+msgstr "Friendly Flags (Whitelist Patterns):"
+
+#: src/tabs/settings.cpp:2277
+msgid ""
+"These are the patterns used internally to enable Special K for these specific platforms.\n"
+"They are presented here solely as examples of how a potential pattern might look like."
+msgstr ""
+"These be the patterns used internally to enable Special K fer these particular platforms.\n"
+"They be shown here only as examples o' what a pattern might look like."
+
+#: src/tabs/settings.cpp:2356
+msgid "Blacklist Patterns:"
+msgstr "Enemy Flags (Blacklist Patterns):"
+
+#: src/tabs/settings.cpp:2358
+msgid "(Does not prevent injection! Use this to exclude stuff from being whitelisted)"
+msgstr "(Don't keep Special K from boardin'! Use this to keep stuff off the whitelist)"
+
+#: src/tabs/settings.cpp:2389
+msgid "Save Changes"
+msgstr "Stow Yer Changes"
+
+#: src/tabs/settings.cpp:2440
+msgid "The whitelist could not be saved! Please remove any non-Latin characters and try again."
+msgstr "The whitelist couldn't be stowed! Remove any non-Latin characters an' try again, if ye please."
+
+#: src/tabs/settings.cpp:2446
+msgid "The blacklist could not be saved! Please remove any non-Latin characters and try again."
+msgstr "The blacklist couldn't be stowed! Remove any non-Latin characters an' try again, if ye please."
+
+#: src/tabs/library/library_cover.cpp:166
+msgid ""
+"Missing cover :(\n"
+"Right-click to set one manually\n"
+"\n"
+"You can drag and drop an image file or URL here"
+msgstr ""
+"The cover be lost at sea :(\n"
+"Right-click to set one by hand\n"
+"\n"
+"Ye can drag an' drop an image file or URL here"
+
+#: src/tabs/library/library_cover.cpp:169
+msgid ""
+"Please sign in to GOG Galaxy to\n"
+"allow the cover to be populated :)"
+msgstr ""
+"Sign in to GOG Galaxy, if ye please,\n"
+"so the cover can be fetched :)"
+
+#: src/tabs/library/library_cover.cpp:428
+msgid "Special Kudos to our Patrons:"
+msgstr "Special Kudos to our Patrons, the finest crew on the seven seas:"
+
+#: src/tabs/library/library_details.cpp:113
+msgid "Profile folder:"
+msgstr "Sea chest folder:"
+
+#: src/tabs/library/library_details.cpp:114
+msgid "Config file:"
+msgstr "Ship's articles file:"
+
+#: src/tabs/library/library_details.cpp:115
+msgid "Platform:"
+msgstr "Port o' origin:"
+
+#: src/tabs/library/library_details.cpp:202
+msgid "Update to v {0}"
+msgstr "Refit to v {0}"
+
+#: src/tabs/library/library_details.cpp:208
+msgid "Uninstall"
+msgstr "Throw overboard"
+
+#. TRANSLATORS: Not available
+#: src/tabs/library/library_details.cpp:298
+msgid "N/A"
+msgstr "N/A"
+
+#: src/tabs/library/library_details.cpp:436
+#: src/tabs/library/library_menus.cpp:1491
+msgid "Play"
+msgstr "Set Sail"
+
+#: src/tabs/library/library_details.cpp:444
+msgid "Install Mod"
+msgstr "Install the Mod"
+
+#: src/tabs/library/library_details.cpp:453
+msgid "Installing..."
+msgstr "Stowin'..."
+
+#: src/tabs/library/library_details.cpp:459
+msgid "Downloading..."
+msgstr "Haulin' it aboard..."
+
+#: src/tabs/library/library_details.cpp:496
+msgid "Running..."
+msgstr "Under sail..."
+
+#: src/tabs/library/library_details.cpp:497
+msgid "Updating..."
+msgstr "Refittin'..."
+
+#: src/tabs/library/library_details.cpp:677
+msgid "Please finish the ongoing mod installation first."
+msgstr "Finish the mod install already under way first, if ye please."
+
+#: src/tabs/library/library_details.cpp:695
+msgid "Warning: VAC protected game; injection is not recommended!"
+msgstr "Warnin': VAC-guarded game; boardin' be not recommended!"
+
+#. TRANSLATORS: A launch option in the "Disable Special K" menu; {0} is its name
+#: src/tabs/library/library_details.cpp:775
+msgid "for {0}"
+msgstr "fer {0}"
+
+#: src/tabs/library/library_details.cpp:783
+#: src/tabs/library/library_details.cpp:832
+#: src/tabs/library/library_details.cpp:878
+#: src/tabs/library/library_properties.cpp:1007
+msgid "Disable Special K"
+msgstr "Scuttle Special K"
+
+#: src/tabs/library/library_details.cpp:798
+#: src/tabs/library/library_properties.cpp:1012
+msgid "Special K is disabled through a blacklist pattern in the Settings tab."
+msgstr "Special K be scuttled by a blacklist pattern in the Ship's Articles tab."
+
+#: src/tabs/library/library_details.cpp:809
+#: src/tabs/library/library_properties.cpp:989
+#: src/utility/injection.cpp:1068
+msgid "Special K is unavailable due to missing files."
+msgstr "Special K can't be had, on account o' missin' files."
+
+#: src/tabs/library/library_details.cpp:811
+#: src/utility/injection.cpp:1070
+msgid "Please reinstall Special K using the latest available installer."
+msgstr "Reinstall Special K usin' the latest installer, if ye please."
+
+#. TRANSLATORS: Where the configuration of Special K is kept (one folder for all games)
+#: src/tabs/library/library_details.cpp:1422
+#: src/utility/injection.cpp:840
+msgid "Centralized"
+msgstr "One chest fer all"
+
+#: src/tabs/library/library_details.cpp:1424
+msgid "Localized"
+msgstr "A chest per game"
+
+#: src/tabs/library/library_details.cpp:1426
+msgid "Unknown"
+msgstr "Unknown waters"
+
+#: src/tabs/library/library_launch.cpp:45
+msgid "Missing executable"
+msgstr "Missin' executable"
+
+#: src/tabs/library/library_launch.cpp:45
+msgid "Could not launch game due to missing executable:"
+msgstr "Couldn't launch the game on account o' a missin' executable:"
+
+#: src/tabs/library/library_list.cpp:131
+msgid "Loading games..."
+msgstr "Haulin' the games aboard..."
+
+#: src/tabs/library/library_list.cpp:227
+#: src/tabs/library/library_menus.cpp:979
+msgctxt "category"
+msgid "Favorites"
+msgstr "Finest Booty"
+
+#. TRANSLATORS: The default category of the library
+#: src/tabs/library/library_list.cpp:228
+#: src/tabs/library/library_properties.cpp:242
+#: src/tabs/library/library_properties.cpp:244
+msgctxt "category"
+msgid "Games"
+msgstr "Games"
+
+#: src/tabs/library/library_list.cpp:257
+#: src/tabs/library/library_menus.cpp:1068
+msgid "Rename"
+msgstr "Rechristen"
+
+#: src/tabs/library/library_list.cpp:277
+msgid "Expand all"
+msgstr "Unfurl all"
+
+#: src/tabs/library/library_list.cpp:285
+msgid "Collapse all"
+msgstr "Furl all"
+
+#: src/tabs/library/library_list.cpp:293
+msgid "Remember collapsible state"
+msgstr "Remember whether it be furled"
+
+#: src/tabs/library/library_menus.cpp:237
+msgid "Apply Preset"
+msgstr "Apply a Preset"
+
+#: src/tabs/library/library_menus.cpp:311
+msgid "Create New"
+msgstr "Make a New One"
+
+#: src/tabs/library/library_menus.cpp:313
+msgid "Custom Preset..."
+msgstr "Yer Own Preset..."
+
+#: src/tabs/library/library_menus.cpp:372
+msgid "Apply Compatibility Config"
+msgstr "Apply the Compatibility Config"
+
+#: src/tabs/library/library_menus.cpp:391
+msgid ""
+"Known as the \"sledgehammer\" config within the community as it disables\n"
+"various features of Special K in an attempt to improve compatibility."
+msgstr ""
+"Known as the \"sledgehammer\" config among the crew, as it scuttles\n"
+"various features o' Special K to try to improve compatibility."
+
+#: src/tabs/library/library_menus.cpp:444
+#: src/tabs/library/library_menus.cpp:501
+msgid "Instant play"
+msgstr "Instant play"
+
+#: src/tabs/library/library_menus.cpp:471
+#: src/tabs/library/library_menus.cpp:599
+msgid ""
+"Skips the regular platform launch process for the game,\n"
+"including steps such as cloud saves synchronization."
+msgstr ""
+"Skips the platform's regular launch routine fer the game,\n"
+"includin' steps such as cloud saves synchronization."
+
+#: src/tabs/library/library_menus.cpp:483
+#: src/tabs/library/library_menus.cpp:609
+#: src/tabs/library/library_menus.cpp:1509
+msgid "without Special K"
+msgstr "without Special K aboard"
+
+#: src/tabs/library/library_menus.cpp:592
+msgid "Special K has been disabled for this launch configuration."
+msgstr "Special K has been scuttled fer this launch configuration."
+
+#: src/tabs/library/library_menus.cpp:685
+msgid "This option is not available due to a local injection being used."
+msgstr "This option can't be had, as a local boardin' be in use."
+
+#: src/tabs/library/library_menus.cpp:751
+#: src/tabs/library/library_menus.cpp:777
+msgid "Switch to game"
+msgstr "Swing over to the game"
+
+#: src/tabs/library/library_menus.cpp:763
+#: src/tabs/library/library_menus.cpp:789
+msgid "Terminate game"
+msgstr "Sink the game"
+
+#: src/tabs/library/library_menus.cpp:805
+msgid "Game folder"
+msgstr "Game's hold"
+
+#: src/tabs/library/library_menus.cpp:812
+msgid "Profile folder"
+msgstr "Sea chest folder"
+
+#: src/tabs/library/library_menus.cpp:828
+msgid "Screenshots"
+msgstr "Sketches o' the voyage (screenshots)"
+
+#: src/tabs/library/library_menus.cpp:840
+msgid "Configuration"
+msgstr "Ship's articles"
+
+#: src/tabs/library/library_menus.cpp:877
+msgid "Save/config folders"
+msgstr "Save/config chests"
+
+#: src/tabs/library/library_menus.cpp:931
+msgid "Manage"
+msgstr "Command"
+
+#: src/tabs/library/library_menus.cpp:935
+msgid "Properties"
+msgstr "Particulars"
+
+#: src/tabs/library/library_menus.cpp:940
+msgid "Favorite (pinned; max 5)"
+msgstr "Finest Booty (pinned; max 5)"
+
+#: src/tabs/library/library_menus.cpp:952
+#: src/tabs/library/library_menus.cpp:1652
+msgid "Favorite"
+msgstr "Mark as finest booty"
+
+#: src/tabs/library/library_menus.cpp:953
+#: src/tabs/library/library_menus.cpp:1653
+msgid "Unfavorite"
+msgstr "Unmark as finest booty"
+
+#: src/tabs/library/library_menus.cpp:972
+#: src/tabs/library/library_properties.cpp:234
+msgid "Category"
+msgstr "Fleet"
+
+#: src/tabs/library/library_menus.cpp:1108
+#: src/tabs/library/library_properties.cpp:270
+msgid "New category..."
+msgstr "New fleet..."
+
+#: src/tabs/library/library_menus.cpp:1154
+#: src/tabs/library/library_menus.cpp:1162
+msgid "Create desktop shortcut"
+msgstr "Carve a desktop shortcut"
+
+#: src/tabs/library/library_menus.cpp:1163
+msgid "A desktop shortcut has been created."
+msgstr "A desktop shortcut has been carved."
+
+#: src/tabs/library/library_menus.cpp:1164
+msgid "Failed to create a desktop shortcut!"
+msgstr "Failed to carve a desktop shortcut!"
+
+#: src/tabs/library/library_menus.cpp:1181
+msgid "Hide"
+msgstr "Stow away"
+
+#: src/tabs/library/library_menus.cpp:1182
+msgid "Unhide"
+msgstr "Bring out o' hidin'"
+
+#: src/tabs/library/library_menus.cpp:1216
+msgid "Developer"
+msgstr "Shipwright"
+
+#: src/tabs/library/library_menus.cpp:1455
+msgid "Copy ID"
+msgstr "Copy the ID"
+
+#: src/tabs/library/library_menus.cpp:1500
+msgid "Starts the injection service as well."
+msgstr "Hoists the boardin' service as well."
+
+#: src/tabs/library/library_menus.cpp:1518
+msgid "Stops the injection service as well."
+msgstr "Strikes the boardin' service as well."
+
+#: src/tabs/library/library_menus.cpp:1542
+msgid "Websites"
+msgstr "Ports o' call on the web"
+
+#: src/tabs/library/library_menus.cpp:1570
+msgid "Start service"
+msgstr "Hoist the service"
+
+#: src/tabs/library/library_menus.cpp:1573
+msgid "Start service (manual stop)"
+msgstr "Hoist the service (strike it by hand)"
+
+#: src/tabs/library/library_menus.cpp:1578
+msgid "Stop service"
+msgstr "Strike the service"
+
+#: src/tabs/library/library_menus.cpp:1592
+msgid "Profile folders"
+msgstr "Sea chest folders"
+
+#: src/tabs/library/library_menus.cpp:1710
+#: src/tabs/library/library_menus.cpp:1940
+msgid "Change"
+msgstr "Swap it out"
+
+#: src/tabs/library/library_menus.cpp:1714
+msgid "Images"
+msgstr "Paintings"
+
+#: src/tabs/library/library_menus.cpp:1737
+#: src/tabs/library/library_properties.cpp:804
+msgid "Clear"
+msgstr "Swab"
+
+#: src/tabs/library/library_menus.cpp:1762
+#: src/tabs/library/library_menus.cpp:2017
+msgid "Managed by the platform client."
+msgstr "Managed by the platform's client."
+
+#: src/tabs/library/library_menus.cpp:1804
+msgid "Scaling"
+msgstr "Scalin'"
+
+#: src/tabs/library/library_menus.cpp:1812
+msgctxt "cover scaling"
+msgid "Default"
+msgstr "Default"
+
+#: src/tabs/library/library_menus.cpp:1825
+msgid "Scales the cover to a maximum height of 600px"
+msgstr "Scales the cover to a height o' no more than 600px"
+
+#: src/tabs/library/library_menus.cpp:1827
+msgctxt "cover scaling"
+msgid "Fill"
+msgstr "Fill"
+
+#: src/tabs/library/library_menus.cpp:1840
+msgctxt "cover scaling"
+msgid "Fit"
+msgstr "Fit"
+
+#: src/tabs/library/library_menus.cpp:1853
+msgctxt "cover scaling"
+msgid "None"
+msgstr "None"
+
+#: src/tabs/library/library_menus.cpp:1894
+#: src/tabs/library/library_menus.cpp:2052
+msgid "Open SteamGridDB"
+msgstr "Open SteamGridDB"
+
+#: src/tabs/library/library_menus.cpp:1944
+msgid "Icons"
+msgstr "Flags"
+
+#: src/tabs/library/library_menus.cpp:2093
+msgid "Clear filter"
+msgstr "Clear the filter"
+
+#: src/tabs/library/library_menus.cpp:2099
+msgid "Add game"
+msgstr "Plunder a game"
+
+#: src/tabs/library/library_menus.cpp:2106
+msgid "Sort by"
+msgstr "Line 'em up by"
+
+#: src/tabs/library/library_menus.cpp:2112
+msgid "Alphabetical"
+msgstr "A to Z, like a proper captain"
+
+#: src/tabs/library/library_menus.cpp:2124
+msgid "Most played"
+msgstr "Most sailed"
+
+#: src/tabs/library/library_menus.cpp:2136
+msgid "Sort by the number of launches of the game through this app."
+msgstr "Sort by how many times the game was launched through this app."
+
+#: src/tabs/library/library_menus.cpp:2138
+msgid "Last played"
+msgstr "Last sailed"
+
+#: src/tabs/library/library_menus.cpp:2157
+msgid "Platforms"
+msgstr "Ports o' origin"
+
+#. TRANSLATORS: Games added by the user (shown among the platforms: Steam, GOG, ...)
+#: src/tabs/library/library_menus.cpp:2216
+msgctxt "platform"
+msgid "Custom"
+msgstr "Yer own plunder"
+
+#: src/tabs/library/library_menus.cpp:2222
+msgid "Hidden games"
+msgstr "Stowaways (hidden games)"
+
+#: src/tabs/library/library_popups.cpp:83
+msgid "Remove category"
+msgstr "Scuttle the category"
+
+#: src/tabs/library/library_popups.cpp:84
+msgid "Merge categories"
+msgstr "Lash categories together"
+
+#: src/tabs/library/library_popups.cpp:85
+msgid "Rename category"
+msgstr "Rename the category"
+
+#. TRANSLATORS: {0} is the name of a category of the library
+#: src/tabs/library/library_popups.cpp:111
+msgid "Are you sure you want to remove the {0} category?"
+msgstr "Be ye sure ye want to scuttle the {0} category?"
+
+#. TRANSLATORS: {0} and {1} are the names of two categories of the library
+#: src/tabs/library/library_popups.cpp:117
+msgid "Are you sure you want to merge the {0} category with the {1} category?"
+msgstr "Be ye sure ye want to lash the {0} category to the {1} category?"
+
+#. TRANSLATORS: {0} is the current name of a category of the library, {1} the new one
+#: src/tabs/library/library_popups.cpp:123
+msgid "Are you sure you want to rename {0} to {1}?"
+msgstr "Be ye sure ye want to rename {0} to {1}?"
+
+#. TRANSLATORS: {0} is the name of a category of the library
+#: src/tabs/library/library_popups.cpp:129
+msgid "What do you want to rename the {0} category to?"
+msgstr "What do ye want to rename the {0} category to?"
+
+#: src/tabs/library/library_popups.cpp:149
+msgid "This will affect all games that make use of the category."
+msgstr "This will affect all games that sail under this category."
+
+#: src/tabs/library/library_popups.cpp:263
+msgid "Any unsaved game data may be lost."
+msgstr "Any unsaved game booty may be lost to the deep."
+
+#: src/tabs/library/library_properties.cpp:183
+msgid "Default"
+msgstr "Default"
+
+#: src/tabs/library/library_properties.cpp:218
+msgid "Leave empty to use the name of the game."
+msgstr "Leave it empty to use the name o' the game."
+
+#: src/tabs/library/library_properties.cpp:225
+msgid "Favorited"
+msgstr "Finest booty"
+
+#: src/tabs/library/library_properties.cpp:228
+#: src/tabs/library/library_properties.cpp:229
+msgid "Hidden"
+msgstr "Stowed away"
+
+#: src/tabs/library/library_properties.cpp:234
+msgid "Favorited games are always shown under Favorites."
+msgstr "Finest booty always be shown under Finest Booty."
+
+#. TRANSLATORS: {0} is the name of a category that does not exist yet
+#: src/tabs/library/library_properties.cpp:262
+msgid "{0} (new)"
+msgstr "{0} (new)"
+
+#: src/tabs/library/library_properties.cpp:403
+#: src/tabs/library/library_properties.cpp:1583
+#: src/tabs/library/library_properties.cpp:1652
+msgid "Instant Play"
+msgstr "Instant Play"
+
+#: src/tabs/library/library_properties.cpp:403
+msgid ""
+"Used by the launch options of the game that the platform client can start itself.\n"
+"Other launch options always use Instant Play."
+msgstr ""
+"Used by the game's launch options that the platform client can start on its own.\n"
+"Other launch options always use Instant Play."
+
+#. TRANSLATORS: {0} is what the default is: "Always" or "Never"
+#: src/tabs/library/library_properties.cpp:407
+msgid "Default ({0})"
+msgstr "Default ({0})"
+
+#: src/tabs/library/library_properties.cpp:408
+msgid "The game will use the default behavior configured in the Settings tab."
+msgstr "The game will use the default behavior set in the Ship's Articles tab."
+
+#: src/tabs/library/library_properties.cpp:411
+msgid ""
+"The game will never use instant play except\n"
+"when launched through the right click menu."
+msgstr ""
+"The game will never use instant play, except\n"
+"when launched through the right click menu."
+
+#: src/tabs/library/library_properties.cpp:414
+msgid ""
+"The game will always use instant play except\n"
+"when launched through the right click menu."
+msgstr ""
+"The game will always use instant play, except\n"
+"when launched through the right click menu."
+
+#: src/tabs/library/library_properties.cpp:422
+msgid "Auto-stop"
+msgstr "Auto-strike"
+
+#: src/tabs/library/library_properties.cpp:422
+msgid ""
+"This determines how long the service will remain running when launching the game.\n"
+"Move the mouse over each option to get more information."
+msgstr ""
+"This decides how long the service stays under sail when launchin' the game.\n"
+"Hover the mouse over each option to learn more."
+
+#: src/tabs/library/library_properties.cpp:426
+msgid "Not available for this game."
+msgstr "Not to be had fer this game."
+
+#: src/tabs/library/library_properties.cpp:467
+msgid "Default (Inject, parent folder)"
+msgstr "Default (Board, parent folder)"
+
+#: src/tabs/library/library_properties.cpp:468
+msgid "Default (Exit, parent folder)"
+msgstr "Default (Exit, parent folder)"
+
+#: src/tabs/library/library_properties.cpp:469
+msgid "Default (Never, parent folder)"
+msgstr "Default (Never, parent folder)"
+
+#: src/tabs/library/library_properties.cpp:470
+msgid "Default (Inject)"
+msgstr "Default (Board)"
+
+#: src/tabs/library/library_properties.cpp:470
+msgid "Default (Exit)"
+msgstr "Default (Exit)"
+
+#: src/tabs/library/library_properties.cpp:473
+msgid "The service will use the behavior set for a parent folder of the game."
+msgstr "The service will use the behavior set fer a parent folder o' the game."
+
+#: src/tabs/library/library_properties.cpp:474
+msgid "The service will use the default behavior configured in the Settings tab."
+msgstr "The service will use the default behavior set in the Ship's Articles tab."
+
+#: src/tabs/library/library_properties.cpp:475
+#: src/tabs/library/library_properties.cpp:476
+msgid "On inject"
+msgstr "Once boarded"
+
+#: src/tabs/library/library_properties.cpp:477
+msgid ""
+"The service will be stopped when Special K\n"
+"successfully injects into a game."
+msgstr ""
+"The service will be struck when Special K\n"
+"successfully boards a game."
+
+#: src/tabs/library/library_properties.cpp:478
+#: src/tabs/library/library_properties.cpp:479
+msgid "On exit"
+msgstr "On exit"
+
+#: src/tabs/library/library_properties.cpp:480
+msgid ""
+"The service will be stopped when Special K\n"
+"detects that the game is being closed."
+msgstr ""
+"The service will be struck when Special K\n"
+"sees the game bein' closed."
+
+#: src/tabs/library/library_properties.cpp:487
+msgid ""
+"Warning: The service will remain even\n"
+"after the game has been closed."
+msgstr ""
+"Warnin': The service will stay under sail\n"
+"even after the game has been closed."
+
+#: src/tabs/library/library_properties.cpp:556
+msgid "This launch option has no executable that can be started directly."
+msgstr "This launch option has no executable that can be started straight away."
+
+#: src/tabs/library/library_properties.cpp:559
+msgid "The executable of this launch option is outside of the game's install folder."
+msgstr "The executable o' this launch option be outside the game's install folder."
+
+#: src/tabs/library/library_properties.cpp:619
+msgid "This game has no launch options."
+msgstr "This game has no launch options, not a one."
+
+#: src/tabs/library/library_properties.cpp:632
+msgid "Add"
+msgstr "Bring aboard"
+
+#: src/tabs/library/library_properties.cpp:635
+msgid "Adds a new launch option of your own (lc_user.json)."
+msgstr "Adds a new launch option o' yer own (lc_user.json)."
+
+#: src/tabs/library/library_properties.cpp:642
+msgid "Duplicate"
+msgstr "Make a twin"
+
+#: src/tabs/library/library_properties.cpp:645
+msgid "Creates an editable copy of the selected launch option."
+msgstr "Makes an editable copy o' the chosen launch option."
+
+#: src/tabs/library/library_properties.cpp:653
+msgid "Removes the selected launch option."
+msgstr "Throws the chosen launch option overboard."
+
+#: src/tabs/library/library_properties.cpp:653
+msgid "Launch options of the platform and Special K can't be removed."
+msgstr "Launch options o' the platform an' Special K can't be thrown overboard."
+
+#: src/tabs/library/library_properties.cpp:663
+msgid "Clear default"
+msgstr "Clear the default"
+
+#: src/tabs/library/library_properties.cpp:663
+msgid "Set as default"
+msgstr "Make it the default"
+
+#: src/tabs/library/library_properties.cpp:668
+msgid "SKIF goes back to using the primary launch option of the game."
+msgstr "SKIF goes back to usin' the game's primary launch option."
+
+#: src/tabs/library/library_properties.cpp:669
+msgid "SKIF uses this launch option when the game is launched through the Play button."
+msgstr "SKIF uses this launch option when the game be launched through the Set Sail button."
+
+#: src/tabs/library/library_properties.cpp:681
+msgid "Moves the launch option up among your own."
+msgstr "Moves the launch option up among yer own."
+
+#: src/tabs/library/library_properties.cpp:689
+msgid "Moves the launch option down among your own."
+msgstr "Moves the launch option down among yer own."
+
+#: src/tabs/library/library_properties.cpp:697
+#: src/tabs/library/library_properties.cpp:711
+msgid "Import..."
+msgstr "Bring aboard..."
+
+#: src/tabs/library/library_properties.cpp:697
+#: src/tabs/library/library_properties.cpp:719
+msgid "Export..."
+msgstr "Send ashore..."
+
+#: src/tabs/library/library_properties.cpp:697
+#: src/tabs/library/library_properties.cpp:728
+msgid "Export All..."
+msgstr "Send All Ashore..."
+
+#: src/tabs/library/library_properties.cpp:714
+msgid ""
+"Adds launch options from the clipboard to your own,\n"
+"as copied by Export / Export All."
+msgstr ""
+"Adds launch options from the clipboard to yer own,\n"
+"as copied by Send Ashore / Send All Ashore."
+
+#: src/tabs/library/library_properties.cpp:722
+msgid "Copies the selected launch option to the clipboard."
+msgstr "Copies the chosen launch option to the clipboard."
+
+#: src/tabs/library/library_properties.cpp:723
+msgid "Only your own launch options can be exported."
+msgstr "Only yer own launch options can be sent ashore."
+
+#: src/tabs/library/library_properties.cpp:731
+msgid "Copies all of your own launch options to the clipboard."
+msgstr "Copies all o' yer own launch options to the clipboard."
+
+#: src/tabs/library/library_properties.cpp:767
+#: src/tabs/library/library_properties.cpp:845
+msgid "<no description>"
+msgstr "<no description, the scoundrel>"
+
+#: src/tabs/library/library_properties.cpp:776
+msgid "The default launch option."
+msgstr "The default launch option, the trusty one."
+
+#: src/tabs/library/library_properties.cpp:776
+msgid "The default launch option (the primary one, as no other is set)."
+msgstr "The default launch option (the primary one, as no other be set)."
+
+#. TRANSLATORS: {0} is the name of a launch option
+#: src/tabs/library/library_properties.cpp:802
+msgid "The default launch option ({0}) is not available, so the primary one is used."
+msgstr "The default launch option ({0}) can't be had, so the primary one be used."
+
+#: src/tabs/library/library_properties.cpp:826
+msgid "lc_user.json could not be read, so your own launch options can't be changed here. Fix or remove the file to edit them."
+msgstr "lc_user.json couldn't be read, so yer own launch options can't be changed here. Mend or remove the file to edit 'em."
+
+#: src/tabs/library/library_properties.cpp:843
+msgid "More than one launch option is called \"{0}\"."
+msgstr "More than one launch option be called \"{0}\"."
+
+#: src/tabs/library/library_properties.cpp:848
+msgid "Every launch option of your own needs a description."
+msgstr "Every launch option o' yer own needs a description."
+
+#: src/tabs/library/library_properties.cpp:851
+msgid "\"{0}\" has no executable."
+msgstr "\"{0}\" has no executable, the poor wreck."
+
+#: src/tabs/library/library_properties.cpp:854
+msgid "The executable of \"{0}\" must be inside the install folder of the game."
+msgstr "The executable o' \"{0}\" must be inside the game's install folder."
+
+#: src/tabs/library/library_properties.cpp:857
+msgid "The executable of \"{0}\" was not found."
+msgstr "The executable o' \"{0}\" be lost at sea."
+
+#: src/tabs/library/library_properties.cpp:860
+msgid "The working directory of \"{0}\" must be inside the install folder of the game."
+msgstr "The workin' directory o' \"{0}\" must be inside the game's install folder."
+
+#: src/tabs/library/library_properties.cpp:890
+msgid "Your launch options could not be saved to lc_user.json. See the log for details."
+msgstr "Yer launch options couldn't be stowed in lc_user.json. See the log fer the particulars."
+
+#: src/tabs/library/library_properties.cpp:983
+msgid "Special K"
+msgstr "Special K"
+
+#: src/tabs/library/library_properties.cpp:983
+msgid "Applies to the executable, so to every launch option that starts it."
+msgstr "Applies to the executable, so to every launch option that starts it."
+
+#: src/tabs/library/library_properties.cpp:998
+msgid "Save first to change these for this executable."
+msgstr "Stow yer changes first to change these fer this executable."
+
+#: src/tabs/library/library_properties.cpp:1024
+msgid "Elevated service"
+msgstr "Captain's service (elevated)"
+
+#: src/tabs/library/library_properties.cpp:1029
+msgid "Special K is disabled for this executable, so the service is not used."
+msgstr "Special K be scuttled fer this executable, so the service ain't used."
+
+#: src/tabs/library/library_properties.cpp:1186
+msgid "New launch option"
+msgstr "New launch order"
+
+#: src/tabs/library/library_properties.cpp:1239
+msgid "Launch option"
+msgstr "Launch order"
+
+#. TRANSLATORS: {0} is the name of the launch option that was copied
+#: src/tabs/library/library_properties.cpp:1242
+msgid "{0} (Instant Play)"
+msgstr "{0} (Instant Play)"
+
+#: src/tabs/library/library_properties.cpp:1242
+msgid "{0} (copy)"
+msgstr "{0} (copy)"
+
+#. TRANSLATORS: {0} is the name of the copy, {1} the name of the launch option it is a copy of
+#: src/tabs/library/library_properties.cpp:1315
+msgid "\"{0}\" is already a copy of \"{1}\" with Instant Play."
+msgstr "\"{0}\" already be a copy o' \"{1}\" with Instant Play."
+
+#: src/tabs/library/library_properties.cpp:1336
+msgid "Created an editable copy of \"{0}\" with Instant Play. The original launch option stays unchanged."
+msgstr "Made an editable copy o' \"{0}\" with Instant Play. The original launch option stays as it was."
+
+#: src/tabs/library/library_properties.cpp:1339
+msgid "The copy is now the default launch option."
+msgstr "The copy be now the default launch option."
+
+#: src/tabs/library/library_properties.cpp:1342
+msgid "The launch options set in the platform client were added to its arguments."
+msgstr "The launch options set in the platform client were added to its arguments."
+
+#. TRANSLATORS: %command% is the placeholder of Steam's launch options, keep it as it is; {0} is what came before it
+#: src/tabs/library/library_properties.cpp:1346
+msgid "The part before %command% ({0}) could not be copied."
+msgstr "The part before %command% ({0}) couldn't be copied."
+
+#: src/tabs/library/library_properties.cpp:1367
+msgid "The launch options could not be exported."
+msgstr "The launch options couldn't be sent ashore."
+
+#: src/tabs/library/library_properties.cpp:1374
+msgid "Copied \"{0}\" to the clipboard."
+msgstr "Copied \"{0}\" to the clipboard."
+
+#: src/tabs/library/library_properties.cpp:1375
+msgid "Copied {0} launch option to the clipboard."
+msgid_plural "Copied {0} launch options to the clipboard."
+msgstr[0] "Copied {0} launch option to the clipboard."
+msgstr[1] "Copied {0} launch options to the clipboard."
+
+#: src/tabs/library/library_properties.cpp:1387
+msgid "The clipboard does not contain any launch options."
+msgstr "The clipboard holds no launch options, not a one."
+
+#: src/tabs/library/library_properties.cpp:1398
+msgid "Imported launch option"
+msgstr "Launch option brought aboard"
+
+#: src/tabs/library/library_properties.cpp:1409
+msgid "Imported \"{0}\" from the clipboard. Save to keep it."
+msgstr "Brought \"{0}\" aboard from the clipboard. Stow yer changes to keep it."
+
+#: src/tabs/library/library_properties.cpp:1410
+msgid "Imported {0} launch option from the clipboard. Save to keep it."
+msgid_plural "Imported {0} launch options from the clipboard. Save to keep them."
+msgstr[0] "Brought {0} launch option aboard from the clipboard. Stow yer changes to keep it."
+msgstr[1] "Brought {0} launch options aboard from the clipboard. Stow yer changes to keep 'em."
+
+#: src/tabs/library/library_properties.cpp:1461
+msgid "Always (required)"
+msgstr "Always (required)"
+
+#: src/tabs/library/library_properties.cpp:1462
+msgid "The platform client can't start this launch option itself, so it always uses Instant Play."
+msgstr "The platform client can't start this launch option on its own, so it always uses Instant Play."
+
+#: src/tabs/library/library_properties.cpp:1471
+#: src/tabs/library/library_properties.cpp:1637
+msgid "Description"
+msgstr "What she be called"
+
+#: src/tabs/library/library_properties.cpp:1472
+msgid "Shown in the menus"
+msgstr "Shown on the menus, like the day's grub"
+
+#: src/tabs/library/library_properties.cpp:1475
+msgid "Relative to the install folder of the game."
+msgstr "Relative to the game's install folder."
+
+#: src/tabs/library/library_properties.cpp:1485
+msgid "Select an executable"
+msgstr "Pick an executable"
+
+#: src/tabs/library/library_properties.cpp:1504
+msgid "Please select an executable (.exe or .bat), or a shortcut to one."
+msgstr "Pick an executable (.exe or .bat), or a shortcut to one, if ye please."
+
+#: src/tabs/library/library_properties.cpp:1507
+msgid "The executable must be inside the install folder of the game."
+msgstr "The executable must be inside the game's install folder."
+
+#: src/tabs/library/library_properties.cpp:1531
+msgid ""
+"Relative to the install folder of the game.\n"
+"Leave it as the executable's folder if unsure."
+msgstr ""
+"Relative to the game's install folder.\n"
+"Leave it as the executable's folder if ye be unsure."
+
+#: src/tabs/library/library_properties.cpp:1540
+msgid "(install folder)"
+msgstr "(install folder)"
+
+#: src/tabs/library/library_properties.cpp:1542
+#: src/tabs/library/library_properties.cpp:1644
+msgid "(executable folder)"
+msgstr "(executable folder)"
+
+#: src/tabs/library/library_properties.cpp:1564
+msgid "The working directory must be inside the install folder of the game."
+msgstr "The workin' directory must be inside the game's install folder."
+
+#: src/tabs/library/library_properties.cpp:1572
+msgid "Use the folder of the executable."
+msgstr "Use the executable's folder."
+
+#: src/tabs/library/library_properties.cpp:1577
+#: src/tabs/library/library_properties.cpp:1646
+msgid "Arguments"
+msgstr "Squabbles (arguments)"
+
+#. TRANSLATORS: {0} is what the game's setting is: "Always" or "Never"
+#: src/tabs/library/library_properties.cpp:1591
+#: src/tabs/library/library_properties.cpp:1663
+msgid "Game setting ({0})"
+msgstr "Game settin' ({0})"
+
+#: src/tabs/library/library_properties.cpp:1612
+msgid "Starts:"
+msgstr "Sets sail:"
+
+#. TRANSLATORS: {0} is the platform (e.g. Steam), {1} its launch options for the game
+#: src/tabs/library/library_properties.cpp:1622
+msgid "The launch options set in {0} ({1}) are not used by this launch option."
+msgstr "The launch options set in {0} ({1}) be not used by this launch option."
+
+#: src/tabs/library/library_properties.cpp:1634
+msgid "Provided by Special K (lc.json). Duplicate it to make changes."
+msgstr "Provided by Special K (lc.json). Duplicate it to make changes."
+
+#: src/tabs/library/library_properties.cpp:1635
+msgid "Provided by the platform. Duplicate it to make changes."
+msgstr "Provided by the platform. Duplicate it to make changes."
+
+#. TRANSLATORS: {0} is "Always" or "Never"
+#: src/tabs/library/library_properties.cpp:1661
+msgid "{0} (set by Special K)"
+msgstr "{0} (set by Special K)"
+
+#: src/tabs/library/library_properties.cpp:1670
+msgid "Use Instant Play"
+msgstr "Use Instant Play"
+
+#: src/tabs/library/library_properties.cpp:1675
+msgid ""
+"Creates an editable copy of this launch option among your own,\n"
+"set to always use Instant Play. The original stays unchanged."
+msgstr ""
+"Makes an editable copy o' this launch option among yer own,\n"
+"set to always use Instant Play. The original stays as it was."
+
+#: src/tabs/library/library_properties.cpp:1685
+msgid "Client options"
+msgstr "Client's orders"
+
+#: src/tabs/library/library_properties.cpp:1685
+msgid "Set in the platform client. SKIF does not change these."
+msgstr "Set in the platform client. SKIF don't touch these."
+
+#. TRANSLATORS: Title of the Properties window; {0} is the name of the game
+#: src/tabs/library/library_properties.cpp:1803
+msgid "Properties - {0}"
+msgstr "Particulars - {0}"
+
+#: src/tabs/library/library_properties.cpp:1949
+msgid "Some of the changes could not be saved."
+msgstr "Some o' the changes couldn't be stowed."
+
+#: src/tabs/library/library_properties.cpp:1979
+msgid "Could not save"
+msgstr "Couldn't stow it"
+
+#: src/utility/games.cpp:414
+msgid "One-time warning about RTSS.exe"
+msgstr "One-time warnin' about RTSS.exe"
+
+#: src/utility/games.cpp:423
+msgid "This warning will not appear again."
+msgstr "This warnin' won't show its face again."
+
+#: src/utility/ini_reader.cpp:638
+msgid "INI Reader"
+msgstr "INI Reader"
+
+#: src/utility/ini_reader.cpp:638
+msgid "Could not parse the INI file:"
+msgstr "Couldn't make heads or tails o' the INI file:"
+
+#: src/utility/injection.cpp:238
+msgid "Please launch a game to continue."
+msgstr "Launch a game to carry on, if ye please."
+
+#. TRANSLATORS: Title of a notification (at most 63 characters)
+#: src/utility/injection.cpp:240
+msgid "Special K is ready to be injected into your game!"
+msgstr "Special K be ready to board yer game!"
+
+#: src/utility/injection.cpp:243
+msgid "The injection service was started."
+msgstr "The boardin' service was hoisted."
+
+#. TRANSLATORS: Title of a notification (at most 63 characters)
+#: src/utility/injection.cpp:245
+msgid "Special K is now being injected into games!"
+msgstr "Special K be now boardin' games!"
+
+#. TRANSLATORS: Ctrl, Shift and Backspace are keys of the keyboard (use the names printed on keyboards in your language)
+#: src/utility/injection.cpp:259
+msgid "Press Ctrl + Shift + Backspace while in-game."
+msgstr "Press Ctrl + Shift + Backspace while in-game."
+
+#. TRANSLATORS: Title of a notification (at most 63 characters)
+#: src/utility/injection.cpp:261
+msgid "Special K has been injected into your game!"
+msgstr "Special K has boarded yer game! Arr!"
+
+#: src/utility/injection.cpp:264
+msgid "The injection service was stopped."
+msgstr "The boardin' service was struck."
+
+#. TRANSLATORS: Title of a notification (at most 63 characters)
+#: src/utility/injection.cpp:266
+msgid "Special K will no longer be injected into games."
+msgstr "Special K will no longer board games."
+
+#: src/utility/injection.cpp:813
+msgid "Config folder:"
+msgstr "Ship's articles folder:"
+
+#: src/utility/injection.cpp:814
+msgid "32-bit service:"
+msgstr "32-bit service:"
+
+#: src/utility/injection.cpp:816
+msgid "64-bit service:"
+msgstr "64-bit service:"
+
+#: src/utility/injection.cpp:853
+#: src/utility/injection.cpp:861
+#: src/utility/injection.cpp:1375
+msgid "Waiting for game..."
+msgstr "Waitin' fer a game..."
+
+#: src/utility/injection.cpp:855
+#: src/utility/injection.cpp:863
+#: src/utility/injection.cpp:1376
+msgid "Running"
+msgstr "Under sail"
+
+#: src/utility/injection.cpp:857
+#: src/utility/injection.cpp:865
+msgid "Stopped"
+msgstr "Anchored"
+
+#: src/utility/injection.cpp:890
+#: src/utility/injection.cpp:895
+msgid "Missing"
+msgstr "Lost at sea"
+
+#: src/utility/injection.cpp:943
+msgid "Stopping..."
+msgstr "Strikin'..."
+
+#: src/utility/injection.cpp:944
+msgid "Starting..."
+msgstr "Hoistin'..."
+
+#: src/utility/injection.cpp:945
+#: src/utility/injection.cpp:946
+msgid "Service"
+msgstr "Boardin' service"
+
+#: src/utility/injection.cpp:1059
+msgid "Auto-stop is currently unavailable."
+msgstr "Auto-strike can't be had right now."
+
+#: src/utility/injection.cpp:1060
+msgid "The feature requires Special K v21.08.12 or newer."
+msgstr "This feature needs Special K v21.08.12 or newer."
+
+#: src/utility/injection.cpp:1151
+msgid "Start with Windows"
+msgstr "Set sail with Windows"
+
+#: src/utility/injection.cpp:1159
+msgid "Start minimized in the notification area"
+msgstr "Set sail below deck in the notification area"
+
+#: src/utility/injection.cpp:1160
+msgid "Start minimized"
+msgstr "Set sail below deck"
+
+#: src/utility/injection.cpp:1163
+msgid "Start the injection service as well"
+msgstr "Hoist the boardin' service as well"
+
+#: src/utility/injection.cpp:1209
+msgid ""
+"The current autostart method needs to be disabled to migrate over to this method.\n"
+"The difference is that this method autostarts SKIF, and not just the GI service."
+msgstr ""
+"The current autostart method needs to be scuttled to move over to this method.\n"
+"The difference be that this method autostarts SKIF, an' not just the GI service."
+
+#: src/utility/injection.cpp:1226
+msgid "Start Injection Service At Logon (obsolete)"
+msgstr "Hoist the Boardin' Service At Logon (barnacled)"
+
+#: src/utility/injection.cpp:1243
+msgid "This method is obsolete, and can only be disabled."
+msgstr "This method be barnacled, an' can only be scuttled."
+
+#: src/utility/injection.cpp:1255
+msgid "Start the injection service with Windows"
+msgstr "Hoist the boardin' service with Windows"
+
+#: src/utility/injection.cpp:1259
+msgid ""
+"This will start the injection service hidden in the background with Windows.\n"
+"\n"
+"Special K Injection Frontend (SKIF) will not autostart.\n"
+"\n"
+"Are you sure you want to proceed?"
+msgstr ""
+"This will hoist the boardin' service, hidden in the background, with Windows.\n"
+"\n"
+"Special K Injection Frontend (SKIF) won't set sail on its own.\n"
+"\n"
+"Be ye sure ye want to carry on?"
+
+#: src/utility/injection.cpp:1264
+msgid "Confirm autostart"
+msgstr "Swear to the autostart"
+
+#: src/utility/injection.cpp:1302
+msgid "Note that this frontend app will not start with Windows."
+msgstr "Mind ye, this frontend app won't set sail with Windows."
+
+#: src/utility/injection.cpp:1310
+msgid ""
+"The regular autostart method needs to be disabled to migrate over to this method.\n"
+"The difference is that the current method autostarts SKIF, and not just the injection service."
+msgstr ""
+"The regular autostart method needs to be scuttled to move over to this method.\n"
+"The difference be that the current method autostarts SKIF, an' not just the boardin' service."
+
+#: src/utility/injection.cpp:1313
+msgid ""
+"The old legacy method needs to be disabled to migrate over to this new method.\n"
+"The difference is that this method does not require elevated privileges."
+msgstr ""
+"The barnacled old method needs to be scuttled to move over to this new method.\n"
+"The difference be that this method don't need the captain's privileges."
+
+#: src/utility/injection.cpp:1353
+msgid "Injection service is running."
+msgstr "The boardin' service be under sail."
+
+#: src/utility/injection.cpp:1386
+msgid "Click to stop the service"
+msgstr "Click to strike the service"
+
+#: src/utility/injection.cpp:1387
+msgid "Click to start the service"
+msgstr "Click to hoist the service"
+
+#: src/utility/sk_utility.cpp:883
+msgid "Keybinding:"
+msgstr "Keybindin':"
+
+#. TRANSLATORS: RETURN, ESC, BACKSPACE and DELETE are keys of the keyboard (use the names printed on keyboards in your language)
+#: src/utility/sk_utility.cpp:888
+msgid "Press RETURN to confirm, ESC to cancel, BACKSPACE to clear, DELETE to reset."
+msgstr "Press RETURN to confirm, ESC to belay, BACKSPACE to clear, DELETE to reset."
+
+#: src/utility/skif_imgui.cpp:476
+#: src/utility/skif_imgui.cpp:480
+#: src/utility/skif_imgui.cpp:1708
+msgid "OK"
+msgstr "Aye aye"
+
+#: src/utility/skif_imgui.cpp:1696
+msgid "None"
+msgstr "None"
+
+#: src/utility/skif_imgui.cpp:1703
+msgid "Don't Save"
+msgstr "Don't Stow"
+
+#: src/utility/skif_imgui.cpp:1762
+msgid "Are you sure you want to continue?"
+msgstr "Be ye sure ye want to carry on?"
+
+#: src/utility/skif_imgui.cpp:1778
+msgid "Do you want to save the changes made?"
+msgstr "Do ye want to stow the changes ye made?"
+
+#: src/utility/skif_imgui.cpp:1779
+msgid "Your changes will be lost if you don't save them."
+msgstr "Yer changes will be lost to the deep if ye don't stow 'em."
+
+#: src/utility/skif_imgui.cpp:1807
+msgid "Should 64-bit or 32-bit be used?"
+msgstr "Should 64-bit or 32-bit be used?"
+
+#: src/utility/skif_imgui.cpp:1808
+msgid "Processes can only load DLL files of the same bitness."
+msgstr "Processes can only load DLL files o' the same bitness."
+
+#: src/utility/skif_imgui.cpp:1920
+msgid "Force start service"
+msgstr "Force the service to hoist"
+
+#: src/utility/skif_imgui.cpp:1927
+msgid "Elevated"
+msgstr "Captain"
+
+#: src/utility/skif_imgui.cpp:1932
+msgid "Force stop service"
+msgstr "Force the service to strike"
+
+#. TRANSLATORS: An April Fools' Day joke (a fake activation of Special K, with technobabble), shown on April 1st
+#: src/utility/skif_imgui.cpp:3057
+msgid "Special K Activation"
+msgstr "Special K Activation"
+
+#: src/utility/skif_imgui.cpp:3065
+msgid "Special K  //  Nominal Flow Activation"
+msgstr "Special K  //  Nominal Flow Activation"
+
+#: src/utility/skif_imgui.cpp:3069
+msgid "Client fingerprint:"
+msgstr "Client's thumbprint in the wax:"
+
+#: src/utility/skif_imgui.cpp:3108
+msgid "This title is missing its nominal constant (0x00000000)."
+msgstr "This title be missin' its nominal constant (0x00000000)."
+
+#: src/utility/skif_imgui.cpp:3113
+msgid "Contacting activation server  sk-activation.local ..."
+msgstr "Hailin' the activation server  sk-activation.local ..."
+
+#: src/utility/skif_imgui.cpp:3118
+msgid "Transforming constant against client fingerprint ..."
+msgstr "Transformin' the constant against the client fingerprint ..."
+
+#: src/utility/skif_imgui.cpp:3123
+msgid "Nominal flow restored."
+msgstr "Nominal flow restored."
+
+#: src/utility/skif_imgui.cpp:3139
+msgid "Just kidding -- Special K needs no such thing. Happy April Fools' Day!"
+msgstr "Just jestin' -- Special K needs no such thing. Happy April Fools' Day, ye landlubber!"
+
+#: src/utility/skif_imgui.cpp:3142
+#: src/utility/skif_imgui.cpp:3144
+msgid "Phew, OK"
+msgstr "Phew, aye"
+
+#: src/utility/skif_imgui.cpp:3151
+msgid "Please wait, this will only take a moment ..."
+msgstr "Hold fast, this will only take a moment ..."
+
+#: src/utility/updater.cpp:684
+msgid "This is the version currently installed!"
+msgstr "This be the version currently stowed aboard!"
+
+#: src/utility/updater.cpp:686
+msgid "Update available!"
+msgstr "A refit be on the horizon!"
+
+#: src/utility/updater.cpp:694
+#: src/utility/updater.cpp:713
+#: src/utility/updater.cpp:751
+#: src/utility/updater.cpp:912
+msgid "No listed changes."
+msgstr "No changes in the ship's log."
+
+#: src/utility/updater.cpp:705
+msgid "Newest update available!"
+msgstr "The newest refit be on the horizon!"
+
+#: src/utility/updater.cpp:1223
+msgid "Changelog"
+msgstr "Ship's log o' changes"
+
+#: src/utility/updater.cpp:1228
+msgid "An update was installed automatically"
+msgstr "A refit was installed on its own"
+
+#: src/utility/updater.cpp:1234
+msgid "Version Available"
+msgstr "Version on the Horizon"
+
+#: src/utility/updater.cpp:1234
+msgid "Rollback Available"
+msgstr "Sail Back Possible"
+
+#: src/utility/updater.cpp:1253
+msgid "No historical changes detected..."
+msgstr "No changes found in the old logs..."
+
+#: src/utility/updater.cpp:1254
+msgid "No changes detected..."
+msgstr "No changes found..."
+
+#: src/utility/updater.cpp:1255
+msgid "The update does not contain any release notes..."
+msgstr "The refit carries no release notes..."
+
+#. TRANSLATORS: {0} is "Special K v" followed by a version number
+#: src/utility/updater.cpp:1353
+msgid "You are currently using {0}"
+msgstr "Ye be currently usin' {0}"
+
+#: src/utility/updater.cpp:1472
+msgid "This version is newer than the currently installed."
+msgstr "This version be newer than the one stowed aboard."
+
+#: src/utility/updater.cpp:1477
+msgid "WARNING: You are about to roll back Special K as this version is older than the currently installed!"
+msgstr "WARNIN': Ye be about to sail Special K back, as this version be older than the one stowed aboard!"
+
+#. TRANSLATORS: {0} is the name of a version of Special K (e.g. "Special K v 26.10.6")
+#: src/utility/updater.cpp:1485
+msgid "{0} is available for download."
+msgstr "{0} be ready to haul aboard."
+
+#: src/utility/updater.cpp:1486
+msgid "{0} is ready to be installed."
+msgstr "{0} be ready to be installed."
+
+#: src/utility/updater.cpp:1499
+msgid "A failed download was detected! Click Download below to try again."
+msgstr "A download ran aground! Click Haul Aboard below to try again."
+
+#: src/utility/updater.cpp:1500
+msgid "In case of continued errors, consult SKIF.log for more details."
+msgstr "If the blunders keep comin', consult SKIF.log fer the particulars."
+
+#: src/utility/updater.cpp:1506
+msgid "Target Folder:"
+msgstr "Where we be droppin' anchor:"
+
+#: src/utility/updater.cpp:1518
+msgid "Changes:"
+msgstr "What's new on deck:"
+
+#. TRANSLATORS: {0} is the name of the installed version of Special K (e.g. "Special K v 26.10.6")
+#: src/utility/updater.cpp:1522
+msgid "Changes from {0}:"
+msgstr "Changes since {0}:"
+
+#: src/utility/updater.cpp:1539
+msgid "Download"
+msgstr "Haul Aboard"
+
+#: src/utility/updater.cpp:1546
+#: src/utility/updater.cpp:1587
+msgid "Ignore"
+msgstr "Pay it no heed"
+
+#: src/utility/updater.cpp:1595
+msgid "SKIF will not prompt about this version again."
+msgstr "SKIF won't pester ye about this version again."

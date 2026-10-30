@@ -53,6 +53,9 @@
 #include <string>
 #include <strsafe.h>
 
+// Last, as it defines short macros such as _ ( )
+#include <utility/l10n.h>
+
 // This can be used to force the service to run in user-mode even if SKIF was launched elevated
 //#define UNELEVATED 1
 
@@ -231,9 +234,15 @@ SKIF_InjectionContext::_TestServletRunlevel (bool forcedCheck)
         if (! _registry._SuppressServiceNotification)
         {
           if (bAckInj)
-            SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_SERVICE, L"Please launch a game to continue.",           L"Special K is ready to be injected into your game!");
+            SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_SERVICE,
+              W_("Please launch a game to continue."),
+              // TRANSLATORS: Title of a notification (at most 63 characters)
+              W_("Special K is ready to be injected into your game!"));
           else
-            SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_SERVICE, L"The injection service was started.",          L"Special K is now being injected into games!");
+            SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_SERVICE,
+              W_("The injection service was started."),
+              // TRANSLATORS: Title of a notification (at most 63 characters)
+              W_("Special K is now being injected into games!"));
         }
 
         else
@@ -245,9 +254,16 @@ SKIF_InjectionContext::_TestServletRunlevel (bool forcedCheck)
         runState          = Stopped;
 
         if (bAckInjSignaled)
-          SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_SERVICE, L"Press Ctrl + Shift + Backspace while in-game.", L"Special K has been injected into your game!");
+          SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_SERVICE,
+            // TRANSLATORS: Ctrl, Shift and Backspace are keys of the keyboard (use the names printed on keyboards in your language)
+            W_("Press Ctrl + Shift + Backspace while in-game."),
+            // TRANSLATORS: Title of a notification (at most 63 characters)
+            W_("Special K has been injected into your game!"));
         else
-          SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_SERVICE, L"The injection service was stopped.",            L"Special K will no longer be injected into games.");
+          SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_SERVICE,
+            W_("The injection service was stopped."),
+            // TRANSLATORS: Title of a notification (at most 63 characters)
+            W_("Special K will no longer be injected into games."));
 
         bAckInj = false;
         bAckInjSignaled = false;
@@ -794,10 +810,10 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   ImGui::BeginGroup      ();
   ImGui::TextUnformatted ("Special K");
   ImGui::PushStyleColor  (ImGuiCol_Text, ImVec4 (0.5f, 0.5f, 0.5f, 1.f));
-  ImGui::TextUnformatted ("Config folder:");
-  ImGui::TextUnformatted ("32-bit service:");
+  ImGui::TextUnformatted (_("Config folder:"));
+  ImGui::TextUnformatted (_("32-bit service:"));
 #ifdef _WIN64
-  ImGui::TextUnformatted ("64-bit service:");
+  ImGui::TextUnformatted (_("64-bit service:"));
 #else
   ImGui::NewLine         ();
 #endif
@@ -820,7 +836,8 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 #endif
 
   // Config Root
-  if (ImGui::Selectable ("Centralized"))
+  // TRANSLATORS: Where the configuration of Special K is kept (one folder for all games)
+  if (ImGui::Selectable (L_("Centralized")))
   {
     SKIF_Util_ExplorePath (_path_cache.specialk_userdata);
     //SKIF_Util_OpenURI (root_dir);
@@ -831,21 +848,21 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
     SK_WideCharToUTF8 (_path_cache.specialk_userdata).c_str ()
   );
 
-  // 32-bit/64-bit Services
+  // 32-bit/64-bit Services (shortened with an ellipsis if wider than the rest of the frame)
   if (pid32 && bAckInj)
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "Waiting for game...");
+    SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), _("Waiting for game..."));
   else if (pid32)
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "Running");
+    SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), _("Running"));
   else
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), "Stopped");
+    SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), _("Stopped"));
 
 #ifdef _WIN64
   if (pid64 && bAckInj)
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "Waiting for game...");
+    SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), _("Waiting for game..."));
   else if (pid64)
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "Running");
+    SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), _("Running"));
   else
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), "Stopped");
+    SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), _("Stopped"));
 #else
   ImGui::NewLine  ();
 #endif
@@ -870,12 +887,12 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
     if (! SKVer32.empty())
       ImGui::Text ("( v %s )", SKVer32_utf8.c_str ());
     else
-      ImGui::Text ("( Missing )");
+      ImGui::Text ("( %s )", _("Missing"));
 
     if (! SKVer64.empty())
       ImGui::Text ("( v %s )", SKVer64_utf8.c_str ());
     else
-      ImGui::Text ("( Missing )");
+      ImGui::Text ("( %s )", _("Missing"));
   }
   else
     ImGui::NewLine ();
@@ -922,10 +939,20 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   ImVec2 posButton =
      ImGui::GetCursorPos ( );
 
+  const char* szStartStopLabel =
+    (runState == Stopping) ? LI_(ICON_FA_TOGGLE_ON  " ", "Stopping...###GlobalStartStop") :
+    (runState == Starting) ? LI_(ICON_FA_TOGGLE_OFF " ", "Starting...###GlobalStartStop") :
+    (bCurrentState)        ? LI_(ICON_FA_TOGGLE_ON  " ", "Service###GlobalStartStop")     :
+                             LI_(ICON_FA_TOGGLE_OFF " ", "Service###GlobalStartStop");
+
+  const float fStartStopWidth =
+    std::max (150.0f * SKIF_ImGui_GlobalDPIScale,
+              ImGui::CalcTextSize (szStartStopLabel, nullptr, true).x + ImGui::GetStyle ( ).FramePadding.x * 2.0f);
+
   // Horizontal center-align
   ImGui::SetCursorPosX (
      ImGui::GetCursorPosX ( ) +
-    (ImGui::GetContentRegionAvail ( ).x - (150.0f * SKIF_ImGui_GlobalDPIScale) +
+    (ImGui::GetContentRegionAvail ( ).x - fStartStopWidth +
      ImGui::GetStyle ( ).FramePadding.x) / 2
   );
 
@@ -945,11 +972,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
   if (runState == Started || runState == Stopped)
   {
-    const char *szStartStopLabel =
-      bCurrentState ?  ICON_FA_TOGGLE_ON  "  Service###GlobalStartStop"  :
-                       ICON_FA_TOGGLE_OFF "  Service###GlobalStartStop";
-
-    if (ImGui::Button (szStartStopLabel, ImVec2 ( 150.0f * SKIF_ImGui_GlobalDPIScale,
+    if (ImGui::Button (szStartStopLabel, ImVec2 ( fStartStopWidth,
                                                    50.0f * SKIF_ImGui_GlobalDPIScale )))
       _StartStopInject (bCurrentState, _registry.bStopOnInjection);
   }
@@ -957,9 +980,8 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   else
   {
     ImGui::BeginDisabled ( );
-    ImGui::ButtonEx (runState == Stopping ? ICON_FA_TOGGLE_ON  "  Stopping...###GlobalStartStop" :
-                                            ICON_FA_TOGGLE_OFF "  Starting...###GlobalStartStop",
-                      ImVec2 ( 150.0f * SKIF_ImGui_GlobalDPIScale,
+    ImGui::ButtonEx (szStartStopLabel,
+                      ImVec2 ( fStartStopWidth,
                                 50.0f * SKIF_ImGui_GlobalDPIScale ) );
     ImGui::EndDisabled ( );
   }
@@ -967,7 +989,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   ImGui::SetCursorPos (posButton);
 
   if ( ! bCurrentState && _registry.bAllowBackgroundService)
-      SKIF_ImGui_SetHoverTip ("Service continues running after this app is closed.");
+      SKIF_ImGui_SetHoverTip (_("Service continues running after this app is closed."));
 
   if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
     ServiceMenu = PopupState_Open;
@@ -1023,19 +1045,19 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 #endif
     {
 
-      if (ImGui::Checkbox ("Stop automatically", &_registry.bStopOnInjection))
+      if (SKIF_ImGui_Checkbox (L_("Stop automatically"), &_registry.bStopOnInjection))
         ToggleStopOnInjection ( );
 
       ImGui::SameLine        ( );
 
       ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
-      SKIF_ImGui_SetHoverTip ("This controls whether the configured auto-stop behavior (see Settings tab) should be used when the service is manually started.\n"
-                              "Note that having this unchecked does not disable the auto-stop behavior if a game is launched without the service already running.");
+      SKIF_ImGui_SetHoverTip (_("This controls whether the configured auto-stop behavior (see Settings tab) should be used when the service is manually started.\n"
+                              "Note that having this unchecked does not disable the auto-stop behavior if a game is launched without the service already running."));
     }
 
     else {
-      ImGui::TextColored  (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), "Auto-stop is currently unavailable.");
-      SKIF_ImGui_SetHoverTip ("The feature requires Special K v21.08.12 or newer.");
+      SKIF_ImGui_TextColoredWrapped  (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), _("Auto-stop is currently unavailable."));
+      SKIF_ImGui_SetHoverTip (_("The feature requires Special K v21.08.12 or newer."));
     }
   }
 
@@ -1043,9 +1065,9 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
     ImGui::BeginGroup      ( );
     ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
     ImGui::SameLine        ( );
-    ImGui::TextDisabled    ("Special K is unavailable due to missing files.");
+    SKIF_ImGui_TextColoredWrapped    (ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), _("Special K is unavailable due to missing files."));
     ImGui::EndGroup        ( );
-    SKIF_ImGui_SetHoverTip ("Please reinstall Special K using the latest available installer.");
+    SKIF_ImGui_SetHoverTip (_("Please reinstall Special K using the latest available installer."));
   }
 
   ImGui::EndChild ();
@@ -1126,7 +1148,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
 
   static bool changes = false;
 
-  if (ImGui::Checkbox("Start with Windows", &bAutoStartSKIF))
+  if (SKIF_ImGui_Checkbox(L_("Start with Windows"), &bAutoStartSKIF))
     changes = true;
 
   if (! bAutoStartSKIF)
@@ -1134,11 +1156,11 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
 
   ImGui::TreePush ("StartupBehaviour");
 
-  if (ImGui::Checkbox((_registry.bCloseToTray) ? " " ICON_FA_WINDOW_MINIMIZE " Start minimized in the notification area" :
-                                                 " " ICON_FA_WINDOW_MINIMIZE " Start minimized", &bStartMinimized))
+  if (SKIF_ImGui_Checkbox((_registry.bCloseToTray) ? LI_(" " ICON_FA_WINDOW_MINIMIZE, "Start minimized in the notification area") :
+                                                 LI_(" " ICON_FA_WINDOW_MINIMIZE, "Start minimized"), &bStartMinimized))
     changes = true;
 
-  if (ImGui::Checkbox(" " ICON_FA_PLAY " Start the injection service as well", &bAutoStartService))
+  if (SKIF_ImGui_Checkbox(LI_(" " ICON_FA_PLAY, "Start the injection service as well"), &bAutoStartService))
     changes = true;
 
   ImGui::TreePop  ( );
@@ -1184,8 +1206,8 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
   {
     SKIF_ImGui_PopDisableState  ( );
 
-    SKIF_ImGui_SetHoverTip ("The current autostart method needs to be disabled to migrate over to this method.\n"
-                            "The difference is that this method autostarts SKIF, and not just the GI service." );
+    SKIF_ImGui_SetHoverTip (_("The current autostart method needs to be disabled to migrate over to this method.\n"
+                            "The difference is that this method autostarts SKIF, and not just the GI service."));
   }
 
   // Legacy method, only appear if it is actually enabled or debug mode is enabled
@@ -1201,7 +1223,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
     {
       ImGui::BeginGroup ();
 
-      if (ImGui::Checkbox ("Start Injection Service At Logon (obsolete) " ICON_FA_USER_SHIELD, &bLogonTaskEnabled))
+      if (SKIF_ImGui_Checkbox ((std::string (_("Start Injection Service At Logon (obsolete)")) + " " ICON_FA_USER_SHIELD "###LogonTask").c_str ( ), &bLogonTaskEnabled))
       {
         if (
           ShellExecuteW (
@@ -1218,7 +1240,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
             ! bLogonTaskEnabled;
       }
 
-      SKIF_ImGui_SetHoverTip ("This method is obsolete, and can only be disabled.");
+      SKIF_ImGui_SetHoverTip (_("This method is obsolete, and can only be disabled."));
 
       ImGui::EndGroup      ();
     }
@@ -1230,16 +1252,16 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
          bAutoStartSKIF )
       SKIF_ImGui_PushDisableState ( );
 
-    if (ImGui::Checkbox ("Start the injection service with Windows", &dontCare))
+    if (SKIF_ImGui_Checkbox (L_("Start the injection service with Windows"), &dontCare))
     {
       if (! bAutoStartServiceOnly)
       {
-        if (MessageBox(NULL, L"This will start the injection service hidden in the background with Windows.\n"
-                              L"\n"
-                              L"Special K Injection Frontend (SKIF) will not autostart.\n"
-                              L"\n"
-                              L"Are you sure you want to proceed?",
-                              L"Confirm autostart",
+        if (MessageBox(NULL, W_("This will start the injection service hidden in the background with Windows.\n"
+                                "\n"
+                                "Special K Injection Frontend (SKIF) will not autostart.\n"
+                                "\n"
+                                "Are you sure you want to proceed?"),
+                              W_("Confirm autostart"),
                               MB_YESNO | MB_ICONWARNING) == IDYES)
         {
           if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\Run)", 0, KEY_WRITE, &hKey) == ERROR_SUCCESS)
@@ -1277,7 +1299,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
       }
     }
 
-    SKIF_ImGui_SetHoverTip ("Note that this frontend app will not start with Windows.");
+    SKIF_ImGui_SetHoverTip (_("Note that this frontend app will not start with Windows."));
 
     if ( bLogonTaskEnabled ||
          bAutoStartSKIF )
@@ -1285,11 +1307,11 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
       SKIF_ImGui_PopDisableState  ( );
 
       if (bAutoStartSKIF)
-        SKIF_ImGui_SetHoverTip ("The regular autostart method needs to be disabled to migrate over to this method.\n"
-                                "The difference is that the current method autostarts SKIF, and not just the injection service.");
+        SKIF_ImGui_SetHoverTip (_("The regular autostart method needs to be disabled to migrate over to this method.\n"
+                                "The difference is that the current method autostarts SKIF, and not just the injection service."));
       else
-        SKIF_ImGui_SetHoverTip ("The old legacy method needs to be disabled to migrate over to this new method.\n"
-                                "The difference is that this method does not require elevated privileges." );
+        SKIF_ImGui_SetHoverTip (_("The old legacy method needs to be disabled to migrate over to this new method.\n"
+                                "The difference is that this method does not require elevated privileges."));
     }
 
     ImGui::EndGroup      ();
@@ -1328,7 +1350,7 @@ SKIF_InjectionContext::_SetTaskbarOverlay (bool show)
     if (hIcon != NULL)
     {
       if (show)
-        taskbar->SetOverlayIcon (SKIF_ImGui_hWnd, hIcon, L"Injection service is running.");
+        taskbar->SetOverlayIcon (SKIF_ImGui_hWnd, hIcon, W_("Injection service is running."));
       else
         taskbar->SetOverlayIcon (SKIF_ImGui_hWnd, NULL, NULL);
 
@@ -1350,8 +1372,8 @@ void SKIF_InjectionContext::_RefreshUIQuickToggle (bool active)
   {
     ui_game_summary.text        =
                       (active)  ?
-                      (bAckInj) ?             "Waiting for game...##ui_game_summary"
-                                :                         "Running##ui_game_summary"
+                      (bAckInj) ? NL_("Waiting for game...##ui_game_summary")
+                                : NL_(            "Running##ui_game_summary")
                                 : "                               ##ui_game_summary";
 
     ui_game_summary.color       =
@@ -1361,8 +1383,8 @@ void SKIF_InjectionContext::_RefreshUIQuickToggle (bool active)
                       (active)  ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success) * ImVec4(0.8f, 0.8f, 0.8f, 1.0f)
                                 : ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info)    * ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
     ui_game_summary.hover_tip   =
-                      (active)  ? "Click to stop the service"
-                                : "Click to start the service";
+                      (active)  ? N_("Click to stop the service")
+                                : N_("Click to start the service");
   }
 }
 

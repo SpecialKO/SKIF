@@ -19,6 +19,9 @@
 #include <utility/skif_imgui.h>
 #include <fonts/fa_621.h>
 
+// Last, as it defines short macros such as _ ( )
+#include <utility/l10n.h>
+
 /*
 Xbox / MS Store games shared registry struture
 
@@ -922,7 +925,7 @@ app_record_xbox_s::DrawDeveloperActions (void)
 {
   if (ui.numSecondaryLaunchConfigs == 0)
   {
-    if (SKIF_ImGui_MenuItemEx2 ("Open Terminal###GameContextMenu_TerminalMenu", ICON_FA_TERMINAL))
+    if (SKIF_ImGui_MenuItemEx2 (L_("Open Terminal###GameContextMenu_TerminalMenu"), ICON_FA_TERMINAL))
     {
       SKIF_Util_CreateProcess (
         L"",
@@ -940,7 +943,7 @@ app_record_xbox_s::DrawDeveloperActions (void)
 
   else if (ui.numSecondaryLaunchConfigs > 0)
   {
-    if (SKIF_ImGui_BeginMenuEx2 ("Open Terminal###GameContextMenu_TerminalMenu", ICON_FA_TERMINAL))
+    if (SKIF_ImGui_BeginMenuEx2 (L_("Open Terminal###GameContextMenu_TerminalMenu"), ICON_FA_TERMINAL))
     {
       for (auto& _launch_cfg : launch_configs)
       {
@@ -987,7 +990,7 @@ app_record_xbox_s::DrawDeveloperActions (void)
     }
   }
 
-  SKIF_ImGui_SetHoverTip ("This invokes a terminal in the context of the desktop package.");
+  SKIF_ImGui_SetHoverTip (_("This invokes a terminal in the context of the desktop package."));
 }
 
 #pragma endregion

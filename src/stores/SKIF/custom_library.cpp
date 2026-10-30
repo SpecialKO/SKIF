@@ -11,6 +11,9 @@
 #include <tabs/properties.h>
 #include <cwctype>
 
+// Last, as it defines short macros such as _ ( )
+#include <utility/l10n.h>
+
 
 bool SKIF_RemoveCustomAppID (uint32_t appid)
 {
@@ -305,7 +308,7 @@ SKIF_Custom_AddGame (void)
   // Always use same size
   float fAddGamePopupWidth = 560.0f * SKIF_ImGui_GlobalDPIScale;
 
-  if (SKIF_ImGui_BeginPopup ("Add Game###AddGamePopup", nullptr, ImVec2 (fAddGamePopupWidth, 0.0f)))
+  if (SKIF_ImGui_BeginPopup (L_("Add Game###AddGamePopup"), nullptr, ImVec2 (fAddGamePopupWidth, 0.0f)))
   {
     /*
       name          - String -- Title/Name
@@ -370,16 +373,28 @@ SKIF_Custom_AddGame (void)
 
     SKIF_ImGui_Spacing ( );
 
-    ImVec2 vButtonSize = ImVec2(80.0f * SKIF_ImGui_GlobalDPIScale, 0.0f);
+    // The buttons: at least 80 px wide, as wide as the widest (translated) label
+    ImVec2 vButtonSize = ImVec2(std::max ({ 80.0f * SKIF_ImGui_GlobalDPIScale,
+                                            ImGui::CalcTextSize (L_("Browse...###BrowsePath"),   nullptr, true).x + ImGui::GetStyle ( ).FramePadding.x * 2.0f,
+                                            ImGui::CalcTextSize (L_("Change...###BrowseWorkDir"), nullptr, true).x + ImGui::GetStyle ( ).FramePadding.x * 2.0f,
+                                            ImGui::CalcTextSize (L_("Add Game"),                 nullptr, true).x + ImGui::GetStyle ( ).FramePadding.x * 2.0f,
+                                            ImGui::CalcTextSize (L_("Cancel"),                   nullptr, true).x + ImGui::GetStyle ( ).FramePadding.x * 2.0f }), 0.0f);
+
+    // The fields: narrowed so the widest (translated) label after them fits the popup
+    const float fLabelWidth = std::max ({ ImGui::CalcTextSize (_("Path")).x,           ImGui::CalcTextSize (_("Working Directory")).x,
+                                          ImGui::CalcTextSize (_("Name")).x,           ImGui::CalcTextSize (_("Launch Options")).x });
+    const float fFieldWidth = std::max (ImGui::GetFrameHeight ( ) * 4.0f,
+                                        std::min (ImGui::CalcItemWidth ( ),
+                                                  ImGui::GetContentRegionAvail ( ).x - vButtonSize.x - fLabelWidth - ImGui::GetStyle ( ).ItemSpacing.x * 2.0f));
 
     float fBtnX = ImGui::GetCursorPosX ( );
 
     // Path / Executable
-    if (ImGui::Button  ("Browse...###BrowsePath", vButtonSize))
+    if (ImGui::Button  (L_("Browse...###BrowsePath"), vButtonSize))
     {
       LPWSTR pwszFilePath = NULL;
       HRESULT hr          =
-        SKIF_Util_FileExplorer_BrowseForFile (&pwszFilePath, SKIF_ImGui_hWnd, { { L"Executables", L"*.exe;*.bat" } }, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST);
+        SKIF_Util_FileExplorer_BrowseForFile (&pwszFilePath, SKIF_ImGui_hWnd, { { W_("Executables"), L"*.exe;*.bat" } }, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST);
 
       if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED))
       {
@@ -405,22 +420,23 @@ SKIF_Custom_AddGame (void)
     float fAddGamePopupX = ImGui::GetCursorPosX ( );
 
     ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+    ImGui::SetNextItemWidth (fFieldWidth);
     ImGui::InputText   ("###GamePath", charPath, MAX_PATH, ImGuiInputTextFlags_ReadOnly);
     SKIF_ImGui_BlockDragMoveWhenItemActive ( );
     ImGui::PopStyleColor ( );
     ImGui::SameLine    ( );
-    ImGui::Text        ("Path");
+    ImGui::TextUnformatted (_("Path"));
 
     if (error)
     {
       ImGui::SetCursorPosX (fAddGamePopupX);
-      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), "Incompatible type! Please select another file.");
+      SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), _("Incompatible type! Please select another file."));
     }
 
     ImGui::SetCursorPosX (fBtnX);
 
     // Working Directory
-    if (ImGui::Button  ("Change...###BrowseWorkDir", vButtonSize))
+    if (ImGui::Button  (L_("Change...###BrowseWorkDir"), vButtonSize))
     {
       errorWorkDir = false;
       LPWSTR pwszWorkingDir = NULL;
@@ -450,16 +466,17 @@ SKIF_Custom_AddGame (void)
     ImGui::SameLine    ( );
 
     ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+    ImGui::SetNextItemWidth (fFieldWidth);
     ImGui::InputText   ("###GameWorkDir", charWorkDir, MAX_PATH, ImGuiInputTextFlags_ReadOnly);
     SKIF_ImGui_BlockDragMoveWhenItemActive ( );
     ImGui::PopStyleColor ( );
     ImGui::SameLine    ( );
-    ImGui::Text        ("Working Directory");
+    ImGui::TextUnformatted (_("Working Directory"));
 
     if (errorWorkDir)
     {
       ImGui::SetCursorPosX (fAddGamePopupX);
-      ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), "Incompatible folder! Please select another folder.");
+      SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), _("Incompatible folder! Please select another folder."));
     } else {
       // Empty line
       ImGui::NewLine   ( );
@@ -468,17 +485,18 @@ SKIF_Custom_AddGame (void)
     ImGui::SetCursorPosX (fAddGamePopupX);
 
     // Name
+    ImGui::SetNextItemWidth (fFieldWidth);
     ImGui::InputText   ("###GameName", charName, MAX_PATH);
     SKIF_ImGui_BlockDragMoveWhenItemActive ( );
     ImGui::SameLine    ( );
-    ImGui::Text        ("Name");
+    ImGui::TextUnformatted (_("Name"));
 
     ImGui::SetCursorPosX (fAddGamePopupX);
 
-    ImGui::InputTextEx ("###GameArgs", "Leave empty if unsure", charArgs, 1024, ImVec2(0,0), ImGuiInputTextFlags_None);
+    ImGui::InputTextEx ("###GameArgs", _("Leave empty if unsure"), charArgs, 1024, ImVec2(fFieldWidth, 0), ImGuiInputTextFlags_None);
     SKIF_ImGui_BlockDragMoveWhenItemActive ( );
     ImGui::SameLine    ( );
-    ImGui::Text        ("Launch Options");
+    ImGui::TextUnformatted (_("Launch Options"));
 
     SKIF_ImGui_Spacing ( );
     SKIF_ImGui_Spacing ( );
@@ -497,7 +515,7 @@ SKIF_Custom_AddGame (void)
       SKIF_ImGui_PushDisableState ( );
     }
 
-    if (ImGui::Button  ("Add Game", vButtonSize))
+    if (ImGui::Button  (L_("Add Game"), vButtonSize))
     {
       int newAppId = SKIF_AddCustomAppID (SK_UTF8ToWideChar(charName), SK_UTF8ToWideChar(charPath), SK_UTF8ToWideChar(charArgs), SK_UTF8ToWideChar(charWorkDir));
 
@@ -539,7 +557,7 @@ SKIF_Custom_AddGame (void)
 
     ImGui::SetCursorPosX (fAddGamePopupWidth / 2 + 20.0f * SKIF_ImGui_GlobalDPIScale);
 
-    if (ImGui::Button  ("Cancel", vButtonSize))
+    if (ImGui::Button  (L_("Cancel"), vButtonSize))
     {
       // Clear variables
       error               = false;
@@ -579,7 +597,7 @@ SKIF_Custom_RemoveGame (uint32_t appid)
 
   bool ret      = false;
   bool dontCare =  true;
-  switch (SKIF_ImGui_ConfirmPrompt ("Remove Game?###RemoveGamePopup", &dontCare, "Are you sure you want to remove the game from the library?", "No changes will be made to the game files."))
+  switch (SKIF_ImGui_ConfirmPrompt (L_("Remove Game?###RemoveGamePopup"), &dontCare, _("Are you sure you want to remove the game from the library?"), _("No changes will be made to the game files.")))
   {
     case DChoice_Yes:
       if (SKIF_RemoveCustomAppID (appid))
@@ -693,14 +711,17 @@ public:
   {
     UNREFERENCED_PARAMETER (app);
 
-    const float fButtonWidth = 80.0f * SKIF_ImGui_GlobalDPIScale;
+    // At least 80 px wide, as wide as the wider (translated) label
+    const float fButtonWidth = std::max ({ 80.0f * SKIF_ImGui_GlobalDPIScale,
+                                           ImGui::CalcTextSize (L_("Browse...###PropsCustomBrowseExe"),     nullptr, true).x + ImGui::GetStyle ( ).FramePadding.x * 2.0f,
+                                           ImGui::CalcTextSize (L_("Change...###PropsCustomBrowseWorkDir"), nullptr, true).x + ImGui::GetStyle ( ).FramePadding.x * 2.0f });
 
     // Executable
-    SKIF_Properties_Label ("Executable");
+    SKIF_Properties_Label (_("Executable"));
     _PathField            ("###PropsCustomExe", path, fButtonWidth);
     ImGui::SameLine       ( );
 
-    if (ImGui::Button ("Browse...###PropsCustomBrowseExe", ImVec2 (fButtonWidth, 0.0f)))
+    if (ImGui::Button (L_("Browse...###PropsCustomBrowseExe"), ImVec2 (fButtonWidth, 0.0f)))
     {
       std::wstring picked;
 
@@ -711,7 +732,7 @@ public:
           SKIF_Util_ResolveExecutableSelection (picked);
 
         if (! selection.valid)
-          error = "Incompatible type! Please select another file.";
+          error = _("Incompatible type! Please select another file.");
 
         else
         {
@@ -727,11 +748,11 @@ public:
     }
 
     // Working directory
-    SKIF_Properties_Label ("Working directory");
+    SKIF_Properties_Label (_("Working directory"));
     _PathField            ("###PropsCustomWorkDir", workDir, fButtonWidth);
     ImGui::SameLine       ( );
 
-    if (ImGui::Button ("Change...###PropsCustomBrowseWorkDir", ImVec2 (fButtonWidth, 0.0f)))
+    if (ImGui::Button (L_("Change...###PropsCustomBrowseWorkDir"), ImVec2 (fButtonWidth, 0.0f)))
     {
       std::wstring picked;
 
@@ -740,9 +761,9 @@ public:
     }
 
     // Launch options
-    SKIF_Properties_Label   ("Launch options");
+    SKIF_Properties_Label   (_("Launch options"));
     ImGui::SetNextItemWidth (-FLT_MIN);
-    ImGui::InputTextWithHint ("###PropsCustomArgs", "Leave empty if unsure", args, 1024);
+    ImGui::InputTextWithHint ("###PropsCustomArgs", _("Leave empty if unsure"), args, 1024);
     SKIF_ImGui_BlockDragMoveWhenItemActive ( );
 
     if (! error.empty ( ))
@@ -757,7 +778,7 @@ public:
     UNREFERENCED_PARAMETER (app);
 
     if (_IsBlank (path) || _IsBlank (workDir))
-      out.push_back ({ property_issue_s::Level::Error, "Select the executable and the working directory of the game." });
+      out.push_back ({ property_issue_s::Level::Error, _("Select the executable and the working directory of the game.") });
   }
 
   bool IsDirty (void) const override

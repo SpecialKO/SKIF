@@ -22,6 +22,9 @@
 
 #include "library_ui.h"
 
+// Last, as it defines short macros such as _ ( )
+#include <utility/l10n.h>
+
 #pragma region LaunchGame
 
 void
@@ -39,7 +42,7 @@ LaunchGame (app_record_s* pApp)
   if ( pApp->RequiresValidExecutable ( ) &&
       ! launchConfig->isExecutableFullPathValid ( ))
   {
-    SKIF_ImGui_InfoMessage ("Missing executable", "Could not launch game due to missing executable:\n\n" + launchConfig->getExecutableFullPathUTF8 ( ));
+    SKIF_ImGui_InfoMessage (_("Missing executable"), std::string (_("Could not launch game due to missing executable:")) + "\n\n" + launchConfig->getExecutableFullPathUTF8 ( ));
   }
 
   else {

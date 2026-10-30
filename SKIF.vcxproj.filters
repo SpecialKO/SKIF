@@ -100,6 +100,9 @@
     <Filter Include="Header Files\Packages_Misc">
       <UniqueIdentifier>{9fb4cf13-f304-4e2c-a64a-0fb28fa175f2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Resource Files\Translations">
+      <UniqueIdentifier>{3d6f2b1e-8c4a-4f7e-9b52-61a0c7e4d915}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\imgui\imconfig.h">
@@ -193,6 +196,9 @@
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
     <ClInclude Include="include\utility\igdb.h">
+      <Filter>Header Files\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="include\utility\l10n.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
     <ClInclude Include="include\utility\registry.h">
@@ -392,6 +398,9 @@
     <ClCompile Include="src\utility\igdb.cpp">
       <Filter>Source Files\Utility</Filter>
     </ClCompile>
+    <ClCompile Include="src\utility\l10n.cpp">
+      <Filter>Source Files\Utility</Filter>
+    </ClCompile>
     <ClCompile Include="src\utility\registry.cpp">
       <Filter>Source Files\Utility</Filter>
     </ClCompile>
@@ -475,6 +484,9 @@
     <ResourceCompile Include="SKIF.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
+    <ResourceCompile Include="l10n.rc">
+      <Filter>Resource Files\Translations</Filter>
+    </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
     <Image Include="resources\icons\SKIF.ico">
@@ -505,5 +517,11 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="resources\l10n\SKIF.pot">
+      <Filter>Resource Files\Translations</Filter>
+    </None>
+    <None Include="tools\l10n_extract.ps1">
+      <Filter>Resource Files\Translations</Filter>
+    </None>
   </ItemGroup>
 </Project>

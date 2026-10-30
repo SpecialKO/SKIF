@@ -28,18 +28,46 @@
 #include <algorithm>
 #include <cctype>
 
+// Last, as it defines short macros such as _ ( )
+#include <utility/l10n.h>
+
 #pragma region Helpers
+
+// The label column is at least 150 px wide (scaled), and as wide as the widest label drawn (translations may be longer).
+//   A label wider than the column widens it from the next frame on, which is requested right away. The width is kept
+//     without the DPI scale, as each Properties window may be on a monitor of its own.
+static float    s_PropertiesLabelWidth      = 0.0f; // Unscaled
+static uint32_t s_PropertiesLabelGeneration = 0;    // The language the width was measured in
 
 float
 SKIF_Properties_GetLabelWidth (void)
 {
-  return 150.0f * SKIF_ImGui_GlobalDPIScale;
+  const uint32_t generation = SKIF_L10n::GetInstance ( ).GetGeneration ( );
+
+  if (generation != s_PropertiesLabelGeneration)
+  {
+    s_PropertiesLabelWidth      = 0.0f;
+    s_PropertiesLabelGeneration = generation;
+  }
+
+  return std::max (150.0f, s_PropertiesLabelWidth) * SKIF_ImGui_GlobalDPIScale;
 }
 
 void
 SKIF_Properties_Label (const char* label, const char* tooltip)
 {
   const float x = ImGui::GetCursorPosX ( );
+
+  // Widen the column if this label needs it (applied from the next frame on, so ask for one)
+  const float needed = ImGui::CalcTextSize (label).x + ImGui::GetStyle ( ).ItemSpacing.x * 2.0f;
+
+  if (needed > SKIF_Properties_GetLabelWidth ( ) + 0.5f)
+  {
+    s_PropertiesLabelWidth = needed / SKIF_ImGui_GlobalDPIScale;
+
+    extern int addAdditionalFrames;
+    addAdditionalFrames += 1;
+  }
 
   ImGui::AlignTextToFramePadding ( );
   ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption), "%s", label);
@@ -152,7 +180,7 @@ _SamePath (const std::wstring& a, const std::wstring& b)
 static const char*
 _InstantPlayName (int value)
 {
-  return (value == 1) ? "Always" : (value == 2) ? "Never" : "Default";
+  return (value == 1) ? _("Always") : (value == 2) ? _("Never") : _("Default");
 }
 
 #pragma endregion
@@ -187,32 +215,33 @@ public:
     UNREFERENCED_PARAMETER (app);
 
     // Name
-    SKIF_Properties_Label   ("Name", "Leave empty to use the name of the game.");
+    SKIF_Properties_Label   (_("Name"), _("Leave empty to use the name of the game."));
     ImGui::SetNextItemWidth (-FLT_MIN);
     ImGui::InputTextWithHint ("###PropsName", hint.c_str ( ), name, MAX_PATH);
     SKIF_ImGui_BlockDragMoveWhenItemActive ( );
 
     // Library
-    SKIF_Properties_Label   ("Library");
-    ImGui::Checkbox         ("Favorited###PropsFavorite", &favorite);
+    SKIF_Properties_Label   (_("Library"));
+    SKIF_ImGui_Checkbox         (L_("Favorited###PropsFavorite"), &favorite);
     ImGui::SameLine         ( );
     ImGui::Spacing          ( );
-    ImGui::SameLine         ( );
-    ImGui::Checkbox         ("Hidden###PropsHidden",      &hidden);
+    SKIF_ImGui_SameLineIfFits (SKIF_ImGui_CheckboxWidth (L_("Hidden###PropsHidden")));
+    SKIF_ImGui_Checkbox         (L_("Hidden###PropsHidden"),      &hidden);
 
     // Category (also in the game's Manage > Category menu)
     const bool categoryDisabled = favorite;
 
-    SKIF_Properties_Label   ("Category", "Favorited games are always shown under Favorites.");
+    SKIF_Properties_Label   (_("Category"), _("Favorited games are always shown under Favorites."));
 
     SKIF_ImGui_PushDisableState (categoryDisabled);
 
     const float fComboWidth = (ImGui::GetContentRegionAvail ( ).x - ImGui::GetStyle ( ).ItemSpacing.x) * 0.5f;
 
     ImGui::SetNextItemWidth (fComboWidth);
-    if (ImGui::BeginCombo   ("###PropsCategory", (category.empty ( )) ? "Games" : category.c_str ( )))
+    // TRANSLATORS: The default category of the library
+    if (ImGui::BeginCombo   ("###PropsCategory", (category.empty ( )) ? C_("category", "Games") : category.c_str ( )))
     {
-      if (ImGui::Selectable ("Games###PropsCategoryNone", category.empty ( )))
+      if (ImGui::Selectable (CL_("category", "Games###PropsCategoryNone"), category.empty ( )))
         category.clear ( );
 
       int index = 0;
@@ -229,7 +258,8 @@ public:
 
       // A new category typed below, which is only created on Save
       if (! category.empty ( ) && ! SKIF_Lib_CategoryExists (category))
-        ImGui::Selectable (SKIF_Util_FormatStringRaw ("%s (new)###PropsCategoryNew", category.c_str ( )), true);
+        // TRANSLATORS: {0} is the name of a category that does not exist yet
+        ImGui::Selectable ((F_("{0} (new)", category) + "###PropsCategoryNew").c_str ( ), true);
 
       ImGui::EndCombo ( );
     }
@@ -237,7 +267,7 @@ public:
     ImGui::SameLine         ( );
     ImGui::SetNextItemWidth (-FLT_MIN);
 
-    if (ImGui::InputTextWithHint ("###PropsNewCategory", "New category...", newCategory, maxCategoryNameLen, ImGuiInputTextFlags_EnterReturnsTrue))
+    if (ImGui::InputTextWithHint ("###PropsNewCategory", _("New category..."), newCategory, maxCategoryNameLen, ImGuiInputTextFlags_EnterReturnsTrue))
     {
       std::string szName = newCategory;
       newCategory [0]    = '\0';
@@ -370,29 +400,30 @@ public:
     // Instant Play (the game's setting)
     if (instantPlayCompatible)
     {
-      SKIF_Properties_Label  ("Instant Play", "Used by the launch options of the game that the platform client can start itself.\n"
-                                              "Other launch options always use Instant Play.");
+      SKIF_Properties_Label  (_("Instant Play"), _("Used by the launch options of the game that the platform client can start itself.\n"
+                                              "Other launch options always use Instant Play."));
 
-      ImGui::RadioButton     (SKIF_Util_FormatStringRaw ("Default (%s)###PropsIPDefault", (instantPlayGlobal) ? "Always" : "Never"), &instantPlay, 0);
-      SKIF_ImGui_SetHoverTip ("The game will use the default behavior configured in the Settings tab.");
-      ImGui::SameLine        ( );
-      ImGui::RadioButton     ("Never###PropsIPNever",   &instantPlay, 2);
-      SKIF_ImGui_SetHoverTip ("The game will never use instant play except\nwhen launched through the right click menu.");
-      ImGui::SameLine        ( );
-      ImGui::RadioButton     ("Always###PropsIPAlways", &instantPlay, 1);
-      SKIF_ImGui_SetHoverTip ("The game will always use instant play except\nwhen launched through the right click menu.");
+      // TRANSLATORS: {0} is what the default is: "Always" or "Never"
+      SKIF_ImGui_RadioButton (( F_("Default ({0})", (instantPlayGlobal) ? _("Always") : _("Never")) + "###PropsIPDefault").c_str ( ), &instantPlay, 0);
+      SKIF_ImGui_SetHoverTip (_("The game will use the default behavior configured in the Settings tab."));
+      SKIF_ImGui_SameLineIfFits (SKIF_ImGui_CheckboxWidth (L_("Never###PropsIPNever")));
+      SKIF_ImGui_RadioButton     (L_("Never###PropsIPNever"),   &instantPlay, 2);
+      SKIF_ImGui_SetHoverTip (_("The game will never use instant play except\nwhen launched through the right click menu."));
+      SKIF_ImGui_SameLineIfFits (SKIF_ImGui_CheckboxWidth (L_("Always###PropsIPAlways")));
+      SKIF_ImGui_RadioButton     (L_("Always###PropsIPAlways"), &instantPlay, 1);
+      SKIF_ImGui_SetHoverTip (_("The game will always use instant play except\nwhen launched through the right click menu."));
       ImGui::SameLine        ( );
       ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
-      SKIF_ImGui_SetHoverTip ("Warning: This skips the regular platform launch process for the game,\n"
-                              "including steps like the cloud saves synchronization that usually occurs.");
+      SKIF_ImGui_SetHoverTip (_("Warning: This skips the regular platform launch process for the game,\n"
+                              "including steps like the cloud saves synchronization that usually occurs."));
     }
 
     // Auto-stop
-    SKIF_Properties_Label  ("Auto-stop", "This determines how long the service will remain running when launching the game.\n"
-                                         "Move the mouse over each option to get more information.");
+    SKIF_Properties_Label  (_("Auto-stop"), _("This determines how long the service will remain running when launching the game.\n"
+                                         "Move the mouse over each option to get more information."));
 
     if (folder.empty ( ))
-      ImGui::TextDisabled ("Not available for this game.");
+      SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), _("Not available for this game."));
     else
       _DrawAutoStop ( );
   }
@@ -433,27 +464,27 @@ private:
 
     // What Default resolves to: a parent folder's setting, else the Settings tab
     std::string defaultLabel =
-      (inherited == AutoStop::OnInjection) ? "Default (Inject, parent folder)" :
-      (inherited == AutoStop::OnGameExit)  ? "Default (Exit, parent folder)"   :
-      (inherited == AutoStop::Never)       ? "Default (Never, parent folder)"  :
-      (_registry.iAutoStopBehavior == 1)   ? "Default (Inject)"                : "Default (Exit)";
+      (inherited == AutoStop::OnInjection) ? _("Default (Inject, parent folder)") :
+      (inherited == AutoStop::OnGameExit)  ? _("Default (Exit, parent folder)")   :
+      (inherited == AutoStop::Never)       ? _("Default (Never, parent folder)")  :
+      (_registry.iAutoStopBehavior == 1)   ? _("Default (Inject)")                : _("Default (Exit)");
 
-    ImGui::RadioButton     ((defaultLabel + "###PropsAutoStopDefault").c_str ( ), &value, 0);
-    SKIF_ImGui_SetHoverTip ((inherited != AutoStop::Inherit) ? "The service will use the behavior set for a parent folder of the game."
-                                                             : "The service will use the default behavior configured in the Settings tab.");
-    ImGui::SameLine        ( );
-    ImGui::RadioButton     ("On inject###PropsAutoStopInject", &value, 1);
-    SKIF_ImGui_SetHoverTip ("The service will be stopped when Special K\nsuccessfully injects into a game.");
-    ImGui::SameLine        ( );
-    ImGui::RadioButton     ("On exit###PropsAutoStopExit",     &value, 2);
-    SKIF_ImGui_SetHoverTip ("The service will be stopped when Special K\ndetects that the game is being closed.");
+    SKIF_ImGui_RadioButton ((defaultLabel + "###PropsAutoStopDefault").c_str ( ), &value, 0);
+    SKIF_ImGui_SetHoverTip ((inherited != AutoStop::Inherit) ? _("The service will use the behavior set for a parent folder of the game.")
+                                                             : _("The service will use the default behavior configured in the Settings tab."));
+    SKIF_ImGui_SameLineIfFits (SKIF_ImGui_CheckboxWidth (L_("On inject###PropsAutoStopInject")));
+    SKIF_ImGui_RadioButton     (L_("On inject###PropsAutoStopInject"), &value, 1);
+    SKIF_ImGui_SetHoverTip (_("The service will be stopped when Special K\nsuccessfully injects into a game."));
+    SKIF_ImGui_SameLineIfFits (SKIF_ImGui_CheckboxWidth (L_("On exit###PropsAutoStopExit")));
+    SKIF_ImGui_RadioButton     (L_("On exit###PropsAutoStopExit"),     &value, 2);
+    SKIF_ImGui_SetHoverTip (_("The service will be stopped when Special K\ndetects that the game is being closed."));
     ImGui::SameLine        ( );
     ImGui::BeginGroup      ( );
-    ImGui::RadioButton     ("Never###PropsAutoStopNever",      &value, 3);
+    SKIF_ImGui_RadioButton     (L_("Never###PropsAutoStopNever"),      &value, 3);
     ImGui::SameLine        ( );
     ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
     ImGui::EndGroup        ( );
-    SKIF_ImGui_SetHoverTip ("Warning: The service will remain even\nafter the game has been closed.");
+    SKIF_ImGui_SetHoverTip (_("Warning: The service will remain even\nafter the game has been closed."));
   }
 
   std::wstring                   folder;
@@ -522,10 +553,10 @@ public:
 
         // A copy in lc_user.json needs an executable inside the install folder
         if (! lc.isExecutableFileNameValid ( ))
-          row.duplicateBlocker = "This launch option has no executable that can be started directly.";
+          row.duplicateBlocker = _("This launch option has no executable that can be started directly.");
 
         else if (app_record_s::GetPathRelativeTo (installDir, lc.getExecutableFullPath ( )).empty ( ))
-          row.duplicateBlocker = "The executable of this launch option is outside of the game's install folder.";
+          row.duplicateBlocker = _("The executable of this launch option is outside of the game's install folder.");
 
         if (lc.id == primaryId && source == LaunchSource::Platform)
           primaryRow = static_cast <int> (rows.size ( ));
@@ -585,7 +616,7 @@ public:
 
     if (rows.empty ( ))
     {
-      ImGui::TextDisabled ("This game has no launch options.");
+      SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), _("This game has no launch options."));
       return;
     }
 
@@ -598,28 +629,28 @@ public:
     const bool isUser = (rows [selected].source == LaunchSource::User);
 
     SKIF_ImGui_PushDisableState (! userReadable);
-    if (ImGui::Button ("Add###PropsLaunchAdd"))
+    if (ImGui::Button (L_("Add###PropsLaunchAdd")))
       _AddUserRow (app);
     SKIF_ImGui_PopDisableState  (! userReadable);
-    SKIF_ImGui_SetHoverTip ("Adds a new launch option of your own (lc_user.json).", false, true);
+    SKIF_ImGui_SetHoverTip (_("Adds a new launch option of your own (lc_user.json)."), false, true);
 
     ImGui::SameLine ( );
 
     const bool canDuplicate = (userReadable && (isUser || rows [selected].duplicateBlocker.empty ( )));
 
     SKIF_ImGui_PushDisableState (! canDuplicate);
-    if (ImGui::Button ("Duplicate###PropsLaunchDuplicate"))
+    if (ImGui::Button (L_("Duplicate###PropsLaunchDuplicate")))
       _Duplicate (selected, 0, false);
     SKIF_ImGui_PopDisableState  (! canDuplicate);
-    SKIF_ImGui_SetHoverTip ((canDuplicate || ! userReadable) ? "Creates an editable copy of the selected launch option." : rows [selected].duplicateBlocker.c_str ( ), false, true);
+    SKIF_ImGui_SetHoverTip ((canDuplicate || ! userReadable) ? _("Creates an editable copy of the selected launch option.") : rows [selected].duplicateBlocker.c_str ( ), false, true);
 
     ImGui::SameLine ( );
 
     SKIF_ImGui_PushDisableState (! isUser);
-    if (ImGui::Button ("Remove###PropsLaunchRemove"))
+    if (ImGui::Button (L_("Remove###PropsLaunchRemove")))
       _RemoveRow (selected);
     SKIF_ImGui_PopDisableState  (! isUser);
-    SKIF_ImGui_SetHoverTip ((isUser) ? "Removes the selected launch option." : "Launch options of the platform and Special K can't be removed.", false, true);
+    SKIF_ImGui_SetHoverTip ((isUser) ? _("Removes the selected launch option.") : _("Launch options of the platform and Special K can't be removed."), false, true);
 
     // The last launch option was removed
     if (rows.empty ( ))
@@ -629,13 +660,13 @@ public:
 
     const bool isDefault = (selected == defaultRow);
 
-    if (ImGui::Button ((isDefault) ? "Clear default###PropsLaunchDefault" : ICON_FA_STAR "  Set as default###PropsLaunchDefault"))
+    if (ImGui::Button ((isDefault) ? L_("Clear default###PropsLaunchDefault") : LI_(ICON_FA_STAR, "Set as default###PropsLaunchDefault")))
     {
       defaultRow  = (isDefault) ? -1 : selected;
       keepMissing = false;
     }
-    SKIF_ImGui_SetHoverTip ((isDefault) ? "SKIF goes back to using the primary launch option of the game."
-                                        : "SKIF uses this launch option when the game is launched through the Play button.");
+    SKIF_ImGui_SetHoverTip ((isDefault) ? _("SKIF goes back to using the primary launch option of the game.")
+                                        : _("SKIF uses this launch option when the game is launched through the Play button."));
 
     ImGui::SameLine ( );
 
@@ -647,7 +678,7 @@ public:
     if (ImGui::Button (ICON_FA_CHEVRON_UP "###PropsLaunchUp"))
       _MoveRow (selected, -1);
     SKIF_ImGui_PopDisableState  (! canUp);
-    SKIF_ImGui_SetHoverTip ("Moves the launch option up among your own.", false, true);
+    SKIF_ImGui_SetHoverTip (_("Moves the launch option up among your own."), false, true);
 
     ImGui::SameLine ( );
 
@@ -655,7 +686,7 @@ public:
     if (ImGui::Button (ICON_FA_CHEVRON_DOWN "###PropsLaunchDown"))
       _MoveRow (selected, +1);
     SKIF_ImGui_PopDisableState  (! canDown);
-    SKIF_ImGui_SetHoverTip ("Moves the launch option down among your own.", false, true);
+    SKIF_ImGui_SetHoverTip (_("Moves the launch option down among your own."), false, true);
 
     // Sharing your own launch options through the clipboard
     auto _ButtonWidth = [&](const char* label) -> float
@@ -663,7 +694,7 @@ public:
       return ImGui::CalcTextSize (label, nullptr, true).x + style.FramePadding.x * 2.0f;
     };
 
-    const float fShareWidth = _ButtonWidth ("Import...") + _ButtonWidth ("Export...") + _ButtonWidth ("Export All...") + style.ItemSpacing.x * 2.0f;
+    const float fShareWidth = _ButtonWidth (L_("Import...###PropsLaunchImport")) + _ButtonWidth (L_("Export...###PropsLaunchExportCurrent")) + _ButtonWidth (L_("Export All...###PropsLaunchExportAll")) + style.ItemSpacing.x * 2.0f;
 
     ImGui::SameLine ( );
 
@@ -677,27 +708,27 @@ public:
     const bool hasUserRows = std::any_of (rows.begin ( ), rows.end ( ), [](const row_s& row) { return row.source == LaunchSource::User; });
 
     SKIF_ImGui_PushDisableState (! userReadable);
-    if (ImGui::Button ("Import...###PropsLaunchImport"))
+    if (ImGui::Button (L_("Import...###PropsLaunchImport")))
       _Import (app);
     SKIF_ImGui_PopDisableState  (! userReadable);
-    SKIF_ImGui_SetHoverTip ("Adds launch options from the clipboard to your own,\nas copied by Export / Export All.", false, true);
+    SKIF_ImGui_SetHoverTip (_("Adds launch options from the clipboard to your own,\nas copied by Export / Export All."), false, true);
 
     ImGui::SameLine ( );
 
     SKIF_ImGui_PushDisableState (! selectedUser);
-    if (ImGui::Button ("Export...###PropsLaunchExportCurrent"))
+    if (ImGui::Button (L_("Export...###PropsLaunchExportCurrent")))
       _Export (app, true);
     SKIF_ImGui_PopDisableState  (! selectedUser);
-    SKIF_ImGui_SetHoverTip ((selectedUser) ? "Copies the selected launch option to the clipboard."
-                                           : "Only your own launch options can be exported.", false, true);
+    SKIF_ImGui_SetHoverTip ((selectedUser) ? _("Copies the selected launch option to the clipboard.")
+                                           : _("Only your own launch options can be exported."), false, true);
 
     ImGui::SameLine ( );
 
     SKIF_ImGui_PushDisableState (! hasUserRows);
-    if (ImGui::Button ("Export All...###PropsLaunchExportAll"))
+    if (ImGui::Button (L_("Export All...###PropsLaunchExportAll")))
       _Export (app, false);
     SKIF_ImGui_PopDisableState  (! hasUserRows);
-    SKIF_ImGui_SetHoverTip ("Copies all of your own launch options to the clipboard.", false, true);
+    SKIF_ImGui_SetHoverTip (_("Copies all of your own launch options to the clipboard."), false, true);
 
     // The launch options, below the buttons: always room for six of them, the list scrolls for more
     //   (after the buttons, which may have changed the rows, the selection or the default)
@@ -733,7 +764,7 @@ public:
                                 (i == effectiveDefault) ? ICON_FA_STAR        "  " : "",
                                 (blocked)               ? ICON_FA_LOCK        "  " : "",
                                 (elevated)              ? ICON_FA_USER_SHIELD "  " : "",
-                                (label.empty ( )) ? "<no description>" : label.c_str ( ), i), selected == i))
+                                (label.empty ( )) ? _("<no description>") : label.c_str ( ), i), selected == i))
       {
         if (selected != i)
           pickError.clear ( );
@@ -742,7 +773,7 @@ public:
       }
 
       if (i == effectiveDefault)
-        SKIF_ImGui_SetHoverTip ((defaultRow != -1) ? "The default launch option." : "The default launch option (the primary one, as no other is set).");
+        SKIF_ImGui_SetHoverTip ((defaultRow != -1) ? _("The default launch option.") : _("The default launch option (the primary one, as no other is set)."));
     }
 
     ImGui::EndChild ( );
@@ -767,9 +798,10 @@ public:
     {
       ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
       ImGui::SameLine    ( );
-      ImGui::TextWrapped ("The default launch option (%s) is not available, so the primary one is used.", (defaultOrig.desc.empty ( )) ? defaultOrig.exe.c_str ( ) : defaultOrig.desc.c_str ( ));
+      // TRANSLATORS: {0} is the name of a launch option
+      ImGui::TextWrapped ("%s", F_("The default launch option ({0}) is not available, so the primary one is used.", (defaultOrig.desc.empty ( )) ? defaultOrig.exe : defaultOrig.desc).c_str ( ));
       ImGui::SameLine    ( );
-      if (ImGui::SmallButton ("Clear###PropsLaunchClearMissing"))
+      if (ImGui::SmallButton (L_("Clear###PropsLaunchClearMissing")))
         keepMissing = false;
     }
 
@@ -791,7 +823,7 @@ public:
     using Level = property_issue_s::Level;
 
     if (! userReadable)
-      out.push_back ({ Level::Warning, "lc_user.json could not be read, so your own launch options can't be changed here. Fix or remove the file to edit them." });
+      out.push_back ({ Level::Warning, _("lc_user.json could not be read, so your own launch options can't be changed here. Fix or remove the file to edit them.") });
 
     // Descriptions must be unique, but only your own launch options can be changed, so only those are reported
     std::set <std::string> names, reported;
@@ -808,24 +840,24 @@ public:
       const std::string label = _RowLabel (row);
 
       if (! label.empty ( ) && ! names.emplace (label).second && reported.emplace (label).second)
-        out.push_back ({ Level::Error, "More than one launch option is called \"" + label + "\"." });
+        out.push_back ({ Level::Error, F_("More than one launch option is called \"{0}\".", label) });
 
-      const std::string& name = (label.empty ( )) ? std::string ("<no description>") : label;
+      const std::string& name = (label.empty ( )) ? std::string (_("<no description>")) : label;
 
       if (label.empty ( ))
-        out.push_back ({ Level::Error, "Every launch option of your own needs a description." });
+        out.push_back ({ Level::Error, _("Every launch option of your own needs a description.") });
 
       if (row.user.exe.empty ( ))
-        out.push_back ({ Level::Error, "\"" + name + "\" has no executable." });
+        out.push_back ({ Level::Error, F_("\"{0}\" has no executable.", name) });
 
       else if (! PathIsRelativeW (SK_UTF8ToWideChar (row.user.exe).c_str ( )) || row.user.exe.rfind ("..", 0) == 0)
-        out.push_back ({ Level::Error, "The executable of \"" + name + "\" must be inside the install folder of the game." });
+        out.push_back ({ Level::Error, F_("The executable of \"{0}\" must be inside the install folder of the game.", name) });
 
       else if (! PathFileExistsW (_UserFullExe (row.user).c_str ( )))
-        out.push_back ({ Level::Warning, "The executable of \"" + name + "\" was not found." });
+        out.push_back ({ Level::Warning, F_("The executable of \"{0}\" was not found.", name) });
 
       if (! row.user.dir.empty ( ) && (! PathIsRelativeW (SK_UTF8ToWideChar (row.user.dir).c_str ( )) || row.user.dir.rfind ("..", 0) == 0))
-        out.push_back ({ Level::Error, "The working directory of \"" + name + "\" must be inside the install folder of the game." });
+        out.push_back ({ Level::Error, F_("The working directory of \"{0}\" must be inside the install folder of the game.", name) });
     }
   }
 
@@ -855,7 +887,7 @@ public:
       // Nothing else of this section is applied either, so all of it can be saved again
       else
       {
-        applyError = "Your launch options could not be saved to lc_user.json. See the log for details.";
+        applyError = _("Your launch options could not be saved to lc_user.json. See the log for details.");
         return PropertiesApply_Failed;
       }
     }
@@ -948,13 +980,13 @@ private:
 
   void _DrawService (const std::wstring& path)
   {
-    SKIF_Properties_Label ("Special K", "Applies to the executable, so to every launch option that starts it.");
+    SKIF_Properties_Label (_("Special K"), _("Applies to the executable, so to every launch option that starts it."));
 
     if (! hasServlet)
     {
       ImGui::TextColored  (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
       ImGui::SameLine     ( );
-      ImGui::TextDisabled ("Special K is unavailable due to missing files.");
+      SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), _("Special K is unavailable due to missing files."));
       return;
     }
 
@@ -963,7 +995,7 @@ private:
     // A new executable: the library has no launch config for it until the launch options are saved
     if (idx == -1)
     {
-      ImGui::TextDisabled ("Save first to change these for this executable.");
+      SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), _("Save first to change these for this executable."));
       return;
     }
 
@@ -972,12 +1004,12 @@ private:
     bool blocked = (svc.blocked || svc.blockedPattern);
 
     SKIF_ImGui_PushDisableState (svc.blockedPattern);
-    if (ImGui::Checkbox ("Disable Special K###PropsSvcBlocked", &blocked) && ! svc.blockedPattern)
+    if (SKIF_ImGui_Checkbox (L_("Disable Special K###PropsSvcBlocked"), &blocked) && ! svc.blockedPattern)
       svc.blocked = blocked;
     SKIF_ImGui_PopDisableState  (svc.blockedPattern);
 
     if (svc.blockedPattern)
-      SKIF_ImGui_SetHoverTip ("Special K is disabled through a blacklist pattern in the Settings tab.", true, true);
+      SKIF_ImGui_SetHoverTip (_("Special K is disabled through a blacklist pattern in the Settings tab."), true, true);
 
     ImGui::SameLine ( );
     ImGui::Spacing  ( );
@@ -989,12 +1021,12 @@ private:
     bool elevated = (svc.elevated && ! elevateDisabled);
 
     SKIF_ImGui_PushDisableState (elevateDisabled);
-    if (ImGui::Checkbox ("Elevated service###PropsSvcElevated", &elevated) && ! elevateDisabled)
+    if (SKIF_ImGui_Checkbox (L_("Elevated service###PropsSvcElevated"), &elevated) && ! elevateDisabled)
       svc.elevated = elevated;
     SKIF_ImGui_PopDisableState  (elevateDisabled);
 
     if (elevateDisabled)
-      SKIF_ImGui_SetHoverTip ("Special K is disabled for this executable, so the service is not used.", true, true);
+      SKIF_ImGui_SetHoverTip (_("Special K is disabled for this executable, so the service is not used."), true, true);
   }
 
   std::vector <row_s>                rows;           // Platform, SKIF, then User (in lc_user.json order)
@@ -1151,7 +1183,7 @@ private:
 
     row_s row;
     row.source    = app_record_s::LaunchSource::User;
-    row.user.desc = _UniqueDescription ("New launch option");
+    row.user.desc = _UniqueDescription (_("New launch option"));
 
     // Start from the primary executable
     if (primaryRow != -1)
@@ -1204,9 +1236,10 @@ private:
 
     std::string label = _RowLabel (src);
     if (label.empty ( ))
-      label = "Launch option";
+      label = _("Launch option");
 
-    row.user.desc = _UniqueDescription (label + ((forInstantPlay) ? " (Instant Play)" : " (copy)"));
+    // TRANSLATORS: {0} is the name of the launch option that was copied
+    row.user.desc = _UniqueDescription ((forInstantPlay) ? F_("{0} (Instant Play)", label) : F_("{0} (copy)", label));
 
     rows.push_back (row);
 
@@ -1278,7 +1311,8 @@ private:
           row.user.args == args && _SamePath (_UserFullExe (row.user), SK_UTF8ToWideChar (src.fullExe)))
       {
         selected = i;
-        note     = "\"" + row.user.desc + "\" is already a copy of \"" + label + "\" with Instant Play.";
+        // TRANSLATORS: {0} is the name of the copy, {1} the name of the launch option it is a copy of
+        note     = F_("\"{0}\" is already a copy of \"{1}\" with Instant Play.", row.user.desc, label);
         return;
       }
     }
@@ -1299,16 +1333,17 @@ private:
       keepMissing = false;
     }
 
-    note = "Created an editable copy of \"" + label + "\" with Instant Play. The original launch option stays unchanged.";
+    note = F_("Created an editable copy of \"{0}\" with Instant Play. The original launch option stays unchanged.", label);
 
     if (wasDefault)
-      note += " The copy is now the default launch option.";
+      note += std::string (" ") + _("The copy is now the default launch option.");
 
     if (! folded.empty ( ))
-      note += " The launch options set in the platform client were added to its arguments.";
+      note += std::string (" ") + _("The launch options set in the platform client were added to its arguments.");
 
+    // TRANSLATORS: %command% is the placeholder of Steam's launch options, keep it as it is; {0} is what came before it
     if (! dropped.empty ( ))
-      note += " The part before %command% (" + dropped + ") could not be copied.";
+      note += " " + F_("The part before %command% ({0}) could not be copied.", dropped);
   }
 
   // Clipboard sharing of your own launch options (the lc_user.json format)
@@ -1329,15 +1364,15 @@ private:
 
     if (text.empty ( ))
     {
-      pickError = "The launch options could not be exported.";
+      pickError = _("The launch options could not be exported.");
       return;
     }
 
     ImGui::SetClipboardText (text.c_str ( ));
 
     pickError.clear ( );
-    note = (users.size ( ) == 1) ? "Copied \"" + users.front ( ).desc + "\" to the clipboard."
-                                 : "Copied " + std::to_string (users.size ( )) + " launch options to the clipboard.";
+    note = (users.size ( ) == 1) ? F_("Copied \"{0}\" to the clipboard.", users.front ( ).desc)
+                                 : FP_("Copied {0} launch option to the clipboard.", "Copied {0} launch options to the clipboard.", users.size ( ));
   }
 
   void _Import (app_record_s& app)
@@ -1349,7 +1384,7 @@ private:
 
     if (clipboard == nullptr || ! SKIF_UserLaunchConfigs::Import (app, clipboard, imported, error))
     {
-      pickError = (! error.empty ( )) ? error : "The clipboard does not contain any launch options.";
+      pickError = (! error.empty ( )) ? error : std::string (_("The clipboard does not contain any launch options."));
       return;
     }
 
@@ -1360,7 +1395,7 @@ private:
       row_s row;
       row.source    = app_record_s::LaunchSource::User;
       row.user      = lc;
-      row.user.desc = _UniqueDescription ((lc.desc.empty ( )) ? "Imported launch option" : lc.desc);
+      row.user.desc = _UniqueDescription ((lc.desc.empty ( )) ? std::string (_("Imported launch option")) : lc.desc);
 
       rows.push_back (row);
 
@@ -1371,8 +1406,8 @@ private:
     selected = first;
 
     pickError.clear ( );
-    note = (imported.size ( ) == 1) ? "Imported \"" + rows [first].user.desc + "\" from the clipboard. Save to keep it."
-                                    : "Imported " + std::to_string (imported.size ( )) + " launch options from the clipboard. Save to keep them.";
+    note = (imported.size ( ) == 1) ? F_("Imported \"{0}\" from the clipboard. Save to keep it.", rows [first].user.desc)
+                                    : FP_("Imported {0} launch option from the clipboard. Save to keep it.", "Imported {0} launch options from the clipboard. Save to keep them.", imported.size ( ));
   }
 
   void _RemoveRow (int index)
@@ -1418,13 +1453,13 @@ private:
   {
     const int value = (gameInstantPlay != nullptr) ? *gameInstantPlay : 0;
 
-    return (value != 0) ? _InstantPlayName (value) : (instantPlayGlobal) ? "Always" : "Never";
+    return (value != 0) ? _InstantPlayName (value) : (instantPlayGlobal) ? _("Always") : _("Never");
   }
 
   void _DrawInstantPlayRequired (void)
   {
-    ImGui::TextDisabled    ("Always (required)");
-    SKIF_ImGui_SetHoverTip ("The platform client can't start this launch option itself, so it always uses Instant Play.");
+    SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), _("Always (required)"));
+    SKIF_ImGui_SetHoverTip (_("The platform client can't start this launch option itself, so it always uses Instant Play."));
   }
 
   void _DrawUserRow (app_record_s& app, row_s& row)
@@ -1433,13 +1468,13 @@ private:
 
     SKIF_ImGui_PushDisableState (! userReadable);
 
-    SKIF_Properties_Label ("Description");
-    _InputString          ("###PropsLaunchDesc", user.desc, "Shown in the menus");
+    SKIF_Properties_Label (_("Description"));
+    _InputString          ("###PropsLaunchDesc", user.desc, _("Shown in the menus"));
 
     // Executable (inside the install folder)
-    SKIF_Properties_Label ("Executable", "Relative to the install folder of the game.");
+    SKIF_Properties_Label (_("Executable"), _("Relative to the install folder of the game."));
 
-    const float fBrowseWidth = ImGui::CalcTextSize ("Browse...").x + ImGui::GetStyle ( ).FramePadding.x * 2.0f;
+    const float fBrowseWidth = ImGui::CalcTextSize (L_("Browse...###PropsLaunchBrowseExe"), nullptr, true).x + ImGui::GetStyle ( ).FramePadding.x * 2.0f;
 
     ImGui::BeginGroup     ( );
     ImGui::PushItemWidth  (ImGui::GetContentRegionAvail ( ).x - fBrowseWidth - ImGui::GetStyle ( ).ItemSpacing.x);
@@ -1447,14 +1482,14 @@ private:
       static char buffer [MAX_PATH * 2 + 2] = { };
       strncpy_s (buffer, SK_WideCharToUTF8 (_ToBackslashes (SK_UTF8ToWideChar (user.exe))).c_str ( ), _TRUNCATE);
       ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
-      ImGui::InputTextWithHint ("###PropsLaunchExe", "Select an executable", buffer, sizeof (buffer) - 2, ImGuiInputTextFlags_ReadOnly);
+      ImGui::InputTextWithHint ("###PropsLaunchExe", _("Select an executable"), buffer, sizeof (buffer) - 2, ImGuiInputTextFlags_ReadOnly);
       SKIF_ImGui_BlockDragMoveWhenItemActive ( );
       ImGui::PopStyleColor  ( );
     }
     ImGui::PopItemWidth   ( );
     ImGui::SameLine       ( );
 
-    if (ImGui::Button ("Browse...###PropsLaunchBrowseExe"))
+    if (ImGui::Button (L_("Browse...###PropsLaunchBrowseExe")))
     {
       std::wstring picked;
 
@@ -1466,10 +1501,10 @@ private:
         std::wstring rel = (selection.valid) ? app_record_s::GetPathRelativeTo (installDir, selection.path) : L"";
 
         if (! selection.valid)
-          pickError = "Please select an executable (.exe or .bat), or a shortcut to one.";
+          pickError = _("Please select an executable (.exe or .bat), or a shortcut to one.");
 
         else if (rel.empty ( ))
-          pickError = "The executable must be inside the install folder of the game.";
+          pickError = _("The executable must be inside the install folder of the game.");
 
         else
         {
@@ -1493,25 +1528,25 @@ private:
     ImGui::EndGroup ( );
 
     // Working directory
-    SKIF_Properties_Label ("Working directory", "Relative to the install folder of the game.\nLeave it as the executable's folder if unsure.");
+    SKIF_Properties_Label (_("Working directory"), _("Relative to the install folder of the game.\nLeave it as the executable's folder if unsure."));
 
-    const float fChangeWidth = ImGui::CalcTextSize ("Change...").x + ImGui::GetStyle ( ).FramePadding.x * 2.0f;
+    const float fChangeWidth = ImGui::CalcTextSize (L_("Change...###PropsLaunchBrowseDir"), nullptr, true).x + ImGui::GetStyle ( ).FramePadding.x * 2.0f;
     const float fResetWidth  = ImGui::GetFrameHeight ( );
 
     ImGui::BeginGroup     ( );
     ImGui::PushItemWidth  (ImGui::GetContentRegionAvail ( ).x - fChangeWidth - fResetWidth - ImGui::GetStyle ( ).ItemSpacing.x * 2.0f);
     {
       static char buffer [MAX_PATH * 2 + 2] = { };
-      strncpy_s (buffer, (user.dir == ".") ? "(install folder)" : SK_WideCharToUTF8 (_ToBackslashes (SK_UTF8ToWideChar (user.dir))).c_str ( ), _TRUNCATE);
+      strncpy_s (buffer, (user.dir == ".") ? _("(install folder)") : SK_WideCharToUTF8 (_ToBackslashes (SK_UTF8ToWideChar (user.dir))).c_str ( ), _TRUNCATE);
       ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
-      ImGui::InputTextWithHint ("###PropsLaunchDir", "(executable folder)", buffer, sizeof (buffer) - 2, ImGuiInputTextFlags_ReadOnly);
+      ImGui::InputTextWithHint ("###PropsLaunchDir", _("(executable folder)"), buffer, sizeof (buffer) - 2, ImGuiInputTextFlags_ReadOnly);
       SKIF_ImGui_BlockDragMoveWhenItemActive ( );
       ImGui::PopStyleColor  ( );
     }
     ImGui::PopItemWidth   ( );
     ImGui::SameLine       ( );
 
-    if (ImGui::Button ("Change...###PropsLaunchBrowseDir"))
+    if (ImGui::Button (L_("Change...###PropsLaunchBrowseDir")))
     {
       std::wstring picked;
 
@@ -1526,7 +1561,7 @@ private:
         }
 
         else
-          pickError = "The working directory must be inside the install folder of the game.";
+          pickError = _("The working directory must be inside the install folder of the game.");
       }
     }
 
@@ -1534,29 +1569,30 @@ private:
 
     if (ImGui::Button (ICON_FA_XMARK "###PropsLaunchResetDir", ImVec2 (fResetWidth, 0.0f)))
       user.dir.clear ( );
-    SKIF_ImGui_SetHoverTip ("Use the folder of the executable.");
+    SKIF_ImGui_SetHoverTip (_("Use the folder of the executable."));
 
     ImGui::EndGroup ( );
 
     // Arguments
-    SKIF_Properties_Label ("Arguments");
-    _InputString          ("###PropsLaunchArgs", user.args, "Leave empty if unsure");
+    SKIF_Properties_Label (_("Arguments"));
+    _InputString          ("###PropsLaunchArgs", user.args, _("Leave empty if unsure"));
 
     // Instant Play
     if (instantPlayCompatible)
     {
-      SKIF_Properties_Label ("Instant Play");
+      SKIF_Properties_Label (_("Instant Play"));
 
       if (! userClientCanLaunch)
         _DrawInstantPlayRequired ( );
 
       else
       {
-        ImGui::RadioButton (SKIF_Util_FormatStringRaw ("Game setting (%s)###PropsLaunchIPDefault", _GameInstantPlayName ( )), &user.instant_play, 0);
-        ImGui::SameLine    ( );
-        ImGui::RadioButton ("Never###PropsLaunchIPNever",   &user.instant_play, 2);
-        ImGui::SameLine    ( );
-        ImGui::RadioButton ("Always###PropsLaunchIPAlways", &user.instant_play, 1);
+        // TRANSLATORS: {0} is what the game's setting is: "Always" or "Never"
+        SKIF_ImGui_RadioButton ((F_("Game setting ({0})", _GameInstantPlayName ( )) + "###PropsLaunchIPDefault").c_str ( ), &user.instant_play, 0);
+        SKIF_ImGui_SameLineIfFits (SKIF_ImGui_CheckboxWidth (L_("Never###PropsLaunchIPNever")));
+        SKIF_ImGui_RadioButton (L_("Never###PropsLaunchIPNever"),   &user.instant_play, 2);
+        SKIF_ImGui_SameLineIfFits (SKIF_ImGui_CheckboxWidth (L_("Always###PropsLaunchIPAlways")));
+        SKIF_ImGui_RadioButton (L_("Always###PropsLaunchIPAlways"), &user.instant_play, 1);
       }
     }
 
@@ -1573,7 +1609,7 @@ private:
     if (! user.args.empty ( ))
       preview += " " + user.args;
 
-    ImGui::TextDisabled ("Starts:");
+    SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), _("Starts:"));
     ImGui::SameLine     ( );
     ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
     ImGui::TextWrapped  ("%s", preview.c_str ( ));
@@ -1582,7 +1618,8 @@ private:
     if (! clientOptions.empty ( ))
     {
       ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
-      ImGui::TextWrapped    ("The launch options set in %s (%s) are not used by this launch option.", app.store_utf8.c_str ( ), clientOptions.c_str ( ));
+      // TRANSLATORS: {0} is the platform (e.g. Steam), {1} its launch options for the game
+      ImGui::TextWrapped    ("%s", F_("The launch options set in {0} ({1}) are not used by this launch option.", app.store_utf8, clientOptions).c_str ( ));
       ImGui::PopStyleColor  ( );
     }
   }
@@ -1593,26 +1630,26 @@ private:
 
     ImGui::TextColored  (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info), ICON_FA_CIRCLE_EXCLAMATION);
     ImGui::SameLine     ( );
-    ImGui::TextDisabled ((row.source == app_record_s::LaunchSource::SKIF)
-                          ? "Provided by Special K (lc.json). Duplicate it to make changes."
-                          : "Provided by the platform. Duplicate it to make changes.");
+    SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), (row.source == app_record_s::LaunchSource::SKIF)
+                          ? _("Provided by Special K (lc.json). Duplicate it to make changes.")
+                          : _("Provided by the platform. Duplicate it to make changes."));
 
-    SKIF_Properties_Label ("Description");
+    SKIF_Properties_Label (_("Description"));
     _ReadOnlyString       ("###PropsLaunchRODesc", row.label);
 
-    SKIF_Properties_Label ("Executable");
+    SKIF_Properties_Label (_("Executable"));
     _ReadOnlyString       ("###PropsLaunchROExe",  row.fullExe);
 
-    SKIF_Properties_Label ("Working directory");
-    _ReadOnlyString       ("###PropsLaunchRODir",  row.workDir, "(executable folder)");
+    SKIF_Properties_Label (_("Working directory"));
+    _ReadOnlyString       ("###PropsLaunchRODir",  row.workDir, _("(executable folder)"));
 
-    SKIF_Properties_Label ("Arguments");
+    SKIF_Properties_Label (_("Arguments"));
     _ReadOnlyString       ("###PropsLaunchROArgs", row.args);
 
     // Instant Play: choosing it creates an editable copy (the original is read-only)
     if (instantPlayCompatible)
     {
-      SKIF_Properties_Label ("Instant Play");
+      SKIF_Properties_Label (_("Instant Play"));
 
       if (! row.clientCanLaunch)
         _DrawInstantPlayRequired ( );
@@ -1620,22 +1657,23 @@ private:
       else
       {
         if (row.instantPlay != 0)
-          ImGui::TextDisabled ("%s (set by Special K)", _InstantPlayName (row.instantPlay));
+          // TRANSLATORS: {0} is "Always" or "Never"
+          ImGui::TextDisabled ("%s", F_("{0} (set by Special K)", _InstantPlayName (row.instantPlay)).c_str ( ));
         else
-          ImGui::TextDisabled ("Game setting (%s)", _GameInstantPlayName ( ));
+          ImGui::TextDisabled ("%s", F_("Game setting ({0})", _GameInstantPlayName ( )).c_str ( ));
 
         ImGui::SameLine ( );
 
         const bool disabled = (! userReadable || ! row.duplicateBlocker.empty ( ));
 
         SKIF_ImGui_PushDisableState (disabled);
-        if (ImGui::SmallButton (ICON_FA_ROCKET "  Use Instant Play###PropsLaunchROInstant"))
+        if (ImGui::SmallButton (LI_(ICON_FA_ROCKET, "Use Instant Play###PropsLaunchROInstant")))
           _InstantPlayCopy (index);
         SKIF_ImGui_PopDisableState  (disabled);
 
         SKIF_ImGui_SetHoverTip ((! row.duplicateBlocker.empty ( )) ? row.duplicateBlocker.c_str ( )
-                                : "Creates an editable copy of this launch option among your own,\n"
-                                  "set to always use Instant Play. The original stays unchanged.", false, true);
+                                : _("Creates an editable copy of this launch option among your own,\n"
+                                    "set to always use Instant Play. The original stays unchanged."), false, true);
       }
     }
 
@@ -1644,7 +1682,7 @@ private:
     // The client's own launch options (Steam), never edited by SKIF
     if (row.source == app_record_s::LaunchSource::Platform && ! clientOptions.empty ( ))
     {
-      SKIF_Properties_Label ("Client options", "Set in the platform client. SKIF does not change these.");
+      SKIF_Properties_Label (_("Client options"), _("Set in the platform client. SKIF does not change these."));
       _ReadOnlyString       ("###PropsLaunchROClient", clientOptions);
     }
 
@@ -1761,7 +1799,8 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
   }
 
   const bool        anyDirty = wnd.IsDirty ( );
-  const std::string title    = std::string ("Properties - ") + pApp->names.normal + windowId;
+  // TRANSLATORS: Title of the Properties window; {0} is the name of the game
+  const std::string title    = F_("Properties - {0}", pApp->names.normal) + windowId;
 
   bool open   = true;
   bool closed = false;
@@ -1822,7 +1861,7 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
       if (! firstSection && page != lastPage)
       {
         const char* pageName =
-          (page == PropertiesPage::Launch)   ? "Launch options" :
+          (page == PropertiesPage::Launch)   ? _("Launch options") :
           (page == PropertiesPage::SpecialK) ? "Special K"      : pApp->store_utf8.c_str ( );
 
         SKIF_ImGui_Spacing ( );
@@ -1879,7 +1918,10 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
       ImGui::EndChild ( );
     }
 
-    ImVec2 vButtonSize = ImVec2 (80.0f * SKIF_ImGui_GlobalDPIScale, 0.0f);
+    // Both as wide as the wider of the two (at least as wide as before)
+    ImVec2 vButtonSize = ImVec2 (std::max ({ 80.0f * SKIF_ImGui_GlobalDPIScale,
+                                             ImGui::CalcTextSize (L_("Save###PropsSave"),     nullptr, true).x + style.FramePadding.x * 2.0f,
+                                             ImGui::CalcTextSize (L_("Cancel###PropsCancel"), nullptr, true).x + style.FramePadding.x * 2.0f }), 0.0f);
 
     const bool saveDisabled = (! anyDirty || hasErrors);
 
@@ -1888,7 +1930,7 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
 
     SKIF_ImGui_PushDisableState (saveDisabled);
 
-    if (ImGui::Button ("Save###PropsSave", vButtonSize))
+    if (ImGui::Button (L_("Save###PropsSave"), vButtonSize))
     {
       uint32_t                 effects = PropertiesApply_None;
       std::vector <std::string> errors;
@@ -1904,7 +1946,7 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
         {
           // Its changes are kept, so Save can be tried again
           std::string error = section->GetApplyError ( );
-          errors.push_back ((error.empty ( )) ? std::string ("Some of the changes could not be saved.") : error);
+          errors.push_back ((error.empty ( )) ? std::string (_("Some of the changes could not be saved.")) : error);
         }
 
         else
@@ -1934,7 +1976,7 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
 
       // The window stays open on failure, with the error shown as a toast in it
       for (const auto& error : errors)
-        ImGui::InsertNotification ({ ImGuiToastType::Error, 8000, "Could not save", "%s", error.c_str ( ) });
+        ImGui::InsertNotification ({ ImGuiToastType::Error, 8000, _("Could not save"), "%s", error.c_str ( ) });
 
       if (errors.empty ( ))
         closed = true;
@@ -1944,7 +1986,7 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
 
     ImGui::SameLine ( );
 
-    if (ImGui::Button ("Cancel###PropsCancel", vButtonSize))
+    if (ImGui::Button (L_("Cancel###PropsCancel"), vButtonSize))
       closed = true;
 
     ImGui::PopStyleColor ( );
