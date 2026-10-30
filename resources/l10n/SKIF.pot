@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-10-30 01:20+0100\n"
+"POT-Creation-Date: 2026-10-30 01:25+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -15,6 +15,147 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+
+#: src/SKIF.cpp:1249
+#: src/SKIF.cpp:1403
+#: src/tabs/settings.cpp:45
+msgid "Start Service"
+msgstr ""
+
+#: src/SKIF.cpp:1250
+#: src/SKIF.cpp:1422
+msgid "Start Service (manual stop)"
+msgstr ""
+
+#: src/SKIF.cpp:1251
+#: src/SKIF.cpp:1440
+msgid "Stop Service"
+msgstr ""
+
+#: src/SKIF.cpp:1253
+#: src/tabs/settings.cpp:734
+msgid "Check for updates"
+msgstr ""
+
+#: src/SKIF.cpp:1258
+#: src/SKIF.cpp:1506
+msgid "Exit"
+msgstr ""
+
+#: src/SKIF.cpp:1401
+msgid ""
+"Starts the injection service and\n"
+"stops it after injection."
+msgstr ""
+
+#: src/SKIF.cpp:1420
+msgid ""
+"Starts the injection service but\n"
+"does not stop it after injection."
+msgstr ""
+
+#: src/SKIF.cpp:1439
+msgid "Stops the injection service"
+msgstr ""
+
+#: src/SKIF.cpp:1471
+msgid "Checks for any available updates"
+msgstr ""
+
+#: src/SKIF.cpp:1472
+msgid "Check for Updates"
+msgstr ""
+
+#. TRANSLATORS: Controlled Folder Access is a feature of Windows (use the name Windows uses in your language)
+#: src/SKIF.cpp:2107
+msgid ""
+"Controlled Folder Access is enabled in Windows and may prevent Special K and even some games from working properly. It is recommended to either disable the feature or add exclusions for games where Special K is used as well as SKIF (this application).\n"
+"\n"
+"Do you want to disable this warning for all future launches?\n"
+"\n"
+"Microsoft's support page with more information will open when you select any of the options below."
+msgstr ""
+
+#: src/SKIF.cpp:2113
+msgid "Warning about Controlled Folder Access"
+msgstr ""
+
+#: src/SKIF.cpp:3254
+msgctxt "tab"
+msgid "Library"
+msgstr ""
+
+#: src/SKIF.cpp:3255
+msgctxt "tab"
+msgid "Monitor"
+msgstr ""
+
+#: src/SKIF.cpp:3256
+msgctxt "tab"
+msgid "Hardware"
+msgstr ""
+
+#: src/SKIF.cpp:3257
+msgctxt "tab"
+msgid "Settings"
+msgstr ""
+
+#: src/SKIF.cpp:3258
+msgctxt "tab"
+msgid "About"
+msgstr ""
+
+#: src/SKIF.cpp:3473
+msgid "Add Game"
+msgstr ""
+
+#: src/SKIF.cpp:3486
+msgid "Local Manager"
+msgstr ""
+
+#: src/SKIF.cpp:3630
+msgid "Toggle horizontal mode"
+msgstr ""
+
+#: src/SKIF.cpp:3638
+msgid "Toggle mini mode"
+msgstr ""
+
+#: src/SKIF.cpp:3672
+msgid "This app will close to the notification area."
+msgstr ""
+
+#: src/SKIF.cpp:3674
+#: src/utility/injection.cpp:992
+msgid "Service continues running after this app is closed."
+msgstr ""
+
+#: src/SKIF.cpp:5311
+msgid "Blink and you'll miss it ;)"
+msgstr ""
+
+#. TRANSLATORS: Title of a notification (at most 63 characters)
+#: src/SKIF.cpp:5313
+msgid "An update is being installed..."
+msgstr ""
+
+#: src/SKIF.cpp:5339
+msgid "Open the app to continue."
+msgstr ""
+
+#. TRANSLATORS: Title of a notification (at most 63 characters)
+#: src/SKIF.cpp:5341
+msgid "An update to Special K is available!"
+msgstr ""
+
+#: src/SKIF.cpp:5353
+msgid "The update will be retried later."
+msgstr ""
+
+#. TRANSLATORS: Title of a notification (at most 63 characters)
+#: src/SKIF.cpp:5355
+msgid "Update failed :("
+msgstr ""
 
 #: src/tabs/about.cpp:29
 msgid "About the Injection Frontend (SKIF):"
@@ -806,10 +947,6 @@ msgstr ""
 msgid "Toggle Display HDR"
 msgstr ""
 
-#: src/tabs/settings.cpp:45
-msgid "Start Service"
-msgstr ""
-
 #: src/tabs/settings.cpp:118
 msgid "Low bandwidth mode"
 msgstr ""
@@ -1070,10 +1207,6 @@ msgstr ""
 #: src/tabs/settings.cpp:672
 #: src/tabs/settings.cpp:673
 msgid "On each launch"
-msgstr ""
-
-#: src/tabs/settings.cpp:734
-msgid "Check for updates"
 msgstr ""
 
 #: src/tabs/settings.cpp:764
@@ -2610,10 +2743,6 @@ msgstr ""
 #: src/utility/injection.cpp:945
 #: src/utility/injection.cpp:946
 msgid "Service"
-msgstr ""
-
-#: src/utility/injection.cpp:992
-msgid "Service continues running after this app is closed."
 msgstr ""
 
 #: src/utility/injection.cpp:1059

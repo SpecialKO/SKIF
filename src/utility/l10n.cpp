@@ -1105,8 +1105,22 @@ SKIF_L10n::GetW (const char* ctx, const char* msgid)
     return L"";
 
   Catalog* cat = _active.load (std::memory_order_acquire);
+
+  // Before Initialize ( ): the English text, kept for the lifetime of the process as well
   if (cat == nullptr)
-    return L"";
+  {
+    static std::mutex                         lockEarly;
+    static SKIF_L10n_StringMap <std::wstring> early;
+
+    std::string key (SKIF_L10n_MakeKey (ctx, msgid));
+
+    std::lock_guard <std::mutex> lock (lockEarly);
+
+    auto it = early.find (key);
+    if (it == early.end ( ))
+      it = early.emplace (key, SKIF_L10n_ToWide (msgid)).first;
+    return it->second.c_str ( );
+  }
 
   std::string key (SKIF_L10n_MakeKey (ctx, msgid));
 

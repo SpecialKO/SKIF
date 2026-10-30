@@ -30,6 +30,7 @@
 #include <MinHook.h>
 #include <SKIF.h>
 #include <thread>
+#include <mutex>
 #include <atomic>
 #include <chrono>
 #include <cmath>
@@ -1245,16 +1246,16 @@ void SKIF_Shell_CreateUpdateNotifyMenu (void)
   hMenu = CreatePopupMenu ( );
   if (hMenu != NULL)
   {
-    AppendMenu (hMenu, MF_STRING | ((svcRunningAutoStop) ? MF_CHECKED | MF_GRAYED : (svcRunning)         ? MF_GRAYED : 0x0), SKIF_NOTIFY_STARTWITHSTOP, L"Start Service");
-    AppendMenu (hMenu, MF_STRING | ((svcRunning)         ? MF_CHECKED | MF_GRAYED : (svcRunningAutoStop) ? MF_GRAYED : 0x0), SKIF_NOTIFY_START,         L"Start Service (manual stop)");
-    AppendMenu (hMenu, MF_STRING | ((svcStopped)         ? MF_CHECKED | MF_GRAYED :                                    0x0), SKIF_NOTIFY_STOP,          L"Stop Service");
+    AppendMenu (hMenu, MF_STRING | ((svcRunningAutoStop) ? MF_CHECKED | MF_GRAYED : (svcRunning)         ? MF_GRAYED : 0x0), SKIF_NOTIFY_STARTWITHSTOP, W_("Start Service"));
+    AppendMenu (hMenu, MF_STRING | ((svcRunning)         ? MF_CHECKED | MF_GRAYED : (svcRunningAutoStop) ? MF_GRAYED : 0x0), SKIF_NOTIFY_START,         W_("Start Service (manual stop)"));
+    AppendMenu (hMenu, MF_STRING | ((svcStopped)         ? MF_CHECKED | MF_GRAYED :                                    0x0), SKIF_NOTIFY_STOP,          W_("Stop Service"));
     AppendMenu (hMenu, MF_SEPARATOR, 0, NULL);
-    AppendMenu (hMenu, MF_STRING, SKIF_NOTIFY_RUN_UPDATER,   L"Check for updates");
+    AppendMenu (hMenu, MF_STRING, SKIF_NOTIFY_RUN_UPDATER,   W_("Check for updates"));
 
   //AppendMenu (hMenu, MF_STRING | ((  _inject.bCurrentState) ? MF_CHECKED | MF_GRAYED : 0x0), SKIF_NOTIFY_START, L"Start Injection");
   //AppendMenu (hMenu, MF_STRING | ((! _inject.bCurrentState) ? MF_CHECKED | MF_GRAYED : 0x0), SKIF_NOTIFY_STOP,  L"Stop Injection");
     AppendMenu (hMenu, MF_SEPARATOR, 0, NULL);
-    AppendMenu (hMenu, MF_STRING, SKIF_NOTIFY_EXIT,          L"Exit");
+    AppendMenu (hMenu, MF_STRING, SKIF_NOTIFY_EXIT,          W_("Exit"));
   }
 }
 
@@ -1341,6 +1342,32 @@ void SKIF_Shell_CreateNotifyToast (UINT type, std::wstring message, std::wstring
   }
 }
 
+void SKIF_Shell_CreateJumpList (void);
+
+// Creates the jump list on a thread of its own (~30 ms of COM / shell work)
+void SKIF_Shell_CreateJumpListAsync (void)
+{
+  std::thread ([]
+  {
+    SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_JumpListWorker");
+
+    if (SUCCEEDED (CoInitializeEx (nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE)))
+    {
+      DWORD dwStart = SKIF_Util_timeGetTime1 ( );
+
+      // One at a time (the language may change while the jump list of the previous one is being created)
+      static std::mutex           lockJumpList;
+      std::lock_guard <std::mutex> lock (lockJumpList);
+
+      SKIF_Shell_CreateJumpList ( );
+
+      PLOG_VERBOSE << "Created the jump list in " << (SKIF_Util_timeGetTime1 ( ) - dwStart) << " ms.";
+
+      CoUninitialize ( );
+    }
+  }).detach ( );
+}
+
 void SKIF_Shell_CreateJumpList (void)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
@@ -1371,9 +1398,9 @@ void SKIF_Shell_CreateJumpList (void)
         pLink     ->SetPath         (_path_cache.skif_executable);
         pLink     ->SetArguments    (L"Start Temp");                            // Set the arguments
         pLink     ->SetIconLocation (_path_cache.skif_executable, 1);           // Set the icon location.
-        pLink     ->SetDescription  (L"Starts the injection service and\n"
-                                     L"stops it after injection.");             // Set the link description (tooltip on the jump list item)
-        InitPropVariantFromString   (L"Start Service", &pv);
+        pLink     ->SetDescription  (W_("Starts the injection service and\n"
+                                        "stops it after injection."));          // Set the link description (tooltip on the jump list item)
+        InitPropVariantFromString   (W_("Start Service"), &pv);
         pPropStore->SetValue               (PKEY_Title, pv);                    // Set the title property.
         PropVariantClear                              (&pv);
         pPropStore->Commit          ( );                                        // Save the changes we made to the property store
@@ -1390,9 +1417,9 @@ void SKIF_Shell_CreateJumpList (void)
         pLink     ->SetPath         (_path_cache.skif_executable);
         pLink     ->SetArguments    (L"Start");                                 // Set the arguments
         pLink     ->SetIconLocation (_path_cache.skif_executable, 1);           // Set the icon location.
-        pLink     ->SetDescription  (L"Starts the injection service but\n"
-                                     L"does not stop it after injection.");     // Set the link description (tooltip on the jump list item)
-        InitPropVariantFromString   (L"Start Service (manual stop)", &pv);
+        pLink     ->SetDescription  (W_("Starts the injection service but\n"
+                                        "does not stop it after injection."));  // Set the link description (tooltip on the jump list item)
+        InitPropVariantFromString   (W_("Start Service (manual stop)"), &pv);
         pPropStore->SetValue                 (PKEY_Title, pv);                  // Set the title property.
         PropVariantClear                                (&pv);
         pPropStore->Commit          ( );                                        // Save the changes we made to the property store
@@ -1409,8 +1436,8 @@ void SKIF_Shell_CreateJumpList (void)
         pLink     ->SetPath         (_path_cache.skif_executable);
         pLink     ->SetArguments    (L"Stop");                                  // Set the arguments
         pLink     ->SetIconLocation (_path_cache.skif_executable, 2);           // Set the icon location.
-        pLink     ->SetDescription  (L"Stops the injection service");           // Set the link description (tooltip on the jump list item)
-        InitPropVariantFromString   (L"Stop Service", &pv);
+        pLink     ->SetDescription  (W_("Stops the injection service"));        // Set the link description (tooltip on the jump list item)
+        InitPropVariantFromString   (W_("Stop Service"), &pv);
         pPropStore->SetValue                (PKEY_Title, pv);                   // Set the title property.
         PropVariantClear                               (&pv);
         pPropStore->Commit          ( );                                        // Save the changes we made to the property store
@@ -1441,8 +1468,8 @@ void SKIF_Shell_CreateJumpList (void)
         pLink     ->SetPath         (_path_cache.skif_executable);
         pLink     ->SetArguments    (L"RunUpdater");                            // Set the arguments
         pLink     ->SetIconLocation (_path_cache.skif_executable, 0);           // Set the icon location.
-        pLink     ->SetDescription  (L"Checks for any available updates");      // Set the link description (tooltip on the jump list item)
-        InitPropVariantFromString   (L"Check for Updates", &pv);
+        pLink     ->SetDescription  (W_("Checks for any available updates"));   // Set the link description (tooltip on the jump list item)
+        InitPropVariantFromString   (W_("Check for Updates"), &pv);
         pPropStore->SetValue                   (PKEY_Title, pv);                // Set the title property.
         PropVariantClear                                  (&pv);
         pPropStore->Commit          ( );                                        // Save the changes we made to the property store
@@ -1476,7 +1503,7 @@ void SKIF_Shell_CreateJumpList (void)
         pLink     ->SetArguments    (L"Quit");                                  // Set the arguments
         pLink     ->SetIconLocation (_path_cache.skif_executable, 0);           // Set the icon location.
       //pLink     ->SetDescription  (L"Closes the application");                // Set the link description (tooltip on the jump list item)
-        InitPropVariantFromString   (L"Exit", &pv);
+        InitPropVariantFromString   (W_("Exit"), &pv);
         pPropStore->SetValue                (PKEY_Title, pv);                   // Set the title property.
         PropVariantClear                               (&pv);
         pPropStore->Commit          ( );                                        // Save the changes we made to the property store
@@ -2076,13 +2103,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
   {
     if (_registry.bDisableCFAWarning == false && SKIF_Util_GetControlledFolderAccess())
     {
-      if (IDYES == MessageBox(NULL, L"Controlled Folder Access is enabled in Windows and may prevent Special K and even some games from working properly. "
-                                    L"It is recommended to either disable the feature or add exclusions for games where Special K is used as well as SKIF (this application)."
-                                    L"\n\n"
-                                    L"Do you want to disable this warning for all future launches?"
-                                    L"\n\n"
-                                    L"Microsoft's support page with more information will open when you select any of the options below.",
-                                    L"Warning about Controlled Folder Access",
+      // TRANSLATORS: Controlled Folder Access is a feature of Windows (use the name Windows uses in your language)
+      if (IDYES == MessageBox(NULL, W_("Controlled Folder Access is enabled in Windows and may prevent Special K and even some games from working properly. "
+                                       "It is recommended to either disable the feature or add exclusions for games where Special K is used as well as SKIF (this application)."
+                                       "\n\n"
+                                       "Do you want to disable this warning for all future launches?"
+                                       "\n\n"
+                                       "Microsoft's support page with more information will open when you select any of the options below."),
+                                    W_("Warning about Controlled Folder Access"),
                  MB_ICONWARNING | MB_YESNOCANCEL))
       {
         _registry.regKVDisableCFAWarning.putData (true);
@@ -2851,7 +2879,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if (SKIF_ImGui_SetUILanguage (SKIF_L10n::GetInstance ( ).GetLanguage ( )))
         invalidateFonts = true;
 
-      // TODO (l10n): rebuild what is built once in the language at the time: the notification area menu, the jump list, ...
+      // Rebuild what is built once, in the language at the time: the notification area menu and the jump list
+      if (hMenu != NULL)
+        SKIF_Shell_CreateUpdateNotifyMenu ( );
+
+      if (SKIF_ImGui_hWnd != NULL && SKIF_FirstPresentDone)
+        SKIF_Shell_CreateJumpListAsync ( );
     }
 
     // Should we invalidate the fonts and/or recreate them?
@@ -3207,22 +3240,46 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       else
       {
-        static char tabTitleLibraryL[]  = " " ICON_FA_GAMEPAD " Library ###SKIF_TAB_BAR-1",
-                    tabTitleLibraryS[]  = " " ICON_FA_GAMEPAD " ###SKIF_TAB_BAR-1",
-                    tabTitleMonitorL[]  = " " ICON_FA_MICROCHIP " Monitor ###SKIF_TAB_BAR-2",
-                    tabTitleMonitorS[]  = " " ICON_FA_MICROCHIP " ###SKIF_TAB_BAR-2",
-                    tabTitleHardwareL[] = " " ICON_FA_DISPLAY " Hardware ###SKIF_TAB_BAR-3",
-                    tabTitleHardwareS[] = " " ICON_FA_DISPLAY " ###SKIF_TAB_BAR-3",
-                    tabTitleSettingsL[] = " " ICON_FA_LIST_CHECK " Settings ###SKIF_TAB_BAR-4",
-                    tabTitleSettingsS[] = " " ICON_FA_LIST_CHECK " ###SKIF_TAB_BAR-4",
-                    tabTitleAboutL[]    = " " ICON_FA_COMMENT " About ###SKIF_TAB_BAR-5",
-                    tabTitleAboutS[]    = " " ICON_FA_COMMENT " ###SKIF_TAB_BAR-5";
+        // The titles are shortened to their icon, from the last tab (About) to the first, as the window gets narrower.
+        //   The window widths at which that happens are those for English, adjusted by how much wider (or narrower) the
+        //     translated titles are than the English ones: each tab keeps its title as long as it and the tabs before it fit.
+        struct tab_title_s {
+          const char* icon;
+          const char* text; // English
+          const char* id;
+          float       minWidth; // Unscaled, in English
+        };
 
-        char *tabTitleLibrary  = (ImGui::GetWindowSize ().x < 435.f * SKIF_ImGui_GlobalDPIScale) ? tabTitleLibraryS  : tabTitleLibraryL,
-             *tabTitleMonitor  = (ImGui::GetWindowSize ().x < 490.f * SKIF_ImGui_GlobalDPIScale) ? tabTitleMonitorS  : tabTitleMonitorL,
-             *tabTitleHardware = (ImGui::GetWindowSize ().x < 555.f * SKIF_ImGui_GlobalDPIScale) ? tabTitleHardwareS : tabTitleHardwareL,
-             *tabTitleSettings = (ImGui::GetWindowSize ().x < 610.f * SKIF_ImGui_GlobalDPIScale) ? tabTitleSettingsS : tabTitleSettingsL,
-             *tabTitleAbout    = (ImGui::GetWindowSize ().x < 650.f * SKIF_ImGui_GlobalDPIScale) ? tabTitleAboutS    : tabTitleAboutL;
+        static constexpr tab_title_s tabTitleDefs [5] = {
+          { ICON_FA_GAMEPAD,    NC_("tab", "Library"),  "###SKIF_TAB_BAR-1", 435.0f },
+          { ICON_FA_MICROCHIP,  NC_("tab", "Monitor"),  "###SKIF_TAB_BAR-2", 490.0f },
+          { ICON_FA_DISPLAY,    NC_("tab", "Hardware"), "###SKIF_TAB_BAR-3", 555.0f },
+          { ICON_FA_LIST_CHECK, NC_("tab", "Settings"), "###SKIF_TAB_BAR-4", 610.0f },
+          { ICON_FA_COMMENT,    NC_("tab", "About"),    "###SKIF_TAB_BAR-5", 650.0f }
+        };
+
+        static std::string tabTitles [5];
+
+        float fTabTitlesExtra = 0.0f; // How much wider the translated titles so far are than the English ones
+
+        for (int i = 0; i < 5; i++)
+        {
+          const tab_title_s& def  = tabTitleDefs [i];
+          const std::string  icon = std::string (" ") + def.icon + " ";
+          const std::string  full = icon + CT_("tab", def.text) + " ";
+
+          fTabTitlesExtra += ImGui::CalcTextSize (full.c_str ( )).x - ImGui::CalcTextSize ((icon + def.text + " ").c_str ( )).x;
+
+          const bool fits = (ImGui::GetWindowSize ().x >= def.minWidth * SKIF_ImGui_GlobalDPIScale + fTabTitlesExtra);
+
+          tabTitles [i] = ((fits) ? full : icon) + def.id;
+        }
+
+        const char *tabTitleLibrary  = tabTitles [0].c_str ( ),
+                   *tabTitleMonitor  = tabTitles [1].c_str ( ),
+                   *tabTitleHardware = tabTitles [2].c_str ( ),
+                   *tabTitleSettings = tabTitles [3].c_str ( ),
+                   *tabTitleAbout    = tabTitles [4].c_str ( );
 
         ImGui::BeginTabBar ( "###SKIF_TAB_BAR",
                                ImGuiTabBarFlags_FittingPolicyShrink |
@@ -3413,7 +3470,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::PushStyleColor (ImGuiCol_ButtonActive,  ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg)); //ImColor (56, 60, 74).Value);
 
         ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (btnHoveredAddGame ? ImGuiCol_SKIF_TextCaption : ImGuiCol_SKIF_TextBase));
-        if (ImGui::Button     (ICON_FA_SQUARE_PLUS " Add Game"))
+        if (ImGui::Button     (LI_(ICON_FA_SQUARE_PLUS, "Add Game")))
         {
           AddGamePopup = PopupState_Open;
           if (SKIF_Tab_Selected != UITab_Library)
@@ -3426,7 +3483,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::SameLine ( );
 
         ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (btnHoveredLocalManager ? ImGuiCol_SKIF_TextCaption : ImGuiCol_SKIF_TextBase));
-        if (ImGui::Button     (ICON_FA_CIRCLE_NODES " Local Manager"))
+        if (ImGui::Button     (LI_(ICON_FA_CIRCLE_NODES, "Local Manager")))
           hotkeyCtrlShiftM = true;
         ImGui::PopStyleColor  ( ); // ImGuiCol_Text
 
@@ -3570,7 +3627,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
             SKIF_vecCurrentModeNext = (newHorizonMode) ? SKIF_vecHorizonMode : SKIF_vecRegularMode;
           }
 
-          SKIF_ImGui_SetHoverTip ("Toggle horizontal mode");
+          SKIF_ImGui_SetHoverTip (_("Toggle horizontal mode"));
 
           ImGui::SameLine ();
         }
@@ -3578,7 +3635,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (ImGui::Button ((_registry.bMiniMode) ? ICON_FA_EXPAND : ICON_FA_COMPRESS, ImVec2 ( 40.0f * SKIF_ImGui_GlobalDPIScale, 0.0f ))) // ICON_FA_MAXIMIZE : ICON_FA_MINIMIZE
           hotkeyCtrlT = true;
 
-        SKIF_ImGui_SetHoverTip ("Toggle mini mode");
+        SKIF_ImGui_SetHoverTip (_("Toggle mini mode"));
 
         ImGui::SameLine ();
 
@@ -3612,9 +3669,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         // Tooltip for close button
         if (_registry.bCloseToTray)
-          SKIF_ImGui_SetHoverTip ("This app will close to the notification area.");
+          SKIF_ImGui_SetHoverTip (_("This app will close to the notification area."));
         else if (_inject.bCurrentState && _registry.bAllowBackgroundService)
-          SKIF_ImGui_SetHoverTip ("Service continues running after this app is closed.");
+          SKIF_ImGui_SetHoverTip (_("Service continues running after this app is closed."));
       }
 
       ImGui::EndChild ( );
@@ -3928,21 +3985,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     if (SKIF_ImGui_hWnd != NULL && SKIF_FirstPresentDone)
     {
       SK_RunOnce (
-        std::thread ([]
-        {
-          SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_JumpListWorker");
-
-          if (SUCCEEDED (CoInitializeEx (nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE)))
-          {
-            DWORD dwStart = SKIF_Util_timeGetTime1 ( );
-
-            SKIF_Shell_CreateJumpList ( );
-
-            PLOG_VERBOSE << "Created the jump list in " << (SKIF_Util_timeGetTime1 ( ) - dwStart) << " ms.";
-
-            CoUninitialize ( );
-          }
-        }).detach ( )
+        SKIF_Shell_CreateJumpListAsync ( )
       );
     }
 
@@ -5264,7 +5307,10 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
           // But only if we have servlets, so we don't auto-install ourselves in users' Downloads folder :)
           if (_registry.bAutoUpdate && _inject.bHasServlet)
           {
-            SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_UPDATE, L"Blink and you'll miss it ;)", L"An update is being installed...");
+            SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_UPDATE,
+              W_("Blink and you'll miss it ;)"),
+              // TRANSLATORS: Title of a notification (at most 63 characters)
+              W_("An update is being installed..."));
 
             PLOG_INFO << "The app is performing an automatic update...";
 
@@ -5289,7 +5335,10 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
           // Classic update procedure
           else {
-            SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_UPDATE, L"Open the app to continue.", L"An update to Special K is available!");
+            SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_UPDATE,
+              W_("Open the app to continue."),
+              // TRANSLATORS: Title of a notification (at most 63 characters)
+              W_("An update to Special K is available!"));
 
             PLOG_INFO << "An update is available!";
 
@@ -5300,7 +5349,10 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
         else if ((uFlags & UpdateFlags_Failed) == UpdateFlags_Failed)
         {
-          SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_UPDATE, L"The update will be retried later.", L"Update failed :(");
+          SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_UPDATE,
+            W_("The update will be retried later."),
+            // TRANSLATORS: Title of a notification (at most 63 characters)
+            W_("Update failed :("));
         }
       }
       break;
