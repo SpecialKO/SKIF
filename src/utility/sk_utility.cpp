@@ -37,6 +37,9 @@
 
 #include <utility/skif_imgui.h>
 
+// Last, as it defines short macros such as _ ( )
+#include <utility/l10n.h>
+
 #pragma comment(lib, "Secur32.lib")
 #pragma comment(lib, "Userenv.lib")
 
@@ -877,11 +880,12 @@ SK_ImGui_KeybindDialog (SK_KeybindMultiState* keybind)
          bEnter     = (! modifierKey && // Confirm
      (ImGui::IsKeyPressed (ImGuiKey_Enter,     false) || ImGui::IsKeyPressed (ImGuiKey_KeypadEnter, false)));
 
-    ImGui::Text         ("Keybinding:"); //  %hs, keybind->pending.human_readable_utf8.c_str ()); // (0x%02X), keybind->vKey
+    ImGui::Text         ("%s", _("Keybinding:")); //  %hs, keybind->pending.human_readable_utf8.c_str ()); // (0x%02X), keybind->vKey
     ImGui::SameLine     ( );
-    ImGui::TextColored  (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), keybind->pending.human_readable_utf8.c_str ());
+    ImGui::TextColored  (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), "%s", keybind->pending.human_readable_utf8.c_str ());
     ImGui::Separator    ( );
-    ImGui::TextDisabled ("Press RETURN to confirm, ESC to cancel, BACKSPACE to clear, DELETE to reset.");
+    // TRANSLATORS: RETURN, ESC, BACKSPACE and DELETE are keys of the keyboard (use the names printed on keyboards in your language)
+    ImGui::TextDisabled ("%s", _("Press RETURN to confirm, ESC to cancel, BACKSPACE to clear, DELETE to reset."));
 
     // Update the key binding after printing out the current one, to prevent a one-frame graphics glitch
     if (bBackspace)

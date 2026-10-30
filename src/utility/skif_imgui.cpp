@@ -473,11 +473,11 @@ SKIF_ImGui_InfoMessage_Process (void)
       SKIF_ImGui_Spacing ( );
       SKIF_ImGui_Spacing ( );
 
-      ImVec2 vButtonSize = ImVec2(80.0f * SKIF_ImGui_GlobalDPIScale, 0.0f);
+      ImVec2 vButtonSize = ImVec2(std::max (80.0f * SKIF_ImGui_GlobalDPIScale, ImGui::CalcTextSize (L_("OK"), nullptr, true).x + ImGui::GetStyle ( ).FramePadding.x * 2.0f), 0.0f);
 
       ImGui::SetCursorPosX (fPopupWidth / 2 - vButtonSize.x / 2);
 
-      if (ImGui::Button  ("OK", vButtonSize))
+      if (ImGui::Button  (L_("OK"), vButtonSize))
       {
         vInfoMessages.pop_back();
 
@@ -630,7 +630,7 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText, bool ignoreDisabledToolt
     else
     {
       SKIF_StatusBarText =
-        "Info: ";
+        _("Info: ");
 
       SKIF_ImGui_SetHoverText (
         szText.data (), true
@@ -1646,33 +1646,51 @@ SKIF_ImGui_DialogPrompt (const char* name, bool* p_open, const char* message, co
   if (SKIF_ImGui_BeginPopup (name))
   {
     if (message != nullptr)
-      ImGui::Text         (message);
+      ImGui::Text         ("%s", message); // Never as a format: the text may be translated
 
     if (description != nullptr)
-      ImGui::TextDisabled (description);
+      ImGui::TextDisabled ("%s", description);
 
     if (message || description)
     ImGui::Separator ( );
 
-    ImVec2
-      btn       = ImVec2(110, 0) * SKIF_ImGui_GlobalDPIScale;
+    // The labels are in English (also the IDs of the buttons), translated where shown
     static const std::vector<std::pair<const DChoice, const char*>>
       btnTxtVec = {
         // Generic
-        { DChoice_None,     "None"       },
-        { DChoice_Cancel,   "Cancel"     },
+        { DChoice_None,     NL_("None")       },
+        { DChoice_Cancel,   NL_("Cancel")     },
         // Confirm
-        { DChoice_Yes,      "Yes"        },
-        { DChoice_No,       "No"         },
+        { DChoice_Yes,      NL_("Yes")        },
+        { DChoice_No,       NL_("No")         },
         // Save
-        { DChoice_Save,     "Save"       },
-        { DChoice_DontSave, "Don't Save" },
+        { DChoice_Save,     NL_("Save")       },
+        { DChoice_DontSave, NL_("Don't Save") },
         // CPU bitness
-        { DChoice_32bit,    "32-bit"     },
-        { DChoice_64bit,    "64-bit"     },
+        {   DChoice_32bit,    "32-bit"        },
+        {   DChoice_64bit,    "64-bit"        },
         // Info
-        { DChoice_OK,       "OK"         },
+        { DChoice_OK,       NL_("OK")         },
     };
+
+    // The bitness is not translated
+    auto _Label = [](const std::pair<const DChoice, const char*>& p) -> const char*
+    {
+      return (p.first == DChoice_32bit || p.first == DChoice_64bit) ? p.second : TL_(p.second);
+    };
+
+    // All buttons as wide as the widest (translated) label, at least 110 px
+    ImVec2
+      btn       = ImVec2(110, 0) * SKIF_ImGui_GlobalDPIScale;
+
+    for (auto& choice : choices)
+    {
+      auto it = std::find_if (btnTxtVec.begin(), btnTxtVec.end(),
+        [choice](const auto& p) { return p.first == choice; });
+
+      if (it != btnTxtVec.end())
+        btn.x = std::max (btn.x, ImGui::CalcTextSize (_Label (*it), nullptr, true).x + ImGui::GetStyle ( ).FramePadding.x * 2.0f);
+    }
 
     for (auto& choice : choices)
     {
@@ -1682,7 +1700,7 @@ SKIF_ImGui_DialogPrompt (const char* name, bool* p_open, const char* message, co
       if (it == btnTxtVec.end())
         continue;
 
-      if (ImGui::Button (it->second, btn))
+      if (ImGui::Button (_Label (*it), btn))
         result = it->first;
 
       ImGui::SameLine ( );
@@ -1705,8 +1723,8 @@ SKIF_ImGui_DialogPrompt (const char* name, bool* p_open, const char* message, co
 DChoice
 SKIF_ImGui_ConfirmPrompt (const char* name, bool* p_open, const char* message, const char* description)
 {
-  static constexpr char* default_message =
-    "Are you sure you want to continue?";
+  const char* default_message =
+    _("Are you sure you want to continue?");
 
   return SKIF_ImGui_DialogPrompt (
     name,
@@ -1722,8 +1740,8 @@ SKIF_ImGui_ConfirmPrompt (const char* name, bool* p_open, const char* message, c
 DChoice
 SKIF_ImGui_SaveChangesPrompt (const char* name, bool* p_open, const char* message, const char* description)
 {
-  static constexpr char* default_msg  = "Do you want to save the changes made?";
-  static constexpr char* default_desc = "Your changes will be lost if you don't save them.";
+  const char* default_msg  = _("Do you want to save the changes made?");
+  const char* default_desc = _("Your changes will be lost if you don't save them.");
 
   return SKIF_ImGui_DialogPrompt (
     name,
@@ -1751,8 +1769,8 @@ SKIF_ImGui_InfoPrompt (const char* name, bool* p_open, const char* message, cons
 DChoice
 SKIF_ImGui_6432bitnessPrompt (const char* name, bool* p_open, const char* message, const char* description)
 {
-  static constexpr char* default_msg  = "Should 64-bit or 32-bit be used?";
-  static constexpr char* default_desc = "Processes can only load DLL files of the same bitness.";
+  const char* default_msg  = _("Should 64-bit or 32-bit be used?");
+  const char* default_desc = _("Processes can only load DLL files of the same bitness.");
 
   return SKIF_ImGui_DialogPrompt (
     name,
@@ -1858,25 +1876,25 @@ void SKIF_ImGui_ServiceMenu (void)
   {
     ImGui::PushStyleColor (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
     ImGui::TextColored (
-      ImColor::HSV (0.11F, 1.F, 1.F),
-        "Troubleshooting:"
+      ImColor::HSV (0.11F, 1.F, 1.F), "%s",
+        _("Troubleshooting:")
     );
 
     ImGui::Separator ( );
 
-    if (ImGui::Selectable("Force start service###ServiceMenuStart"))
+    if (ImGui::Selectable(L_("Force start service###ServiceMenuStart")))
       _inject._StartStopInject (false, _registry.bStopOnInjection);
 
     ImGui::PushStyleColor      (ImGuiCol_Text,
       ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
     );
 
-    if (ImGui::Selectable("\xe2\x94\x94 Elevated###ServiceMenuStartElevated"))
+    if (ImGui::Selectable(LI_("\xe2\x94\x94", "Elevated###ServiceMenuStartElevated")))
       _inject._StartStopInject (false, _registry.bStopOnInjection, true);
 
     ImGui::PopStyleColor   ( );
 
-    if (ImGui::Selectable("Force stop service###ServiceMenuStop"))
+    if (ImGui::Selectable(L_("Force stop service###ServiceMenuStop")))
       _inject._StartStopInject (true);
 
     ImGui::PopStyleColor ( );
@@ -3000,7 +3018,8 @@ SKIF_ImGui_AprilFools_Process (void)
 
   float fWidth = 520.0f * SKIF_ImGui_GlobalDPIScale;
 
-  if (SKIF_ImGui_BeginPopup ("Special K Activation###PopupAprilFools", nullptr, ImVec2 (fWidth, 0.0f)))
+  // TRANSLATORS: An April Fools' Day joke (a fake activation of Special K, with technobabble), shown on April 1st
+  if (SKIF_ImGui_BeginPopup (L_("Special K Activation###PopupAprilFools"), nullptr, ImVec2 (fWidth, 0.0f)))
   {
     const float fontScale        = ImGui::GetStyle ( ).FontScaleMain * ImGui::GetStyle ( ).FontScaleDpi;
     const float fontConsolasSize = (fontConsolas != nullptr && fontScale > 0.0f) ? ImFloor (fontConsolas->LegacySize * fontScale) / fontScale : 0.0f;
@@ -3008,11 +3027,11 @@ SKIF_ImGui_AprilFools_Process (void)
     ImGui::TreePush     ("AprilFoolsTreePush");
     SKIF_ImGui_Spacing  ( );
 
-    ImGui::TextColored  (colAccent, "Special K  //  Nominal Flow Activation");
+    ImGui::TextColored  (colAccent, "%s", _("Special K  //  Nominal Flow Activation"));
     ImGui::Separator    ( );
     SKIF_ImGui_Spacing  ( );
 
-    ImGui::TextDisabled ("Client fingerprint:");
+    ImGui::TextDisabled ("%s", _("Client fingerprint:"));
     ImGui::SameLine     ( );
     if (fontConsolas != nullptr) ImGui::PushFont (fontConsolas, fontConsolasSize);
     ImGui::Text         ("%s", sFingerprint.c_str ());
@@ -3051,22 +3070,22 @@ SKIF_ImGui_AprilFools_Process (void)
 
     if (elapsed < PHASE_DETECT)
     {
-      status = "This title is missing its nominal constant (0x00000000).";
+      status = _("This title is missing its nominal constant (0x00000000).");
       frac   = 0.08f + 0.10f * ((float) elapsed / (float) PHASE_DETECT);
     }
     else if (elapsed < PHASE_CONTACT)
     {
-      status = "Contacting activation server  sk-activation.local ...";
+      status = _("Contacting activation server  sk-activation.local ...");
       frac   = 0.20f + 0.35f * ((float)(elapsed - PHASE_DETECT) / (float)(PHASE_CONTACT - PHASE_DETECT));
     }
     else if (elapsed < PHASE_RECOVER)
     {
-      status = "Transforming constant against client fingerprint ...";
+      status = _("Transforming constant against client fingerprint ...");
       frac   = 0.55f + 0.45f * ((float)(elapsed - PHASE_CONTACT) / (float)(PHASE_RECOVER - PHASE_CONTACT));
     }
     else
     {
-      status = "Nominal flow restored.";
+      status = _("Nominal flow restored.");
       frac   = 1.0f;
     }
 
@@ -3081,20 +3100,20 @@ SKIF_ImGui_AprilFools_Process (void)
     {
       ImGui::Separator   ( );
       SKIF_ImGui_Spacing ( );
-      ImGui::TextColored (colAccent,
-                          "Just kidding -- Special K needs no such thing. Happy April Fools' Day!");
+      SKIF_ImGui_TextColoredWrapped (colAccent,
+                          _("Just kidding -- Special K needs no such thing. Happy April Fools' Day!"));
       SKIF_ImGui_Spacing ( );
 
-      ImVec2 vButtonSize = ImVec2 (120.0f * SKIF_ImGui_GlobalDPIScale, 0.0f);
+      ImVec2 vButtonSize = ImVec2 (std::max (120.0f * SKIF_ImGui_GlobalDPIScale, ImGui::CalcTextSize (L_("Phew, OK"), nullptr, true).x + ImGui::GetStyle ( ).FramePadding.x * 2.0f), 0.0f);
       ImGui::SetCursorPosX (fWidth / 2 - vButtonSize.x / 2);
-      if (ImGui::Button  ("Phew, OK", vButtonSize))
+      if (ImGui::Button  (L_("Phew, OK"), vButtonSize))
         bDismissed = true;
 
       SKIF_ImGui_BlockDragMoveWhenItemActive ( );
     }
     else
     {
-      ImGui::TextDisabled ("Please wait, this will only take a moment ...");
+      ImGui::TextDisabled ("%s", _("Please wait, this will only take a moment ..."));
     }
 
     SKIF_ImGui_Spacing  ( );

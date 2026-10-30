@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-10-30 17:27+0100\n"
+"POT-Creation-Date: 2026-10-30 17:33+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -226,6 +226,7 @@ msgstr ""
 #: src/tabs/library/library_popups.cpp:317
 #: src/tabs/library/library_properties.cpp:1924
 #: src/tabs/library/library_properties.cpp:1989
+#: src/utility/skif_imgui.cpp:1662
 #: src/utility/updater.cpp:1547
 #: src/utility/updater.cpp:1604
 msgid "Cancel"
@@ -504,7 +505,9 @@ msgid ""
 "Please restart both as a normal user."
 msgstr ""
 
+#. TRANSLATORS: 'Use Microsoft Detours API hooking' is an option of RTSS (in English)
 #: src/tabs/common_ui.cpp:248
+#: src/utility/games.cpp:417
 msgid ""
 "RivaTuner Statistics Server (RTSS) occasionally conflicts with Special K.\n"
 "Try closing it down if Special K does not behave as expected, or enable\n"
@@ -723,6 +726,7 @@ msgstr ""
 #: src/tabs/monitor.cpp:1885
 #: src/tabs/library/library_popups.cpp:153
 #: src/tabs/library/library_popups.cpp:163
+#: src/utility/skif_imgui.cpp:1664
 msgid "Yes"
 msgstr ""
 
@@ -730,6 +734,7 @@ msgstr ""
 #: src/tabs/monitor.cpp:1692
 #: src/tabs/monitor.cpp:1885
 #: src/tabs/settings.cpp:1555
+#: src/utility/skif_imgui.cpp:1665
 msgid "No"
 msgstr ""
 
@@ -2011,6 +2016,7 @@ msgid "Tooltips"
 msgstr ""
 
 #: src/tabs/settings.cpp:1307
+#: src/utility/skif_imgui.cpp:633
 msgid "Info: "
 msgstr ""
 
@@ -2232,6 +2238,7 @@ msgstr ""
 
 #: src/tabs/settings.cpp:1903
 #: src/tabs/library/library_menus.cpp:56
+#: src/utility/skif_imgui.cpp:1880
 msgid "Troubleshooting:"
 msgstr ""
 
@@ -3391,6 +3398,7 @@ msgstr ""
 
 #: src/tabs/library/library_properties.cpp:1923
 #: src/tabs/library/library_properties.cpp:1933
+#: src/utility/skif_imgui.cpp:1667
 msgid "Save"
 msgstr ""
 
@@ -3400,6 +3408,14 @@ msgstr ""
 
 #: src/tabs/library/library_properties.cpp:1979
 msgid "Could not save"
+msgstr ""
+
+#: src/utility/games.cpp:414
+msgid "One-time warning about RTSS.exe"
+msgstr ""
+
+#: src/utility/games.cpp:423
+msgid "This warning will not appear again."
 msgstr ""
 
 #: src/utility/injection.cpp:238
@@ -3567,6 +3583,103 @@ msgstr ""
 
 #: src/utility/injection.cpp:1387
 msgid "Click to start the service"
+msgstr ""
+
+#: src/utility/sk_utility.cpp:883
+msgid "Keybinding:"
+msgstr ""
+
+#. TRANSLATORS: RETURN, ESC, BACKSPACE and DELETE are keys of the keyboard (use the names printed on keyboards in your language)
+#: src/utility/sk_utility.cpp:888
+msgid "Press RETURN to confirm, ESC to cancel, BACKSPACE to clear, DELETE to reset."
+msgstr ""
+
+#: src/utility/skif_imgui.cpp:476
+#: src/utility/skif_imgui.cpp:480
+#: src/utility/skif_imgui.cpp:1673
+msgid "OK"
+msgstr ""
+
+#: src/utility/skif_imgui.cpp:1661
+msgid "None"
+msgstr ""
+
+#: src/utility/skif_imgui.cpp:1668
+msgid "Don't Save"
+msgstr ""
+
+#: src/utility/skif_imgui.cpp:1727
+msgid "Are you sure you want to continue?"
+msgstr ""
+
+#: src/utility/skif_imgui.cpp:1743
+msgid "Do you want to save the changes made?"
+msgstr ""
+
+#: src/utility/skif_imgui.cpp:1744
+msgid "Your changes will be lost if you don't save them."
+msgstr ""
+
+#: src/utility/skif_imgui.cpp:1772
+msgid "Should 64-bit or 32-bit be used?"
+msgstr ""
+
+#: src/utility/skif_imgui.cpp:1773
+msgid "Processes can only load DLL files of the same bitness."
+msgstr ""
+
+#: src/utility/skif_imgui.cpp:1885
+msgid "Force start service"
+msgstr ""
+
+#: src/utility/skif_imgui.cpp:1892
+msgid "Elevated"
+msgstr ""
+
+#: src/utility/skif_imgui.cpp:1897
+msgid "Force stop service"
+msgstr ""
+
+#. TRANSLATORS: An April Fools' Day joke (a fake activation of Special K, with technobabble), shown on April 1st
+#: src/utility/skif_imgui.cpp:3022
+msgid "Special K Activation"
+msgstr ""
+
+#: src/utility/skif_imgui.cpp:3030
+msgid "Special K  //  Nominal Flow Activation"
+msgstr ""
+
+#: src/utility/skif_imgui.cpp:3034
+msgid "Client fingerprint:"
+msgstr ""
+
+#: src/utility/skif_imgui.cpp:3073
+msgid "This title is missing its nominal constant (0x00000000)."
+msgstr ""
+
+#: src/utility/skif_imgui.cpp:3078
+msgid "Contacting activation server  sk-activation.local ..."
+msgstr ""
+
+#: src/utility/skif_imgui.cpp:3083
+msgid "Transforming constant against client fingerprint ..."
+msgstr ""
+
+#: src/utility/skif_imgui.cpp:3088
+msgid "Nominal flow restored."
+msgstr ""
+
+#: src/utility/skif_imgui.cpp:3104
+msgid "Just kidding -- Special K needs no such thing. Happy April Fools' Day!"
+msgstr ""
+
+#: src/utility/skif_imgui.cpp:3107
+#: src/utility/skif_imgui.cpp:3109
+msgid "Phew, OK"
+msgstr ""
+
+#: src/utility/skif_imgui.cpp:3116
+msgid "Please wait, this will only take a moment ..."
 msgstr ""
 
 #: src/utility/updater.cpp:684
