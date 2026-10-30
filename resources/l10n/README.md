@@ -11,9 +11,9 @@ SKIF uses gettext `.po` files, read directly by SKIF (no compiling, no third-par
 
 ## Translating
 
-1. Start a new language from `SKIF.pot` (Poedit: *File > New from POT/PO file*; Weblate does this for you), or open its existing `.po` file.
-2. Set the `Language` header and the `Plural-Forms` header of the language (Poedit and Weblate fill these in). The language is a BCP 47 tag; `_` and `-` are both accepted: `de`, `pt-BR` / `pt_BR`, `zh-Hans` / `zh_Hans`.
-3. Read the comments of an entry (*Notes for translators* in Poedit, *Explanation* in Weblate). They say what the placeholders are and any limits.
+1. Start a new language from `SKIF.pot` (Poedit: *File > New from POT/PO file*), or open its existing `.po` file. Any `.po` editor works; Poedit is free and shows the comments and contexts described below.
+2. Set the `Language` header and the `Plural-Forms` header of the language (Poedit fills these in). The language is a BCP 47 tag; `_` and `-` are both accepted: `de`, `pt-BR` / `pt_BR`, `zh-Hans` / `zh_Hans`.
+3. Read the comments of an entry (*Notes for translators* in Poedit). They say what the placeholders are and any limits.
 4. Entries marked *fuzzy* and empty ones are shown in English.
 
 ### Placeholders and markup
@@ -32,7 +32,7 @@ Labels of buttons, menus and tabs are translated without their icons and without
 
 ### Contexts
 
-Some English words need a different translation depending on where they are. Those entries have a context (`msgctxt`), shown in Poedit and Weblate next to the text:
+Some English words need a different translation depending on where they are. Those entries have a context (`msgctxt`), shown in Poedit next to the text:
 
 | Context | Where it is |
 | --- | --- |
@@ -74,12 +74,25 @@ No build of SKIF is needed:
 
 Things to look at: text that is cut off or overlaps, buttons that got too wide, and mini mode and horizontal mode with a narrow window.
 
+### Sending a translation
+
+Translations are contributed as pull requests to [SpecialKO/SKIF](https://github.com/SpecialKO/SKIF):
+
+1. Fork the repository and create a branch (e.g. `l10n-pt-BR`).
+2. Add or update `resources/l10n/<language>.po`. Only that file is needed: a maintainer embeds new languages in `l10n.rc`.
+3. Update it from the current `SKIF.pot` first, so it covers the latest text (Poedit: *Translation > Update from POT file*).
+4. Test it as described above, and mention in the pull request which parts of SKIF you checked.
+5. Open the pull request with the language in the title, e.g. *Translation: Portuguese (Brazil)*.
+
+A partial translation is welcome: untranslated text shows in English, and the picker shows how complete each language is. Improvements to an existing translation are sent the same way; if the language has a regular translator, they may be asked to review.
+
 ## Maintaining
 
 ### Routine
 
-* After changing UI text, run `powershell -ExecutionPolicy Bypass -File tools\l10n_extract.ps1` to update `SKIF.pot`, then update each `.po` file from it (Poedit: *Translation > Update from POT file*; Weblate updates them on its own).
-* To embed a new language, add a line to `l10n.rc`: `de SKIF_PO "resources\\l10n\\de.po"`.
+* After changing UI text, run `powershell -ExecutionPolicy Bypass -File tools\l10n_extract.ps1` to update `SKIF.pot`, and commit it with the change. Translators update their `.po` files from it in their next pull request; to do it for them, use Poedit (*Translation > Update from POT file*) or `msgmerge --update --backup=off <language>.po SKIF.pot` (GNU gettext).
+* Reviewing a translation pull request: open the `.po` file in SKIF via the `Languages` folder and check `SKIF.log` for skipped entries and syntax errors. The `Language` and `Plural-Forms` headers must be set; the picker uses the language's own name from Windows.
+* To embed a new language, add a line to `l10n.rc`: `de SKIF_PO "resources\\l10n\\de.po"`. Do this when a language is complete enough to ship; until then it can live in the repository without being embedded.
 * The *Pseudo-locale* (listed in the language picker when *Settings > Advanced > Developer mode* is enabled) shows every translated text accented and ~35% longer, which makes text that is not marked for translation (it stays plain English) and layouts that are too narrow for longer languages easy to spot.
 * Only the catalog of the active language is parsed; the others are only scanned at startup (for their tag, name and completion), and parsed when switched to.
 
