@@ -803,34 +803,26 @@ SK_ImGui_KeybindDialog (SK_KeybindMultiState* keybind)
 
   const  float font_size = ImGui::GetFontSize ();
 
-  // Centered on the window it was opened from (the main window, or the INI editor), not on the child window the
-  //   keybinding is in: a child can be far larger than what is visible of it, which put the dialog off-screen
-  const ImRect hostRect  = ImGui::GetCurrentWindow ( )->RootWindow->Rect ( );
-
-  // At most 30 times the font size wide, and never wider than the window it is centered on; longer text wraps
-  const  float max_width = ImMax (font_size * 9.0f, ImMin (font_size * 30.0f, hostRect.GetWidth ( ) - font_size * 2.0f));
-
-  if (ImGui::IsPopupOpen (keybind->bind_name.c_str()))
+  // The dialog is shown while assigning (set by SK_ImGui_Keybinding ( ) when the binding is clicked). It is not an ImGui modal
+  //   popup, which would dim and block every window (the main window and the INI editor alike), but a SKIF popup: it dims
+  //     and blocks only the window (viewport) it was opened from, and is centered on it.
+  if (! keybind->assigning)
   {
-    ImGui::SetNextWindowSizeConstraints ( ImVec2 (font_size *  9.0f, font_size * 3.0f),
-                                          ImVec2 (max_width,         FLT_MAX) );
-
-    ImGui::SetNextWindowPos  (hostRect.GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
-
-    // Render over all other windows
-    //ImGui::SetNextWindowFocus ( );
-
-    g_activeKeybindPopup = true;
+    keybind->applyChanges ( );
+    return keybind->hasNewState ( );
   }
 
-  if (ImGui::BeginPopupModal (keybind->bind_name.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove     | ImGuiWindowFlags_Tooltip | // ImGuiWindowFlags_Tooltip is required to work around a pesky z-order issue on first appearance
-                                                                   ImGuiWindowFlags_NoCollapse       | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings))
-  {
-    // Render over all other windows
-    //ImGui::BringWindowToDisplayFront (ImGui::GetCurrentWindow ( ));
+  g_activeKeybindPopup = true;
 
-    // Indicate that we are assigning (this disables the keybinding while the popup is opened)
-    keybind->assigning = true;
+  // At most 30 times the font size wide, and never wider than the window it is centered on; longer text wraps
+  const ImGuiViewport* vp        = ImGui::GetWindowViewport ( );
+  const  float         max_width = ImMax (font_size * 9.0f, ImMin (font_size * 30.0f, vp->Size.x - font_size * 2.0f));
+
+  if (SKIF_ImGui_BeginPopup ("###SKIFKeybindDialog", nullptr, ImVec2 (0.0f, 0.0f),
+                             ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove))
+  {
+    // Minimum width (SKIF popups do not take size constraints)
+    ImGui::Dummy (ImVec2 (font_size * 9.0f - ImGui::GetStyle ( ).WindowPadding.x * 2.0f, 0.0f));
 
     int  vKey = 256;
 
@@ -937,15 +929,12 @@ SK_ImGui_KeybindDialog (SK_KeybindMultiState* keybind)
       keybind->pending.update   ( );
     }
 
-    // If we are done with the changes, mark it as such
+    // If we are done with the changes, mark it as such (closes the dialog)
     if (bEscape || bEnter)
-    {
       keybind->assigning = false;
-      ImGui::CloseCurrentPopup ( );
-    }
-
-    ImGui::EndPopup ();
   }
+
+  SKIF_ImGui_EndPopup ( ); // Must always be called, regardless of the return value of SKIF_ImGui_BeginPopup
 
   // This applies any pending changes, once done
   keybind->applyChanges ( );
@@ -962,8 +951,9 @@ SK_ImGui_Keybinding (SK_KeybindMultiState* binding)
 
   ImGui::PushID              (binding->bind_name.c_str());
 
+  // Opens the dialog of SK_ImGui_KeybindDialog ( )
   if (SK_ImGui_KeybindSelect (&binding->saved))
-    ImGui::OpenPopup         (binding->bind_name.c_str());
+    binding->assigning = true;
 
   bool results =
     SK_ImGui_KeybindDialog   (binding);
