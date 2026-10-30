@@ -85,6 +85,8 @@ bool     SKIF_ImGui_SameLineIfFits        (float width);                        
 bool     SKIF_ImGui_Checkbox              (const char* label, bool* v);          // ImGui::Checkbox ( ) whose label wraps if it is wider than the space left
 bool     SKIF_ImGui_RadioButton           (const char* label, int* v, int v_button); // ImGui::RadioButton ( ) whose label wraps if it is wider than the space left
 void     SKIF_ImGui_SetNextItemWidthForLabel (const char* label);                // Narrows the next item (e.g. a combo) so its label on the right fits
+float    SKIF_ImGui_ComboWidth            (std::initializer_list <const char*> items, float min_width = 0.0f); // Width of a combo that fits the widest of these items (at least min_width)
+void     SKIF_ImGui_TextHighlighted       (const char* text, const char* value, const ImVec4& colValue); // One line of text where {0} is value, drawn in colValue: "Do you want to end {0}?"
 int      SKIF_ImGui_TextRich              (const char* text, std::initializer_list <const char*> link_icons = { }, const ImVec4& colLink = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption)); // Wrapped text where [words] are links; returns the index of the clicked link, or -1
 bool     SKIF_ImGui_SelectableVAligned    (const char* unique_id, const char* label, bool* p_selected, ImGuiSelectableFlags flags, const ImVec2& size_arg);
 bool     SKIF_ImGui_SeparatorTextClickable(const char* label, const bool* collapsed = nullptr, bool hand_cursor = false);

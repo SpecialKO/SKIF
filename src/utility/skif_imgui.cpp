@@ -730,6 +730,74 @@ SKIF_ImGui_TextColoredWrapped (const ImVec4& col, const char* text)
   ImGui::PopStyleColor  ( );
 }
 
+// Width of a combo (its frame, arrow button and the text) that fits the widest of the items, and is at least min_width wide
+float
+SKIF_ImGui_ComboWidth (std::initializer_list <const char*> items, float min_width)
+{
+  float text_width = 0.0f;
+
+  for (const char* item : items)
+    if (item != nullptr)
+      text_width = std::max (text_width, ImGui::CalcTextSize (item, NULL, true).x);
+
+  return std::max (min_width, text_width + ImGui::GetStyle ( ).FramePadding.x * 2.0f + ImGui::GetFrameHeight ( ));
+}
+
+// One line of text with a value drawn in its own color where the (translated) text has {0}, so the sentence stays whole
+//   for translators: SKIF_ImGui_TextHighlighted (_("Do you want to end {0}?"), filename, colHighlight). "{{" and "}}" are
+//     literal braces; without a {0}, the value is not drawn.
+void
+SKIF_ImGui_TextHighlighted (const char* text, const char* value, const ImVec4& colValue)
+{
+  auto _Unescape = [](std::string_view in) -> std::string
+  {
+    std::string out;
+    for (size_t i = 0; i < in.size ( ); i++)
+    {
+      out += in [i];
+      if ((in [i] == '{' || in [i] == '}') && i + 1 < in.size ( ) && in [i + 1] == in [i])
+        i++;
+    }
+    return out;
+  };
+
+  std::string_view view   ((text != nullptr) ? text : "");
+  size_t           pos    = std::string_view::npos;
+
+  // The first {0} that is not part of an escaped "{{"
+  for (size_t i = 0; i + 2 < view.size ( ); i++)
+  {
+    if (view [i] == '{' && view [i + 1] == '{') { i++; continue; }
+    if (view.compare (i, 3, "{0}") == 0)        { pos = i; break; }
+  }
+
+  const std::string before = _Unescape (view.substr (0, (pos != std::string_view::npos) ? pos : view.size ( )));
+  const std::string after  = (pos != std::string_view::npos) ? _Unescape (view.substr (pos + 3)) : std::string ( );
+
+  ImGui::BeginGroup ( );
+
+  if (! before.empty ( ))
+    ImGui::TextUnformatted (before.c_str ( ));
+
+  if (pos != std::string_view::npos)
+  {
+    if (! before.empty ( ))
+      ImGui::SameLine (0.0f, 0.0f);
+
+    ImGui::PushStyleColor  (ImGuiCol_Text, colValue);
+    ImGui::TextUnformatted ((value != nullptr) ? value : "");
+    ImGui::PopStyleColor   ( );
+
+    if (! after.empty ( ))
+    {
+      ImGui::SameLine        (0.0f, 0.0f);
+      ImGui::TextUnformatted (after.c_str ( ));
+    }
+  }
+
+  ImGui::EndGroup ( );
+}
+
 // Width of a checkbox or radio button (the box/circle and its label, as ImGui lays them out)
 float
 SKIF_ImGui_CheckboxWidth (const char* label)

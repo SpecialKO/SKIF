@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-10-30 01:05+0100\n"
+"POT-Creation-Date: 2026-10-30 01:20+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -135,6 +135,7 @@ msgid "Licenses"
 msgstr ""
 
 #: src/tabs/about.cpp:454
+#: src/tabs/monitor.cpp:919
 msgid "Components:"
 msgstr ""
 
@@ -259,10 +260,14 @@ msgid "Granted 'Performance Log Users' permission?"
 msgstr ""
 
 #: src/tabs/hardware.cpp:884
+#: src/tabs/monitor.cpp:1692
+#: src/tabs/monitor.cpp:1885
 msgid "Yes"
 msgstr ""
 
 #: src/tabs/hardware.cpp:886
+#: src/tabs/monitor.cpp:1692
+#: src/tabs/monitor.cpp:1885
 #: src/tabs/settings.cpp:1555
 msgid "No"
 msgstr ""
@@ -505,6 +510,296 @@ msgstr ""
 
 #: src/tabs/hardware.cpp:1580
 msgid "No layer of this kind was found."
+msgstr ""
+
+#. TRANSLATORS: {0} is a circle icon
+#: src/tabs/monitor.cpp:727
+msgid "Use the below list to identify injected processes using the {0} status indicator to the left. Note that while a lot of processes might have Special K injected in them, only those that are whitelisted and use a render API will see Special K active. Remaining processes have it inert and can be ignored."
+msgstr ""
+
+#: src/tabs/monitor.cpp:736
+msgid "Show misc processes"
+msgstr ""
+
+#. TRANSLATORS: {0} is a circle icon
+#: src/tabs/monitor.cpp:740
+msgid ""
+"If this is enabled the below list will also include uninjected processes.\n"
+"This is indicated by the lack of a {0} icon under the Status column."
+msgstr ""
+
+#: src/tabs/monitor.cpp:745
+msgctxt "update speed"
+msgid "Paused"
+msgstr ""
+
+#: src/tabs/monitor.cpp:746
+msgctxt "update speed"
+msgid "Slow"
+msgstr ""
+
+#: src/tabs/monitor.cpp:747
+msgctxt "update speed"
+msgid "Normal"
+msgstr ""
+
+#: src/tabs/monitor.cpp:748
+msgctxt "update speed"
+msgid "High"
+msgstr ""
+
+#: src/tabs/monitor.cpp:759
+#: src/tabs/monitor.cpp:767
+msgid "Update speed:"
+msgstr ""
+
+#: src/tabs/monitor.cpp:818
+#: src/tabs/monitor.cpp:1769
+msgid "Real-time updates are paused."
+msgstr ""
+
+#: src/tabs/monitor.cpp:828
+msgid "Toggle Service:"
+msgstr ""
+
+#: src/tabs/monitor.cpp:832
+msgid "A forced stop of the service may sometime help in case of an issue, even if the service is not currently running."
+msgstr ""
+
+#: src/tabs/monitor.cpp:839
+msgid "Force start"
+msgstr ""
+
+#: src/tabs/monitor.cpp:840
+msgid "Force stop"
+msgstr ""
+
+#: src/tabs/monitor.cpp:874
+#: src/utility/injection.cpp:1048
+msgid "Stop automatically"
+msgstr ""
+
+#: src/tabs/monitor.cpp:880
+#: src/utility/injection.cpp:1054
+msgid ""
+"This controls whether the configured auto-stop behavior (see Settings tab) should be used when the service is manually started.\n"
+"Note that having this unchecked does not disable the auto-stop behavior if a game is launched without the service already running."
+msgstr ""
+
+#: src/tabs/monitor.cpp:886
+#: src/tabs/library/library_menus.cpp:1586
+msgid "Install folder"
+msgstr ""
+
+#: src/tabs/monitor.cpp:909
+msgid "Status:"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1549
+msgid "Actions:"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1554
+msgid "Whitelist"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1560
+msgid "Blacklist"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1566
+#: src/tabs/settings.cpp:2403
+#: src/tabs/library/library_menus.cpp:394
+#: src/tabs/library/library_menus.cpp:1738
+#: src/tabs/library/library_menus.cpp:1993
+msgid "Reset"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1578
+msgid "Remove the whitelist and blacklist patterns matching this process."
+msgstr ""
+
+#: src/tabs/monitor.cpp:1621
+#: src/tabs/library/library_menus.cpp:803
+#: src/tabs/library/library_menus.cpp:1584
+msgid "Browse"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1630
+msgid "End task"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1681
+#: src/tabs/monitor.cpp:1701
+msgid "Status"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1681
+#: src/tabs/monitor.cpp:1709
+msgid "PID"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1681
+#: src/tabs/monitor.cpp:1717
+msgid "Type"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1681
+#: src/tabs/monitor.cpp:1721
+msgid "Handles"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1681
+#: src/tabs/monitor.cpp:1725
+msgid "Arch"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1681
+#: src/tabs/monitor.cpp:1733
+msgid "Admin"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1681
+#: src/tabs/monitor.cpp:1741
+msgid "Process Name"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1703
+msgid "Injection status"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1711
+msgid "Process ID"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1726
+msgid "CPU architecture"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1734
+msgid "Elevated process"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1742
+msgid "Process name"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1767
+msgid "Error occurred when trying to locate type index for events!"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1771
+msgid "Special K is currently not injected in any process."
+msgstr ""
+
+#: src/tabs/monitor.cpp:1807
+msgid "Process is blacklisted"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1813
+msgid "Process is whitelisted"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1826
+msgctxt "injection status"
+msgid "Active"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1830
+msgctxt "injection status"
+msgid "Local"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1835
+msgctxt "injection status"
+msgid "Inert"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1838
+#: src/tabs/monitor.cpp:1847
+msgctxt "injection status"
+msgid "Stuck (end the process to eject Special K)"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1844
+msgctxt "injection status"
+msgid "Inert (potentially stuck)"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1904
+msgid "Injection status cannot be determined due to a lack of permissions."
+msgstr ""
+
+#: src/tabs/monitor.cpp:1944
+msgid "Task Manager"
+msgstr ""
+
+#. TRANSLATORS: {0} is the file name of a process
+#: src/tabs/monitor.cpp:1949
+msgid "Do you want to end {0}?"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1951
+msgid "If an open program is associated with this process, it will close and you will lose any unsaved data. If you end a system process, it might result in system instability. Are you sure you want to continue?"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1958
+#: src/tabs/monitor.cpp:1963
+msgid "End Process"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1959
+#: src/tabs/monitor.cpp:1977
+#: src/tabs/monitor.cpp:2064
+#: src/tabs/monitor.cpp:2097
+#: src/tabs/library/library_properties.cpp:1924
+#: src/tabs/library/library_properties.cpp:1989
+msgid "Cancel"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1994
+msgid "Reset Whitelist / Blacklist"
+msgstr ""
+
+#. TRANSLATORS: {0} is the file name of a process
+#: src/tabs/monitor.cpp:2021
+msgid "Patterns matching {0}:"
+msgstr ""
+
+#: src/tabs/monitor.cpp:2025
+msgid "Whitelist:"
+msgstr ""
+
+#: src/tabs/monitor.cpp:2026
+msgid "Blacklist:"
+msgstr ""
+
+#: src/tabs/monitor.cpp:2030
+msgid "No whitelist or blacklist patterns of yours match this process."
+msgstr ""
+
+#: src/tabs/monitor.cpp:2042
+msgid "The process is also whitelisted by the built-in pattern \"{0}\", which cannot be removed."
+msgstr ""
+
+#: src/tabs/monitor.cpp:2043
+msgid "The process is also blacklisted by the built-in pattern \"{0}\", which cannot be removed."
+msgstr ""
+
+#: src/tabs/monitor.cpp:2050
+msgid "Removing a pattern affects every application it matches, not just this one. Do you want to remove the patterns listed above?"
+msgstr ""
+
+#: src/tabs/monitor.cpp:2057
+msgid "The changes could not be saved!"
+msgstr ""
+
+#: src/tabs/monitor.cpp:2063
+#: src/tabs/monitor.cpp:2071
+#: src/tabs/library/library_menus.cpp:1075
+#: src/tabs/library/library_menus.cpp:1197
+#: src/tabs/library/library_properties.cpp:650
+msgid "Remove"
 msgstr ""
 
 #: src/tabs/settings.cpp:45
@@ -1393,13 +1688,6 @@ msgstr ""
 msgid "Save Changes"
 msgstr ""
 
-#: src/tabs/settings.cpp:2403
-#: src/tabs/library/library_menus.cpp:394
-#: src/tabs/library/library_menus.cpp:1738
-#: src/tabs/library/library_menus.cpp:1993
-msgid "Reset"
-msgstr ""
-
 #: src/tabs/settings.cpp:2429
 msgid "The whitelist could not be saved! Please remove any non-Latin characters and try again."
 msgstr ""
@@ -1475,11 +1763,6 @@ msgstr ""
 msgid "Terminate game"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:803
-#: src/tabs/library/library_menus.cpp:1584
-msgid "Browse"
-msgstr ""
-
 #: src/tabs/library/library_menus.cpp:805
 msgid "Game folder"
 msgstr ""
@@ -1534,12 +1817,6 @@ msgstr ""
 
 #: src/tabs/library/library_menus.cpp:1068
 msgid "Rename"
-msgstr ""
-
-#: src/tabs/library/library_menus.cpp:1075
-#: src/tabs/library/library_menus.cpp:1197
-#: src/tabs/library/library_properties.cpp:650
-msgid "Remove"
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:1108
@@ -1602,10 +1879,6 @@ msgstr ""
 
 #: src/tabs/library/library_menus.cpp:1578
 msgid "Stop service"
-msgstr ""
-
-#: src/tabs/library/library_menus.cpp:1586
-msgid "Install folder"
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:1592
@@ -2242,11 +2515,6 @@ msgstr ""
 msgid "Save"
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1924
-#: src/tabs/library/library_properties.cpp:1989
-msgid "Cancel"
-msgstr ""
-
 #: src/tabs/library/library_properties.cpp:1949
 msgid "Some of the changes could not be saved."
 msgstr ""
@@ -2346,16 +2614,6 @@ msgstr ""
 
 #: src/utility/injection.cpp:992
 msgid "Service continues running after this app is closed."
-msgstr ""
-
-#: src/utility/injection.cpp:1048
-msgid "Stop automatically"
-msgstr ""
-
-#: src/utility/injection.cpp:1054
-msgid ""
-"This controls whether the configured auto-stop behavior (see Settings tab) should be used when the service is manually started.\n"
-"Note that having this unchecked does not disable the auto-stop behavior if a game is launched without the service already running."
 msgstr ""
 
 #: src/utility/injection.cpp:1059
