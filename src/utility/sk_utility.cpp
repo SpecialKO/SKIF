@@ -803,13 +803,19 @@ SK_ImGui_KeybindDialog (SK_KeybindMultiState* keybind)
 
   const  float font_size = ImGui::GetFontSize ();
 
+  // Centered on the window it was opened from (the main window, or the INI editor), not on the child window the
+  //   keybinding is in: a child can be far larger than what is visible of it, which put the dialog off-screen
+  const ImRect hostRect  = ImGui::GetCurrentWindow ( )->RootWindow->Rect ( );
+
+  // At most 30 times the font size wide, and never wider than the window it is centered on; longer text wraps
+  const  float max_width = ImMax (font_size * 9.0f, ImMin (font_size * 30.0f, hostRect.GetWidth ( ) - font_size * 2.0f));
+
   if (ImGui::IsPopupOpen (keybind->bind_name.c_str()))
   {
     ImGui::SetNextWindowSizeConstraints ( ImVec2 (font_size *  9.0f, font_size * 3.0f),
-                                          ImVec2 (font_size * 30.0f, font_size * 6.0f) );
+                                          ImVec2 (max_width,         FLT_MAX) );
 
-    ImRect windowRect = ImRect (ImGui::GetWindowPos ( ), ImGui::GetWindowPos ( ) + ImGui::GetWindowSize ( ));
-    ImGui::SetNextWindowPos  (windowRect.GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
+    ImGui::SetNextWindowPos  (hostRect.GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
 
     // Render over all other windows
     //ImGui::SetNextWindowFocus ( );
@@ -880,12 +886,17 @@ SK_ImGui_KeybindDialog (SK_KeybindMultiState* keybind)
          bEnter     = (! modifierKey && // Confirm
      (ImGui::IsKeyPressed (ImGuiKey_Enter,     false) || ImGui::IsKeyPressed (ImGuiKey_KeypadEnter, false)));
 
+    // Wrap the text at the widest the dialog may be (Text, TextColored and TextDisabled all follow the wrap position)
+    ImGui::PushTextWrapPos (ImGui::GetCursorPosX ( ) + max_width - ImGui::GetStyle ( ).WindowPadding.x * 2.0f);
+
     ImGui::Text         ("%s", _("Keybinding:")); //  %hs, keybind->pending.human_readable_utf8.c_str ()); // (0x%02X), keybind->vKey
     ImGui::SameLine     ( );
     ImGui::TextColored  (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), "%s", keybind->pending.human_readable_utf8.c_str ());
     ImGui::Separator    ( );
     // TRANSLATORS: RETURN, ESC, BACKSPACE and DELETE are keys of the keyboard (use the names printed on keyboards in your language)
     ImGui::TextDisabled ("%s", _("Press RETURN to confirm, ESC to cancel, BACKSPACE to clear, DELETE to reset."));
+
+    ImGui::PopTextWrapPos  ( );
 
     // Update the key binding after printing out the current one, to prevent a one-frame graphics glitch
     if (bBackspace)
