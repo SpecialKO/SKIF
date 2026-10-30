@@ -507,7 +507,7 @@ SKIF_UI_Tab_DrawSettings (void)
                                                            // TRANSLATORS: {0} is a number of minutes
                                                            : SKIF_L10n_PrintfFormat (_("Power Off After {0} Minutes"), "%.1f");
 
-      if (ImGui::SliderFloat (L_("Idle Behavior"), &fIdleMinutes, 0.0f, 30.0f, idleFormat.c_str ( )))
+      if (SKIF_ImGui_SliderFloat (L_("Idle Behavior"), &fIdleMinutes, 0.0f, 30.0f, idleFormat.c_str ( )))
       {
         // Minimum positive step value to allow gamepad to move this slider off of "Never Power Off"
         if (fLastIdle == 0.0f && fIdleMinutes > 0.0f)
@@ -1583,7 +1583,7 @@ SKIF_UI_Tab_DrawSettings (void)
         // TRANSLATORS: {0} is the brightness in nits (cd/m2)
         const std::string nitsFormat = SKIF_L10n_PrintfFormat (_("{0} nits"), "%d");
 
-        if (ImGui::SliderInt(L_("HDR brightness"), &_registry.iHDRBrightness, 80, 400, nitsFormat.c_str ( )))
+        if (SKIF_ImGui_SliderInt (L_("HDR brightness"), &_registry.iHDRBrightness, 80, 400, nitsFormat.c_str ( )))
         {
           // Reset to 203 nits (default; HDR reference white for BT.2408) if negative or zero
           if (_registry.iHDRBrightness <= 0)

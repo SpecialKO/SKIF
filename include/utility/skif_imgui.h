@@ -86,6 +86,8 @@ bool     SKIF_ImGui_SameLineIfFits        (float width);                        
 bool     SKIF_ImGui_Checkbox              (const char* label, bool* v);          // ImGui::Checkbox ( ) whose label wraps if it is wider than the space left
 bool     SKIF_ImGui_RadioButton           (const char* label, int* v, int v_button); // ImGui::RadioButton ( ) whose label wraps if it is wider than the space left
 void     SKIF_ImGui_SetNextItemWidthForLabel (const char* label);                // Narrows the next item (e.g. a combo) so its label on the right fits
+bool     SKIF_ImGui_SliderInt             (const char* label, int*   v, int   v_min, int   v_max, const char* format = "%d",   ImGuiSliderFlags flags = 0); // ImGui::SliderInt ( ), narrowed so its label fits; a label that still does not fit is shortened with an ellipsis (full text in a tooltip)
+bool     SKIF_ImGui_SliderFloat           (const char* label, float* v, float v_min, float v_max, const char* format = "%.3f", ImGuiSliderFlags flags = 0); // The same for ImGui::SliderFloat ( )
 float    SKIF_ImGui_ComboWidth            (std::initializer_list <const char*> items, float min_width = 0.0f); // Width of a combo that fits the widest of these items (at least min_width)
 void     SKIF_ImGui_TextHighlighted       (const char* text, const char* value, const ImVec4& colValue); // One line of text where {0} is value, drawn in colValue: "Do you want to end {0}?"
 void     SKIF_ImGui_TextHighlighted       (const char* text, std::initializer_list <const char*> values, const ImVec4& colValue); // The same, with {0}, {1}, ...

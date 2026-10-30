@@ -937,6 +937,71 @@ SKIF_ImGui_SetNextItemWidthForLabel (const char* label)
   ImGui::SetNextItemWidth (std::max (ImGui::GetFrameHeight ( ) * 4.0f, std::min (ImGui::CalcItemWidth ( ), available)));
 }
 
+// Draws the label of the item just drawn on its right, as ImGui would, but shortened with an ellipsis if it does not fit the
+//   rest of the line (full text in a tooltip). The item stays the last item, so SKIF_ImGui_SetHoverTip ( ) etc. still apply to it.
+static void
+SKIF_ImGui_ItemLabel (const char* label)
+{
+  const char* label_end = ImGui::FindRenderedTextEnd (label);
+
+  if (label_end == label)
+    return;
+
+  ImGuiContext&            g    = *GImGui;
+  const ImGuiLastItemData  item = g.LastItemData;
+
+  ImGui::SameLine (0.0f, g.Style.ItemInnerSpacing.x);
+
+  const float  avail     = ImGui::GetContentRegionAvail ( ).x;
+  const ImVec2 text_size = ImGui::CalcTextSize (label, label_end);
+
+  if (text_size.x <= avail || avail <= 0.0f)
+    ImGui::TextUnformatted (label, label_end);
+
+  else
+  {
+    // As ImGui::TextUnformatted ( ) places text (aligned with the frame of the item before it), but cut at the edge
+    ImGuiWindow* window = ImGui::GetCurrentWindow ( );
+    const ImVec2 pos (window->DC.CursorPos.x, window->DC.CursorPos.y + window->DC.CurrLineTextBaseOffset);
+    const ImRect bb  (pos, ImVec2 (pos.x + avail, pos.y + text_size.y));
+
+    ImGui::ItemSize (bb.GetSize ( ), 0.0f);
+
+    if (ImGui::ItemAdd (bb, 0))
+    {
+      ImGui::RenderTextEllipsis (window->DrawList, bb.Min, bb.Max, bb.Max.x, label, label_end, &text_size);
+      SKIF_ImGui_SetHoverTip (std::string (label, label_end));
+    }
+  }
+
+  g.LastItemData = item;
+}
+
+bool
+SKIF_ImGui_SliderInt (const char* label, int* v, int v_min, int v_max, const char* format, ImGuiSliderFlags flags)
+{
+  // "##" hides ImGui's own label; a "###id" in the label still gives the slider the same ID
+  const std::string hidden = std::string ("##") + label;
+
+  SKIF_ImGui_SetNextItemWidthForLabel (label);
+  const bool changed = ImGui::SliderInt (hidden.c_str ( ), v, v_min, v_max, format, flags);
+  SKIF_ImGui_ItemLabel (label);
+
+  return changed;
+}
+
+bool
+SKIF_ImGui_SliderFloat (const char* label, float* v, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
+{
+  const std::string hidden = std::string ("##") + label;
+
+  SKIF_ImGui_SetNextItemWidthForLabel (label);
+  const bool changed = ImGui::SliderFloat (hidden.c_str ( ), v, v_min, v_max, format, flags);
+  SKIF_ImGui_ItemLabel (label);
+
+  return changed;
+}
+
 // Wrapped text with links, so sentences stay whole for translation while words within them can be clicked:
 //   "Just hop over to the [Library] and launch a game!"
 //
