@@ -812,10 +812,17 @@ SK_ImGui_KeybindDialog (SK_KeybindMultiState* keybind)
     return keybind->hasNewState ( );
   }
 
-  g_activeKeybindPopup = true;
+  const ImGuiViewport* vp        = ImGui::GetWindowViewport ( );
+
+  // Keys are only read while the window the dialog is in has focus, so typing in another window (the INI editor, the main
+  //   window, or another app) neither changes the binding nor confirms or cancels it. SKIF's hotkeys are only held back
+  //     in that window too (g_activeKeybindPopup), so they keep working in the other one.
+  const bool           focused   = SKIF_ImGui_IsViewportFocused (vp);
+
+  if (focused)
+    g_activeKeybindPopup = true;
 
   // At most 30 times the font size wide, and never wider than the window it is centered on; longer text wraps
-  const ImGuiViewport* vp        = ImGui::GetWindowViewport ( );
   const  float         max_width = ImMax (font_size * 9.0f, ImMin (font_size * 30.0f, vp->Size.x - font_size * 2.0f));
 
   if (SKIF_ImGui_BeginPopup ("###SKIFKeybindDialog", nullptr, ImVec2 (0.0f, 0.0f),
@@ -846,7 +853,7 @@ SK_ImGui_KeybindDialog (SK_KeybindMultiState* keybind)
       }
     }
 #else
-    for (ImGuiKey imKey = ImGuiKey_NamedKey_BEGIN; imKey < ImGuiKey_NamedKey_END; imKey = (ImGuiKey)(imKey + 1))
+    for (ImGuiKey imKey = ImGuiKey_NamedKey_BEGIN; focused && imKey < ImGuiKey_NamedKey_END; imKey = (ImGuiKey)(imKey + 1))
     {
       if ( imKey == ImGuiKey_LeftCtrl  || imKey == ImGuiKey_RightCtrl  || // Ctrl
            imKey == ImGuiKey_LeftShift || imKey == ImGuiKey_RightShift || // Shift
@@ -869,13 +876,13 @@ SK_ImGui_KeybindDialog (SK_KeybindMultiState* keybind)
 
     bool modifierKey = io.KeyCtrl || io.KeyShift || io.KeyAlt || io.KeySuper;
 
-    bool bEscape    = (! modifierKey && // Cancel operation
+    bool bEscape    = (focused && ! modifierKey && // Cancel operation
       ImGui::IsKeyPressed (ImGuiKey_Escape,    false)),
-         bBackspace = (! modifierKey && // Clear keybinding
+         bBackspace = (focused && ! modifierKey && // Clear keybinding
       ImGui::IsKeyPressed (ImGuiKey_Backspace, false)),
-         bDelete    = (! modifierKey && // Reset to default
+         bDelete    = (focused && ! modifierKey && // Reset to default
       ImGui::IsKeyPressed (ImGuiKey_Delete,    false)),
-         bEnter     = (! modifierKey && // Confirm
+         bEnter     = (focused && ! modifierKey && // Confirm
      (ImGui::IsKeyPressed (ImGuiKey_Enter,     false) || ImGui::IsKeyPressed (ImGuiKey_KeypadEnter, false)));
 
     // Wrap the text at the widest the dialog may be (Text, TextColored and TextDisabled all follow the wrap position)
