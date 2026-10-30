@@ -1665,6 +1665,18 @@ SKIF_UI_Tab_DrawMonitor (void)
   // ActiveProcessMonitoring
 #pragma region Process List
 
+  // The process list may be wider than the rest of the tab (long process names or details): it is drawn in a centered column
+  //   of its own, as wide as the rest of the tab, or as its rows need (measured on the previous frame), up to the window width.
+  //     Too narrow a window still scrolls it horizontally.
+  static float fProcessListWidth = 0.0f; // The width the rows need (at the current DPI scale)
+
+  const float  fTabColumnWidth   = ImGui::GetWindowWidth ( ); // The column of the tab (SKIF.cpp), which this function is drawn in
+
+  SKIF_ImGui_EndCenteredColumn   ( );
+  SKIF_ImGui_BeginCenteredColumn ("###MonitorProcessListColumn", std::max (fTabColumnWidth, fProcessListWidth));
+
+  float fRowsRight = 0.0f; // The right edge of the widest row, in the list's own coordinates
+
   ImGui::PushStyleColor (
     ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(0.8f, 0.8f, 0.8f, 1.0f)
                           );
@@ -1896,6 +1908,7 @@ SKIF_UI_Tab_DrawMonitor (void)
     ImGui::ItemSize        (ImVec2 (colPos [7] - 5.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
     ImGui::SameLine        ( );
     ImGui::TextColored     (colText, "%s", proc.details.c_str());
+    fRowsRight = std::max (fRowsRight, ImGui::GetItemRectMax ( ).x - ImGui::GetWindowPos ( ).x + ImGui::GetScrollX ( ));
     if (ImGui::IsItemHovered ( ))
     {
       if (proc.details.length() > 73)
@@ -1927,6 +1940,19 @@ SKIF_UI_Tab_DrawMonitor (void)
 
   // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
   SKIF_ImGui_AutoScroll  (false, SKIF_ImGuiAxis_Y);
+
+  // The width the column needs for the rows: the list's padding on the right and its vertical scrollbar included
+  {
+    const float fNeeded = (fRowsRight > 0.0f) ? ImFloor (fRowsRight + ImGui::GetStyle ( ).FramePadding.x + ImGui::GetStyle ( ).ScrollbarSize + 1.0f) : 0.0f;
+
+    if (std::abs (fNeeded - fProcessListWidth) >= 1.0f)
+    {
+      fProcessListWidth = fNeeded;
+
+      extern int addAdditionalFrames; // Applied from the next frame on, so ask for one
+      addAdditionalFrames += 1;
+    }
+  }
 
   ImGui::EndChild      ( );
 

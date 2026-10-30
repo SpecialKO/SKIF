@@ -244,12 +244,11 @@ SKIF_UI_Tab_DrawAbout (void)
 
   SKIF_ImGui_Spacing      ( );
 
-  ImGui::BeginChild ("##TipsTricks", ImVec2 (0, (5 * ImGui::GetTextLineHeightWithSpacing()) + ImGui::GetStyle().ScrollbarSize), ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar); // 128.0f * SKIF_ImGui_GlobalDPIScale
-
   // Show a (currently not randomized) selection of tips and tricks
+  //   As tall as they are: they wrap to the width of the column, so they need neither a fixed height nor scrollbars
+  ImGui::BeginGroup       ( );
   SKIF_UI_TipsAndTricks   ( );
-
-  ImGui::EndChild ( );
+  ImGui::EndGroup         ( );
 
 //float fY4 = ImGui::GetCursorPosY();
 
