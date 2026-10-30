@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
@@ -343,8 +344,15 @@ struct SKIF_L10n::Catalog
   std::string             tag;
   std::string             source;     // Where it was loaded from (for the log)
   int                     total      = 0;
-  int                     translated = 0;
+  int                     translated = 0; // At startup, counted by SKIF_L10n_ScanPO ( ); exact once loaded
   SKIF_L10n_PluralRule    plural;
+
+  // The entries are only read when the language is first used (at startup, or when switching to it): until then, only the
+  //   header and the counts are known. Main thread only (SKIF_L10n::Initialize ( ) / ApplyPendingLanguage ( )).
+  bool                    loaded     = true;
+  const char*             resData    = nullptr; // Embedded: the resource, mapped for the lifetime of the process
+  size_t                  resSize    = 0;
+  std::wstring            path;                 // Loose file (read again when loaded)
 
   // Key: msgid, or msgctxt '\x04' msgid (as with gettext). Value: msgstr, or msgstr[0..nplurals)
   SKIF_L10n_StringMap <std::vector <std::string>> entries;
@@ -493,6 +501,181 @@ SKIF_L10n_ParseQuoted (std::string_view line, size_t pos, std::string& out)
   return any;
 }
 
+// The header of a .po file (the msgstr of the entry with an empty msgid): its language, and its plural forms (if plural is
+//   not nullptr). True if it has a Plural-Forms line.
+static bool
+SKIF_L10n_ParseHeader (std::string_view header, const SKIF_L10n::Catalog& cat, std::string& language, SKIF_L10n_PluralRule* plural)
+{
+  bool has_plural_forms = false;
+
+  while (! header.empty ( ))
+  {
+    size_t           nl   = header.find ('\n');
+    std::string_view line = header.substr (0, nl);
+    header = (nl == std::string_view::npos) ? std::string_view ( ) : header.substr (nl + 1);
+
+    size_t colon = line.find (':');
+    if (colon == std::string_view::npos)
+      continue;
+
+    std::string      key   = SKIF_L10n_ToLower (SKIF_L10n_Trim (line.substr (0, colon)));
+    std::string_view value = SKIF_L10n_Trim (line.substr (colon + 1));
+
+    if (key == "language")
+      language = SKIF_L10n_NormalizeTag (value);
+    else if (key == "plural-forms")
+    {
+      has_plural_forms = true;
+      if (plural != nullptr && ! plural->Parse (value))
+        PLOG_WARNING << "[L10n] " << cat.source << ": could not parse the Plural-Forms header \"" << std::string (value) << "\"; using n != 1.";
+    }
+  }
+
+  return has_plural_forms;
+}
+
+// Reads only what is needed to list a .po file in the language picker, without building its entries (fast, at startup):
+//   the language of its header, and how many entries it has and has translated. The count is exact but for translations
+//     that SKIF_L10n_ParsePO ( ) skips for their placeholders or missing plural forms (it updates the count when loaded).
+static std::string
+SKIF_L10n_ScanPO (std::string_view data, SKIF_L10n::Catalog& cat)
+{
+  std::string language;
+
+  // UTF-8 BOM
+  if (data.size ( ) >= 3 && data.substr (0, 3) == "\xEF\xBB\xBF")
+    data.remove_prefix (3);
+
+  enum Field { Field_None, Field_Ctx, Field_Id, Field_Plural, Field_Str };
+
+  struct {
+    bool        fuzzy   = false;
+    bool        has_ctx = false, has_id = false, id_text = false, has_str = false;
+    Field       field   = Field_None;
+    bool        str_text = false;          // The current msgstr[n] has text
+    int         strs = 0, strs_text = 0;   // msgstr[n] seen, and with text
+    std::string header;                    // The msgstr of the header entry (only that one is unescaped)
+  } e;
+
+  // Whether quoted strings ("..." "...") have text
+  auto _HasText = [](std::string_view quoted) -> bool
+  {
+    return (quoted.find_first_not_of ("\" \t") != std::string_view::npos);
+  };
+
+  auto _EndStr = [&](void)
+  {
+    if (e.field == Field_Str)
+    {
+      e.strs++;
+      if (e.str_text)
+        e.strs_text++;
+    }
+  };
+
+  auto _Finish = [&](void)
+  {
+    _EndStr ( );
+
+    if (e.has_id)
+    {
+      if (! e.has_ctx && ! e.id_text)
+        SKIF_L10n_ParseHeader (e.header, cat, language, nullptr);
+
+      else
+      {
+        cat.total++;
+
+        if (! e.fuzzy && e.strs > 0 && e.strs_text == e.strs)
+          cat.translated++;
+      }
+    }
+
+    e = { };
+  };
+
+  while (! data.empty ( ))
+  {
+    size_t           nl   = data.find ('\n');
+    std::string_view line = data.substr (0, nl);
+    data = (nl == std::string_view::npos) ? std::string_view ( ) : data.substr (nl + 1);
+
+    line = SKIF_L10n_Trim (line);
+
+    if (line.empty ( ))
+    {
+      _Finish ( );
+      continue;
+    }
+
+    if (line [0] == '#')
+    {
+      if (e.has_str)
+        _Finish ( );
+
+      if (line.size ( ) > 1 && line [1] == ',' && line.find ("fuzzy") != std::string_view::npos)
+        e.fuzzy = true;
+      continue;
+    }
+
+    const bool header_entry = (! e.has_ctx && ! e.id_text);
+
+    if (line [0] == '"')
+    {
+      const bool text = _HasText (line);
+
+      if      (e.field == Field_Id  && text) e.id_text  = true;
+      else if (e.field == Field_Str && text) e.str_text = true;
+
+      if (e.field == Field_Str && header_entry)
+        SKIF_L10n_ParseQuoted (line, 0, e.header);
+      continue;
+    }
+
+    size_t           space   = line.find_first_of (" \t");
+    std::string_view keyword = line.substr (0, space);
+    std::string_view rest    = (space == std::string_view::npos) ? std::string_view ( ) : line.substr (space);
+
+    if ((keyword == "msgctxt" || keyword == "msgid") && e.has_str)
+      _Finish ( );
+
+    _EndStr ( );
+
+    if (keyword == "msgctxt")
+    {
+      e.has_ctx = true;
+      e.field   = Field_Ctx;
+    }
+
+    else if (keyword == "msgid")
+    {
+      e.has_id  = true;
+      e.id_text = _HasText (rest);
+      e.field   = Field_Id;
+    }
+
+    else if (keyword == "msgid_plural")
+      e.field   = Field_Plural;
+
+    else if (keyword == "msgstr" || keyword.substr (0, 7) == "msgstr[")
+    {
+      e.has_str  = true;
+      e.field    = Field_Str;
+      e.str_text = _HasText (rest);
+
+      if (! e.has_ctx && ! e.id_text && space != std::string_view::npos)
+        SKIF_L10n_ParseQuoted (line, space, e.header);
+    }
+
+    else
+      e.field = Field_None;
+  }
+
+  _Finish ( );
+
+  return language;
+}
+
 // Parses a gettext .po file. Untranslated and fuzzy entries are skipped (they show in English), as are translations
 //   that use placeholders the English text does not have. Returns the language of the header ("Language:"), if any.
 static std::string
@@ -525,29 +708,8 @@ SKIF_L10n_ParsePO (std::string_view data, SKIF_L10n::Catalog& cat)
       if (! e.has_ctx && e.id.empty ( ))
       {
         // Header
-        std::string_view header = (e.str.empty ( )) ? std::string_view ( ) : std::string_view (e.str [0]);
-        while (! header.empty ( ))
-        {
-          size_t           nl   = header.find ('\n');
-          std::string_view line = header.substr (0, nl);
-          header = (nl == std::string_view::npos) ? std::string_view ( ) : header.substr (nl + 1);
-
-          size_t colon = line.find (':');
-          if (colon == std::string_view::npos)
-            continue;
-
-          std::string      key   = SKIF_L10n_ToLower (SKIF_L10n_Trim (line.substr (0, colon)));
-          std::string_view value = SKIF_L10n_Trim (line.substr (colon + 1));
-
-          if (key == "language")
-            language = SKIF_L10n_NormalizeTag (value);
-          else if (key == "plural-forms")
-          {
-            has_plural_forms = true;
-            if (! cat.plural.Parse (value))
-              PLOG_WARNING << "[L10n] " << cat.source << ": could not parse the Plural-Forms header \"" << std::string (value) << "\"; using n != 1.";
-          }
-        }
+        if (SKIF_L10n_ParseHeader ((e.str.empty ( )) ? std::string_view ( ) : std::string_view (e.str [0]), cat, language, &cat.plural))
+          has_plural_forms = true;
       }
 
       else
@@ -807,6 +969,65 @@ SKIF_L10n_GetNativeName (const std::string& tag)
 
 #pragma region SKIF_L10n
 
+// The whole content of a file (in one read, not character by character); false if it could not be read
+static bool
+SKIF_L10n_ReadFile (const std::filesystem::path& path, std::string& out)
+{
+  std::ifstream stream (path, std::ios::binary | std::ios::ate);
+
+  if (! stream)
+    return false;
+
+  const std::streamoff size = stream.tellg ( );
+
+  if (size < 0)
+    return false;
+
+  out.resize (static_cast <size_t> (size));
+  stream.seekg (0);
+
+  return static_cast <bool> (stream.read (out.data ( ), static_cast <std::streamsize> (size))) || size == 0;
+}
+
+// Reads the entries of a catalog, the first time its language is used. Main thread only, before it becomes the active one.
+static void
+SKIF_L10n_LoadCatalog (SKIF_L10n::Catalog& cat)
+{
+  if (cat.loaded)
+    return;
+
+  cat.loaded = true;
+
+  const auto start = std::chrono::steady_clock::now ( );
+
+  std::string      file; // A loose file (an embedded one is read where it is mapped)
+  std::string_view data;
+
+  if (cat.resData != nullptr)
+    data = std::string_view (cat.resData, cat.resSize);
+
+  else
+  {
+    if (! SKIF_L10n_ReadFile (cat.path, file))
+    {
+      PLOG_WARNING << "[L10n] " << cat.source << ": could not be read again; the language is shown in English.";
+      cat.translated = 0;
+      return;
+    }
+
+    data = file;
+  }
+
+  // The counts from the scan at startup are replaced by the exact ones
+  cat.total      = 0;
+  cat.translated = 0;
+
+  SKIF_L10n_ParsePO (data, cat);
+
+  PLOG_INFO << "[L10n] Loaded " << cat.tag << " from " << cat.source << ": " << cat.translated << " of " << cat.total << " translated, "
+            << cat.plural.nplurals << " plural forms (" << std::chrono::duration <double, std::milli> (std::chrono::steady_clock::now ( ) - start).count ( ) << " ms).";
+}
+
 SKIF_L10n::Catalog*
 SKIF_L10n::FindCatalog (const std::string& tag) const
 {
@@ -840,12 +1061,18 @@ SKIF_L10n::Initialize (const std::wstring& languages_folder, const std::string& 
   MakeCatalog (TagEnglish);
   MakeCatalog (TagPseudo);
 
-  auto _AddCatalog = [&](std::string_view data, const std::string& source, const std::string& fallback_tag)
+  // Only the header and the counts of each catalog are read here; its entries when the language is first used (LoadCatalog)
+  auto _AddCatalog = [&](std::string_view data, const std::string& source, const std::string& fallback_tag,
+                         const char* resData, size_t resSize, const std::wstring& path)
   {
     Catalog* cat = new Catalog;
     cat->source  = source;
+    cat->loaded  = false;
+    cat->resData = resData;
+    cat->resSize = resSize;
+    cat->path    = path;
 
-    std::string tag = SKIF_L10n_ParsePO (data, *cat);
+    std::string tag = SKIF_L10n_ScanPO (data, *cat);
     cat->tag = (tag.empty ( )) ? SKIF_L10n_NormalizeTag (fallback_tag) : tag;
 
     if (cat->tag.empty ( ) || SKIF_L10n_ToLower (cat->tag) == TagEnglish || cat->tag == TagPseudo)
@@ -888,8 +1115,10 @@ SKIF_L10n::Initialize (const std::wstring& languages_folder, const std::string& 
       {
         std::string name = (IS_INTRESOURCE (lpName)) ? std::to_string (reinterpret_cast <uintptr_t> (lpName))
                                                      : SKIF_L10n_ToLower (SKIF_L10n_ToUTF8 (lpName));
-        (*context->add) (std::string_view (static_cast <const char*> (pData), SizeofResource (hModule, hRes)),
-                         "embedded:" + name, name);
+        const char* data = static_cast <const char*> (pData);
+        const DWORD size = SizeofResource (hModule, hRes);
+
+        (*context->add) (std::string_view (data, size), "embedded:" + name, name, data, size, std::wstring ( ));
       }
 
       return TRUE;
@@ -904,18 +1133,24 @@ SKIF_L10n::Initialize (const std::wstring& languages_folder, const std::string& 
       if (! file.is_regular_file (ec) || SKIF_L10n_ToLower (file.path ( ).extension ( ).string ( )) != ".po")
         continue;
 
-      std::ifstream stream (file.path ( ), std::ios::binary);
-      std::string   data   ((std::istreambuf_iterator <char> (stream)), std::istreambuf_iterator <char> ( ));
-      _AddCatalog (data, SKIF_L10n_ToUTF8 (file.path ( ).wstring ( )), SKIF_L10n_ToUTF8 (file.path ( ).stem ( ).wstring ( )));
+      std::string data;
+      if (! SKIF_L10n_ReadFile (file.path ( ), data))
+      {
+        PLOG_WARNING << "[L10n] " << SKIF_L10n_ToUTF8 (file.path ( ).wstring ( )) << ": could not be read.";
+        continue;
+      }
+      _AddCatalog (data, SKIF_L10n_ToUTF8 (file.path ( ).wstring ( )), SKIF_L10n_ToUTF8 (file.path ( ).stem ( ).wstring ( )),
+                   nullptr, 0, file.path ( ).wstring ( ));
     }
   }
 
   for (auto cat : _catalogs)
     if (cat->kind == Catalog::Kind_Translation)
-      PLOG_INFO << "[L10n] Loaded " << cat->tag << " from " << cat->source << ": " << cat->translated << " of " << cat->total << " translated, " << cat->plural.nplurals << " plural forms.";
+      PLOG_INFO << "[L10n] Found " << cat->tag << " in " << cat->source << ": " << cat->translated << " of " << cat->total << " translated.";
 
   _preferred = preferred;
   Catalog* active = FindCatalog (ResolveLanguage (preferred));
+  SKIF_L10n_LoadCatalog (*active);
   _active.store (active);
   _generation++;
 
@@ -990,6 +1225,9 @@ SKIF_L10n::ApplyPendingLanguage (void)
   Catalog* cat = FindCatalog (ResolveLanguage (_preferred));
   if (cat == nullptr || cat == _active.load ( ))
     return false;
+
+  // Read its entries before it becomes active (nothing else uses a catalog that is not active)
+  SKIF_L10n_LoadCatalog (*cat);
 
   _active.store (cat);
   _generation++;
