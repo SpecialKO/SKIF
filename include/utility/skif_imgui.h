@@ -88,6 +88,8 @@ void     SKIF_ImGui_SetNextItemWidthForLabel (const char* label);               
 float    SKIF_ImGui_ComboWidth            (std::initializer_list <const char*> items, float min_width = 0.0f); // Width of a combo that fits the widest of these items (at least min_width)
 void     SKIF_ImGui_TextHighlighted       (const char* text, const char* value, const ImVec4& colValue); // One line of text where {0} is value, drawn in colValue: "Do you want to end {0}?"
 int      SKIF_ImGui_TextRich              (const char* text, std::initializer_list <const char*> link_icons = { }, const ImVec4& colLink = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption)); // Wrapped text where [words] are links; returns the index of the clicked link, or -1
+void     SKIF_ImGui_TextRichHighlight     (const char* text, std::initializer_list <const char*> icons = { }, const ImVec4& colHighlight = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption)); // Wrapped text where [words] are highlighted (not clickable)
+std::string SKIF_ImGui_TextRichEscape     (const std::string& text);             // Doubles the brackets of text put in a [...] of the two above
 bool     SKIF_ImGui_SelectableVAligned    (const char* unique_id, const char* label, bool* p_selected, ImGuiSelectableFlags flags, const ImVec2& size_arg);
 bool     SKIF_ImGui_SeparatorTextClickable(const char* label, const bool* collapsed = nullptr, bool hand_cursor = false);
 void     SKIF_ImGui_DimBackgroundViewport (const ImGuiViewport* vp = ImGui::GetWindowViewport ( ));

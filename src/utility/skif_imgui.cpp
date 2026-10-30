@@ -903,8 +903,11 @@ SKIF_ImGui_SetNextItemWidthForLabel (const char* label)
 //   leave room for an icon after the text). Like ImGui::TextWrapped ( ), the lines after the first start at
 //   the position the text started at (so it can follow e.g. a SameLine ( ) after a bullet or a number). The last line can
 //     be followed by SameLine ( ). Returns the index of the link that was clicked, or -1.
-int
-SKIF_ImGui_TextRich (const char* text, std::initializer_list <const char*> link_icons, const ImVec4& colLink)
+//
+// SKIF_ImGui_TextRichHighlight ( ) is the same, but the [...] parts are only highlighted (drawn in colLink), not clickable.
+//   Text put in a [...] from elsewhere (e.g. a key binding) should have its brackets doubled: SKIF_ImGui_TextRichEscape ( ).
+static int
+SKIF_ImGui_TextRichImpl (const char* text, std::initializer_list <const char*> link_icons, const ImVec4& colLink, bool clickable)
 {
   ImGuiWindow* window = ImGui::GetCurrentWindow ( );
   if (window->SkipItems || text == nullptr)
@@ -1033,6 +1036,13 @@ SKIF_ImGui_TextRich (const char* text, std::initializer_list <const char*> link_
       if (segment.link < 0)
         ImGui::TextUnformatted (s, e);
 
+      else if (! clickable)
+      {
+        ImGui::PushStyleColor  (ImGuiCol_Text, colLink);
+        ImGui::TextUnformatted (s, e);
+        ImGui::PopStyleColor   ( );
+      }
+
       else
       {
         ImVec2 pos = ImGui::GetCursorScreenPos ( );
@@ -1065,6 +1075,35 @@ SKIF_ImGui_TextRich (const char* text, std::initializer_list <const char*> link_
   ImGui::PopID ( );
 
   return clicked;
+}
+
+int
+SKIF_ImGui_TextRich (const char* text, std::initializer_list <const char*> link_icons, const ImVec4& colLink)
+{
+  return SKIF_ImGui_TextRichImpl (text, link_icons, colLink, true);
+}
+
+void
+SKIF_ImGui_TextRichHighlight (const char* text, std::initializer_list <const char*> icons, const ImVec4& colHighlight)
+{
+  SKIF_ImGui_TextRichImpl (text, icons, colHighlight, false);
+}
+
+// Doubles the brackets of text put in a [...] of SKIF_ImGui_TextRich ( ) / SKIF_ImGui_TextRichHighlight ( ), so they are drawn as is
+std::string
+SKIF_ImGui_TextRichEscape (const std::string& text)
+{
+  std::string out;
+  out.reserve (text.size ( ));
+
+  for (char ch : text)
+  {
+    out += ch;
+    if (ch == '[' || ch == ']')
+      out += ch;
+  }
+
+  return out;
 }
 
 // Vertical aligned label

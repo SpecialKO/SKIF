@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-10-30 01:25+0100\n"
+"POT-Creation-Date: 2026-10-30 16:22+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -278,6 +278,159 @@ msgstr ""
 #: src/tabs/about.cpp:454
 #: src/tabs/monitor.cpp:919
 msgid "Components:"
+msgstr ""
+
+#: src/tabs/common_ui.cpp:54
+msgid "Frontend (SKIF)"
+msgstr ""
+
+#: src/tabs/common_ui.cpp:84
+msgid "View release notes..."
+msgstr ""
+
+#: src/tabs/common_ui.cpp:99
+msgid "Rollback"
+msgstr ""
+
+#: src/tabs/common_ui.cpp:100
+msgid "Update"
+msgstr ""
+
+#: src/tabs/common_ui.cpp:127
+msgid "App is running as an administrator!"
+msgstr ""
+
+#: src/tabs/common_ui.cpp:128
+msgid ""
+"Running elevated is not recommended as it will inject Special K into system processes.\n"
+"Please restart this app and the injection service as a regular user."
+msgstr ""
+
+#: src/tabs/common_ui.cpp:134
+msgid "App is running with normal privileges."
+msgstr ""
+
+#: src/tabs/common_ui.cpp:135
+msgid ""
+"This is the recommended option as Special K will not be injected\n"
+"into system processes nor games running as an administrator."
+msgstr ""
+
+#: src/tabs/common_ui.cpp:162
+msgid "32-bit service"
+msgstr ""
+
+#: src/tabs/common_ui.cpp:164
+msgid "64-bit service"
+msgstr ""
+
+#. TRANSLATORS: {0} is the name of an app (e.g. Steam) or of a service ("32-bit service")
+#: src/tabs/common_ui.cpp:239
+msgid "{0} is running and may conflict with Special K!"
+msgstr ""
+
+#: src/tabs/common_ui.cpp:241
+msgid "{0} is running as an administrator!"
+msgstr ""
+
+#: src/tabs/common_ui.cpp:245
+msgid ""
+"It is not recommended to run either {0} or this app as an administrator.\n"
+"Please restart both as a normal user."
+msgstr ""
+
+#: src/tabs/common_ui.cpp:248
+msgid ""
+"RivaTuner Statistics Server (RTSS) occasionally conflicts with Special K.\n"
+"Try closing it down if Special K does not behave as expected, or enable\n"
+"the option 'Use Microsoft Detours API hooking' in the settings of RTSS.\n"
+"\n"
+"If you use MSI Afterburner, try closing it as well as otherwise it will\n"
+"automatically restart RTSS silently in the background."
+msgstr ""
+
+#: src/tabs/common_ui.cpp:255
+msgid ""
+"Running elevated is not recommended as it will inject Special K into system processes.\n"
+"Please restart the frontend and the injection service as a regular user."
+msgstr ""
+
+#: src/tabs/common_ui.cpp:258
+msgid ""
+"Running elevated will prevent injection into these games.\n"
+"Please restart {0} as a normal user."
+msgstr ""
+
+#: src/tabs/common_ui.cpp:265
+msgid "{0} is running."
+msgstr ""
+
+#: src/tabs/common_ui.cpp:276
+msgid "{0} is stopped."
+msgstr ""
+
+#: src/tabs/common_ui.cpp:294
+msgid "Problematic Vulkan layers:"
+msgstr ""
+
+#: src/tabs/common_ui.cpp:304
+msgid ""
+"The Vulkan layers listed below have known compatibility issues with Special K and may cause issues.\n"
+"Click on the layers to toggle them on/off. Note however that this will affects all apps/games."
+msgstr ""
+
+#: src/tabs/common_ui.cpp:329
+msgid "This layer is enabled and may cause issues. Click to disable it."
+msgstr ""
+
+#: src/tabs/common_ui.cpp:329
+msgid "This layer is disabled. Click to re-enable it."
+msgstr ""
+
+#: src/tabs/common_ui.cpp:335
+msgid "Connected XInput gamepads:"
+msgstr ""
+
+#: src/tabs/common_ui.cpp:340
+msgid "Disabled"
+msgstr ""
+
+#: src/tabs/common_ui.cpp:341
+msgid "Controller support can be re-enabled in the Settings tab."
+msgstr ""
+
+#: src/tabs/common_ui.cpp:359
+msgid "Indicates which Xbox (XInput) controller slots are currently in use/connected."
+msgstr ""
+
+#: src/tabs/common_ui.cpp:375
+msgid "Some games may not detect the gamepad!"
+msgstr ""
+
+#: src/tabs/common_ui.cpp:379
+msgid ""
+"Some games may not be able to detect the controller if it is not connected to the first slot.\n"
+"Disconnect and reconnect the controller to the system usually takes care of the issue."
+msgstr ""
+
+#. TRANSLATORS: The text in [brackets] is highlighted (keep the brackets); {0} is a keyboard icon
+#: src/tabs/common_ui.cpp:449
+msgid "Start typing [{0}] the name of a game in the Library tab to quickly find it."
+msgstr ""
+
+#. TRANSLATORS: The text in [brackets] is highlighted (keep the brackets); {0} is a keyboard shortcut, {1} a mouse pointer icon
+#: src/tabs/common_ui.cpp:482
+msgid "Use [{0}] to toggle HDR where the [{1}] is."
+msgstr ""
+
+#. TRANSLATORS: The text in [brackets] is highlighted (keep the brackets); {0} is a keyboard shortcut
+#: src/tabs/common_ui.cpp:512
+msgid "Use [{0}] to start the injection service."
+msgstr ""
+
+#. TRANSLATORS: The text in [brackets] is highlighted (keep the brackets); Ctrl and Shift are keys of the keyboard
+#: src/tabs/common_ui.cpp:525
+msgid "Hold down [Ctrl + Shift] when starting a game for compatibility options or perform a local install of the appropriate wrapper DLL for the game."
 msgstr ""
 
 #: src/tabs/hardware.cpp:160
