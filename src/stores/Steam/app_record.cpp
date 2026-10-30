@@ -13,6 +13,9 @@
 #include <filesystem>
 #include <algorithm>
 
+// Last, as it defines short macros such as _ ( )
+#include <utility/l10n.h>
+
 // The registry's platform flags (SKIF_StoreFlag) are derived from the store IDs: see GetStoreFlag ( )
 static_assert (StoreFlag_Steam  == 1 << (static_cast <int> (app_record_s::Store::Steam)  - 1));
 static_assert (StoreFlag_GOG    == 1 << (static_cast <int> (app_record_s::Store::GOG)    - 1));
@@ -664,19 +667,13 @@ app_record_s::LaunchInstant (const launch_context_s& ctx)
         {
           launchDecision = false;
 
-          // Escape any percent signs (%) as otherwise ImGui won't be able to show the string properly
-          for (auto pos  = steamLaunchOptions.find ('%');          // Find the first occurence
-                    pos != std::string::npos;                      // Validate we're still in the string
-                    steamLaunchOptions.insert      (pos, R"(%)"),  // Escape the character
-                    pos  = steamLaunchOptions.find ('%', pos + 2)) // Find the next occurence
-          { }
-
-          SKIF_ImGui_InfoMessage ("Conflicting configuration",
-                                  "Could not launch game due to conflicting launch options in Steam:\n"
+          // The message is shown as is (not as a format), so percent signs (%) need no escaping
+          SKIF_ImGui_InfoMessage (_("Conflicting configuration"),
+                                  std::string (_("Could not launch game due to conflicting launch options in Steam:")) + "\n"
                                   "\n"
                                 +  steamLaunchOptions + "\n"
                                   "\n"
-                                  "Please change the launch options in Steam before trying again.");
+                                + _("Please change the launch options in Steam before trying again."));
 
           PLOG_WARNING << "Steam game " << id << " (" << names.normal << ") was unable to launch due to a conflict with the launch option of Steam!";
         }

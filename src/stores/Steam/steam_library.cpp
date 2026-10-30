@@ -43,6 +43,9 @@
 #include <fonts/fa_621.h>
 #include <fonts/fa_621b.h>
 
+// Last, as it defines short macros such as _ ( )
+#include <utility/l10n.h>
+
 // Steam client state (declared in steam_library.h)
 bool steamRunning  = false;
 bool steamFallback = false;
@@ -1879,21 +1882,15 @@ app_record_steam_s::Launch (const launch_context_s& ctx)
       {
         launchDecision = false;
 
+        // The message is shown as is (not as a format), so percent signs (%) need no escaping
         std::string confirmCopy = steam.local.launch_option;
 
-        // Escape any percent signs (%)
-        for (auto pos  = confirmCopy.find ('%');          // Find the first occurence
-                  pos != std::string::npos;                  // Validate we're still in the string
-                  confirmCopy.insert      (pos, R"(%)"),  // Escape the character
-                  pos  = confirmCopy.find ('%', pos + 2)) // Find the next occurence
-        { }
-
-        SKIF_ImGui_InfoMessage ("Conflicting configuration",
-                                "Could not launch game due to conflicting launch options in Steam:\n"
+        SKIF_ImGui_InfoMessage (_("Conflicting configuration"),
+                                std::string (_("Could not launch game due to conflicting launch options in Steam:")) + "\n"
                                 "\n"
                               +  confirmCopy + "\n"
                                 "\n"
-                                "Please change the launch options in Steam before trying again.");
+                              + _("Please change the launch options in Steam before trying again."));
 
         PLOG_WARNING << "Steam game " << id << " (" << names.normal << ") was unable to launch due to a conflict with the launch option of Steam: " << confirmCopy;
       }
@@ -1982,7 +1979,7 @@ app_record_steam_s::DrawStoreMenu (void)
 
   if (ImGui::BeginMenuEx ("Steam", ICON_FA_STEAM))
   {
-    if (SKIF_ImGui_MenuItemEx2 ("Details", ICON_FA_BARS_STAGGERED, (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255)))
+    if (SKIF_ImGui_MenuItemEx2 (L_("Details"), ICON_FA_BARS_STAGGERED, (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255)))
       SKIF_Util_OpenURI (L"steam://nav/games/details/" + std::to_wstring (id));
 
     SKIF_ImGui_SetMouseCursorHand ( );
@@ -1992,10 +1989,10 @@ app_record_steam_s::DrawStoreMenu (void)
       SKIF_Util_OpenURI (L"steam://controllerconfig/" + std::to_wstring (id));
 
     SKIF_ImGui_SetMouseCursorHand ( );
-    SKIF_ImGui_SetHoverTip        ("A controller must be connected.");
+    SKIF_ImGui_SetHoverTip        (_("A controller must be connected."));
     SKIF_ImGui_SetHoverText       (SKIF_Util_FormatStringRaw ("steam://controllerconfig/%lu", id));
 
-    if (SKIF_ImGui_MenuItemEx2 ("Game properties", ICON_FA_WRENCH, ImColor(200, 200, 200, 255)))
+    if (SKIF_ImGui_MenuItemEx2 (L_("Game properties"), ICON_FA_WRENCH, ImColor(200, 200, 200, 255)))
       SKIF_Util_OpenURI (L"steam://gameproperties/" + std::to_wstring (id));
 
     SKIF_ImGui_SetMouseCursorHand ( );

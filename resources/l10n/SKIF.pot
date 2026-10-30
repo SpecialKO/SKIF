@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-10-30 17:16+0100\n"
+"POT-Creation-Date: 2026-10-30 17:21+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -155,6 +155,33 @@ msgstr ""
 #. TRANSLATORS: Title of a notification (at most 63 characters)
 #: src/SKIF.cpp:5355
 msgid "Update failed :("
+msgstr ""
+
+#: src/stores/Steam/app_record.cpp:671
+#: src/stores/Steam/steam_library.cpp:1888
+msgid "Conflicting configuration"
+msgstr ""
+
+#: src/stores/Steam/app_record.cpp:672
+#: src/stores/Steam/steam_library.cpp:1889
+msgid "Could not launch game due to conflicting launch options in Steam:"
+msgstr ""
+
+#: src/stores/Steam/app_record.cpp:676
+#: src/stores/Steam/steam_library.cpp:1893
+msgid "Please change the launch options in Steam before trying again."
+msgstr ""
+
+#: src/stores/Steam/steam_library.cpp:1982
+msgid "Details"
+msgstr ""
+
+#: src/stores/Steam/steam_library.cpp:1992
+msgid "A controller must be connected."
+msgstr ""
+
+#: src/stores/Steam/steam_library.cpp:1995
+msgid "Game properties"
 msgstr ""
 
 #: src/tabs/about.cpp:29
