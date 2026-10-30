@@ -22,6 +22,9 @@
 
 #include "library_ui.h"
 
+// Last, as it defines short macros such as _ ( )
+#include <utility/l10n.h>
+
 #pragma region GameConfigMenu
 
 // This is an unusual popup that needs to be called from two different ImGui popup contexts...
@@ -49,8 +52,8 @@ DrawGameConfigMenu (app_record_s* pApp)
     ImGui::PushStyleColor  (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
 
     ImGui::TextColored (
-      ImColor::HSV (0.11F, 1.F, 1.F),
-        "Troubleshooting:"
+      ImColor::HSV (0.11F, 1.F, 1.F), "%s",
+        _("Troubleshooting:")
     );
 
     ImGui::Separator ( );
@@ -205,7 +208,7 @@ DrawGameConfigMenu (app_record_s* pApp)
       }
     }
 
-    if (ImGui::Selectable ("External Editor"))
+    if (ImGui::Selectable (L_("External Editor")))
     {
       // If the file does not exist, create it
       if (! PathFileExists (pApp->specialk.injection.config.full_path.c_str()))
@@ -231,7 +234,7 @@ DrawGameConfigMenu (app_record_s* pApp)
       SKIF_Util_OpenURI (pApp->specialk.injection.config.full_path, SW_SHOWNORMAL, NULL);
     }
 
-    if (ImGui::BeginMenu("Apply Preset"))
+    if (ImGui::BeginMenu(L_("Apply Preset")))
     {
       // Custom Presets
       if (! CustomPresets.empty())
@@ -256,7 +259,7 @@ DrawGameConfigMenu (app_record_s* pApp)
 
           if (ImGui::BeginPopupEx (editMenu, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings))
           {
-            if (ImGui::Selectable ("Edit"))
+            if (ImGui::Selectable (L_("Edit")))
               SKIF_UI_IniEditor_OpenFile (nullptr, IniType_DLL, preset.Path, "");
 
             ImGui::EndPopup ( );
@@ -292,7 +295,7 @@ DrawGameConfigMenu (app_record_s* pApp)
 
           if (ImGui::BeginPopupEx (editMenu, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings))
           {
-            if (ImGui::Selectable ("Edit"))
+            if (ImGui::Selectable (L_("Edit")))
               SKIF_UI_IniEditor_OpenFile (nullptr, IniType_DLL, preset.Path, "");
 
             ImGui::EndPopup ( );
@@ -305,9 +308,9 @@ DrawGameConfigMenu (app_record_s* pApp)
       if (! DefaultPresets.empty() || ! CustomPresets.empty())
         ImGui::Separator ( );
 
-      if (ImGui::BeginMenu ("Create New"))
+      if (ImGui::BeginMenu (L_("Create New")))
       {
-        if (ImGui::Selectable ("Custom Preset..."))
+        if (ImGui::Selectable (L_("Custom Preset...")))
         {
           std::wstring path = (CustomPresetsFolder + LR"(Untitled.ini)");
           std::error_code ec;
@@ -366,7 +369,7 @@ DrawGameConfigMenu (app_record_s* pApp)
 
     ImGui::Separator ( );
 
-    if (ImGui::Selectable ("Apply Compatibility Config"))
+    if (ImGui::Selectable (L_("Apply Compatibility Config")))
     {
       std::error_code ec;
       // Create any missing directories
@@ -385,10 +388,10 @@ DrawGameConfigMenu (app_record_s* pApp)
 
     SKIF_ImGui_SetMouseCursorHand ();
 
-    SKIF_ImGui_SetHoverTip ("Known as the \"sledgehammer\" config within the community as it disables\n"
-                            "various features of Special K in an attempt to improve compatibility.");
+    SKIF_ImGui_SetHoverTip (_("Known as the \"sledgehammer\" config within the community as it disables\n"
+                            "various features of Special K in an attempt to improve compatibility."));
 
-    if (ImGui::Selectable ("Reset"))
+    if (ImGui::Selectable (L_("Reset")))
     {
       std::error_code ec;
       // Create any missing directories
@@ -438,7 +441,7 @@ DrawGameContextMenu_InstantPlay (app_record_s* pApp, bool playDisabled, app_reco
 
       ImGui::PushStyleColor (ImGuiCol_SKIF_Icon, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Failure));
 
-      if (ImGui::MenuItemEx ("Instant play###GameContextMenu_InstantPlay", ICON_FA_ROCKET))
+      if (ImGui::MenuItemEx (L_("Instant play###GameContextMenu_InstantPlay"), ICON_FA_ROCKET))
         launchInstant = true;
 
       ImGui::PopStyleColor ( );
@@ -465,8 +468,8 @@ DrawGameContextMenu_InstantPlay (app_record_s* pApp, bool playDisabled, app_reco
 
       SKIF_ImGui_SetHoverText (hoverText.c_str());
 
-      SKIF_ImGui_SetHoverTip  ("Skips the regular platform launch process for the game,\n"
-                                "including steps such as cloud saves synchronization.");
+      SKIF_ImGui_SetHoverTip  (_("Skips the regular platform launch process for the game,\n"
+                                "including steps such as cloud saves synchronization."));
 
       if (pApp->specialk.injection.injection.type != InjectionType::Local && _inject.bHasServlet)
       {
@@ -477,7 +480,7 @@ DrawGameContextMenu_InstantPlay (app_record_s* pApp, bool playDisabled, app_reco
         if (playDisabled)
           ImGui::BeginDisabled ( );
 
-        if (ImGui::MenuItem ("\xe2\x94\x94 without Special K###GameContextMenu_InstantPlayWoSK"))
+        if (ImGui::MenuItem (LI_("\xe2\x94\x94", "without Special K###GameContextMenu_InstantPlayWoSK")))
           launchInstant = launchWithoutSK = true;
 
         if (playDisabled)
@@ -495,7 +498,7 @@ DrawGameContextMenu_InstantPlay (app_record_s* pApp, bool playDisabled, app_reco
       if (playDisabled)
         ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
 
-      if (SKIF_ImGui_BeginMenuEx2 ("Instant play###GameContextMenu_InstantPlayMenu", ICON_FA_ROCKET, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Failure)))
+      if (SKIF_ImGui_BeginMenuEx2 (L_("Instant play###GameContextMenu_InstantPlayMenu"), ICON_FA_ROCKET, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Failure)))
       {
         bool sepCustomSKIF = true,
              sepCustomUser = true;
@@ -586,15 +589,15 @@ DrawGameContextMenu_InstantPlay (app_record_s* pApp, bool playDisabled, app_reco
           SKIF_ImGui_SetHoverText       (hoverText.c_str());
 
           if (blacklisted)
-            SKIF_ImGui_SetHoverTip      ("Special K has been disabled for this launch configuration.");
+            SKIF_ImGui_SetHoverTip      (_("Special K has been disabled for this launch configuration."));
         }
 
         ImGui::EndMenu ();
       }
 
       if (pApp->isInstantPlayCompatible ())
-        SKIF_ImGui_SetHoverTip  ("Skips the regular platform launch process for the game,\n"
-                                  "including steps such as cloud saves synchronization.");
+        SKIF_ImGui_SetHoverTip  (_("Skips the regular platform launch process for the game,\n"
+                                  "including steps such as cloud saves synchronization."));
 
       if (_inject.bHasServlet)
       {
@@ -603,7 +606,7 @@ DrawGameContextMenu_InstantPlay (app_record_s* pApp, bool playDisabled, app_reco
             ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
           );
 
-        if (ImGui::BeginMenu ("\xe2\x94\x94 without Special K###GameContextMenu_InstantPlayWoSKMenu"))
+        if (ImGui::BeginMenu (LI_("\xe2\x94\x94", "without Special K###GameContextMenu_InstantPlayWoSKMenu")))
         {
           bool sepCustomSKIF = true,
                sepCustomUser = true;
@@ -679,7 +682,7 @@ DrawGameContextMenu_InstantPlay (app_record_s* pApp, bool playDisabled, app_reco
             SKIF_ImGui_SetHoverText       (hoverText.c_str());
 
             if (localDisabled)
-              SKIF_ImGui_SetHoverTip      ("This option is not available due to a local injection being used.");
+              SKIF_ImGui_SetHoverTip      (_("This option is not available due to a local injection being used."));
           }
 
           ImGui::EndMenu ();
@@ -745,7 +748,7 @@ DrawGameContextMenu_Running (app_record_s* pApp)
       if (bInvalid)
         ImGui::BeginDisabled ( );
 
-      if (SKIF_ImGui_MenuItemEx2 ("Switch to game", ICON_FA_WINDOW_RESTORE))
+      if (SKIF_ImGui_MenuItemEx2 (L_("Switch to game"), ICON_FA_WINDOW_RESTORE))
       {
         auto async_switch =
         std::async (
@@ -757,7 +760,7 @@ DrawGameContextMenu_Running (app_record_s* pApp)
         );
       }
 
-      if (SKIF_ImGui_MenuItemEx2 ("Terminate game", ICON_FA_POWER_OFF))
+      if (SKIF_ImGui_MenuItemEx2 (L_("Terminate game"), ICON_FA_POWER_OFF))
       {
         static_proc.handle = hProcess;
         static_proc.name   = pApp->names.normal;
@@ -771,7 +774,7 @@ DrawGameContextMenu_Running (app_record_s* pApp)
     {
       ImGui::Separator ( );
 
-      if (SKIF_ImGui_MenuItemEx2 ("Switch to game", ICON_FA_WINDOW_RESTORE))
+      if (SKIF_ImGui_MenuItemEx2 (L_("Switch to game"), ICON_FA_WINDOW_RESTORE))
       {
         auto async_switch =
         std::async (
@@ -783,7 +786,7 @@ DrawGameContextMenu_Running (app_record_s* pApp)
         );
       }
 
-      if (SKIF_ImGui_MenuItemEx2 ("Terminate game", ICON_FA_POWER_OFF))
+      if (SKIF_ImGui_MenuItemEx2 (L_("Terminate game"), ICON_FA_POWER_OFF))
       {
         static_proc.pid    = pApp->_status.running_pid;
         static_proc.name   = pApp->names.normal;
@@ -797,16 +800,16 @@ DrawGameContextMenu_Running (app_record_s* pApp)
 static void
 DrawGameContextMenu_Browse (app_record_s* pApp)
 {
-  if (SKIF_ImGui_BeginMenuEx2 ("Browse", ICON_FA_FOLDER, ImColor(255, 207, 72)))
+  if (SKIF_ImGui_BeginMenuEx2 (L_("Browse"), ICON_FA_FOLDER, ImColor(255, 207, 72)))
   {
-    if (SKIF_ImGui_MenuItemEx2 ("Game folder", ICON_FA_FOLDER_OPEN, ImColor(255, 207, 72)))
+    if (SKIF_ImGui_MenuItemEx2 (L_("Game folder"), ICON_FA_FOLDER_OPEN, ImColor(255, 207, 72)))
       SKIF_Util_ExplorePath         (pApp->install_dir);
 
     SKIF_ImGui_SetMouseCursorHand ( );
     SKIF_ImGui_SetHoverText       (SK_WideCharToUTF8 (pApp->install_dir));
 
     // Config Root
-    if (SKIF_ImGui_MenuItemEx2 ("Profile folder", ICON_FA_FOLDER_OPEN, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info)))
+    if (SKIF_ImGui_MenuItemEx2 (L_("Profile folder"), ICON_FA_FOLDER_OPEN, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info)))
     {
       std::error_code ec;
       // Create any missing directories
@@ -822,7 +825,7 @@ DrawGameContextMenu_Browse (app_record_s* pApp)
     if (pApp->ui.screenshotsFolderExists)
     {
       // Screenshot Folder
-      if (SKIF_ImGui_MenuItemEx2 ("Screenshots", ICON_FA_IMAGES, ImColor(200, 200, 200, 255)))
+      if (SKIF_ImGui_MenuItemEx2 (L_("Screenshots"), ICON_FA_IMAGES, ImColor(200, 200, 200, 255)))
         SKIF_Util_ExplorePath       (pApp->ui.wsScreenshotDir);
 
       SKIF_ImGui_SetMouseCursorHand ();
@@ -834,7 +837,7 @@ DrawGameContextMenu_Browse (app_record_s* pApp)
     // --------------------------------------------
 
     // Config File
-    if (SKIF_ImGui_MenuItemEx2 ("Configuration", ICON_FA_FILE_LINES)) // pApp->specialk.injection.config.shorthand_utf8.c_str ()
+    if (SKIF_ImGui_MenuItemEx2 (L_("Configuration"), ICON_FA_FILE_LINES)) // pApp->specialk.injection.config.shorthand_utf8.c_str ()
     {
       // If the file does not exist, create it
       if (! PathFileExists (pApp->specialk.injection.config.full_path.c_str()))
@@ -871,7 +874,7 @@ DrawGameContextMenu_Browse (app_record_s* pApp)
     {
       ImGui::Separator  ( );
 
-      if (SKIF_ImGui_BeginMenuEx2 ("Save/config folders", ICON_FA_FLOPPY_DISK, ImColor(200, 200, 200, 255)))
+      if (SKIF_ImGui_BeginMenuEx2 (L_("Save/config folders"), ICON_FA_FLOPPY_DISK, ImColor(200, 200, 200, 255)))
       {
         for (auto& folder : pApp->ui.cloud_paths)
         {
@@ -925,16 +928,16 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
   static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
 
   // Manage Game
-  if (ImGui::BeginMenuEx ("Manage", ICON_FA_GEARS))
+  if (ImGui::BeginMenuEx (L_("Manage"), ICON_FA_GEARS))
   {
     bool desktopShortcutPossible = pApp->CanCreateDesktopShortcut ( );
 
-    if (SKIF_ImGui_MenuItemEx2 ("Properties", ICON_FA_GEAR, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info)))
+    if (SKIF_ImGui_MenuItemEx2 (L_("Properties"), ICON_FA_GEAR, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info)))
       ModifyGamePopup = PopupState_Open;
 
     if (51 > pApp->skif.pinned && 5 > SKIF_Lib_CountPinnedOnTop ( ))
     {
-      if (SKIF_ImGui_MenuItemEx2 ("Favorite (pinned; max 5)", ICON_FA_STAR, ImColor(255, 207, 72)))
+      if (SKIF_ImGui_MenuItemEx2 (L_("Favorite (pinned; max 5)"), ICON_FA_STAR, ImColor(255, 207, 72)))
       {
         pApp->skif.pinned =  51;
         numPinnedOnTop++;
@@ -946,11 +949,11 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
       }
     }
 
-    constexpr char* labelPin   =   "Favorite###Manage-Favorite";
-    constexpr char* labelUnpin = "Unfavorite###Manage-Favorite";
+    constexpr char* labelPin   =   NL_("Favorite###Manage-Favorite");
+    constexpr char* labelUnpin = NL_("Unfavorite###Manage-Favorite");
 
     bool isFavorite = pApp->IsFavorite ( );
-    if (SKIF_ImGui_MenuItemEx2 ((isFavorite ? labelUnpin : labelPin), (isFavorite ? ICON_FA_HEART_CRACK : ICON_FA_HEART), ImColor(245, 66, 66, 255)))
+    if (SKIF_ImGui_MenuItemEx2 (TL_(isFavorite ? labelUnpin : labelPin), (isFavorite ? ICON_FA_HEART_CRACK : ICON_FA_HEART), ImColor(245, 66, 66, 255)))
     {
       if (pApp->skif.pinned > 50)
         numPinnedOnTop--;
@@ -966,14 +969,14 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
     ImGui::Separator ( );
 
     // Category
-    if (SKIF_ImGui_BeginMenuEx2 ("Category", ICON_FA_OBJECT_GROUP, ImColor(200, 200, 200, 255)))
+    if (SKIF_ImGui_BeginMenuEx2 (L_("Category"), ICON_FA_OBJECT_GROUP, ImColor(200, 200, 200, 255)))
     {
       // Prevent the popup from being closed when selecting a category
       ImGui::PushItemFlag (ImGuiItemFlags_AutoClosePopups, false); // ImGuiItemFlags_SelectableDontClosePopup before ImGui 1.91.0
       ImGui::PushID       ("###ManageCategories");
 
       // TODO: Figure out why unchecking this closes the popup
-      if (ImGui::MenuItem ("Favorites###ManageCategoiesFavorites", "", isFavorite))
+      if (ImGui::MenuItem (CL_("category", "Favorites###ManageCategoiesFavorites"), "", isFavorite))
       {
         if (pApp->skif.pinned > 50)
           numPinnedOnTop--;
@@ -1062,14 +1065,14 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
 
         if (ImGui::BeginPopup (SKIF_Util_FormatStringRaw ("###Popup-%i", index), ImGuiWindowFlags_NoMove))
         {
-          if (ImGui::Selectable (SKIF_Util_FormatStringRaw ("Rename###PopupRename-%i", index)))
+          if (ImGui::Selectable ((std::string (_("Rename")) + SKIF_Util_FormatStringRaw ("###PopupRename-%i", index)).c_str ( )))
           {
             isRenaming = index;
             strncpy_s (charCategoryRename, category.name.c_str(), _TRUNCATE); // Always null-terminated
             ImGui::CloseCurrentPopup ( );
           }
 
-          if (ImGui::Selectable (SKIF_Util_FormatStringRaw ("Remove###PopupRemove-%i", index)))
+          if (ImGui::Selectable ((std::string (_("Remove")) + SKIF_Util_FormatStringRaw ("###PopupRemove-%i", index)).c_str ( )))
           {
             static_category.Name   = category.name;
             static_category.change = true;
@@ -1102,7 +1105,7 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
       if (isFavorite)
         SKIF_ImGui_PushDisableState ( );
 
-      if (ImGui::InputTextEx ("###ManageCategoriesAddNew", "New category...", charCategoryName, maxCategoryNameLen,
+      if (ImGui::InputTextEx ("###ManageCategoriesAddNew", _("New category..."), charCategoryName, maxCategoryNameLen,
                       ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, 0.0f), ImGuiInputTextFlags_EnterReturnsTrue))
       {
         std::string szName = charCategoryName;
@@ -1148,7 +1151,7 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
 
     if (desktopShortcutPossible)
     {
-      if (SKIF_ImGui_MenuItemEx2 ("Create desktop shortcut", ICON_FA_PAPERCLIP, ImColor(200, 200, 200, 255)))
+      if (SKIF_ImGui_MenuItemEx2 (L_("Create desktop shortcut"), ICON_FA_PAPERCLIP, ImColor(200, 200, 200, 255)))
       {
         std::string name = SKIF_Util_StripInvalidFilenameChars (pApp->names.normal);
 
@@ -1156,9 +1159,9 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
         std::wstring linkArgs = pApp->GetDesktopShortcutArgs ( );
         std::wstring iconPath = pApp->GetDesktopShortcutIcon ( );
 
-        constexpr char* info_title         = "Create desktop shortcut";
-        constexpr char* info_label_success = "A desktop shortcut has been created.";
-        constexpr char* info_label_failure = "Failed to create a desktop shortcut!";
+        const char* info_title         = _("Create desktop shortcut");
+        const char* info_label_success = _("A desktop shortcut has been created.");
+        const char* info_label_failure = _("Failed to create a desktop shortcut!");
 
         if (SKIF_Util_CreateShortcut (
             linkPath.c_str(),
@@ -1175,12 +1178,12 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
       }
     }
 
-    constexpr char* labelHide   =   "Hide";
-    constexpr char* labelUnhide = "Unhide";
+    constexpr char* labelHide   =   NL_("Hide");
+    constexpr char* labelUnhide = NL_("Unhide");
 
     bool bUnhide = pApp->IsHidden ( );
 
-    if (SKIF_ImGui_MenuItemEx2 ((bUnhide ? labelUnhide : labelHide), (bUnhide ? ICON_FA_EYE : ICON_FA_EYE_SLASH), ImColor(200, 200, 200, 255)))
+    if (SKIF_ImGui_MenuItemEx2 (TL_(bUnhide ? labelUnhide : labelHide), (bUnhide ? ICON_FA_EYE : ICON_FA_EYE_SLASH), ImColor(200, 200, 200, 255)))
     {
       pApp->skif.hidden = bUnhide ? 0 : 1;
 
@@ -1191,7 +1194,7 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
 
     if (pApp->IsUserAdded ( ))
     {
-      if (SKIF_ImGui_MenuItemEx2 ("Remove", ICON_FA_TRASH, ImColor(200, 200, 200, 255)))
+      if (SKIF_ImGui_MenuItemEx2 (L_("Remove"), ICON_FA_TRASH, ImColor(200, 200, 200, 255)))
         RemoveGamePopup = PopupState_Open;
     }
 
@@ -1210,7 +1213,7 @@ DrawGameContextMenu_Developer (app_record_s* pApp)
   {
     ImGui::Separator ( );
 
-    if (SKIF_ImGui_BeginMenuEx2 ("Developer", ICON_FA_TOOLBOX, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning)))
+    if (SKIF_ImGui_BeginMenuEx2 (L_("Developer"), ICON_FA_TOOLBOX, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning)))
     {
       if (SKIF_ImGui_BeginMenuEx2 ("Application", ICON_FA_FILE_LINES))
       {
@@ -1449,7 +1452,7 @@ DrawGameContextMenu_Developer (app_record_s* pApp)
       pApp->DrawDeveloperActions ( );
 
       // Epic and Xbox platforms use fake app IDs hashed from their unique text-based platform identifier
-      if (SKIF_ImGui_MenuItemEx2 ("Copy ID", ICON_FA_FINGERPRINT))
+      if (SKIF_ImGui_MenuItemEx2 (L_("Copy ID"), ICON_FA_FINGERPRINT))
       {
         SKIF_Util_SetClipboardData (SK_UTF8ToWideChar (pApp->GetPersistentKey ( )));
       }
@@ -1485,7 +1488,7 @@ DrawGameContextMenu (app_record_s* pApp)
   if (playDisabled)
     ImGui::BeginDisabled ( );
 
-  if (ImGui::MenuItemEx ("Play###GameContextMenu_Launch", ICON_FA_GAMEPAD))
+  if (ImGui::MenuItemEx (L_("Play###GameContextMenu_Launch"), ICON_FA_GAMEPAD))
     launchGameMenu = true;
 
   if (playDisabled)
@@ -1494,7 +1497,7 @@ DrawGameContextMenu (app_record_s* pApp)
   if (pApp->specialk.injection.injection.type != InjectionType::Local && _inject.bHasServlet)
   {
     if (! _inject.bCurrentState)
-      SKIF_ImGui_SetHoverText ("Starts the injection service as well.");
+      SKIF_ImGui_SetHoverText (_("Starts the injection service as well."));
 
     ImGui::PushStyleColor      (ImGuiCol_Text,
       ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
@@ -1503,7 +1506,7 @@ DrawGameContextMenu (app_record_s* pApp)
     if (playDisabled)
       ImGui::BeginDisabled ( );
 
-    if (ImGui::MenuItem ("\xe2\x94\x94 without Special K###GameContextMenu_LaunchWoSK"))
+    if (ImGui::MenuItem (LI_("\xe2\x94\x94", "without Special K###GameContextMenu_LaunchWoSK")))
       launchGameMenu = launchWithoutSK = true;
 
     if (playDisabled)
@@ -1512,7 +1515,7 @@ DrawGameContextMenu (app_record_s* pApp)
     ImGui::PopStyleColor   ( );
 
     if (_inject.bCurrentState)
-      SKIF_ImGui_SetHoverText ("Stops the injection service as well.");
+      SKIF_ImGui_SetHoverText (_("Stops the injection service as well."));
   }
 
   // Instant Play launch options
@@ -1536,7 +1539,7 @@ DrawGameContextMenu (app_record_s* pApp)
   // Store-specific submenu (e.g. Steam)
   pApp->DrawStoreMenu ( );
 
-  if (SKIF_ImGui_BeginMenuEx2 ("Websites", ICON_FA_SHARE, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)))
+  if (SKIF_ImGui_BeginMenuEx2 (L_("Websites"), ICON_FA_SHARE, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)))
   {
     // Store-specific websites (e.g. Steam Community, SteamDB, GOG Database)
     pApp->DrawWebsiteMenuItems ( );
@@ -1564,29 +1567,29 @@ DrawSpecialKContextMenu (app_record_s* pApp)
 
   if (! _inject.bCurrentState)
   {
-    if (SKIF_ImGui_MenuItemEx2 ("Start service", ICON_FA_TOGGLE_ON,  ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success)))
+    if (SKIF_ImGui_MenuItemEx2 (L_("Start service"), ICON_FA_TOGGLE_ON,  ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success)))
       _inject._StartStopInject (_inject.bCurrentState, true);
 
-    if (SKIF_ImGui_MenuItemEx2 ("Start service (manual stop)", ICON_FA_TOGGLE_ON,  ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success)))
+    if (SKIF_ImGui_MenuItemEx2 (L_("Start service (manual stop)"), ICON_FA_TOGGLE_ON,  ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success)))
       _inject._StartStopInject (_inject.bCurrentState, false);
   }
 
   else {
-    if (SKIF_ImGui_MenuItemEx2 ("Stop service", ICON_FA_TOGGLE_OFF, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning)))
+    if (SKIF_ImGui_MenuItemEx2 (L_("Stop service"), ICON_FA_TOGGLE_OFF, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning)))
       _inject._StartStopInject (_inject.bCurrentState);
   }
 
   ImGui::Separator ( ); // ==============================
 
-  if (SKIF_ImGui_BeginMenuEx2 ("Browse", ICON_FA_FOLDER, ImColor(255, 207, 72)))
+  if (SKIF_ImGui_BeginMenuEx2 (L_("Browse"), ICON_FA_FOLDER, ImColor(255, 207, 72)))
   {
-    if (SKIF_ImGui_MenuItemEx2 ("Install folder", ICON_FA_FOLDER_OPEN, ImColor(255, 207, 72)))
+    if (SKIF_ImGui_MenuItemEx2 (L_("Install folder"), ICON_FA_FOLDER_OPEN, ImColor(255, 207, 72)))
       SKIF_Util_ExplorePath (pApp->install_dir);
 
     SKIF_ImGui_SetMouseCursorHand ( );
     SKIF_ImGui_SetHoverText       (SK_WideCharToUTF8 (pApp->install_dir));
 
-    if (SKIF_ImGui_MenuItemEx2 ("Profile folders", ICON_FA_FOLDER_OPEN, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info)))
+    if (SKIF_ImGui_MenuItemEx2 (L_("Profile folders"), ICON_FA_FOLDER_OPEN, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info)))
       SKIF_Util_ExplorePath (pApp->specialk.profile_dir);
 
     SKIF_ImGui_SetMouseCursorHand ( );
@@ -1597,7 +1600,7 @@ DrawSpecialKContextMenu (app_record_s* pApp)
 
   ImGui::Separator ( ); // ==============================
 
-  if (SKIF_ImGui_MenuItemEx2 ("Wiki", ICON_FA_BOOK_BOOKMARK, ImColor(25, 118, 210)))
+  if (SKIF_ImGui_MenuItemEx2 (L_("Wiki"), ICON_FA_BOOK_BOOKMARK, ImColor(25, 118, 210)))
     SKIF_Util_OpenURI (L"https://wiki.special-k.info/");
 
   SKIF_ImGui_SetMouseCursorHand ();
@@ -1646,11 +1649,11 @@ DrawSpecialKContextMenu (app_record_s* pApp)
 
   ImGui::Separator ( ); // ==============================
 
-  constexpr char* labelPin   =   "Favorite";
-  constexpr char* labelUnpin = "Unfavorite";
+  constexpr char* labelPin   =   NL_("Favorite");
+  constexpr char* labelUnpin = NL_("Unfavorite");
 
   bool isFavorite = (pApp->skif.pinned > 0);
-  if (SKIF_ImGui_MenuItemEx2 ((isFavorite ? labelUnpin : labelPin), (isFavorite ? ICON_FA_HEART_CRACK : ICON_FA_HEART), ImColor(245, 66, 66, 255)))
+  if (SKIF_ImGui_MenuItemEx2 (TL_(isFavorite ? labelUnpin : labelPin), (isFavorite ? ICON_FA_HEART_CRACK : ICON_FA_HEART), ImColor(245, 66, 66, 255)))
   {
     int old_value = pApp->skif.pinned;
 
@@ -1704,11 +1707,11 @@ DrawCoverMenu (void)
                            pApp->tex_cover.isCustom ||
                            pApp->tex_cover.isManaged);
 
-      if (SKIF_ImGui_MenuItemEx2 ("Change", ICON_FA_FILE_IMAGE, (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255)))
+      if (SKIF_ImGui_MenuItemEx2 (L_("Change"), ICON_FA_FILE_IMAGE, (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255)))
       {
         LPWSTR pwszFilePath = NULL;
         HRESULT hr          =
-          SKIF_Util_FileExplorer_BrowseForFile(&pwszFilePath, SKIF_ImGui_hWnd, { { L"Images", L"*.png;*.jpg;*.jpeg;*.webp;*.psd;*.bmp" } }, FOS_FILEMUSTEXIST, FOLDERID_Pictures);
+          SKIF_Util_FileExplorer_BrowseForFile(&pwszFilePath, SKIF_ImGui_hWnd, { { W_("Images"), L"*.png;*.jpg;*.jpeg;*.webp;*.psd;*.bmp" } }, FOS_FILEMUSTEXIST, FOLDERID_Pictures);
 
         if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED))
         {
@@ -1731,9 +1734,9 @@ DrawCoverMenu (void)
 
       if (resetVisible)
       {
-        constexpr char* textCustom1 = "Clear";
-        constexpr char* textCustom2 = "Reset";
-        constexpr char* textDefault = "Refresh";
+        constexpr char* textCustom1 = NL_("Clear");
+        constexpr char* textCustom2 = NL_("Reset");
+        constexpr char* textDefault = NL_("Refresh");
         char*           textPtr     = textDefault;
         constexpr char* iconCustom  = ICON_FA_ROTATE_LEFT;
         constexpr char* iconDefault = ICON_FA_ROTATE;
@@ -1753,10 +1756,10 @@ DrawCoverMenu (void)
         }
 
         bool enabled = (pApp->tex_cover.isCustom || pApp->tex_cover.isManaged);
-        bool doReset = SKIF_ImGui_MenuItemEx2 (textPtr, iconPtr, iconColor, 0, nullptr, enabled);
+        bool doReset = SKIF_ImGui_MenuItemEx2 (TL_(textPtr), iconPtr, iconColor, 0, nullptr, enabled);
 
         if (! enabled)
-          SKIF_ImGui_SetHoverTip ("Managed by the platform client.", false, true);
+          SKIF_ImGui_SetHoverTip (_("Managed by the platform client."), false, true);
 
         else
           SKIF_ImGui_SetMouseCursorHand ( );
@@ -1798,7 +1801,7 @@ DrawCoverMenu (void)
       // Image scaling
       ImGui::PushID ("#ImageScaling");
 
-      if (SKIF_ImGui_BeginMenuEx2 ("Scaling", ICON_FA_PANORAMA))
+      if (SKIF_ImGui_BeginMenuEx2 (L_("Scaling"), ICON_FA_PANORAMA))
       {
         static bool bDefault = (_registry.iCoverScaling == 0) ? true : false;
         static bool bFill    = (_registry.iCoverScaling == 1) ? true : false;
@@ -1806,7 +1809,7 @@ DrawCoverMenu (void)
         static bool bNone    = (_registry.iCoverScaling == 3) ? true : false;
         static bool bStretch = (_registry.iCoverScaling == 4) ? true : false;
 
-        if (ImGui::MenuItem ("Default", spaces,  &bDefault, ! bDefault))
+        if (ImGui::MenuItem (CL_("cover scaling", "Default"), spaces,  &bDefault, ! bDefault))
         {
           _registry.iCoverScaling = 0;
 
@@ -1819,9 +1822,9 @@ DrawCoverMenu (void)
           _registry.regKVCoverScaling.putData (_registry.iCoverScaling);
         }
 
-        SKIF_ImGui_SetHoverTip ("Scales the cover to a maximum height of 600px", false, true);
+        SKIF_ImGui_SetHoverTip (_("Scales the cover to a maximum height of 600px"), false, true);
 
-        if (ImGui::MenuItem ("Fill",  spaces, &bFill, ! bFill))
+        if (ImGui::MenuItem (CL_("cover scaling", "Fill"),  spaces, &bFill, ! bFill))
         {
           _registry.iCoverScaling = 1;
 
@@ -1834,7 +1837,7 @@ DrawCoverMenu (void)
           _registry.regKVCoverScaling.putData (_registry.iCoverScaling);
         }
 
-        if (ImGui::MenuItem ("Fit",  spaces, &bFit, ! bFit))
+        if (ImGui::MenuItem (CL_("cover scaling", "Fit"),  spaces, &bFit, ! bFit))
         {
           _registry.iCoverScaling = 2;
 
@@ -1847,7 +1850,7 @@ DrawCoverMenu (void)
           _registry.regKVCoverScaling.putData (_registry.iCoverScaling);
         }
 
-        if (ImGui::MenuItem ("None",  spaces, &bNone, ! bNone))
+        if (ImGui::MenuItem (CL_("cover scaling", "None"),  spaces, &bNone, ! bNone))
         {
           _registry.iCoverScaling = 3;
 
@@ -1888,7 +1891,7 @@ DrawCoverMenu (void)
 
       ImGui::Separator ( );
 
-      if (SKIF_ImGui_MenuItemEx2 ("Open SteamGridDB", ICON_FA_UP_RIGHT_FROM_SQUARE, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)))
+      if (SKIF_ImGui_MenuItemEx2 (L_("Open SteamGridDB"), ICON_FA_UP_RIGHT_FROM_SQUARE, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)))
         SKIF_Util_OpenURI (SK_UTF8ToWideChar (pApp->ui.sgdbGrids));
       else
       {
@@ -1934,11 +1937,11 @@ DrawIconMenu (void)
                            pApp->tex_icon.isCustom ||
                            pApp->tex_icon.isManaged);
 
-      if (SKIF_ImGui_MenuItemEx2 ("Change", ICON_FA_FILE_IMAGE, (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255)))
+      if (SKIF_ImGui_MenuItemEx2 (L_("Change"), ICON_FA_FILE_IMAGE, (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255)))
       {
         LPWSTR pwszFilePath = NULL;
         HRESULT hr          =
-          SKIF_Util_FileExplorer_BrowseForFile (&pwszFilePath, SKIF_ImGui_hWnd, { { L"Icons", L"*.exe;*.ico;*.png;*.jpg;*.jpeg" } }, FOS_FILEMUSTEXIST, FOLDERID_Pictures);
+          SKIF_Util_FileExplorer_BrowseForFile (&pwszFilePath, SKIF_ImGui_hWnd, { { W_("Icons"), L"*.exe;*.ico;*.png;*.jpg;*.jpeg" } }, FOS_FILEMUSTEXIST, FOLDERID_Pictures);
 
         if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED))
         {
@@ -1987,8 +1990,8 @@ DrawIconMenu (void)
 
       if (resetVisible)
       {
-        constexpr char* textCustom  = "Reset";
-        constexpr char* textDefault = "Refresh";
+        constexpr char* textCustom  = NL_("Reset");
+        constexpr char* textDefault = NL_("Refresh");
         char*           textPtr     = textDefault;
         constexpr char* iconCustom  = ICON_FA_ROTATE_LEFT;
         constexpr char* iconDefault = ICON_FA_ROTATE;
@@ -2008,10 +2011,10 @@ DrawIconMenu (void)
         }
 
         bool enabled = (pApp->tex_icon.isCustom || pApp->tex_icon.isManaged);
-        bool doReset = SKIF_ImGui_MenuItemEx2 (textPtr, iconPtr, iconColor, 0, nullptr, enabled);
+        bool doReset = SKIF_ImGui_MenuItemEx2 (TL_(textPtr), iconPtr, iconColor, 0, nullptr, enabled);
 
         if (! enabled)
-          SKIF_ImGui_SetHoverTip ("Managed by the platform client.", false, true);
+          SKIF_ImGui_SetHoverTip (_("Managed by the platform client."), false, true);
 
         else
           SKIF_ImGui_SetMouseCursorHand ( );
@@ -2046,7 +2049,7 @@ DrawIconMenu (void)
 
       ImGui::Separator ( );
 
-      if (SKIF_ImGui_MenuItemEx2 ("Open SteamGridDB", ICON_FA_UP_RIGHT_FROM_SQUARE, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)))
+      if (SKIF_ImGui_MenuItemEx2 (L_("Open SteamGridDB"), ICON_FA_UP_RIGHT_FROM_SQUARE, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)))
         SKIF_Util_OpenURI (SK_UTF8ToWideChar (pApp->ui.sgdbIcons));
       else
       {
@@ -2087,26 +2090,26 @@ DrawEmptySpaceMenu (bool showClearBtn)
 
     if (showClearBtn)
     {
-      if (SKIF_ImGui_MenuItemEx2 ("Clear filter", ICON_FA_SQUARE_XMARK, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Failure)))
+      if (SKIF_ImGui_MenuItemEx2 (L_("Clear filter"), ICON_FA_SQUARE_XMARK, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Failure)))
         ClearCharFilter ( );
 
       ImGui::Separator   ( );
     }
 
-     if (SKIF_ImGui_MenuItemEx2 ("Add game", ICON_FA_SQUARE_PLUS, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success)))
+     if (SKIF_ImGui_MenuItemEx2 (L_("Add game"), ICON_FA_SQUARE_PLUS, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success)))
        AddGamePopup = PopupState_Open;
 
     ImGui::Separator      ( );
 
     ImGui::PushID ("#LibrarySort");
 
-    if (SKIF_ImGui_BeginMenuEx2 ("Sort by", ICON_FA_SORT))
+    if (SKIF_ImGui_BeginMenuEx2 (L_("Sort by"), ICON_FA_SORT))
     {
       static bool bName       = (_registry.iLibrarySort == 0) ? true : false;
       static bool bFrequently = (_registry.iLibrarySort == 1) ? true : false;
       static bool bRecently   = (_registry.iLibrarySort == 2) ? true : false;
 
-      if (ImGui::MenuItem ("Alphabetical", spaces,  &bName     ))
+      if (ImGui::MenuItem (L_("Alphabetical"), spaces,  &bName     ))
       {
         _registry.iLibrarySort = 0;
 
@@ -2118,7 +2121,7 @@ DrawEmptySpaceMenu (bool showClearBtn)
         sort_changed = true;
       }
 
-      if (ImGui::MenuItem ("Most played",  spaces, &bFrequently))
+      if (ImGui::MenuItem (L_("Most played"),  spaces, &bFrequently))
       {
         _registry.iLibrarySort = 1;
 
@@ -2130,9 +2133,9 @@ DrawEmptySpaceMenu (bool showClearBtn)
         sort_changed = true;
       }
 
-      SKIF_ImGui_SetHoverTip ("Sort by the number of launches of the game through this app.");
+      SKIF_ImGui_SetHoverTip (_("Sort by the number of launches of the game through this app."));
 
-      if (ImGui::MenuItem ("Last played",  spaces, &bRecently  ))
+      if (ImGui::MenuItem (L_("Last played"),  spaces, &bRecently  ))
       {
         _registry.iLibrarySort = 2;
 
@@ -2151,7 +2154,7 @@ DrawEmptySpaceMenu (bool showClearBtn)
 
     ImGui::PushID ("#Platforms");
 
-    if (SKIF_ImGui_BeginMenuEx2 ("Platforms", ICON_FA_GEARS))
+    if (SKIF_ImGui_BeginMenuEx2 (L_("Platforms"), ICON_FA_GEARS))
     {
       static bool* pbLibraryEA     = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryEA;
       static bool* pbLibraryEpic   = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryEpic;
@@ -2209,13 +2212,14 @@ DrawEmptySpaceMenu (bool showClearBtn)
 
       ImGui::Separator ( );
 
-      if (ImGui::MenuItem ("Custom",  spaces, pbLibraryCustom, (! _registry._LibraryHidden)))
+      // TRANSLATORS: Games added by the user (shown among the platforms: Steam, GOG, ...)
+      if (ImGui::MenuItem (CL_("platform", "Custom"),  spaces, pbLibraryCustom, (! _registry._LibraryHidden)))
       {
         _registry.regKVLibraryCustom.putData(_registry.bLibraryCustom);
         RepopulateGames = true;
       }
 
-      if (ImGui::MenuItem ("Hidden games",spaces, &_registry._LibraryHidden))
+      if (ImGui::MenuItem (L_("Hidden games"),spaces, &_registry._LibraryHidden))
       {
         pbLibraryEA     = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryEA;
         pbLibraryEpic   = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryEpic;
@@ -2241,7 +2245,7 @@ DrawEmptySpaceMenu (bool showClearBtn)
 
     ShowLargeIconToggle   ( );
 
-    if (SKIF_ImGui_MenuItemEx2 ("Refresh", ICON_FA_ROTATE_RIGHT, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)))
+    if (SKIF_ImGui_MenuItemEx2 (L_("Refresh"), ICON_FA_ROTATE_RIGHT, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)))
       RepopulateGames = true;
 
     ImGui::PopStyleColor  ( );

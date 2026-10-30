@@ -468,7 +468,7 @@ SKIF_ImGui_InfoMessage_Process (void)
 
       SKIF_ImGui_Spacing ( );
 
-      ImGui::Text        (vInfoMessages.back().second.c_str());
+      ImGui::Text        ("%s", vInfoMessages.back().second.c_str()); // Never as a format: the text may be translated
 
       SKIF_ImGui_Spacing ( );
       SKIF_ImGui_Spacing ( );
