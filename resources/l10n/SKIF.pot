@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-10-30 17:43+0100\n"
+"POT-Creation-Date: 2026-10-30 21:55+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -214,19 +214,19 @@ msgstr ""
 
 #: src/stores/SKIF/custom_library.cpp:381
 #: src/stores/SKIF/custom_library.cpp:560
-#: src/tabs/local.cpp:1184
-#: src/tabs/local.cpp:1209
-#: src/tabs/monitor.cpp:1959
-#: src/tabs/monitor.cpp:1977
-#: src/tabs/monitor.cpp:2064
-#: src/tabs/monitor.cpp:2097
+#: src/tabs/local.cpp:1185
+#: src/tabs/local.cpp:1210
+#: src/tabs/monitor.cpp:1985
+#: src/tabs/monitor.cpp:2003
+#: src/tabs/monitor.cpp:2090
+#: src/tabs/monitor.cpp:2123
 #: src/tabs/library/library_popups.cpp:154
 #: src/tabs/library/library_popups.cpp:238
 #: src/tabs/library/library_popups.cpp:268
 #: src/tabs/library/library_popups.cpp:317
 #: src/tabs/library/library_properties.cpp:1924
 #: src/tabs/library/library_properties.cpp:1989
-#: src/utility/skif_imgui.cpp:1662
+#: src/utility/skif_imgui.cpp:1697
 #: src/utility/updater.cpp:1547
 #: src/utility/updater.cpp:1604
 msgid "Cancel"
@@ -400,46 +400,46 @@ msgstr ""
 msgid "Tips and Tricks:"
 msgstr ""
 
-#: src/tabs/about.cpp:280
+#: src/tabs/about.cpp:279
 msgid "More on how to inject Special K:"
 msgstr ""
 
-#: src/tabs/about.cpp:292
+#: src/tabs/about.cpp:291
 msgid "Global (system-wide)"
 msgstr ""
 
-#: src/tabs/about.cpp:305
+#: src/tabs/about.cpp:304
 msgid "Local (game-specific)"
 msgstr ""
 
-#: src/tabs/about.cpp:318
+#: src/tabs/about.cpp:317
 msgid "Do not use in multiplayer games!"
 msgstr ""
 
-#: src/tabs/about.cpp:328
+#: src/tabs/about.cpp:327
 msgid ""
 "In particular games where anti-cheat\n"
 "protection might be present."
 msgstr ""
 
-#: src/tabs/about.cpp:341
+#: src/tabs/about.cpp:340
 msgid "Online resources:"
 msgstr ""
 
-#: src/tabs/about.cpp:353
+#: src/tabs/about.cpp:352
 #: src/tabs/library/library_menus.cpp:1603
 msgid "Wiki"
 msgstr ""
 
-#: src/tabs/about.cpp:413
+#: src/tabs/about.cpp:412
 msgid "Privacy Policy"
 msgstr ""
 
-#: src/tabs/about.cpp:428
+#: src/tabs/about.cpp:427
 msgid "Licenses"
 msgstr ""
 
-#: src/tabs/about.cpp:454
+#: src/tabs/about.cpp:453
 #: src/tabs/monitor.cpp:919
 msgid "Components:"
 msgstr ""
@@ -722,19 +722,19 @@ msgid "Granted 'Performance Log Users' permission?"
 msgstr ""
 
 #: src/tabs/hardware.cpp:884
-#: src/tabs/monitor.cpp:1692
-#: src/tabs/monitor.cpp:1885
+#: src/tabs/monitor.cpp:1704
+#: src/tabs/monitor.cpp:1897
 #: src/tabs/library/library_popups.cpp:153
 #: src/tabs/library/library_popups.cpp:163
-#: src/utility/skif_imgui.cpp:1664
+#: src/utility/skif_imgui.cpp:1699
 msgid "Yes"
 msgstr ""
 
 #: src/tabs/hardware.cpp:886
-#: src/tabs/monitor.cpp:1692
-#: src/tabs/monitor.cpp:1885
+#: src/tabs/monitor.cpp:1704
+#: src/tabs/monitor.cpp:1897
 #: src/tabs/settings.cpp:1555
-#: src/utility/skif_imgui.cpp:1665
+#: src/utility/skif_imgui.cpp:1700
 msgid "No"
 msgstr ""
 
@@ -894,7 +894,7 @@ msgid "Please Wait..."
 msgstr ""
 
 #: src/tabs/hardware.cpp:1379
-#: src/tabs/library/library_details.cpp:400
+#: src/tabs/library/library_details.cpp:466
 msgid "Pending..."
 msgstr ""
 
@@ -1038,7 +1038,7 @@ msgstr ""
 #: src/tabs/ini_editor.cpp:365
 #: src/tabs/library/library_properties.cpp:1923
 #: src/tabs/library/library_properties.cpp:1933
-#: src/utility/skif_imgui.cpp:1667
+#: src/utility/skif_imgui.cpp:1702
 msgid "Save"
 msgstr ""
 
@@ -1046,16 +1046,16 @@ msgstr ""
 msgid "Save As"
 msgstr ""
 
-#. TRANSLATORS: The Escape key of the keyboard
 #: src/tabs/ini_editor.cpp:371
-#: src/tabs/local.cpp:829
+#: src/tabs/local.cpp:828
 #: src/utility/updater.cpp:1386
 #: src/utility/updater.cpp:1392
 msgid "Close"
 msgstr ""
 
+#. TRANSLATORS: The Escape key of the keyboard
 #: src/tabs/ini_editor.cpp:371
-#: src/tabs/local.cpp:829
+#: src/tabs/local.cpp:830
 msgctxt "key"
 msgid "Escape"
 msgstr ""
@@ -1120,7 +1120,7 @@ msgid "Currently enforced by touch input mode."
 msgstr ""
 
 #: src/tabs/library.cpp:1446
-#: src/tabs/library/library_details.cpp:429
+#: src/tabs/library/library_details.cpp:495
 msgid "Loading..."
 msgstr ""
 
@@ -1246,145 +1246,145 @@ msgstr ""
 msgid "Delete Selected"
 msgstr ""
 
-#: src/tabs/local.cpp:835
+#: src/tabs/local.cpp:836
 msgid "Selection"
 msgstr ""
 
-#: src/tabs/local.cpp:851
+#: src/tabs/local.cpp:852
 msgid "No local installs found."
 msgstr ""
 
-#: src/tabs/local.cpp:856
+#: src/tabs/local.cpp:857
 msgid "To perform a local install of Special K:"
 msgstr ""
 
 #. TRANSLATORS: The text in [brackets] is highlighted (keep the brackets); {0} is a floppy disk icon. "File -> Install Wrapper DLL" is a menu of Special K itself (in-game), which is in English.
-#: src/tabs/local.cpp:867
+#: src/tabs/local.cpp:868
 msgid "While in-game, use [{0} File -> Install Wrapper DLL]."
 msgstr ""
 
 #. TRANSLATORS: The text in [brackets] is highlighted (keep the brackets); Ctrl and Shift are keys of the keyboard
-#: src/tabs/local.cpp:878
+#: src/tabs/local.cpp:879
 msgid "During launch, hold down [Ctrl + Shift] to access the compatibility options."
-msgstr ""
-
-#: src/tabs/local.cpp:890
-msgctxt "column"
-msgid "Path"
 msgstr ""
 
 #: src/tabs/local.cpp:891
 msgctxt "column"
+msgid "Path"
+msgstr ""
+
+#: src/tabs/local.cpp:892
+msgctxt "column"
 msgid "Version"
 msgstr ""
 
-#: src/tabs/local.cpp:893
+#: src/tabs/local.cpp:894
 msgctxt "column"
 msgid "Status"
 msgstr ""
 
-#: src/tabs/local.cpp:1018
-#: src/tabs/library/library_details.cpp:327
+#: src/tabs/local.cpp:1019
+#: src/tabs/library/library_details.cpp:393
 msgid ""
 "The local DLL file is outdated.\n"
 "Click to update it to v {0}."
 msgstr ""
 
-#: src/tabs/local.cpp:1032
+#: src/tabs/local.cpp:1033
 msgid ""
 "The local DLL file could not be found.\n"
 "Click to reinstall it as v {0}."
 msgstr ""
 
-#: src/tabs/local.cpp:1047
+#: src/tabs/local.cpp:1048
 msgid "Folder no longer exists"
 msgstr ""
 
-#: src/tabs/local.cpp:1056
+#: src/tabs/local.cpp:1057
 msgid "Local DLL file no longer exists"
 msgstr ""
 
-#: src/tabs/local.cpp:1065
+#: src/tabs/local.cpp:1066
 msgid "Outdated (latest: {0})"
 msgstr ""
 
 #. TRANSLATORS: {0} is a floppy disk icon. "File -> Install Wrapper DLL" is a menu of Special K itself (in-game), which is in English.
-#: src/tabs/local.cpp:1127
-#: src/tabs/local.cpp:1240
+#: src/tabs/local.cpp:1128
+#: src/tabs/local.cpp:1241
 msgid "Select the bitness to install"
 msgstr ""
 
-#: src/tabs/local.cpp:1127
+#: src/tabs/local.cpp:1128
 msgid "Or while in-game, use {0} File -> Install Wrapper DLL."
 msgstr ""
 
-#: src/tabs/local.cpp:1154
+#: src/tabs/local.cpp:1155
 msgid "Already Up-to-Date"
 msgstr ""
 
-#: src/tabs/local.cpp:1155
+#: src/tabs/local.cpp:1156
 msgid "Special K is already installed in this folder and is fully up-to-date."
 msgstr ""
 
-#: src/tabs/local.cpp:1166
+#: src/tabs/local.cpp:1167
 msgid "Install Special K"
 msgstr ""
 
-#: src/tabs/local.cpp:1168
+#: src/tabs/local.cpp:1169
 msgid "Which DLL filename should Special K be installed as?"
 msgstr ""
 
-#: src/tabs/local.cpp:1172
+#: src/tabs/local.cpp:1173
 msgid "64-bit executable"
 msgstr ""
 
-#: src/tabs/local.cpp:1174
+#: src/tabs/local.cpp:1175
 msgid "32-bit executable"
 msgstr ""
 
-#: src/tabs/local.cpp:1176
+#: src/tabs/local.cpp:1177
 msgid "Could not detect the bitness of the executable; you will be asked next."
 msgstr ""
 
-#: src/tabs/local.cpp:1179
+#: src/tabs/local.cpp:1180
 msgid "Special K is already installed in this folder; only that file can be updated."
 msgstr ""
 
-#: src/tabs/local.cpp:1202
+#: src/tabs/local.cpp:1203
 msgid "Special K is already installed as this file and will be updated."
 msgstr ""
 
-#: src/tabs/local.cpp:1203
+#: src/tabs/local.cpp:1204
 msgid "A different file with this name already exists in the folder."
 msgstr ""
 
-#: src/tabs/local.cpp:1204
+#: src/tabs/local.cpp:1205
 msgid "Special K is already installed in this folder under another name."
 msgstr ""
 
-#: src/tabs/local.cpp:1241
+#: src/tabs/local.cpp:1242
 msgid ""
 "Could not detect the bitness of the executable.\n"
 "Should 64-bit or 32-bit be used?"
 msgstr ""
 
-#: src/tabs/local.cpp:1286
+#: src/tabs/local.cpp:1287
 msgid "Update Installs?"
 msgstr ""
 
-#: src/tabs/local.cpp:1287
+#: src/tabs/local.cpp:1288
 msgid "Delete Installs?"
 msgstr ""
 
-#: src/tabs/local.cpp:1288
+#: src/tabs/local.cpp:1289
 msgid "Are you sure you want to update all selected installs?"
 msgstr ""
 
-#: src/tabs/local.cpp:1289
+#: src/tabs/local.cpp:1290
 msgid "Are you sure you want to delete all selected installs?"
 msgstr ""
 
-#: src/tabs/local.cpp:1290
+#: src/tabs/local.cpp:1291
 msgid "Some leftover files may still be present in the game folder."
 msgstr ""
 
@@ -1430,7 +1430,7 @@ msgid "Update speed:"
 msgstr ""
 
 #: src/tabs/monitor.cpp:818
-#: src/tabs/monitor.cpp:1769
+#: src/tabs/monitor.cpp:1781
 msgid "Real-time updates are paused."
 msgstr ""
 
@@ -1484,7 +1484,7 @@ msgid "Blacklist"
 msgstr ""
 
 #: src/tabs/monitor.cpp:1566
-#: src/tabs/settings.cpp:2403
+#: src/tabs/settings.cpp:2414
 #: src/tabs/library/library_menus.cpp:394
 #: src/tabs/library/library_menus.cpp:1738
 #: src/tabs/library/library_menus.cpp:1993
@@ -1505,169 +1505,169 @@ msgstr ""
 msgid "End task"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1681
-#: src/tabs/monitor.cpp:1701
+#: src/tabs/monitor.cpp:1693
+#: src/tabs/monitor.cpp:1713
 msgid "Status"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1681
-#: src/tabs/monitor.cpp:1709
+#: src/tabs/monitor.cpp:1693
+#: src/tabs/monitor.cpp:1721
 msgid "PID"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1681
-#: src/tabs/monitor.cpp:1717
+#: src/tabs/monitor.cpp:1693
+#: src/tabs/monitor.cpp:1729
 msgid "Type"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1681
-#: src/tabs/monitor.cpp:1721
+#: src/tabs/monitor.cpp:1693
+#: src/tabs/monitor.cpp:1733
 msgid "Handles"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1681
-#: src/tabs/monitor.cpp:1725
+#: src/tabs/monitor.cpp:1693
+#: src/tabs/monitor.cpp:1737
 msgid "Arch"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1681
-#: src/tabs/monitor.cpp:1733
+#: src/tabs/monitor.cpp:1693
+#: src/tabs/monitor.cpp:1745
 msgid "Admin"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1681
-#: src/tabs/monitor.cpp:1741
+#: src/tabs/monitor.cpp:1693
+#: src/tabs/monitor.cpp:1753
 msgid "Process Name"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1703
+#: src/tabs/monitor.cpp:1715
 msgid "Injection status"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1711
+#: src/tabs/monitor.cpp:1723
 msgid "Process ID"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1726
+#: src/tabs/monitor.cpp:1738
 msgid "CPU architecture"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1734
+#: src/tabs/monitor.cpp:1746
 msgid "Elevated process"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1742
+#: src/tabs/monitor.cpp:1754
 msgid "Process name"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1767
+#: src/tabs/monitor.cpp:1779
 msgid "Error occurred when trying to locate type index for events!"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1771
+#: src/tabs/monitor.cpp:1783
 msgid "Special K is currently not injected in any process."
 msgstr ""
 
-#: src/tabs/monitor.cpp:1807
+#: src/tabs/monitor.cpp:1819
 msgid "Process is blacklisted"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1813
+#: src/tabs/monitor.cpp:1825
 msgid "Process is whitelisted"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1826
+#: src/tabs/monitor.cpp:1838
 msgctxt "injection status"
 msgid "Active"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1830
+#: src/tabs/monitor.cpp:1842
 msgctxt "injection status"
 msgid "Local"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1835
+#: src/tabs/monitor.cpp:1847
 msgctxt "injection status"
 msgid "Inert"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1838
-#: src/tabs/monitor.cpp:1847
+#: src/tabs/monitor.cpp:1850
+#: src/tabs/monitor.cpp:1859
 msgctxt "injection status"
 msgid "Stuck (end the process to eject Special K)"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1844
+#: src/tabs/monitor.cpp:1856
 msgctxt "injection status"
 msgid "Inert (potentially stuck)"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1904
+#: src/tabs/monitor.cpp:1917
 msgid "Injection status cannot be determined due to a lack of permissions."
 msgstr ""
 
-#: src/tabs/monitor.cpp:1944
+#: src/tabs/monitor.cpp:1970
 #: src/tabs/library/library_popups.cpp:280
 msgid "Task Manager"
 msgstr ""
 
 #. TRANSLATORS: {0} is the file name of a process
 #. TRANSLATORS: {0} is the name of a game
-#: src/tabs/monitor.cpp:1949
+#: src/tabs/monitor.cpp:1975
 #: src/tabs/library/library_popups.cpp:262
 msgid "Do you want to end {0}?"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1951
+#: src/tabs/monitor.cpp:1977
 msgid "If an open program is associated with this process, it will close and you will lose any unsaved data. If you end a system process, it might result in system instability. Are you sure you want to continue?"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1958
-#: src/tabs/monitor.cpp:1963
+#: src/tabs/monitor.cpp:1984
+#: src/tabs/monitor.cpp:1989
 #: src/tabs/library/library_popups.cpp:267
 #: src/tabs/library/library_popups.cpp:301
 msgid "End Process"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1994
+#: src/tabs/monitor.cpp:2020
 msgid "Reset Whitelist / Blacklist"
 msgstr ""
 
 #. TRANSLATORS: {0} is the file name of a process
-#: src/tabs/monitor.cpp:2021
+#: src/tabs/monitor.cpp:2047
 msgid "Patterns matching {0}:"
 msgstr ""
 
-#: src/tabs/monitor.cpp:2025
+#: src/tabs/monitor.cpp:2051
 msgid "Whitelist:"
 msgstr ""
 
-#: src/tabs/monitor.cpp:2026
+#: src/tabs/monitor.cpp:2052
 msgid "Blacklist:"
 msgstr ""
 
-#: src/tabs/monitor.cpp:2030
+#: src/tabs/monitor.cpp:2056
 msgid "No whitelist or blacklist patterns of yours match this process."
 msgstr ""
 
-#: src/tabs/monitor.cpp:2042
+#: src/tabs/monitor.cpp:2068
 msgid "The process is also whitelisted by the built-in pattern \"{0}\", which cannot be removed."
 msgstr ""
 
-#: src/tabs/monitor.cpp:2043
+#: src/tabs/monitor.cpp:2069
 msgid "The process is also blacklisted by the built-in pattern \"{0}\", which cannot be removed."
 msgstr ""
 
-#: src/tabs/monitor.cpp:2050
+#: src/tabs/monitor.cpp:2076
 msgid "Removing a pattern affects every application it matches, not just this one. Do you want to remove the patterns listed above?"
 msgstr ""
 
-#: src/tabs/monitor.cpp:2057
+#: src/tabs/monitor.cpp:2083
 msgid "The changes could not be saved!"
 msgstr ""
 
-#: src/tabs/monitor.cpp:2063
-#: src/tabs/monitor.cpp:2071
+#: src/tabs/monitor.cpp:2089
+#: src/tabs/monitor.cpp:2097
 #: src/tabs/library/library_list.cpp:265
 #: src/tabs/library/library_menus.cpp:1075
 #: src/tabs/library/library_menus.cpp:1197
@@ -2280,242 +2280,242 @@ msgstr ""
 msgid "Keybindings"
 msgstr ""
 
-#: src/tabs/settings.cpp:1688
+#: src/tabs/settings.cpp:1699
 msgid "Keybindings (In-Game)"
 msgstr ""
 
-#: src/tabs/settings.cpp:1749
+#: src/tabs/settings.cpp:1760
 msgid "Launch a game with Special K at least once to populate this section."
 msgstr ""
 
-#: src/tabs/settings.cpp:1760
+#: src/tabs/settings.cpp:1771
 msgid "Advanced"
 msgstr ""
 
-#: src/tabs/settings.cpp:1779
+#: src/tabs/settings.cpp:1790
 msgid "Automatically install new updates"
 msgstr ""
 
 #. TRANSLATORS: {0} is a mouse cursor icon
-#: src/tabs/settings.cpp:1783
+#: src/tabs/settings.cpp:1794
 msgid "Open this app on the same monitor as the {0}"
 msgstr ""
 
-#: src/tabs/settings.cpp:1786
+#: src/tabs/settings.cpp:1797
 msgid "Open this app in the mini service mode view"
 msgstr ""
 
-#: src/tabs/settings.cpp:1805
+#: src/tabs/settings.cpp:1816
 msgid "Do not stop the injection service on exit"
 msgstr ""
 
-#: src/tabs/settings.cpp:1809
+#: src/tabs/settings.cpp:1820
 msgid "This allows the injection service to remain running even after this app has been closed."
 msgstr ""
 
-#: src/tabs/settings.cpp:1811
+#: src/tabs/settings.cpp:1822
 msgid "Use hardware acceleration"
 msgstr ""
 
-#: src/tabs/settings.cpp:1823
+#: src/tabs/settings.cpp:1834
 msgid "The app will be less responsive if disabled on hybrid CPUs."
 msgstr ""
 
-#: src/tabs/settings.cpp:1828
+#: src/tabs/settings.cpp:1839
 msgid "The app may be less responsive if disabled."
 msgstr ""
 
-#: src/tabs/settings.cpp:1831
+#: src/tabs/settings.cpp:1842
 msgid "Use system proxy settings"
 msgstr ""
 
-#: src/tabs/settings.cpp:1834
+#: src/tabs/settings.cpp:1845
 msgid ""
 "Downloads go through the proxy configured in Windows.\n"
 "Automatic proxy detection and setup scripts are not used.\n"
 "If disabled, the app always connects directly."
 msgstr ""
 
-#: src/tabs/settings.cpp:1845
+#: src/tabs/settings.cpp:1856
 msgid "Allow multiple instances of this app"
 msgstr ""
 
-#: src/tabs/settings.cpp:1880
+#: src/tabs/settings.cpp:1891
 msgid "Requires 'Close to the notification area' to be disabled."
 msgstr ""
 
-#: src/tabs/settings.cpp:1903
+#: src/tabs/settings.cpp:1914
 #: src/tabs/library/library_menus.cpp:56
-#: src/utility/skif_imgui.cpp:1880
+#: src/utility/skif_imgui.cpp:1915
 msgid "Troubleshooting:"
 msgstr ""
 
-#: src/tabs/settings.cpp:1907
+#: src/tabs/settings.cpp:1918
 msgctxt "log level"
 msgid "None"
 msgstr ""
 
-#: src/tabs/settings.cpp:1908
+#: src/tabs/settings.cpp:1919
 msgctxt "log level"
 msgid "Fatal"
 msgstr ""
 
-#: src/tabs/settings.cpp:1909
+#: src/tabs/settings.cpp:1920
 msgctxt "log level"
 msgid "Error"
 msgstr ""
 
-#: src/tabs/settings.cpp:1910
+#: src/tabs/settings.cpp:1921
 msgctxt "log level"
 msgid "Warning"
 msgstr ""
 
-#: src/tabs/settings.cpp:1911
+#: src/tabs/settings.cpp:1922
 msgctxt "log level"
 msgid "Info"
 msgstr ""
 
-#: src/tabs/settings.cpp:1912
+#: src/tabs/settings.cpp:1923
 msgctxt "log level"
 msgid "Debug"
 msgstr ""
 
-#: src/tabs/settings.cpp:1913
+#: src/tabs/settings.cpp:1924
 msgctxt "log level"
 msgid "Verbose"
 msgstr ""
 
-#: src/tabs/settings.cpp:1916
+#: src/tabs/settings.cpp:1927
 msgid "Log level"
 msgstr ""
 
-#: src/tabs/settings.cpp:1945
+#: src/tabs/settings.cpp:1956
 msgid "Enable excessive development logging"
 msgstr ""
 
-#: src/tabs/settings.cpp:1955
+#: src/tabs/settings.cpp:1966
 msgid "Only intended for SKIF developers as this enables excessive logging (e.g. window messages)."
 msgstr ""
 
-#: src/tabs/settings.cpp:1959
+#: src/tabs/settings.cpp:1970
 msgctxt "diagnostics"
 msgid "None"
 msgstr ""
 
-#: src/tabs/settings.cpp:1960
+#: src/tabs/settings.cpp:1971
 msgctxt "diagnostics"
 msgid "Normal"
 msgstr ""
 
-#: src/tabs/settings.cpp:1961
+#: src/tabs/settings.cpp:1972
 msgctxt "diagnostics"
 msgid "Enhanced"
 msgstr ""
 
-#: src/tabs/settings.cpp:1964
+#: src/tabs/settings.cpp:1975
 msgid "Diagnostics"
 msgstr ""
 
-#: src/tabs/settings.cpp:1988
+#: src/tabs/settings.cpp:1999
 msgid ""
 "Help improve Special K by allowing anonymized diagnostics to be sent.\n"
 "The data is used to identify issues, highlight common use cases, and\n"
 "facilitates the continued development of the application."
 msgstr ""
 
-#: src/tabs/settings.cpp:2000
+#: src/tabs/settings.cpp:2011
 msgid "Developer mode"
 msgstr ""
 
-#: src/tabs/settings.cpp:2009
+#: src/tabs/settings.cpp:2020
 msgid "Exposes additional information and context menu items that may be of interest for developers."
 msgstr ""
 
-#: src/tabs/settings.cpp:2011
-#: src/tabs/settings.cpp:2013
+#: src/tabs/settings.cpp:2022
+#: src/tabs/settings.cpp:2024
 msgid "Efficiency mode"
 msgstr ""
 
-#: src/tabs/settings.cpp:2016
+#: src/tabs/settings.cpp:2027
 msgid ""
 "Engage efficiency mode for this app when idle.\n"
 "Not recommended for Windows 10 and earlier."
 msgstr ""
 
-#: src/tabs/settings.cpp:2021
+#: src/tabs/settings.cpp:2032
 msgid "Nvidia users: Use the below button to prevent GeForce Experience from mistaking this app for a game."
 msgstr ""
 
-#: src/tabs/settings.cpp:2031
+#: src/tabs/settings.cpp:2042
 msgid "Disable GFE notifications"
 msgstr ""
 
-#: src/tabs/settings.cpp:2081
+#: src/tabs/settings.cpp:2092
 msgid ""
 "This only needs to be used if GeForce Experience notifications\n"
 "appear on the screen whenever this app is being used."
 msgstr ""
 
-#: src/tabs/settings.cpp:2100
+#: src/tabs/settings.cpp:2111
 msgid "Whitelist / Blacklist"
 msgstr ""
 
 #. TRANSLATORS: {0} is a double quote character
-#: src/tabs/settings.cpp:2140
+#: src/tabs/settings.cpp:2151
 msgid "Please remove all double quotes {0} from the list."
 msgstr ""
 
 #. TRANSLATORS: {0} is two backslashes, {1} is one backslash
-#: src/tabs/settings.cpp:2155
+#: src/tabs/settings.cpp:2166
 msgid "Folders must be separated using two backslashes {0} instead of one {1} backslash."
 msgstr ""
 
 #. TRANSLATORS: {0} is the maximum number of lines (512), {1} is the pipe character
-#: src/tabs/settings.cpp:2173
+#: src/tabs/settings.cpp:2184
 msgid "The list can only include {0} lines, though multiple can be combined using a pipe {1} character."
 msgstr ""
 
-#: src/tabs/settings.cpp:2177
+#: src/tabs/settings.cpp:2188
 msgid ""
 "(e.g. \"NieRAutomataPC|Epic Games\" will match any application\n"
 "installed under a NieRAutomataPC or Epic Games folder.)"
 msgstr ""
 
-#: src/tabs/settings.cpp:2186
+#: src/tabs/settings.cpp:2197
 msgid "The following lists manage Special K in processes as patterns are matched against the full path of the injected process."
 msgstr ""
 
-#: src/tabs/settings.cpp:2194
+#: src/tabs/settings.cpp:2205
 msgid "Easiest is to use the name of the executable or folder of the game."
 msgstr ""
 
-#: src/tabs/settings.cpp:2198
+#: src/tabs/settings.cpp:2209
 msgid ""
 "e.g. a pattern like \"Assassin's Creed Valhalla\" will match an application at\n"
 "C:\\Games\\Uplay\\games\\Assassin's Creed Valhalla\\ACValhalla.exe"
 msgstr ""
 
-#: src/tabs/settings.cpp:2204
+#: src/tabs/settings.cpp:2215
 msgid "Typing the name of a shared parent folder will match all applications below that folder."
 msgstr ""
 
-#: src/tabs/settings.cpp:2208
+#: src/tabs/settings.cpp:2219
 msgid ""
 "e.g. a pattern like \"Epic Games\" will match any\n"
 "application installed under the Epic Games folder."
 msgstr ""
 
-#: src/tabs/settings.cpp:2217
+#: src/tabs/settings.cpp:2228
 msgid "Note that these lists do not prevent Special K from being injected into processes."
 msgstr ""
 
-#: src/tabs/settings.cpp:2223
+#: src/tabs/settings.cpp:2234
 msgid ""
 "These lists control whether Special K should be enabled (the whitelist) to hook APIs etc,\n"
 "or remain disabled/idle/inert (the blacklist) within the injected process."
 msgstr ""
 
-#: src/tabs/settings.cpp:2230
+#: src/tabs/settings.cpp:2241
 msgid ""
 "The injection service injects Special K into any process that deals\n"
 "with system input or some sort of window or kb/mouse input activity.\n"
@@ -2524,33 +2524,33 @@ msgid ""
 "or remain idle/inert (the blacklist) within the injected process."
 msgstr ""
 
-#: src/tabs/settings.cpp:2249
+#: src/tabs/settings.cpp:2260
 msgid "Whitelist Patterns:"
 msgstr ""
 
-#: src/tabs/settings.cpp:2266
+#: src/tabs/settings.cpp:2277
 msgid ""
 "These are the patterns used internally to enable Special K for these specific platforms.\n"
 "They are presented here solely as examples of how a potential pattern might look like."
 msgstr ""
 
-#: src/tabs/settings.cpp:2345
+#: src/tabs/settings.cpp:2356
 msgid "Blacklist Patterns:"
 msgstr ""
 
-#: src/tabs/settings.cpp:2347
+#: src/tabs/settings.cpp:2358
 msgid "(Does not prevent injection! Use this to exclude stuff from being whitelisted)"
 msgstr ""
 
-#: src/tabs/settings.cpp:2378
+#: src/tabs/settings.cpp:2389
 msgid "Save Changes"
 msgstr ""
 
-#: src/tabs/settings.cpp:2429
+#: src/tabs/settings.cpp:2440
 msgid "The whitelist could not be saved! Please remove any non-Latin characters and try again."
 msgstr ""
 
-#: src/tabs/settings.cpp:2435
+#: src/tabs/settings.cpp:2446
 msgid "The blacklist could not be saved! Please remove any non-Latin characters and try again."
 msgstr ""
 
@@ -2568,7 +2568,7 @@ msgid ""
 "allow the cover to be populated :)"
 msgstr ""
 
-#: src/tabs/library/library_cover.cpp:409
+#: src/tabs/library/library_cover.cpp:428
 msgid "Special Kudos to our Patrons:"
 msgstr ""
 
@@ -2584,91 +2584,91 @@ msgstr ""
 msgid "Platform:"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:158
+#: src/tabs/library/library_details.cpp:202
 msgid "Update to v {0}"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:164
+#: src/tabs/library/library_details.cpp:208
 msgid "Uninstall"
 msgstr ""
 
 #. TRANSLATORS: Not available
-#: src/tabs/library/library_details.cpp:251
+#: src/tabs/library/library_details.cpp:298
 msgid "N/A"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:370
+#: src/tabs/library/library_details.cpp:436
 #: src/tabs/library/library_menus.cpp:1491
 msgid "Play"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:378
+#: src/tabs/library/library_details.cpp:444
 msgid "Install Mod"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:387
+#: src/tabs/library/library_details.cpp:453
 msgid "Installing..."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:393
+#: src/tabs/library/library_details.cpp:459
 msgid "Downloading..."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:430
+#: src/tabs/library/library_details.cpp:496
 msgid "Running..."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:431
+#: src/tabs/library/library_details.cpp:497
 msgid "Updating..."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:611
+#: src/tabs/library/library_details.cpp:677
 msgid "Please finish the ongoing mod installation first."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:629
+#: src/tabs/library/library_details.cpp:695
 msgid "Warning: VAC protected game; injection is not recommended!"
 msgstr ""
 
 #. TRANSLATORS: A launch option in the "Disable Special K" menu; {0} is its name
-#: src/tabs/library/library_details.cpp:709
+#: src/tabs/library/library_details.cpp:775
 msgid "for {0}"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:717
-#: src/tabs/library/library_details.cpp:766
-#: src/tabs/library/library_details.cpp:812
+#: src/tabs/library/library_details.cpp:783
+#: src/tabs/library/library_details.cpp:832
+#: src/tabs/library/library_details.cpp:878
 #: src/tabs/library/library_properties.cpp:1007
 msgid "Disable Special K"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:732
+#: src/tabs/library/library_details.cpp:798
 #: src/tabs/library/library_properties.cpp:1012
 msgid "Special K is disabled through a blacklist pattern in the Settings tab."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:743
+#: src/tabs/library/library_details.cpp:809
 #: src/tabs/library/library_properties.cpp:989
 #: src/utility/injection.cpp:1068
 msgid "Special K is unavailable due to missing files."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:745
+#: src/tabs/library/library_details.cpp:811
 #: src/utility/injection.cpp:1070
 msgid "Please reinstall Special K using the latest available installer."
 msgstr ""
 
 #. TRANSLATORS: Where the configuration of Special K is kept (one folder for all games)
-#: src/tabs/library/library_details.cpp:1356
+#: src/tabs/library/library_details.cpp:1422
 #: src/utility/injection.cpp:840
 msgid "Centralized"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:1358
+#: src/tabs/library/library_details.cpp:1424
 msgid "Localized"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:1360
+#: src/tabs/library/library_details.cpp:1426
 msgid "Unknown"
 msgstr ""
 
@@ -3697,89 +3697,89 @@ msgstr ""
 
 #: src/utility/skif_imgui.cpp:476
 #: src/utility/skif_imgui.cpp:480
-#: src/utility/skif_imgui.cpp:1673
+#: src/utility/skif_imgui.cpp:1708
 msgid "OK"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1661
+#: src/utility/skif_imgui.cpp:1696
 msgid "None"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1668
+#: src/utility/skif_imgui.cpp:1703
 msgid "Don't Save"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1727
+#: src/utility/skif_imgui.cpp:1762
 msgid "Are you sure you want to continue?"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1743
+#: src/utility/skif_imgui.cpp:1778
 msgid "Do you want to save the changes made?"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1744
+#: src/utility/skif_imgui.cpp:1779
 msgid "Your changes will be lost if you don't save them."
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1772
+#: src/utility/skif_imgui.cpp:1807
 msgid "Should 64-bit or 32-bit be used?"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1773
+#: src/utility/skif_imgui.cpp:1808
 msgid "Processes can only load DLL files of the same bitness."
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1885
+#: src/utility/skif_imgui.cpp:1920
 msgid "Force start service"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1892
+#: src/utility/skif_imgui.cpp:1927
 msgid "Elevated"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1897
+#: src/utility/skif_imgui.cpp:1932
 msgid "Force stop service"
 msgstr ""
 
 #. TRANSLATORS: An April Fools' Day joke (a fake activation of Special K, with technobabble), shown on April 1st
-#: src/utility/skif_imgui.cpp:3022
+#: src/utility/skif_imgui.cpp:3057
 msgid "Special K Activation"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3030
+#: src/utility/skif_imgui.cpp:3065
 msgid "Special K  //  Nominal Flow Activation"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3034
+#: src/utility/skif_imgui.cpp:3069
 msgid "Client fingerprint:"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3073
+#: src/utility/skif_imgui.cpp:3108
 msgid "This title is missing its nominal constant (0x00000000)."
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3078
+#: src/utility/skif_imgui.cpp:3113
 msgid "Contacting activation server  sk-activation.local ..."
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3083
+#: src/utility/skif_imgui.cpp:3118
 msgid "Transforming constant against client fingerprint ..."
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3088
+#: src/utility/skif_imgui.cpp:3123
 msgid "Nominal flow restored."
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3104
+#: src/utility/skif_imgui.cpp:3139
 msgid "Just kidding -- Special K needs no such thing. Happy April Fools' Day!"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3107
-#: src/utility/skif_imgui.cpp:3109
+#: src/utility/skif_imgui.cpp:3142
+#: src/utility/skif_imgui.cpp:3144
 msgid "Phew, OK"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3116
+#: src/utility/skif_imgui.cpp:3151
 msgid "Please wait, this will only take a moment ..."
 msgstr ""
 

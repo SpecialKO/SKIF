@@ -825,8 +825,9 @@ SKIF_LocalManager::Process (void)
         if (ImGui::MenuItem (L_("New"), "Ctrl+N", false, ! anyPrompt))
           want_new = true;
 
-        // TRANSLATORS: The Escape key of the keyboard
-        if (ImGui::MenuItem (L_("Close"), C_("key", "Escape")))
+        if (ImGui::MenuItem (L_("Close"),
+                             // TRANSLATORS: The Escape key of the keyboard
+                             C_("key", "Escape")))
           showWindow = false;
 
         ImGui::EndMenu();

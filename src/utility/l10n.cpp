@@ -343,6 +343,7 @@ struct SKIF_L10n::Catalog
   Kind                    kind       = Kind_Translation;
   std::string             tag;
   std::string             source;     // Where it was loaded from (for the log)
+  std::string             name;       // X-Language-Name header, if any (for languages Windows has no name for)
   int                     total      = 0;
   int                     translated = 0; // At startup, counted by SKIF_L10n_ScanPO ( ); exact once loaded
   SKIF_L10n_PluralRule    plural;
@@ -501,10 +502,11 @@ SKIF_L10n_ParseQuoted (std::string_view line, size_t pos, std::string& out)
   return any;
 }
 
-// The header of a .po file (the msgstr of the entry with an empty msgid): its language, and its plural forms (if plural is
-//   not nullptr). True if it has a Plural-Forms line.
+// The header of a .po file (the msgstr of the entry with an empty msgid): its language, its plural forms (if plural is
+//   not nullptr), and the name of the language from X-Language-Name (if name is not nullptr). True if it has a
+//     Plural-Forms line.
 static bool
-SKIF_L10n_ParseHeader (std::string_view header, const SKIF_L10n::Catalog& cat, std::string& language, SKIF_L10n_PluralRule* plural)
+SKIF_L10n_ParseHeader (std::string_view header, const SKIF_L10n::Catalog& cat, std::string& language, SKIF_L10n_PluralRule* plural, std::string* name = nullptr)
 {
   bool has_plural_forms = false;
 
@@ -523,6 +525,8 @@ SKIF_L10n_ParseHeader (std::string_view header, const SKIF_L10n::Catalog& cat, s
 
     if (key == "language")
       language = SKIF_L10n_NormalizeTag (value);
+    else if (key == "x-language-name" && name != nullptr)
+      *name = std::string (value);
     else if (key == "plural-forms")
     {
       has_plural_forms = true;
@@ -580,7 +584,7 @@ SKIF_L10n_ScanPO (std::string_view data, SKIF_L10n::Catalog& cat)
     if (e.has_id)
     {
       if (! e.has_ctx && ! e.id_text)
-        SKIF_L10n_ParseHeader (e.header, cat, language, nullptr);
+        SKIF_L10n_ParseHeader (e.header, cat, language, nullptr, &cat.name);
 
       else
       {
@@ -1264,7 +1268,7 @@ SKIF_L10n::GetLanguages (bool include_pseudo) const
   std::vector <Language> translations;
   for (auto cat : _catalogs)
     if (cat->kind == Catalog::Kind_Translation)
-      translations.push_back ({ cat->tag, SKIF_L10n_GetNativeName (cat->tag), (cat->total > 0) ? (cat->translated * 100 / cat->total) : 0, false });
+      translations.push_back ({ cat->tag, (cat->name.empty ( )) ? SKIF_L10n_GetNativeName (cat->tag) : cat->name, (cat->total > 0) ? (cat->translated * 100 / cat->total) : 0, false });
 
   std::sort (translations.begin ( ), translations.end ( ), [](const Language& a, const Language& b) { return a.tag < b.tag; });
   languages.insert (languages.end ( ), translations.begin ( ), translations.end ( ));

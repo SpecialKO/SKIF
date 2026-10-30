@@ -6,6 +6,7 @@ SKIF uses gettext `.po` files, read directly by SKIF (no compiling, no third-par
 | --- | --- |
 | `SKIF.pot` | The template: every translatable English text. Generated, do not edit by hand. |
 | `<language>.po` | One translation per language, e.g. `de.po`, `pt_BR.po`, `zh_Hans.po`. |
+| `en-x-pirate.po` | An example: a complete translation into Pirate English, not embedded. Try it via the `Languages` folder (see *Testing a translation*). |
 | `..\..\l10n.rc` | Lists the `.po` files that are embedded in `SKIF.exe`. |
 | `..\..\tools\l10n_extract.ps1` | Regenerates `SKIF.pot` from the sources. |
 
@@ -15,6 +16,8 @@ SKIF uses gettext `.po` files, read directly by SKIF (no compiling, no third-par
 2. Set the `Language` header and the `Plural-Forms` header of the language (Poedit fills these in). The language is a BCP 47 tag; `_` and `-` are both accepted: `de`, `pt-BR` / `pt_BR`, `zh-Hans` / `zh_Hans`.
 3. Read the comments of an entry (*Notes for translators* in Poedit). They say what the placeholders are and any limits.
 4. Entries marked *fuzzy* and empty ones are shown in English.
+
+To see what a finished translation looks like, open `en-x-pirate.po`. It uses a private-use tag (`en-x-pirate`) that Windows has no name for, so it sets the name shown in the language picker with an `X-Language-Name` header. A regular language does not need that header.
 
 ### Placeholders and markup
 
