@@ -825,7 +825,12 @@ SK_ImGui_KeybindDialog (SK_KeybindMultiState* keybind)
   // At most 30 times the font size wide, and never wider than the window it is centered on; longer text wraps
   const  float         max_width = ImMax (font_size * 9.0f, ImMin (font_size * 30.0f, vp->Size.x - font_size * 2.0f));
 
-  if (SKIF_ImGui_BeginPopup ("###SKIFKeybindDialog", nullptr, ImVec2 (0.0f, 0.0f),
+  // One dialog per window (viewport): with the same name, dialogs open in both the main window and the INI editor at once
+  //   would be one and the same ImGui window, drawn in only one of them
+  char dialog_name [48];
+  snprintf (dialog_name, sizeof (dialog_name), "###SKIFKeybindDialog_%08X", vp->ID);
+
+  if (SKIF_ImGui_BeginPopup (dialog_name, nullptr, ImVec2 (0.0f, 0.0f),
                              ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove))
   {
     // Minimum width (SKIF popups do not take size constraints)
