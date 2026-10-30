@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-10-30 16:49+0100\n"
+"POT-Creation-Date: 2026-10-30 16:55+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -806,6 +806,64 @@ msgstr ""
 
 #: src/tabs/hardware.cpp:1580
 msgid "No layer of this kind was found."
+msgstr ""
+
+#: src/tabs/library.cpp:247
+#: src/tabs/settings.cpp:1326
+#: src/tabs/settings.cpp:1343
+msgid "Large icons"
+msgstr ""
+
+#: src/tabs/library.cpp:253
+#: src/tabs/settings.cpp:1349
+msgid "Currently enforced by touch input mode."
+msgstr ""
+
+#: src/tabs/library.cpp:1446
+#: src/tabs/library/library_details.cpp:429
+msgid "Loading..."
+msgstr ""
+
+#: src/tabs/library.cpp:1604
+msgid "New 32-bit DLL Installed"
+msgstr ""
+
+#: src/tabs/library.cpp:1605
+msgid "New 64-bit DLL Installed"
+msgstr ""
+
+#: src/tabs/library.cpp:1724
+#: src/tabs/library.cpp:1832
+msgid "Missing Files"
+msgstr ""
+
+#: src/tabs/library.cpp:1725
+#: src/tabs/library.cpp:1833
+msgid "Unable to extract Special K DLL files from the provided {0} file."
+msgstr ""
+
+#: src/tabs/library.cpp:1871
+msgid "Unsupported Feature"
+msgstr ""
+
+#: src/tabs/library.cpp:1872
+msgid "SKIF cannot perform a drag-n-drop update because Special K {0} or newer is required."
+msgstr ""
+
+#: src/tabs/library.cpp:1887
+msgid "Unsupported file format"
+msgstr ""
+
+#: src/tabs/library.cpp:1889
+msgid "Add a game to the library:"
+msgstr ""
+
+#: src/tabs/library.cpp:1895
+msgid "Update the cover for the current selected game:"
+msgstr ""
+
+#: src/tabs/library.cpp:1906
+msgid "Note that the app has no support for animated images."
 msgstr ""
 
 #: src/tabs/local.cpp:30
@@ -1810,11 +1868,6 @@ msgstr ""
 msgid "Disabling the status bar as well as tooltips will hide all additional information or tips."
 msgstr ""
 
-#: src/tabs/settings.cpp:1326
-#: src/tabs/settings.cpp:1343
-msgid "Large icons"
-msgstr ""
-
 #: src/tabs/settings.cpp:1327
 #: src/tabs/settings.cpp:1353
 msgid "Fade covers"
@@ -1823,10 +1876,6 @@ msgstr ""
 #: src/tabs/settings.cpp:1328
 #: src/tabs/settings.cpp:1364
 msgid "Win11 corners"
-msgstr ""
-
-#: src/tabs/settings.cpp:1349
-msgid "Currently enforced by touch input mode."
 msgstr ""
 
 #: src/tabs/settings.cpp:1351
@@ -2266,10 +2315,6 @@ msgstr ""
 
 #: src/tabs/library/library_details.cpp:393
 msgid "Downloading..."
-msgstr ""
-
-#: src/tabs/library/library_details.cpp:429
-msgid "Loading..."
 msgstr ""
 
 #: src/tabs/library/library_details.cpp:430

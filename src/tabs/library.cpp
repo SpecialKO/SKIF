@@ -69,6 +69,9 @@
 #include <utility/artwork.h>
 #include "library/library_ui.h" // Shared with the other library/*.cpp files
 
+// Last, as it defines short macros such as _ ( )
+#include <utility/l10n.h>
+
 bool                   SKIF_STEAM_OWNER  = false;
 std::atomic<bool>      modDownloading    = false;
 std::atomic<bool>      modInstalling     = false;
@@ -241,13 +244,13 @@ ShowLargeIconToggle (void)
     SKIF_ImGui_PushDisableState ( );
   }
 
-  if (SKIF_ImGui_MenuItemEx2 ("Large icons", ICON_FA_ICONS, ImColor(255, 207, 72), spaces, pActiveBool))
+  if (SKIF_ImGui_MenuItemEx2 (L_("Large icons"), ICON_FA_ICONS, ImColor(255, 207, 72), spaces, pActiveBool))
     _registry.regKVUILargeIcons.putData (_registry.bUILargeIcons);
 
   if (_registry._TouchDevice)
   {
     SKIF_ImGui_PopDisableState  ( );
-    SKIF_ImGui_SetHoverTip      ("Currently enforced by touch input mode.", false, true);
+    SKIF_ImGui_SetHoverTip      (_("Currently enforced by touch input mode."), false, true);
   }
 }
 
@@ -1440,7 +1443,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       // Show a loading label if the data is currently being processed
       if (pApp->loading)
-        ImGui::TextDisabled ("Loading...");
+        ImGui::TextDisabled ("%s", _("Loading..."));
       else if (pApp->id == SKIF_STEAM_APPID)
         DrawSpecialKContextMenu (pApp);
       else
@@ -1598,8 +1601,8 @@ SKIF_UI_Tab_DrawLibrary (void)
         SKIF_Util_GetFileVersion (local_path.c_str ())
       );
 
-    static constexpr char* str32 = "New 32-bit DLL Installed";
-    static constexpr char* str64 = "New 64-bit DLL Installed";
+    const char* str32 = _("New 32-bit DLL Installed");
+    const char* str64 = _("New 64-bit DLL Installed");
 
     ImGui::InsertNotification ({
       ImGuiToastType::Success, 5000,
@@ -1718,8 +1721,8 @@ SKIF_UI_Tab_DrawLibrary (void)
         if (failed)
           ImGui::InsertNotification ({
             ImGuiToastType::Error, 5000,
-            "Missing Files",
-            "Unable to extract Special K DLL files from the provided .zip file."
+            _("Missing Files"),
+            "%s", F_("Unable to extract Special K DLL files from the provided {0} file.", ".zip").c_str ( )
           });
       }
     }
@@ -1826,8 +1829,8 @@ SKIF_UI_Tab_DrawLibrary (void)
               PLOG_ERROR << "Timed out waiting for the DLL files to be extracted from the 7z archive.";
               ImGui::InsertNotification ({
                 ImGuiToastType::Error, 5000,
-                "Missing Files",
-                "Unable to extract Special K DLL files from the provided .7z file."
+                _("Missing Files"),
+                "%s", F_("Unable to extract Special K DLL files from the provided {0} file.", ".7z").c_str ( )
               });
               ret = false;
               break;
@@ -1865,8 +1868,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
       else
       {
-        SKIF_ImGui_InfoMessage ("Unsupported Feature",
-       "SKIF cannot perform a drag-n-drop update because Special K 25.3.11 or newer is required.");
+        SKIF_ImGui_InfoMessage (_("Unsupported Feature"),
+       F_("SKIF cannot perform a drag-n-drop update because Special K {0} or newer is required.", "25.3.11"));
       }
     }
 
@@ -1880,16 +1883,16 @@ SKIF_UI_Tab_DrawLibrary (void)
     }
 
     else {
-      constexpr char* error_title =
-        "Unsupported file format";
-      constexpr char* error_label =
-        "Add a game to the library:\n"
+      const char*       error_title =
+        _("Unsupported file format");
+      const std::string error_label =
+        std::string (_("Add a game to the library:")) + "\n"
         "   *.exe\n"
         "   *.lnk\n"
         "   *.bat\n"
         "\n"
         "\n"
-        "Update the cover for the current selected game:\n"
+        + _("Update the cover for the current selected game:") + "\n"
         "   *.jpg\n"
       //"   *.jxr\n"
         "   *.png\n"
@@ -1900,7 +1903,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       //"   *.gif\n"
       //"   *.tif\n"
         "\n"
-        "Note that the app has no support for animated images.";
+        + _("Note that the app has no support for animated images.");
 
       SKIF_ImGui_InfoMessage (error_title, error_label);
     }
