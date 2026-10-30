@@ -7124,6 +7124,79 @@ void ImTextInitClassifiers()
     ImTextClassifierSetCharClass(g_CharClassifierIsSeparator_3000_300f, 0x3000, 0x300F, ImWcharClass_Punct, 0x3002);
 }
 
+#ifdef SKIF_L10N_CJK_LINE_BREAKS // SKIF (l10n): BEGIN, line breaks between CJK characters (see imconfig.h)
+
+// Chinese and Japanese are written without spaces between words, so a line may break between any two of their characters
+//   (Korean uses spaces, and is wrapped as before). A few characters may not start a line (closing brackets and punctuation,
+//     small kana, the prolonged sound mark), and a few may not end one (opening brackets): simple "kinsoku shori".
+//       Unpatched, ImGui only cuts such text where a line overflows, which may e.g. start a line with an ideographic full stop.
+
+// Chinese and Japanese characters (and full-width forms) a line may break before and after
+static bool ImTextIsCJKBreakable(unsigned int c)
+{
+    return (c >= 0x2E80 && c <= 0x2FDF)   || // CJK Radicals, Kangxi Radicals
+           (c >= 0x3001 && c <= 0x303F)   || // CJK Symbols and Punctuation (not the ideographic space, a blank)
+           (c >= 0x3040 && c <= 0x30FF)   || // Hiragana, Katakana
+           (c >= 0x3100 && c <= 0x312F)   || // Bopomofo
+           (c >= 0x31F0 && c <= 0x31FF)   || // Katakana Phonetic Extensions
+           (c >= 0x3400 && c <= 0x4DBF)   || // CJK Unified Ideographs Extension A
+           (c >= 0x4E00 && c <= 0x9FFF)   || // CJK Unified Ideographs
+           (c >= 0xF900 && c <= 0xFAFF)   || // CJK Compatibility Ideographs
+           (c >= 0xFE30 && c <= 0xFE4F)   || // CJK Compatibility Forms
+           (c >= 0xFF01 && c <= 0xFFEF)   || // Halfwidth and Fullwidth Forms
+           (c >= 0x20000 && c <= 0x3FFFF);   // Supplementary Ideographic Planes
+}
+
+// Characters that may not start a line: closing brackets and quotes, punctuation, iteration marks, small kana, the prolonged
+//   sound mark, and their full-width and half-width forms
+static bool ImTextIsNoBreakBefore(unsigned int c)
+{
+    if (c < 0x80)
+        return c != 0 && strchr(")]}.,;:!?%", (int)c) != NULL;
+    switch (c)
+    {
+    case 0x2019: case 0x201D: case 0x2026: case 0x2025:
+    case 0x3001: case 0x3002: case 0x3005: case 0x3009: case 0x300B: case 0x300D: case 0x300F:
+    case 0x3011: case 0x3015: case 0x3017: case 0x3019: case 0x301B: case 0x301E: case 0x301F:
+    case 0x3041: case 0x3043: case 0x3045: case 0x3047: case 0x3049: case 0x3063: case 0x3083:
+    case 0x3085: case 0x3087: case 0x308E: case 0x3095: case 0x3096: case 0x309D: case 0x309E:
+    case 0x30A1: case 0x30A3: case 0x30A5: case 0x30A7: case 0x30A9: case 0x30C3: case 0x30E3:
+    case 0x30E5: case 0x30E7: case 0x30EE: case 0x30F5: case 0x30F6: case 0x30FB: case 0x30FC:
+    case 0x30FD: case 0x30FE:
+    case 0xFF01: case 0xFF05: case 0xFF09: case 0xFF0C: case 0xFF0E: case 0xFF1A: case 0xFF1B:
+    case 0xFF1F: case 0xFF3D: case 0xFF5D: case 0xFF61: case 0xFF63: case 0xFF64: case 0xFF65:
+    case 0xFF9E: case 0xFF9F:
+        return true;
+    }
+    return (c >= 0x31F0 && c <= 0x31FF); // Small katakana (phonetic extensions)
+}
+
+// Characters that may not end a line: opening brackets and quotes, and their full-width and half-width forms
+static bool ImTextIsNoBreakAfter(unsigned int c)
+{
+    if (c < 0x80)
+        return c != 0 && strchr("([{", (int)c) != NULL;
+    switch (c)
+    {
+    case 0x2018: case 0x201C:
+    case 0x3008: case 0x300A: case 0x300C: case 0x300E: case 0x3010: case 0x3014: case 0x3016:
+    case 0x3018: case 0x301A: case 0x301D:
+    case 0xFF08: case 0xFF3B: case 0xFF5B: case 0xFF62:
+        return true;
+    }
+    return false;
+}
+
+// Whether a line may break between the characters prev and curr because of CJK text (one of them is Chinese or Japanese, and
+//   neither rule above forbids it). Also used by SKIF_ImGui_TextRich ( ) (skif_imgui.cpp), so its lines break the same way.
+bool ImTextIsCJKBreakOpportunity(unsigned int prev, unsigned int curr)
+{
+    return (ImTextIsCJKBreakable(curr) || ImTextIsCJKBreakable(prev)) &&
+           ! ImTextIsNoBreakBefore(curr) && ! ImTextIsNoBreakAfter(prev);
+}
+
+#endif // SKIF (l10n): END
+
 // Simple word-wrapping for English, not full-featured. Please submit failing cases!
 // This will return the next location to wrap from. If no wrapping if necessary, this will fast-forward to e.g. text_end.
 // Refer to imgui_test_suite's "drawlist_text_wordwrap_1" for tests.
@@ -7151,6 +7224,9 @@ const char* ImFontCalcWordWrapPositionEx(ImFont* font, float size, const char* t
 
     int prev_type = ImWcharClass_Other;
     const bool keep_blanks = (flags & ImDrawTextFlags_WrapKeepBlanks) != 0;
+#ifdef SKIF_L10N_CJK_LINE_BREAKS // SKIF (l10n): BEGIN
+    unsigned int prev_c = 0; // The previous character
+#endif                           // SKIF (l10n): END
 
     // Find next wrapping point
     //const char* span_begin = s;
@@ -7204,6 +7280,16 @@ const char* ImFontCalcWordWrapPositionEx(ImFont* font, float size, const char* t
         }
         else
         {
+#ifdef SKIF_L10N_CJK_LINE_BREAKS // SKIF (l10n): BEGIN
+            // End span between CJK characters (and between one and other text), where allowed: 'XY' -> 'X' 'Y'
+            if (prev_type != ImWcharClass_Blank && s != text && ImTextIsCJKBreakOpportunity(prev_c, c))
+            {
+                span_end = s;
+                line_width += span_width + blank_width;
+                span_width = blank_width = 0.0f;
+            }
+            else
+#endif                           // SKIF (l10n): END
             // End span: '.X' unless X is a digit
             if (prev_type == ImWcharClass_Punct && curr_type != ImWcharClass_Punct && !(c >= '0' && c <= '9')) // FIXME: Digit checks might be removed if allow custom separators (#8503)
             {
@@ -7232,6 +7318,9 @@ const char* ImFontCalcWordWrapPositionEx(ImFont* font, float size, const char* t
         }
 
         prev_type = curr_type;
+#ifdef SKIF_L10N_CJK_LINE_BREAKS // SKIF (l10n): BEGIN
+        prev_c = c;
+#endif                           // SKIF (l10n): END
         s = next_s;
     }
 

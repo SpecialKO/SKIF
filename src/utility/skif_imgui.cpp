@@ -926,6 +926,12 @@ SKIF_ImGui_SetNextItemWidthForLabel (const char* label)
 //
 // SKIF_ImGui_TextRichHighlight ( ) is the same, but the [...] parts are only highlighted (drawn in colLink), not clickable.
 //   Text put in a [...] from elsewhere (e.g. a key binding) should have its brackets doubled: SKIF_ImGui_TextRichEscape ( ).
+
+#ifdef SKIF_L10N_CJK_LINE_BREAKS
+// imgui_draw.cpp: whether a line may break between two characters because of CJK text (the same rules as ImGui's wrapping)
+bool ImTextIsCJKBreakOpportunity (unsigned int prev, unsigned int curr);
+#endif
+
 static int
 SKIF_ImGui_TextRichImpl (const char* text, std::initializer_list <const char*> link_icons, const ImVec4& colLink, bool clickable)
 {
@@ -989,7 +995,11 @@ SKIF_ImGui_TextRichImpl (const char* text, std::initializer_list <const char*> l
 
     return (curr == ' ' || curr == '\t' || prev == ' ' || prev == '\t' ||
            (prev < 0x80 && strchr (".,;:!?\")-/", static_cast <int> (prev)) != nullptr) ||
-            prev >= 0x2E80 || curr >= 0x2E80); // CJK: a line may break between characters
+#ifdef SKIF_L10N_CJK_LINE_BREAKS
+            ImTextIsCJKBreakOpportunity (prev, curr)); // CJK: between characters, but not before closing or after opening punctuation
+#else
+            prev >= 0x2E80 || curr >= 0x2E80);          // CJK: a line may break between characters
+#endif
   };
 
   ImFont*     font     = ImGui::GetFont     ( );
