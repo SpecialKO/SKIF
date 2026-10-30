@@ -13,6 +13,9 @@
 #include <fonts/fa_621.h>
 #include <fonts/fa_621b.h>
 
+// Last, as it defines short macros such as _ ( )
+#include <utility/l10n.h>
+
 unsigned int window_identifier = 0;
 std::vector <IniWindow> vIniWindow;
 bool INIEditorActive = false;
@@ -50,8 +53,10 @@ IniWindow::UpdateWindowTitle (void)
     filenameExt = std::filesystem::path(path_utf8).filename().string();
 
   path_filename = filenameExt;
-  doc_name      = (title.empty() ? (path_filename.empty() ? "Untitled" : path_filename) : title);
-  wnd_name      = (doc_name + " - Editor" + label); // + (bChanged ? "*" : "")
+  // In the language at the time (the title is updated when the file changes)
+  doc_name      = (title.empty() ? (path_filename.empty() ? std::string (_("Untitled")) : path_filename) : title);
+  // TRANSLATORS: Title of the editor of INI files of Special K; {0} is the name of the file (or of the game)
+  wnd_name      = (F_("{0} - Editor", doc_name) + label); // + (bChanged ? "*" : "")
 }
 
 void
@@ -72,7 +77,7 @@ IniWindow::IniWindow (std::vector<IniEntry>  _i, IniType _ty, const std::wstring
   type        = _ty;
   title       = _ti;
   public_seed = SKIF_Util_RandomInteger ( );
-  prompt_name = SK_FormatString ("Save Changes?###SavePrompt_%i", public_seed);
+  prompt_name = std::string (_("Save Changes?")) + SK_FormatString ("###SavePrompt_%i", public_seed);
   label       = ("###IniEditor-" + std::to_string (window_identifier));
   window_identifier++;
   SetPath           (_p);
@@ -129,7 +134,7 @@ SKIF_UI_IniEditor_SaveAs (IniWindow* iniWindow)
 
   LPWSTR pwszFilePath = NULL;
   HRESULT hr          =
-    SKIF_Util_FileExplorer_SaveFile (&pwszFilePath, (HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, { { L"Configuration Files", L"*.ini" }, { L"All files", L"*.*" } }, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST, FOLDERID_ComputerFolder, defaultFolderPath.c_str(), L"ini");
+    SKIF_Util_FileExplorer_SaveFile (&pwszFilePath, (HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, { { W_("Configuration Files"), L"*.ini" }, { W_("All files"), L"*.*" } }, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST, FOLDERID_ComputerFolder, defaultFolderPath.c_str(), L"ini");
 
   if (hr == HRESULT_FROM_WIN32 (ERROR_CANCELLED))
     return;
@@ -139,7 +144,7 @@ SKIF_UI_IniEditor_SaveAs (IniWindow* iniWindow)
 
   else
   {
-    MessageBoxW ((HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, L"Unknown error attempting to retrieve file path!", L"Error", MB_OK | MB_ICONEXCLAMATION);
+    MessageBoxW ((HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, W_("Unknown error attempting to retrieve file path!"), W_("Error"), MB_OK | MB_ICONEXCLAMATION);
     return;
   }
 
@@ -156,7 +161,7 @@ SKIF_UI_IniEditor_OpenFile (IniWindow* iniWindow, IniType type, std::wstring pat
   {
     LPWSTR pwszFilePath = NULL;
     HRESULT hr          =
-      SKIF_Util_FileExplorer_BrowseForFile (&pwszFilePath, (HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, { { L"Configuration Files", L"*.ini" }, { L"All files", L"*.*" } }, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST);
+      SKIF_Util_FileExplorer_BrowseForFile (&pwszFilePath, (HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, { { W_("Configuration Files"), L"*.ini" }, { W_("All files"), L"*.*" } }, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST);
 
     if (hr == HRESULT_FROM_WIN32 (ERROR_CANCELLED))
       return;
@@ -166,7 +171,7 @@ SKIF_UI_IniEditor_OpenFile (IniWindow* iniWindow, IniType type, std::wstring pat
 
     else
     {
-      MessageBoxW ((HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, L"Unknown error attempting to retrieve file path!", L"Error", MB_OK | MB_ICONEXCLAMATION);
+      MessageBoxW ((HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, W_("Unknown error attempting to retrieve file path!"), W_("Error"), MB_OK | MB_ICONEXCLAMATION);
       return;
     }
   }
@@ -334,7 +339,7 @@ SKIF_UI_IniEditor_Process (void)
 
         ImGui::InsertNotification ({
           ImGuiToastType::Info, 1000,
-          "File was reloaded.",
+          _("File was reloaded."),
           ""
         });
       }
@@ -346,35 +351,35 @@ SKIF_UI_IniEditor_Process (void)
 
     if (ImGui::BeginMenuBar())
     {
-      if (ImGui::BeginMenu ("File"))
+      if (ImGui::BeginMenu (L_("File")))
       {
-        if (ImGui::MenuItem ("New", "Ctrl+N"))
+        if (ImGui::MenuItem (L_("New"), "Ctrl+N"))
           newFile  = true;
 
-        if (ImGui::MenuItem ("New Window", "Ctrl+Shift+N"))
+        if (ImGui::MenuItem (L_("New Window"), "Ctrl+Shift+N"))
           newWnd   = true;
 
-        if (ImGui::MenuItem ("Open", "Ctrl+O"))
+        if (ImGui::MenuItem (L_("Open"), "Ctrl+O"))
           openFile = true;
 
-        if (ImGui::MenuItem ("Save", "Ctrl+S"))
+        if (ImGui::MenuItem (L_("Save"), "Ctrl+S"))
           save     = true;
 
-        if (ImGui::MenuItem ("Save As", "Ctrl+Shift+S"))
+        if (ImGui::MenuItem (L_("Save As"), "Ctrl+Shift+S"))
           saveAs   = true;
 
-        if (ImGui::MenuItem ("Close", "Escape"))
+        if (ImGui::MenuItem (L_("Close"), C_("key", "Escape")))
           show     = false;
 
         ImGui::EndMenu();
       }
 
-      if (ImGui::BeginMenu ("Edit"))
+      if (ImGui::BeginMenu (L_("Edit")))
       {
         if (! window.bChanged)
           SKIF_ImGui_PushDisableState ( );
 
-        if (ImGui::MenuItem ("Undo Changes"))
+        if (ImGui::MenuItem (L_("Undo Changes")))
           reset = true;
 
         if (! window.bChanged)
@@ -385,7 +390,7 @@ SKIF_UI_IniEditor_Process (void)
         if (window.path.empty())
           SKIF_ImGui_PushDisableState ( );
 
-        if (ImGui::MenuItem ("Reload File"))
+        if (ImGui::MenuItem (L_("Reload File")))
           reload = true;
 
         if (window.path.empty())
@@ -394,9 +399,9 @@ SKIF_UI_IniEditor_Process (void)
         ImGui::EndMenu();
       }
 
-      if (ImGui::BeginMenu ("View"))
+      if (ImGui::BeginMenu (L_("View")))
       {
-        if (ImGui::MenuItem ("Collapse/Expand"))
+        if (ImGui::MenuItem (L_("Collapse/Expand")))
         {
           if (window.collapsed_sections.empty())
             collapseAll = true;
@@ -406,18 +411,18 @@ SKIF_UI_IniEditor_Process (void)
 
         ImGui::Separator ( );
 
-        if (ImGui::MenuItem ("Unused Settings", "", window.bViewUnused))
+        if (ImGui::MenuItem (L_("Unused Settings"), "", window.bViewUnused))
           window.bViewUnused = ! window.bViewUnused;
 
         ImGui::EndMenu();
       }
 
-      if (ImGui::BeginMenu ("Tools"))
+      if (ImGui::BeginMenu (L_("Tools")))
       {
         if (window.path.empty())
           SKIF_ImGui_PushDisableState ( );
 
-        if (ImGui::MenuItem ("External Editor"))
+        if (ImGui::MenuItem (L_("External Editor")))
           SKIF_Util_OpenURI (window.path, SW_SHOWNORMAL, NULL);
 
         if (window.path.empty())
@@ -640,8 +645,8 @@ SKIF_UI_IniEditor_Process (void)
       SKIF_ImGui_Spacing ( );
       SKIF_ImGui_Spacing ( );
 
-      static constexpr char* szText   = "Unused settings are hidden by default.";
-      static constexpr char* szButton = "   View unused settings   ";
+      const char*       szText   = _("Unused settings are hidden by default.");
+      const std::string szButton = std::string ("   ") + _("View unused settings") + "   ###ViewUnusedSettings";
 
       ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f));
 
@@ -652,8 +657,8 @@ SKIF_UI_IniEditor_Process (void)
 
       SKIF_ImGui_Spacing ( );
 
-      SKIF_ImGui_CenterNextItem (ImGui::CalcTextSize (szButton).x + ImGui::GetStyle ().FramePadding.x * 2.0f);
-      if (ImGui::Button         (szButton))
+      SKIF_ImGui_CenterNextItem (ImGui::CalcTextSize (szButton.c_str ( ), nullptr, true).x + ImGui::GetStyle ().FramePadding.x * 2.0f);
+      if (ImGui::Button         (szButton.c_str ( )))
         window.bViewUnused = ! window.bViewUnused;
 
       SKIF_ImGui_Spacing ( );
@@ -753,7 +758,8 @@ SKIF_UI_IniEditor_Process (void)
           window.want_action = EditorAction::None;
         };
 
-        std::string message = "Do you want to save changed to " + window.doc_name + "?";
+        // TRANSLATORS: {0} is the name of a file (or of a game)
+        std::string message = F_("Do you want to save changes to {0}?", window.doc_name);
         switch (SKIF_ImGui_SaveChangesPrompt (window.prompt_name.c_str(), &window.prompt_show, message.c_str()))
         {
           case DChoice_Save:

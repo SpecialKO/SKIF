@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-10-30 17:33+0100\n"
+"POT-Creation-Date: 2026-10-30 17:43+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -980,6 +980,134 @@ msgstr ""
 msgid "No layer of this kind was found."
 msgstr ""
 
+#: src/tabs/ini_editor.cpp:57
+msgid "Untitled"
+msgstr ""
+
+#. TRANSLATORS: Title of the editor of INI files of Special K; {0} is the name of the file (or of the game)
+#: src/tabs/ini_editor.cpp:59
+msgid "{0} - Editor"
+msgstr ""
+
+#: src/tabs/ini_editor.cpp:80
+msgid "Save Changes?"
+msgstr ""
+
+#: src/tabs/ini_editor.cpp:137
+#: src/tabs/ini_editor.cpp:164
+msgid "Configuration Files"
+msgstr ""
+
+#: src/tabs/ini_editor.cpp:137
+#: src/tabs/ini_editor.cpp:164
+msgid "All files"
+msgstr ""
+
+#: src/tabs/ini_editor.cpp:147
+#: src/tabs/ini_editor.cpp:174
+msgid "Unknown error attempting to retrieve file path!"
+msgstr ""
+
+#: src/tabs/ini_editor.cpp:147
+#: src/tabs/ini_editor.cpp:174
+msgid "Error"
+msgstr ""
+
+#: src/tabs/ini_editor.cpp:342
+msgid "File was reloaded."
+msgstr ""
+
+#: src/tabs/ini_editor.cpp:354
+#: src/tabs/local.cpp:823
+msgid "File"
+msgstr ""
+
+#: src/tabs/ini_editor.cpp:356
+#: src/tabs/local.cpp:825
+msgid "New"
+msgstr ""
+
+#: src/tabs/ini_editor.cpp:359
+msgid "New Window"
+msgstr ""
+
+#: src/tabs/ini_editor.cpp:362
+msgid "Open"
+msgstr ""
+
+#: src/tabs/ini_editor.cpp:365
+#: src/tabs/library/library_properties.cpp:1923
+#: src/tabs/library/library_properties.cpp:1933
+#: src/utility/skif_imgui.cpp:1667
+msgid "Save"
+msgstr ""
+
+#: src/tabs/ini_editor.cpp:368
+msgid "Save As"
+msgstr ""
+
+#. TRANSLATORS: The Escape key of the keyboard
+#: src/tabs/ini_editor.cpp:371
+#: src/tabs/local.cpp:829
+#: src/utility/updater.cpp:1386
+#: src/utility/updater.cpp:1392
+msgid "Close"
+msgstr ""
+
+#: src/tabs/ini_editor.cpp:371
+#: src/tabs/local.cpp:829
+msgctxt "key"
+msgid "Escape"
+msgstr ""
+
+#: src/tabs/ini_editor.cpp:377
+#: src/tabs/library/library_menus.cpp:262
+#: src/tabs/library/library_menus.cpp:298
+msgid "Edit"
+msgstr ""
+
+#: src/tabs/ini_editor.cpp:382
+msgid "Undo Changes"
+msgstr ""
+
+#: src/tabs/ini_editor.cpp:393
+msgid "Reload File"
+msgstr ""
+
+#: src/tabs/ini_editor.cpp:402
+msgid "View"
+msgstr ""
+
+#: src/tabs/ini_editor.cpp:404
+msgid "Collapse/Expand"
+msgstr ""
+
+#: src/tabs/ini_editor.cpp:414
+msgid "Unused Settings"
+msgstr ""
+
+#: src/tabs/ini_editor.cpp:420
+msgid "Tools"
+msgstr ""
+
+#: src/tabs/ini_editor.cpp:425
+#: src/tabs/library/library_menus.cpp:211
+msgid "External Editor"
+msgstr ""
+
+#: src/tabs/ini_editor.cpp:648
+msgid "Unused settings are hidden by default."
+msgstr ""
+
+#: src/tabs/ini_editor.cpp:649
+msgid "View unused settings"
+msgstr ""
+
+#. TRANSLATORS: {0} is the name of a file (or of a game)
+#: src/tabs/ini_editor.cpp:762
+msgid "Do you want to save changes to {0}?"
+msgstr ""
+
 #: src/tabs/library.cpp:247
 #: src/tabs/settings.cpp:1326
 #: src/tabs/settings.cpp:1343
@@ -1116,26 +1244,6 @@ msgstr ""
 
 #: src/tabs/local.cpp:746
 msgid "Delete Selected"
-msgstr ""
-
-#: src/tabs/local.cpp:823
-msgid "File"
-msgstr ""
-
-#: src/tabs/local.cpp:825
-msgid "New"
-msgstr ""
-
-#. TRANSLATORS: The Escape key of the keyboard
-#: src/tabs/local.cpp:829
-#: src/utility/updater.cpp:1386
-#: src/utility/updater.cpp:1392
-msgid "Close"
-msgstr ""
-
-#: src/tabs/local.cpp:829
-msgctxt "key"
-msgid "Escape"
 msgstr ""
 
 #: src/tabs/local.cpp:835
@@ -2607,17 +2715,8 @@ msgstr ""
 msgid "Remember collapsible state"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:211
-msgid "External Editor"
-msgstr ""
-
 #: src/tabs/library/library_menus.cpp:237
 msgid "Apply Preset"
-msgstr ""
-
-#: src/tabs/library/library_menus.cpp:262
-#: src/tabs/library/library_menus.cpp:298
-msgid "Edit"
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:311
@@ -3396,12 +3495,6 @@ msgstr ""
 msgid "Properties - {0}"
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1923
-#: src/tabs/library/library_properties.cpp:1933
-#: src/utility/skif_imgui.cpp:1667
-msgid "Save"
-msgstr ""
-
 #: src/tabs/library/library_properties.cpp:1949
 msgid "Some of the changes could not be saved."
 msgstr ""
@@ -3416,6 +3509,14 @@ msgstr ""
 
 #: src/utility/games.cpp:423
 msgid "This warning will not appear again."
+msgstr ""
+
+#: src/utility/ini_reader.cpp:638
+msgid "INI Reader"
+msgstr ""
+
+#: src/utility/ini_reader.cpp:638
+msgid "Could not parse the INI file:"
 msgstr ""
 
 #: src/utility/injection.cpp:238

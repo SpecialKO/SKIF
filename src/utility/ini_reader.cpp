@@ -16,6 +16,9 @@
 #include <windows.h>
 #include <stringapiset.h>
 
+// Last, as it defines short macros such as _ ( )
+#include <utility/l10n.h>
+
 std::vector <IniEntry> g_vIniReaderOSD;
 
 enum class Encoding
@@ -632,7 +635,7 @@ SKIF_IniReader_ParseIni (const std::wstring& file_path, IniType ini_type)
     ini.ParseContent (SK_WideCharToUTF8 (ReadTextFile (file_path)));
   } catch (const std::exception& e) {
     PLOG_ERROR << "Failed to parse INI file! Error: " << e.what ();
-    SKIF_ImGui_InfoMessage ("INI Reader", "Could not parse ini: " + SK_WideCharToUTF8 (file_path));
+    SKIF_ImGui_InfoMessage (_("INI Reader"), std::string (_("Could not parse the INI file:")) + " " + SK_WideCharToUTF8 (file_path));
     return std::vector <IniEntry>();
   };
 
