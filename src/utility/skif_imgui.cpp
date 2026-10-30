@@ -730,6 +730,31 @@ SKIF_ImGui_TextColoredWrapped (const ImVec4& col, const char* text)
   ImGui::PopStyleColor  ( );
 }
 
+// One line of text, shortened with an ellipsis if it is wider than the rest of the line (e.g. a translated status in a narrow
+//   column), with the full text shown in a tooltip
+void
+SKIF_ImGui_TextColoredEllipsis (const ImVec4& col, const char* text)
+{
+  const float width = ImGui::CalcTextSize (text).x;
+  const float avail = ImGui::GetContentRegionAvail ( ).x;
+
+  if (width <= avail || avail <= 0.0f)
+  {
+    ImGui::TextColored (col, "%s", text);
+    return;
+  }
+
+  const ImVec2 pos    = ImGui::GetCursorScreenPos ( );
+  const float  height = ImGui::GetTextLineHeight  ( );
+
+  ImGui::PushStyleColor     (ImGuiCol_Text, col);
+  ImGui::RenderTextEllipsis (ImGui::GetWindowDrawList ( ), pos, ImVec2 (pos.x + avail, pos.y + height), pos.x + avail, text, nullptr, nullptr);
+  ImGui::PopStyleColor      ( );
+
+  ImGui::Dummy              (ImVec2 (avail, height));
+  SKIF_ImGui_SetHoverTip    (text);
+}
+
 // Width of a combo (its frame, arrow button and the text) that fits the widest of the items, and is at least min_width wide
 float
 SKIF_ImGui_ComboWidth (std::initializer_list <const char*> items, float min_width)

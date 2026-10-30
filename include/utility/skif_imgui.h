@@ -79,6 +79,7 @@ void     SKIF_ImGui_Spacing               (float multiplier);
 void     SKIF_ImGui_Spacing               (void);
 bool     SKIF_ImGui_Selectable            (const char* label);
 void     SKIF_ImGui_TextColoredWrapped    (const ImVec4& col, const char* text); // ImGui::TextColored ( ) that wraps (e.g. translated captions, which may be much longer than in English)
+void     SKIF_ImGui_TextColoredEllipsis   (const ImVec4& col, const char* text); // ImGui::TextColored ( ) shortened with an ellipsis if it does not fit the rest of the line (full text in a tooltip)
 // Layout helpers for text whose length is not known up front (translations)
 float    SKIF_ImGui_CheckboxWidth         (const char* label);                   // Width of a checkbox or radio button with this label
 bool     SKIF_ImGui_SameLineIfFits        (float width);                         // SameLine ( ) if an item of this width fits the rest of the line, else a new line; true if on the same line

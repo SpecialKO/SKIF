@@ -848,21 +848,21 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
     SK_WideCharToUTF8 (_path_cache.specialk_userdata).c_str ()
   );
 
-  // 32-bit/64-bit Services
+  // 32-bit/64-bit Services (shortened with an ellipsis if wider than the rest of the frame)
   if (pid32 && bAckInj)
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "%s", _("Waiting for game..."));
+    SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), _("Waiting for game..."));
   else if (pid32)
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "%s", _("Running"));
+    SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), _("Running"));
   else
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), "%s", _("Stopped"));
+    SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), _("Stopped"));
 
 #ifdef _WIN64
   if (pid64 && bAckInj)
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "%s", _("Waiting for game..."));
+    SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), _("Waiting for game..."));
   else if (pid64)
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), "%s", _("Running"));
+    SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), _("Running"));
   else
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), "%s", _("Stopped"));
+    SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), _("Stopped"));
 #else
   ImGui::NewLine  ();
 #endif
