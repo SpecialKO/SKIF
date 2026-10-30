@@ -22,6 +22,9 @@
 #include <utility/skif_imgui.h>
 #include <../packages_misc/ImGuiNotify.hpp>
 
+// Last, as it defines short macros such as _ ( )
+#include <utility/l10n.h>
+
 /*
 
 SKIF's auto-updater relies on the JSON file located at https://sk-data.special-k.info/repository.json
@@ -678,9 +681,9 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
           }
 
           if (versionDiff == 0)
-            _res.history += version["Description"].get<std::string>() + "  -[ This is the version currently installed! ]-";
+            _res.history += version["Description"].get<std::string>() + "  -[ " + _("This is the version currently installed!") + " ]-";
           else if (versionDiff > 0 && ! parsedFirstVersion)
-            _res.history += version["Description"].get<std::string>() + "  -[ Update available! ]-";
+            _res.history += version["Description"].get<std::string>() + "  -[ " + _("Update available!") + " ]-";
           else
             _res.history += version["Description"].get<std::string>();
 
@@ -688,7 +691,7 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
           _res.history += "=================\n";
 
           if (version["ReleaseNotes"].get<std::string>().empty())
-            _res.history += "No listed changes.";
+            _res.history += _("No listed changes.");
           else
             _res.history += version["ReleaseNotes"].get<std::string>();
 
@@ -699,7 +702,7 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
               _res.release_notes += "\n\n\n"; // Spacing between the previous version and the current one
 
             if (! parsedFirstVersion)
-              _res.release_notes += version["Description"].get<std::string>() + "  -[ Newest update available! ]-";
+              _res.release_notes += version["Description"].get<std::string>() + "  -[ " + _("Newest update available!") + " ]-";
             else
               _res.release_notes += version["Description"].get<std::string>();
 
@@ -707,7 +710,7 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
             _res.release_notes += "=================\n";
 
             if (version["ReleaseNotes"].get<std::string>().empty())
-              _res.release_notes += "No listed changes.";
+              _res.release_notes += _("No listed changes.");
             else
               _res.release_notes += version["ReleaseNotes"].get<std::string>();
           }
@@ -745,7 +748,7 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
               if (_res.release_notes.empty())
               {
                 if (version["ReleaseNotes"].get<std::string>().empty())
-                  _res.release_notes += "No listed changes.";
+                  _res.release_notes += _("No listed changes.");
                 else
                   _res.release_notes += version["ReleaseNotes"].get<std::string>();
               }
@@ -906,7 +909,7 @@ SKIF_Updater::PerformUpdateCheck (results_s& _res)
         _version.version     = version["Name"]        .get<std::string>();
         _version.description = version["Description"] .get<std::string>();
         _version.changes     = version["ReleaseNotes"].get<std::string>();
-        if (_version.changes.empty()) _version.changes = "No listed changes.";
+        if (_version.changes.empty()) _version.changes = _("No listed changes.");
         _version.url         = version["Installer"]   .get<std::string>();
         _version.filename    = _version.url.substr (_version.url.find_last_of ("/"));
         _version.checksum    = version["SHA256"]      .get<std::string>();
@@ -1217,18 +1220,18 @@ SKIF_Updater::Show (WindowType type)
     switch (type)
     {
     case WindowType::ChangesFull:
-      ptr->label = "Changelog"
+      ptr->label = _("Changelog")
                  + (! channel->first.empty() ? " (" + channel->first + ")" : "")
                  + "###Changelog-"  + std::to_string (id++);
       break;
     case WindowType::ChangesAutoUpdate:
-      ptr->label = "An update was installed automatically"
+      ptr->label = _("An update was installed automatically")
                  + (! channel->first.empty() ? " (" + channel->first + ")" : "")
                  + "###AutoUpdate-" + std::to_string (id++);
       break;
     case WindowType::Updater:
       ptr->label = ((SKIF_Util_CompareVersionStrings (results.version, (SK_GetBitness() == 64 ? _inject.SKVer64_utf8 : _inject.SKVer32_utf8)) > 0)
-                 ? "Version Available" : "Rollback Available")
+                 ? std::string (_("Version Available")) : std::string (_("Rollback Available")))
                  + (! channel->first.empty() ? " (" + channel->first + ")" : "")
                  + "###Updater-" + std::to_string (id++);
       break;
@@ -1247,10 +1250,10 @@ DrawInputTextEx (SKIF_Updater::changelog_s* fmt, SKIF_Updater::WindowType type, 
 
   if (fmt->notes.empty())
   {
-    ImGui::TextDisabled ((type == SKIF_Updater::WindowType::ChangesFull       ? "No historical changes detected..."                :
-                          type == SKIF_Updater::WindowType::ChangesAutoUpdate ? "No changes detected..."                           :
-                          type == SKIF_Updater::WindowType::Updater           ? "The update does not contain any release notes..." :
-                                                                                "This should not be poss... What did you do?! ;)"));
+    ImGui::TextDisabled ("%s", (type == SKIF_Updater::WindowType::ChangesFull       ? _("No historical changes detected...")                :
+                                type == SKIF_Updater::WindowType::ChangesAutoUpdate ? _("No changes detected...")                           :
+                                type == SKIF_Updater::WindowType::Updater           ? _("The update does not contain any release notes...") :
+                                                                                      "This should not be poss... What did you do?! ;)"));
     return;
   }
 
@@ -1346,12 +1349,10 @@ SKIF_Updater::DrawWindowChanges (Window* wnd, WindowType type)
     if (wnd->hwnd == nullptr && ImGui::GetWindowViewport()->PlatformHandleRaw)
       wnd->hwnd = (HWND)ImGui::GetWindowViewport()->PlatformHandleRaw;
 
-    ImGui::Text        ("You are currently using");
-    ImGui::SameLine    ( );
-    ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info),
-      ("Special K v " + (SK_GetBitness() == 64 ? _inject.SKVer64_utf8 : _inject.SKVer32_utf8)
-      ).c_str()
-    );
+    // TRANSLATORS: {0} is "Special K v" followed by a version number
+    SKIF_ImGui_TextHighlighted (_("You are currently using {0}"),
+      ("Special K v " + (SK_GetBitness() == 64 ? _inject.SKVer64_utf8 : _inject.SKVer32_utf8)).c_str(),
+      ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info));
 
     SKIF_ImGui_Spacing ();
 
@@ -1382,11 +1383,13 @@ SKIF_Updater::DrawWindowChanges (Window* wnd, WindowType type)
 
     SKIF_ImGui_Spacing ();
 
-    float fX = (ImGui::GetContentRegionAvail().x - 100 * SKIF_ImGui_GlobalDPIScale) / 2;
+    const float fButtonWidth = std::max (100.0f * SKIF_ImGui_GlobalDPIScale, ImGui::CalcTextSize (L_("Close"), nullptr, true).x + ImGui::GetStyle ( ).FramePadding.x * 2.0f);
+
+    float fX = (ImGui::GetContentRegionAvail().x - fButtonWidth) / 2;
 
     ImGui::SetCursorPosX (fX);
 
-    if (ImGui::Button ("Close", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
+    if (ImGui::Button (L_("Close"), ImVec2 ( fButtonWidth,
                                           25 * SKIF_ImGui_GlobalDPIScale )))
     {
       wnd->show = false;
@@ -1449,47 +1452,60 @@ SKIF_Updater::DrawWindowUpdater (Window* wnd)
     ImVec4      compareColor;
     bool        compareNewer = (SKIF_Util_CompareVersionStrings (results.version, currentVersion) > 0);
 
+    // Centered if it fits on one line, else wrapped
+    auto _TextCentered = [](const ImVec4& col, const char* text)
+    {
+      const float width = ImGui::CalcTextSize (text).x;
+
+      if (width <= ImGui::GetContentRegionAvail ( ).x)
+      {
+        ImGui::SetCursorPosX (ImGui::GetCursorPosX ( ) + (ImGui::GetContentRegionAvail ( ).x - width) / 2);
+        ImGui::TextColored   (col, "%s", text);
+      }
+
+      else
+        SKIF_ImGui_TextColoredWrapped (col, text);
+    };
+
     if (compareNewer)
     {
-      compareLabel = "This version is newer than the currently installed.";
+      compareLabel = _("This version is newer than the currently installed.");
       compareColor = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success);
     }
     else
     {
-      compareLabel = "WARNING: You are about to roll back Special K as this version is older than the currently installed!";
+      compareLabel = _("WARNING: You are about to roll back Special K as this version is older than the currently installed!");
       compareColor = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning);
     }
 
     SKIF_ImGui_Spacing ();
 
-    std::string updateTxt = "is ready to be installed.";
+    // TRANSLATORS: {0} is the name of a version of Special K (e.g. "Special K v 26.10.6")
+    const char* updateTxt = ((results.state & UpdateFlags_Downloaded) != UpdateFlags_Downloaded)
+                          ? _("{0} is available for download.")
+                          : _("{0} is ready to be installed.");
 
-    if ((results.state & UpdateFlags_Downloaded) != UpdateFlags_Downloaded)
-      updateTxt = "is available for download.";
+    float fX = (ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize (SKIF_L10n_Format (updateTxt, nullptr, results.description).c_str ( )).x) / 2;
 
-    float fX = (ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(((results.description) + updateTxt).c_str()).x + (((compareNewer) ? 2 : 1) * ImGui::GetStyle().ItemSpacing.x)) / 2;
+    ImGui::SetCursorPosX (ImGui::GetCursorPosX ( ) + std::max (0.0f, fX));
 
-    ImGui::SetCursorPosX(fX);
-
-    ImGui::TextColored (compareColor, (results.description).c_str());
-    ImGui::SameLine ( );
-    ImGui::Text (updateTxt.c_str());
+    SKIF_ImGui_TextHighlighted (updateTxt, results.description.c_str ( ), compareColor);
 
     SKIF_ImGui_Spacing ();
 
     if ((results.state & UpdateFlags_Failed) == UpdateFlags_Failed)
     {
       ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning));
-      ImGui::TextWrapped ("A failed download was detected! Click Download below to try again.");
-      ImGui::Text        ("In case of continued errors, consult SKIF.log for more details.");
+      ImGui::TextWrapped ("%s", _("A failed download was detected! Click Download below to try again."));
+      ImGui::TextWrapped ("%s", _("In case of continued errors, consult SKIF.log for more details."));
       ImGui::PopStyleColor  ( );
 
       SKIF_ImGui_Spacing ();
     }
 
-    ImGui::Text     ("Target Folder:");
+    ImGui::TextWrapped     ("%s", _("Target Folder:"));
     ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info));
-    ImGui::TextWrapped    (SK_WideCharToUTF8 (_path_cache.specialk_install).c_str());
+    ImGui::TextWrapped    ("%s", SK_WideCharToUTF8 (_path_cache.specialk_install).c_str());
     ImGui::PopStyleColor  ( );
 
     SKIF_ImGui_Spacing ();
@@ -1499,12 +1515,11 @@ SKIF_Updater::DrawWindowUpdater (Window* wnd)
     if (! results.release_notes_formatted.notes.empty())
     {
       if (results.description_installed.empty())
-        ImGui::Text           ("Changes:");
+        ImGui::TextWrapped           ("%s", _("Changes:"));
 
       else {
-        ImGui::Text           ("Changes from");
-        ImGui::SameLine       ( );
-        ImGui::TextColored    (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), (results.description_installed + ":").c_str());
+        // TRANSLATORS: {0} is the name of the installed version of Special K (e.g. "Special K v 26.10.6")
+        SKIF_ImGui_TextHighlighted (_("Changes from {0}:"), results.description_installed.c_str ( ), ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
       }
 
       ImVec2 child_size = ImVec2 (ImGui::GetContentRegionAvail().x,
@@ -1516,27 +1531,29 @@ SKIF_Updater::DrawWindowUpdater (Window* wnd)
       SKIF_ImGui_Spacing ();
     }
 
-    fX = (ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(compareLabel.c_str()).x + (((compareNewer) ? 2 : 1) * ImGui::GetStyle().ItemSpacing.x)) / 2;
-
-    ImGui::SetCursorPosX(fX);
-
-    ImGui::TextColored (compareColor, compareLabel.c_str());
+    _TextCentered (compareColor, compareLabel.c_str ( ));
 
     SKIF_ImGui_Spacing ();
 
-    fX = (ImGui::GetContentRegionAvail().x - (((compareNewer) ? 3 : 2) * 100 * SKIF_ImGui_GlobalDPIScale) - (((compareNewer) ? 2 : 1) * ImGui::GetStyle().ItemSpacing.x)) / 2;
+    const bool  btnDownload = ((results.state & UpdateFlags_Downloaded) != UpdateFlags_Downloaded);
+    const char* btnLabel    = (btnDownload)  ? L_("Download") :
+                              (compareNewer) ? L_("Update")   :
+                                               L_("Rollback");
 
-    ImGui::SetCursorPosX(fX);
+    // All buttons as wide as the widest label (at least 100 px)
+    const float fButtonWidth = std::max ({ 100.0f * SKIF_ImGui_GlobalDPIScale,
+                                           ImGui::CalcTextSize (btnLabel,       nullptr, true).x + ImGui::GetStyle ( ).FramePadding.x * 2.0f,
+                                           ImGui::CalcTextSize (L_("Ignore"),   nullptr, true).x + ImGui::GetStyle ( ).FramePadding.x * 2.0f,
+                                           ImGui::CalcTextSize (L_("Cancel"),   nullptr, true).x + ImGui::GetStyle ( ).FramePadding.x * 2.0f });
 
-    std::string btnLabel = (compareNewer) ? "Update" : "Rollback";
+    fX = (ImGui::GetContentRegionAvail().x - (((compareNewer) ? 3 : 2) * fButtonWidth) - (((compareNewer) ? 2 : 1) * ImGui::GetStyle().ItemSpacing.x * 2)) / 2;
 
-    if ((results.state & UpdateFlags_Downloaded) != UpdateFlags_Downloaded)
-      btnLabel = "Download";
+    ImGui::SetCursorPosX (ImGui::GetCursorPosX ( ) + std::max (0.0f, fX));
 
-    if (ImGui::Button (btnLabel.c_str(), ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
-                                                   25 * SKIF_ImGui_GlobalDPIScale )))
+    if (ImGui::Button (btnLabel, ImVec2 ( fButtonWidth,
+                                          25 * SKIF_ImGui_GlobalDPIScale )))
     {
-      if (btnLabel == "Download")
+      if (btnDownload)
       {
         _registry.wsIgnoreUpdate = L"";
         _registry.regKVIgnoreUpdate.putData (_registry.wsIgnoreUpdate);
@@ -1567,7 +1584,7 @@ SKIF_Updater::DrawWindowUpdater (Window* wnd)
 
     if (compareNewer)
     {
-      if (ImGui::Button ("Ignore", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
+      if (ImGui::Button (L_("Ignore"), ImVec2 ( fButtonWidth,
                                              25 * SKIF_ImGui_GlobalDPIScale )))
       {
         SetIgnoredUpdate (SK_UTF8ToWideChar (results.version));
@@ -1575,7 +1592,7 @@ SKIF_Updater::DrawWindowUpdater (Window* wnd)
         wnd->show = false;
       }
 
-      SKIF_ImGui_SetHoverTip ("SKIF will not prompt about this version again.");
+      SKIF_ImGui_SetHoverTip (_("SKIF will not prompt about this version again."));
 
       ImGui::SameLine ();
       ImGui::Spacing  ();
@@ -1584,7 +1601,7 @@ SKIF_Updater::DrawWindowUpdater (Window* wnd)
 
     SKIF_ImGui_BlockDragMoveWhenItemActive ( );
 
-    if (ImGui::Button ("Cancel", ImVec2 ( 100 * SKIF_ImGui_GlobalDPIScale,
+    if (ImGui::Button (L_("Cancel"), ImVec2 ( fButtonWidth,
                                            25 * SKIF_ImGui_GlobalDPIScale )))
     {
       wnd->show = false;

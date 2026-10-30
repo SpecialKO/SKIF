@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-10-30 17:10+0100\n"
+"POT-Creation-Date: 2026-10-30 17:16+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -289,10 +289,12 @@ msgid "View release notes..."
 msgstr ""
 
 #: src/tabs/common_ui.cpp:99
+#: src/utility/updater.cpp:1541
 msgid "Rollback"
 msgstr ""
 
 #: src/tabs/common_ui.cpp:100
+#: src/utility/updater.cpp:1540
 msgid "Update"
 msgstr ""
 
@@ -958,6 +960,8 @@ msgstr ""
 
 #. TRANSLATORS: The Escape key of the keyboard
 #: src/tabs/local.cpp:829
+#: src/utility/updater.cpp:1386
+#: src/utility/updater.cpp:1392
 msgid "Close"
 msgstr ""
 
@@ -1082,6 +1086,8 @@ msgstr ""
 #: src/tabs/library/library_popups.cpp:317
 #: src/tabs/library/library_properties.cpp:1924
 #: src/tabs/library/library_properties.cpp:1989
+#: src/utility/updater.cpp:1547
+#: src/utility/updater.cpp:1604
 msgid "Cancel"
 msgstr ""
 
@@ -3447,4 +3453,107 @@ msgstr ""
 
 #: src/utility/injection.cpp:1387
 msgid "Click to start the service"
+msgstr ""
+
+#: src/utility/updater.cpp:684
+msgid "This is the version currently installed!"
+msgstr ""
+
+#: src/utility/updater.cpp:686
+msgid "Update available!"
+msgstr ""
+
+#: src/utility/updater.cpp:694
+#: src/utility/updater.cpp:713
+#: src/utility/updater.cpp:751
+#: src/utility/updater.cpp:912
+msgid "No listed changes."
+msgstr ""
+
+#: src/utility/updater.cpp:705
+msgid "Newest update available!"
+msgstr ""
+
+#: src/utility/updater.cpp:1223
+msgid "Changelog"
+msgstr ""
+
+#: src/utility/updater.cpp:1228
+msgid "An update was installed automatically"
+msgstr ""
+
+#: src/utility/updater.cpp:1234
+msgid "Version Available"
+msgstr ""
+
+#: src/utility/updater.cpp:1234
+msgid "Rollback Available"
+msgstr ""
+
+#: src/utility/updater.cpp:1253
+msgid "No historical changes detected..."
+msgstr ""
+
+#: src/utility/updater.cpp:1254
+msgid "No changes detected..."
+msgstr ""
+
+#: src/utility/updater.cpp:1255
+msgid "The update does not contain any release notes..."
+msgstr ""
+
+#. TRANSLATORS: {0} is "Special K v" followed by a version number
+#: src/utility/updater.cpp:1353
+msgid "You are currently using {0}"
+msgstr ""
+
+#: src/utility/updater.cpp:1472
+msgid "This version is newer than the currently installed."
+msgstr ""
+
+#: src/utility/updater.cpp:1477
+msgid "WARNING: You are about to roll back Special K as this version is older than the currently installed!"
+msgstr ""
+
+#. TRANSLATORS: {0} is the name of a version of Special K (e.g. "Special K v 26.10.6")
+#: src/utility/updater.cpp:1485
+msgid "{0} is available for download."
+msgstr ""
+
+#: src/utility/updater.cpp:1486
+msgid "{0} is ready to be installed."
+msgstr ""
+
+#: src/utility/updater.cpp:1499
+msgid "A failed download was detected! Click Download below to try again."
+msgstr ""
+
+#: src/utility/updater.cpp:1500
+msgid "In case of continued errors, consult SKIF.log for more details."
+msgstr ""
+
+#: src/utility/updater.cpp:1506
+msgid "Target Folder:"
+msgstr ""
+
+#: src/utility/updater.cpp:1518
+msgid "Changes:"
+msgstr ""
+
+#. TRANSLATORS: {0} is the name of the installed version of Special K (e.g. "Special K v 26.10.6")
+#: src/utility/updater.cpp:1522
+msgid "Changes from {0}:"
+msgstr ""
+
+#: src/utility/updater.cpp:1539
+msgid "Download"
+msgstr ""
+
+#: src/utility/updater.cpp:1546
+#: src/utility/updater.cpp:1587
+msgid "Ignore"
+msgstr ""
+
+#: src/utility/updater.cpp:1595
+msgid "SKIF will not prompt about this version again."
 msgstr ""
