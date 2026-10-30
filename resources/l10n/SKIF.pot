@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-10-30 17:03+0100\n"
+"POT-Creation-Date: 2026-10-30 17:10+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -556,6 +556,8 @@ msgstr ""
 #: src/tabs/hardware.cpp:884
 #: src/tabs/monitor.cpp:1692
 #: src/tabs/monitor.cpp:1885
+#: src/tabs/library/library_popups.cpp:153
+#: src/tabs/library/library_popups.cpp:163
 msgid "Yes"
 msgstr ""
 
@@ -1074,6 +1076,10 @@ msgstr ""
 #: src/tabs/monitor.cpp:1977
 #: src/tabs/monitor.cpp:2064
 #: src/tabs/monitor.cpp:2097
+#: src/tabs/library/library_popups.cpp:154
+#: src/tabs/library/library_popups.cpp:238
+#: src/tabs/library/library_popups.cpp:268
+#: src/tabs/library/library_popups.cpp:317
 #: src/tabs/library/library_properties.cpp:1924
 #: src/tabs/library/library_properties.cpp:1989
 msgid "Cancel"
@@ -1336,11 +1342,14 @@ msgid "Injection status cannot be determined due to a lack of permissions."
 msgstr ""
 
 #: src/tabs/monitor.cpp:1944
+#: src/tabs/library/library_popups.cpp:280
 msgid "Task Manager"
 msgstr ""
 
 #. TRANSLATORS: {0} is the file name of a process
+#. TRANSLATORS: {0} is the name of a game
 #: src/tabs/monitor.cpp:1949
+#: src/tabs/library/library_popups.cpp:262
 msgid "Do you want to end {0}?"
 msgstr ""
 
@@ -1350,6 +1359,8 @@ msgstr ""
 
 #: src/tabs/monitor.cpp:1958
 #: src/tabs/monitor.cpp:1963
+#: src/tabs/library/library_popups.cpp:267
+#: src/tabs/library/library_popups.cpp:301
 msgid "End Process"
 msgstr ""
 
@@ -2709,6 +2720,46 @@ msgstr ""
 
 #: src/tabs/library/library_menus.cpp:2222
 msgid "Hidden games"
+msgstr ""
+
+#: src/tabs/library/library_popups.cpp:83
+msgid "Remove category"
+msgstr ""
+
+#: src/tabs/library/library_popups.cpp:84
+msgid "Merge categories"
+msgstr ""
+
+#: src/tabs/library/library_popups.cpp:85
+msgid "Rename category"
+msgstr ""
+
+#. TRANSLATORS: {0} is the name of a category of the library
+#: src/tabs/library/library_popups.cpp:111
+msgid "Are you sure you want to remove the {0} category?"
+msgstr ""
+
+#. TRANSLATORS: {0} and {1} are the names of two categories of the library
+#: src/tabs/library/library_popups.cpp:117
+msgid "Are you sure you want to merge the {0} category with the {1} category?"
+msgstr ""
+
+#. TRANSLATORS: {0} is the current name of a category of the library, {1} the new one
+#: src/tabs/library/library_popups.cpp:123
+msgid "Are you sure you want to rename {0} to {1}?"
+msgstr ""
+
+#. TRANSLATORS: {0} is the name of a category of the library
+#: src/tabs/library/library_popups.cpp:129
+msgid "What do you want to rename the {0} category to?"
+msgstr ""
+
+#: src/tabs/library/library_popups.cpp:149
+msgid "This will affect all games that make use of the category."
+msgstr ""
+
+#: src/tabs/library/library_popups.cpp:263
+msgid "Any unsaved game data may be lost."
 msgstr ""
 
 #: src/tabs/library/library_properties.cpp:183

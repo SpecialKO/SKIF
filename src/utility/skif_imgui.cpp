@@ -743,59 +743,79 @@ SKIF_ImGui_ComboWidth (std::initializer_list <const char*> items, float min_widt
   return std::max (min_width, text_width + ImGui::GetStyle ( ).FramePadding.x * 2.0f + ImGui::GetFrameHeight ( ));
 }
 
-// One line of text with a value drawn in its own color where the (translated) text has {0}, so the sentence stays whole
-//   for translators: SKIF_ImGui_TextHighlighted (_("Do you want to end {0}?"), filename, colHighlight). "{{" and "}}" are
-//     literal braces; without a {0}, the value is not drawn.
+// One line of text with values drawn in their own color where the (translated) text has {0}, {1}, ... (up to {9}), so the
+//   sentence stays whole for translators: SKIF_ImGui_TextHighlighted (_("Do you want to end {0}?"), { filename }, colHighlight).
+//     "{{" and "}}" are literal braces; placeholders without a value are left out.
 void
-SKIF_ImGui_TextHighlighted (const char* text, const char* value, const ImVec4& colValue)
+SKIF_ImGui_TextHighlighted (const char* text, std::initializer_list <const char*> values, const ImVec4& colValue)
 {
-  auto _Unescape = [](std::string_view in) -> std::string
-  {
-    std::string out;
-    for (size_t i = 0; i < in.size ( ); i++)
-    {
-      out += in [i];
-      if ((in [i] == '{' || in [i] == '}') && i + 1 < in.size ( ) && in [i + 1] == in [i])
-        i++;
-    }
-    return out;
-  };
-
-  std::string_view view   ((text != nullptr) ? text : "");
-  size_t           pos    = std::string_view::npos;
-
-  // The first {0} that is not part of an escaped "{{"
-  for (size_t i = 0; i + 2 < view.size ( ); i++)
-  {
-    if (view [i] == '{' && view [i + 1] == '{') { i++; continue; }
-    if (view.compare (i, 3, "{0}") == 0)        { pos = i; break; }
-  }
-
-  const std::string before = _Unescape (view.substr (0, (pos != std::string_view::npos) ? pos : view.size ( )));
-  const std::string after  = (pos != std::string_view::npos) ? _Unescape (view.substr (pos + 3)) : std::string ( );
+  std::string_view view ((text != nullptr) ? text : "");
 
   ImGui::BeginGroup ( );
 
-  if (! before.empty ( ))
-    ImGui::TextUnformatted (before.c_str ( ));
+  bool        first = true;
+  std::string plain;
 
-  if (pos != std::string_view::npos)
+  auto _Draw = [&](const char* str, bool highlighted)
   {
-    if (! before.empty ( ))
+    if (str == nullptr || *str == '\0')
+      return;
+
+    if (! first)
       ImGui::SameLine (0.0f, 0.0f);
+    first = false;
 
-    ImGui::PushStyleColor  (ImGuiCol_Text, colValue);
-    ImGui::TextUnformatted ((value != nullptr) ? value : "");
-    ImGui::PopStyleColor   ( );
+    if (highlighted)
+      ImGui::PushStyleColor (ImGuiCol_Text, colValue);
 
-    if (! after.empty ( ))
+    ImGui::TextUnformatted (str);
+
+    if (highlighted)
+      ImGui::PopStyleColor ( );
+  };
+
+  for (size_t i = 0; i < view.size ( ); i++)
+  {
+    const char ch = view [i];
+
+    // Escaped braces
+    if ((ch == '{' || ch == '}') && i + 1 < view.size ( ) && view [i + 1] == ch)
     {
-      ImGui::SameLine        (0.0f, 0.0f);
-      ImGui::TextUnformatted (after.c_str ( ));
+      plain += ch;
+      i++;
     }
+
+    // {0} - {9}
+    else if (ch == '{' && i + 2 < view.size ( ) && view [i + 1] >= '0' && view [i + 1] <= '9' && view [i + 2] == '}')
+    {
+      const size_t index = static_cast <size_t> (view [i + 1] - '0');
+
+      _Draw (plain.c_str ( ), false);
+      plain.clear ( );
+
+      if (index < values.size ( ))
+        _Draw (values.begin ( ) [index], true);
+
+      i += 2;
+    }
+
+    else
+      plain += ch;
   }
 
+  _Draw (plain.c_str ( ), false);
+
+  // Nothing at all: keep the line
+  if (first)
+    ImGui::NewLine ( );
+
   ImGui::EndGroup ( );
+}
+
+void
+SKIF_ImGui_TextHighlighted (const char* text, const char* value, const ImVec4& colValue)
+{
+  SKIF_ImGui_TextHighlighted (text, { value }, colValue);
 }
 
 // Width of a checkbox or radio button (the box/circle and its label, as ImGui lays them out)
