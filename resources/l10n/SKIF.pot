@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-10-30 17:21+0100\n"
+"POT-Creation-Date: 2026-10-30 17:27+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -106,6 +106,9 @@ msgid "About"
 msgstr ""
 
 #: src/SKIF.cpp:3473
+#: src/stores/SKIF/custom_library.cpp:311
+#: src/stores/SKIF/custom_library.cpp:380
+#: src/stores/SKIF/custom_library.cpp:518
 msgid "Add Game"
 msgstr ""
 
@@ -157,6 +160,13 @@ msgstr ""
 msgid "Update failed :("
 msgstr ""
 
+#: src/stores/Ubisoft/ubisoft_library.cpp:1491
+msgid ""
+"Ubisoft Connect is still installing this game.\n"
+"It can be played already if Ubisoft Connect allows it (a progressive install), but\n"
+"Instant Play may run it before all of its files are in place."
+msgstr ""
+
 #: src/stores/Steam/app_record.cpp:671
 #: src/stores/Steam/steam_library.cpp:1888
 msgid "Conflicting configuration"
@@ -182,6 +192,132 @@ msgstr ""
 
 #: src/stores/Steam/steam_library.cpp:1995
 msgid "Game properties"
+msgstr ""
+
+#: src/stores/SKIF/custom_library.cpp:378
+#: src/stores/SKIF/custom_library.cpp:393
+#: src/stores/SKIF/custom_library.cpp:716
+#: src/stores/SKIF/custom_library.cpp:724
+#: src/tabs/library/library_properties.cpp:1477
+#: src/tabs/library/library_properties.cpp:1492
+msgid "Browse..."
+msgstr ""
+
+#: src/stores/SKIF/custom_library.cpp:379
+#: src/stores/SKIF/custom_library.cpp:439
+#: src/stores/SKIF/custom_library.cpp:717
+#: src/stores/SKIF/custom_library.cpp:755
+#: src/tabs/library/library_properties.cpp:1533
+#: src/tabs/library/library_properties.cpp:1549
+msgid "Change..."
+msgstr ""
+
+#: src/stores/SKIF/custom_library.cpp:381
+#: src/stores/SKIF/custom_library.cpp:560
+#: src/tabs/local.cpp:1184
+#: src/tabs/local.cpp:1209
+#: src/tabs/monitor.cpp:1959
+#: src/tabs/monitor.cpp:1977
+#: src/tabs/monitor.cpp:2064
+#: src/tabs/monitor.cpp:2097
+#: src/tabs/library/library_popups.cpp:154
+#: src/tabs/library/library_popups.cpp:238
+#: src/tabs/library/library_popups.cpp:268
+#: src/tabs/library/library_popups.cpp:317
+#: src/tabs/library/library_properties.cpp:1924
+#: src/tabs/library/library_properties.cpp:1989
+#: src/utility/updater.cpp:1547
+#: src/utility/updater.cpp:1604
+msgid "Cancel"
+msgstr ""
+
+#: src/stores/SKIF/custom_library.cpp:384
+#: src/stores/SKIF/custom_library.cpp:428
+msgid "Path"
+msgstr ""
+
+#: src/stores/SKIF/custom_library.cpp:384
+#: src/stores/SKIF/custom_library.cpp:474
+msgid "Working Directory"
+msgstr ""
+
+#: src/stores/SKIF/custom_library.cpp:385
+#: src/stores/SKIF/custom_library.cpp:492
+#: src/tabs/library/library_properties.cpp:218
+msgid "Name"
+msgstr ""
+
+#: src/stores/SKIF/custom_library.cpp:385
+#: src/stores/SKIF/custom_library.cpp:499
+msgid "Launch Options"
+msgstr ""
+
+#: src/stores/SKIF/custom_library.cpp:397
+msgid "Executables"
+msgstr ""
+
+#: src/stores/SKIF/custom_library.cpp:433
+#: src/stores/SKIF/custom_library.cpp:735
+msgid "Incompatible type! Please select another file."
+msgstr ""
+
+#: src/stores/SKIF/custom_library.cpp:479
+msgid "Incompatible folder! Please select another folder."
+msgstr ""
+
+#: src/stores/SKIF/custom_library.cpp:496
+#: src/stores/SKIF/custom_library.cpp:766
+#: src/tabs/library/library_properties.cpp:1578
+msgid "Leave empty if unsure"
+msgstr ""
+
+#: src/stores/SKIF/custom_library.cpp:600
+msgid "Remove Game?"
+msgstr ""
+
+#: src/stores/SKIF/custom_library.cpp:600
+msgid "Are you sure you want to remove the game from the library?"
+msgstr ""
+
+#: src/stores/SKIF/custom_library.cpp:600
+msgid "No changes will be made to the game files."
+msgstr ""
+
+#: src/stores/SKIF/custom_library.cpp:720
+#: src/tabs/library/library_properties.cpp:1475
+#: src/tabs/library/library_properties.cpp:1640
+msgid "Executable"
+msgstr ""
+
+#: src/stores/SKIF/custom_library.cpp:751
+#: src/tabs/library/library_properties.cpp:1531
+#: src/tabs/library/library_properties.cpp:1643
+msgid "Working directory"
+msgstr ""
+
+#: src/stores/SKIF/custom_library.cpp:764
+#: src/tabs/library/library_properties.cpp:1864
+msgid "Launch options"
+msgstr ""
+
+#: src/stores/SKIF/custom_library.cpp:781
+msgid "Select the executable and the working directory of the game."
+msgstr ""
+
+#: src/stores/itch/itch_library.cpp:658
+msgid ""
+"The itch app runs this game in its sandbox, as a separate Windows user,\n"
+"which may affect which saves are accessible from within the game.\n"
+"Instant Play launches are not affected as they skip the sandbox."
+msgstr ""
+
+#: src/stores/Xbox/xbox_library.cpp:928
+#: src/stores/Xbox/xbox_library.cpp:946
+msgid "Open Terminal"
+msgstr ""
+
+#: src/stores/Xbox/xbox_library.cpp:993
+msgid "This invokes a terminal in the context of the desktop package."
 msgstr ""
 
 #: src/tabs/about.cpp:29
@@ -1099,23 +1235,6 @@ msgstr ""
 
 #: src/tabs/local.cpp:1179
 msgid "Special K is already installed in this folder; only that file can be updated."
-msgstr ""
-
-#: src/tabs/local.cpp:1184
-#: src/tabs/local.cpp:1209
-#: src/tabs/monitor.cpp:1959
-#: src/tabs/monitor.cpp:1977
-#: src/tabs/monitor.cpp:2064
-#: src/tabs/monitor.cpp:2097
-#: src/tabs/library/library_popups.cpp:154
-#: src/tabs/library/library_popups.cpp:238
-#: src/tabs/library/library_popups.cpp:268
-#: src/tabs/library/library_popups.cpp:317
-#: src/tabs/library/library_properties.cpp:1924
-#: src/tabs/library/library_properties.cpp:1989
-#: src/utility/updater.cpp:1547
-#: src/utility/updater.cpp:1604
-msgid "Cancel"
 msgstr ""
 
 #: src/tabs/local.cpp:1202
@@ -2800,10 +2919,6 @@ msgid "Default"
 msgstr ""
 
 #: src/tabs/library/library_properties.cpp:218
-msgid "Name"
-msgstr ""
-
-#: src/tabs/library/library_properties.cpp:218
 msgid "Leave empty to use the name of the game."
 msgstr ""
 
@@ -3180,17 +3295,7 @@ msgid "Shown in the menus"
 msgstr ""
 
 #: src/tabs/library/library_properties.cpp:1475
-#: src/tabs/library/library_properties.cpp:1640
-msgid "Executable"
-msgstr ""
-
-#: src/tabs/library/library_properties.cpp:1475
 msgid "Relative to the install folder of the game."
-msgstr ""
-
-#: src/tabs/library/library_properties.cpp:1477
-#: src/tabs/library/library_properties.cpp:1492
-msgid "Browse..."
 msgstr ""
 
 #: src/tabs/library/library_properties.cpp:1485
@@ -3206,19 +3311,9 @@ msgid "The executable must be inside the install folder of the game."
 msgstr ""
 
 #: src/tabs/library/library_properties.cpp:1531
-#: src/tabs/library/library_properties.cpp:1643
-msgid "Working directory"
-msgstr ""
-
-#: src/tabs/library/library_properties.cpp:1531
 msgid ""
 "Relative to the install folder of the game.\n"
 "Leave it as the executable's folder if unsure."
-msgstr ""
-
-#: src/tabs/library/library_properties.cpp:1533
-#: src/tabs/library/library_properties.cpp:1549
-msgid "Change..."
 msgstr ""
 
 #: src/tabs/library/library_properties.cpp:1540
@@ -3241,10 +3336,6 @@ msgstr ""
 #: src/tabs/library/library_properties.cpp:1577
 #: src/tabs/library/library_properties.cpp:1646
 msgid "Arguments"
-msgstr ""
-
-#: src/tabs/library/library_properties.cpp:1578
-msgid "Leave empty if unsure"
 msgstr ""
 
 #. TRANSLATORS: {0} is what the game's setting is: "Always" or "Never"
@@ -3296,10 +3387,6 @@ msgstr ""
 #. TRANSLATORS: Title of the Properties window; {0} is the name of the game
 #: src/tabs/library/library_properties.cpp:1803
 msgid "Properties - {0}"
-msgstr ""
-
-#: src/tabs/library/library_properties.cpp:1864
-msgid "Launch options"
 msgstr ""
 
 #: src/tabs/library/library_properties.cpp:1923

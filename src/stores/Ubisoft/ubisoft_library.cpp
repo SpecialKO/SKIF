@@ -23,6 +23,9 @@
 #include <utility/igdb.h>
 #include <stores/generic_library2.h>
 
+// Last, as it defines short macros such as _ ( )
+#include <utility/l10n.h>
+
 // See ubisoft_library.h for how Ubisoft Connect games are found and launched
 
 #pragma region Helpers
@@ -1485,9 +1488,9 @@ app_record_ubisoft_s::GetLaunchWarning (void) const
   if (! _status.updating)
     return "";
 
-  return "Ubisoft Connect is still installing this game.\n"
-         "It can be played already if Ubisoft Connect allows it (a progressive install), but\n"
-         "Instant Play may run it before all of its files are in place.";
+  return _("Ubisoft Connect is still installing this game.\n"
+           "It can be played already if Ubisoft Connect allows it (a progressive install), but\n"
+           "Instant Play may run it before all of its files are in place.");
 }
 
 bool
