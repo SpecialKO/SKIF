@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-10-30 16:55+0100\n"
+"POT-Creation-Date: 2026-10-30 17:03+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1392,6 +1392,7 @@ msgstr ""
 
 #: src/tabs/monitor.cpp:2063
 #: src/tabs/monitor.cpp:2071
+#: src/tabs/library/library_list.cpp:265
 #: src/tabs/library/library_menus.cpp:1075
 #: src/tabs/library/library_menus.cpp:1197
 #: src/tabs/library/library_properties.cpp:650
@@ -2275,6 +2276,24 @@ msgstr ""
 msgid "The blacklist could not be saved! Please remove any non-Latin characters and try again."
 msgstr ""
 
+#: src/tabs/library/library_cover.cpp:166
+msgid ""
+"Missing cover :(\n"
+"Right-click to set one manually\n"
+"\n"
+"You can drag and drop an image file or URL here"
+msgstr ""
+
+#: src/tabs/library/library_cover.cpp:169
+msgid ""
+"Please sign in to GOG Galaxy to\n"
+"allow the cover to be populated :)"
+msgstr ""
+
+#: src/tabs/library/library_cover.cpp:409
+msgid "Special Kudos to our Patrons:"
+msgstr ""
+
 #: src/tabs/library/library_details.cpp:113
 msgid "Profile folder:"
 msgstr ""
@@ -2373,6 +2392,49 @@ msgstr ""
 
 #: src/tabs/library/library_details.cpp:1360
 msgid "Unknown"
+msgstr ""
+
+#: src/tabs/library/library_launch.cpp:45
+msgid "Missing executable"
+msgstr ""
+
+#: src/tabs/library/library_launch.cpp:45
+msgid "Could not launch game due to missing executable:"
+msgstr ""
+
+#: src/tabs/library/library_list.cpp:131
+msgid "Loading games..."
+msgstr ""
+
+#: src/tabs/library/library_list.cpp:227
+#: src/tabs/library/library_menus.cpp:979
+msgctxt "category"
+msgid "Favorites"
+msgstr ""
+
+#. TRANSLATORS: The default category of the library
+#: src/tabs/library/library_list.cpp:228
+#: src/tabs/library/library_properties.cpp:242
+#: src/tabs/library/library_properties.cpp:244
+msgctxt "category"
+msgid "Games"
+msgstr ""
+
+#: src/tabs/library/library_list.cpp:257
+#: src/tabs/library/library_menus.cpp:1068
+msgid "Rename"
+msgstr ""
+
+#: src/tabs/library/library_list.cpp:277
+msgid "Expand all"
+msgstr ""
+
+#: src/tabs/library/library_list.cpp:285
+msgid "Collapse all"
+msgstr ""
+
+#: src/tabs/library/library_list.cpp:293
+msgid "Remember collapsible state"
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:211
@@ -2487,15 +2549,6 @@ msgstr ""
 #: src/tabs/library/library_menus.cpp:972
 #: src/tabs/library/library_properties.cpp:234
 msgid "Category"
-msgstr ""
-
-#: src/tabs/library/library_menus.cpp:979
-msgctxt "category"
-msgid "Favorites"
-msgstr ""
-
-#: src/tabs/library/library_menus.cpp:1068
-msgid "Rename"
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:1108
@@ -2681,13 +2734,6 @@ msgstr ""
 
 #: src/tabs/library/library_properties.cpp:234
 msgid "Favorited games are always shown under Favorites."
-msgstr ""
-
-#. TRANSLATORS: The default category of the library
-#: src/tabs/library/library_properties.cpp:242
-#: src/tabs/library/library_properties.cpp:244
-msgctxt "category"
-msgid "Games"
 msgstr ""
 
 #. TRANSLATORS: {0} is the name of a category that does not exist yet

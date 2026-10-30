@@ -22,6 +22,9 @@
 
 #include "library_ui.h"
 
+// Last, as it defines short macros such as _ ( )
+#include <utility/l10n.h>
+
 // The games list: categories, entries, selection, icon workers (moved verbatim from SKIF_UI_Tab_DrawLibrary)
 void
 DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop3, ImVec2& fTop3ScreenPos)
@@ -125,7 +128,7 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
   {
     // Faded in, like the games list once it is loaded
     ImGui::PushStyleVar    (ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * LibraryFadeIn (fadeLoadingList));
-    ImGui::Selectable      ("Loading games...###GamesCurrentlyLoading", false, ImGuiSelectableFlags_Disabled);
+    ImGui::Selectable      (L_("Loading games...###GamesCurrentlyLoading"), false, ImGuiSelectableFlags_Disabled);
     ImGui::PopStyleVar     ( );
   }
 
@@ -218,7 +221,14 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
           ImGui::PushStyleColor (ImGuiCol_Text,   ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
         }
 
-        category_opened = ImGui::CollapsingHeader (tmpCategory.c_str(), (showClearBtn) ? ImGuiTreeNodeFlags_DefaultOpen : 0); // ImGuiTreeNodeFlags_DefaultOpen
+        // The built-in categories are kept in English (the registry, comparisons), and translated where shown; the names of
+        //   the categories of the user are shown as is
+        const char* szCategoryHeader =
+          (tmpCategory == "Favorites") ? CL_("category", "Favorites") :
+          (tmpCategory == "Games")     ? CL_("category", "Games")     :
+                                         tmpCategory.c_str ( );
+
+        category_opened = ImGui::CollapsingHeader (szCategoryHeader, (showClearBtn) ? ImGuiTreeNodeFlags_DefaultOpen : 0); // ImGuiTreeNodeFlags_DefaultOpen
 
         if (it != _registry.vecCategories.end())
           it->expanded = category_opened;
@@ -244,7 +254,7 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
 
           if (tmpCategory != "Games" && tmpCategory != "Favorites")
           {
-            if (ImGui::Selectable (SKIF_Util_FormatStringRaw ("Rename###PopupRename-%i", categories)))
+            if (ImGui::Selectable ((std::string (_("Rename")) + SKIF_Util_FormatStringRaw ("###PopupRename-%i", categories)).c_str ( )))
             {
               static_category.Name   = tmpCategory;
               static_category.change = true;
@@ -252,7 +262,7 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
               ImGui::CloseCurrentPopup ( );
             }
 
-            if (ImGui::Selectable (SKIF_Util_FormatStringRaw ("Remove###PopupRemove-%i", categories)))
+            if (ImGui::Selectable ((std::string (_("Remove")) + SKIF_Util_FormatStringRaw ("###PopupRemove-%i", categories)).c_str ( )))
             {
               static_category.Name   = tmpCategory;
               static_category.change = true;
@@ -264,7 +274,7 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
             ImGui::Separator ( );
           }
 
-          if (ImGui::Selectable (SKIF_Util_FormatStringRaw ("Expand all###PopupExpand-%i", categories)))
+          if (ImGui::Selectable ((std::string (_("Expand all")) + SKIF_Util_FormatStringRaw ("###PopupExpand-%i", categories)).c_str ( )))
           {
             apply_header_state = ImGui::GetFrameCount ( );
             new_header_state = true;
@@ -272,7 +282,7 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
             ImGui::CloseCurrentPopup ( );
           }
 
-          if (ImGui::Selectable (SKIF_Util_FormatStringRaw ("Collapse all###PopupCollapse-%i", categories)))
+          if (ImGui::Selectable ((std::string (_("Collapse all")) + SKIF_Util_FormatStringRaw ("###PopupCollapse-%i", categories)).c_str ( )))
           {
             apply_header_state = ImGui::GetFrameCount ( );
             new_header_state = false;
@@ -280,7 +290,7 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
             ImGui::CloseCurrentPopup ( );
           }
 
-          if (ImGui::MenuItem ("Remember collapsible state###PopupCollapse-%i", "", &_registry.bRememberCategoryState))
+          if (ImGui::MenuItem (L_("Remember collapsible state###PopupRememberState"), "", &_registry.bRememberCategoryState))
             _registry.regKVRememberCategoryState.putData (_registry.bRememberCategoryState);
 
           ImGui::PopStyleColor ( );
