@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-10-30 16:40+0100\n"
+"POT-Creation-Date: 2026-10-30 16:49+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -722,6 +722,7 @@ msgid "Please Wait..."
 msgstr ""
 
 #: src/tabs/hardware.cpp:1379
+#: src/tabs/library/library_details.cpp:400
 msgid "Pending..."
 msgstr ""
 
@@ -943,6 +944,7 @@ msgid "Status"
 msgstr ""
 
 #: src/tabs/local.cpp:1018
+#: src/tabs/library/library_details.cpp:327
 msgid ""
 "The local DLL file is outdated.\n"
 "Click to update it to v {0}."
@@ -2224,6 +2226,110 @@ msgstr ""
 msgid "The blacklist could not be saved! Please remove any non-Latin characters and try again."
 msgstr ""
 
+#: src/tabs/library/library_details.cpp:113
+msgid "Profile folder:"
+msgstr ""
+
+#: src/tabs/library/library_details.cpp:114
+msgid "Config file:"
+msgstr ""
+
+#: src/tabs/library/library_details.cpp:115
+msgid "Platform:"
+msgstr ""
+
+#: src/tabs/library/library_details.cpp:158
+msgid "Update to v {0}"
+msgstr ""
+
+#: src/tabs/library/library_details.cpp:164
+msgid "Uninstall"
+msgstr ""
+
+#. TRANSLATORS: Not available
+#: src/tabs/library/library_details.cpp:251
+msgid "N/A"
+msgstr ""
+
+#: src/tabs/library/library_details.cpp:370
+#: src/tabs/library/library_menus.cpp:1491
+msgid "Play"
+msgstr ""
+
+#: src/tabs/library/library_details.cpp:378
+msgid "Install Mod"
+msgstr ""
+
+#: src/tabs/library/library_details.cpp:387
+msgid "Installing..."
+msgstr ""
+
+#: src/tabs/library/library_details.cpp:393
+msgid "Downloading..."
+msgstr ""
+
+#: src/tabs/library/library_details.cpp:429
+msgid "Loading..."
+msgstr ""
+
+#: src/tabs/library/library_details.cpp:430
+msgid "Running..."
+msgstr ""
+
+#: src/tabs/library/library_details.cpp:431
+msgid "Updating..."
+msgstr ""
+
+#: src/tabs/library/library_details.cpp:611
+msgid "Please finish the ongoing mod installation first."
+msgstr ""
+
+#: src/tabs/library/library_details.cpp:629
+msgid "Warning: VAC protected game; injection is not recommended!"
+msgstr ""
+
+#. TRANSLATORS: A launch option in the "Disable Special K" menu; {0} is its name
+#: src/tabs/library/library_details.cpp:709
+msgid "for {0}"
+msgstr ""
+
+#: src/tabs/library/library_details.cpp:717
+#: src/tabs/library/library_details.cpp:766
+#: src/tabs/library/library_details.cpp:812
+#: src/tabs/library/library_properties.cpp:1007
+msgid "Disable Special K"
+msgstr ""
+
+#: src/tabs/library/library_details.cpp:732
+#: src/tabs/library/library_properties.cpp:1012
+msgid "Special K is disabled through a blacklist pattern in the Settings tab."
+msgstr ""
+
+#: src/tabs/library/library_details.cpp:743
+#: src/tabs/library/library_properties.cpp:989
+#: src/utility/injection.cpp:1068
+msgid "Special K is unavailable due to missing files."
+msgstr ""
+
+#: src/tabs/library/library_details.cpp:745
+#: src/utility/injection.cpp:1070
+msgid "Please reinstall Special K using the latest available installer."
+msgstr ""
+
+#. TRANSLATORS: Where the configuration of Special K is kept (one folder for all games)
+#: src/tabs/library/library_details.cpp:1356
+#: src/utility/injection.cpp:840
+msgid "Centralized"
+msgstr ""
+
+#: src/tabs/library/library_details.cpp:1358
+msgid "Localized"
+msgstr ""
+
+#: src/tabs/library/library_details.cpp:1360
+msgid "Unknown"
+msgstr ""
+
 #: src/tabs/library/library_menus.cpp:211
 msgid "External Editor"
 msgstr ""
@@ -2379,10 +2485,6 @@ msgstr ""
 
 #: src/tabs/library/library_menus.cpp:1455
 msgid "Copy ID"
-msgstr ""
-
-#: src/tabs/library/library_menus.cpp:1491
-msgid "Play"
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:1500
@@ -2802,21 +2904,8 @@ msgstr ""
 msgid "Applies to the executable, so to every launch option that starts it."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:989
-#: src/utility/injection.cpp:1068
-msgid "Special K is unavailable due to missing files."
-msgstr ""
-
 #: src/tabs/library/library_properties.cpp:998
 msgid "Save first to change these for this executable."
-msgstr ""
-
-#: src/tabs/library/library_properties.cpp:1007
-msgid "Disable Special K"
-msgstr ""
-
-#: src/tabs/library/library_properties.cpp:1012
-msgid "Special K is disabled through a blacklist pattern in the Settings tab."
 msgstr ""
 
 #: src/tabs/library/library_properties.cpp:1024
@@ -3100,11 +3189,6 @@ msgstr ""
 msgid "64-bit service:"
 msgstr ""
 
-#. TRANSLATORS: Where the configuration of Special K is kept (one folder for all games)
-#: src/utility/injection.cpp:840
-msgid "Centralized"
-msgstr ""
-
 #: src/utility/injection.cpp:853
 #: src/utility/injection.cpp:861
 #: src/utility/injection.cpp:1375
@@ -3146,10 +3230,6 @@ msgstr ""
 
 #: src/utility/injection.cpp:1060
 msgid "The feature requires Special K v21.08.12 or newer."
-msgstr ""
-
-#: src/utility/injection.cpp:1070
-msgid "Please reinstall Special K using the latest available installer."
 msgstr ""
 
 #: src/utility/injection.cpp:1151
