@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-10-30 16:22+0100\n"
+"POT-Creation-Date: 2026-10-30 16:40+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -678,6 +678,7 @@ msgid "Support depends on the GPU and display configuration. Unusual driver or d
 msgstr ""
 
 #: src/tabs/hardware.cpp:1259
+#: src/tabs/local.cpp:752
 #: src/tabs/library/library_menus.cpp:1739
 #: src/tabs/library/library_menus.cpp:1994
 #: src/tabs/library/library_menus.cpp:2248
@@ -804,6 +805,256 @@ msgstr ""
 
 #: src/tabs/hardware.cpp:1580
 msgid "No layer of this kind was found."
+msgstr ""
+
+#: src/tabs/local.cpp:30
+msgid "Direct3D 10/11/12 games (most common)."
+msgstr ""
+
+#: src/tabs/local.cpp:31
+msgid "Direct3D 11 games where DXGI.dll does not work."
+msgstr ""
+
+#: src/tabs/local.cpp:32
+msgid "Direct3D 9 games."
+msgstr ""
+
+#: src/tabs/local.cpp:33
+msgid "OpenGL games."
+msgstr ""
+
+#: src/tabs/local.cpp:34
+msgid "Games that load DirectInput 8; can work as a fallback."
+msgstr ""
+
+#: src/tabs/local.cpp:35
+msgid "Direct3D 8 games."
+msgstr ""
+
+#: src/tabs/local.cpp:36
+msgid "DirectDraw games."
+msgstr ""
+
+#: src/tabs/local.cpp:256
+msgid "Special K Installed"
+msgstr ""
+
+#: src/tabs/local.cpp:265
+msgid "Install Failed"
+msgstr ""
+
+#: src/tabs/local.cpp:266
+msgid "Could not install Special K as {0}"
+msgstr ""
+
+#: src/tabs/local.cpp:593
+msgid "Local Installs"
+msgstr ""
+
+#: src/tabs/local.cpp:684
+msgid "Deselect all"
+msgstr ""
+
+#: src/tabs/local.cpp:685
+msgid "Select all"
+msgstr ""
+
+#: src/tabs/local.cpp:686
+msgid "Select outdated"
+msgstr ""
+
+#: src/tabs/local.cpp:705
+msgid "Select Outdated"
+msgstr ""
+
+#: src/tabs/local.cpp:713
+msgid "Select Missing"
+msgstr ""
+
+#: src/tabs/local.cpp:720
+msgid "Select All"
+msgstr ""
+
+#: src/tabs/local.cpp:729
+msgid "Deselect All"
+msgstr ""
+
+#: src/tabs/local.cpp:741
+msgid "Update Selected"
+msgstr ""
+
+#: src/tabs/local.cpp:746
+msgid "Delete Selected"
+msgstr ""
+
+#: src/tabs/local.cpp:823
+msgid "File"
+msgstr ""
+
+#: src/tabs/local.cpp:825
+msgid "New"
+msgstr ""
+
+#. TRANSLATORS: The Escape key of the keyboard
+#: src/tabs/local.cpp:829
+msgid "Close"
+msgstr ""
+
+#: src/tabs/local.cpp:829
+msgctxt "key"
+msgid "Escape"
+msgstr ""
+
+#: src/tabs/local.cpp:835
+msgid "Selection"
+msgstr ""
+
+#: src/tabs/local.cpp:851
+msgid "No local installs found."
+msgstr ""
+
+#: src/tabs/local.cpp:856
+msgid "To perform a local install of Special K:"
+msgstr ""
+
+#. TRANSLATORS: The text in [brackets] is highlighted (keep the brackets); {0} is a floppy disk icon. "File -> Install Wrapper DLL" is a menu of Special K itself (in-game), which is in English.
+#: src/tabs/local.cpp:867
+msgid "While in-game, use [{0} File -> Install Wrapper DLL]."
+msgstr ""
+
+#. TRANSLATORS: The text in [brackets] is highlighted (keep the brackets); Ctrl and Shift are keys of the keyboard
+#: src/tabs/local.cpp:878
+msgid "During launch, hold down [Ctrl + Shift] to access the compatibility options."
+msgstr ""
+
+#: src/tabs/local.cpp:890
+msgctxt "column"
+msgid "Path"
+msgstr ""
+
+#: src/tabs/local.cpp:891
+msgctxt "column"
+msgid "Version"
+msgstr ""
+
+#: src/tabs/local.cpp:893
+msgctxt "column"
+msgid "Status"
+msgstr ""
+
+#: src/tabs/local.cpp:1018
+msgid ""
+"The local DLL file is outdated.\n"
+"Click to update it to v {0}."
+msgstr ""
+
+#: src/tabs/local.cpp:1032
+msgid ""
+"The local DLL file could not be found.\n"
+"Click to reinstall it as v {0}."
+msgstr ""
+
+#: src/tabs/local.cpp:1047
+msgid "Folder no longer exists"
+msgstr ""
+
+#: src/tabs/local.cpp:1056
+msgid "Local DLL file no longer exists"
+msgstr ""
+
+#: src/tabs/local.cpp:1065
+msgid "Outdated (latest: {0})"
+msgstr ""
+
+#. TRANSLATORS: {0} is a floppy disk icon. "File -> Install Wrapper DLL" is a menu of Special K itself (in-game), which is in English.
+#: src/tabs/local.cpp:1127
+#: src/tabs/local.cpp:1240
+msgid "Select the bitness to install"
+msgstr ""
+
+#: src/tabs/local.cpp:1127
+msgid "Or while in-game, use {0} File -> Install Wrapper DLL."
+msgstr ""
+
+#: src/tabs/local.cpp:1154
+msgid "Already Up-to-Date"
+msgstr ""
+
+#: src/tabs/local.cpp:1155
+msgid "Special K is already installed in this folder and is fully up-to-date."
+msgstr ""
+
+#: src/tabs/local.cpp:1166
+msgid "Install Special K"
+msgstr ""
+
+#: src/tabs/local.cpp:1168
+msgid "Which DLL filename should Special K be installed as?"
+msgstr ""
+
+#: src/tabs/local.cpp:1172
+msgid "64-bit executable"
+msgstr ""
+
+#: src/tabs/local.cpp:1174
+msgid "32-bit executable"
+msgstr ""
+
+#: src/tabs/local.cpp:1176
+msgid "Could not detect the bitness of the executable; you will be asked next."
+msgstr ""
+
+#: src/tabs/local.cpp:1179
+msgid "Special K is already installed in this folder; only that file can be updated."
+msgstr ""
+
+#: src/tabs/local.cpp:1184
+#: src/tabs/local.cpp:1209
+#: src/tabs/monitor.cpp:1959
+#: src/tabs/monitor.cpp:1977
+#: src/tabs/monitor.cpp:2064
+#: src/tabs/monitor.cpp:2097
+#: src/tabs/library/library_properties.cpp:1924
+#: src/tabs/library/library_properties.cpp:1989
+msgid "Cancel"
+msgstr ""
+
+#: src/tabs/local.cpp:1202
+msgid "Special K is already installed as this file and will be updated."
+msgstr ""
+
+#: src/tabs/local.cpp:1203
+msgid "A different file with this name already exists in the folder."
+msgstr ""
+
+#: src/tabs/local.cpp:1204
+msgid "Special K is already installed in this folder under another name."
+msgstr ""
+
+#: src/tabs/local.cpp:1241
+msgid ""
+"Could not detect the bitness of the executable.\n"
+"Should 64-bit or 32-bit be used?"
+msgstr ""
+
+#: src/tabs/local.cpp:1286
+msgid "Update Installs?"
+msgstr ""
+
+#: src/tabs/local.cpp:1287
+msgid "Delete Installs?"
+msgstr ""
+
+#: src/tabs/local.cpp:1288
+msgid "Are you sure you want to update all selected installs?"
+msgstr ""
+
+#: src/tabs/local.cpp:1289
+msgid "Are you sure you want to delete all selected installs?"
+msgstr ""
+
+#: src/tabs/local.cpp:1290
+msgid "Some leftover files may still be present in the game folder."
 msgstr ""
 
 #. TRANSLATORS: {0} is a circle icon
@@ -1040,15 +1291,6 @@ msgstr ""
 #: src/tabs/monitor.cpp:1958
 #: src/tabs/monitor.cpp:1963
 msgid "End Process"
-msgstr ""
-
-#: src/tabs/monitor.cpp:1959
-#: src/tabs/monitor.cpp:1977
-#: src/tabs/monitor.cpp:2064
-#: src/tabs/monitor.cpp:2097
-#: src/tabs/library/library_properties.cpp:1924
-#: src/tabs/library/library_properties.cpp:1989
-msgid "Cancel"
 msgstr ""
 
 #: src/tabs/monitor.cpp:1994
