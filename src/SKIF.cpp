@@ -3489,6 +3489,76 @@ wWinMain ( _In_     HINSTANCE hInstance,
         if (SKIF_Tab_Selected == UITab_Library)
           ImGui::PushItemFlag   (ImGuiItemFlags_NoNav, true);
 
+        // Begin Service Status
+        // The state of the injection service, which also starts / stops it when clicked (as the Monitor tab's buttons):
+        //   Stopped                          an outlined ring   ImGuiCol_TextDisabled (grey, to not draw the eye)
+        //   Running, auto-stop (waiting)     a ring with a dot  ImGuiCol_SKIF_Success (as "Waiting for game...")
+        //   Running, no auto-stop            a filled circle    ImGuiCol_SKIF_Yellow  (it stays on until it is stopped)
+        // The shapes differ as well, so the states can be told apart without relying on the colors. While the service is
+        //   starting or stopping, the state it goes to is shown dimmed, and clicks are ignored.
+        if (_inject.bHasServlet)
+        {
+          const bool pending  = _inject.isPending ( );
+          const bool running  = (_inject.runState == SKIF_InjectionContext::RunningState::Started ||
+                                 _inject.runState == SKIF_InjectionContext::RunningState::Starting);
+          const bool autoStop = (running && _inject.bAckInj);
+
+          const float  fSize  = ImGui::GetFrameHeight ( );
+          const ImVec2 vPos   = ImGui::GetCursorScreenPos ( );
+
+          if (ImGui::InvisibleButton ("###ServiceStatus", ImVec2 (fSize, fSize)) && ! pending)
+          {
+            if (running)
+              _inject._StartStopInject (true);
+            else
+              _inject._StartStopInject (false, _registry.bStopOnInjection);
+          }
+
+          ImVec4 vColor = ImGui::GetStyleColorVec4 ((! running) ? ImGuiCol_TextDisabled :
+                                                     (autoStop) ? ImGuiCol_SKIF_Success :
+                                                                  ImGuiCol_SKIF_Yellow);
+
+          if (pending)
+            vColor.w *= 0.5f;
+          else if (ImGui::IsItemHovered ( ))
+            vColor    = vColor * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f); // As the service toggle of the library's details
+
+          ImDrawList*  draw_list  = ImGui::GetWindowDrawList ( );
+          const ImVec2 vCenter    = ImVec2 (vPos.x + fSize * 0.5f, vPos.y + fSize * 0.5f);
+          const float  fRadius    = ImGui::GetFontSize ( ) * 0.3f;
+          const float  fThickness = 1.5f * SKIF_ImGui_GlobalDPIScale;
+          const ImU32  uColor     = ImGui::GetColorU32 (vColor);
+
+          if (running && ! autoStop)
+            draw_list->AddCircleFilled (vCenter, fRadius, uColor);
+
+          else
+          {
+            draw_list->AddCircle (vCenter, fRadius - fThickness * 0.5f, uColor, 0, fThickness);
+
+            if (autoStop)
+              draw_list->AddCircleFilled (vCenter, fRadius * 0.4f, uColor);
+          }
+
+          if (! pending)
+            SKIF_ImGui_SetMouseCursorHand ( );
+
+          const char* szState  = (_inject.runState == SKIF_InjectionContext::RunningState::Starting) ? _("Starting...")         :
+                                 (_inject.runState == SKIF_InjectionContext::RunningState::Stopping) ? _("Stopping...")         :
+                                 (autoStop)                                                          ? _("Waiting for game...") :
+                                 (running)                                                           ? _("Running")             :
+                                                                                                       _("Stopped");
+          const char* szAction = (pending) ? nullptr                           :
+                                 (running) ? _("Click to stop the service")    :
+                                             _("Click to start the service");
+
+          SKIF_ImGui_SetHoverTip ((szAction != nullptr) ? std::string (szState) + "\n" + szAction
+                                                        : std::string (szState));
+
+          ImGui::SameLine ( );
+        }
+        // End Service Status
+
         static bool btnHoveredAddGame      = false,
                     btnHoveredLocalManager = false;
         ImGui::PushStyleColor (ImGuiCol_Button,        ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg));
