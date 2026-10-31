@@ -69,7 +69,6 @@ private:
   bool                   anyOutdatedSelected =   false;
   bool                   want_new            =   false; // File -> New / Ctrl+N: open the file dialog
   bool                   popup_open_prev     =   false; // An ImGui popup was open last frame (keeps Escape from also closing the window)
-  bool                   focused             =   false; // Window (or its children) focused this frame
   int                    hovered_row         =      -1; // Row under the mouse last frame (Shift range preview)
   PEBitness              new_bitness         = PEBitness_Invalid; // Bitness of new_exe_path
   std::wstring           new_exe_path;                  // Executable picked via File -> New, awaiting a DLL filename

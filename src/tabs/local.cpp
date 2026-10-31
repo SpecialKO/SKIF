@@ -607,9 +607,6 @@ SKIF_LocalManager::Process (void)
   if (watch.isSignaled ())
     RefreshInstalls ();
 
-  // Set again below once the window is drawn
-  focused = false;
-
   if (! this->showWindow)
     return;
 
@@ -791,15 +788,17 @@ SKIF_LocalManager::Process (void)
     if (this->hwnd == nullptr && ImGui::GetWindowViewport()->PlatformHandleRaw)
       this->hwnd = (HWND)ImGui::GetWindowViewport()->PlatformHandleRaw;
 
-    // Our own hotkeys only apply while this window has focus (the main window's hotkeys do not reach it)
-    focused = ImGui::IsWindowFocused (ImGuiFocusedFlags_RootAndChildWindows);
+    // Hotkeys (include/utility/hotkeys.h)
+    //   With Shortcut ( ): only while this window (or a child of it) has the focus, not while one of our popups or menus
+    //     has it. Each Shortcut ( ) is called every frame, as that is what keeps its route registered
+    const ImGuiIO& io            = ImGui::GetIO ( );
+    const bool     hotkeySelect  = ImGui::Shortcut (SKIF_Hotkey_LocalSelectAll); // An active text field keeps Ctrl+A (select all)
+    const bool     hotkeyNew     = ImGui::Shortcut (SKIF_Hotkey_LocalNew);
+    const bool     hotkeyClose   = ImGui::Shortcut (SKIF_Hotkey_CloseWindow);
+    const bool     hotkeyEscape  = ImGui::Shortcut (ImGuiKey_Escape);
 
-    // Ctrl+A: select outdated, then all rows; never deselects.
-    // Not while a popup/menu of ours has focus or a text field wants the keyboard.
-    const ImGuiIO& io = ImGui::GetIO ( );
-    if (focused && ! io.WantTextInput &&
-        io.KeyCtrl && ! io.KeyShift && ! io.KeyAlt &&
-        ImGui::IsKeyPressed (ImGuiKey_A, false))
+    // Ctrl+A: select outdated, then all rows; never deselects
+    if (hotkeySelect)
       CycleSelectAll (false);
 
     // A prompt of ours is waiting for an answer
@@ -809,26 +808,23 @@ SKIF_LocalManager::Process (void)
                             action != LocalAction::None);
 
     // Ctrl+W: close the window, like Ctrl+W in Properties and the INI editor (also while typing or a prompt is shown,
-    //   same as the title bar's close button). The main window's Ctrl+W (close the app) only applies to the main window
-    if (focused && ImGui::IsKeyChordPressed (SKIF_Hotkey_CloseWindow))
+    //   same as the title bar's close button)
+    if (hotkeyClose)
       showWindow = false;
 
-    if (focused && ! io.WantTextInput && ! anyPrompt && ! io.KeyShift && ! io.KeyAlt)
-    {
-      // Ctrl+N: install Special K next to a new executable
-      if (io.KeyCtrl && ImGui::IsKeyPressed (ImGuiKey_N, false))
-        want_new = true;
+    // Ctrl+N: install Special K next to a new executable (not while typing or a prompt is shown)
+    if (hotkeyNew && ! io.WantTextInput && ! anyPrompt)
+      want_new = true;
 
-      // Escape: close the window, unless that Escape just closed a menu or popup
-      else if (! io.KeyCtrl && ! popup_open_prev && ImGui::IsKeyPressed (ImGuiKey_Escape, false))
-        showWindow = false;
-    }
+    // Escape: close the window (not while typing or a prompt is shown, or when that Escape just closed a menu or popup)
+    if (hotkeyEscape && ! io.WantTextInput && ! anyPrompt && ! popup_open_prev)
+      showWindow = false;
 
     if (ImGui::BeginMenuBar ( ))
     {
       if (ImGui::BeginMenu (L_("File")))
       {
-        if (ImGui::MenuItem (L_("New"), "Ctrl+N", false, ! anyPrompt))
+        if (ImGui::MenuItem (L_("New"), ImGui::GetKeyChordName (SKIF_Hotkey_LocalNew), false, ! anyPrompt))
           want_new = true;
 
         if (ImGui::MenuItem (L_("Close"),

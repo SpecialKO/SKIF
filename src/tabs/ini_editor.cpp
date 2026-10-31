@@ -354,27 +354,26 @@ SKIF_UI_IniEditor_Process (void)
       }
     }
 
-    window.bFocused = SKIF_ImGui_IsViewportFocused ( );
-
     bool collapseAll = false;
 
     if (ImGui::BeginMenuBar())
     {
       if (ImGui::BeginMenu (L_("File")))
       {
-        if (ImGui::MenuItem (L_("New"), "Ctrl+N"))
+        // The hotkeys shown are the ones checked further down ("Hotkeys"), see include/utility/hotkeys.h
+        if (ImGui::MenuItem (L_("New"),        ImGui::GetKeyChordName (SKIF_Hotkey_IniNew)))
           newFile  = true;
 
-        if (ImGui::MenuItem (L_("New Window"), "Ctrl+Shift+N"))
+        if (ImGui::MenuItem (L_("New Window"), ImGui::GetKeyChordName (SKIF_Hotkey_IniNewWindow)))
           newWnd   = true;
 
-        if (ImGui::MenuItem (L_("Open"), "Ctrl+O"))
+        if (ImGui::MenuItem (L_("Open"),       ImGui::GetKeyChordName (SKIF_Hotkey_IniOpen)))
           openFile = true;
 
-        if (ImGui::MenuItem (L_("Save"), "Ctrl+S"))
+        if (ImGui::MenuItem (L_("Save"),       ImGui::GetKeyChordName (SKIF_Hotkey_IniSave)))
           save     = true;
 
-        if (ImGui::MenuItem (L_("Save As"), "Ctrl+Shift+S"))
+        if (ImGui::MenuItem (L_("Save As"),    ImGui::GetKeyChordName (SKIF_Hotkey_IniSaveAs)))
           saveAs   = true;
 
         if (ImGui::MenuItem (L_("Close"), C_("key", "Escape")))
@@ -486,9 +485,11 @@ SKIF_UI_IniEditor_Process (void)
     ImGui::PopStyleColor  ( ); // ImGuiCol_FrameBg
     ImGui::PopStyleColor  ( ); // ImGuiCol_Text
 
-    // Ctrl+F or F3 should focus filter field
-    if (window.bFocused && ((ImGui::GetIO().KeyCtrl && ImGui::GetKeyData (ImGuiKey_F )->DownDuration == 0.0f) ||
-                                                       ImGui::GetKeyData (ImGuiKey_F3)->DownDuration == 0.0f))
+    // Ctrl+F or F3 should focus filter field (both checked every frame, which keeps their routes registered)
+    const bool hotkeyFilter    = ImGui::Shortcut (SKIF_Hotkey_Filter);
+    const bool hotkeyFilterAlt = ImGui::Shortcut (SKIF_Hotkey_FilterAlt);
+
+    if (hotkeyFilter || hotkeyFilterAlt)
     {
       ImGui::ActivateItemByID (ImGui::GetID("###AppListFilterField"));
       ImGui::SetFocusID       (ImGui::GetID("###AppListFilterField"), ImGui::GetCurrentWindow());
@@ -690,19 +691,23 @@ SKIF_UI_IniEditor_Process (void)
     if (SKIF_ImGui_TitleBarMinimizeButton ( ))
       minimize = true;
 
-    // Focus + Hotkeys
+    // Hotkeys (include/utility/hotkeys.h)
+    //   With Shortcut ( ): only while this window has the focus (not while one of its menus or its Save Changes prompt has
+    //     it), and Ctrl+Q / Ctrl+Shift+N take priority over the app-wide hotkeys of the same keys (Ctrl+Q so unsaved changes
+    //       are asked about first). Each Shortcut ( ) is called every frame, as that is what keeps its route registered
     extern bool bKeepWindowAlive;
 
-    if (window.bFocused && ! g_activeKeybindPopup)
+    if (! g_activeKeybindPopup)
     {
-           if (! window.bFilterActive && ImGui::IsKeyPressed (ImGuiKey_Escape))                                                     show = false; // Escape (not while the filter field is active, where it reverts the field)
-           if (ImGui::IsKeyChordPressed (SKIF_Hotkey_CloseWindow))                                                                  show = false; // Ctrl+W (also while the filter field is active)
-           if (ImGui::GetIO().KeyCtrl &&                            ImGui::GetKeyData (ImGuiKey_O)->DownDuration == 0.0f)         openFile =  true; // Ctrl+O
-           if (ImGui::Shortcut (SKIF_Hotkey_IniNewWindow))                                                                         newWnd =  true; // Ctrl+Shift+N (takes priority over the app-wide one, which opens an editor as well)
-      else if (ImGui::GetIO().KeyCtrl && ! ImGui::GetIO().KeyShift && ImGui::GetKeyData (ImGuiKey_N)->DownDuration == 0.0f)        newFile =  true; // Ctrl+N
-           if (ImGui::GetIO().KeyCtrl && ImGui::GetIO().KeyShift && ImGui::GetKeyData (ImGuiKey_S)->DownDuration == 0.0f)           saveAs =  true; // Ctrl+Shift+S
-      else if (ImGui::GetIO().KeyCtrl &&                            ImGui::GetKeyData (ImGuiKey_S)->DownDuration == 0.0f)             save =  true; // Ctrl+S
-           if (ImGui::Shortcut (SKIF_Hotkey_Quit))                                                                     bKeepWindowAlive = false; // Ctrl+Q (takes priority over the app-wide one, so unsaved changes are asked about first)
+      if (ImGui::Shortcut (ImGuiKey_Escape) &&
+                 ! window.bFilterActive)                        show             =  false; // Escape (not while the filter field is active, where it reverts the field)
+      if (ImGui::Shortcut (SKIF_Hotkey_CloseWindow))            show             =  false; // Ctrl+W (also while the filter field is active)
+      if (ImGui::Shortcut (SKIF_Hotkey_IniNew))                 newFile          =   true; // Ctrl+N
+      if (ImGui::Shortcut (SKIF_Hotkey_IniNewWindow))           newWnd           =   true; // Ctrl+Shift+N
+      if (ImGui::Shortcut (SKIF_Hotkey_IniOpen))                openFile         =   true; // Ctrl+O
+      if (ImGui::Shortcut (SKIF_Hotkey_IniSave))                save             =   true; // Ctrl+S
+      if (ImGui::Shortcut (SKIF_Hotkey_IniSaveAs))              saveAs           =   true; // Ctrl+Shift+S
+      if (ImGui::Shortcut (SKIF_Hotkey_Quit))                   bKeepWindowAlive =  false; // Ctrl+Q
     }
 
     // Suppress some actions if we have unsaved changes

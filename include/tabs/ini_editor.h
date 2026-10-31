@@ -60,8 +60,6 @@ struct IniWindow {
   // Recent searches, shown below the filter field (the entries are shared across all windows through the registry)
   SKIF_ImGui_FilterHistory filterHistory;
 
-  // Focused state?
-  bool          bFocused = false;
   // Changed anything?
   bool          bChanged = false;
   // Should unused settings be visible

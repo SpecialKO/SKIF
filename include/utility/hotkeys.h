@@ -57,15 +57,16 @@ constexpr ImGuiKeyChord SKIF_Hotkey_FilterAlt         = ImGuiKey_F3;            
 //   Escape also closes these windows: the INI editor (unless its filter field is active), the Local Manager, Properties,
 //     and the changelog and updater windows (updater.cpp; unless a popup is open or a field is active)
 
-// Window: INI editor (ini_editor.cpp)
+// Window: INI editor (ini_editor.cpp; Shortcut ( ), and the File menu shows these chords through ImGui::GetKeyChordName ( ))
 constexpr ImGuiKeyChord SKIF_Hotkey_IniNew            = ImGuiMod_Ctrl | ImGuiKey_N;                   // new file
 constexpr ImGuiKeyChord SKIF_Hotkey_IniNewWindow      = ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_N;  // new window (same chord as the App hotkey OpenIniEditor)
 constexpr ImGuiKeyChord SKIF_Hotkey_IniOpen           = ImGuiMod_Ctrl | ImGuiKey_O;                   // open file
 constexpr ImGuiKeyChord SKIF_Hotkey_IniSave           = ImGuiMod_Ctrl | ImGuiKey_S;                   // save
 constexpr ImGuiKeyChord SKIF_Hotkey_IniSaveAs         = ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_S;  // save as
-//   Ctrl+Q is handled by the INI editor itself, so unsaved changes are prompted for before the app closes (as is done in Properties)
+//   Ctrl+Q and Ctrl+Shift+N are handled by the INI editor itself (Shortcut ( ), so they take priority over the App ones):
+//     Ctrl+Q so unsaved changes are prompted for before the app closes (as is done in Properties)
 
-// Window: Local Manager (local.cpp)
+// Window: Local Manager (local.cpp; Shortcut ( ), and the File menu shows these chords through ImGui::GetKeyChordName ( ))
 constexpr ImGuiKeyChord SKIF_Hotkey_LocalSelectAll    = ImGuiMod_Ctrl | ImGuiKey_A;                   // select outdated, then all rows
 constexpr ImGuiKeyChord SKIF_Hotkey_LocalNew          = ImGuiMod_Ctrl | ImGuiKey_N;                   // install Special K next to a new executable
 
