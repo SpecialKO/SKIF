@@ -486,8 +486,9 @@ SKIF_UI_IniEditor_Process (void)
     ImGui::PopStyleColor  ( ); // ImGuiCol_FrameBg
     ImGui::PopStyleColor  ( ); // ImGuiCol_Text
 
-    // Ctrl+F should focus filter field
-    if (window.bFocused && ImGui::GetIO().KeyCtrl && ImGui::GetKeyData (ImGuiKey_F)->DownDuration == 0.0f)
+    // Ctrl+F or F3 should focus filter field
+    if (window.bFocused && ((ImGui::GetIO().KeyCtrl && ImGui::GetKeyData (ImGuiKey_F )->DownDuration == 0.0f) ||
+                                                       ImGui::GetKeyData (ImGuiKey_F3)->DownDuration == 0.0f))
     {
       ImGui::ActivateItemByID (ImGui::GetID("###AppListFilterField"));
       ImGui::SetFocusID       (ImGui::GetID("###AppListFilterField"), ImGui::GetCurrentWindow());
