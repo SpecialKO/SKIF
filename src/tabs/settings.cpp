@@ -1712,19 +1712,44 @@ SKIF_UI_Tab_DrawSettings (void)
 #pragma endregion
 
 #pragma region Section: Keybindings
+  // SKIF's own keybindings (global hotkeys), then Special K's in-game ones (SpecialK.osd.ini). Of the in-game ones, only
+  //   the control panel toggle is shown by default: the others are behind a button, like the unused settings of the INI editor
   if (ImGui::CollapsingHeader (L_("Keybindings###SKIF_SettingsHeader-3"), ImGuiTreeNodeFlags_DefaultOpen))
   {
     SKIF_ImGui_Spacing      ( );
 
-    // The fields start at 200 px, or after the widest (translated) name, so they line up in every language
-    float fKeybindFieldX = 200.0f * SKIF_ImGui_GlobalDPIScale;
+    extern std::vector <IniEntry>
+                      g_vIniReaderOSD;
+
+    static bool bViewMiscKeybinds = false; // Kept for the session, like the unused settings of the INI editor
+
+    auto _IsControlPanelToggle = [](const IniEntry& trie) -> bool
+    {
+      return (trie._type == ParameterKeybind && ! strcmp (trie.key, "ControlPanelToggle"));
+    };
+
+    auto _IsMiscKeybind = [](const IniEntry& trie) -> bool
+    {
+      return (trie._type == ParameterKeybind &&   strcmp (trie.key, "ControlPanelToggle"));
+    };
+
+    // The fields start at 200 px, or after the widest name shown (translated for SKIF's own), so they line up in every language
+    float       fKeybindFieldX = 200.0f * SKIF_ImGui_GlobalDPIScale;
+    const float fNameX         = ImGui::GetCursorPosX ( ) + ImGui::GetStyle ( ).ItemSpacing.x * 2.0f;
 
     for (auto& keybind : keybinds)
     {
       if (keybind._show())
-        fKeybindFieldX = std::max (fKeybindFieldX, ImGui::GetCursorPosX ( ) + ImGui::GetStyle ( ).ItemSpacing.x * 2.0f +
-                                                   ImGui::CalcTextSize (T_(keybind._key->bind_name.c_str())).x);
+        fKeybindFieldX = std::max (fKeybindFieldX, fNameX + ImGui::CalcTextSize (T_(keybind._key->bind_name.c_str())).x);
     }
+
+    for (auto& trie : g_vIniReaderOSD)
+    {
+      if (_IsControlPanelToggle (trie) || (bViewMiscKeybinds && _IsMiscKeybind (trie)))
+        fKeybindFieldX = std::max (fKeybindFieldX, fNameX + ImGui::CalcTextSize (trie.key).x);
+    }
+
+    // SKIF's own keybindings
 
     for (auto& keybind : keybinds)
     {
@@ -1748,21 +1773,13 @@ SKIF_UI_Tab_DrawSettings (void)
         keybind._callback (keybind._key);
       }
     }
-  }
 
-  ImGui::Spacing ();
-  ImGui::Spacing ();
-#pragma endregion
+    // Special K's in-game keybindings, under a header per section of SpecialK.osd.ini
 
-#pragma region Section: Keybindings (In-game)
-  if (ImGui::CollapsingHeader (L_("Keybindings (In-Game)###SKIF_SettingsHeader-3b")))
-  {
-    SKIF_ImGui_Spacing      ( );
+    std::string section; // The section of the last row drawn: a header is shown above the first row of each section
 
-    auto _DrawKeybindRow = [](IniEntry* trie) -> void
+    auto _DrawKeybindRow = [&](IniEntry* trie) -> void
     {
-      static std::string section;
-
       if (section != trie->section)
       {
         section = trie->section;
@@ -1772,11 +1789,11 @@ SKIF_UI_Tab_DrawSettings (void)
 
       ImGui::Spacing         ( );
       ImGui::SameLine        ( );
-      ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), trie->key);
+      ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), "%s", trie->key);
       if (trie->description != nullptr)
         SKIF_ImGui_SetHoverTip (trie->description);
       ImGui::SameLine        ( );
-      ImGui::ItemSize        (ImVec2 (200.0f * SKIF_ImGui_GlobalDPIScale - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
+      ImGui::ItemSize        (ImVec2 (fKeybindFieldX - ImGui::GetCursorPos().x, ImGui::GetTextLineHeight()));
       ImGui::SameLine        ( );
       if (trie->DrawFunction (trie))
         SKIF_IniReader_SaveOSDIni ( );
@@ -1786,44 +1803,60 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(0.8f, 0.8f, 0.8f, 1.0f)
                             );
 
-    char* order[] = {
-      "ImGui.Global",
-      "Screenshot.System",
-      "Game.HUD"
-    };
-
-    extern std::vector <IniEntry>
-                      g_vIniReaderOSD;
-    for (auto& trie : g_vIniReaderOSD)
-    {
-      if (trie._type != ParameterKeybind)
-        continue;
-
-      if (strcmp (trie.key, "ControlPanelToggle"))
-        continue;
-
-      _DrawKeybindRow (&trie);
-    }
-    for (auto& trie : g_vIniReaderOSD)
-    {
-      if (trie._type != ParameterKeybind)
-        continue;
-
-      if (! strcmp (trie.key, "ControlPanelToggle"))
-        continue;
-
-      _DrawKeybindRow (&trie);
-    }
-
     if (g_vIniReaderOSD.empty())
-      ImGui::TextWrapped ("%s", _("Launch a game with Special K at least once to populate this section."));
+    {
+      SKIF_ImGui_Spacing ( );
+      ImGui::TextWrapped ("%s", _("Launch a game with Special K at least once to show its in-game keybinds here."));
+    }
+
+    else
+    {
+      // The control panel toggle first...
+      for (auto& trie : g_vIniReaderOSD)
+      {
+        if (_IsControlPanelToggle (trie))
+          _DrawKeybindRow (&trie);
+      }
+
+      // ... then the miscellaneous ones, once asked for
+      if (bViewMiscKeybinds)
+      {
+        for (auto& trie : g_vIniReaderOSD)
+        {
+          if (_IsMiscKeybind (trie))
+            _DrawKeybindRow (&trie);
+        }
+      }
+    }
 
     ImGui::PopStyleColor  ( ); // ImGuiCol_Text
+
+    // Like the "View unused settings" button of the INI editor
+    if (! g_vIniReaderOSD.empty ( ) && ! bViewMiscKeybinds)
+    {
+      SKIF_ImGui_Spacing ( );
+      SKIF_ImGui_Spacing ( );
+
+      const char*       szText   = _("Miscellaneous keybinds are hidden by default.");
+      const std::string szButton = std::string ("   ") + _("View miscellaneous keybinds") + "   ###ViewMiscKeybinds";
+
+      ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f));
+
+      SKIF_ImGui_CenterNextItem (ImGui::CalcTextSize (szText).x);
+      ImGui::TextUnformatted    (szText);
+
+      ImGui::PopStyleColor ( ); // ImGuiCol_Text
+
+      SKIF_ImGui_Spacing ( );
+
+      SKIF_ImGui_CenterNextItem (ImGui::CalcTextSize (szButton.c_str ( ), nullptr, true).x + ImGui::GetStyle ().FramePadding.x * 2.0f);
+      if (ImGui::Button         (szButton.c_str ( )))
+        bViewMiscKeybinds = true;
+    }
   }
 
   ImGui::Spacing ();
   ImGui::Spacing ();
-
 #pragma endregion
 
 #pragma region Section: Advanced
