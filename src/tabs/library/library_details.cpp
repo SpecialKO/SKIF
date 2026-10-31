@@ -794,26 +794,50 @@ DrawGameDetails_LaunchBar (app_record_s* pApp)
     return clicked;
   };
 
-  // Left corner: Properties (as Manage > Properties)
-  if (_IconButton (ICON_FA_GEAR "###SKIFPropertiesShortcut", ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)))
+  // Left corner: Properties (as Manage > Properties); grey, so it doesn't draw the eye
+  if (_IconButton (ICON_FA_GEAR "###SKIFPropertiesShortcut", ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled)))
     ModifyGamePopup = PopupState_Open;
 
   SKIF_ImGui_SetHoverTip (_("Properties"));
 
-  if (! defaultLocal)
-  {
-    if ( ! _inject.bHasServlet )
-    {
-      ImGui::SameLine        ( );
-      ImGui::BeginGroup      ( );
-      ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
-      ImGui::SameLine        ( );
-      SKIF_ImGui_TextColoredWrapped    (ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), _("Special K is unavailable due to missing files."));
-      ImGui::EndGroup        ( );
-      SKIF_ImGui_SetHoverTip (_("Please reinstall Special K using the latest available installer."));
-    }
+  // Right corner: how Play launches the default launch config, as icons placed from the right corner leftwards
+  //   (only shown when it is not the usual: Special K disabled, an elevated service, Instant play)
+  float fRightX = fRowEndX;
 
-    else if (defaultLaunchConfig != nullptr)
+  auto _RightIconButton = [&](const char* label, const ImVec4& color) -> bool
+  {
+    const float fWidth = ImGui::CalcTextSize (label, nullptr, true).x;
+
+    ImGui::SameLine      ( );
+    ImGui::SetCursorPosX (fRightX - fWidth);
+
+    fRightX -= fWidth + ImGui::GetStyle ( ).ItemSpacing.x;
+
+    return _IconButton (label, color);
+  };
+
+  // Opens Properties for the selected game (this one), scrolled to a page; the launch options have the default one selected
+  auto _OpenProperties = [](PropertiesPage page) -> void
+  {
+    SKIF_Properties_RequestPage (page);
+    ModifyGamePopup = PopupState_Open;
+  };
+
+  if (! defaultLocal && ! _inject.bHasServlet)
+  {
+    ImGui::SameLine        ( );
+    ImGui::BeginGroup      ( );
+    ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
+    ImGui::SameLine        ( );
+    SKIF_ImGui_TextColoredWrapped    (ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), _("Special K is unavailable due to missing files."));
+    ImGui::EndGroup        ( );
+    SKIF_ImGui_SetHoverTip (_("Please reinstall Special K using the latest available installer."));
+  }
+
+  else if (defaultLaunchConfig != nullptr)
+  {
+    // Special K disabled, or an elevated service (a blocked executable does not use the service, so never both)
+    if (! defaultLocal)
     {
       const bool blacklisted        = defaultLaunchConfig->isBlacklisted ( );
       const bool blacklistedPattern = defaultLaunchConfig->isExecutableFullPathValid ( ) &&
@@ -821,18 +845,8 @@ DrawGameDetails_LaunchBar (app_record_s* pApp)
 
       if (blacklisted || blacklistedPattern)
       {
-        static constexpr const char* lockLabel = ICON_FA_LOCK "###SKDisabledIndicator";
-
-        // Right corner
-        ImGui::SameLine      ( );
-        ImGui::SetCursorPosX (fRowEndX - ImGui::CalcTextSize (lockLabel, nullptr, true).x);
-
-        if (_IconButton (lockLabel, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning)))
-        {
-          // Properties for the selected game (this one), scrolled to the launch options, where the default one is selected
-          SKIF_Properties_RequestPage (PropertiesPage::Launch);
-          ModifyGamePopup = PopupState_Open;
-        }
+        if (_RightIconButton (ICON_FA_LOCK "###SKDisabledIndicator", ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning)))
+          _OpenProperties (PropertiesPage::Launch);
 
         SKIF_ImGui_SetHoverText (defaultLaunchConfig->getExecutableFullPathUTF8 ( ).c_str ( ));
 
@@ -842,6 +856,34 @@ DrawGameDetails_LaunchBar (app_record_s* pApp)
           SKIF_ImGui_SetHoverTip (_("Special K is disabled for the default launch option.\n"
                                     "Click to change it in Properties."));
       }
+
+      else if (defaultLaunchConfig->isElevated ( ))
+      {
+        if (_RightIconButton (ICON_FA_USER_SHIELD "###SKElevatedIndicator", ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled)))
+          _OpenProperties (PropertiesPage::Launch);
+
+        SKIF_ImGui_SetHoverText (defaultLaunchConfig->getExecutableFullPathUTF8 ( ).c_str ( ));
+        SKIF_ImGui_SetHoverTip  (_("The injection service is started elevated for the default launch option.\n"
+                                   "Click to change it in Properties."));
+      }
+    }
+
+    // Instant play: Play starts the executable directly instead of through the platform (as LaunchGame ( ) decides it
+    //   for the Play button). Custom games are always started directly, so it says nothing there.
+    if (pApp->store != app_record_s::Store::Custom && pApp->PrefersInstantLaunch (false, defaultLaunchConfig))
+    {
+      // The platform cannot start the default launch config (one of the user's own, or not its primary one), or the setting
+      const bool notByClient = ! pApp->ClientCanLaunch (*defaultLaunchConfig);
+
+      if (_RightIconButton (ICON_FA_ROCKET "###InstantPlayIndicator", ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled)))
+        _OpenProperties ((notByClient) ? PropertiesPage::Launch : PropertiesPage::General);
+
+      SKIF_ImGui_SetHoverText (SKIF_Lib_GetLaunchCommand (pApp, defaultLaunchConfig));
+      SKIF_ImGui_SetHoverTip  (std::string ((notByClient) ? _("Play uses Instant play, as the platform cannot start the default launch option.")
+                                                          : _("Play uses Instant play for this game."))
+                               + "\n\n" +
+                               _("Skips the regular platform launch process for the game,\n"
+                                 "including steps such as cloud saves synchronization."));
     }
   }
 

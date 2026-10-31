@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-10-31 21:40+0100\n"
+"POT-Creation-Date: 2026-10-31 21:48+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1312,39 +1312,61 @@ msgstr ""
 msgid "Properties"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:811
+#: src/tabs/library/library_details.cpp:832
 #: src/tabs/library/library_properties.cpp:1012
 #: src/utility/injection.cpp:1068
 msgid "Special K is unavailable due to missing files."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:813
+#: src/tabs/library/library_details.cpp:834
 #: src/utility/injection.cpp:1070
 msgid "Please reinstall Special K using the latest available installer."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:840
+#: src/tabs/library/library_details.cpp:854
 #: src/tabs/library/library_properties.cpp:1035
 msgid "Special K is disabled through a blacklist pattern in the Settings tab."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:842
+#: src/tabs/library/library_details.cpp:856
 msgid ""
 "Special K is disabled for the default launch option.\n"
 "Click to change it in Properties."
 msgstr ""
 
+#: src/tabs/library/library_details.cpp:866
+msgid ""
+"The injection service is started elevated for the default launch option.\n"
+"Click to change it in Properties."
+msgstr ""
+
+#: src/tabs/library/library_details.cpp:882
+msgid "Play uses Instant play, as the platform cannot start the default launch option."
+msgstr ""
+
+#: src/tabs/library/library_details.cpp:883
+msgid "Play uses Instant play for this game."
+msgstr ""
+
+#: src/tabs/library/library_details.cpp:885
+#: src/tabs/library/library_menus.cpp:219
+#: src/tabs/library/library_menus.cpp:329
+msgid ""
+"Skips the regular platform launch process for the game,\n"
+"including steps such as cloud saves synchronization."
+msgstr ""
+
 #. TRANSLATORS: Where the configuration of Special K is kept (one folder for all games)
-#: src/tabs/library/library_details.cpp:1406
+#: src/tabs/library/library_details.cpp:1448
 #: src/utility/injection.cpp:840
 msgid "Centralized"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:1408
+#: src/tabs/library/library_details.cpp:1450
 msgid "Localized"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:1410
+#: src/tabs/library/library_details.cpp:1452
 msgid "Unknown"
 msgstr ""
 
@@ -1409,13 +1431,6 @@ msgstr ""
 #: src/tabs/library/library_menus.cpp:207
 #: src/tabs/library/library_menus.cpp:249
 msgid "Instant play"
-msgstr ""
-
-#: src/tabs/library/library_menus.cpp:219
-#: src/tabs/library/library_menus.cpp:329
-msgid ""
-"Skips the regular platform launch process for the game,\n"
-"including steps such as cloud saves synchronization."
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:231
