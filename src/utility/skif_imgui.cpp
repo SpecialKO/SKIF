@@ -1582,10 +1582,22 @@ SKIF_ImGui_MinimizeButton (ImGuiID id, const ImVec2& pos)
 
 // This is a custom MINIMIZE button that is drawn on the title bar of the current window,
 // next to the built-in CLOSE button.
+//   Call it from the window itself (not from a child window of it), anywhere between Begin ( ) and End ( ).
 bool
 SKIF_ImGui_TitleBarMinimizeButton (void)
 {
   bool pressed = false;
+
+  ImGuiContext& g      = *ImGui::GetCurrentContext ( );
+  ImGuiWindow*  window =  ImGui::GetCurrentWindow  ( );
+
+  // Like the CLOSE button (see ImGui::RenderWindowTitleBarContents ( )): on the Menu navigation layer, together with the
+  //   menu bar, so keyboard/gamepad navigation can move between it, the CLOSE button and the menus (on the Main layer it
+  //     could only be reached from the window's content), and it is never focused by default
+  const ImGuiNavLayer  nav_layer_backup  = window->DC.NavLayerCurrent;
+  const ImGuiItemFlags item_flags_backup = g.CurrentItemFlags;
+  window->DC.NavLayerCurrent = ImGuiNavLayer_Menu;
+  g.CurrentItemFlags        |= ImGuiItemFlags_NoNavDefaultFocus;
 
   const ImRect title_bar_rect = ImGui::GetCurrentWindowRead()->TitleBarRect();
   ImGui::PushClipRect(title_bar_rect.Min, title_bar_rect.Max, false);
@@ -1601,6 +1613,9 @@ SKIF_ImGui_TitleBarMinimizeButton (void)
     pressed = true;
 
   ImGui::PopClipRect();
+
+  window->DC.NavLayerCurrent = nav_layer_backup;
+  g.CurrentItemFlags         = item_flags_backup;
 
   return pressed;
 }

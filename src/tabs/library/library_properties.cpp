@@ -2105,6 +2105,10 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
       }
     }
 
+    // Minimize button (on the title bar, next to the close button)
+    if (SKIF_ImGui_TitleBarMinimizeButton ( ))
+      ShowWindowAsync ((HWND)ImGui::GetWindowViewport ( )->PlatformHandleRaw, SW_MINIMIZE);
+
     // Toasts of this window only (bound to its platform window)
     ImGui::RenderNotifications ( );
   }

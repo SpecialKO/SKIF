@@ -1635,6 +1635,10 @@ SKIF_Updater::DrawWindowUpdater (Window* wnd)
     SKIF_ImGui_Spacing ( );
 
     fY = ImGui::GetCursorPosY ( ) - fY;
+
+    // Minimize button (on the title bar, next to the close button), as in the changelog window
+    if (SKIF_ImGui_TitleBarMinimizeButton ( ))
+      ShowWindowAsync ((HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, SW_MINIMIZE);
   }
 
   ImGui::End ( );
