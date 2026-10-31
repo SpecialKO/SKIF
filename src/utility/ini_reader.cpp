@@ -11,6 +11,7 @@
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
+#include <filesystem>
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -746,6 +747,11 @@ SKIF_IniReader_BuildEntries (const inih::INIReader* ini, IniType ini_type)
 void
 SKIF_IniReader_WriteIni (const std::vector<IniEntry>& ini, const std::wstring& file_path)
 {
+  std::error_code ec;
+  // Create any missing directories, so Save As can open in the folder
+  if (! std::filesystem::exists             (std::filesystem::path (file_path).parent_path(), ec))
+        std::filesystem::create_directories (std::filesystem::path (file_path).parent_path(), ec);
+
   // Write the entries in the order they are listed. The list keeps each section
   //   contiguous and keys in file order, so the file's own layout is retained.
   // Build the content as UTF-8 first, then convert it to UTF-16 LE when writing.
@@ -792,7 +798,7 @@ SKIF_IniReader_WriteIni (const std::vector<IniEntry>& ini, const std::wstring& f
   FILE* out = _wfopen (file_path.c_str(), L"wb");
   if (out == nullptr)
   {
-    PLOG_FATAL << "cannot open output file: " << file_path;
+    PLOG_FATAL << "Cannot open output file: " << file_path;
     return;
   }
 
@@ -808,7 +814,7 @@ SKIF_IniReader_WriteIni (const std::vector<IniEntry>& ini, const std::wstring& f
     ok = false;
 
   if (! ok)
-    PLOG_ERROR << "error writing output file: " << file_path;
+    PLOG_ERROR << "Error writing output file: " << file_path;
 }
 
 void
@@ -816,8 +822,9 @@ SKIF_IniReader_ReadOSDIni (void)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static std::wstring pathOSDIni = SK_FormatStringW (LR"(%ws\Global\osd.ini)", _path_cache.specialk_userdata);
-  if (PathFileExists (pathOSDIni.c_str()))
-    g_vIniReaderOSD = SKIF_IniReader_ParseIni (pathOSDIni, osd_ini);
+  g_vIniReaderOSD = (PathFileExists (pathOSDIni.c_str()))
+          ? SKIF_IniReader_ParseIni (pathOSDIni,  osd_ini)
+          : SKIF_IniReader_BuildEntries (nullptr, osd_ini);
 }
 
 void

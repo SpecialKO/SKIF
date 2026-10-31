@@ -23,8 +23,6 @@
 // Last, as it defines short macros such as _ ( )
 #include <utility/l10n.h>
 
-bool saveIniOSD = false;
-
 
 struct kb_kv_s
 {
