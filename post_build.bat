@@ -4,6 +4,10 @@
 @REM $1 == $(TargetPath)
 @REM $2 == $(TargetFileName)
 
+@REM Rebuilds the translation template (resources\l10n\SKIF.pot) from the sources. The template is only rewritten
+@REM   if a translatable text changed, and a failure here never fails the build
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\l10n_extract.ps1" || echo post_build.bat : warning : Could not rebuild resources\l10n\SKIF.pot
+
 @REM Terminates any existing instance of the app
 taskkill /im %2 /f /fi "STATUS eq RUNNING"
 

@@ -37,11 +37,15 @@ param (
   [Parameter(ValueFromRemainingArguments = $true)]
   [string[]] $Path,
   # Root of the repository (default: the parent folder of this script)
-  [string]   $Root = (Split-Path -Parent $PSScriptRoot)
+  [string]   $Root
 )
 
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
+
+if ([string]::IsNullOrWhiteSpace($Root)) {
+  $Root = Split-Path -Parent $PSScriptRoot
+}
 
 $Root      = (Resolve-Path -LiteralPath $Root).Path.TrimEnd('\', '/')
 $utf8      = New-Object System.Text.UTF8Encoding($false, $true) # Throws on invalid UTF-8

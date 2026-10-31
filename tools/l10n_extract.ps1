@@ -37,7 +37,7 @@
 [CmdletBinding()]
 param (
   # Root of the repository (default: the parent folder of this script)
-  [string] $Root   = (Split-Path -Parent $PSScriptRoot),
+  [string] $Root,
   # The template to write, relative to the root
   [string] $Output = 'resources\l10n\SKIF.pot',
   # Only check that the template is up to date (see above); write nothing
@@ -46,6 +46,10 @@ param (
 
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
+
+if ([string]::IsNullOrWhiteSpace($Root)) {
+  $Root = Split-Path -Parent $PSScriptRoot
+}
 
 $Root     = (Resolve-Path -LiteralPath $Root).Path.TrimEnd('\', '/')
 $utf8     = New-Object System.Text.UTF8Encoding($false)
