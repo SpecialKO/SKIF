@@ -182,7 +182,7 @@ SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst)
 
   // CheckMark / Radio Button
   colors[ImGuiCol_CheckMark]              = ImVec4(0.45f, 0.45f, 0.45f, 1.00f); // ImVec4(0.26f, 0.59f, 0.98f, 1.00f)
-  colors[ImGuiCol_CheckboxSelectedBg]     = ImVec4(0.00f, 0.00f, 0.00f, 0.00f); // Disable
+  colors[ImGuiCol_CheckboxSelectedBg]     = ImVec4(0.10f, 0.10f, 0.10f, 1.00f);
 
   // Slider Grab (used for HDR Brightness slider)
   colors[ImGuiCol_SliderGrab]             = ImVec4(0.24f, 0.52f, 0.88f, 1.00f);
@@ -218,9 +218,9 @@ SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst)
   // Tabs
   colors[ImGuiCol_Tab]                    = ImVec4(0.15f, 0.15f, 0.15f, 1.00f);       //ImLerp(colors[ImGuiCol_Header],       colors[ImGuiCol_TitleBgActive], 0.80f);
   colors[ImGuiCol_TabHovered]             = ImVec4(0.27f, 0.27f, 0.27f, 1.00f);
-  colors[ImGuiCol_TabSelected]              = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);       //ImLerp(colors[ImGuiCol_HeaderActive], colors[ImGuiCol_TitleBgActive], 0.60f);
-  colors[ImGuiCol_TabDimmed]           = ImVec4(0.08f, 0.08f, 0.08f, 1.00f);
-  colors[ImGuiCol_TabDimmedSelected]     = ImVec4(0.08f, 0.08f, 0.08f, 1.00f);
+  colors[ImGuiCol_TabSelected]            = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);       //ImLerp(colors[ImGuiCol_HeaderActive], colors[ImGuiCol_TitleBgActive], 0.60f);
+  colors[ImGuiCol_TabDimmed]              = ImVec4(0.08f, 0.08f, 0.08f, 1.00f);
+  colors[ImGuiCol_TabDimmedSelected]      = ImVec4(0.08f, 0.08f, 0.08f, 1.00f);
 
   // Docking stuff
   colors[ImGuiCol_DockingPreview]         = colors[ImGuiCol_HeaderActive] * ImVec4(1.0f, 1.0f, 1.0f, 0.7f);
@@ -244,9 +244,9 @@ SKIF_ImGui_StyleColorsDark (ImGuiStyle* dst)
 
   // Nav/Modal
   // This is the white border that highlights selected items when using keyboard focus etc
-  colors[ImGuiCol_NavCursor]           = ImVec4(0.27f, 0.27f, 0.27f, 1.00f);
-//colors[ImGuiCol_NavCursor]           = ImVec4(0.48f, 0.48f, 0.48f, 1.00f);
-//colors[ImGuiCol_NavCursor]           = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
+  colors[ImGuiCol_NavCursor]              = ImVec4(0.27f, 0.27f, 0.27f, 1.00f);
+//colors[ImGuiCol_NavCursor]              = ImVec4(0.48f, 0.48f, 0.48f, 1.00f);
+//colors[ImGuiCol_NavCursor]              = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
   colors[ImGuiCol_NavWindowingHighlight]  = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
   colors[ImGuiCol_NavWindowingDimBg]      = ImVec4(0.00f, 0.00f, 0.00f, 0.50f); // ImVec4(0.80f, 0.80f, 0.80f, 0.20f)
   colors[ImGuiCol_ModalWindowDimBg]       = ImVec4(0.00f, 0.00f, 0.00f, 0.50f); // ImVec4(0.80f, 0.80f, 0.80f, 0.35f);
@@ -299,7 +299,7 @@ SKIF_ImGui_StyleColorsLight (ImGuiStyle* dst)
 
   // CheckMark / Radio Button
   colors[ImGuiCol_CheckMark]              = ImVec4(0.26f, 0.59f, 0.98f, 1.00f);
-  colors[ImGuiCol_CheckboxSelectedBg]     = ImVec4(0.00f, 0.00f, 0.00f, 0.00f); // Disable
+  colors[ImGuiCol_CheckboxSelectedBg]     = ImVec4(0.85f, 0.85f, 0.85f, 1.00f);
 
   // Slider Grab (used for HDR Brightness slider)
   colors[ImGuiCol_SliderGrab]             = ImVec4(0.26f, 0.59f, 0.98f, 0.78f);
@@ -334,9 +334,9 @@ SKIF_ImGui_StyleColorsLight (ImGuiStyle* dst)
   // Tabs
   colors[ImGuiCol_Tab]                    = ImVec4(0.85f, 0.85f, 0.85f, 1.00f); // ImLerp(colors[ImGuiCol_Header],       colors[ImGuiCol_TitleBgActive], 0.90f);
   colors[ImGuiCol_TabHovered]             = ImVec4(0.90f, 0.90f, 0.90f, 1.00f); // colors[ImGuiCol_HeaderHovered];
-  colors[ImGuiCol_TabSelected]              = ImVec4(0.80f, 0.80f, 0.80f, 1.00f); // ImLerp(colors[ImGuiCol_HeaderActive], colors[ImGuiCol_TitleBgActive], 0.60f);
-  colors[ImGuiCol_TabDimmed]           = ImVec4(0.85f, 0.85f, 0.85f, 1.00f);
-  colors[ImGuiCol_TabDimmedSelected]     = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
+  colors[ImGuiCol_TabSelected]            = ImVec4(0.80f, 0.80f, 0.80f, 1.00f); // ImLerp(colors[ImGuiCol_HeaderActive], colors[ImGuiCol_TitleBgActive], 0.60f);
+  colors[ImGuiCol_TabDimmed]              = ImVec4(0.85f, 0.85f, 0.85f, 1.00f);
+  colors[ImGuiCol_TabDimmedSelected]      = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
 
   // Docking stuff
   colors[ImGuiCol_DockingPreview]         = colors[ImGuiCol_Header] * ImVec4(1.0f, 1.0f, 1.0f, 0.7f);
