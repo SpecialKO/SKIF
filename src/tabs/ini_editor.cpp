@@ -10,6 +10,7 @@
 #include <utility/utility.h>
 #include <utility/registry.h>
 #include <utility/hotkeys.h>
+#include <utility/ini_presets.h>
 #include <ImGuiNotify.hpp>
 
 #include <fonts/fa_621.h>
@@ -102,6 +103,7 @@ SKIF_UI_IniEditor_NewFile (IniWindow* iniWindow)
   iniWindow->title       = "";
   iniWindow->bChanged    = false;
   iniWindow->ini         = std::move (ini_parsed);
+  iniWindow->undo_snapshot.reset ( );
   iniWindow->want_action = EditorAction::None;
   iniWindow->SetPath           (L"");
   iniWindow->UpdateWindowTitle (   );
@@ -132,6 +134,7 @@ SKIF_UI_IniEditor_Save (IniWindow* iniWindow)
 
   iniWindow->saved       = SKIF_Util_timeGetTime ( );
   iniWindow->bChanged    = false;
+  iniWindow->undo_snapshot.reset ( );
   iniWindow->want_action = EditorAction::None;
   iniWindow->UpdateWindowTitle ( );
 }
@@ -240,6 +243,7 @@ SKIF_UI_IniEditor_OpenFile (IniWindow* iniWindow, IniType type, std::wstring pat
   else {
     iniWindow->bChanged    = false;
     iniWindow->ini         = std::move (ini_parsed);
+    iniWindow->undo_snapshot.reset ( );
     iniWindow->title       = title_final;
     iniWindow->want_action = EditorAction::None;
     iniWindow->SetPath           (path);
@@ -254,18 +258,86 @@ SKIF_UI_IniEditor_Reload (IniWindow* iniWindow)
   iniWindow->ini         = SKIF_IniReader_ParseIni (iniWindow->path, iniWindow->type);
   iniWindow->bChanged    = false;
   iniWindow->want_action = EditorAction::None;
+  iniWindow->undo_snapshot.reset ( );
   iniWindow->ApplyFilter ( );
 }
 
 void
 SKIF_UI_IniEditor_Reset (IniWindow* iniWindow)
 {
-  for (auto& trie : iniWindow->ini)
-    trie.Reset();
+  // After a preset was applied, the entries as last saved are restored
+  if (iniWindow->undo_snapshot.has_value ( ))
+  {
+    iniWindow->ini = std::move (*iniWindow->undo_snapshot);
+    iniWindow->undo_snapshot.reset ( );
+    iniWindow->ApplyFilter ( );
+  }
+
+  else
+  {
+    for (auto& trie : iniWindow->ini)
+      trie.Reset();
+  }
 
   iniWindow->bChanged    = false;
   iniWindow->want_action = EditorAction::None;
   iniWindow->UpdateWindowTitle ( );
+}
+
+// Replaces the entries of the document with the ones of a preset, as unsaved changes (Save writes them to the file,
+//   Undo Changes restores the entries as last saved)
+void
+SKIF_UI_IniEditor_ApplyPreset (IniWindow* iniWindow, std::vector<IniEntry> entries)
+{
+  // Only kept the first time, so applying another preset (or editing in between) still reverts to the saved state
+  if (! iniWindow->undo_snapshot.has_value ( ))
+  {
+    iniWindow->undo_snapshot = iniWindow->ini;
+
+    // Unsaved edits are not part of the saved state (this is what Undo Changes would have reverted them to)
+    if (iniWindow->bChanged)
+      for (auto& trie : *iniWindow->undo_snapshot)
+        trie.Reset();
+  }
+
+  iniWindow->ini      = std::move (entries);
+  iniWindow->bChanged = true;
+  iniWindow->ApplyFilter       ( );
+  iniWindow->UpdateWindowTitle ( );
+}
+
+// Builds the entries of a preset for a document of the given type. Returns false if the preset could not be read
+static bool
+SKIF_UI_IniEditor_BuildPreset (const SKIF_IniPresetChoice& preset, IniType type, std::vector<IniEntry>& entries)
+{
+  switch (preset.action)
+  {
+    case SKIF_IniPresetAction_Apply:
+      entries = SKIF_IniReader_ParseIni (preset.path, type);
+      return (! entries.empty ( )); // Parse errors are already reported by the INI reader
+
+    case SKIF_IniPresetAction_Compatibility:
+    {
+      inih::INIReader reader;
+
+      try {
+        reader.ParseContent (SK_WideCharToUTF8 (cfg_compatibility));
+      } catch (const std::exception& e) {
+        PLOG_ERROR << "Failed to parse the compatibility config! Error: " << e.what ();
+        return false;
+      };
+
+      entries = SKIF_IniReader_BuildEntries (&reader, type);
+      return true;
+    }
+
+    case SKIF_IniPresetAction_Reset:
+      entries = SKIF_IniReader_BuildEntries (nullptr, type);
+      return true;
+
+    default:
+      return false;
+  }
 }
 
 void
@@ -273,6 +345,9 @@ SKIF_UI_IniEditor_Process (void)
 {
   bool cleanup  = false,
        newWnd   = false;
+
+  // A preset to open in a new editor window (opened after all windows have been processed, as opening one adds to vIniWindow)
+  std::wstring editPreset;
 
   // Grace period after a user-initiated save (ms)
   static constexpr DWORD SAVE_GRACE_MS = 500;
@@ -303,6 +378,8 @@ SKIF_UI_IniEditor_Process (void)
          reload   = false,
          reset    = false,
          minimize = false;
+
+    SKIF_IniPresetChoice preset;
 
     ImGuiWindowClass
       wc;
@@ -342,6 +419,7 @@ SKIF_UI_IniEditor_Process (void)
       if (! (window.saved != NULL && (SKIF_Util_timeGetTime() - window.saved) < SAVE_GRACE_MS))
       {
         window.ini = SKIF_IniReader_ParseIni (window.path, window.type);
+        window.undo_snapshot.reset ( );
 
         // Apply the active filter
         window.ApplyFilter ( );
@@ -391,6 +469,20 @@ SKIF_UI_IniEditor_Process (void)
           reset = true;
 
         if (! window.bChanged)
+          SKIF_ImGui_PopDisableState ( );
+
+        ImGui::Separator ( );
+
+        // Apply Preset, Apply Compatibility Config and Reset (shared with the Library tab, see <utility/ini_presets.h>).
+        //   Presets are configs of Special K itself, so not for the other INI files (OSD, input, notifications, ...)
+        const bool presetsDisabled = (window.type != IniType_DLL && window.type != IniType_Unknown);
+
+        if (presetsDisabled)
+          SKIF_ImGui_PushDisableState ( );
+
+        preset = SKIF_ImGui_IniPresetItems (false);
+
+        if (presetsDisabled)
           SKIF_ImGui_PopDisableState ( );
 
         ImGui::Separator ( );
@@ -801,6 +893,17 @@ SKIF_UI_IniEditor_Process (void)
     if (reset)
       SKIF_UI_IniEditor_Reset    (&window);
 
+    if (preset.action == SKIF_IniPresetAction_Edit)
+      editPreset = preset.path;
+
+    else if (preset.action != SKIF_IniPresetAction_None)
+    {
+      std::vector <IniEntry> entries;
+
+      if (SKIF_UI_IniEditor_BuildPreset (preset, window.type, entries))
+        SKIF_UI_IniEditor_ApplyPreset  (&window, std::move (entries));
+    }
+
     if (save)
       SKIF_UI_IniEditor_Save     (&window);
 
@@ -833,6 +936,9 @@ SKIF_UI_IniEditor_Process (void)
 
   if (newWnd)
     SKIF_UI_IniEditor_NewWindow ( );
+
+  if (! editPreset.empty ( ))
+    SKIF_UI_IniEditor_OpenFile (nullptr, IniType_DLL, editPreset, "");
 
   // Closed windows are removed last, after all of them have been processed this frame
   if (cleanup)

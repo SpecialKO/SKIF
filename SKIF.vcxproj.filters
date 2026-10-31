@@ -309,6 +309,9 @@
     <ClInclude Include="include\tabs\ini_editor.h">
       <Filter>Header Files\UI Tabs</Filter>
     </ClInclude>
+    <ClInclude Include="include\utility\ini_presets.h">
+      <Filter>Header Files\Utility</Filter>
+    </ClInclude>
     <ClInclude Include="include\utility\ini_reader.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
@@ -472,6 +475,9 @@
     </ClCompile>
     <ClCompile Include="src\tabs\ini_editor.cpp">
       <Filter>Source Files\UI Tabs</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utility\ini_presets.cpp">
+      <Filter>Source Files\Utility</Filter>
     </ClCompile>
     <ClCompile Include="src\utility\ini_reader.cpp">
       <Filter>Source Files\Utility</Filter>

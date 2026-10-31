@@ -394,6 +394,7 @@
     <ClInclude Include="include\utility\droptarget.hpp" />
     <ClInclude Include="include\utility\drvreset.h" />
     <ClInclude Include="include\utility\gamepad.h" />
+    <ClInclude Include="include\utility\ini_presets.h" />
     <ClInclude Include="include\utility\ini_reader.h" />
     <ClInclude Include="include\utility\plog_formatter.h" />
     <ClInclude Include="packages_misc\HybridDetect.h" />
@@ -475,6 +476,7 @@
     <ClCompile Include="src\utility\artwork.cpp" />
     <ClCompile Include="src\utility\gamepad.cpp" />
     <ClCompile Include="src\utility\games.cpp" />
+    <ClCompile Include="src\utility\ini_presets.cpp" />
     <ClCompile Include="src\utility\ini_reader.cpp" />
     <ClCompile Include="src\utility\igdb.cpp" />
     <ClCompile Include="src\utility\l10n.cpp" />

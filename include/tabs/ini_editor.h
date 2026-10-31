@@ -10,6 +10,7 @@
 #include <vector>
 #include <limits>
 #include <unordered_set>
+#include <optional>
 
 #include <utility/ini_reader.h>
 #include <utility/utility.h>
@@ -62,6 +63,9 @@ struct IniWindow {
 
   // Changed anything?
   bool          bChanged = false;
+  // What Undo Changes reverts to after a preset was applied (the entries as last saved), as a preset replaces the entries
+  std::optional <std::vector <IniEntry>>
+                undo_snapshot;
   // Should unused settings be visible
   bool          bViewUnused = false;
 
@@ -90,4 +94,5 @@ void SKIF_UI_IniEditor_SaveAs   (IniWindow* iniWindow);
 void SKIF_UI_IniEditor_OpenFile (IniWindow* iniWindow = nullptr, IniType type = IniType_Unknown, std::wstring path = L"", const std::string& title = "");
 void SKIF_UI_IniEditor_Reload   (IniWindow* iniWindow);
 void SKIF_UI_IniEditor_Reset    (IniWindow* iniWindow);
+void SKIF_UI_IniEditor_ApplyPreset (IniWindow* iniWindow, std::vector<IniEntry> entries);
 void SKIF_UI_IniEditor_Process  (void);

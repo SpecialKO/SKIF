@@ -69,50 +69,14 @@
 #include <utility/registry.h>
 #include <utility/updater.h>
 #include <tabs/ini_editor.h>
+#include <utility/ini_presets.h>
 #include <stores/Steam/steam_library.h>
 #include <utility/artwork.h>
 
 
 // Constants
 
-constexpr const wchar_t* utf8_bom        =  L"\xEF\xBB\xBF";
-constexpr const wchar_t* cfg_compatibility =
-LR"([SpecialK.System]
-ShowEULA=false
-GlobalInjectDelay=0.0
-
-[API.Hook]
-d3d9=true
-d3d9ex=true
-d3d11=true
-OpenGL=true
-d3d12=true
-Vulkan=true
-
-[Steam.Log]
-Silent=true
-
-[Input.libScePad]
-Enable=false
-
-[Input.XInput]
-Enable=false
-UISlot=4
-
-[Input.Gamepad]
-EnableDirectInput7=false
-EnableDirectInput8=false
-EnableHID=false
-EnableNativePS4=false
-EnableRawInput=true
-AllowHapticUI=false
-
-[Input.Keyboard]
-CatchAltF4=false
-BypassAltF4Handler=false
-
-[Textures.D3D11]
-Cache=false)";
+// utf8_bom and cfg_compatibility are in <utility/ini_presets.h>
 
 constexpr char         spaces[]          = { "\u0020\u0020\u0020\u0020" };
 
