@@ -96,3 +96,6 @@ bool  SKIF_Properties_BrowseForFolder   (std::wstring& out, const wchar_t* folde
 //   (SKIF.h) opens one for the selected game, or brings its window forward; it is PopupState_Opened while any is open.
 //   Called every frame by SKIF.cpp, after the main window.
 void  SKIF_Properties_Draw              (void);
+
+// Scrolls the window opened next (ModifyGamePopup = PopupState_Open), or the one brought forward, to the start of a page
+void  SKIF_Properties_RequestPage       (PropertiesPage page);

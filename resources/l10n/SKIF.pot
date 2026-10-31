@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-10-31 21:08+0100\n"
+"POT-Creation-Date: 2026-10-31 21:40+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -231,8 +231,8 @@ msgstr ""
 #: src/tabs/library/library_popups.cpp:238
 #: src/tabs/library/library_popups.cpp:268
 #: src/tabs/library/library_popups.cpp:317
-#: src/tabs/library/library_properties.cpp:2023
-#: src/tabs/library/library_properties.cpp:2118
+#: src/tabs/library/library_properties.cpp:2051
+#: src/tabs/library/library_properties.cpp:2146
 #: src/tabs/local.cpp:1213
 #: src/tabs/local.cpp:1238
 #: src/tabs/monitor.cpp:1985
@@ -310,7 +310,7 @@ msgid "Working directory"
 msgstr ""
 
 #: src/stores/SKIF/custom_library.cpp:762
-#: src/tabs/library/library_properties.cpp:1962
+#: src/tabs/library/library_properties.cpp:1980
 msgid "Launch options"
 msgstr ""
 
@@ -934,7 +934,7 @@ msgid "Please Wait..."
 msgstr ""
 
 #: src/tabs/hardware.cpp:1379
-#: src/tabs/library/library_details.cpp:468
+#: src/tabs/library/library_details.cpp:469
 msgid "Pending..."
 msgstr ""
 
@@ -1030,7 +1030,7 @@ msgid "{0} - Editor"
 msgstr ""
 
 #: src/tabs/ini_editor.cpp:90
-#: src/tabs/library/library_properties.cpp:2149
+#: src/tabs/library/library_properties.cpp:2177
 msgid "Save Changes?"
 msgstr ""
 
@@ -1090,8 +1090,8 @@ msgid "Open"
 msgstr ""
 
 #: src/tabs/ini_editor.cpp:519
-#: src/tabs/library/library_properties.cpp:2021
-#: src/tabs/library/library_properties.cpp:2100
+#: src/tabs/library/library_properties.cpp:2049
+#: src/tabs/library/library_properties.cpp:2128
 #: src/utility/skif_imgui.cpp:1792
 msgid "Save"
 msgstr ""
@@ -1162,7 +1162,7 @@ msgstr ""
 
 #. TRANSLATORS: {0} is the name of a file (or of a game)
 #: src/tabs/ini_editor.cpp:944
-#: src/tabs/library/library_properties.cpp:2151
+#: src/tabs/library/library_properties.cpp:2179
 msgid "Do you want to save changes to {0}?"
 msgstr ""
 
@@ -1178,7 +1178,7 @@ msgid "Currently enforced by touch input mode."
 msgstr ""
 
 #: src/tabs/library.cpp:1476
-#: src/tabs/library/library_details.cpp:497
+#: src/tabs/library/library_details.cpp:498
 msgid "Loading..."
 msgstr ""
 
@@ -1242,110 +1242,109 @@ msgstr ""
 msgid "Special Kudos to our Patrons:"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:115
+#: src/tabs/library/library_details.cpp:116
 msgid "Profile folder:"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:116
+#: src/tabs/library/library_details.cpp:117
 msgid "Config file:"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:117
+#: src/tabs/library/library_details.cpp:118
 msgid "Platform:"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:204
+#: src/tabs/library/library_details.cpp:205
 msgid "Update to v {0}"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:210
+#: src/tabs/library/library_details.cpp:211
 msgid "Uninstall"
 msgstr ""
 
 #. TRANSLATORS: Not available
-#: src/tabs/library/library_details.cpp:300
+#: src/tabs/library/library_details.cpp:301
 msgid "N/A"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:395
+#: src/tabs/library/library_details.cpp:396
 #: src/tabs/local.cpp:1046
 msgid ""
 "The local DLL file is outdated.\n"
 "Click to update it to v {0}."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:438
+#: src/tabs/library/library_details.cpp:439
 #: src/tabs/library/library_menus.cpp:1231
 msgid "Play"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:446
+#: src/tabs/library/library_details.cpp:447
 msgid "Install Mod"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:455
+#: src/tabs/library/library_details.cpp:456
 msgid "Installing..."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:461
+#: src/tabs/library/library_details.cpp:462
 msgid "Downloading..."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:498
+#: src/tabs/library/library_details.cpp:499
 msgid "Running..."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:499
+#: src/tabs/library/library_details.cpp:500
 msgid "Updating..."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:679
+#: src/tabs/library/library_details.cpp:680
 msgid "Please finish the ongoing mod installation first."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:701
+#: src/tabs/library/library_details.cpp:702
 msgid "Warning: VAC protected game; injection is not recommended!"
 msgstr ""
 
-#. TRANSLATORS: A launch option in the "Disable Special K" menu; {0} is its name
-#: src/tabs/library/library_details.cpp:781
-msgid "for {0}"
+#: src/tabs/library/library_details.cpp:801
+#: src/tabs/library/library_menus.cpp:682
+msgid "Properties"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:789
-#: src/tabs/library/library_details.cpp:838
-#: src/tabs/library/library_details.cpp:884
-#: src/tabs/library/library_properties.cpp:1030
-msgid "Disable Special K"
-msgstr ""
-
-#: src/tabs/library/library_details.cpp:804
-#: src/tabs/library/library_properties.cpp:1035
-msgid "Special K is disabled through a blacklist pattern in the Settings tab."
-msgstr ""
-
-#: src/tabs/library/library_details.cpp:815
+#: src/tabs/library/library_details.cpp:811
 #: src/tabs/library/library_properties.cpp:1012
 #: src/utility/injection.cpp:1068
 msgid "Special K is unavailable due to missing files."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:817
+#: src/tabs/library/library_details.cpp:813
 #: src/utility/injection.cpp:1070
 msgid "Please reinstall Special K using the latest available installer."
 msgstr ""
 
+#: src/tabs/library/library_details.cpp:840
+#: src/tabs/library/library_properties.cpp:1035
+msgid "Special K is disabled through a blacklist pattern in the Settings tab."
+msgstr ""
+
+#: src/tabs/library/library_details.cpp:842
+msgid ""
+"Special K is disabled for the default launch option.\n"
+"Click to change it in Properties."
+msgstr ""
+
 #. TRANSLATORS: Where the configuration of Special K is kept (one folder for all games)
-#: src/tabs/library/library_details.cpp:1495
+#: src/tabs/library/library_details.cpp:1406
 #: src/utility/injection.cpp:840
 msgid "Centralized"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:1497
+#: src/tabs/library/library_details.cpp:1408
 msgid "Localized"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:1499
+#: src/tabs/library/library_details.cpp:1410
 msgid "Unknown"
 msgstr ""
 
@@ -1472,10 +1471,6 @@ msgstr ""
 
 #: src/tabs/library/library_menus.cpp:678
 msgid "Manage"
-msgstr ""
-
-#: src/tabs/library/library_menus.cpp:682
-msgid "Properties"
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:687
@@ -2065,6 +2060,10 @@ msgstr ""
 msgid "Save first to change these for this executable."
 msgstr ""
 
+#: src/tabs/library/library_properties.cpp:1030
+msgid "Disable Special K"
+msgstr ""
+
 #: src/tabs/library/library_properties.cpp:1047
 msgid "Elevated service"
 msgstr ""
@@ -2253,21 +2252,21 @@ msgid "Set in the platform client. SKIF does not change these."
 msgstr ""
 
 #. TRANSLATORS: Title of the Properties window; {0} is the name of the game
-#: src/tabs/library/library_properties.cpp:1874
+#: src/tabs/library/library_properties.cpp:1888
 msgid "{0} - Properties"
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:2022
-#: src/tabs/library/library_properties.cpp:2110
+#: src/tabs/library/library_properties.cpp:2050
+#: src/tabs/library/library_properties.cpp:2138
 msgid "Apply"
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:2042
-#: src/tabs/library/library_properties.cpp:2095
+#: src/tabs/library/library_properties.cpp:2070
+#: src/tabs/library/library_properties.cpp:2123
 msgid "Could not save"
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:2061
+#: src/tabs/library/library_properties.cpp:2089
 msgid "Some of the changes could not be saved."
 msgstr ""
 

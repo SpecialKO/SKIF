@@ -1743,6 +1743,11 @@ struct properties_window_s {
   //   e.g. after new launch options were saved, so they are loaded again from it (see _SKIF_Properties_DrawWindow ( ))
   uint32_t                                         loadedSwap   = 0;
 
+  // Scrolls the content to the start of a page (SKIF_Properties_RequestPage ( )). Repeated for a few frames, as the content
+  //   of a new window is not laid out (nor its scrolling range known) on its first frame
+  PropertiesPage                                   scrollPage   = PropertiesPage::General;
+  int                                              scrollFrames = 0;
+
   bool IsDirty (void) const
   {
     for (auto& section : sections)
@@ -1754,6 +1759,15 @@ struct properties_window_s {
 };
 
 static std::vector <std::unique_ptr <properties_window_s>> s_windows;
+
+// The page requested for the window opened next (see SKIF_Properties_RequestPage ( )); -1 for none
+static int s_requestedPage = -1;
+
+void
+SKIF_Properties_RequestPage (PropertiesPage page)
+{
+  s_requestedPage = static_cast <int> (page);
+}
 
 static std::unique_ptr <properties_window_s>
 _SKIF_Properties_Create (app_record_s* pApp)
@@ -1951,10 +1965,14 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
 
     bool           firstSection = true;
     PropertiesPage lastPage     = PropertiesPage::General;
+    float          scrollY      = -1.0f; // Screen position of the start of the requested page (SKIF_Properties_RequestPage ( ))
 
     for (auto& section : wnd.sections)
     {
       const PropertiesPage page = section->GetPage ( );
+
+      if (wnd.scrollFrames > 0 && scrollY < 0.0f && page == wnd.scrollPage && (firstSection || page != lastPage))
+        scrollY = ImGui::GetCursorScreenPos ( ).y;
 
       if (! firstSection && page != lastPage)
       {
@@ -1987,6 +2005,16 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
     ImGui::PopStyleVar ( ); // ImGuiStyleVar_ItemSpacing
 
     ImGui::EndChild ( ); // ###PropsColumn
+
+    // Scroll the content area to the requested page (relative to the window, as SetScrollFromPosY ( ) expects)
+    if (wnd.scrollFrames > 0)
+    {
+      if (scrollY >= 0.0f)
+        ImGui::SetScrollFromPosY (scrollY - ImGui::GetWindowPos ( ).y, 0.0f);
+
+      wnd.scrollFrames--;
+    }
+
     ImGui::EndChild ( ); // ###PropsContent
 
     // Warnings and errors of all sections (errors block Save)
@@ -2208,13 +2236,23 @@ SKIF_Properties_Draw (void)
       if (existing != s_windows.end ( ))
         (*existing)->focusRequest = true;
       else
-        s_windows.push_back (_SKIF_Properties_Create (pSelected));
+        existing = s_windows.insert (s_windows.end ( ), _SKIF_Properties_Create (pSelected));
+
+      // Scrolled to a page if one was requested along with the opening
+      if (s_requestedPage != -1)
+      {
+        (*existing)->scrollPage   = static_cast <PropertiesPage> (s_requestedPage);
+        (*existing)->scrollFrames = 3;
+      }
     }
   }
 
   // Closed from elsewhere
   else if (ModifyGamePopup == PopupState_Closed)
     s_windows.clear ( );
+
+  // A request only applies to the opening it was made with
+  s_requestedPage = -1;
 
   for (auto it = s_windows.begin ( ); it != s_windows.end ( ); )
   {

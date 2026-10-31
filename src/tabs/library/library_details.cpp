@@ -23,6 +23,7 @@
 #include "library_ui.h"
 
 #include <ctime>
+#include <tabs/properties.h>
 
 // Last, as it defines short macros such as _ ( )
 #include <utility/l10n.h>
@@ -729,7 +730,7 @@ DrawGameDetails_Play (app_record_s* pApp)
 }
 
 
-// Details panel, bottom bar: launch configs / disable Special K (moved verbatim from the former GetInjectionSummary)
+// Details panel, bottom bar: whether Special K is disabled for the default launch config (changed in Properties), or unavailable
 static void
 DrawGameDetails_LaunchBar (app_record_s* pApp)
 {
@@ -759,56 +760,51 @@ DrawGameDetails_LaunchBar (app_record_s* pApp)
                                 ImGuiWindowFlags_NoBackground
   );
 
-  if ( pApp->specialk.injection.injection.type != InjectionType::Local )
+  // Special K is disabled per executable in Properties (Launch options). A lock shows when the default launch config, the one
+  //   Play uses, has it disabled, as it explains why Special K does not load; clicking it opens Properties there.
+  app_record_s::launch_config_s*
+    defaultLaunchConfig = pApp->GetDefaultLaunchConfig ( );
+
+  // A local install is used instead of the service (the default launch config's own, else the game's; as LaunchGame ( ) resolves it)
+  const InjectionType defaultType  = (defaultLaunchConfig != nullptr) ? defaultLaunchConfig->injection.injection.type : InjectionType::Unknown;
+  const bool          defaultLocal = (defaultType != InjectionType::Unknown) ? (defaultType                              == InjectionType::Local)
+                                                                             : (pApp->specialk.injection.injection.type == InjectionType::Local);
+
+  // The row is laid out from both ends: Properties in the left corner, the state of Special K in the right corner
+  const float fRowStartX = ImGui::GetCursorPosX ( );
+  const float fRowEndX   = fRowStartX + ImGui::GetContentRegionAvail ( ).x;
+
+  // Selectables are not as tall as a frame, so push the row down to where the text of a frame would be
+  ImGui::SetCursorPosY (
+    ImGui::GetCursorPosY  ( ) +
+    ImGui::GetStyle       ( ).FramePadding.y
+  );
+
+  // An icon-only button: a Selectable as wide as the icon, in the given color, with a hand cursor and a tooltip
+  auto _IconButton = [](const char* label, const ImVec4& color) -> bool
   {
-    auto _BlacklistCfg =
-    [&](app_record_s::launch_config_s& launch_cfg, bool menu) ->
-    void
-    {
-      bool blacklist =
-        launch_cfg.isBlacklisted ( );
-      bool blacklist_pattern =
-        launch_cfg.isExecutableFullPathValid () &&
-        _inject._TestUserList (SK_WideCharToUTF8 (launch_cfg.getExecutableFullPath()).c_str(), false);
+    const ImVec2 size = ImGui::CalcTextSize (label, nullptr, true);
 
-      char          szButtonLabel [256] = { };
+    ImGui::PushStyleColor (ImGuiCol_Text, color);
+    bool clicked = ImGui::Selectable (label, false, ImGuiSelectableFlags_None, ImVec2 (size.x, 0.0f));
+    ImGui::PopStyleColor  ( );
 
-      // Built with the translated text as an argument, never as the format
-      if (menu)
-        sprintf_s ( szButtonLabel, 255,
-                      " %s###DisableSpecialK-%d",
-                        // TRANSLATORS: A launch option in the "Disable Special K" menu; {0} is its name
-                        F_("for {0}",
-                          launch_cfg.getDescriptionUTF8().empty()
-                            ? launch_cfg.getExecutableFileNameUTF8()
-                            : launch_cfg.getDescriptionUTF8()).c_str (),
-                        launch_cfg.id);
-      else
-        sprintf_s ( szButtonLabel, 255,
-                      " %s###DisableSpecialK%d",
-                        _("Disable Special K"),
-                        launch_cfg.id );
+    SKIF_ImGui_SetMouseCursorHand ( );
 
-      if (blacklist_pattern)
-      {
-        blacklist = true;
-        SKIF_ImGui_PushDisableState ( );
-      }
+    return clicked;
+  };
 
-      if (ImGui::Checkbox (szButtonLabel,   &blacklist))
-        launch_cfg.setBlacklisted (blacklist);
+  // Left corner: Properties (as Manage > Properties)
+  if (_IconButton (ICON_FA_GEAR "###SKIFPropertiesShortcut", ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)))
+    ModifyGamePopup = PopupState_Open;
 
-      if (blacklist_pattern)
-      {
-        SKIF_ImGui_PopDisableState ( );
-        SKIF_ImGui_SetHoverTip (_("Special K is disabled through a blacklist pattern in the Settings tab."));
-      }
+  SKIF_ImGui_SetHoverTip (_("Properties"));
 
-      SKIF_ImGui_SetHoverText (launch_cfg.getExecutableFullPathUTF8 ( ).c_str());
-    };
-
+  if (! defaultLocal)
+  {
     if ( ! _inject.bHasServlet )
     {
+      ImGui::SameLine        ( );
       ImGui::BeginGroup      ( );
       ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
       ImGui::SameLine        ( );
@@ -817,122 +813,37 @@ DrawGameDetails_LaunchBar (app_record_s* pApp)
       SKIF_ImGui_SetHoverTip (_("Please reinstall Special K using the latest available installer."));
     }
 
-    // Only show the bottom options if there's some launch configs, and the first one is valid...
-    else if ( ! pApp->launch_configs.empty()) //&&
-                //pApp->launch_configs[0].isExecutableFileNameValid())
+    else if (defaultLaunchConfig != nullptr)
     {
-      /*
-      bool elevate =
-        pApp->launch_configs[0].isElevated ( );
+      const bool blacklisted        = defaultLaunchConfig->isBlacklisted ( );
+      const bool blacklistedPattern = defaultLaunchConfig->isExecutableFullPathValid ( ) &&
+                                      _inject._TestUserList (defaultLaunchConfig->getExecutableFullPathUTF8 ( ).c_str ( ), false);
 
-      if (ImGui::Checkbox ("Elevated service###ElevatedLaunch",   &elevate))
-        pApp->launch_configs[0].setElevated (elevate);
-
-      ImGui::SameLine ( );
-      */
-
-      // Set horizontal position
-      ImGui::SetCursorPosX (
-        ImGui::GetCursorPosX  ( ) +
-        ImGui::GetColumnWidth ( ) -
-        ImGui::CalcTextSize   ((std::string ("[] ") + _("Disable Special K")).c_str ( )).x -
-        ImGui::GetStyle       ( ).ItemSpacing.x * 2
-      );
-
-      static uint32_t currAppId  = 0;
-      static int      numOfItems = 0;
-
-      if (currAppId != pApp->id)
-      {   currAppId  = pApp->id;
-
-        numOfItems = 0;
-
-        for ( auto& launch : pApp->launch_configs )
-        {
-          if (! launch.second.valid ||
-                launch.second.duplicate_exe)
-            continue;
-
-          numOfItems++;
-        }
-      }
-
-      // If there is 0-1 valid launch option
-      if (numOfItems <= 1)
+      if (blacklisted || blacklistedPattern)
       {
-        if (! pApp->launch_configs.empty ())
+        static constexpr const char* lockLabel = ICON_FA_LOCK "###SKDisabledIndicator";
+
+        // Right corner
+        ImGui::SameLine      ( );
+        ImGui::SetCursorPosX (fRowEndX - ImGui::CalcTextSize (lockLabel, nullptr, true).x);
+
+        if (_IconButton (lockLabel, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning)))
         {
-          _BlacklistCfg          (
-                pApp->launch_configs.begin ()->second, false );
-        }
-      }
-
-      // If there are more than one launch option
-      else
-      {
-        ImGui::SetCursorPosX (
-          ImGui::GetCursorPosX  ( ) +
-          14.0f * SKIF_ImGui_GlobalDPIScale
-        );
-
-        // Selectable is not as tall as Checkbox, so since we disabled 'Elevated Service', we need to push this one down a bit
-        ImGui::SetCursorPosY(
-          ImGui::GetCursorPosY  ( ) +
-            ImGui::GetStyle().FramePadding.y
-        );
-
-        if (ImGui::Selectable (LI_(ICON_FA_BARS, "Disable Special K")))
-        {
-          ImVec2 pos =
-            ImGui::GetCursorPos ( );
-
-          ImGui::SameLine     ( );
-
-          ImGui::SetNextWindowPos (
-            ImGui::GetCursorScreenPos ( ) -
-            ImVec2 (0.0f, 8.0f * SKIF_ImGui_GlobalDPIScale)
-          );
-
-          ImGui::OpenPopup    ("###DisableSK");
+          // Properties for the selected game (this one), scrolled to the launch options, where the default one is selected
+          SKIF_Properties_RequestPage (PropertiesPage::Launch);
+          ModifyGamePopup = PopupState_Open;
         }
 
-        if (ImGui::BeginPopup ("###DisableSK", ImGuiWindowFlags_NoMove))
-        {
-          //std::set <std::wstring> _used_launches;
-          bool sepCustomSKIF = true,
-                sepCustomUser = true;
+        SKIF_ImGui_SetHoverText (defaultLaunchConfig->getExecutableFullPathUTF8 ( ).c_str ( ));
 
-          for ( auto& launch : pApp->launch_configs )
-          {
-            if (! launch.second.valid ||
-                  launch.second.duplicate_exe)
-              continue;
-
-            // Separators between official / user / SKIF launch configs
-
-            if (launch.second.custom_user && sepCustomUser)
-            {
-              sepCustomUser = false;
-              ImGui::Separator ( );
-            }
-
-            else if (launch.second.custom_skif && sepCustomSKIF)
-            {
-              sepCustomSKIF = false;
-              ImGui::Separator ( );
-            }
-
-            _BlacklistCfg (launch.second, true);
-          }
-
-          ImGui::EndPopup      ( );
-        }
+        if (blacklistedPattern)
+          SKIF_ImGui_SetHoverTip (_("Special K is disabled through a blacklist pattern in the Settings tab."));
+        else
+          SKIF_ImGui_SetHoverTip (_("Special K is disabled for the default launch option.\n"
+                                    "Click to change it in Properties."));
       }
     }
   }
-
-  else
-    ImGui::NewLine ( );
 
   ImGui::EndChild ( );
   fBottomDist = ImGui::GetItemRectSize().y;
@@ -954,7 +865,7 @@ DrawGameDetails (app_record_s* pApp)
   // Middle frame: the Play / install button
   DrawGameDetails_Play (pApp);
 
-  // Bottom bar: launch configs / disable Special K
+  // Bottom bar: Special K disabled / unavailable
   DrawGameDetails_LaunchBar (pApp);
 }
 
