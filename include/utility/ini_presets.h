@@ -60,6 +60,7 @@ enum SKIF_IniPresetAction
   SKIF_IniPresetAction_Compatibility, // Apply the compatibility ("sledgehammer") config (cfg_compatibility)
   SKIF_IniPresetAction_Reset,         // Apply an empty config
   SKIF_IniPresetAction_Edit,          // Open the preset file in .path in the INI editor (it exists, "Create New" creates it)
+  SKIF_IniPresetAction_New,           // Start a new custom preset in the INI editor (nothing is created until it is saved)
 };
 
 struct SKIF_IniPresetChoice

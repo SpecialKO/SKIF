@@ -261,15 +261,9 @@ SKIF_ImGui_IniPresetItems (bool handCursor)
 
     if (ImGui::BeginMenu (L_("Create New")))
     {
+      // A new, unsaved document: saving it asks for a name, in the Custom presets folder
       if (ImGui::Selectable (L_("Custom Preset...")))
-      {
-        // An existing Untitled.ini is opened as it is (it is not emptied)
-        std::wstring path = (CustomPresetsFolder + LR"(Untitled.ini)");
-        SKIF_IniPresets_CreateEmpty (CustomPresetsFolder, path);
-        s_refreshCustomPresets = true; // The watch might only have been set up now that the folder exists
-
-        choice = { SKIF_IniPresetAction_Edit, path };
-      }
+        choice = { SKIF_IniPresetAction_New, L"" };
 
       _HandCursor ( );
 

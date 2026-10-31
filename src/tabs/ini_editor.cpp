@@ -101,6 +101,7 @@ SKIF_UI_IniEditor_NewFile (IniWindow* iniWindow)
 
   iniWindow->watch.reset();
   iniWindow->title       = "";
+  iniWindow->save_folder.clear ( );
   iniWindow->bChanged    = false;
   iniWindow->ini         = std::move (ini_parsed);
   iniWindow->undo_snapshot.reset ( );
@@ -116,6 +117,22 @@ SKIF_UI_IniEditor_NewWindow (void)
   std::vector <IniEntry> ini_parsed = SKIF_IniReader_BuildEntries (nullptr, dll_ini);
 
   vIniWindow.emplace_back (std::move (ini_parsed), dll_ini);
+}
+
+// A new custom preset: an empty document whose first save asks for a name in the Custom presets folder (nothing is
+//   written until then, so no placeholder file is left behind or reused)
+void
+SKIF_UI_IniEditor_NewPreset (void)
+{
+  std::vector <IniEntry> ini_parsed = SKIF_IniReader_BuildEntries (nullptr, dll_ini);
+
+  IniWindow& window  = vIniWindow.emplace_back (std::move (ini_parsed), dll_ini, L"", _("New Custom Preset"));
+  window.save_folder = SKIF_IniPresets_GetCustomFolder ( );
+
+  std::error_code ec;
+  // Create any missing directories, so Save As can open in the folder
+  if (! std::filesystem::exists             (window.save_folder, ec))
+        std::filesystem::create_directories (window.save_folder, ec);
 }
 
 void
@@ -142,17 +159,20 @@ SKIF_UI_IniEditor_Save (IniWindow* iniWindow)
 void
 SKIF_UI_IniEditor_SaveAs (IniWindow* iniWindow)
 {
-  std::wstring defaultFolderPath = (! iniWindow->path.empty() ? std::filesystem::path (iniWindow->path).parent_path().wstring() : L"");
+  std::wstring defaultFolderPath = (! iniWindow->path.empty() ? std::filesystem::path (iniWindow->path).parent_path().wstring() : iniWindow->save_folder);
 
   LPWSTR pwszFilePath = NULL;
   HRESULT hr          =
-    SKIF_Util_FileExplorer_SaveFile (&pwszFilePath, (HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, { { W_("Configuration Files"), L"*.ini" }, { W_("All files"), L"*.*" } }, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST, FOLDERID_ComputerFolder, defaultFolderPath.c_str(), L"ini");
+    SKIF_Util_FileExplorer_SaveFile (&pwszFilePath, (HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, { { W_("Configuration Files"), L"*.ini" }, { W_("All files"), L"*.*" } }, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_OVERWRITEPROMPT | FOS_PATHMUSTEXIST | FOS_NOREADONLYRETURN, FOLDERID_ComputerFolder, defaultFolderPath.c_str(), L"ini");
 
   if (hr == HRESULT_FROM_WIN32 (ERROR_CANCELLED))
     return;
 
-  else if (SUCCEEDED (hr))
+  else if (SUCCEEDED (hr) && pwszFilePath != NULL)
+  {
     iniWindow->SetPath (pwszFilePath);
+    CoTaskMemFree      (pwszFilePath);
+  }
 
   else
   {
@@ -320,7 +340,7 @@ SKIF_UI_IniEditor_SaveAsPreset (IniWindow* iniWindow)
 
   LPWSTR pwszFilePath = NULL;
   HRESULT hr          =
-    SKIF_Util_FileExplorer_SaveFile (&pwszFilePath, (HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, { { W_("Configuration Files"), L"*.ini" }, { W_("All files"), L"*.*" } }, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST, FOLDERID_ComputerFolder, folder.c_str(), L"ini");
+    SKIF_Util_FileExplorer_SaveFile (&pwszFilePath, (HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, { { W_("Configuration Files"), L"*.ini" }, { W_("All files"), L"*.*" } }, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_OVERWRITEPROMPT | FOS_PATHMUSTEXIST | FOS_NOREADONLYRETURN, FOLDERID_ComputerFolder, folder.c_str(), L"ini");
 
   if (hr == HRESULT_FROM_WIN32 (ERROR_CANCELLED))
     return;
@@ -332,6 +352,7 @@ SKIF_UI_IniEditor_SaveAsPreset (IniWindow* iniWindow)
   }
 
   const std::wstring path = pwszFilePath;
+  CoTaskMemFree (pwszFilePath);
 
   // Saving over the document's own file is a regular save
   if (! iniWindow->path.empty() && _wcsicmp (path.c_str(), iniWindow->path.c_str()) == 0)
@@ -385,8 +406,9 @@ SKIF_UI_IniEditor_BuildPreset (const SKIF_IniPresetChoice& preset, IniType type,
 void
 SKIF_UI_IniEditor_Process (void)
 {
-  bool cleanup  = false,
-       newWnd   = false;
+  bool cleanup    = false,
+       newWnd     = false,
+       newPreset  = false;
 
   // A preset to open in a new editor window (opened after all windows have been processed, as opening one adds to vIniWindow)
   std::wstring editPreset;
@@ -948,6 +970,9 @@ SKIF_UI_IniEditor_Process (void)
     if (preset.action == SKIF_IniPresetAction_Edit)
       editPreset = preset.path;
 
+    else if (preset.action == SKIF_IniPresetAction_New)
+      newPreset  = true;
+
     else if (preset.action != SKIF_IniPresetAction_None)
     {
       std::vector <IniEntry> entries;
@@ -991,6 +1016,9 @@ SKIF_UI_IniEditor_Process (void)
 
   if (newWnd)
     SKIF_UI_IniEditor_NewWindow ( );
+
+  if (newPreset)
+    SKIF_UI_IniEditor_NewPreset ( );
 
   if (! editPreset.empty ( ))
     SKIF_UI_IniEditor_OpenFile (nullptr, IniType_DLL, editPreset, "");

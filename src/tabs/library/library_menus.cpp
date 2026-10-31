@@ -124,6 +124,10 @@ DrawGameConfigMenu (app_record_s* pApp)
         SKIF_UI_IniEditor_OpenFile (nullptr, IniType_DLL, preset.path, "");
         break;
 
+      case SKIF_IniPresetAction_New:
+        SKIF_UI_IniEditor_NewPreset ( );
+        break;
+
       default:
         break;
     }

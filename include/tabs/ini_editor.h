@@ -37,6 +37,7 @@ struct IniWindow {
   std::wstring           path;
   std:: string           path_utf8;
   std::wstring           path_parent;
+  std::wstring           save_folder; // Where Save As opens for a document without a file (empty: the default)
   std:: string          title;
   std:: string       doc_name;
   std:: string       wnd_name;
@@ -89,6 +90,7 @@ private:
 
 void SKIF_UI_IniEditor_NewFile  (IniWindow* iniWindow);
 void SKIF_UI_IniEditor_NewWindow(void);
+void SKIF_UI_IniEditor_NewPreset(void);
 void SKIF_UI_IniEditor_Save     (IniWindow* iniWindow);
 void SKIF_UI_IniEditor_SaveAs   (IniWindow* iniWindow);
 void SKIF_UI_IniEditor_OpenFile (IniWindow* iniWindow = nullptr, IniType type = IniType_Unknown, std::wstring path = L"", const std::string& title = "");
