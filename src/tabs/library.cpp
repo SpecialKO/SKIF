@@ -2021,13 +2021,12 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   extern uint32_t SelectNewSKIFGame;
 
+  // A game added through the AddGame= command line argument (WM_SKIF_REFRESHGAMES, or at launch): it is selected once
+  //   a library that has it is swapped in, by making it the last selected game (as the Add Game popup does). Selecting
+  //     it here would not last: it is not in the library shown yet, so the swap-in would reselect the last selected game
   if (SelectNewSKIFGame > 0)
   {
-    // Change selection to the new game
-    selection.game     = { app_record_s::Store::Custom, SelectNewSKIFGame };
-    selection.category = "Games";
-
-    update = true;
+    SetLastSelectedGame ({ app_record_s::Store::Custom, SelectNewSKIFGame });
 
     SelectNewSKIFGame = 0;
   }
