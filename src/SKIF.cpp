@@ -748,9 +748,9 @@ SKIF_Startup_AddGame (LPWSTR lpCmdLine)
       if (SelectNewSKIFGame > 0 && _Signal._RunningInstance != 0)
       {
         SendMessage (_Signal._RunningInstance, WM_SKIF_REFRESHGAMES, SelectNewSKIFGame, 0x0);
-        PLOG_INFO << "Terminating due to one of these contions were found to be true:";
-        PLOG_INFO << "SelectNewSKIFGame > 0: "  << (SelectNewSKIFGame  > 0);
-        PLOG_INFO << "hwndAlreadyExists != 0: " << (_Signal._RunningInstance != 0);
+        PLOG_DEBUG << "Terminating due to one of these contions were found to be true:";
+        PLOG_DEBUG << "SelectNewSKIFGame > 0: "  << (SelectNewSKIFGame  > 0);
+        PLOG_DEBUG << "hwndAlreadyExists != 0: " << (_Signal._RunningInstance != 0);
         ExitProcess (0x0);
       }
     }

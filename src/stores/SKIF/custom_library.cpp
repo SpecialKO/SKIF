@@ -206,8 +206,6 @@ void SKIF_GetCustomAppIDs (app_list_t* apps)
   WCHAR   szSubKey[MAX_PATH]     = { };
   WCHAR   szData  [MAX_PATH * 2] = { };
 
-  extern uint32_t SelectNewSKIFGame;
-
   /* Load custom titles from registry */
   if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\Games\)", 0, KEY_READ | KEY_WOW64_64KEY, &hKey) == ERROR_SUCCESS)
   {
