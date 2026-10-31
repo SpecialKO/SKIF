@@ -9,6 +9,7 @@
 #include <utility/sk_utility.h>
 #include <utility/utility.h>
 #include <utility/registry.h>
+#include <utility/hotkeys.h>
 #include <ImGuiNotify.hpp>
 
 #include <fonts/fa_621.h>
@@ -695,9 +696,8 @@ SKIF_UI_IniEditor_Process (void)
 
     if (window.bFocused && ! g_activeKeybindPopup)
     {
-           if (! window.bFilterActive &&
-              (ImGui::IsKeyPressed (ImGuiKey_Escape) ||
-              (ImGui::GetIO().KeyCtrl &&                            ImGui::GetKeyData (ImGuiKey_W)->DownDuration == 0.0f)))           show = false; // Escape / Ctrl+W
+           if (! window.bFilterActive && ImGui::IsKeyPressed (ImGuiKey_Escape))                                                     show = false; // Escape (not while the filter field is active, where it reverts the field)
+           if (ImGui::IsKeyChordPressed (SKIF_Hotkey_CloseWindow))                                                                  show = false; // Ctrl+W (also while the filter field is active)
            if (ImGui::GetIO().KeyCtrl &&                            ImGui::GetKeyData (ImGuiKey_O)->DownDuration == 0.0f)         openFile =  true; // Ctrl+O
            if (ImGui::GetIO().KeyCtrl && ImGui::GetIO().KeyShift && ImGui::GetKeyData (ImGuiKey_N)->DownDuration == 0.0f)           newWnd =  true; // Ctrl+Shift+N
       else if (ImGui::GetIO().KeyCtrl &&                            ImGui::GetKeyData (ImGuiKey_N)->DownDuration == 0.0f)          newFile =  true; // Ctrl+N

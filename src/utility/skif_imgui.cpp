@@ -1690,6 +1690,9 @@ SKIF_ImGui_BeginPopup (const char* name, bool* p_open, ImVec2 size, ImGuiWindowF
 
   const ImGuiViewport* vp = ImGui::GetWindowViewport();
 
+  // The window this is called from, which the popup covers (dimmed)
+  ImGuiWindow* host = ImGui::GetCurrentWindowRead ( );
+
   // Dim the background, also eats up ImGui::SetNextWindowSize()
   SKIF_ImGui_DimBackgroundViewport (vp);
 
@@ -1717,6 +1720,13 @@ SKIF_ImGui_BeginPopup (const char* name, bool* p_open, ImVec2 size, ImGuiWindowF
     for (const ImGuiPopupData& popup : g.OpenPopupStack)
       if (popup.Window != nullptr && popup.Window != window && ImGui::IsWindowChildOf (popup.Window, window, true, false))
         ImGui::BringWindowToDisplayFront (popup.Window);
+
+    // Like a modal popup, the window it covers must not take the focus from it. ImGui focuses the window of a platform
+    //   window when that regains the OS focus (e.g. focusing Properties and then the main window again while Add Game is
+    //     open), which would otherwise leave the popup unfocused on top of its dimmed, but focused, window
+    if (host != nullptr && g.NavWindow != nullptr && g.NavWindow->RootWindow == host->RootWindow &&
+        (flags & (ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoInputs)) == 0)
+      ImGui::FocusWindow (window);
   }
 
   return ret;

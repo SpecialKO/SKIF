@@ -63,6 +63,7 @@
 #include <shared_mutex>
 
 #include <utility/registry.h>
+#include <utility/hotkeys.h>
 #include <utility/updater.h>
 #include <tabs/ini_editor.h>
 #include <stores/Steam/steam_library.h>
@@ -1525,9 +1526,9 @@ SKIF_UI_Tab_DrawLibrary (void)
       RemoveGamePopup     == PopupState_Closed &&
       ! io.KeyCtrl)
   {
-    extern bool
-          INIEditorActive;
-    if (! INIEditorActive)
+    // Only while the main window has the focus, so typing in another window (Local Manager, INI editor, ...)
+    //   does not change the selected game
+    if (SKIF_Hotkey_MainWindowFocused ( ))
       SearchAppsList ( );
   }
 

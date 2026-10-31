@@ -20,6 +20,7 @@
 
 #include <imgui/imgui.h>
 #include <utility/skif_imgui.h>
+#include <utility/hotkeys.h>
 #include <../packages_misc/ImGuiNotify.hpp>
 
 // Last, as it defines short macros such as _ ( )
@@ -1316,6 +1317,22 @@ DrawInputTextEx (SKIF_Updater::changelog_s* fmt, SKIF_Updater::WindowType type, 
   ImGui::EndChild       ( );
 }
 
+// Escape and Ctrl+W close the changelog / updater windows, as in SKIF's other windows. Call right after Begin ( ).
+//   Escape first closes a popup of the window, or leaves an active field (e.g. after selecting text in the changelog)
+static bool
+SKIF_Updater_CloseHotkeyPressed (void)
+{
+  if (! ImGui::IsWindowFocused (ImGuiFocusedFlags_RootAndChildWindows))
+    return false;
+
+  if (ImGui::IsKeyChordPressed (SKIF_Hotkey_CloseWindow))
+    return true;
+
+  return (ImGui::IsKeyPressed (ImGuiKey_Escape, false) && ! ImGui::GetIO ( ).KeyCtrl &&
+        ! ImGui::IsAnyItemActive ( )                                                 &&
+        ! ImGui::IsPopupOpen (0u, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel));
+}
+
 void
 SKIF_Updater::DrawWindowChanges (Window* wnd, WindowType type)
 {
@@ -1348,6 +1365,10 @@ SKIF_Updater::DrawWindowChanges (Window* wnd, WindowType type)
   {
     if (wnd->hwnd == nullptr && ImGui::GetWindowViewport()->PlatformHandleRaw)
       wnd->hwnd = (HWND)ImGui::GetWindowViewport()->PlatformHandleRaw;
+
+    // Escape / Ctrl+W: same as the Close button
+    if (SKIF_Updater_CloseHotkeyPressed ( ))
+      wnd->show = false;
 
     // TRANSLATORS: {0} is "Special K v" followed by a version number
     SKIF_ImGui_TextHighlighted (_("You are currently using {0}"),
@@ -1443,6 +1464,10 @@ SKIF_Updater::DrawWindowUpdater (Window* wnd)
   {
     if (wnd->hwnd == nullptr && ImGui::GetWindowViewport()->PlatformHandleRaw)
       wnd->hwnd = (HWND)ImGui::GetWindowViewport()->PlatformHandleRaw;
+
+    // Escape / Ctrl+W: same as the Cancel button
+    if (SKIF_Updater_CloseHotkeyPressed ( ))
+      wnd->show = false;
 
     if (UpdatePromptPopup == PopupState_Open)
         UpdatePromptPopup  = PopupState_Opened;

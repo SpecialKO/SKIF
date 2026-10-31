@@ -44,6 +44,7 @@
 
 #include <utility/utility.h>
 #include <utility/skif_imgui.h>
+#include <utility/hotkeys.h>
 #include <utility/gamepad.h>
 
 #include <utility/injection.h>
@@ -2433,6 +2434,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     // Various hotkeys that SKIF supports (resets on every frame)
     extern bool INIEditorActive;
+    extern bool SKIF_Properties_IsFocused (void); // Properties windows handle Ctrl+Q themselves (unsaved changes prompt)
     bool hotkeysEnabled   = ! (INIEditorActive || g_activeKeybindPopup);
     bool hotkeyF5         = (hotkeysEnabled &&                              ImGui::GetKeyData (ImGuiKey_F5 )->DownDuration == 0.0f), // Library/About: Refresh data
          hotkeyF6         = (hotkeysEnabled &&                              ImGui::GetKeyData (ImGuiKey_F6 )->DownDuration == 0.0f), // Appearance: Toggle DPI scaling
@@ -2440,8 +2442,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
          hotkeyF8         = (hotkeysEnabled &&                              ImGui::GetKeyData (ImGuiKey_F8 )->DownDuration == 0.0f), // Appearance: Toggle UI borders
          hotkeyF9         = (hotkeysEnabled &&                              ImGui::GetKeyData (ImGuiKey_F9 )->DownDuration == 0.0f), // Appearance: Toggle color depth
          hotkeyF11        = (hotkeysEnabled &&                              ImGui::GetKeyData (ImGuiKey_F11)->DownDuration == 0.0f), // Appearance: Toggle app mode (Library/Service)
-         hotkeyCtrlQ      = (hotkeysEnabled && io.KeyCtrl &&                ImGui::GetKeyData (ImGuiKey_Q  )->DownDuration == 0.0f), // Close the app
-         hotkeyCtrlW      = (hotkeysEnabled && io.KeyCtrl &&                ImGui::GetKeyData (ImGuiKey_W  )->DownDuration == 0.0f), // Close the app
+         hotkeyCtrlQ      = (hotkeysEnabled && io.KeyCtrl &&                ImGui::GetKeyData (ImGuiKey_Q  )->DownDuration == 0.0f   // Close the app
+                                            && ! SKIF_Properties_IsFocused ( )),                                                //   (Properties asks about unsaved changes first)
+         hotkeyCtrlW      = (hotkeysEnabled && io.KeyCtrl &&                ImGui::GetKeyData (ImGuiKey_W  )->DownDuration == 0.0f   // Close the app, but only from the main window
+                                            && SKIF_Hotkey_MainWindowFocused ( )),                                              //   (other windows use Ctrl+W to close themselves)
          hotkeyCtrlR      = (hotkeysEnabled && io.KeyCtrl &&                ImGui::GetKeyData (ImGuiKey_R  )->DownDuration == 0.0f), // Library/About: Refresh data
          hotkeyCtrlT      = (hotkeysEnabled && io.KeyCtrl &&                ImGui::GetKeyData (ImGuiKey_T  )->DownDuration == 0.0f), // Appearance: Toggle app mode (Library/Service)
          hotkeyCtrlA      = (hotkeysEnabled && io.KeyCtrl &&                ImGui::GetKeyData (ImGuiKey_A  )->DownDuration == 0.0f), // Library: Add game
@@ -3187,7 +3191,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       allowShortcutCtrlA = true;
 
-      if (ImGui::IsKeyPressed (ImGuiKey_Escape))
+      // Only from the main window: the INI editor, Local Manager and Properties use Escape to close themselves
+      if (SKIF_Hotkey_MainWindowFocused ( ) && ImGui::IsKeyPressed (ImGuiKey_Escape))
       {
         // Properties (ModifyGamePopup) is a window of its own, and handles Escape itself while it has focus
         if (AddGamePopup        != PopupState_Closed ||

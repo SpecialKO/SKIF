@@ -24,6 +24,7 @@
 
 #include "library_ui.h"
 #include <tabs/properties.h>
+#include <utility/hotkeys.h>
 
 #include <algorithm>
 #include <cctype>
@@ -1709,6 +1710,12 @@ struct properties_window_s {
   HWND                                             hwnd         = nullptr;
   std::vector <std::unique_ptr <IPropertySection>> sections;
 
+  // Asked when the window is closed (title bar, Escape, Ctrl+W) or the app is exited (Ctrl+Q) with unsaved changes;
+  //   what to do once the user has answered the prompt (Save / Don't Save; Cancel keeps the window open)
+  enum class PendingAction { None, Close, Exit };
+  PendingAction                                    pending      = PendingAction::None;
+  bool                                             promptShow   = false;
+
   bool IsDirty (void) const
   {
     for (auto& section : sections)
@@ -1802,6 +1809,20 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
   }
 
   const bool        anyDirty = wnd.IsDirty ( );
+
+  // The app is being exited from an INI editor (Ctrl+Q, or its own prompt) or another Properties window drawn before this
+  //   one: as these windows are drawn after the INI editors, this sees it the same frame, before the main window acts on
+  //     it next frame. With unsaved changes, ask first, like the INI editor does
+  extern bool bKeepWindowAlive;
+
+  if (! bKeepWindowAlive && anyDirty)
+  {
+    bKeepWindowAlive = true;
+    wnd.pending      = properties_window_s::PendingAction::Exit;
+    wnd.promptShow   = true;
+    wnd.focusRequest = true; // Bring the window forward (next frame), so the prompt is seen
+  }
+
   // TRANSLATORS: Title of the Properties window; {0} is the name of the game
   const std::string title    = F_("{0} - Properties", pApp->names.normal) + windowId;
 
@@ -1823,9 +1844,31 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
     if (focused)
       allowShortcutCtrlA = false;
 
-    // Escape closes the window (discarding the changes), unless it closes a combo box or menu of ours first
+    // Closing the window: the title bar's close button, Escape (unless it closes a combo box or menu of ours first)
+    //   or Ctrl+W. With unsaved changes the user is asked first (see below)
+    bool closeRequest = ! open;
+    open              = true;
+
     if (focused && ImGui::IsKeyPressed (ImGuiKey_Escape, false) && ! ImGui::IsPopupOpen (0u, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
-      closed = true;
+      closeRequest = true;
+
+    if (focused && ImGui::IsKeyChordPressed (SKIF_Hotkey_CloseWindow))
+      closeRequest = true;
+
+    // Ctrl+Q exits the app, as from the main window, but asks about unsaved changes first (the main window's Ctrl+Q is
+    //   not handled while a Properties window has the focus, see SKIF_Properties_IsFocused). Asked right away: the main
+    //     window would otherwise exit the app next frame, before this window gets to the check above Begin ( )
+    if (focused && ImGui::IsKeyChordPressed (SKIF_Hotkey_Quit))
+    {
+      if (anyDirty)
+      {
+        wnd.pending    = properties_window_s::PendingAction::Exit;
+        wnd.promptShow = true;
+      }
+
+      else
+        bKeepWindowAlive = false;
+    }
 
     ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
 
@@ -1936,8 +1979,19 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
 
     SKIF_ImGui_PushDisableState (saveDisabled);
 
-    if (ImGui::Button (L_("Save###PropsSave"), vButtonSize))
+    // Applies the changes of every section; false (with the reasons shown as toasts in the window) if something was not saved
+    auto _Save = [&](void) -> bool
     {
+      // Save is not possible while there are errors (the Save button is disabled then, but the prompt can still ask)
+      if (hasErrors)
+      {
+        for (const auto& issue : issues)
+          if (issue.level == property_issue_s::Level::Error)
+            ImGui::InsertNotification ({ ImGuiToastType::Error, 8000, _("Could not save"), "%s", issue.message.c_str ( ) });
+
+        return false;
+      }
+
       uint32_t                 effects = PropertiesApply_None;
       std::vector <std::string> errors;
 
@@ -1984,7 +2038,12 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
       for (const auto& error : errors)
         ImGui::InsertNotification ({ ImGuiToastType::Error, 8000, _("Could not save"), "%s", error.c_str ( ) });
 
-      if (errors.empty ( ))
+      return errors.empty ( );
+    };
+
+    if (ImGui::Button (L_("Save###PropsSave"), vButtonSize))
+    {
+      if (_Save ( ))
         closed = true;
     }
 
@@ -1992,10 +2051,59 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
 
     ImGui::SameLine ( );
 
+    // Cancel discards the changes without asking: it is the explicit way to do so
     if (ImGui::Button (L_("Cancel###PropsCancel"), vButtonSize))
       closed = true;
 
     ImGui::PopStyleColor ( );
+
+    if (closeRequest)
+    {
+      if (anyDirty)
+      {
+        wnd.pending    = properties_window_s::PendingAction::Close;
+        wnd.promptShow = true;
+      }
+
+      else
+        closed = true;
+    }
+
+    // Unsaved changes prompt
+    if (wnd.promptShow)
+    {
+      auto _PerformPending = [&](void)
+      {
+        if (wnd.pending == properties_window_s::PendingAction::Close)
+          closed = true;
+
+        else if (wnd.pending == properties_window_s::PendingAction::Exit)
+          bKeepWindowAlive = false; // Continue exiting (the next window with unsaved changes asks as well)
+      };
+
+      const std::string promptName = std::string (_("Save Changes?")) + SKIF_Util_FormatStringRaw ("###PropsSavePrompt_%d", wnd.id);
+      // TRANSLATORS: {0} is the name of a file (or of a game)
+      const std::string message    = F_("Do you want to save changes to {0}?", pApp->names.normal);
+
+      switch (SKIF_ImGui_SaveChangesPrompt (promptName.c_str ( ), &wnd.promptShow, message.c_str ( )))
+      {
+        case DChoice_Save:
+          // On failure the window stays open, with the reasons shown as toasts
+          if (_Save ( ))
+            _PerformPending ( );
+          wnd.pending = properties_window_s::PendingAction::None;
+          break;
+
+        case DChoice_DontSave:
+          _PerformPending ( );
+          wnd.pending = properties_window_s::PendingAction::None;
+          break;
+
+        case DChoice_Cancel:
+          wnd.pending = properties_window_s::PendingAction::None;
+          break;
+      }
+    }
 
     // Toasts of this window only (bound to its platform window)
     ImGui::RenderNotifications ( );
@@ -2003,8 +2111,8 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
 
   ImGui::End ( );
 
-  // The title bar's close button discards the changes, same as Cancel
-  if (closed || ! open)
+  // Closed: saved, Cancel, or closed (title bar, Escape, Ctrl+W) without unsaved changes / after the prompt
+  if (closed)
   {
     pApp->launch_failed = false;
     return false;
@@ -2052,6 +2160,21 @@ SKIF_Properties_Draw (void)
 
   // Opened while any window is
   ModifyGamePopup = (s_windows.empty ( )) ? PopupState_Closed : PopupState_Opened;
+}
+
+bool
+SKIF_Properties_IsFocused (void)
+{
+  const HWND hWndFocused = SKIF_ImGui_GetFocusedWindow ( );
+
+  if (hWndFocused == NULL)
+    return false;
+
+  for (const auto& wnd : s_windows)
+    if (wnd->hwnd == hWndFocused)
+      return true;
+
+  return false;
 }
 
 #pragma endregion

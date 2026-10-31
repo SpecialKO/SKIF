@@ -411,6 +411,7 @@
     <ClInclude Include="include\utility\l10n.h" />
     <ClInclude Include="include\utility\launch_behaviors.h" />
     <ClInclude Include="include\utility\registry.h" />
+    <ClInclude Include="include\utility\hotkeys.h" />
     <ClInclude Include="include\utility\skif_imgui.h" />
     <ClInclude Include="include\utility\utility.h" />
     <ClInclude Include="resources\fonts\fa_brands_400.ttf.h" />

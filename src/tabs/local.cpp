@@ -7,6 +7,7 @@
 #include <functional>
 
 #include <utility/skif_imgui.h>
+#include <utility/hotkeys.h>
 #include <utility/sk_utility.h>
 #include <utility/utility.h>
 #include <utility/injection.h>
@@ -806,6 +807,11 @@ SKIF_LocalManager::Process (void)
                             ! new_exe_path.empty () || ! new_dll_path.empty () ||
                             ! new_uptodate_desc.empty () ||
                             action != LocalAction::None);
+
+    // Ctrl+W: close the window, like Ctrl+W in Properties and the INI editor (also while typing or a prompt is shown,
+    //   same as the title bar's close button). The main window's Ctrl+W (close the app) only applies to the main window
+    if (focused && ImGui::IsKeyChordPressed (SKIF_Hotkey_CloseWindow))
+      showWindow = false;
 
     if (focused && ! io.WantTextInput && ! anyPrompt && ! io.KeyShift && ! io.KeyAlt)
     {

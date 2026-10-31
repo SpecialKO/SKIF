@@ -13,6 +13,7 @@
 
 #include <utility/fsutil.h>
 #include <utility/registry.h>
+#include <utility/hotkeys.h>
 #include <utility/injection.h>
 #include <utility/updater.h>
 #include <utility/gamepad.h>
@@ -2452,7 +2453,8 @@ SKIF_UI_Tab_DrawSettings (void)
       SKIF_ImGui_PushDisableState ( );
     else
       hotkeyCtrlS = ImGui::GetIO().KeyCtrl               &&
-                    ImGui::GetKeyData (ImGuiKey_S)->DownDuration == 0.0f;
+                    ImGui::GetKeyData (ImGuiKey_S)->DownDuration == 0.0f &&
+                    SKIF_Hotkey_MainWindowFocused ( ); // Not from an INI editor (Ctrl+S saves the file there)
 
     // Hotkey: Ctrl+S
     if (ImGui::Button (LI_(ICON_FA_FLOPPY_DISK, "Save Changes")) || hotkeyCtrlS)

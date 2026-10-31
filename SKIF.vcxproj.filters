@@ -192,6 +192,9 @@
     <ClInclude Include="include\utility\vfs.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
+    <ClInclude Include="include\utility\hotkeys.h">
+      <Filter>Header Files\Utility</Filter>
+    </ClInclude>
     <ClInclude Include="include\utility\skif_imgui.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
