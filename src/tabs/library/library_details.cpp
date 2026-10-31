@@ -1115,8 +1115,8 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
 
       else
       {
-        // The any case will just be 64-bit for us, since SK only runs on
-        //   64-bit systems. Thus, ignore 32-bit launch configs.
+        // The Any case will be whatever bitness SKIF is running (32/64-bit).
+        //   Thus, ignore launch configs of the opposite bitness (64/32-bit).
 #ifdef _WIN64
         if (launch.cpu_type == app_record_s::CPUType::x86)
 #else
