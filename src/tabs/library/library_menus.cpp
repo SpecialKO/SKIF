@@ -861,8 +861,8 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
       if (activeInput)
         bCategoryMgnt = true;
 
-      ImGui::PopID       ( );
-      ImGui::PopItemFlag ( );
+      ImGui::PopID       ( ); // ###ManageCategories
+      ImGui::PopItemFlag ( ); // ImGuiItemFlags_AutoClosePopups
 
       ImGui::EndMenu ( );
     }
@@ -1191,9 +1191,6 @@ void
 DrawGameContextMenu (app_record_s* pApp)
 {
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
-
-  // TODO: Many of the below options needs to be adjusted to indicate if the primary launch option
-  //         is even available (or if "without Special K" is the only option available)
 
   app_record_s::launch_config_s*
     firstLaunchConfig = (pApp != nullptr) ? pApp->GetDefaultLaunchConfig ( ) : nullptr; // The default launch config (Properties > Launch), else the primary one

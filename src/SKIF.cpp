@@ -142,7 +142,7 @@ ImVec2 SKIF_vecRegularModeDefault   = ImVec2 (1000.0f, 944.0f);   // Does not in
 ImVec2 SKIF_vecRegularModeAdjusted  = SKIF_vecRegularModeDefault; // Adjusted for status bar and tooltips (NO DPI scaling!)
 // --- Service Mode
 ImVec2 SKIF_vecServiceMode          = ImVec2 (0.0f, 0.0f);        // DPI-aware
-ImVec2 SKIF_vecServiceModeDefault   = ImVec2 (415.0f, 305.0f);    // TODO 2024-05-05: 415px should probably be raised to 435px to allow smooth window resizing with a matched style between regular + service
+ImVec2 SKIF_vecServiceModeDefault   = ImVec2 (415.0f, 305.0f);    // Default Service Mode size
 // --- Horizontal Mode (used when regular mode is not available)
 ImVec2 SKIF_vecHorizonMode          = ImVec2 (0.0f, 0.0f);        // DPI-aware
 ImVec2 SKIF_vecHorizonModeDefault   = ImVec2 (1000.0f, 374.0f);   // Does not include the status bar (2024-01-20: 325 -> 375; 2024-05-19: 375 -> 374 to fix cover scaling at default size)
@@ -3469,11 +3469,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::EndTabItem       ( );
         }
 
-        // TODO: Change to a period refresh when focused (every 500ms or so) which then after
-        //   having been == Game Mode a couple of times (5+ seconds) prompts SKIF to warn about it
-        //if (SKIF_Util_GetEffectivePowerMode ( ) != "None")
-        //  ImGui::TextColored (ImVec4 (0.5f, 0.5f, 0.5f, 1.f), SK_FormatString (R"(%s (%s))", SKIF_WINDOW_TITLE_A, SKIF_Util_GetEffectivePowerMode ( ).c_str ( ) ).c_str ( ));
-
         ImGui::EndTabBar          ( );
       } // End Regular Mode
 
@@ -4495,9 +4490,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   _registry.regKVCategoriesState.putDataMultiSZ (_inBools);
   PLOG_INFO << "Wrote the collapsible category state to the registry.";
 
-  // TODO: Make an exception for scenarios where remembering the size and pos makes sense,
-  //         e.g. when size / DPI <= regular size * 1.5x or something like that!!!
-  //
   // Only store window size and position to the registry if we are not in a maximized state
   ImVec2 vecCurrentModeDPIUnaware = ImFloor (SKIF_vecCurrentMode / SKIF_ImGui_MainDPIScale);
 
