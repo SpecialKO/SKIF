@@ -15832,8 +15832,28 @@ void ImGui::NavUpdateWindowingOverlay()
         return;
 
     const ImGuiViewport* viewport = /*g.NavWindow ? g.NavWindow->Viewport :*/ GetMainViewport();
-    SetNextWindowSizeConstraints(ImVec2(viewport->Size.x * 0.20f, viewport->Size.y * 0.20f), ImVec2(FLT_MAX, FLT_MAX));
-    SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+
+    // SKIF CUSTOM: Center the overlay on the window being switched from, and anchor it there for as long as it is shown.
+    //   - Upstream centers it on the main viewport (with a minimum size of 20% of it). SKIF initializes the Win32 backend
+    //       without a window (ImGui_ImplWin32_Init (nullptr)), so its main viewport is a placeholder rather than the SKIF
+    //         window: the overlay appeared at a fixed spot near the top-left of the primary display instead.
+    //   - Upstream also repositions it every frame. With multi-viewports, where the overlay is a platform window of its own,
+    //       it then moved and resized along with the window it was centered on while that was being moved or resized
+    //         through the overlay itself (gamepad Menu + stick, Ctrl+Tab + arrow keys).
+    //   g.NavWindow is still the window that had the focus when the overlay appears (focus is applied once it is released).
+    static ImVec2 skif_overlay_center   = ImVec2(0.0f, 0.0f);
+    static ImVec2 skif_overlay_min_size = ImVec2(0.0f, 0.0f);
+    ImGuiWindow* skif_overlay_window = FindWindowByName("##NavWindowingOverlay");
+    if (skif_overlay_window == NULL || !skif_overlay_window->WasActive) // Appearing (not shown in the previous frame)
+    {
+        const ImGuiViewport* skif_anchor_viewport =
+            (g.NavWindow          != NULL && g.NavWindow->Viewport          != NULL) ? (ImGuiViewport*)g.NavWindow->Viewport          :
+            (g.NavWindowingTarget != NULL && g.NavWindowingTarget->Viewport != NULL) ? (ImGuiViewport*)g.NavWindowingTarget->Viewport : viewport;
+        skif_overlay_center   = skif_anchor_viewport->GetCenter();
+        skif_overlay_min_size = ImVec2(skif_anchor_viewport->Size.x * 0.20f, skif_anchor_viewport->Size.y * 0.20f);
+    }
+    SetNextWindowSizeConstraints(skif_overlay_min_size, ImVec2(FLT_MAX, FLT_MAX));
+    SetNextWindowPos(skif_overlay_center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
     PushStyleVar(ImGuiStyleVar_WindowPadding, g.Style.WindowPadding * 2.0f);
     Begin("##NavWindowingOverlay", NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings);
     g.NavWindowingListWindow = g.CurrentWindow;
