@@ -577,6 +577,7 @@ struct SKIF_GamingCollection::worker_s {
   Trie                    labels     = { };
   HANDLE                  hWorker    = NULL;
   int                     iWorker    = 0;
+  std::atomic <bool>      done       = false; // Set by the worker once it no longer uses this (see IsPopulateFinished)
   bool                    pcores     = false; // First refresh of the session (launch): its threads run on the P-cores
   std::unique_ptr <skValveDataFile>
                           appinfo    = nullptr; // Steam's appinfo.vdf, read by the worker (see SwapInPopulatedGames)
@@ -636,7 +637,9 @@ SKIF_GamingCollection::IsPopulating (void) const
 bool
 SKIF_GamingCollection::IsPopulateFinished (void) const
 {
-  return (m_worker != nullptr && m_worker->iWorker == 1 && WaitForSingleObject (m_worker->hWorker, 0) == WAIT_OBJECT_0);
+  // Not the thread handle: the worker posts WM_SKIF_ICON to wake the main thread just after setting done, and could
+  //   otherwise still be running during the frames that message adds, leaving the results waiting for the next wake
+  return (m_worker != nullptr && m_worker->iWorker == 1 && m_worker->done.load ( ));
 }
 
 app_record_s*
@@ -2041,12 +2044,15 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
 
   PLOG_INFO << "Finished populating the library list.";
 
-  // Force a refresh when the game icons have finished being streamed
-  PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
-
   PLOG_DEBUG << "Library refresh took " << (SKIF_Util_timeGetTime1 ( ) - start) << " ms.";
 
   PLOG_VERBOSE << "SKIF_LibraryWorker thread stopped!";
+
+  // The last use of _data: from here on, SwapInPopulatedGames ( ) may swap in its results and delete it
+  _data->done.store (true);
+
+  // Wake the main thread to swap in the results
+  PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
 
   //SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
 

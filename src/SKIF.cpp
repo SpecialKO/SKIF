@@ -165,7 +165,6 @@ std::wstring GOGGalaxy_Folder      = L"";
 std::wstring GOGGalaxy_UserID      = L"";
 bool         GOGGalaxy_Installed   = false;
 
-DWORD    RepopulateGamesWasSet     = 0;
 bool     RepopulateGames           = false,
          RefreshHardwareTab        = false,
          RefreshSettingsTab        = false;
@@ -4540,7 +4539,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
   KillTimer (SKIF_Notify_hWnd, _inject.IDT_REFRESH_PENDING);
   KillTimer (SKIF_Notify_hWnd, IDT_REFRESH_TOOLTIP);
   KillTimer (SKIF_Notify_hWnd, IDT_REFRESH_UPDATER);
-  KillTimer (SKIF_Notify_hWnd, IDT_REFRESH_GAMES);
   KillTimer (SKIF_Notify_hWnd, cIDT_TIMER_EFFICIENCY);
 
   PLOG_INFO << "Shutting down ImGui...";
@@ -5282,16 +5280,11 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       _inject._StartStopInject   (true);
       break;
 
+    // The library tab starts the refresh on the frames this message adds (see the end of this function), and the
+    //   library worker posts WM_SKIF_ICON once it is done, so that its results are swapped in
     case WM_SKIF_REFRESHGAMES:
-      RepopulateGamesWasSet = SKIF_Util_timeGetTime();
       RepopulateGames = true;
       SelectNewSKIFGame = (uint32_t)wParam;
-
-      SetTimer (SKIF_Notify_hWnd,
-          IDT_REFRESH_GAMES,
-          50,
-          (TIMERPROC) NULL
-      );
       break;
 
     case WM_SKIF_REFRESHFOCUS:
@@ -5458,13 +5451,6 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
           }
 
           KillTimer (SKIF_Notify_hWnd, IDT_REFRESH_TOOLTIP);
-          break;
-        case IDT_REFRESH_GAMES: // TODO: Contemplate this design, and its position in the new design with situational pausing. Concerns WM_SKIF_REFRESHGAMES / IDT_REFRESH_GAMES.
-          if (RepopulateGamesWasSet != 0 && RepopulateGamesWasSet + 1000 < SKIF_Util_timeGetTime())
-          {
-            RepopulateGamesWasSet = 0;
-            KillTimer (SKIF_Notify_hWnd, IDT_REFRESH_GAMES);
-          }
           break;
         // These are just dummy events to get SKIF to refresh for a couple of frames more periodically
         case cIDT_REFRESH_INJECTACK:

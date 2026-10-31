@@ -39,7 +39,7 @@
 
 const     UINT_PTR       cIDT_REFRESH_INJECTACK =             1337; // Refresh every  500 ms if we expect an injection acknowledgement anytime soon **MAY BE REMOVED AGAIN -- Feels like an obsolete approach with SK posting window messages on events**
 const     UINT_PTR       cIDT_REFRESH_PENDING   =             1338; // Refresh every 1000 ms since a new service state is pending
-const     UINT_PTR        IDT_REFRESH_GAMES     =             1340;
+//const   UINT_PTR        IDT_REFRESH_GAMES     =             1340; // Removed: the library worker wakes SKIF itself (WM_SKIF_ICON)
 const     UINT_PTR        IDT_REFRESH_TOOLTIP   =             1341;
 const     UINT_PTR        IDT_REFRESH_UPDATER   =             1342;
 const     UINT_PTR        IDT_REFRESH_NOTIFY    =             1343;
@@ -60,7 +60,7 @@ constexpr UINT           WM_SKIF_TEMPSTART      = WM_USER + 0x1025;
 constexpr UINT           WM_SKIF_TEMPSTARTEXIT  = WM_USER + 0x1026;
 constexpr UINT           WM_SKIF_STOP           = WM_USER + 0x2048;
 constexpr UINT           WM_SKIF_LAUNCHER       = WM_USER + 0x1027; // Another instance of SKIF is as a launcher -- signals the main instance to start the service
-constexpr UINT           WM_SKIF_REFRESHGAMES   = WM_USER + 0x1028; // AddGame="<path-to-game" cmd line argument
+constexpr UINT           WM_SKIF_REFRESHGAMES   = WM_USER + 0x1028; // Refresh the library: AddGame="<path-to-game" cmd line argument (wParam = the new game's app ID), or a new lc.json downloaded by the updater
 constexpr UINT           WM_SKIF_RUN_UPDATER    = WM_USER + 0x1029; // Triggers a check for updates
 
 // Thread workers

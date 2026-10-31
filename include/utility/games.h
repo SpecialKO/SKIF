@@ -109,7 +109,8 @@ struct SKIF_GamingCollection {
         // Library population (call from the main thread).
         //   PopulateGames ( )        starts the background library worker unless one is already running.
         //   IsPopulating ( )         true while a worker exists (running, or finished but not yet swapped in).
-        //   IsPopulateFinished ( )   true once the worker has exited and its results can be swapped in.
+        //   IsPopulateFinished ( )   true once the worker is done with its results and they can be swapped in (its
+        //                            thread may still be ending: it posts WM_SKIF_ICON right after).
         //   SwapInPopulatedGames ( ) replaces the app list with the worker's results and returns the number of
         //                            icon workers it reaped. Current records whose library data is unchanged
         //                            (app_record_s::HasSameLibraryData) are kept instead of the new ones, and
