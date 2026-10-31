@@ -14220,6 +14220,22 @@ static float inline NavScoreItemDistInterval(float cand_min, float cand_max, flo
     return 0.0f;
 }
 
+// SKIF CUSTOM: Whether 'window' is a NavFlattened child of 'parent', directly or through other NavFlattened child windows.
+//   Upstream only checks for a direct child (window->ParentWindow == parent) when entering flattened child windows from the
+//     outside, so items of nested flattened child windows (e.g. SKIF_ImGui_BeginCenteredColumn ( ) inside the NavFlattened
+//       content area of a tab) were never preferred over the items of the parent window: navigating down from the tab bar
+//         skipped all of a tab's content and went straight to the status bar at the bottom of the main window.
+static bool SKIF_IsNavFlattenedChildOf(ImGuiWindow* window, ImGuiWindow* parent)
+{
+    while (window != NULL && window->ParentWindow != parent)
+    {
+        if (!(window->ChildFlags & ImGuiChildFlags_NavFlattened))
+            return false;
+        window = window->ParentWindow;
+    }
+    return (window != NULL);
+}
+
 // Scoring function for keyboard/gamepad directional navigation. Based on https://gist.github.com/rygorous/6981057
 static bool ImGui::NavScoreItem(ImGuiNavItemData* result, const ImRect& nav_bb)
 {
@@ -14234,7 +14250,7 @@ static bool ImGui::NavScoreItem(ImGuiNavItemData* result, const ImRect& nav_bb)
     g.NavScoringDebugCount++;
 
     // When entering through a NavFlattened border, we consider child window items as fully clipped for scoring
-    if (window->ParentWindow == g.NavWindow)
+    if (SKIF_IsNavFlattenedChildOf(window, g.NavWindow)) // SKIF CUSTOM: was (window->ParentWindow == g.NavWindow)
     {
         IM_ASSERT((window->ChildFlags | g.NavWindow->ChildFlags) & ImGuiChildFlags_NavFlattened);
         if (!window->ClipRect.Overlaps(cand))
@@ -15207,7 +15223,7 @@ void ImGui::NavMoveRequestApplyResult()
             result = &g.NavMoveResultLocalVisible;
 
     // Maybe entering a flattened child from the outside? In this case solve the tie using the regular scoring rules.
-    if (result != &g.NavMoveResultOther && g.NavMoveResultOther.ID != 0 && g.NavMoveResultOther.Window->ParentWindow == g.NavWindow)
+    if (result != &g.NavMoveResultOther && g.NavMoveResultOther.ID != 0 && SKIF_IsNavFlattenedChildOf(g.NavMoveResultOther.Window, g.NavWindow)) // SKIF CUSTOM: was (g.NavMoveResultOther.Window->ParentWindow == g.NavWindow)
         if ((g.NavMoveResultOther.DistBox < result->DistBox) || (g.NavMoveResultOther.DistBox == result->DistBox && g.NavMoveResultOther.DistCenter < result->DistCenter))
             result = &g.NavMoveResultOther;
     IM_ASSERT(g.NavWindow && result->Window);
