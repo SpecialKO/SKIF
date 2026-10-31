@@ -1801,29 +1801,20 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase) * ImVec4(0.8f, 0.8f, 0.8f, 1.0f)
                             );
 
-    if (g_vIniReaderOSD.empty())
+    // The control panel toggle first...
+    for (auto& trie : g_vIniReaderOSD)
     {
-      SKIF_ImGui_Spacing ( );
-      ImGui::TextWrapped ("%s", _("Launch a game with Special K at least once to show its in-game keybinds here."));
+      if (_IsControlPanelToggle (trie))
+        _DrawKeybindRow (&trie);
     }
 
-    else
+    // ... then the miscellaneous ones, once asked for
+    if (bViewMiscKeybinds)
     {
-      // The control panel toggle first...
       for (auto& trie : g_vIniReaderOSD)
       {
-        if (_IsControlPanelToggle (trie))
+        if (_IsMiscKeybind (trie))
           _DrawKeybindRow (&trie);
-      }
-
-      // ... then the miscellaneous ones, once asked for
-      if (bViewMiscKeybinds)
-      {
-        for (auto& trie : g_vIniReaderOSD)
-        {
-          if (_IsMiscKeybind (trie))
-            _DrawKeybindRow (&trie);
-        }
       }
     }
 
