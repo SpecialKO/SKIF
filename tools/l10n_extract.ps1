@@ -14,15 +14,18 @@
 
   The text must be string literals (adjacent literals are joined, as by the compiler). For labels, only the part
   before "##" / "###" is extracted. A comment starting with "TRANSLATORS:" before the text (or on the same line)
-  is passed on to translators. A "TRANSLATORS:" comment applies to the next text within three lines.
+  is passed on to translators. A "TRANSLATORS:" comment applies to the next text within three lines, and only to
+  that one: a warning is given when another text starts on the same line (put each on its own line, with the
+  comment right before the one it is for), and when a comment is followed by no text at all.
 
   Needs nothing but Windows PowerShell 5.1 (included in Windows) or PowerShell 7 (also on Linux and macOS).
   The template is only rewritten if the text changed (not just the date).
 
   With -Check, nothing is written: the script only checks that the template is up to date, and exits with 1 if it
-  is not (or if a text could not be extracted). Source references (#: lines) and the date are ignored, so moving
-  code around does not make the template out of date; adding, changing or removing a text (or its context, plural
-  form or TRANSLATORS: comment) does. Used by the l10n workflow (.github\workflows\l10n.yml).
+  is not, or if there are warnings (a text that could not be extracted, or a misplaced TRANSLATORS: comment).
+  Source references (#: lines) and the date are ignored, so moving code around does not make the template out of
+  date; adding, changing or removing a text (or its context, plural form or TRANSLATORS: comment) does. Used by
+  the l10n workflow (.github\workflows\l10n.yml).
 
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File tools\l10n_extract.ps1
@@ -257,8 +260,10 @@ foreach ($file in $files)
   $lineOf = { param ([int] $offset) $index = $lineStarts.BinarySearch($offset); if ($index -lt 0) { $index = (-bnot $index) - 1 }; $index + 1 }
 
   $stack       = New-Object System.Collections.Generic.List[object] # Calls being parsed (nested calls go on top)
-  $comment     = $null                                             # The last TRANSLATORS: comment
-  $commentLine = -10
+  $comment     = $null                                             # The last TRANSLATORS: comment (until a text takes it)
+  $commentLine = -10                                               # Its last line
+  $commentFrom = -10                                               # Its first line
+  $owner       = $null                                             # The call that took the last comment
   $prevEnd     = 0
 
   foreach ($m in $tokenizer.Matches($text))
@@ -280,7 +285,13 @@ foreach ($file in $files)
 
       if ($body.StartsWith('TRANSLATORS:'))
       {
+        if ($null -ne $comment)
+        {
+          Write-ExtractWarning "$($file.Rel):$commentFrom" "this TRANSLATORS: comment is not followed by a text (within three lines); translators will not see it."
+        }
+
         $comment     = $body
+        $commentFrom = $line
         $commentLine = & $lineOf ($m.Index + $m.Length - 1)
       }
       elseif ($m.Groups['lc'].Success -and $null -ne $comment -and $line -eq $commentLine + 1)
@@ -308,6 +319,20 @@ foreach ($file in $files)
         # A comment applies to the next text only
         $call.Comment = $comment
         $comment      = $null
+        $owner        = $call
+      }
+
+      elseif ($null -ne $comment -and $line - $commentLine -gt 3)
+      {
+        Write-ExtractWarning "$($file.Rel):$commentFrom" "this TRANSLATORS: comment is not followed by a text (within three lines); translators will not see it."
+        $comment = $null
+      }
+
+      # Another text on the line of the one that took a comment (and not within it, as an argument): the comment is
+      #   only for the first, which is easily not what was meant (reported once this call is complete, with its text)
+      elseif ($null -ne $owner -and $line -eq $owner.Line -and -not $stack.Contains($owner))
+      {
+        $call | Add-Member -NotePropertyName CommentOwner -NotePropertyValue $owner
       }
 
       $stack.Add($call)
@@ -359,6 +384,14 @@ foreach ($file in $files)
         $stack.RemoveAt($stack.Count - 1)
         Add-Entry $top "$($file.Rel):$($top.Line)"
 
+        if ($top.PSObject.Properties['CommentOwner'])
+        {
+          $ownerText = $top.CommentOwner.Args[$keywords[$top.CommentOwner.Keyword].Id]
+          $thisText  = $top.Args[$keywords[$top.Keyword].Id]
+          Write-ExtractWarning "$($file.Rel):$($top.Line)" ("the TRANSLATORS: comment before this line is only for `"$ownerText`", not for `"$thisText`" on the same line. " +
+                                                          "Put each text on its own line, with the comment right before the one it is for.")
+        }
+
         # The call is part of an argument of the call it is nested in
         if ($stack.Count -gt 0) { $stack[$stack.Count - 1].Literal = $false }
       }
@@ -368,6 +401,11 @@ foreach ($file in $files)
   foreach ($call in $stack)
   {
     Write-ExtractWarning "$($file.Rel):$($call.Line)" "unterminated $($call.Keyword)( ); not extracted."
+  }
+
+  if ($null -ne $comment)
+  {
+    Write-ExtractWarning "$($file.Rel):$commentFrom" "this TRANSLATORS: comment is not followed by a text (within three lines); translators will not see it."
   }
 }
 
@@ -476,7 +514,7 @@ if ($Check)
   if ($warnings -gt 0)
   {
     $failed = $true
-    Write-Host "$warnings warning(s): some texts could not be extracted (see above)."
+    Write-Host "$warnings warning(s) (see above): fix them in the sources."
   }
 
   exit ([int] $failed)

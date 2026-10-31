@@ -1124,8 +1124,9 @@ SKIF_LocalManager::Process (void)
     if (want_install)
     {
       bool dontCare = true;
-      // TRANSLATORS: {0} is a floppy disk icon. "File -> Install Wrapper DLL" is a menu of Special K itself (in-game), which is in English.
-      switch (SKIF_ImGui_6432bitnessPrompt (L_("Select the bitness to install"), &dontCare, nullptr, F_("Or while in-game, use {0} File -> Install Wrapper DLL.", ICON_FA_FLOPPY_DISK).c_str ( )))
+      switch (SKIF_ImGui_6432bitnessPrompt (L_("Select the bitness to install"), &dontCare, nullptr,
+                                            // TRANSLATORS: {0} is a floppy disk icon. "File -> Install Wrapper DLL" is a menu of Special K itself (in-game), which is in English.
+                                            F_("Or while in-game, use {0} File -> Install Wrapper DLL.", ICON_FA_FLOPPY_DISK).c_str ( )))
       {
       case DChoice_32bit:
         UpdateInstall (want_install, PEBitness_32bit);

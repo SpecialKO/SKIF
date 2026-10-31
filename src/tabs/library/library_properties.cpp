@@ -1238,8 +1238,11 @@ private:
     if (label.empty ( ))
       label = _("Launch option");
 
-    // TRANSLATORS: {0} is the name of the launch option that was copied
-    row.user.desc = _UniqueDescription ((forInstantPlay) ? F_("{0} (Instant Play)", label) : F_("{0} (copy)", label));
+    row.user.desc = _UniqueDescription ((forInstantPlay)
+                                          // TRANSLATORS: {0} is the name of the launch option that was copied
+                                          ? F_("{0} (Instant Play)", label)
+                                          // TRANSLATORS: {0} is the name of the launch option that was copied
+                                          : F_("{0} (copy)", label));
 
     rows.push_back (row);
 
