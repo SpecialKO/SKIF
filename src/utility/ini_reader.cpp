@@ -405,6 +405,28 @@ DrawDropDown (IniEntry* ptr)
   return (strcmp (ptr->value, ptr->default) != 0);
 }
 
+// Keybindings Special K always has: it falls back to their default when they are unbound. SKIF shows that default when
+//   one is not set (or unbound) in the file, and they can't be cleared (BACKSPACE resets them to the default instead)
+static const char*
+SKIF_IniReader_GetRequiredKeybind (const std::string& section, const std::string& key)
+{
+  static constexpr struct {
+    const char* section;
+    const char* key;
+    const char* value;
+  } required [] = {
+    { "ImGui.Global", "ControlPanelToggle", "Ctrl+Shift+Backspace" }
+  };
+
+  for (const auto& keybind : required)
+  {
+    if (section == keybind.section && key == keybind.key)
+      return keybind.value;
+  }
+
+  return nullptr;
+}
+
 static bool
 DrawKeybinding (IniEntry* ptr)
 {
@@ -451,13 +473,28 @@ IniEntry::IniEntry (ParameterType _t, const std::string& _s, const std::string& 
 
   auto _BuildKeybind = [&](void) -> void
   {
+    const char* required = SKIF_IniReader_GetRequiredKeybind (_s, _k);
+
     _keybind = {
       _k,
-      SK_UTF8ToWideChar (_v)
+      SK_UTF8ToWideChar ((required != nullptr) ? required : _v) // DELETE in the keybinding dialog resets to this
     };
+    _keybind.clearable              = (required == nullptr);
     _keybind.pending.human_readable = SK_UTF8ToWideChar (_v);
     _keybind.pending.parse();
     _keybind.applyChanges();
+
+    // Not set, empty or unbound (<Not Bound>) in the file: use the default, as Special K does. An unset one is still not
+    //   written to the file (_ignore), unless it is changed; one that is set gets the default written on the next save
+    if (required != nullptr && _keybind.saved.vKey == 0)
+    {
+      _keybind.pending.human_readable = SK_UTF8ToWideChar (required);
+      _keybind.pending.parse();
+      _keybind.applyChanges();
+
+      strncpy (default, required, MAX_PATH);
+      strncpy (value,   required, MAX_PATH);
+    }
 
     DrawFunction = DrawKeybinding;
   };

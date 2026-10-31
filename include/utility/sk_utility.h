@@ -764,6 +764,7 @@ struct SK_KeybindMultiState
   bool         assigning = false,
                state     = false;
   int          dialogFrame = -1; // The ImGui frame the dialog of SK_ImGui_Keybinding ( ) was last shown in
+  bool         clearable   = true; // false: BACKSPACE resets to the default instead of clearing (it can't be left unbound)
   SK_Keybind   default, pending, saved;
 
   // This empty object is used during assignment to disable hotkeys temporarily

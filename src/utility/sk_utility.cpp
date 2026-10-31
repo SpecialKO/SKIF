@@ -900,10 +900,21 @@ SK_ImGui_KeybindDialog (SK_KeybindMultiState* keybind)
     ImGui::SameLine     ( );
     ImGui::TextColored  (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase), "%s", keybind->pending.human_readable_utf8.c_str ());
     ImGui::Separator    ( );
-    // TRANSLATORS: RETURN, ESC, BACKSPACE and DELETE are keys of the keyboard (use the names printed on keyboards in your language)
-    ImGui::TextDisabled ("%s", _("Press RETURN to confirm, ESC to cancel, BACKSPACE to clear, DELETE to reset."));
+    if (keybind->clearable)
+      // TRANSLATORS: RETURN, ESC, BACKSPACE and DELETE are keys of the keyboard (use the names printed on keyboards in your language)
+      ImGui::TextDisabled ("%s", _("Press RETURN to confirm, ESC to cancel, BACKSPACE to clear, DELETE to reset."));
+    else
+      // TRANSLATORS: RETURN, ESC and DELETE are keys of the keyboard (use the names printed on keyboards in your language)
+      ImGui::TextDisabled ("%s", _("Press RETURN to confirm, ESC to cancel, DELETE to reset."));
 
     ImGui::PopTextWrapPos  ( );
+
+    // A keybinding that can't be cleared is reset to its default instead
+    if (bBackspace && ! keybind->clearable)
+    {
+      bBackspace = false;
+      bDelete    = true;
+    }
 
     // Update the key binding after printing out the current one, to prevent a one-frame graphics glitch
     if (bBackspace)

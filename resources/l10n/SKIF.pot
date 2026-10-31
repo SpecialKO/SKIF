@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-10-31 17:17+0100\n"
+"POT-Creation-Date: 2026-10-31 17:28+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1362,7 +1362,7 @@ msgid "Remember collapsible state"
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:56
-#: src/tabs/settings.cpp:2004
+#: src/tabs/settings.cpp:1995
 #: src/utility/skif_imgui.cpp:2005
 msgid "Troubleshooting:"
 msgstr ""
@@ -1540,7 +1540,7 @@ msgstr ""
 #: src/tabs/library/library_menus.cpp:1454
 #: src/tabs/library/library_menus.cpp:1709
 #: src/tabs/monitor.cpp:1566
-#: src/tabs/settings.cpp:2499
+#: src/tabs/settings.cpp:2490
 #: src/utility/ini_presets.cpp:302
 msgid "Reset"
 msgstr ""
@@ -3242,240 +3242,236 @@ msgstr ""
 msgid "Keybindings"
 msgstr ""
 
-#: src/tabs/settings.cpp:1807
-msgid "Launch a game with Special K at least once to show its in-game keybinds here."
-msgstr ""
-
-#: src/tabs/settings.cpp:1838
+#: src/tabs/settings.cpp:1829
 msgid "Miscellaneous keybinds are hidden by default."
 msgstr ""
 
-#: src/tabs/settings.cpp:1839
+#: src/tabs/settings.cpp:1830
 msgid "View miscellaneous keybinds"
 msgstr ""
 
-#: src/tabs/settings.cpp:1861
+#: src/tabs/settings.cpp:1852
 msgid "Advanced"
 msgstr ""
 
-#: src/tabs/settings.cpp:1880
+#: src/tabs/settings.cpp:1871
 msgid "Automatically install new updates"
 msgstr ""
 
 #. TRANSLATORS: {0} is a mouse cursor icon
-#: src/tabs/settings.cpp:1884
+#: src/tabs/settings.cpp:1875
 msgid "Open this app on the same monitor as the {0}"
 msgstr ""
 
-#: src/tabs/settings.cpp:1887
+#: src/tabs/settings.cpp:1878
 msgid "Open this app in the mini service mode view"
 msgstr ""
 
-#: src/tabs/settings.cpp:1906
+#: src/tabs/settings.cpp:1897
 msgid "Do not stop the injection service on exit"
 msgstr ""
 
-#: src/tabs/settings.cpp:1910
+#: src/tabs/settings.cpp:1901
 msgid "This allows the injection service to remain running even after this app has been closed."
 msgstr ""
 
-#: src/tabs/settings.cpp:1912
+#: src/tabs/settings.cpp:1903
 msgid "Use hardware acceleration"
 msgstr ""
 
-#: src/tabs/settings.cpp:1924
+#: src/tabs/settings.cpp:1915
 msgid "The app will be less responsive if disabled on hybrid CPUs."
 msgstr ""
 
-#: src/tabs/settings.cpp:1929
+#: src/tabs/settings.cpp:1920
 msgid "The app may be less responsive if disabled."
 msgstr ""
 
-#: src/tabs/settings.cpp:1932
+#: src/tabs/settings.cpp:1923
 msgid "Use system proxy settings"
 msgstr ""
 
-#: src/tabs/settings.cpp:1935
+#: src/tabs/settings.cpp:1926
 msgid ""
 "Downloads go through the proxy configured in Windows.\n"
 "Automatic proxy detection and setup scripts are not used.\n"
 "If disabled, the app always connects directly."
 msgstr ""
 
-#: src/tabs/settings.cpp:1946
+#: src/tabs/settings.cpp:1937
 msgid "Allow multiple instances of this app"
 msgstr ""
 
-#: src/tabs/settings.cpp:1981
+#: src/tabs/settings.cpp:1972
 msgid "Requires 'Close to the notification area' to be disabled."
 msgstr ""
 
-#: src/tabs/settings.cpp:2008
+#: src/tabs/settings.cpp:1999
 msgctxt "log level"
 msgid "None"
 msgstr ""
 
-#: src/tabs/settings.cpp:2009
+#: src/tabs/settings.cpp:2000
 msgctxt "log level"
 msgid "Fatal"
 msgstr ""
 
-#: src/tabs/settings.cpp:2010
+#: src/tabs/settings.cpp:2001
 msgctxt "log level"
 msgid "Error"
 msgstr ""
 
-#: src/tabs/settings.cpp:2011
+#: src/tabs/settings.cpp:2002
 msgctxt "log level"
 msgid "Warning"
 msgstr ""
 
-#: src/tabs/settings.cpp:2012
+#: src/tabs/settings.cpp:2003
 msgctxt "log level"
 msgid "Info"
 msgstr ""
 
-#: src/tabs/settings.cpp:2013
+#: src/tabs/settings.cpp:2004
 msgctxt "log level"
 msgid "Debug"
 msgstr ""
 
-#: src/tabs/settings.cpp:2014
+#: src/tabs/settings.cpp:2005
 msgctxt "log level"
 msgid "Verbose"
 msgstr ""
 
-#: src/tabs/settings.cpp:2017
+#: src/tabs/settings.cpp:2008
 msgid "Log level"
 msgstr ""
 
-#: src/tabs/settings.cpp:2046
+#: src/tabs/settings.cpp:2037
 msgid "Enable excessive development logging"
 msgstr ""
 
-#: src/tabs/settings.cpp:2056
+#: src/tabs/settings.cpp:2047
 msgid "Only intended for SKIF developers as this enables excessive logging (e.g. window messages)."
 msgstr ""
 
-#: src/tabs/settings.cpp:2060
+#: src/tabs/settings.cpp:2051
 msgctxt "diagnostics"
 msgid "None"
 msgstr ""
 
-#: src/tabs/settings.cpp:2061
+#: src/tabs/settings.cpp:2052
 msgctxt "diagnostics"
 msgid "Normal"
 msgstr ""
 
-#: src/tabs/settings.cpp:2062
+#: src/tabs/settings.cpp:2053
 msgctxt "diagnostics"
 msgid "Enhanced"
 msgstr ""
 
-#: src/tabs/settings.cpp:2065
+#: src/tabs/settings.cpp:2056
 msgid "Diagnostics"
 msgstr ""
 
-#: src/tabs/settings.cpp:2089
+#: src/tabs/settings.cpp:2080
 msgid ""
 "Help improve Special K by allowing anonymized diagnostics to be sent.\n"
 "The data is used to identify issues, highlight common use cases, and\n"
 "facilitates the continued development of the application."
 msgstr ""
 
-#: src/tabs/settings.cpp:2101
+#: src/tabs/settings.cpp:2092
 msgid "Developer mode"
 msgstr ""
 
-#: src/tabs/settings.cpp:2110
+#: src/tabs/settings.cpp:2101
 msgid "Exposes additional information and context menu items that may be of interest for developers."
 msgstr ""
 
-#: src/tabs/settings.cpp:2112
-#: src/tabs/settings.cpp:2114
+#: src/tabs/settings.cpp:2103
+#: src/tabs/settings.cpp:2105
 msgid "Efficiency mode"
 msgstr ""
 
-#: src/tabs/settings.cpp:2117
+#: src/tabs/settings.cpp:2108
 msgid ""
 "Engage efficiency mode for this app when idle.\n"
 "Not recommended for Windows 10 and earlier."
 msgstr ""
 
-#: src/tabs/settings.cpp:2122
+#: src/tabs/settings.cpp:2113
 msgid "Nvidia users: Use the below button to prevent GeForce Experience from mistaking this app for a game."
 msgstr ""
 
-#: src/tabs/settings.cpp:2132
+#: src/tabs/settings.cpp:2123
 msgid "Disable GFE notifications"
 msgstr ""
 
-#: src/tabs/settings.cpp:2182
+#: src/tabs/settings.cpp:2173
 msgid ""
 "This only needs to be used if GeForce Experience notifications\n"
 "appear on the screen whenever this app is being used."
 msgstr ""
 
-#: src/tabs/settings.cpp:2201
+#: src/tabs/settings.cpp:2192
 msgid "Whitelist / Blacklist"
 msgstr ""
 
 #. TRANSLATORS: {0} is a double quote character
-#: src/tabs/settings.cpp:2241
+#: src/tabs/settings.cpp:2232
 msgid "Please remove all double quotes {0} from the list."
 msgstr ""
 
 #. TRANSLATORS: {0} is two backslashes, {1} is one backslash
-#: src/tabs/settings.cpp:2256
+#: src/tabs/settings.cpp:2247
 msgid "Folders must be separated using two backslashes {0} instead of one {1} backslash."
 msgstr ""
 
 #. TRANSLATORS: {0} is the maximum number of lines (512), {1} is the pipe character
-#: src/tabs/settings.cpp:2274
+#: src/tabs/settings.cpp:2265
 msgid "The list can only include {0} lines, though multiple can be combined using a pipe {1} character."
 msgstr ""
 
-#: src/tabs/settings.cpp:2278
+#: src/tabs/settings.cpp:2269
 msgid ""
 "(e.g. \"NieRAutomataPC|Epic Games\" will match any application\n"
 "installed under a NieRAutomataPC or Epic Games folder.)"
 msgstr ""
 
-#: src/tabs/settings.cpp:2287
+#: src/tabs/settings.cpp:2278
 msgid "The following lists manage Special K in processes as patterns are matched against the full path of the injected process."
 msgstr ""
 
-#: src/tabs/settings.cpp:2295
+#: src/tabs/settings.cpp:2286
 msgid "Easiest is to use the name of the executable or folder of the game."
 msgstr ""
 
-#: src/tabs/settings.cpp:2299
+#: src/tabs/settings.cpp:2290
 msgid ""
 "e.g. a pattern like \"Assassin's Creed Valhalla\" will match an application at\n"
 "C:\\Games\\Uplay\\games\\Assassin's Creed Valhalla\\ACValhalla.exe"
 msgstr ""
 
-#: src/tabs/settings.cpp:2305
+#: src/tabs/settings.cpp:2296
 msgid "Typing the name of a shared parent folder will match all applications below that folder."
 msgstr ""
 
-#: src/tabs/settings.cpp:2309
+#: src/tabs/settings.cpp:2300
 msgid ""
 "e.g. a pattern like \"Epic Games\" will match any\n"
 "application installed under the Epic Games folder."
 msgstr ""
 
-#: src/tabs/settings.cpp:2318
+#: src/tabs/settings.cpp:2309
 msgid "Note that these lists do not prevent Special K from being injected into processes."
 msgstr ""
 
-#: src/tabs/settings.cpp:2324
+#: src/tabs/settings.cpp:2315
 msgid ""
 "These lists control whether Special K should be enabled (the whitelist) to hook APIs etc,\n"
 "or remain disabled/idle/inert (the blacklist) within the injected process."
 msgstr ""
 
-#: src/tabs/settings.cpp:2331
+#: src/tabs/settings.cpp:2322
 msgid ""
 "The injection service injects Special K into any process that deals\n"
 "with system input or some sort of window or kb/mouse input activity.\n"
@@ -3484,33 +3480,33 @@ msgid ""
 "or remain idle/inert (the blacklist) within the injected process."
 msgstr ""
 
-#: src/tabs/settings.cpp:2350
+#: src/tabs/settings.cpp:2341
 msgid "Whitelist Patterns:"
 msgstr ""
 
-#: src/tabs/settings.cpp:2364
+#: src/tabs/settings.cpp:2355
 msgid ""
 "These are the patterns used internally to enable Special K for these specific platforms.\n"
 "They are presented here solely as examples of how a potential pattern might look like."
 msgstr ""
 
-#: src/tabs/settings.cpp:2443
+#: src/tabs/settings.cpp:2434
 msgid "Blacklist Patterns:"
 msgstr ""
 
-#: src/tabs/settings.cpp:2445
+#: src/tabs/settings.cpp:2436
 msgid "(Does not prevent injection! Use this to exclude stuff from being whitelisted)"
 msgstr ""
 
-#: src/tabs/settings.cpp:2474
+#: src/tabs/settings.cpp:2465
 msgid "Save Changes"
 msgstr ""
 
-#: src/tabs/settings.cpp:2525
+#: src/tabs/settings.cpp:2516
 msgid "The whitelist could not be saved! Please remove any non-Latin characters and try again."
 msgstr ""
 
-#: src/tabs/settings.cpp:2531
+#: src/tabs/settings.cpp:2522
 msgid "The blacklist could not be saved! Please remove any non-Latin characters and try again."
 msgstr ""
 
@@ -3544,11 +3540,11 @@ msgid ""
 "various features of Special K in an attempt to improve compatibility."
 msgstr ""
 
-#: src/utility/ini_reader.cpp:639
+#: src/utility/ini_reader.cpp:676
 msgid "INI Reader"
 msgstr ""
 
-#: src/utility/ini_reader.cpp:639
+#: src/utility/ini_reader.cpp:676
 msgid "Could not parse the INI file:"
 msgstr ""
 
@@ -3812,8 +3808,13 @@ msgid "Keybinding:"
 msgstr ""
 
 #. TRANSLATORS: RETURN, ESC, BACKSPACE and DELETE are keys of the keyboard (use the names printed on keyboards in your language)
-#: src/utility/sk_utility.cpp:904
+#: src/utility/sk_utility.cpp:905
 msgid "Press RETURN to confirm, ESC to cancel, BACKSPACE to clear, DELETE to reset."
+msgstr ""
+
+#. TRANSLATORS: RETURN, ESC and DELETE are keys of the keyboard (use the names printed on keyboards in your language)
+#: src/utility/sk_utility.cpp:908
+msgid "Press RETURN to confirm, ESC to cancel, DELETE to reset."
 msgstr ""
 
 #: src/utility/updater.cpp:685
