@@ -410,20 +410,30 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
 
 
     if ( app.second->GetKey ( ) == selection.game &&
-                   sort_changed /* &&
-        (! ImGui::IsItemVisible ()) */ )
+                   sort_changed )
     {
       sort_changed = false;
-      selection.reset ( );
 
       // Special handling for Special K to reset the scroll pos
       if (isSpecialK)
       {
+        selection.reset ( );
         selection.game     = { };
         selection.category = "Games";
+        change             = true;
       }
 
-      change = true;
+      // The list was re-sorted: only keep the selected game in view. Going through `change` would treat it as a newly
+      //   selected game, reloading its details (pApp->loading empties an open context menu, closing its submenus) and
+      //     activating its row
+      else
+      {
+        selection.category = (app.second->skif.pinned > 50) ? "Favorites (pinned)" // Same workaround as below
+                                                            : GetEffectiveCategory (app.second.get ( ));
+
+        if (! ImGui::IsItemVisible ( ))
+          ImGui::SetScrollHereY (0.5f);
+      }
     }
 
     if (change)
