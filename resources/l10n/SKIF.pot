@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-10-31 15:35+0100\n"
+"POT-Creation-Date: 2026-10-31 15:47+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1296,16 +1296,16 @@ msgid "Please reinstall Special K using the latest available installer."
 msgstr ""
 
 #. TRANSLATORS: Where the configuration of Special K is kept (one folder for all games)
-#: src/tabs/library/library_details.cpp:1438
+#: src/tabs/library/library_details.cpp:1456
 #: src/utility/injection.cpp:840
 msgid "Centralized"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:1440
+#: src/tabs/library/library_details.cpp:1458
 msgid "Localized"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:1442
+#: src/tabs/library/library_details.cpp:1460
 msgid "Unknown"
 msgstr ""
 

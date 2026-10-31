@@ -1103,10 +1103,12 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
     launch.injection.config.shorthand_utf8 =
       SK_WideCharToUTF8 (launch.injection.config.shorthand);
 
-    // TODO: This needs to be gone through and reworked entirely as the logic still gets thrown off by edge cases
-    //  - e.g. EA games with "invalid" launch options where the 'osarch' of the common_config ends up never being used
-
-    // Check bitness
+    // Check bitness, in this order:
+    //   1. the 'osarch' of the launch config, or of the game as a whole (common_config; Steam)
+    //   2. the cached value (db.json "CPU"), while it is less than a week old ("CPUCached")
+    //   3. the PE headers of the executable (else an outdated cached value)
+    // Launch configs without an executable (e.g. Link2EA games) are skipped above: the primary one gets the game's
+    //   'osarch' or cached value after this loop, and an unknown bitness is shown as SKIF's own (see bIs64Bit)
     if (launch.injection.injection.bitness == InjectionBitness::Unknown)
     {
       app_record_s::CPUType
@@ -1304,6 +1306,18 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
       SK_WideCharToUTF8 (launch.injection.config.shorthand);
   }
 
+  // The primary launch config may have no executable (e.g. Link2EA games), so the loop above could not resolve its
+  //   bitness: use what is known about the game as a whole
+  if (launch.injection.injection.bitness == InjectionBitness::Unknown)
+  {
+    if      (pApp->common_config.cpu_type == app_record_s::CPUType::x64)
+      launch.injection.injection.bitness = InjectionBitness::SixtyFour;
+    else if (pApp->common_config.cpu_type == app_record_s::CPUType::x86)
+      launch.injection.injection.bitness = InjectionBitness::ThirtyTwo;
+    else if (pApp->skif.cpu_type == 1 || pApp->skif.cpu_type == 2) // Cached; can't be checked again without an executable
+      launch.injection.injection.bitness = (InjectionBitness)pApp->skif.cpu_type;
+  }
+
   // Main UI stuff should follow the primary launch config
   if (! registry_local)
     pApp->specialk.injection = launch.injection;
@@ -1311,10 +1325,14 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
   if ( InjectionType::Global ==
       pApp->specialk.injection.injection.type )
   {
-    // Assume Global 32-bit if we don't know otherwise
+    // Unknown: assume the bitness of SKIF itself, as for "Any" above (64-bit Special K only runs on 64-bit Windows)
+    //   This is only what is shown: the bitness itself stays unknown, so it is not cached in db.json as if detected
     bool bIs64Bit =
-      (pApp->specialk.injection.injection.bitness ==
-                        InjectionBitness::SixtyFour);
+#ifdef _WIN64
+      (pApp->specialk.injection.injection.bitness != InjectionBitness::ThirtyTwo);
+#else
+      (pApp->specialk.injection.injection.bitness == InjectionBitness::SixtyFour);
+#endif
 
     pApp->specialk.injection.config.type =
       ConfigType::Centralized;
