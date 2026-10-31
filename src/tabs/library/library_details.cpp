@@ -1199,9 +1199,11 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
         { L"DDraw",    L"" }
       };
 
+      // The folders of this launch config (its executable's, and its working directory), so that a local install next to
+      //   a secondary executable is found as well (this used to test the folders of the primary launch config only)
       std::wstring test_paths[] = {
-        pApp->launch_configs.count (0) ? pApp->launch_configs.at (0).getExecutableDir() : L"",
-        pApp->launch_configs.count (0) ? pApp->launch_configs.at (0).working_dir        : L""
+        launch.getExecutableDir ( ),
+        launch.working_dir
       };
 
       if (test_paths[0] == test_paths[1])
