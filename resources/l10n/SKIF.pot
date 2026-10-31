@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-10-30 21:55+0100\n"
+"POT-Creation-Date: 2026-10-31 01:09+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -160,38 +160,11 @@ msgstr ""
 msgid "Update failed :("
 msgstr ""
 
-#: src/stores/Ubisoft/ubisoft_library.cpp:1491
+#: src/stores/itch/itch_library.cpp:658
 msgid ""
-"Ubisoft Connect is still installing this game.\n"
-"It can be played already if Ubisoft Connect allows it (a progressive install), but\n"
-"Instant Play may run it before all of its files are in place."
-msgstr ""
-
-#: src/stores/Steam/app_record.cpp:671
-#: src/stores/Steam/steam_library.cpp:1888
-msgid "Conflicting configuration"
-msgstr ""
-
-#: src/stores/Steam/app_record.cpp:672
-#: src/stores/Steam/steam_library.cpp:1889
-msgid "Could not launch game due to conflicting launch options in Steam:"
-msgstr ""
-
-#: src/stores/Steam/app_record.cpp:676
-#: src/stores/Steam/steam_library.cpp:1893
-msgid "Please change the launch options in Steam before trying again."
-msgstr ""
-
-#: src/stores/Steam/steam_library.cpp:1982
-msgid "Details"
-msgstr ""
-
-#: src/stores/Steam/steam_library.cpp:1992
-msgid "A controller must be connected."
-msgstr ""
-
-#: src/stores/Steam/steam_library.cpp:1995
-msgid "Game properties"
+"The itch app runs this game in its sandbox, as a separate Windows user,\n"
+"which may affect which saves are accessible from within the game.\n"
+"Instant Play launches are not affected as they skip the sandbox."
 msgstr ""
 
 #: src/stores/SKIF/custom_library.cpp:378
@@ -214,19 +187,19 @@ msgstr ""
 
 #: src/stores/SKIF/custom_library.cpp:381
 #: src/stores/SKIF/custom_library.cpp:560
-#: src/tabs/local.cpp:1185
-#: src/tabs/local.cpp:1210
-#: src/tabs/monitor.cpp:1985
-#: src/tabs/monitor.cpp:2003
-#: src/tabs/monitor.cpp:2090
-#: src/tabs/monitor.cpp:2123
 #: src/tabs/library/library_popups.cpp:154
 #: src/tabs/library/library_popups.cpp:238
 #: src/tabs/library/library_popups.cpp:268
 #: src/tabs/library/library_popups.cpp:317
 #: src/tabs/library/library_properties.cpp:1924
 #: src/tabs/library/library_properties.cpp:1989
-#: src/utility/skif_imgui.cpp:1697
+#: src/tabs/local.cpp:1185
+#: src/tabs/local.cpp:1210
+#: src/tabs/monitor.cpp:1985
+#: src/tabs/monitor.cpp:2003
+#: src/tabs/monitor.cpp:2090
+#: src/tabs/monitor.cpp:2123
+#: src/utility/skif_imgui.cpp:1762
 #: src/utility/updater.cpp:1547
 #: src/utility/updater.cpp:1604
 msgid "Cancel"
@@ -305,11 +278,38 @@ msgstr ""
 msgid "Select the executable and the working directory of the game."
 msgstr ""
 
-#: src/stores/itch/itch_library.cpp:658
+#: src/stores/Steam/app_record.cpp:671
+#: src/stores/Steam/steam_library.cpp:1888
+msgid "Conflicting configuration"
+msgstr ""
+
+#: src/stores/Steam/app_record.cpp:672
+#: src/stores/Steam/steam_library.cpp:1889
+msgid "Could not launch game due to conflicting launch options in Steam:"
+msgstr ""
+
+#: src/stores/Steam/app_record.cpp:676
+#: src/stores/Steam/steam_library.cpp:1893
+msgid "Please change the launch options in Steam before trying again."
+msgstr ""
+
+#: src/stores/Steam/steam_library.cpp:1982
+msgid "Details"
+msgstr ""
+
+#: src/stores/Steam/steam_library.cpp:1992
+msgid "A controller must be connected."
+msgstr ""
+
+#: src/stores/Steam/steam_library.cpp:1995
+msgid "Game properties"
+msgstr ""
+
+#: src/stores/Ubisoft/ubisoft_library.cpp:1491
 msgid ""
-"The itch app runs this game in its sandbox, as a separate Windows user,\n"
-"which may affect which saves are accessible from within the game.\n"
-"Instant Play launches are not affected as they skip the sandbox."
+"Ubisoft Connect is still installing this game.\n"
+"It can be played already if Ubisoft Connect allows it (a progressive install), but\n"
+"Instant Play may run it before all of its files are in place."
 msgstr ""
 
 #: src/stores/Xbox/xbox_library.cpp:928
@@ -722,11 +722,11 @@ msgid "Granted 'Performance Log Users' permission?"
 msgstr ""
 
 #: src/tabs/hardware.cpp:884
-#: src/tabs/monitor.cpp:1704
-#: src/tabs/monitor.cpp:1897
 #: src/tabs/library/library_popups.cpp:153
 #: src/tabs/library/library_popups.cpp:163
-#: src/utility/skif_imgui.cpp:1699
+#: src/tabs/monitor.cpp:1704
+#: src/tabs/monitor.cpp:1897
+#: src/utility/skif_imgui.cpp:1764
 msgid "Yes"
 msgstr ""
 
@@ -734,7 +734,7 @@ msgstr ""
 #: src/tabs/monitor.cpp:1704
 #: src/tabs/monitor.cpp:1897
 #: src/tabs/settings.cpp:1555
-#: src/utility/skif_imgui.cpp:1700
+#: src/utility/skif_imgui.cpp:1765
 msgid "No"
 msgstr ""
 
@@ -850,10 +850,10 @@ msgid "Support depends on the GPU and display configuration. Unusual driver or d
 msgstr ""
 
 #: src/tabs/hardware.cpp:1259
-#: src/tabs/local.cpp:752
 #: src/tabs/library/library_menus.cpp:1739
 #: src/tabs/library/library_menus.cpp:1994
 #: src/tabs/library/library_menus.cpp:2248
+#: src/tabs/local.cpp:752
 msgid "Refresh"
 msgstr ""
 
@@ -1038,7 +1038,7 @@ msgstr ""
 #: src/tabs/ini_editor.cpp:365
 #: src/tabs/library/library_properties.cpp:1923
 #: src/tabs/library/library_properties.cpp:1933
-#: src/utility/skif_imgui.cpp:1702
+#: src/utility/skif_imgui.cpp:1767
 msgid "Save"
 msgstr ""
 
@@ -1166,1394 +1166,6 @@ msgstr ""
 msgid "Note that the app has no support for animated images."
 msgstr ""
 
-#: src/tabs/local.cpp:30
-msgid "Direct3D 10/11/12 games (most common)."
-msgstr ""
-
-#: src/tabs/local.cpp:31
-msgid "Direct3D 11 games where DXGI.dll does not work."
-msgstr ""
-
-#: src/tabs/local.cpp:32
-msgid "Direct3D 9 games."
-msgstr ""
-
-#: src/tabs/local.cpp:33
-msgid "OpenGL games."
-msgstr ""
-
-#: src/tabs/local.cpp:34
-msgid "Games that load DirectInput 8; can work as a fallback."
-msgstr ""
-
-#: src/tabs/local.cpp:35
-msgid "Direct3D 8 games."
-msgstr ""
-
-#: src/tabs/local.cpp:36
-msgid "DirectDraw games."
-msgstr ""
-
-#: src/tabs/local.cpp:256
-msgid "Special K Installed"
-msgstr ""
-
-#: src/tabs/local.cpp:265
-msgid "Install Failed"
-msgstr ""
-
-#: src/tabs/local.cpp:266
-msgid "Could not install Special K as {0}"
-msgstr ""
-
-#: src/tabs/local.cpp:593
-msgid "Local Installs"
-msgstr ""
-
-#: src/tabs/local.cpp:684
-msgid "Deselect all"
-msgstr ""
-
-#: src/tabs/local.cpp:685
-msgid "Select all"
-msgstr ""
-
-#: src/tabs/local.cpp:686
-msgid "Select outdated"
-msgstr ""
-
-#: src/tabs/local.cpp:705
-msgid "Select Outdated"
-msgstr ""
-
-#: src/tabs/local.cpp:713
-msgid "Select Missing"
-msgstr ""
-
-#: src/tabs/local.cpp:720
-msgid "Select All"
-msgstr ""
-
-#: src/tabs/local.cpp:729
-msgid "Deselect All"
-msgstr ""
-
-#: src/tabs/local.cpp:741
-msgid "Update Selected"
-msgstr ""
-
-#: src/tabs/local.cpp:746
-msgid "Delete Selected"
-msgstr ""
-
-#: src/tabs/local.cpp:836
-msgid "Selection"
-msgstr ""
-
-#: src/tabs/local.cpp:852
-msgid "No local installs found."
-msgstr ""
-
-#: src/tabs/local.cpp:857
-msgid "To perform a local install of Special K:"
-msgstr ""
-
-#. TRANSLATORS: The text in [brackets] is highlighted (keep the brackets); {0} is a floppy disk icon. "File -> Install Wrapper DLL" is a menu of Special K itself (in-game), which is in English.
-#: src/tabs/local.cpp:868
-msgid "While in-game, use [{0} File -> Install Wrapper DLL]."
-msgstr ""
-
-#. TRANSLATORS: The text in [brackets] is highlighted (keep the brackets); Ctrl and Shift are keys of the keyboard
-#: src/tabs/local.cpp:879
-msgid "During launch, hold down [Ctrl + Shift] to access the compatibility options."
-msgstr ""
-
-#: src/tabs/local.cpp:891
-msgctxt "column"
-msgid "Path"
-msgstr ""
-
-#: src/tabs/local.cpp:892
-msgctxt "column"
-msgid "Version"
-msgstr ""
-
-#: src/tabs/local.cpp:894
-msgctxt "column"
-msgid "Status"
-msgstr ""
-
-#: src/tabs/local.cpp:1019
-#: src/tabs/library/library_details.cpp:393
-msgid ""
-"The local DLL file is outdated.\n"
-"Click to update it to v {0}."
-msgstr ""
-
-#: src/tabs/local.cpp:1033
-msgid ""
-"The local DLL file could not be found.\n"
-"Click to reinstall it as v {0}."
-msgstr ""
-
-#: src/tabs/local.cpp:1048
-msgid "Folder no longer exists"
-msgstr ""
-
-#: src/tabs/local.cpp:1057
-msgid "Local DLL file no longer exists"
-msgstr ""
-
-#: src/tabs/local.cpp:1066
-msgid "Outdated (latest: {0})"
-msgstr ""
-
-#. TRANSLATORS: {0} is a floppy disk icon. "File -> Install Wrapper DLL" is a menu of Special K itself (in-game), which is in English.
-#: src/tabs/local.cpp:1128
-#: src/tabs/local.cpp:1241
-msgid "Select the bitness to install"
-msgstr ""
-
-#: src/tabs/local.cpp:1128
-msgid "Or while in-game, use {0} File -> Install Wrapper DLL."
-msgstr ""
-
-#: src/tabs/local.cpp:1155
-msgid "Already Up-to-Date"
-msgstr ""
-
-#: src/tabs/local.cpp:1156
-msgid "Special K is already installed in this folder and is fully up-to-date."
-msgstr ""
-
-#: src/tabs/local.cpp:1167
-msgid "Install Special K"
-msgstr ""
-
-#: src/tabs/local.cpp:1169
-msgid "Which DLL filename should Special K be installed as?"
-msgstr ""
-
-#: src/tabs/local.cpp:1173
-msgid "64-bit executable"
-msgstr ""
-
-#: src/tabs/local.cpp:1175
-msgid "32-bit executable"
-msgstr ""
-
-#: src/tabs/local.cpp:1177
-msgid "Could not detect the bitness of the executable; you will be asked next."
-msgstr ""
-
-#: src/tabs/local.cpp:1180
-msgid "Special K is already installed in this folder; only that file can be updated."
-msgstr ""
-
-#: src/tabs/local.cpp:1203
-msgid "Special K is already installed as this file and will be updated."
-msgstr ""
-
-#: src/tabs/local.cpp:1204
-msgid "A different file with this name already exists in the folder."
-msgstr ""
-
-#: src/tabs/local.cpp:1205
-msgid "Special K is already installed in this folder under another name."
-msgstr ""
-
-#: src/tabs/local.cpp:1242
-msgid ""
-"Could not detect the bitness of the executable.\n"
-"Should 64-bit or 32-bit be used?"
-msgstr ""
-
-#: src/tabs/local.cpp:1287
-msgid "Update Installs?"
-msgstr ""
-
-#: src/tabs/local.cpp:1288
-msgid "Delete Installs?"
-msgstr ""
-
-#: src/tabs/local.cpp:1289
-msgid "Are you sure you want to update all selected installs?"
-msgstr ""
-
-#: src/tabs/local.cpp:1290
-msgid "Are you sure you want to delete all selected installs?"
-msgstr ""
-
-#: src/tabs/local.cpp:1291
-msgid "Some leftover files may still be present in the game folder."
-msgstr ""
-
-#. TRANSLATORS: {0} is a circle icon
-#: src/tabs/monitor.cpp:727
-msgid "Use the below list to identify injected processes using the {0} status indicator to the left. Note that while a lot of processes might have Special K injected in them, only those that are whitelisted and use a render API will see Special K active. Remaining processes have it inert and can be ignored."
-msgstr ""
-
-#: src/tabs/monitor.cpp:736
-msgid "Show misc processes"
-msgstr ""
-
-#. TRANSLATORS: {0} is a circle icon
-#: src/tabs/monitor.cpp:740
-msgid ""
-"If this is enabled the below list will also include uninjected processes.\n"
-"This is indicated by the lack of a {0} icon under the Status column."
-msgstr ""
-
-#: src/tabs/monitor.cpp:745
-msgctxt "update speed"
-msgid "Paused"
-msgstr ""
-
-#: src/tabs/monitor.cpp:746
-msgctxt "update speed"
-msgid "Slow"
-msgstr ""
-
-#: src/tabs/monitor.cpp:747
-msgctxt "update speed"
-msgid "Normal"
-msgstr ""
-
-#: src/tabs/monitor.cpp:748
-msgctxt "update speed"
-msgid "High"
-msgstr ""
-
-#: src/tabs/monitor.cpp:759
-#: src/tabs/monitor.cpp:767
-msgid "Update speed:"
-msgstr ""
-
-#: src/tabs/monitor.cpp:818
-#: src/tabs/monitor.cpp:1781
-msgid "Real-time updates are paused."
-msgstr ""
-
-#: src/tabs/monitor.cpp:828
-msgid "Toggle Service:"
-msgstr ""
-
-#: src/tabs/monitor.cpp:832
-msgid "A forced stop of the service may sometime help in case of an issue, even if the service is not currently running."
-msgstr ""
-
-#: src/tabs/monitor.cpp:839
-msgid "Force start"
-msgstr ""
-
-#: src/tabs/monitor.cpp:840
-msgid "Force stop"
-msgstr ""
-
-#: src/tabs/monitor.cpp:874
-#: src/utility/injection.cpp:1048
-msgid "Stop automatically"
-msgstr ""
-
-#: src/tabs/monitor.cpp:880
-#: src/utility/injection.cpp:1054
-msgid ""
-"This controls whether the configured auto-stop behavior (see Settings tab) should be used when the service is manually started.\n"
-"Note that having this unchecked does not disable the auto-stop behavior if a game is launched without the service already running."
-msgstr ""
-
-#: src/tabs/monitor.cpp:886
-#: src/tabs/library/library_menus.cpp:1586
-msgid "Install folder"
-msgstr ""
-
-#: src/tabs/monitor.cpp:909
-msgid "Status:"
-msgstr ""
-
-#: src/tabs/monitor.cpp:1549
-msgid "Actions:"
-msgstr ""
-
-#: src/tabs/monitor.cpp:1554
-msgid "Whitelist"
-msgstr ""
-
-#: src/tabs/monitor.cpp:1560
-msgid "Blacklist"
-msgstr ""
-
-#: src/tabs/monitor.cpp:1566
-#: src/tabs/settings.cpp:2414
-#: src/tabs/library/library_menus.cpp:394
-#: src/tabs/library/library_menus.cpp:1738
-#: src/tabs/library/library_menus.cpp:1993
-msgid "Reset"
-msgstr ""
-
-#: src/tabs/monitor.cpp:1578
-msgid "Remove the whitelist and blacklist patterns matching this process."
-msgstr ""
-
-#: src/tabs/monitor.cpp:1621
-#: src/tabs/library/library_menus.cpp:803
-#: src/tabs/library/library_menus.cpp:1584
-msgid "Browse"
-msgstr ""
-
-#: src/tabs/monitor.cpp:1630
-msgid "End task"
-msgstr ""
-
-#: src/tabs/monitor.cpp:1693
-#: src/tabs/monitor.cpp:1713
-msgid "Status"
-msgstr ""
-
-#: src/tabs/monitor.cpp:1693
-#: src/tabs/monitor.cpp:1721
-msgid "PID"
-msgstr ""
-
-#: src/tabs/monitor.cpp:1693
-#: src/tabs/monitor.cpp:1729
-msgid "Type"
-msgstr ""
-
-#: src/tabs/monitor.cpp:1693
-#: src/tabs/monitor.cpp:1733
-msgid "Handles"
-msgstr ""
-
-#: src/tabs/monitor.cpp:1693
-#: src/tabs/monitor.cpp:1737
-msgid "Arch"
-msgstr ""
-
-#: src/tabs/monitor.cpp:1693
-#: src/tabs/monitor.cpp:1745
-msgid "Admin"
-msgstr ""
-
-#: src/tabs/monitor.cpp:1693
-#: src/tabs/monitor.cpp:1753
-msgid "Process Name"
-msgstr ""
-
-#: src/tabs/monitor.cpp:1715
-msgid "Injection status"
-msgstr ""
-
-#: src/tabs/monitor.cpp:1723
-msgid "Process ID"
-msgstr ""
-
-#: src/tabs/monitor.cpp:1738
-msgid "CPU architecture"
-msgstr ""
-
-#: src/tabs/monitor.cpp:1746
-msgid "Elevated process"
-msgstr ""
-
-#: src/tabs/monitor.cpp:1754
-msgid "Process name"
-msgstr ""
-
-#: src/tabs/monitor.cpp:1779
-msgid "Error occurred when trying to locate type index for events!"
-msgstr ""
-
-#: src/tabs/monitor.cpp:1783
-msgid "Special K is currently not injected in any process."
-msgstr ""
-
-#: src/tabs/monitor.cpp:1819
-msgid "Process is blacklisted"
-msgstr ""
-
-#: src/tabs/monitor.cpp:1825
-msgid "Process is whitelisted"
-msgstr ""
-
-#: src/tabs/monitor.cpp:1838
-msgctxt "injection status"
-msgid "Active"
-msgstr ""
-
-#: src/tabs/monitor.cpp:1842
-msgctxt "injection status"
-msgid "Local"
-msgstr ""
-
-#: src/tabs/monitor.cpp:1847
-msgctxt "injection status"
-msgid "Inert"
-msgstr ""
-
-#: src/tabs/monitor.cpp:1850
-#: src/tabs/monitor.cpp:1859
-msgctxt "injection status"
-msgid "Stuck (end the process to eject Special K)"
-msgstr ""
-
-#: src/tabs/monitor.cpp:1856
-msgctxt "injection status"
-msgid "Inert (potentially stuck)"
-msgstr ""
-
-#: src/tabs/monitor.cpp:1917
-msgid "Injection status cannot be determined due to a lack of permissions."
-msgstr ""
-
-#: src/tabs/monitor.cpp:1970
-#: src/tabs/library/library_popups.cpp:280
-msgid "Task Manager"
-msgstr ""
-
-#. TRANSLATORS: {0} is the file name of a process
-#. TRANSLATORS: {0} is the name of a game
-#: src/tabs/monitor.cpp:1975
-#: src/tabs/library/library_popups.cpp:262
-msgid "Do you want to end {0}?"
-msgstr ""
-
-#: src/tabs/monitor.cpp:1977
-msgid "If an open program is associated with this process, it will close and you will lose any unsaved data. If you end a system process, it might result in system instability. Are you sure you want to continue?"
-msgstr ""
-
-#: src/tabs/monitor.cpp:1984
-#: src/tabs/monitor.cpp:1989
-#: src/tabs/library/library_popups.cpp:267
-#: src/tabs/library/library_popups.cpp:301
-msgid "End Process"
-msgstr ""
-
-#: src/tabs/monitor.cpp:2020
-msgid "Reset Whitelist / Blacklist"
-msgstr ""
-
-#. TRANSLATORS: {0} is the file name of a process
-#: src/tabs/monitor.cpp:2047
-msgid "Patterns matching {0}:"
-msgstr ""
-
-#: src/tabs/monitor.cpp:2051
-msgid "Whitelist:"
-msgstr ""
-
-#: src/tabs/monitor.cpp:2052
-msgid "Blacklist:"
-msgstr ""
-
-#: src/tabs/monitor.cpp:2056
-msgid "No whitelist or blacklist patterns of yours match this process."
-msgstr ""
-
-#: src/tabs/monitor.cpp:2068
-msgid "The process is also whitelisted by the built-in pattern \"{0}\", which cannot be removed."
-msgstr ""
-
-#: src/tabs/monitor.cpp:2069
-msgid "The process is also blacklisted by the built-in pattern \"{0}\", which cannot be removed."
-msgstr ""
-
-#: src/tabs/monitor.cpp:2076
-msgid "Removing a pattern affects every application it matches, not just this one. Do you want to remove the patterns listed above?"
-msgstr ""
-
-#: src/tabs/monitor.cpp:2083
-msgid "The changes could not be saved!"
-msgstr ""
-
-#: src/tabs/monitor.cpp:2089
-#: src/tabs/monitor.cpp:2097
-#: src/tabs/library/library_list.cpp:265
-#: src/tabs/library/library_menus.cpp:1075
-#: src/tabs/library/library_menus.cpp:1197
-#: src/tabs/library/library_properties.cpp:650
-msgid "Remove"
-msgstr ""
-
-#: src/tabs/settings.cpp:45
-msgid "Toggle Display HDR"
-msgstr ""
-
-#: src/tabs/settings.cpp:118
-msgid "Low bandwidth mode"
-msgstr ""
-
-#: src/tabs/settings.cpp:124
-msgid ""
-"For new games/covers, low resolution images will be preferred over high-resolution ones.\n"
-"This only affects new downloads of covers. It does not affect already downloaded covers.\n"
-"This will also disable automatic downloads of new updates to Special K."
-msgstr ""
-
-#: src/tabs/settings.cpp:128
-msgid "Minimize when launching a game"
-msgstr ""
-
-#: src/tabs/settings.cpp:131
-msgid "Restore after closing a game"
-msgstr ""
-
-#: src/tabs/settings.cpp:136
-msgid "Requires Special K injected to work as intended."
-msgstr ""
-
-#: src/tabs/settings.cpp:144
-msgid "Close to the notification area"
-msgstr ""
-
-#: src/tabs/settings.cpp:153
-msgid "Requires 'Allow multiple instances of this app' to be disabled."
-msgstr ""
-
-#: src/tabs/settings.cpp:159
-msgid "Controller support"
-msgstr ""
-
-#. TRANSLATORS: {0} and {1} are the Xbox and PlayStation logos
-#: src/tabs/settings.cpp:178
-msgid "Allows the UI to be controlled using {0} or {1} controllers, and adds special features while SKIF is running."
-msgstr ""
-
-#: src/tabs/settings.cpp:186
-msgid "Config"
-msgstr ""
-
-#: src/tabs/settings.cpp:197
-msgid "General Controller Settings"
-msgstr ""
-
-#. TRANSLATORS: {0} are the Xbox and PlayStation logos; the label is followed by "+ <button>", the button to press with them
-#: src/tabs/settings.cpp:202
-msgid "Activate Screen Saver Using {0}"
-msgstr ""
-
-#. TRANSLATORS: {0} is the logo of one or more controllers (Xbox, PlayStation)
-#: src/tabs/settings.cpp:226
-#: src/tabs/settings.cpp:387
-msgid "The controller binding is configurable by clicking the text after {0}"
-msgstr ""
-
-#: src/tabs/settings.cpp:247
-#: src/tabs/settings.cpp:258
-msgctxt "gamepad button"
-msgid "A / Cross"
-msgstr ""
-
-#: src/tabs/settings.cpp:249
-#: src/tabs/settings.cpp:410
-msgctxt "gamepad button"
-msgid "Up"
-msgstr ""
-
-#: src/tabs/settings.cpp:250
-#: src/tabs/settings.cpp:411
-msgctxt "gamepad button"
-msgid "Down"
-msgstr ""
-
-#: src/tabs/settings.cpp:251
-#: src/tabs/settings.cpp:412
-msgctxt "gamepad button"
-msgid "Left"
-msgstr ""
-
-#: src/tabs/settings.cpp:252
-#: src/tabs/settings.cpp:413
-msgctxt "gamepad button"
-msgid "Right"
-msgstr ""
-
-#: src/tabs/settings.cpp:254
-#: src/tabs/settings.cpp:415
-msgctxt "gamepad button"
-msgid "Start"
-msgstr ""
-
-#: src/tabs/settings.cpp:255
-msgctxt "gamepad button"
-msgid "Back / Select"
-msgstr ""
-
-#: src/tabs/settings.cpp:257
-msgctxt "gamepad button"
-msgid "Y / Triangle"
-msgstr ""
-
-#: src/tabs/settings.cpp:259
-msgctxt "gamepad button"
-msgid "X / Square"
-msgstr ""
-
-#: src/tabs/settings.cpp:260
-msgctxt "gamepad button"
-msgid "B / Circle"
-msgstr ""
-
-#: src/tabs/settings.cpp:342
-msgid "Gamepad Input Deactivates Screen Saver"
-msgstr ""
-
-#. TRANSLATORS: {0} is the Xbox logo (the Xbox button)
-#: src/tabs/settings.cpp:352
-msgid "Pressing {0} on Xbox controllers always deactivates."
-msgstr ""
-
-#: src/tabs/settings.cpp:357
-msgid "PlayStation Power Management"
-msgstr ""
-
-#. TRANSLATORS: {0} is the PlayStation logo; the label is followed by "+ <button>", the button to press with it
-#: src/tabs/settings.cpp:363
-msgid "Power Off Controllers Using {0}"
-msgstr ""
-
-#: src/tabs/settings.cpp:408
-#: src/tabs/settings.cpp:418
-msgctxt "gamepad button"
-msgid "Triangle"
-msgstr ""
-
-#: src/tabs/settings.cpp:416
-msgctxt "gamepad button"
-msgid "Select"
-msgstr ""
-
-#: src/tabs/settings.cpp:419
-msgctxt "gamepad button"
-msgid "Cross"
-msgstr ""
-
-#: src/tabs/settings.cpp:420
-msgctxt "gamepad button"
-msgid "Square"
-msgstr ""
-
-#: src/tabs/settings.cpp:421
-msgctxt "gamepad button"
-msgid "Circle"
-msgstr ""
-
-#: src/tabs/settings.cpp:506
-msgid "Never Power Off"
-msgstr ""
-
-#. TRANSLATORS: {0} is a number of minutes
-#: src/tabs/settings.cpp:508
-msgid "Power Off After {0} Minutes"
-msgstr ""
-
-#: src/tabs/settings.cpp:510
-msgid "Idle Behavior"
-msgstr ""
-
-#: src/tabs/settings.cpp:522
-msgid "This only applies when this app is running and no game is actively using Special K."
-msgstr ""
-
-#: src/tabs/settings.cpp:528
-msgid "Third-Party Setup\tXInput Assignment: "
-msgstr ""
-
-#. TRANSLATORS: {0} is the Steam logo (as in "Steam Input")
-#: src/tabs/settings.cpp:556
-msgid "Disable {0} Input (will restart Steam)"
-msgstr ""
-
-#: src/tabs/settings.cpp:584
-msgid "Restarting Steam..."
-msgstr ""
-
-#. TRANSLATORS: {0} is the Steam logo (as in "Steam Input")
-#: src/tabs/settings.cpp:593
-msgid "Install {0} Input Kill Switch"
-msgstr ""
-
-#: src/tabs/settings.cpp:599
-msgid ""
-"Allows Steam Input to be Fully Disabled or Enabled.\n"
-"\n"
-" * Steam Input usually does stuff whether or not it is enabled per-game.\n"
-" * No registry settings need to be set if you use this config menu."
-msgstr ""
-
-#: src/tabs/settings.cpp:626
-msgid ""
-"This determines how long the service will remain running when launching a game.\n"
-"Move the mouse over each option to get more information."
-msgstr ""
-
-#: src/tabs/settings.cpp:631
-msgid "Auto-stop behavior when launching a game:"
-msgstr ""
-
-#: src/tabs/settings.cpp:639
-msgid "Stop on injection"
-msgstr ""
-
-#: src/tabs/settings.cpp:642
-msgid "The service will be stopped when Special K successfully injects into a game."
-msgstr ""
-
-#: src/tabs/settings.cpp:644
-#: src/tabs/settings.cpp:645
-msgid "Stop on game exit"
-msgstr ""
-
-#: src/tabs/settings.cpp:648
-msgid "The service will be stopped when Special K detects that the game is being closed."
-msgstr ""
-
-#: src/tabs/settings.cpp:655
-msgid "This setting has no effect if low bandwidth mode is enabled."
-msgstr ""
-
-#: src/tabs/settings.cpp:659
-msgid "Check for updates:"
-msgstr ""
-
-#: src/tabs/settings.cpp:667
-#: src/tabs/settings.cpp:788
-#: src/tabs/settings.cpp:1243
-#: src/tabs/settings.cpp:1265
-#: src/tabs/library/library_properties.cpp:183
-#: src/tabs/library/library_properties.cpp:407
-#: src/tabs/library/library_properties.cpp:409
-#: src/tabs/library/library_properties.cpp:410
-#: src/tabs/library/library_properties.cpp:483
-#: src/tabs/library/library_properties.cpp:1456
-#: src/tabs/library/library_properties.cpp:1592
-#: src/tabs/library/library_properties.cpp:1593
-msgid "Never"
-msgstr ""
-
-#: src/tabs/settings.cpp:669
-#: src/tabs/settings.cpp:670
-msgid "Weekly"
-msgstr ""
-
-#: src/tabs/settings.cpp:672
-#: src/tabs/settings.cpp:673
-msgid "On each launch"
-msgstr ""
-
-#: src/tabs/settings.cpp:764
-msgid "Roll back to the previous version"
-msgstr ""
-
-#: src/tabs/settings.cpp:782
-msgid "This provides contextual notifications in Windows when the service starts or stops."
-msgstr ""
-
-#: src/tabs/settings.cpp:786
-msgid "Show injection service desktop notifications:"
-msgstr ""
-
-#: src/tabs/settings.cpp:790
-#: src/tabs/settings.cpp:791
-#: src/tabs/settings.cpp:1245
-#: src/tabs/settings.cpp:1246
-#: src/tabs/settings.cpp:1267
-#: src/tabs/settings.cpp:1268
-#: src/tabs/library/library_properties.cpp:183
-#: src/tabs/library/library_properties.cpp:407
-#: src/tabs/library/library_properties.cpp:412
-#: src/tabs/library/library_properties.cpp:413
-#: src/tabs/library/library_properties.cpp:1456
-#: src/tabs/library/library_properties.cpp:1594
-#: src/tabs/library/library_properties.cpp:1595
-msgid "Always"
-msgstr ""
-
-#: src/tabs/settings.cpp:793
-#: src/tabs/settings.cpp:794
-msgid "When unfocused"
-msgstr ""
-
-#: src/tabs/settings.cpp:813
-#: src/tabs/library/library_properties.cpp:224
-msgid "Library"
-msgstr ""
-
-#: src/tabs/settings.cpp:832
-msgid "Ignore articles when sorting"
-msgstr ""
-
-#: src/tabs/settings.cpp:840
-msgid "Ignore articles like 'THE', 'A', and 'AN' when sorting games."
-msgstr ""
-
-#: src/tabs/settings.cpp:842
-msgid "Remember the last selected game"
-msgstr ""
-
-#: src/tabs/settings.cpp:845
-msgid "Remember category collapsible state"
-msgstr ""
-
-#: src/tabs/settings.cpp:852
-msgid "Prefer covers from PCGamingWiki for these platforms:"
-msgstr ""
-
-#: src/tabs/settings.cpp:880
-msgid "Prefer covers from IGDB for these platforms:"
-msgstr ""
-
-#: src/tabs/settings.cpp:884
-msgid ""
-"Games are looked up on IGDB by their store ID where possible, otherwise by their exact name.\n"
-"A cover from PCGamingWiki takes precedence over one from IGDB, as those are typically of\n"
-"a higher resolution. EA, itch.io, Ubisoft and custom games always use IGDB covers, as those\n"
-"platforms have no suitable covers of their own."
-msgstr ""
-
-#: src/tabs/settings.cpp:935
-msgid "Include games from these platforms:"
-msgstr ""
-
-#: src/tabs/settings.cpp:998
-msgid "Custom"
-msgstr ""
-
-#: src/tabs/settings.cpp:1011
-#: src/tabs/library/library_properties.cpp:417
-msgid ""
-"Warning: This skips the regular platform launch process for the game,\n"
-"including steps like the cloud saves synchronization that usually occurs."
-msgstr ""
-
-#: src/tabs/settings.cpp:1016
-msgid "Prefer Instant Play for these platforms:"
-msgstr ""
-
-#: src/tabs/settings.cpp:1082
-msgid "Appearance"
-msgstr ""
-
-#: src/tabs/settings.cpp:1139
-msgid "Translations are contributed by the community. Text that has not been translated yet is shown in English."
-msgstr ""
-
-#: src/tabs/settings.cpp:1143
-msgid "Language:"
-msgstr ""
-
-#. TRANSLATORS: {0} is the name of the language that Windows uses (or English, if there is no translation for it)
-#: src/tabs/settings.cpp:1148
-msgid "Same as Windows ({0})"
-msgstr ""
-
-#: src/tabs/settings.cpp:1202
-msgid "Dynamic"
-msgstr ""
-
-#: src/tabs/settings.cpp:1203
-msgid "SKIF Dark"
-msgstr ""
-
-#: src/tabs/settings.cpp:1204
-msgid "SKIF Light"
-msgstr ""
-
-#: src/tabs/settings.cpp:1205
-msgid "ImGui Classic"
-msgstr ""
-
-#: src/tabs/settings.cpp:1206
-msgid "ImGui Dark"
-msgstr ""
-
-#: src/tabs/settings.cpp:1214
-msgid "Color theme:"
-msgstr ""
-
-#: src/tabs/settings.cpp:1237
-msgid "Useful if you find bright white covers an annoyance."
-msgstr ""
-
-#: src/tabs/settings.cpp:1241
-msgid "Dim game covers by 25%:"
-msgstr ""
-
-#: src/tabs/settings.cpp:1248
-#: src/tabs/settings.cpp:1249
-msgid "Based on mouse cursor"
-msgstr ""
-
-#: src/tabs/settings.cpp:1256
-msgid "Every time the UI renders a frame, Shelly the Ghost moves a little bit."
-msgstr ""
-
-#: src/tabs/settings.cpp:1260
-msgid "Show Shelly the Ghost:"
-msgstr ""
-
-#: src/tabs/settings.cpp:1263
-msgid ""
-"A critical rendering optimization will not function properly when Shelly is visibly moving.\n"
-"It is therefor recommended to leave Shelly hidden in favor of a reduced GPU usage."
-msgstr ""
-
-#: src/tabs/settings.cpp:1270
-#: src/tabs/settings.cpp:1271
-msgid "While service is running"
-msgstr ""
-
-#: src/tabs/settings.cpp:1278
-msgid "Move the mouse over each option to get more information."
-msgstr ""
-
-#: src/tabs/settings.cpp:1282
-msgid "UI elements:"
-msgstr ""
-
-#: src/tabs/settings.cpp:1287
-msgid "Borders"
-msgstr ""
-
-#: src/tabs/settings.cpp:1296
-msgid "Use borders around UI elements."
-msgstr ""
-
-#: src/tabs/settings.cpp:1298
-msgid "Tooltips"
-msgstr ""
-
-#: src/tabs/settings.cpp:1307
-#: src/utility/skif_imgui.cpp:633
-msgid "Info: "
-msgstr ""
-
-#: src/tabs/settings.cpp:1309
-msgid "This is instead where additional information will be displayed."
-msgstr ""
-
-#: src/tabs/settings.cpp:1310
-msgid ""
-"If tooltips are disabled the status bar will be used for additional information.\n"
-"Note that some links cannot be previewed as a result."
-msgstr ""
-
-#: src/tabs/settings.cpp:1313
-msgid "Status bar"
-msgstr ""
-
-#: src/tabs/settings.cpp:1321
-msgid "Disabling the status bar as well as tooltips will hide all additional information or tips."
-msgstr ""
-
-#: src/tabs/settings.cpp:1327
-#: src/tabs/settings.cpp:1353
-msgid "Fade covers"
-msgstr ""
-
-#: src/tabs/settings.cpp:1328
-#: src/tabs/settings.cpp:1364
-msgid "Win11 corners"
-msgstr ""
-
-#: src/tabs/settings.cpp:1351
-msgid "Use larger game icons in the library tab."
-msgstr ""
-
-#: src/tabs/settings.cpp:1360
-msgid "Fade between game covers when switching games."
-msgstr ""
-
-#: src/tabs/settings.cpp:1372
-msgid "Use rounded window corners."
-msgstr ""
-
-#: src/tabs/settings.cpp:1378
-#: src/tabs/settings.cpp:1387
-msgid "Touch input"
-msgstr ""
-
-#: src/tabs/settings.cpp:1379
-#: src/tabs/settings.cpp:1398
-msgid "HiDPI scaling"
-msgstr ""
-
-#: src/tabs/settings.cpp:1396
-msgid "Make the UI easier to use on touch input capable devices automatically."
-msgstr ""
-
-#: src/tabs/settings.cpp:1405
-msgid "Disabling HiDPI scaling will make the application appear smaller on HiDPI displays."
-msgstr ""
-
-#: src/tabs/settings.cpp:1422
-msgid "Context based information and tips will not appear!"
-msgstr ""
-
-#: src/tabs/settings.cpp:1425
-msgid "Restore context based information and tips by enabling tooltips or the status bar."
-msgstr ""
-
-#: src/tabs/settings.cpp:1441
-msgid "Move the mouse over each option to get more information"
-msgstr ""
-
-#: src/tabs/settings.cpp:1444
-msgid "UI mode:"
-msgstr ""
-
-#: src/tabs/settings.cpp:1450
-msgid "VRR Compatibility"
-msgstr ""
-
-#: src/tabs/settings.cpp:1455
-msgid "Avoids signal loss and flickering on VRR displays."
-msgstr ""
-
-#: src/tabs/settings.cpp:1456
-#: src/tabs/settings.cpp:1458
-msgid "Normal"
-msgstr ""
-
-#: src/tabs/settings.cpp:1463
-msgid "Improves UI response on low fixed-refresh rate displays."
-msgstr ""
-
-#: src/tabs/settings.cpp:1464
-#: src/tabs/settings.cpp:1465
-msgid "Safe Mode"
-msgstr ""
-
-#: src/tabs/settings.cpp:1470
-msgid "Compatibility mode for users experiencing issues with the other two modes."
-msgstr ""
-
-#: src/tabs/settings.cpp:1476
-msgid "Increases the color depth of the app."
-msgstr ""
-
-#: src/tabs/settings.cpp:1480
-msgid "Color depth:"
-msgstr ""
-
-#: src/tabs/settings.cpp:1527
-msgid "Linear font alpha blending"
-msgstr ""
-
-#: src/tabs/settings.cpp:1530
-msgid ""
-"Disables the correction that makes text blend\n"
-"like they do in 8 bpc and 10 bpc modes."
-msgstr ""
-
-#: src/tabs/settings.cpp:1540
-msgid "Makes the app pop more on HDR displays."
-msgstr ""
-
-#: src/tabs/settings.cpp:1544
-msgid "High dynamic range (HDR):"
-msgstr ""
-
-#: src/tabs/settings.cpp:1550
-msgid "HDR support is disabled while the UI is in Safe Mode."
-msgstr ""
-
-#. TRANSLATORS: {0} is the brightness in nits (cd/m2)
-#: src/tabs/settings.cpp:1584
-msgid "{0} nits"
-msgstr ""
-
-#: src/tabs/settings.cpp:1586
-msgid "HDR brightness"
-msgstr ""
-
-#: src/tabs/settings.cpp:1605
-msgid "Your display(s) supports HDR, but does not use it."
-msgstr ""
-
-#. TRANSLATORS: {0} is the keyboard shortcut (Ctrl + Windows logo + Shift + H), {1} is a mouse cursor icon
-#: src/tabs/settings.cpp:1620
-msgid "Use {0} to toggle HDR where the {1} is."
-msgstr ""
-
-#: src/tabs/settings.cpp:1656
-msgid "Keybindings"
-msgstr ""
-
-#: src/tabs/settings.cpp:1699
-msgid "Keybindings (In-Game)"
-msgstr ""
-
-#: src/tabs/settings.cpp:1760
-msgid "Launch a game with Special K at least once to populate this section."
-msgstr ""
-
-#: src/tabs/settings.cpp:1771
-msgid "Advanced"
-msgstr ""
-
-#: src/tabs/settings.cpp:1790
-msgid "Automatically install new updates"
-msgstr ""
-
-#. TRANSLATORS: {0} is a mouse cursor icon
-#: src/tabs/settings.cpp:1794
-msgid "Open this app on the same monitor as the {0}"
-msgstr ""
-
-#: src/tabs/settings.cpp:1797
-msgid "Open this app in the mini service mode view"
-msgstr ""
-
-#: src/tabs/settings.cpp:1816
-msgid "Do not stop the injection service on exit"
-msgstr ""
-
-#: src/tabs/settings.cpp:1820
-msgid "This allows the injection service to remain running even after this app has been closed."
-msgstr ""
-
-#: src/tabs/settings.cpp:1822
-msgid "Use hardware acceleration"
-msgstr ""
-
-#: src/tabs/settings.cpp:1834
-msgid "The app will be less responsive if disabled on hybrid CPUs."
-msgstr ""
-
-#: src/tabs/settings.cpp:1839
-msgid "The app may be less responsive if disabled."
-msgstr ""
-
-#: src/tabs/settings.cpp:1842
-msgid "Use system proxy settings"
-msgstr ""
-
-#: src/tabs/settings.cpp:1845
-msgid ""
-"Downloads go through the proxy configured in Windows.\n"
-"Automatic proxy detection and setup scripts are not used.\n"
-"If disabled, the app always connects directly."
-msgstr ""
-
-#: src/tabs/settings.cpp:1856
-msgid "Allow multiple instances of this app"
-msgstr ""
-
-#: src/tabs/settings.cpp:1891
-msgid "Requires 'Close to the notification area' to be disabled."
-msgstr ""
-
-#: src/tabs/settings.cpp:1914
-#: src/tabs/library/library_menus.cpp:56
-#: src/utility/skif_imgui.cpp:1915
-msgid "Troubleshooting:"
-msgstr ""
-
-#: src/tabs/settings.cpp:1918
-msgctxt "log level"
-msgid "None"
-msgstr ""
-
-#: src/tabs/settings.cpp:1919
-msgctxt "log level"
-msgid "Fatal"
-msgstr ""
-
-#: src/tabs/settings.cpp:1920
-msgctxt "log level"
-msgid "Error"
-msgstr ""
-
-#: src/tabs/settings.cpp:1921
-msgctxt "log level"
-msgid "Warning"
-msgstr ""
-
-#: src/tabs/settings.cpp:1922
-msgctxt "log level"
-msgid "Info"
-msgstr ""
-
-#: src/tabs/settings.cpp:1923
-msgctxt "log level"
-msgid "Debug"
-msgstr ""
-
-#: src/tabs/settings.cpp:1924
-msgctxt "log level"
-msgid "Verbose"
-msgstr ""
-
-#: src/tabs/settings.cpp:1927
-msgid "Log level"
-msgstr ""
-
-#: src/tabs/settings.cpp:1956
-msgid "Enable excessive development logging"
-msgstr ""
-
-#: src/tabs/settings.cpp:1966
-msgid "Only intended for SKIF developers as this enables excessive logging (e.g. window messages)."
-msgstr ""
-
-#: src/tabs/settings.cpp:1970
-msgctxt "diagnostics"
-msgid "None"
-msgstr ""
-
-#: src/tabs/settings.cpp:1971
-msgctxt "diagnostics"
-msgid "Normal"
-msgstr ""
-
-#: src/tabs/settings.cpp:1972
-msgctxt "diagnostics"
-msgid "Enhanced"
-msgstr ""
-
-#: src/tabs/settings.cpp:1975
-msgid "Diagnostics"
-msgstr ""
-
-#: src/tabs/settings.cpp:1999
-msgid ""
-"Help improve Special K by allowing anonymized diagnostics to be sent.\n"
-"The data is used to identify issues, highlight common use cases, and\n"
-"facilitates the continued development of the application."
-msgstr ""
-
-#: src/tabs/settings.cpp:2011
-msgid "Developer mode"
-msgstr ""
-
-#: src/tabs/settings.cpp:2020
-msgid "Exposes additional information and context menu items that may be of interest for developers."
-msgstr ""
-
-#: src/tabs/settings.cpp:2022
-#: src/tabs/settings.cpp:2024
-msgid "Efficiency mode"
-msgstr ""
-
-#: src/tabs/settings.cpp:2027
-msgid ""
-"Engage efficiency mode for this app when idle.\n"
-"Not recommended for Windows 10 and earlier."
-msgstr ""
-
-#: src/tabs/settings.cpp:2032
-msgid "Nvidia users: Use the below button to prevent GeForce Experience from mistaking this app for a game."
-msgstr ""
-
-#: src/tabs/settings.cpp:2042
-msgid "Disable GFE notifications"
-msgstr ""
-
-#: src/tabs/settings.cpp:2092
-msgid ""
-"This only needs to be used if GeForce Experience notifications\n"
-"appear on the screen whenever this app is being used."
-msgstr ""
-
-#: src/tabs/settings.cpp:2111
-msgid "Whitelist / Blacklist"
-msgstr ""
-
-#. TRANSLATORS: {0} is a double quote character
-#: src/tabs/settings.cpp:2151
-msgid "Please remove all double quotes {0} from the list."
-msgstr ""
-
-#. TRANSLATORS: {0} is two backslashes, {1} is one backslash
-#: src/tabs/settings.cpp:2166
-msgid "Folders must be separated using two backslashes {0} instead of one {1} backslash."
-msgstr ""
-
-#. TRANSLATORS: {0} is the maximum number of lines (512), {1} is the pipe character
-#: src/tabs/settings.cpp:2184
-msgid "The list can only include {0} lines, though multiple can be combined using a pipe {1} character."
-msgstr ""
-
-#: src/tabs/settings.cpp:2188
-msgid ""
-"(e.g. \"NieRAutomataPC|Epic Games\" will match any application\n"
-"installed under a NieRAutomataPC or Epic Games folder.)"
-msgstr ""
-
-#: src/tabs/settings.cpp:2197
-msgid "The following lists manage Special K in processes as patterns are matched against the full path of the injected process."
-msgstr ""
-
-#: src/tabs/settings.cpp:2205
-msgid "Easiest is to use the name of the executable or folder of the game."
-msgstr ""
-
-#: src/tabs/settings.cpp:2209
-msgid ""
-"e.g. a pattern like \"Assassin's Creed Valhalla\" will match an application at\n"
-"C:\\Games\\Uplay\\games\\Assassin's Creed Valhalla\\ACValhalla.exe"
-msgstr ""
-
-#: src/tabs/settings.cpp:2215
-msgid "Typing the name of a shared parent folder will match all applications below that folder."
-msgstr ""
-
-#: src/tabs/settings.cpp:2219
-msgid ""
-"e.g. a pattern like \"Epic Games\" will match any\n"
-"application installed under the Epic Games folder."
-msgstr ""
-
-#: src/tabs/settings.cpp:2228
-msgid "Note that these lists do not prevent Special K from being injected into processes."
-msgstr ""
-
-#: src/tabs/settings.cpp:2234
-msgid ""
-"These lists control whether Special K should be enabled (the whitelist) to hook APIs etc,\n"
-"or remain disabled/idle/inert (the blacklist) within the injected process."
-msgstr ""
-
-#: src/tabs/settings.cpp:2241
-msgid ""
-"The injection service injects Special K into any process that deals\n"
-"with system input or some sort of window or kb/mouse input activity.\n"
-"\n"
-"These lists control whether Special K should be enabled (the whitelist),\n"
-"or remain idle/inert (the blacklist) within the injected process."
-msgstr ""
-
-#: src/tabs/settings.cpp:2260
-msgid "Whitelist Patterns:"
-msgstr ""
-
-#: src/tabs/settings.cpp:2277
-msgid ""
-"These are the patterns used internally to enable Special K for these specific platforms.\n"
-"They are presented here solely as examples of how a potential pattern might look like."
-msgstr ""
-
-#: src/tabs/settings.cpp:2356
-msgid "Blacklist Patterns:"
-msgstr ""
-
-#: src/tabs/settings.cpp:2358
-msgid "(Does not prevent injection! Use this to exclude stuff from being whitelisted)"
-msgstr ""
-
-#: src/tabs/settings.cpp:2389
-msgid "Save Changes"
-msgstr ""
-
-#: src/tabs/settings.cpp:2440
-msgid "The whitelist could not be saved! Please remove any non-Latin characters and try again."
-msgstr ""
-
-#: src/tabs/settings.cpp:2446
-msgid "The blacklist could not be saved! Please remove any non-Latin characters and try again."
-msgstr ""
-
 #: src/tabs/library/library_cover.cpp:166
 msgid ""
 "Missing cover :(\n"
@@ -2595,6 +1207,13 @@ msgstr ""
 #. TRANSLATORS: Not available
 #: src/tabs/library/library_details.cpp:298
 msgid "N/A"
+msgstr ""
+
+#: src/tabs/library/library_details.cpp:393
+#: src/tabs/local.cpp:1019
+msgid ""
+"The local DLL file is outdated.\n"
+"Click to update it to v {0}."
 msgstr ""
 
 #: src/tabs/library/library_details.cpp:436
@@ -2703,6 +1322,15 @@ msgstr ""
 msgid "Rename"
 msgstr ""
 
+#: src/tabs/library/library_list.cpp:265
+#: src/tabs/library/library_menus.cpp:1075
+#: src/tabs/library/library_menus.cpp:1197
+#: src/tabs/library/library_properties.cpp:650
+#: src/tabs/monitor.cpp:2089
+#: src/tabs/monitor.cpp:2097
+msgid "Remove"
+msgstr ""
+
 #: src/tabs/library/library_list.cpp:277
 msgid "Expand all"
 msgstr ""
@@ -2713,6 +1341,12 @@ msgstr ""
 
 #: src/tabs/library/library_list.cpp:293
 msgid "Remember collapsible state"
+msgstr ""
+
+#: src/tabs/library/library_menus.cpp:56
+#: src/tabs/settings.cpp:1914
+#: src/utility/skif_imgui.cpp:1980
+msgid "Troubleshooting:"
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:237
@@ -2735,6 +1369,14 @@ msgstr ""
 msgid ""
 "Known as the \"sledgehammer\" config within the community as it disables\n"
 "various features of Special K in an attempt to improve compatibility."
+msgstr ""
+
+#: src/tabs/library/library_menus.cpp:394
+#: src/tabs/library/library_menus.cpp:1738
+#: src/tabs/library/library_menus.cpp:1993
+#: src/tabs/monitor.cpp:1566
+#: src/tabs/settings.cpp:2414
+msgid "Reset"
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:444
@@ -2771,6 +1413,12 @@ msgstr ""
 #: src/tabs/library/library_menus.cpp:763
 #: src/tabs/library/library_menus.cpp:789
 msgid "Terminate game"
+msgstr ""
+
+#: src/tabs/library/library_menus.cpp:803
+#: src/tabs/library/library_menus.cpp:1584
+#: src/tabs/monitor.cpp:1621
+msgid "Browse"
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:805
@@ -2876,6 +1524,11 @@ msgstr ""
 
 #: src/tabs/library/library_menus.cpp:1578
 msgid "Stop service"
+msgstr ""
+
+#: src/tabs/library/library_menus.cpp:1586
+#: src/tabs/monitor.cpp:886
+msgid "Install folder"
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:1592
@@ -3016,8 +1669,58 @@ msgstr ""
 msgid "This will affect all games that make use of the category."
 msgstr ""
 
+#. TRANSLATORS: {0} is the name of a game
+#. TRANSLATORS: {0} is the file name of a process
+#: src/tabs/library/library_popups.cpp:262
+#: src/tabs/monitor.cpp:1975
+msgid "Do you want to end {0}?"
+msgstr ""
+
 #: src/tabs/library/library_popups.cpp:263
 msgid "Any unsaved game data may be lost."
+msgstr ""
+
+#: src/tabs/library/library_popups.cpp:267
+#: src/tabs/library/library_popups.cpp:301
+#: src/tabs/monitor.cpp:1984
+#: src/tabs/monitor.cpp:1989
+msgid "End Process"
+msgstr ""
+
+#: src/tabs/library/library_popups.cpp:280
+#: src/tabs/monitor.cpp:1970
+msgid "Task Manager"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:183
+#: src/tabs/library/library_properties.cpp:407
+#: src/tabs/library/library_properties.cpp:412
+#: src/tabs/library/library_properties.cpp:413
+#: src/tabs/library/library_properties.cpp:1456
+#: src/tabs/library/library_properties.cpp:1594
+#: src/tabs/library/library_properties.cpp:1595
+#: src/tabs/settings.cpp:790
+#: src/tabs/settings.cpp:791
+#: src/tabs/settings.cpp:1245
+#: src/tabs/settings.cpp:1246
+#: src/tabs/settings.cpp:1267
+#: src/tabs/settings.cpp:1268
+msgid "Always"
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:183
+#: src/tabs/library/library_properties.cpp:407
+#: src/tabs/library/library_properties.cpp:409
+#: src/tabs/library/library_properties.cpp:410
+#: src/tabs/library/library_properties.cpp:483
+#: src/tabs/library/library_properties.cpp:1456
+#: src/tabs/library/library_properties.cpp:1592
+#: src/tabs/library/library_properties.cpp:1593
+#: src/tabs/settings.cpp:667
+#: src/tabs/settings.cpp:788
+#: src/tabs/settings.cpp:1243
+#: src/tabs/settings.cpp:1265
+msgid "Never"
 msgstr ""
 
 #: src/tabs/library/library_properties.cpp:183
@@ -3026,6 +1729,11 @@ msgstr ""
 
 #: src/tabs/library/library_properties.cpp:218
 msgid "Leave empty to use the name of the game."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:224
+#: src/tabs/settings.cpp:813
+msgid "Library"
 msgstr ""
 
 #: src/tabs/library/library_properties.cpp:225
@@ -3077,6 +1785,13 @@ msgstr ""
 msgid ""
 "The game will always use instant play except\n"
 "when launched through the right click menu."
+msgstr ""
+
+#: src/tabs/library/library_properties.cpp:417
+#: src/tabs/settings.cpp:1011
+msgid ""
+"Warning: This skips the regular platform launch process for the game,\n"
+"including steps like the cloud saves synchronization that usually occurs."
 msgstr ""
 
 #: src/tabs/library/library_properties.cpp:422
@@ -3503,6 +2218,1291 @@ msgstr ""
 msgid "Could not save"
 msgstr ""
 
+#: src/tabs/local.cpp:30
+msgid "Direct3D 10/11/12 games (most common)."
+msgstr ""
+
+#: src/tabs/local.cpp:31
+msgid "Direct3D 11 games where DXGI.dll does not work."
+msgstr ""
+
+#: src/tabs/local.cpp:32
+msgid "Direct3D 9 games."
+msgstr ""
+
+#: src/tabs/local.cpp:33
+msgid "OpenGL games."
+msgstr ""
+
+#: src/tabs/local.cpp:34
+msgid "Games that load DirectInput 8; can work as a fallback."
+msgstr ""
+
+#: src/tabs/local.cpp:35
+msgid "Direct3D 8 games."
+msgstr ""
+
+#: src/tabs/local.cpp:36
+msgid "DirectDraw games."
+msgstr ""
+
+#: src/tabs/local.cpp:256
+msgid "Special K Installed"
+msgstr ""
+
+#: src/tabs/local.cpp:265
+msgid "Install Failed"
+msgstr ""
+
+#: src/tabs/local.cpp:266
+msgid "Could not install Special K as {0}"
+msgstr ""
+
+#: src/tabs/local.cpp:593
+msgid "Local Installs"
+msgstr ""
+
+#: src/tabs/local.cpp:684
+msgid "Deselect all"
+msgstr ""
+
+#: src/tabs/local.cpp:685
+msgid "Select all"
+msgstr ""
+
+#: src/tabs/local.cpp:686
+msgid "Select outdated"
+msgstr ""
+
+#: src/tabs/local.cpp:705
+msgid "Select Outdated"
+msgstr ""
+
+#: src/tabs/local.cpp:713
+msgid "Select Missing"
+msgstr ""
+
+#: src/tabs/local.cpp:720
+msgid "Select All"
+msgstr ""
+
+#: src/tabs/local.cpp:729
+msgid "Deselect All"
+msgstr ""
+
+#: src/tabs/local.cpp:741
+msgid "Update Selected"
+msgstr ""
+
+#: src/tabs/local.cpp:746
+msgid "Delete Selected"
+msgstr ""
+
+#: src/tabs/local.cpp:836
+msgid "Selection"
+msgstr ""
+
+#: src/tabs/local.cpp:852
+msgid "No local installs found."
+msgstr ""
+
+#: src/tabs/local.cpp:857
+msgid "To perform a local install of Special K:"
+msgstr ""
+
+#. TRANSLATORS: The text in [brackets] is highlighted (keep the brackets); {0} is a floppy disk icon. "File -> Install Wrapper DLL" is a menu of Special K itself (in-game), which is in English.
+#: src/tabs/local.cpp:868
+msgid "While in-game, use [{0} File -> Install Wrapper DLL]."
+msgstr ""
+
+#. TRANSLATORS: The text in [brackets] is highlighted (keep the brackets); Ctrl and Shift are keys of the keyboard
+#: src/tabs/local.cpp:879
+msgid "During launch, hold down [Ctrl + Shift] to access the compatibility options."
+msgstr ""
+
+#: src/tabs/local.cpp:891
+msgctxt "column"
+msgid "Path"
+msgstr ""
+
+#: src/tabs/local.cpp:892
+msgctxt "column"
+msgid "Version"
+msgstr ""
+
+#: src/tabs/local.cpp:894
+msgctxt "column"
+msgid "Status"
+msgstr ""
+
+#: src/tabs/local.cpp:1033
+msgid ""
+"The local DLL file could not be found.\n"
+"Click to reinstall it as v {0}."
+msgstr ""
+
+#: src/tabs/local.cpp:1048
+msgid "Folder no longer exists"
+msgstr ""
+
+#: src/tabs/local.cpp:1057
+msgid "Local DLL file no longer exists"
+msgstr ""
+
+#: src/tabs/local.cpp:1066
+msgid "Outdated (latest: {0})"
+msgstr ""
+
+#. TRANSLATORS: {0} is a floppy disk icon. "File -> Install Wrapper DLL" is a menu of Special K itself (in-game), which is in English.
+#: src/tabs/local.cpp:1128
+#: src/tabs/local.cpp:1241
+msgid "Select the bitness to install"
+msgstr ""
+
+#: src/tabs/local.cpp:1128
+msgid "Or while in-game, use {0} File -> Install Wrapper DLL."
+msgstr ""
+
+#: src/tabs/local.cpp:1155
+msgid "Already Up-to-Date"
+msgstr ""
+
+#: src/tabs/local.cpp:1156
+msgid "Special K is already installed in this folder and is fully up-to-date."
+msgstr ""
+
+#: src/tabs/local.cpp:1167
+msgid "Install Special K"
+msgstr ""
+
+#: src/tabs/local.cpp:1169
+msgid "Which DLL filename should Special K be installed as?"
+msgstr ""
+
+#: src/tabs/local.cpp:1173
+msgid "64-bit executable"
+msgstr ""
+
+#: src/tabs/local.cpp:1175
+msgid "32-bit executable"
+msgstr ""
+
+#: src/tabs/local.cpp:1177
+msgid "Could not detect the bitness of the executable; you will be asked next."
+msgstr ""
+
+#: src/tabs/local.cpp:1180
+msgid "Special K is already installed in this folder; only that file can be updated."
+msgstr ""
+
+#: src/tabs/local.cpp:1203
+msgid "Special K is already installed as this file and will be updated."
+msgstr ""
+
+#: src/tabs/local.cpp:1204
+msgid "A different file with this name already exists in the folder."
+msgstr ""
+
+#: src/tabs/local.cpp:1205
+msgid "Special K is already installed in this folder under another name."
+msgstr ""
+
+#: src/tabs/local.cpp:1242
+msgid ""
+"Could not detect the bitness of the executable.\n"
+"Should 64-bit or 32-bit be used?"
+msgstr ""
+
+#: src/tabs/local.cpp:1287
+msgid "Update Installs?"
+msgstr ""
+
+#: src/tabs/local.cpp:1288
+msgid "Delete Installs?"
+msgstr ""
+
+#: src/tabs/local.cpp:1289
+msgid "Are you sure you want to update all selected installs?"
+msgstr ""
+
+#: src/tabs/local.cpp:1290
+msgid "Are you sure you want to delete all selected installs?"
+msgstr ""
+
+#: src/tabs/local.cpp:1291
+msgid "Some leftover files may still be present in the game folder."
+msgstr ""
+
+#. TRANSLATORS: {0} is a circle icon
+#: src/tabs/monitor.cpp:727
+msgid "Use the below list to identify injected processes using the {0} status indicator to the left. Note that while a lot of processes might have Special K injected in them, only those that are whitelisted and use a render API will see Special K active. Remaining processes have it inert and can be ignored."
+msgstr ""
+
+#: src/tabs/monitor.cpp:736
+msgid "Show misc processes"
+msgstr ""
+
+#. TRANSLATORS: {0} is a circle icon
+#: src/tabs/monitor.cpp:740
+msgid ""
+"If this is enabled the below list will also include uninjected processes.\n"
+"This is indicated by the lack of a {0} icon under the Status column."
+msgstr ""
+
+#: src/tabs/monitor.cpp:745
+msgctxt "update speed"
+msgid "Paused"
+msgstr ""
+
+#: src/tabs/monitor.cpp:746
+msgctxt "update speed"
+msgid "Slow"
+msgstr ""
+
+#: src/tabs/monitor.cpp:747
+msgctxt "update speed"
+msgid "Normal"
+msgstr ""
+
+#: src/tabs/monitor.cpp:748
+msgctxt "update speed"
+msgid "High"
+msgstr ""
+
+#: src/tabs/monitor.cpp:759
+#: src/tabs/monitor.cpp:767
+msgid "Update speed:"
+msgstr ""
+
+#: src/tabs/monitor.cpp:818
+#: src/tabs/monitor.cpp:1781
+msgid "Real-time updates are paused."
+msgstr ""
+
+#: src/tabs/monitor.cpp:828
+msgid "Toggle Service:"
+msgstr ""
+
+#: src/tabs/monitor.cpp:832
+msgid "A forced stop of the service may sometime help in case of an issue, even if the service is not currently running."
+msgstr ""
+
+#: src/tabs/monitor.cpp:839
+msgid "Force start"
+msgstr ""
+
+#: src/tabs/monitor.cpp:840
+msgid "Force stop"
+msgstr ""
+
+#: src/tabs/monitor.cpp:874
+#: src/utility/injection.cpp:1048
+msgid "Stop automatically"
+msgstr ""
+
+#: src/tabs/monitor.cpp:880
+#: src/utility/injection.cpp:1054
+msgid ""
+"This controls whether the configured auto-stop behavior (see Settings tab) should be used when the service is manually started.\n"
+"Note that having this unchecked does not disable the auto-stop behavior if a game is launched without the service already running."
+msgstr ""
+
+#: src/tabs/monitor.cpp:909
+msgid "Status:"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1549
+msgid "Actions:"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1554
+msgid "Whitelist"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1560
+msgid "Blacklist"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1578
+msgid "Remove the whitelist and blacklist patterns matching this process."
+msgstr ""
+
+#: src/tabs/monitor.cpp:1630
+msgid "End task"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1693
+#: src/tabs/monitor.cpp:1713
+msgid "Status"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1693
+#: src/tabs/monitor.cpp:1721
+msgid "PID"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1693
+#: src/tabs/monitor.cpp:1729
+msgid "Type"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1693
+#: src/tabs/monitor.cpp:1733
+msgid "Handles"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1693
+#: src/tabs/monitor.cpp:1737
+msgid "Arch"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1693
+#: src/tabs/monitor.cpp:1745
+msgid "Admin"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1693
+#: src/tabs/monitor.cpp:1753
+msgid "Process Name"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1715
+msgid "Injection status"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1723
+msgid "Process ID"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1738
+msgid "CPU architecture"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1746
+msgid "Elevated process"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1754
+msgid "Process name"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1779
+msgid "Error occurred when trying to locate type index for events!"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1783
+msgid "Special K is currently not injected in any process."
+msgstr ""
+
+#: src/tabs/monitor.cpp:1819
+msgid "Process is blacklisted"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1825
+msgid "Process is whitelisted"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1838
+msgctxt "injection status"
+msgid "Active"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1842
+msgctxt "injection status"
+msgid "Local"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1847
+msgctxt "injection status"
+msgid "Inert"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1850
+#: src/tabs/monitor.cpp:1859
+msgctxt "injection status"
+msgid "Stuck (end the process to eject Special K)"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1856
+msgctxt "injection status"
+msgid "Inert (potentially stuck)"
+msgstr ""
+
+#: src/tabs/monitor.cpp:1917
+msgid "Injection status cannot be determined due to a lack of permissions."
+msgstr ""
+
+#: src/tabs/monitor.cpp:1977
+msgid "If an open program is associated with this process, it will close and you will lose any unsaved data. If you end a system process, it might result in system instability. Are you sure you want to continue?"
+msgstr ""
+
+#: src/tabs/monitor.cpp:2020
+msgid "Reset Whitelist / Blacklist"
+msgstr ""
+
+#. TRANSLATORS: {0} is the file name of a process
+#: src/tabs/monitor.cpp:2047
+msgid "Patterns matching {0}:"
+msgstr ""
+
+#: src/tabs/monitor.cpp:2051
+msgid "Whitelist:"
+msgstr ""
+
+#: src/tabs/monitor.cpp:2052
+msgid "Blacklist:"
+msgstr ""
+
+#: src/tabs/monitor.cpp:2056
+msgid "No whitelist or blacklist patterns of yours match this process."
+msgstr ""
+
+#: src/tabs/monitor.cpp:2068
+msgid "The process is also whitelisted by the built-in pattern \"{0}\", which cannot be removed."
+msgstr ""
+
+#: src/tabs/monitor.cpp:2069
+msgid "The process is also blacklisted by the built-in pattern \"{0}\", which cannot be removed."
+msgstr ""
+
+#: src/tabs/monitor.cpp:2076
+msgid "Removing a pattern affects every application it matches, not just this one. Do you want to remove the patterns listed above?"
+msgstr ""
+
+#: src/tabs/monitor.cpp:2083
+msgid "The changes could not be saved!"
+msgstr ""
+
+#: src/tabs/settings.cpp:45
+msgid "Toggle Display HDR"
+msgstr ""
+
+#: src/tabs/settings.cpp:118
+msgid "Low bandwidth mode"
+msgstr ""
+
+#: src/tabs/settings.cpp:124
+msgid ""
+"For new games/covers, low resolution images will be preferred over high-resolution ones.\n"
+"This only affects new downloads of covers. It does not affect already downloaded covers.\n"
+"This will also disable automatic downloads of new updates to Special K."
+msgstr ""
+
+#: src/tabs/settings.cpp:128
+msgid "Minimize when launching a game"
+msgstr ""
+
+#: src/tabs/settings.cpp:131
+msgid "Restore after closing a game"
+msgstr ""
+
+#: src/tabs/settings.cpp:136
+msgid "Requires Special K injected to work as intended."
+msgstr ""
+
+#: src/tabs/settings.cpp:144
+msgid "Close to the notification area"
+msgstr ""
+
+#: src/tabs/settings.cpp:153
+msgid "Requires 'Allow multiple instances of this app' to be disabled."
+msgstr ""
+
+#: src/tabs/settings.cpp:159
+msgid "Controller support"
+msgstr ""
+
+#. TRANSLATORS: {0} and {1} are the Xbox and PlayStation logos
+#: src/tabs/settings.cpp:178
+msgid "Allows the UI to be controlled using {0} or {1} controllers, and adds special features while SKIF is running."
+msgstr ""
+
+#: src/tabs/settings.cpp:186
+msgid "Config"
+msgstr ""
+
+#: src/tabs/settings.cpp:197
+msgid "General Controller Settings"
+msgstr ""
+
+#. TRANSLATORS: {0} are the Xbox and PlayStation logos; the label is followed by "+ <button>", the button to press with them
+#: src/tabs/settings.cpp:202
+msgid "Activate Screen Saver Using {0}"
+msgstr ""
+
+#. TRANSLATORS: {0} is the logo of one or more controllers (Xbox, PlayStation)
+#: src/tabs/settings.cpp:226
+#: src/tabs/settings.cpp:387
+msgid "The controller binding is configurable by clicking the text after {0}"
+msgstr ""
+
+#: src/tabs/settings.cpp:247
+#: src/tabs/settings.cpp:258
+msgctxt "gamepad button"
+msgid "A / Cross"
+msgstr ""
+
+#: src/tabs/settings.cpp:249
+#: src/tabs/settings.cpp:410
+msgctxt "gamepad button"
+msgid "Up"
+msgstr ""
+
+#: src/tabs/settings.cpp:250
+#: src/tabs/settings.cpp:411
+msgctxt "gamepad button"
+msgid "Down"
+msgstr ""
+
+#: src/tabs/settings.cpp:251
+#: src/tabs/settings.cpp:412
+msgctxt "gamepad button"
+msgid "Left"
+msgstr ""
+
+#: src/tabs/settings.cpp:252
+#: src/tabs/settings.cpp:413
+msgctxt "gamepad button"
+msgid "Right"
+msgstr ""
+
+#: src/tabs/settings.cpp:254
+#: src/tabs/settings.cpp:415
+msgctxt "gamepad button"
+msgid "Start"
+msgstr ""
+
+#: src/tabs/settings.cpp:255
+msgctxt "gamepad button"
+msgid "Back / Select"
+msgstr ""
+
+#: src/tabs/settings.cpp:257
+msgctxt "gamepad button"
+msgid "Y / Triangle"
+msgstr ""
+
+#: src/tabs/settings.cpp:259
+msgctxt "gamepad button"
+msgid "X / Square"
+msgstr ""
+
+#: src/tabs/settings.cpp:260
+msgctxt "gamepad button"
+msgid "B / Circle"
+msgstr ""
+
+#: src/tabs/settings.cpp:342
+msgid "Gamepad Input Deactivates Screen Saver"
+msgstr ""
+
+#. TRANSLATORS: {0} is the Xbox logo (the Xbox button)
+#: src/tabs/settings.cpp:352
+msgid "Pressing {0} on Xbox controllers always deactivates."
+msgstr ""
+
+#: src/tabs/settings.cpp:357
+msgid "PlayStation Power Management"
+msgstr ""
+
+#. TRANSLATORS: {0} is the PlayStation logo; the label is followed by "+ <button>", the button to press with it
+#: src/tabs/settings.cpp:363
+msgid "Power Off Controllers Using {0}"
+msgstr ""
+
+#: src/tabs/settings.cpp:408
+#: src/tabs/settings.cpp:418
+msgctxt "gamepad button"
+msgid "Triangle"
+msgstr ""
+
+#: src/tabs/settings.cpp:416
+msgctxt "gamepad button"
+msgid "Select"
+msgstr ""
+
+#: src/tabs/settings.cpp:419
+msgctxt "gamepad button"
+msgid "Cross"
+msgstr ""
+
+#: src/tabs/settings.cpp:420
+msgctxt "gamepad button"
+msgid "Square"
+msgstr ""
+
+#: src/tabs/settings.cpp:421
+msgctxt "gamepad button"
+msgid "Circle"
+msgstr ""
+
+#: src/tabs/settings.cpp:506
+msgid "Never Power Off"
+msgstr ""
+
+#. TRANSLATORS: {0} is a number of minutes
+#: src/tabs/settings.cpp:508
+msgid "Power Off After {0} Minutes"
+msgstr ""
+
+#: src/tabs/settings.cpp:510
+msgid "Idle Behavior"
+msgstr ""
+
+#: src/tabs/settings.cpp:522
+msgid "This only applies when this app is running and no game is actively using Special K."
+msgstr ""
+
+#: src/tabs/settings.cpp:528
+msgid "Third-Party Setup\tXInput Assignment: "
+msgstr ""
+
+#. TRANSLATORS: {0} is the Steam logo (as in "Steam Input")
+#: src/tabs/settings.cpp:556
+msgid "Disable {0} Input (will restart Steam)"
+msgstr ""
+
+#: src/tabs/settings.cpp:584
+msgid "Restarting Steam..."
+msgstr ""
+
+#. TRANSLATORS: {0} is the Steam logo (as in "Steam Input")
+#: src/tabs/settings.cpp:593
+msgid "Install {0} Input Kill Switch"
+msgstr ""
+
+#: src/tabs/settings.cpp:599
+msgid ""
+"Allows Steam Input to be Fully Disabled or Enabled.\n"
+"\n"
+" * Steam Input usually does stuff whether or not it is enabled per-game.\n"
+" * No registry settings need to be set if you use this config menu."
+msgstr ""
+
+#: src/tabs/settings.cpp:626
+msgid ""
+"This determines how long the service will remain running when launching a game.\n"
+"Move the mouse over each option to get more information."
+msgstr ""
+
+#: src/tabs/settings.cpp:631
+msgid "Auto-stop behavior when launching a game:"
+msgstr ""
+
+#: src/tabs/settings.cpp:639
+msgid "Stop on injection"
+msgstr ""
+
+#: src/tabs/settings.cpp:642
+msgid "The service will be stopped when Special K successfully injects into a game."
+msgstr ""
+
+#: src/tabs/settings.cpp:644
+#: src/tabs/settings.cpp:645
+msgid "Stop on game exit"
+msgstr ""
+
+#: src/tabs/settings.cpp:648
+msgid "The service will be stopped when Special K detects that the game is being closed."
+msgstr ""
+
+#: src/tabs/settings.cpp:655
+msgid "This setting has no effect if low bandwidth mode is enabled."
+msgstr ""
+
+#: src/tabs/settings.cpp:659
+msgid "Check for updates:"
+msgstr ""
+
+#: src/tabs/settings.cpp:669
+#: src/tabs/settings.cpp:670
+msgid "Weekly"
+msgstr ""
+
+#: src/tabs/settings.cpp:672
+#: src/tabs/settings.cpp:673
+msgid "On each launch"
+msgstr ""
+
+#: src/tabs/settings.cpp:764
+msgid "Roll back to the previous version"
+msgstr ""
+
+#: src/tabs/settings.cpp:782
+msgid "This provides contextual notifications in Windows when the service starts or stops."
+msgstr ""
+
+#: src/tabs/settings.cpp:786
+msgid "Show injection service desktop notifications:"
+msgstr ""
+
+#: src/tabs/settings.cpp:793
+#: src/tabs/settings.cpp:794
+msgid "When unfocused"
+msgstr ""
+
+#: src/tabs/settings.cpp:832
+msgid "Ignore articles when sorting"
+msgstr ""
+
+#: src/tabs/settings.cpp:840
+msgid "Ignore articles like 'THE', 'A', and 'AN' when sorting games."
+msgstr ""
+
+#: src/tabs/settings.cpp:842
+msgid "Remember the last selected game"
+msgstr ""
+
+#: src/tabs/settings.cpp:845
+msgid "Remember category collapsible state"
+msgstr ""
+
+#: src/tabs/settings.cpp:852
+msgid "Prefer covers from PCGamingWiki for these platforms:"
+msgstr ""
+
+#: src/tabs/settings.cpp:880
+msgid "Prefer covers from IGDB for these platforms:"
+msgstr ""
+
+#: src/tabs/settings.cpp:884
+msgid ""
+"Games are looked up on IGDB by their store ID where possible, otherwise by their exact name.\n"
+"A cover from PCGamingWiki takes precedence over one from IGDB, as those are typically of\n"
+"a higher resolution. EA, itch.io, Ubisoft and custom games always use IGDB covers, as those\n"
+"platforms have no suitable covers of their own."
+msgstr ""
+
+#: src/tabs/settings.cpp:935
+msgid "Include games from these platforms:"
+msgstr ""
+
+#: src/tabs/settings.cpp:998
+msgid "Custom"
+msgstr ""
+
+#: src/tabs/settings.cpp:1016
+msgid "Prefer Instant Play for these platforms:"
+msgstr ""
+
+#: src/tabs/settings.cpp:1082
+msgid "Appearance"
+msgstr ""
+
+#: src/tabs/settings.cpp:1139
+msgid "Translations are contributed by the community. Text that has not been translated yet is shown in English."
+msgstr ""
+
+#: src/tabs/settings.cpp:1143
+msgid "Language:"
+msgstr ""
+
+#. TRANSLATORS: {0} is the name of the language that Windows uses (or English, if there is no translation for it)
+#: src/tabs/settings.cpp:1148
+msgid "Same as Windows ({0})"
+msgstr ""
+
+#: src/tabs/settings.cpp:1202
+msgid "Dynamic"
+msgstr ""
+
+#: src/tabs/settings.cpp:1203
+msgid "SKIF Dark"
+msgstr ""
+
+#: src/tabs/settings.cpp:1204
+msgid "SKIF Light"
+msgstr ""
+
+#: src/tabs/settings.cpp:1205
+msgid "ImGui Classic"
+msgstr ""
+
+#: src/tabs/settings.cpp:1206
+msgid "ImGui Dark"
+msgstr ""
+
+#: src/tabs/settings.cpp:1214
+msgid "Color theme:"
+msgstr ""
+
+#: src/tabs/settings.cpp:1237
+msgid "Useful if you find bright white covers an annoyance."
+msgstr ""
+
+#: src/tabs/settings.cpp:1241
+msgid "Dim game covers by 25%:"
+msgstr ""
+
+#: src/tabs/settings.cpp:1248
+#: src/tabs/settings.cpp:1249
+msgid "Based on mouse cursor"
+msgstr ""
+
+#: src/tabs/settings.cpp:1256
+msgid "Every time the UI renders a frame, Shelly the Ghost moves a little bit."
+msgstr ""
+
+#: src/tabs/settings.cpp:1260
+msgid "Show Shelly the Ghost:"
+msgstr ""
+
+#: src/tabs/settings.cpp:1263
+msgid ""
+"A critical rendering optimization will not function properly when Shelly is visibly moving.\n"
+"It is therefor recommended to leave Shelly hidden in favor of a reduced GPU usage."
+msgstr ""
+
+#: src/tabs/settings.cpp:1270
+#: src/tabs/settings.cpp:1271
+msgid "While service is running"
+msgstr ""
+
+#: src/tabs/settings.cpp:1278
+msgid "Move the mouse over each option to get more information."
+msgstr ""
+
+#: src/tabs/settings.cpp:1282
+msgid "UI elements:"
+msgstr ""
+
+#: src/tabs/settings.cpp:1287
+msgid "Borders"
+msgstr ""
+
+#: src/tabs/settings.cpp:1296
+msgid "Use borders around UI elements."
+msgstr ""
+
+#: src/tabs/settings.cpp:1298
+msgid "Tooltips"
+msgstr ""
+
+#: src/tabs/settings.cpp:1307
+#: src/utility/skif_imgui.cpp:633
+msgid "Info: "
+msgstr ""
+
+#: src/tabs/settings.cpp:1309
+msgid "This is instead where additional information will be displayed."
+msgstr ""
+
+#: src/tabs/settings.cpp:1310
+msgid ""
+"If tooltips are disabled the status bar will be used for additional information.\n"
+"Note that some links cannot be previewed as a result."
+msgstr ""
+
+#: src/tabs/settings.cpp:1313
+msgid "Status bar"
+msgstr ""
+
+#: src/tabs/settings.cpp:1321
+msgid "Disabling the status bar as well as tooltips will hide all additional information or tips."
+msgstr ""
+
+#: src/tabs/settings.cpp:1327
+#: src/tabs/settings.cpp:1353
+msgid "Fade covers"
+msgstr ""
+
+#: src/tabs/settings.cpp:1328
+#: src/tabs/settings.cpp:1364
+msgid "Win11 corners"
+msgstr ""
+
+#: src/tabs/settings.cpp:1351
+msgid "Use larger game icons in the library tab."
+msgstr ""
+
+#: src/tabs/settings.cpp:1360
+msgid "Fade between game covers when switching games."
+msgstr ""
+
+#: src/tabs/settings.cpp:1372
+msgid "Use rounded window corners."
+msgstr ""
+
+#: src/tabs/settings.cpp:1378
+#: src/tabs/settings.cpp:1387
+msgid "Touch input"
+msgstr ""
+
+#: src/tabs/settings.cpp:1379
+#: src/tabs/settings.cpp:1398
+msgid "HiDPI scaling"
+msgstr ""
+
+#: src/tabs/settings.cpp:1396
+msgid "Make the UI easier to use on touch input capable devices automatically."
+msgstr ""
+
+#: src/tabs/settings.cpp:1405
+msgid "Disabling HiDPI scaling will make the application appear smaller on HiDPI displays."
+msgstr ""
+
+#: src/tabs/settings.cpp:1422
+msgid "Context based information and tips will not appear!"
+msgstr ""
+
+#: src/tabs/settings.cpp:1425
+msgid "Restore context based information and tips by enabling tooltips or the status bar."
+msgstr ""
+
+#: src/tabs/settings.cpp:1441
+msgid "Move the mouse over each option to get more information"
+msgstr ""
+
+#: src/tabs/settings.cpp:1444
+msgid "UI mode:"
+msgstr ""
+
+#: src/tabs/settings.cpp:1450
+msgid "VRR Compatibility"
+msgstr ""
+
+#: src/tabs/settings.cpp:1455
+msgid "Avoids signal loss and flickering on VRR displays."
+msgstr ""
+
+#: src/tabs/settings.cpp:1456
+#: src/tabs/settings.cpp:1458
+msgid "Normal"
+msgstr ""
+
+#: src/tabs/settings.cpp:1463
+msgid "Improves UI response on low fixed-refresh rate displays."
+msgstr ""
+
+#: src/tabs/settings.cpp:1464
+#: src/tabs/settings.cpp:1465
+msgid "Safe Mode"
+msgstr ""
+
+#: src/tabs/settings.cpp:1470
+msgid "Compatibility mode for users experiencing issues with the other two modes."
+msgstr ""
+
+#: src/tabs/settings.cpp:1476
+msgid "Increases the color depth of the app."
+msgstr ""
+
+#: src/tabs/settings.cpp:1480
+msgid "Color depth:"
+msgstr ""
+
+#: src/tabs/settings.cpp:1527
+msgid "Linear font alpha blending"
+msgstr ""
+
+#: src/tabs/settings.cpp:1530
+msgid ""
+"Disables the correction that makes text blend\n"
+"like they do in 8 bpc and 10 bpc modes."
+msgstr ""
+
+#: src/tabs/settings.cpp:1540
+msgid "Makes the app pop more on HDR displays."
+msgstr ""
+
+#: src/tabs/settings.cpp:1544
+msgid "High dynamic range (HDR):"
+msgstr ""
+
+#: src/tabs/settings.cpp:1550
+msgid "HDR support is disabled while the UI is in Safe Mode."
+msgstr ""
+
+#. TRANSLATORS: {0} is the brightness in nits (cd/m2)
+#: src/tabs/settings.cpp:1584
+msgid "{0} nits"
+msgstr ""
+
+#: src/tabs/settings.cpp:1586
+msgid "HDR brightness"
+msgstr ""
+
+#: src/tabs/settings.cpp:1605
+msgid "Your display(s) supports HDR, but does not use it."
+msgstr ""
+
+#. TRANSLATORS: {0} is the keyboard shortcut (Ctrl + Windows logo + Shift + H), {1} is a mouse cursor icon
+#: src/tabs/settings.cpp:1620
+msgid "Use {0} to toggle HDR where the {1} is."
+msgstr ""
+
+#: src/tabs/settings.cpp:1656
+msgid "Keybindings"
+msgstr ""
+
+#: src/tabs/settings.cpp:1699
+msgid "Keybindings (In-Game)"
+msgstr ""
+
+#: src/tabs/settings.cpp:1760
+msgid "Launch a game with Special K at least once to populate this section."
+msgstr ""
+
+#: src/tabs/settings.cpp:1771
+msgid "Advanced"
+msgstr ""
+
+#: src/tabs/settings.cpp:1790
+msgid "Automatically install new updates"
+msgstr ""
+
+#. TRANSLATORS: {0} is a mouse cursor icon
+#: src/tabs/settings.cpp:1794
+msgid "Open this app on the same monitor as the {0}"
+msgstr ""
+
+#: src/tabs/settings.cpp:1797
+msgid "Open this app in the mini service mode view"
+msgstr ""
+
+#: src/tabs/settings.cpp:1816
+msgid "Do not stop the injection service on exit"
+msgstr ""
+
+#: src/tabs/settings.cpp:1820
+msgid "This allows the injection service to remain running even after this app has been closed."
+msgstr ""
+
+#: src/tabs/settings.cpp:1822
+msgid "Use hardware acceleration"
+msgstr ""
+
+#: src/tabs/settings.cpp:1834
+msgid "The app will be less responsive if disabled on hybrid CPUs."
+msgstr ""
+
+#: src/tabs/settings.cpp:1839
+msgid "The app may be less responsive if disabled."
+msgstr ""
+
+#: src/tabs/settings.cpp:1842
+msgid "Use system proxy settings"
+msgstr ""
+
+#: src/tabs/settings.cpp:1845
+msgid ""
+"Downloads go through the proxy configured in Windows.\n"
+"Automatic proxy detection and setup scripts are not used.\n"
+"If disabled, the app always connects directly."
+msgstr ""
+
+#: src/tabs/settings.cpp:1856
+msgid "Allow multiple instances of this app"
+msgstr ""
+
+#: src/tabs/settings.cpp:1891
+msgid "Requires 'Close to the notification area' to be disabled."
+msgstr ""
+
+#: src/tabs/settings.cpp:1918
+msgctxt "log level"
+msgid "None"
+msgstr ""
+
+#: src/tabs/settings.cpp:1919
+msgctxt "log level"
+msgid "Fatal"
+msgstr ""
+
+#: src/tabs/settings.cpp:1920
+msgctxt "log level"
+msgid "Error"
+msgstr ""
+
+#: src/tabs/settings.cpp:1921
+msgctxt "log level"
+msgid "Warning"
+msgstr ""
+
+#: src/tabs/settings.cpp:1922
+msgctxt "log level"
+msgid "Info"
+msgstr ""
+
+#: src/tabs/settings.cpp:1923
+msgctxt "log level"
+msgid "Debug"
+msgstr ""
+
+#: src/tabs/settings.cpp:1924
+msgctxt "log level"
+msgid "Verbose"
+msgstr ""
+
+#: src/tabs/settings.cpp:1927
+msgid "Log level"
+msgstr ""
+
+#: src/tabs/settings.cpp:1956
+msgid "Enable excessive development logging"
+msgstr ""
+
+#: src/tabs/settings.cpp:1966
+msgid "Only intended for SKIF developers as this enables excessive logging (e.g. window messages)."
+msgstr ""
+
+#: src/tabs/settings.cpp:1970
+msgctxt "diagnostics"
+msgid "None"
+msgstr ""
+
+#: src/tabs/settings.cpp:1971
+msgctxt "diagnostics"
+msgid "Normal"
+msgstr ""
+
+#: src/tabs/settings.cpp:1972
+msgctxt "diagnostics"
+msgid "Enhanced"
+msgstr ""
+
+#: src/tabs/settings.cpp:1975
+msgid "Diagnostics"
+msgstr ""
+
+#: src/tabs/settings.cpp:1999
+msgid ""
+"Help improve Special K by allowing anonymized diagnostics to be sent.\n"
+"The data is used to identify issues, highlight common use cases, and\n"
+"facilitates the continued development of the application."
+msgstr ""
+
+#: src/tabs/settings.cpp:2011
+msgid "Developer mode"
+msgstr ""
+
+#: src/tabs/settings.cpp:2020
+msgid "Exposes additional information and context menu items that may be of interest for developers."
+msgstr ""
+
+#: src/tabs/settings.cpp:2022
+#: src/tabs/settings.cpp:2024
+msgid "Efficiency mode"
+msgstr ""
+
+#: src/tabs/settings.cpp:2027
+msgid ""
+"Engage efficiency mode for this app when idle.\n"
+"Not recommended for Windows 10 and earlier."
+msgstr ""
+
+#: src/tabs/settings.cpp:2032
+msgid "Nvidia users: Use the below button to prevent GeForce Experience from mistaking this app for a game."
+msgstr ""
+
+#: src/tabs/settings.cpp:2042
+msgid "Disable GFE notifications"
+msgstr ""
+
+#: src/tabs/settings.cpp:2092
+msgid ""
+"This only needs to be used if GeForce Experience notifications\n"
+"appear on the screen whenever this app is being used."
+msgstr ""
+
+#: src/tabs/settings.cpp:2111
+msgid "Whitelist / Blacklist"
+msgstr ""
+
+#. TRANSLATORS: {0} is a double quote character
+#: src/tabs/settings.cpp:2151
+msgid "Please remove all double quotes {0} from the list."
+msgstr ""
+
+#. TRANSLATORS: {0} is two backslashes, {1} is one backslash
+#: src/tabs/settings.cpp:2166
+msgid "Folders must be separated using two backslashes {0} instead of one {1} backslash."
+msgstr ""
+
+#. TRANSLATORS: {0} is the maximum number of lines (512), {1} is the pipe character
+#: src/tabs/settings.cpp:2184
+msgid "The list can only include {0} lines, though multiple can be combined using a pipe {1} character."
+msgstr ""
+
+#: src/tabs/settings.cpp:2188
+msgid ""
+"(e.g. \"NieRAutomataPC|Epic Games\" will match any application\n"
+"installed under a NieRAutomataPC or Epic Games folder.)"
+msgstr ""
+
+#: src/tabs/settings.cpp:2197
+msgid "The following lists manage Special K in processes as patterns are matched against the full path of the injected process."
+msgstr ""
+
+#: src/tabs/settings.cpp:2205
+msgid "Easiest is to use the name of the executable or folder of the game."
+msgstr ""
+
+#: src/tabs/settings.cpp:2209
+msgid ""
+"e.g. a pattern like \"Assassin's Creed Valhalla\" will match an application at\n"
+"C:\\Games\\Uplay\\games\\Assassin's Creed Valhalla\\ACValhalla.exe"
+msgstr ""
+
+#: src/tabs/settings.cpp:2215
+msgid "Typing the name of a shared parent folder will match all applications below that folder."
+msgstr ""
+
+#: src/tabs/settings.cpp:2219
+msgid ""
+"e.g. a pattern like \"Epic Games\" will match any\n"
+"application installed under the Epic Games folder."
+msgstr ""
+
+#: src/tabs/settings.cpp:2228
+msgid "Note that these lists do not prevent Special K from being injected into processes."
+msgstr ""
+
+#: src/tabs/settings.cpp:2234
+msgid ""
+"These lists control whether Special K should be enabled (the whitelist) to hook APIs etc,\n"
+"or remain disabled/idle/inert (the blacklist) within the injected process."
+msgstr ""
+
+#: src/tabs/settings.cpp:2241
+msgid ""
+"The injection service injects Special K into any process that deals\n"
+"with system input or some sort of window or kb/mouse input activity.\n"
+"\n"
+"These lists control whether Special K should be enabled (the whitelist),\n"
+"or remain idle/inert (the blacklist) within the injected process."
+msgstr ""
+
+#: src/tabs/settings.cpp:2260
+msgid "Whitelist Patterns:"
+msgstr ""
+
+#: src/tabs/settings.cpp:2277
+msgid ""
+"These are the patterns used internally to enable Special K for these specific platforms.\n"
+"They are presented here solely as examples of how a potential pattern might look like."
+msgstr ""
+
+#: src/tabs/settings.cpp:2356
+msgid "Blacklist Patterns:"
+msgstr ""
+
+#: src/tabs/settings.cpp:2358
+msgid "(Does not prevent injection! Use this to exclude stuff from being whitelisted)"
+msgstr ""
+
+#: src/tabs/settings.cpp:2389
+msgid "Save Changes"
+msgstr ""
+
+#: src/tabs/settings.cpp:2440
+msgid "The whitelist could not be saved! Please remove any non-Latin characters and try again."
+msgstr ""
+
+#: src/tabs/settings.cpp:2446
+msgid "The blacklist could not be saved! Please remove any non-Latin characters and try again."
+msgstr ""
+
 #: src/utility/games.cpp:414
 msgid "One-time warning about RTSS.exe"
 msgstr ""
@@ -3686,101 +3686,101 @@ msgstr ""
 msgid "Click to start the service"
 msgstr ""
 
-#: src/utility/sk_utility.cpp:883
-msgid "Keybinding:"
-msgstr ""
-
-#. TRANSLATORS: RETURN, ESC, BACKSPACE and DELETE are keys of the keyboard (use the names printed on keyboards in your language)
-#: src/utility/sk_utility.cpp:888
-msgid "Press RETURN to confirm, ESC to cancel, BACKSPACE to clear, DELETE to reset."
-msgstr ""
-
 #: src/utility/skif_imgui.cpp:476
 #: src/utility/skif_imgui.cpp:480
-#: src/utility/skif_imgui.cpp:1708
+#: src/utility/skif_imgui.cpp:1773
 msgid "OK"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1696
+#: src/utility/skif_imgui.cpp:1761
 msgid "None"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1703
+#: src/utility/skif_imgui.cpp:1768
 msgid "Don't Save"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1762
+#: src/utility/skif_imgui.cpp:1827
 msgid "Are you sure you want to continue?"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1778
+#: src/utility/skif_imgui.cpp:1843
 msgid "Do you want to save the changes made?"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1779
+#: src/utility/skif_imgui.cpp:1844
 msgid "Your changes will be lost if you don't save them."
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1807
+#: src/utility/skif_imgui.cpp:1872
 msgid "Should 64-bit or 32-bit be used?"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1808
+#: src/utility/skif_imgui.cpp:1873
 msgid "Processes can only load DLL files of the same bitness."
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1920
+#: src/utility/skif_imgui.cpp:1985
 msgid "Force start service"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1927
+#: src/utility/skif_imgui.cpp:1992
 msgid "Elevated"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1932
+#: src/utility/skif_imgui.cpp:1997
 msgid "Force stop service"
 msgstr ""
 
 #. TRANSLATORS: An April Fools' Day joke (a fake activation of Special K, with technobabble), shown on April 1st
-#: src/utility/skif_imgui.cpp:3057
+#: src/utility/skif_imgui.cpp:3122
 msgid "Special K Activation"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3065
+#: src/utility/skif_imgui.cpp:3130
 msgid "Special K  //  Nominal Flow Activation"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3069
+#: src/utility/skif_imgui.cpp:3134
 msgid "Client fingerprint:"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3108
+#: src/utility/skif_imgui.cpp:3173
 msgid "This title is missing its nominal constant (0x00000000)."
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3113
+#: src/utility/skif_imgui.cpp:3178
 msgid "Contacting activation server  sk-activation.local ..."
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3118
+#: src/utility/skif_imgui.cpp:3183
 msgid "Transforming constant against client fingerprint ..."
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3123
+#: src/utility/skif_imgui.cpp:3188
 msgid "Nominal flow restored."
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3139
+#: src/utility/skif_imgui.cpp:3204
 msgid "Just kidding -- Special K needs no such thing. Happy April Fools' Day!"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3142
-#: src/utility/skif_imgui.cpp:3144
+#: src/utility/skif_imgui.cpp:3207
+#: src/utility/skif_imgui.cpp:3209
 msgid "Phew, OK"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3151
+#: src/utility/skif_imgui.cpp:3216
 msgid "Please wait, this will only take a moment ..."
+msgstr ""
+
+#: src/utility/sk_utility.cpp:896
+msgid "Keybinding:"
+msgstr ""
+
+#. TRANSLATORS: RETURN, ESC, BACKSPACE and DELETE are keys of the keyboard (use the names printed on keyboards in your language)
+#: src/utility/sk_utility.cpp:901
+msgid "Press RETURN to confirm, ESC to cancel, BACKSPACE to clear, DELETE to reset."
 msgstr ""
 
 #: src/utility/updater.cpp:684

@@ -240,10 +240,11 @@ $files = Get-ChildItem -LiteralPath (Join-Path $Root 'src'), (Join-Path $Root 'i
   } |
   Where-Object { $rel = $_.Rel; -not ($excluded | Where-Object { $rel.StartsWith($_, [StringComparison]::OrdinalIgnoreCase) }) }
 
-# Ordinal order, so the template is the same on every system
-$files = @($files)
-[string[]] $sortKeys = @($files | ForEach-Object { $_.Rel })
-[Array]::Sort($sortKeys, $files, [StringComparer]::OrdinalIgnoreCase)
+# Ordinal order (ignoring case), so the template is the same on every system. (Not [Array]::Sort (keys, items): PowerShell 7
+#   picks a generic overload for it that sorts a copy of the items, which left them in the order of the file system.)
+$sorted = New-Object 'System.Collections.Generic.SortedDictionary[string, object]' ([StringComparer]::OrdinalIgnoreCase)
+foreach ($file in $files) { $sorted[$file.Rel] = $file }
+$files = @($sorted.Values)
 
 foreach ($file in $files)
 {
@@ -449,12 +450,23 @@ if ($Check)
     # Which texts differ (the msgctxt and msgid lines only, to keep it short)
     $was = @($current  -split "`n" | Where-Object { $_ -like 'msgid *' -or $_ -like 'msgctxt *' })
     $now = @($expected -split "`n" | Where-Object { $_ -like 'msgid *' -or $_ -like 'msgctxt *' })
-    foreach ($d in (Compare-Object $was $now))
+    foreach ($d in (Compare-Object $was $now -CaseSensitive))
     {
       $what = 'removed:'
       if ($d.SideIndicator -eq '=>') { $what = 'added:  ' }
       Write-Host "  $what $($d.InputObject)"
     }
+
+    # The first line that differs, with the lines before it (a changed comment, plural form, or order of the texts)
+    $a = $current  -split "`n"
+    $b = $expected -split "`n"
+    $i = 0
+    while ($i -lt $a.Count -and $i -lt $b.Count -and $a[$i] -ceq $b[$i]) { $i++ }
+    $from = [Math]::Max(0, $i - 3)
+    Write-Host "  First difference (source references left out), $Output first, then the sources:"
+    for ($j = $from; $j -le $i -and $j -lt $a.Count; $j++) { Write-Host "    $Output | $($a[$j])" }
+    for ($j = $from; $j -le $i -and $j -lt $b.Count; $j++) { Write-Host "    sources  | $($b[$j])" }
+    Write-Host "  (PowerShell $($PSVersionTable.PSVersion), $($PSVersionTable.PSEdition))"
   }
   else
   {
