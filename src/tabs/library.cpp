@@ -26,8 +26,10 @@
 #include <filesystem>
 #include <SKIF.h>
 #include <utility/utility.h>
+#include <utility/sk_utility.h>
 #include <utility/skif_imgui.h>
 #include <ImGuiNotify.hpp>
+#include <algorithm>
 
 #include <utility/injection.h>
 
@@ -83,6 +85,108 @@ bool                   PopulatedGames    = false;
 char                   charFilter    [MAX_PATH + 2] = { };
 char                   charFilterTmp [MAX_PATH + 2] = { };
 bool                   bFilterActive     = false;
+
+// Filter history (the 5 latest searches, stored in the registry), shown below the filter field while it is selected
+static constexpr size_t LIB_FILTER_HISTORY_MAX = 5;
+
+struct lib_filter_history_s {
+  std::string strOnActivate;           // Contents of the filter field when it was last activated
+  int         iPos           = -1;     // Entry picked using Up/Down (-1 = none)
+  int         iStep          =  0;     // Pending step through the history requested by a gamepad (-1 = up, 1 = down)
+  bool        bHovered       = false;  // Whether the mouse was over the history list last frame
+  bool        bVisible       = false;  // Whether the history list was shown last frame
+};
+
+static lib_filter_history_s libFilterHistory;
+
+// Moves (or adds) a search to the top of the filter history and stores it in the registry
+static void
+SKIF_Lib_AddFilterHistory (const std::string& filter)
+{
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
+  if (filter.empty())
+    return;
+
+  auto& history = _registry.vecLibraryFilterHistory;
+
+  // Filtering is case-insensitive, so treat searches differing only in case as the same one
+  std::erase_if (history, [&](const std::string& entry) {
+    return _stricmp (entry.c_str(), filter.c_str()) == 0;
+  });
+
+  history.insert (history.begin(), filter);
+
+  if (history.size() > LIB_FILTER_HISTORY_MAX)
+    history.resize (LIB_FILTER_HISTORY_MAX);
+
+  std::vector <std::wstring> wHistory;
+  wHistory.reserve (history.size());
+  for (const auto& entry : history)
+    wHistory.push_back (SK_UTF8ToWideChar (entry));
+
+  _registry.regKVLibraryFilterHistory.putDataMultiSZ (wHistory);
+}
+
+// Whether the given text is one of the entries in the filter history
+static bool
+SKIF_Lib_IsInFilterHistory (const char* text)
+{
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
+  for (const auto& entry : _registry.vecLibraryFilterHistory)
+    if (_stricmp (entry.c_str(), text) == 0)
+      return true;
+
+  return false;
+}
+
+// Up/Down in the filter field steps through the filter history
+//   Keyboard: ImGui reports Up/Down arrows through ImGuiInputTextFlags_CallbackHistory
+//   Gamepad:  ImGui does not, so D-pad/left stick presses are queued in iStep and applied
+//               here through ImGuiInputTextFlags_CallbackAlways (the buffer of an active field can only be changed here)
+static int
+SKIF_Lib_FilterCallback (ImGuiInputTextCallbackData* data)
+{
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
+  const auto& history = _registry.vecLibraryFilterHistory;
+
+  if (history.empty())
+    return 0;
+
+  int step = 0;
+
+  if (data->EventFlag == ImGuiInputTextFlags_CallbackHistory)
+    step = (data->EventKey == ImGuiKey_DownArrow) ? 1 : (data->EventKey == ImGuiKey_UpArrow) ? -1 : 0;
+
+  else if (data->EventFlag == ImGuiInputTextFlags_CallbackAlways)
+  {
+    step = libFilterHistory.iStep;
+    libFilterHistory.iStep = 0;
+  }
+
+  if (step == 0)
+    return 0;
+
+  const int prevPos = libFilterHistory.iPos;
+  const int maxPos  = static_cast <int> (history.size()) - 1;
+
+  libFilterHistory.iPos = std::clamp (libFilterHistory.iPos + step, -1, maxPos);
+
+  if (prevPos != libFilterHistory.iPos)
+  {
+    // Stepping back past the first entry restores what was in the field to begin with
+    const std::string& text = (libFilterHistory.iPos == -1) ? libFilterHistory.strOnActivate
+                                                            : history [libFilterHistory.iPos];
+
+    data->DeleteChars (0, data->BufTextLen);
+    data->InsertChars (0, text.c_str());
+  }
+
+  return 0;
+}
+
 bool                   bCategoryMgnt     = false;
 bool                   sort_changed      = false;
 
@@ -1183,9 +1287,55 @@ SKIF_UI_Tab_DrawLibrary (void)
   ImGui::PopItemFlag    ( );
   ImGui::SameLine       ( );
 
+  // Up/Down only steps through the filter history while the history list is shown, so that Up/Down still moves on to
+  //   the games list once the user has typed a new search. Requesting the history callback makes ImGui stop using up/down
+  //     for navigation while the field is active (for the gamepad too), but only the keyboard arrows are passed on to the
+  //       callback, so gamepad up/down presses are queued here and applied in the callback
+  ImGuiInputTextFlags filterFlags = ImGuiInputTextFlags_AutoSelectAll;
+
+  if (libFilterHistory.bVisible && ! _registry.vecLibraryFilterHistory.empty())
+  {
+    filterFlags |= ImGuiInputTextFlags_CallbackHistory;
+
+    if (ImGui::GetActiveID ( ) == ImGui::GetID ("###AppListFilterField"))
+    {
+      if (     ImGui::IsKeyPressed (ImGuiKey_GamepadDpadDown) || ImGui::IsKeyPressed (ImGuiKey_GamepadLStickDown))
+        libFilterHistory.iStep =  1;
+      else if (ImGui::IsKeyPressed (ImGuiKey_GamepadDpadUp)   || ImGui::IsKeyPressed (ImGuiKey_GamepadLStickUp))
+        libFilterHistory.iStep = -1;
+    }
+
+    if (libFilterHistory.iStep != 0)
+      filterFlags |= ImGuiInputTextFlags_CallbackAlways;
+  }
+
   ImGui::InputTextEx ("###AppListFilterField", "", charFilterTmp, MAX_PATH,
                       ImVec2 (fTopFilterFieldX, 0.0f),
-                      ImGuiInputTextFlags_AutoSelectAll, 0, nullptr);
+                      filterFlags, SKIF_Lib_FilterCallback, nullptr);
+
+  // Drop a queued step the callback did not get to (e.g. the field was deactivated on the same frame)
+  libFilterHistory.iStep = 0;
+
+  // ImGui only ever adds Up/Down to the directions reserved by the active field (they are cleared on deactivation),
+  //   so release them again once the history list is hidden, letting Up/Down move on to the games list as before
+  if (ImGui::IsItemActive ( ) && ! (filterFlags & ImGuiInputTextFlags_CallbackHistory))
+    ImGui::GetCurrentContext()->ActiveIdUsingNavDirMask &= ~((1u << ImGuiDir_Up) | (1u << ImGuiDir_Down));
+
+  // Used to show the filter history right below the field (drawn further down, after the games list, so it overlaps it)
+  const ImVec2 vFilterFieldMin    = ImGui::GetItemRectMin ( );
+  const ImVec2 vFilterFieldMax    = ImGui::GetItemRectMax ( );
+  const bool   bFilterFieldActive = ImGui::IsItemActive   ( );
+
+  if (ImGui::IsItemActivated ( ))
+  {
+    libFilterHistory.strOnActivate = charFilterTmp;
+    libFilterHistory.iPos          = -1;
+  }
+
+  // Remember the search once the user is done with the field (Enter, clicking or navigating elsewhere, etc.)
+  //   Escape reverts the field, so it will not be remembered
+  else if (ImGui::IsItemDeactivated ( ) && libFilterHistory.strOnActivate != charFilterTmp)
+    SKIF_Lib_AddFilterHistory (charFilterTmp);
 
   ImGui::PopStyleColor  ( ); // ImGuiCol_Text
 
@@ -1311,6 +1461,96 @@ SKIF_UI_Tab_DrawLibrary (void)
   // Games list (library/library_list.cpp); fTop3 / fTop3ScreenPos: where the list starts
   ImVec2 fTop3, fTop3ScreenPos;
   DrawGamesList (current_time, fTop1, showClearBtn, fTop3, fTop3ScreenPos);
+
+  // Filter history
+  //   Shown right below the filter field while it is selected (until the user types something new). It is drawn after
+  //     the games list so it overlaps it. Clicks are checked by hand, since the active filter field would otherwise
+  //       block the entries from reacting on the very frame the user clicks one
+  {
+    const auto& history = _registry.vecLibraryFilterHistory;
+
+    const bool bTyped     = (charFilterTmp[0] != '\0'                              &&
+                             libFilterHistory.strOnActivate != charFilterTmp       &&
+                             ! SKIF_Lib_IsInFilterHistory (charFilterTmp));
+
+    // Clicking an entry deactivates the filter field, so keep the list around while the mouse is being pressed on it
+    const bool bKeepAlive = (libFilterHistory.bHovered &&
+                            (ImGui::IsMouseClicked (ImGuiMouseButton_Left) || ImGui::IsMouseDown (ImGuiMouseButton_Left)));
+
+    libFilterHistory.bHovered = false;
+    libFilterHistory.bVisible = (! history.empty ( ) && ! bTyped && (bFilterFieldActive || bKeepAlive));
+
+    if (libFilterHistory.bVisible)
+    {
+      // Restored afterwards, as the code below positions itself relative to where the games list ended
+      const ImVec2 vPrevCursorPos = ImGui::GetCursorPos ( );
+      int          iClicked       = -1;
+
+      ImGui::SetCursorScreenPos (ImVec2 (vFilterFieldMin.x, vFilterFieldMax.y + 2.0f * SKIF_ImGui_GlobalDPIScale));
+
+      ImGui::PushStyleColor (ImGuiCol_ChildBg, ImGui::GetStyleColorVec4 (ImGuiCol_PopupBg));
+      ImGui::PushStyleVar   (ImGuiStyleVar_ChildBorderSize, 1.0f);
+
+      if (ImGui::BeginChild ("###LibFilterHistory", ImVec2 (vFilterFieldMax.x - vFilterFieldMin.x, 0.0f),
+                              ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY,
+                              ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoNav))
+      {
+        ImGui::PushStyleVar (ImGuiStyleVar_ItemSpacing, ImVec2 (ImGui::GetStyle().ItemSpacing.x, 0.0f));
+
+        const ImVec2 vPadding = ImGui::GetStyle().FramePadding;
+
+        for (int iEntry = 0; iEntry < static_cast <int> (history.size()); iEntry++)
+        {
+          const ImVec2 vRowMin  = ImGui::GetCursorScreenPos ( );
+          const ImVec2 vRowSize = ImVec2 (ImGui::GetContentRegionAvail().x, ImGui::GetTextLineHeight ( ) + vPadding.y * 2.0f);
+          const ImVec2 vRowMax  = vRowMin + vRowSize;
+
+          ImGui::PushID (iEntry);
+          ImGui::Dummy  (vRowSize);
+          ImGui::PopID  ( );
+
+          const bool bHovered  = ImGui::IsMouseHoveringRect (vRowMin, vRowMax);
+          const bool bSelected = (iEntry == libFilterHistory.iPos);
+
+          if (bHovered || bSelected)
+            ImGui::GetWindowDrawList()->AddRectFilled (vRowMin, vRowMax,
+              ImGui::GetColorU32 (bHovered ? ImGuiCol_HeaderHovered : ImGuiCol_Header), ImGui::GetStyle().FrameRounding);
+
+          // Drawn as plain text so "##" in a search is shown as-is rather than treated as an ID separator
+          ImGui::RenderTextClipped (vRowMin + vPadding, vRowMax - vPadding, history[iEntry].c_str(), nullptr, nullptr, ImVec2 (0.0f, 0.5f));
+
+          if (bHovered && ImGui::IsMouseClicked (ImGuiMouseButton_Left))
+            iClicked = iEntry;
+        }
+
+        ImGui::PopStyleVar ( ); // ImGuiStyleVar_ItemSpacing
+      }
+      ImGui::EndChild ( );
+
+      ImGui::PopStyleVar   ( ); // ImGuiStyleVar_ChildBorderSize
+      ImGui::PopStyleColor ( ); // ImGuiCol_ChildBg
+
+      libFilterHistory.bHovered = ImGui::IsMouseHoveringRect (ImGui::GetItemRectMin ( ), ImGui::GetItemRectMax ( ));
+
+      // Safe here (unlike at the end of a window), as the code below positions itself and submits more items
+      ImGui::SetCursorPos (vPrevCursorPos);
+
+      if (iClicked != -1)
+      {
+        // Copy first, as adding it to the history reorders the vector
+        const std::string filter = history [iClicked];
+
+        strncpy (charFilterTmp, filter.c_str(), MAX_PATH);
+        charFilterTmp[MAX_PATH]        = '\0';
+        libFilterHistory.strOnActivate = filter; // Prevents it from being added a second time on deactivation
+        libFilterHistory.iPos          = -1;
+        libFilterHistory.bHovered      = false;  // Close the list
+        libFilterHistory.bVisible      = false;
+
+        SKIF_Lib_AddFilterHistory (filter);
+      }
+    }
+  }
 
   if (_registry._LibHorizonMode)
   {

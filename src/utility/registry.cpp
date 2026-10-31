@@ -503,6 +503,18 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   // Sort categories in alphabetical order + add Favorites and Games
   vecCategories            =   SortCategories (vecCategories);
 
+  for (auto& wzFilter : regKVIniEditorFilterHistory.getData (&hKey))
+  {
+    if (! wzFilter.empty() && wzFilter[0] != L'\0')
+      vecIniEditorFilterHistory.push_back (SK_WideCharToUTF8 (wzFilter));
+  }
+
+  for (auto& wzFilter : regKVLibraryFilterHistory.getData (&hKey))
+  {
+    if (! wzFilter.empty() && wzFilter[0] != L'\0')
+      vecLibraryFilterHistory.push_back (SK_WideCharToUTF8 (wzFilter));
+  }
+
   bDeveloperMode           =   regKVDeveloperMode          .getData (&hKey);
 
   if (regKVEfficiencyMode.hasData(&hKey))

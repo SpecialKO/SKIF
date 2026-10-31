@@ -56,6 +56,12 @@ struct IniWindow {
   char          charFilterTmp [MAX_PATH + 2] = { };
   bool          bFilterActive = false;
 
+  // Filter history (the entries themselves are shared across all windows through the registry)
+  std:: string  strFilterOnActivate;           // Contents of the filter field when it was last activated
+  int           iFilterHistoryPos     = -1;    // Entry picked using Up/Down (-1 = none)
+  int           iFilterHistoryStep    =  0;    // Pending step through the history requested by a gamepad (-1 = up, 1 = down)
+  bool          bFilterHistoryHovered = false; // Whether the mouse was over the history list last frame
+
   // Focused state?
   bool          bFocused = false;
   // Changed anything?

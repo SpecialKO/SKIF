@@ -601,6 +601,14 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyVEC ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Categories State)" );
 
+  KeyValue <std::vector<std::wstring>> regKVIniEditorFilterHistory =
+    SKIF_MakeRegKeyVEC ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(INI Editor Filter History)" );
+
+  KeyValue <std::vector<std::wstring>> regKVLibraryFilterHistory =
+    SKIF_MakeRegKeyVEC ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Library Filter History)" );
+
   // Windows stuff
 
   // SKIFdrv install location
@@ -732,6 +740,8 @@ struct SKIF_RegistrySettings {
 
   // Vectors
   std::vector <category_s> vecCategories;
+  std::vector <std::string> vecIniEditorFilterHistory; // Most recent first; shared across all INI editor windows
+  std::vector <std::string> vecLibraryFilterHistory;   // Most recent first; searches made in the library tab
 
   // Misc settings
   unsigned int uiLastSelectedStore;
