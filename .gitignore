@@ -17,3 +17,4 @@
 /packages_misc/DirectXTex/Bin/*
 /packages_misc/DirectXTex/Shaders/Compiled/*
 /packages_misc/pugixml/scripts/vs*
+/resources/l10n/*.mo
