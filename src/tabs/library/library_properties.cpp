@@ -1838,17 +1838,21 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
     if (ImGui::GetWindowViewport ( )->PlatformHandleRaw != nullptr)
       wnd.hwnd = (HWND)ImGui::GetWindowViewport ( )->PlatformHandleRaw;
 
-    const bool focused = ImGui::IsWindowFocused (ImGuiFocusedFlags_RootAndChildWindows);
+    // Hotkeys (include/utility/hotkeys.h), with Shortcut ( ): only while this window (or a child of it) has the focus; not
+    //   while one of its combo boxes or menus, or its Save Changes prompt, has it. An active text field keeps Escape (it
+    //     cancels the edit first). Each Shortcut ( ) is called every frame, as that is what keeps its route registered
+    const bool hotkeyClose  = ImGui::Shortcut (SKIF_Hotkey_CloseWindow);
+    const bool hotkeyEscape = ImGui::Shortcut (ImGuiKey_Escape);
 
     // Closing the window: the title bar's close button, Escape (unless it closes a combo box or menu of ours first)
     //   or Ctrl+W. With unsaved changes the user is asked first (see below)
     bool closeRequest = ! open;
     open              = true;
 
-    if (focused && ImGui::IsKeyPressed (ImGuiKey_Escape, false) && ! ImGui::IsPopupOpen (0u, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
+    if (hotkeyEscape && ! ImGui::IsPopupOpen (0u, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
       closeRequest = true;
 
-    if (focused && ImGui::IsKeyChordPressed (SKIF_Hotkey_CloseWindow))
+    if (hotkeyClose)
       closeRequest = true;
 
     // Ctrl+Q exits the app, as from the main window, but asks about unsaved changes first: this focused route takes priority

@@ -345,8 +345,9 @@ SKIF_UI_Tab_DrawSettings (void)
         {
           selected = false;
 
-          // Avoid immediately closing the popup again before it has a chance to process the button press
-          if (dwTimeNow != dwPopupOpenedTime)
+          // Avoid immediately closing the popup again before it has a chance to process the button press.
+          //   Only while the main window has the focus: gamepad input also reaches SKIF's other windows
+          if (dwTimeNow != dwPopupOpenedTime && SKIF_Hotkey_MainWindowFocused ( ))
           {
                  if (ImGui::IsKeyPressed (ImGuiKey_GamepadL1))         dwButtonPressed = XINPUT_GAMEPAD_LEFT_SHOULDER;
             else if (ImGui::IsKeyPressed (ImGuiKey_GamepadL2))         dwButtonPressed = XINPUT_GAMEPAD_LEFT_TRIGGER;
@@ -506,8 +507,9 @@ SKIF_UI_Tab_DrawSettings (void)
         {
           selected = false;
 
-          // Avoid immediately closing the popup again before it has a chance to process the button press
-          if (dwTimeNow != dwPopupOpenedTime)
+          // Avoid immediately closing the popup again before it has a chance to process the button press.
+          //   Only while the main window has the focus: gamepad input also reaches SKIF's other windows
+          if (dwTimeNow != dwPopupOpenedTime && SKIF_Hotkey_MainWindowFocused ( ))
           {
                  if (ImGui::IsKeyPressed (ImGuiKey_GamepadL1))         dwButtonPressed = XINPUT_GAMEPAD_LEFT_SHOULDER;
             else if (ImGui::IsKeyPressed (ImGuiKey_GamepadL2))         dwButtonPressed = XINPUT_GAMEPAD_LEFT_TRIGGER;

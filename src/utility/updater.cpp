@@ -1317,20 +1317,18 @@ DrawInputTextEx (SKIF_Updater::changelog_s* fmt, SKIF_Updater::WindowType type, 
   ImGui::EndChild       ( );
 }
 
-// Escape and Ctrl+W close the changelog / updater windows, as in SKIF's other windows. Call right after Begin ( ).
-//   Escape first closes a popup of the window, or leaves an active field (e.g. after selecting text in the changelog)
+// Escape and Ctrl+W close the changelog / updater windows, as in SKIF's other windows. Call right after Begin ( ), every frame.
+//   With Shortcut ( ) (include/utility/hotkeys.h): only while the window (or a child of it) has the focus. Escape first
+//     closes a popup of the window, or leaves an active field (e.g. after selecting text in the changelog)
 static bool
 SKIF_Updater_CloseHotkeyPressed (void)
 {
-  if (! ImGui::IsWindowFocused (ImGuiFocusedFlags_RootAndChildWindows))
-    return false;
+  // Both are called every frame, as that is what keeps their routes registered
+  const bool hotkeyClose  = ImGui::Shortcut (SKIF_Hotkey_CloseWindow);
+  const bool hotkeyEscape = ImGui::Shortcut (ImGuiKey_Escape);
 
-  if (ImGui::IsKeyChordPressed (SKIF_Hotkey_CloseWindow))
-    return true;
-
-  return (ImGui::IsKeyPressed (ImGuiKey_Escape, false) && ! ImGui::GetIO ( ).KeyCtrl &&
-        ! ImGui::IsAnyItemActive ( )                                                 &&
-        ! ImGui::IsPopupOpen (0u, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel));
+  return hotkeyClose || (hotkeyEscape && ! ImGui::IsAnyItemActive ( ) &&
+                         ! ImGui::IsPopupOpen (0u, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel));
 }
 
 void
