@@ -457,7 +457,6 @@ SKIF_UI_IniEditor_Process (void)
     float fTopFilterFieldX = std::max (1.0f, fColumnWidth - fTopZoomX - fTopClearX); //  - fTopFilterX
     //static bool bFilterHovered = false;
 
-    ImGui::PushStyleColor (ImGuiCol_NavCursor,  ImVec4(0,0,0,0));
     ImGui::PushStyleColor (ImGuiCol_Border,        ImVec4(0,0,0,0));
     ImGui::PushStyleColor (ImGuiCol_Button,        ImVec4(0,0,0,0));
     ImGui::PushStyleColor (ImGuiCol_ButtonHovered, ImVec4(0,0,0,0));
@@ -535,7 +534,6 @@ SKIF_UI_IniEditor_Process (void)
     ImGui::PopStyleColor  ( ); // ImGuiCol_ButtonHovered
     ImGui::PopStyleColor  ( ); // ImGuiCol_Button
     ImGui::PopStyleColor  ( ); // ImGuiCol_Border
-    ImGui::PopStyleColor  ( ); // ImGuiCol_NavCursor
 
     // Some additional vertical padding
     ImGui::SetCursorPosY   (
