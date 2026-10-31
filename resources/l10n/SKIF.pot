@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-10-31 18:28+0100\n"
+"POT-Creation-Date: 2026-10-31 18:43+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -233,8 +233,8 @@ msgstr ""
 #: src/tabs/library/library_popups.cpp:317
 #: src/tabs/library/library_properties.cpp:1982
 #: src/tabs/library/library_properties.cpp:2066
-#: src/tabs/local.cpp:1198
-#: src/tabs/local.cpp:1223
+#: src/tabs/local.cpp:1213
+#: src/tabs/local.cpp:1238
 #: src/tabs/monitor.cpp:1985
 #: src/tabs/monitor.cpp:2003
 #: src/tabs/monitor.cpp:2090
@@ -1072,12 +1072,12 @@ msgid "File was reloaded."
 msgstr ""
 
 #: src/tabs/ini_editor.cpp:507
-#: src/tabs/local.cpp:835
+#: src/tabs/local.cpp:850
 msgid "File"
 msgstr ""
 
 #: src/tabs/ini_editor.cpp:510
-#: src/tabs/local.cpp:837
+#: src/tabs/local.cpp:852
 msgid "New"
 msgstr ""
 
@@ -1105,7 +1105,7 @@ msgid "Save as Custom Preset..."
 msgstr ""
 
 #: src/tabs/ini_editor.cpp:534
-#: src/tabs/local.cpp:840
+#: src/tabs/local.cpp:855
 #: src/utility/updater.cpp:1405
 #: src/utility/updater.cpp:1411
 msgid "Close"
@@ -1113,7 +1113,7 @@ msgstr ""
 
 #. TRANSLATORS: The Escape key of the keyboard
 #: src/tabs/ini_editor.cpp:534
-#: src/tabs/local.cpp:842
+#: src/tabs/local.cpp:857
 msgctxt "key"
 msgid "Escape"
 msgstr ""
@@ -1268,7 +1268,7 @@ msgid "N/A"
 msgstr ""
 
 #: src/tabs/library/library_details.cpp:395
-#: src/tabs/local.cpp:1031
+#: src/tabs/local.cpp:1046
 msgid ""
 "The local DLL file is outdated.\n"
 "Click to update it to v {0}."
@@ -2336,138 +2336,138 @@ msgstr ""
 msgid "Delete Selected"
 msgstr ""
 
-#: src/tabs/local.cpp:848
+#: src/tabs/local.cpp:863
 msgid "Selection"
 msgstr ""
 
-#: src/tabs/local.cpp:864
+#: src/tabs/local.cpp:879
 msgid "No local installs found."
 msgstr ""
 
-#: src/tabs/local.cpp:869
+#: src/tabs/local.cpp:884
 msgid "To perform a local install of Special K:"
 msgstr ""
 
 #. TRANSLATORS: The text in [brackets] is highlighted (keep the brackets); {0} is a floppy disk icon. "File -> Install Wrapper DLL" is a menu of Special K itself (in-game), which is in English.
-#: src/tabs/local.cpp:880
+#: src/tabs/local.cpp:895
 msgid "While in-game, use [{0} File -> Install Wrapper DLL]."
 msgstr ""
 
 #. TRANSLATORS: The text in [brackets] is highlighted (keep the brackets); Ctrl and Shift are keys of the keyboard
-#: src/tabs/local.cpp:891
+#: src/tabs/local.cpp:906
 msgid "During launch, hold down [Ctrl + Shift] to access the compatibility options."
 msgstr ""
 
-#: src/tabs/local.cpp:903
+#: src/tabs/local.cpp:918
 msgctxt "column"
 msgid "Path"
 msgstr ""
 
-#: src/tabs/local.cpp:904
+#: src/tabs/local.cpp:919
 msgctxt "column"
 msgid "Version"
 msgstr ""
 
-#: src/tabs/local.cpp:906
+#: src/tabs/local.cpp:921
 msgctxt "column"
 msgid "Status"
 msgstr ""
 
-#: src/tabs/local.cpp:1045
+#: src/tabs/local.cpp:1060
 msgid ""
 "The local DLL file could not be found.\n"
 "Click to reinstall it as v {0}."
 msgstr ""
 
-#: src/tabs/local.cpp:1060
+#: src/tabs/local.cpp:1075
 msgid "Folder no longer exists"
 msgstr ""
 
-#: src/tabs/local.cpp:1069
+#: src/tabs/local.cpp:1084
 msgid "Local DLL file no longer exists"
 msgstr ""
 
-#: src/tabs/local.cpp:1078
+#: src/tabs/local.cpp:1093
 msgid "Outdated (latest: {0})"
 msgstr ""
 
-#: src/tabs/local.cpp:1139
-#: src/tabs/local.cpp:1254
+#: src/tabs/local.cpp:1154
+#: src/tabs/local.cpp:1269
 msgid "Select the bitness to install"
 msgstr ""
 
 #. TRANSLATORS: {0} is a floppy disk icon. "File -> Install Wrapper DLL" is a menu of Special K itself (in-game), which is in English.
-#: src/tabs/local.cpp:1141
+#: src/tabs/local.cpp:1156
 msgid "Or while in-game, use {0} File -> Install Wrapper DLL."
 msgstr ""
 
-#: src/tabs/local.cpp:1168
+#: src/tabs/local.cpp:1183
 msgid "Already Up-to-Date"
 msgstr ""
 
-#: src/tabs/local.cpp:1169
+#: src/tabs/local.cpp:1184
 msgid "Special K is already installed in this folder and is fully up-to-date."
 msgstr ""
 
-#: src/tabs/local.cpp:1180
+#: src/tabs/local.cpp:1195
 msgid "Install Special K"
 msgstr ""
 
-#: src/tabs/local.cpp:1182
+#: src/tabs/local.cpp:1197
 msgid "Which DLL filename should Special K be installed as?"
 msgstr ""
 
-#: src/tabs/local.cpp:1186
+#: src/tabs/local.cpp:1201
 msgid "64-bit executable"
 msgstr ""
 
-#: src/tabs/local.cpp:1188
+#: src/tabs/local.cpp:1203
 msgid "32-bit executable"
 msgstr ""
 
-#: src/tabs/local.cpp:1190
+#: src/tabs/local.cpp:1205
 msgid "Could not detect the bitness of the executable; you will be asked next."
 msgstr ""
 
-#: src/tabs/local.cpp:1193
+#: src/tabs/local.cpp:1208
 msgid "Special K is already installed in this folder; only that file can be updated."
 msgstr ""
 
-#: src/tabs/local.cpp:1216
+#: src/tabs/local.cpp:1231
 msgid "Special K is already installed as this file and will be updated."
 msgstr ""
 
-#: src/tabs/local.cpp:1217
+#: src/tabs/local.cpp:1232
 msgid "A different file with this name already exists in the folder."
 msgstr ""
 
-#: src/tabs/local.cpp:1218
+#: src/tabs/local.cpp:1233
 msgid "Special K is already installed in this folder under another name."
 msgstr ""
 
-#: src/tabs/local.cpp:1255
+#: src/tabs/local.cpp:1270
 msgid ""
 "Could not detect the bitness of the executable.\n"
 "Should 64-bit or 32-bit be used?"
 msgstr ""
 
-#: src/tabs/local.cpp:1300
+#: src/tabs/local.cpp:1315
 msgid "Update Installs?"
 msgstr ""
 
-#: src/tabs/local.cpp:1301
+#: src/tabs/local.cpp:1316
 msgid "Delete Installs?"
 msgstr ""
 
-#: src/tabs/local.cpp:1302
+#: src/tabs/local.cpp:1317
 msgid "Are you sure you want to update all selected installs?"
 msgstr ""
 
-#: src/tabs/local.cpp:1303
+#: src/tabs/local.cpp:1318
 msgid "Are you sure you want to delete all selected installs?"
 msgstr ""
 
-#: src/tabs/local.cpp:1304
+#: src/tabs/local.cpp:1319
 msgid "Some leftover files may still be present in the game folder."
 msgstr ""
 
@@ -3769,44 +3769,44 @@ msgid "Force stop service"
 msgstr ""
 
 #. TRANSLATORS: An April Fools' Day joke (a fake activation of Special K, with technobabble), shown on April 1st
-#: src/utility/skif_imgui.cpp:3202
+#: src/utility/skif_imgui.cpp:3221
 msgid "Special K Activation"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3210
+#: src/utility/skif_imgui.cpp:3229
 msgid "Special K  //  Nominal Flow Activation"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3214
+#: src/utility/skif_imgui.cpp:3233
 msgid "Client fingerprint:"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3253
+#: src/utility/skif_imgui.cpp:3272
 msgid "This title is missing its nominal constant (0x00000000)."
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3258
+#: src/utility/skif_imgui.cpp:3277
 msgid "Contacting activation server  sk-activation.local ..."
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3263
+#: src/utility/skif_imgui.cpp:3282
 msgid "Transforming constant against client fingerprint ..."
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3268
+#: src/utility/skif_imgui.cpp:3287
 msgid "Nominal flow restored."
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3284
+#: src/utility/skif_imgui.cpp:3303
 msgid "Just kidding -- Special K needs no such thing. Happy April Fools' Day!"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3287
-#: src/utility/skif_imgui.cpp:3289
+#: src/utility/skif_imgui.cpp:3306
+#: src/utility/skif_imgui.cpp:3308
 msgid "Phew, OK"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3296
+#: src/utility/skif_imgui.cpp:3315
 msgid "Please wait, this will only take a moment ..."
 msgstr ""
 

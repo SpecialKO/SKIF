@@ -787,7 +787,22 @@ SKIF_LocalManager::Process (void)
   const ImVec2 vMaxSize = SKIF_ImGui_FitSizeToWorkArea (vCenter, ImVec2 (FLT_MAX, FLT_MAX));
 
   ImGui::SetNextWindowSizeConstraints (ImMin (ImVec2 (800.0f, 300.0f) * SKIF_ImGui_GetDPIScaleForWindow (this->label.c_str()), vMaxSize), vMaxSize);
-  ImGui::SetNextWindowPos (windowRect.GetCenter(), ImGuiCond_Appearing, ImVec2 (0.5f, 0.5f));
+
+  // Centered on the main window when it opens. Its size is only known once it has fitted itself to its content (a few
+  //   frames in), so for its first frames it is placed again from its current size: centered, and moved inside the work
+  //     area of the monitor if it would extend past it. A fixed position, without a pivot, so ImGui doesn't re-center it.
+  {
+    ImGuiWindow* existing = ImGui::FindWindowByName (this->label.c_str ( ));
+    const bool   shown    = (existing != nullptr && existing->WasActive);
+    static int   s_frames = 0; // Frames since it was opened
+
+    s_frames = (shown) ? s_frames + 1 : 0;
+
+    if (! shown)
+      ImGui::SetNextWindowPos (windowRect.GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
+    else if (s_frames <= 5)
+      SKIF_ImGui_SetNextWindowPosCentered (windowRect.GetCenter(), existing->Size, ImGuiCond_Always);
+  }
 
   if (ImGui::Begin (TL_(this->label.c_str()), &showWindow,
                       ImGuiWindowFlags_NoCollapse        |

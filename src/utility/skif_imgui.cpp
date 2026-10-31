@@ -2528,6 +2528,25 @@ SKIF_ImGui_SetNextWindowCentered (const ImVec2& center, const ImVec2& size, ImGu
   ImGui::SetNextWindowSize (fitted, cond);
 }
 
+void
+SKIF_ImGui_SetNextWindowPosCentered (const ImVec2& center, const ImVec2& size, ImGuiCond cond)
+{
+  const ImGuiPlatformMonitor* monitor = SKIF_ImGui_GetMonitorAt (center);
+
+  if (monitor == nullptr)
+  {
+    ImGui::SetNextWindowPos (center, cond, ImVec2 (0.5f, 0.5f));
+    return;
+  }
+
+  // Centered on the point, moved inside the work area if it would extend past it (its top-left corner is kept visible
+  //   if it is larger than the work area)
+  const ImVec2 work_min = monitor->WorkPos;
+  const ImVec2 work_max = ImMax (work_min, monitor->WorkPos + monitor->WorkSize - size);
+
+  ImGui::SetNextWindowPos (ImFloor (ImClamp (center - size * 0.5f, work_min, work_max)), cond);
+}
+
 // Do not use mid-frame to change the style!
 void
 SKIF_ImGui_SetStyle (ImGuiStyle* dst)

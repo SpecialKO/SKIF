@@ -146,6 +146,7 @@ float    SKIF_ImGui_GetDPIScaleForWindow  (const char* name);          // DPI sc
 //   the work area (the desktop minus the taskbar) of the monitor that point is on (or the nearest one) on small displays
 ImVec2   SKIF_ImGui_FitSizeToWorkArea     (const ImVec2& center, const ImVec2& size); // size, made to fit (e.g. for a minimum size)
 void     SKIF_ImGui_SetNextWindowCentered (const ImVec2& center, const ImVec2& size, ImGuiCond cond); // SetNextWindowPos () + SetNextWindowSize (), fitted and kept inside
+void     SKIF_ImGui_SetNextWindowPosCentered (const ImVec2& center, const ImVec2& size, ImGuiCond cond); // SetNextWindowPos () only: centered for that size, kept inside
 void     SKIF_ImGui_BeginHighlightLine    (ImU32 hover_color = ImGui::GetColorU32 (ImGuiCol_SKIF_HighlightLineBg));
 void     SKIF_ImGui_PushHighlightLineLine (void);
 void     SKIF_ImGui_PopHighlightLineLine  (void);
