@@ -70,6 +70,8 @@ struct app_record_ubisoft_s : app_record_store_s <app_record_ubisoft_s, app_reco
     std::string  language      = ""; // Install language (en-US)
     std::wstring icon          = L""; // The client's .ico for the game (<client>\data\<hash>.ico)
     bool         configuration = false; // Launch configs come from the client's configurations cache
+    uint32_t     configuration_from = 0; // The configuration is another product's, whose executable is in the install folder
+                                         //   (an upgrade from a demo, which the client keeps no configuration of: Star Wars Outlaws)
     bool         updater_fallback = false; // The game's executable is read from a registry value the client only writes on the
                                            //   first launch, so its updater is the launch target until then (Far Cry 3 Blood Dragon)
   } ubisoft;
@@ -90,6 +92,7 @@ struct app_record_ubisoft_s : app_record_store_s <app_record_ubisoft_s, app_reco
             ubisoft.language      == o.language      &&
             ubisoft.icon          == o.icon          &&
             ubisoft.configuration == o.configuration &&
+            ubisoft.configuration_from == o.configuration_from &&
             ubisoft.updater_fallback == o.updater_fallback);
   }
 

@@ -843,6 +843,148 @@ namespace
   {
     return (document.path ({ "root", "start_game", "steam" }) != nullptr);
   }
+
+  // A product of the configurations whose executables are relative to the install folder: a configuration that can be
+  //   borrowed by an installed product the client has no configuration of (see SKIF_Ubisoft_SelectBorrowedConfiguration)
+  struct ubisoft_candidate_s {
+    uint32_t                  product_id = 0;
+    std::string               name;      // root: name: (default localization)
+    std::vector <std::string> relatives; // path: relative: of the executables, in order (the first one is the game)
+  };
+
+  // The products that can lend their configuration: the first executable (the game) has a relative path, and the
+  //   product is not the Steam edition
+  std::vector <ubisoft_candidate_s>
+  SKIF_Ubisoft_GetCandidates (const std::map <uint32_t, std::string>& products)
+  {
+    std::vector <ubisoft_candidate_s> candidates;
+
+    for (auto& product : products)
+    {
+      // Most products are DLC without executables: skip parsing those
+      if (product.second.find ("executables") == std::string::npos)
+        continue;
+
+      SKIF_Ubisoft_YAMLParser parser;
+      ubisoft_yaml_s          document = parser.parse (product.second);
+
+      if (SKIF_Ubisoft_IsSteamProduct (document))
+        continue;
+
+      std::vector <ubisoft_executable_s> executables = SKIF_Ubisoft_GetExecutables (document, "");
+
+      if (executables.empty ( ) || executables.front ( ).relative.empty ( ))
+        continue;
+
+      ubisoft_candidate_s candidate;
+      candidate.product_id = product.first;
+      candidate.name       = SKIF_Ubisoft_GetName (document, "");
+
+      for (auto& exe : executables)
+        if (! exe.relative.empty ( ))
+          candidate.relatives.push_back (exe.relative);
+
+      candidates.push_back (std::move (candidate));
+    }
+
+    return candidates;
+  }
+
+  // The configuration to borrow for an installed product the client has no configuration of (0: none, or ambiguous).
+  //   An upgrade from a demo (Star Wars Outlaws: demo 65601, upgraded to 17903 in the same folder) is installed and
+  //   launched as the full game, but the client only keeps the demo's configuration. A product whose game executable
+  //   exists in the install folder can stand in for it: the one with the most of its executables there, then one whose
+  //   name matches the uninstall entry's, then the lowest product ID. Products in excluded (installed ones, which are
+  //   listed on their own) are not used. If the best products point at different game executables, none is used.
+  //     exists: whether a path relative to the install folder exists
+  uint32_t
+  SKIF_Ubisoft_SelectBorrowedConfiguration (const std::vector <ubisoft_candidate_s>& candidates, uint32_t productID,
+                                            const std::set <uint32_t>& excluded, const std::string& displayName,
+                                            const std::function <bool (const std::string&)>& exists)
+  {
+    // Letters and digits only, lower-cased: "Star Wars Outlaws Demo" -> "starwarsoutlawsdemo"
+    auto _Simplify = [](const std::string& str) -> std::string
+    {
+      std::string out;
+
+      for (unsigned char c : str)
+        if (c < 0x80 && isalnum (c))
+          out += static_cast <char> (tolower (c));
+
+      return out;
+    };
+
+    // Lower-cased with backslashes, to compare relative paths
+    auto _PathKey = [](std::string path) -> std::string
+    {
+      for (char& c : path)
+        c = (c == '/') ? '\\' : static_cast <char> (tolower (static_cast <unsigned char> (c)));
+
+      while (path.size ( ) > 2 && path [0] == '.' && path [1] == '\\')
+        path.erase (0, 2);
+
+      return path;
+    };
+
+    const std::string wanted = _Simplify (displayName);
+
+    struct match_s {
+      const ubisoft_candidate_s* candidate;
+      size_t                     found;    // Executables that exist
+      bool                       named;    // The name matches the uninstall entry's
+    };
+
+    std::vector <match_s> matches;
+
+    for (auto& candidate : candidates)
+    {
+      if (candidate.product_id == productID || excluded.count (candidate.product_id) != 0 || candidate.relatives.empty ( ))
+        continue;
+
+      if (! exists (candidate.relatives.front ( )))
+        continue;
+
+      size_t found = 0;
+
+      for (auto& relative : candidate.relatives)
+        if (exists (relative))
+          found++;
+
+      // "Star Wars Outlaws" and "Star Wars Outlaws Demo": either name starts with the other
+      std::string name  = _Simplify (candidate.name);
+      bool        named = (! wanted.empty ( ) && ! name.empty ( ) &&
+                           (name.compare (0, wanted.size ( ), wanted) == 0 || wanted.compare (0, name.size ( ), name) == 0));
+
+      matches.push_back ({ &candidate, found, named });
+    }
+
+    if (matches.empty ( ))
+      return 0;
+
+    // Best first; candidates are ordered by product ID, which stable_sort keeps for ties
+    std::stable_sort (matches.begin ( ), matches.end ( ), [](const match_s& a, const match_s& b)
+    {
+      if (a.found != b.found)
+        return a.found > b.found;
+
+      return (a.named && ! b.named);
+    });
+
+    const match_s&    best = matches.front ( );
+    const std::string game = _PathKey (best.candidate->relatives.front ( ));
+
+    // Equally good products must agree on the game's executable (editions of the same game do)
+    for (auto& match : matches)
+    {
+      if (match.found != best.found || match.named != best.named)
+        break;
+
+      if (_PathKey (match.candidate->relatives.front ( )) != game)
+        return 0;
+    }
+
+    return best.candidate->product_id;
+  }
   // [ubisoft-config-end]
 
   // The parsed configurations file, kept until the file changes (it is ~700 KB with ~2000 products, most of them DLC)
@@ -852,6 +994,8 @@ namespace
     uint64_t                          stamp = 0; // Last write time
     uint64_t                          size  = 0;
     std::map <uint32_t, std::string>  products;
+    std::vector <ubisoft_candidate_s> candidates;           // Products that can lend their configuration, built when first needed
+    bool                              candidates_built = false;
   };
 
   ubisoft_configurations_s&
@@ -861,13 +1005,10 @@ namespace
     return cache;
   }
 
-  // The YAML configuration of a product ("" if unknown); re-reads the file if it changed. Any thread.
-  std::string
-  SKIF_Ubisoft_GetConfiguration (const std::wstring& clientFolder, uint32_t productID)
+  // Re-reads the configurations file if it changed. The cache's mutex must be held.
+  void
+  SKIF_Ubisoft_RefreshConfigurations (ubisoft_configurations_s& cache, const std::wstring& clientFolder)
   {
-    ubisoft_configurations_s& cache = SKIF_Ubisoft_GetConfigurationsCache ( );
-    std::scoped_lock          lock (cache.mutex);
-
     std::wstring              path  = SKIF_Ubisoft_CombinePath (clientFolder, CONFIGURATIONS);
     WIN32_FILE_ATTRIBUTE_DATA attrs = { };
 
@@ -875,8 +1016,10 @@ namespace
     {
       cache.path.clear ( );
       cache.products.clear ( );
+      cache.candidates.clear ( );
+      cache.candidates_built = false;
       cache.stamp = cache.size = 0;
-      return "";
+      return;
     }
 
     uint64_t stamp = (static_cast <uint64_t> (attrs.ftLastWriteTime.dwHighDateTime) << 32) | attrs.ftLastWriteTime.dwLowDateTime;
@@ -890,6 +1033,8 @@ namespace
       cache.stamp = stamp;
       cache.size  = size;
       cache.products.clear ( );
+      cache.candidates.clear ( );
+      cache.candidates_built = false;
 
       std::ifstream file (path, std::ios::binary);
 
@@ -907,10 +1052,53 @@ namespace
       else
         PLOG_WARNING << "Could not read the Ubisoft Connect configurations file: " << path;
     }
+  }
+
+  // The YAML configuration of an installed product ("" if unknown): its own, else one borrowed from another product whose
+  //   game executable is in the install folder (see SKIF_Ubisoft_SelectBorrowedConfiguration). Re-reads the file if it
+  //   changed. Any thread.
+  //     installed:    the installed product IDs (not borrowed from, as they are listed on their own)
+  //     borrowedFrom: set to the product ID the configuration was borrowed from, else 0
+  std::string
+  SKIF_Ubisoft_ResolveConfiguration (const std::wstring& clientFolder, uint32_t productID, const std::wstring& installDir,
+                                     const std::set <uint32_t>& installed, const std::string& displayName, uint32_t& borrowedFrom)
+  {
+    ubisoft_configurations_s& cache = SKIF_Ubisoft_GetConfigurationsCache ( );
+    std::scoped_lock          lock (cache.mutex);
+
+    borrowedFrom = 0;
+
+    SKIF_Ubisoft_RefreshConfigurations (cache, clientFolder);
 
     auto it = cache.products.find (productID);
 
-    return (it != cache.products.end ( )) ? it->second : "";
+    if (it != cache.products.end ( ))
+      return it->second;
+
+    if (installDir.empty ( ) || cache.products.empty ( ))
+      return "";
+
+    if (! cache.candidates_built)
+    {
+      cache.candidates       = SKIF_Ubisoft_GetCandidates (cache.products);
+      cache.candidates_built = true;
+    }
+
+    uint32_t id = SKIF_Ubisoft_SelectBorrowedConfiguration (cache.candidates, productID, installed, displayName,
+      [&](const std::string& relative) -> bool
+      {
+        std::wstring path = SKIF_Ubisoft_CombinePath (installDir, SK_UTF8ToWideChar (relative));
+        return (! path.empty ( ) && PathFileExistsW (path.c_str ( )));
+      });
+
+    it = (id != 0) ? cache.products.find (id) : cache.products.end ( );
+
+    if (it == cache.products.end ( ))
+      return "";
+
+    borrowedFrom = id;
+
+    return it->second;
   }
 
   // A game listed under Launcher\Installs
@@ -1033,12 +1221,21 @@ namespace
 
     // A download finishing (or starting) is part of it: games are only listed once their executable exists.
     //   So are the registry values executables are read from, which the client writes on a game's first launch.
-    for (auto& install : SKIF_Ubisoft_GetInstalls ( ))
+    std::vector <ubisoft_install_s> installs = SKIF_Ubisoft_GetInstalls ( );
+    std::set    <uint32_t>          installed;
+
+    for (auto& install : installs)
+      installed.insert (install.product_id);
+
+    for (auto& install : installs)
     {
-      std::string yaml = SKIF_Ubisoft_GetConfiguration (clientFolder, install.product_id);
+      // A borrowed configuration depends on which executables exist (and on the uninstall entry's name): its source is part of it
+      uint32_t    borrowedFrom = 0;
+      std::string displayName  = SK_WideCharToUTF8 (SKIF_Ubisoft_GetRegString32 (UNINSTALL_KEY + std::to_wstring (install.product_id), L"DisplayName"));
+      std::string yaml         = SKIF_Ubisoft_ResolveConfiguration (clientFolder, install.product_id, install.install_dir, installed, displayName, borrowedFrom);
 
       fingerprint += std::to_string (install.product_id) + "|" + SK_WideCharToUTF8 (install.install_dir) + "|" + SK_WideCharToUTF8 (install.language) + "|" +
-                     std::to_string (hasher (yaml)) + "|" +
+                     std::to_string (hasher (yaml)) + "|" + std::to_string (borrowedFrom) + "|" +
                      ((SKIF_Ubisoft_IsDownloading (install.install_dir, install.product_id)) ? "downloading" : "") + "|" +
                      SKIF_Ubisoft_GetRegisterValues (install.product_id, yaml) + "\n";
     }
@@ -1083,7 +1280,13 @@ SKIF_Ubisoft_GetInstalledAppIDs (app_list_t *apps)
 
   std::set <uint32_t> ids; // Product IDs already added
 
-  for (auto& install : SKIF_Ubisoft_GetInstalls ( ))
+  std::vector <ubisoft_install_s> installs = SKIF_Ubisoft_GetInstalls ( );
+  std::set    <uint32_t>          installed; // Not borrowed from, as they are listed on their own
+
+  for (auto& install : installs)
+    installed.insert (install.product_id);
+
+  for (auto& install : installs)
   {
     const uint32_t productID = install.product_id;
 
@@ -1129,7 +1332,8 @@ SKIF_Ubisoft_GetInstalledAppIDs (app_list_t *apps)
 
     // The product's configuration
     std::string    language = SK_WideCharToUTF8 (install.language);
-    std::string    yaml     = SKIF_Ubisoft_GetConfiguration (clientFolder, productID);
+    uint32_t       borrowedFrom = 0;
+    std::string    yaml     = SKIF_Ubisoft_ResolveConfiguration (clientFolder, productID, install.install_dir, installed, displayName, borrowedFrom);
     ubisoft_yaml_s document;
 
     if (! yaml.empty ( ))
@@ -1141,6 +1345,10 @@ SKIF_Ubisoft_GetInstalledAppIDs (app_list_t *apps)
     else
       PLOG_WARNING << "Ubisoft Connect product " << productID << " has no configuration in the client's cache";
 
+    if (borrowedFrom != 0)
+      PLOG_INFO << "Ubisoft Connect product " << productID << " has no configuration in the client's cache; using the configuration of product "
+                << borrowedFrom << " (" << SK_UTF8ToWideChar (SKIF_Ubisoft_GetName (document, language)) << "), whose executable is in its install folder";
+
     std::vector <ubisoft_executable_s> executables = SKIF_Ubisoft_GetExecutables (document, language);
 
     if (executables.empty ( ) && SKIF_Ubisoft_IsSteamProduct (document))
@@ -1151,7 +1359,8 @@ SKIF_Ubisoft_GetInstalledAppIDs (app_list_t *apps)
 
     // The title: the configuration's name, else the uninstall entry's, else the folder name.
     //   Names written in capitals (RAYMAN® LEGENDS) use the uninstall entry's spelling when it is the same name.
-    std::string title = SKIF_Ubisoft_GetName (document, language);
+    //   A borrowed configuration's name is another product's (Star Wars Outlaws Demo), so it is not used.
+    std::string title = (borrowedFrom == 0) ? SKIF_Ubisoft_GetName (document, language) : "";
 
     if (title.empty ( ) || (! SKIF_Ubisoft_HasLowercase (title) && ! displayName.empty ( ) &&
                             SKIF_Ubisoft_Simplify (title) == SKIF_Ubisoft_Simplify (displayName)))
@@ -1174,6 +1383,7 @@ SKIF_Ubisoft_GetInstalledAppIDs (app_list_t *apps)
     record.ubisoft.language       = language;
     record.ubisoft.icon           = displayIcon;
     record.ubisoft.configuration  = (! yaml.empty ( ));
+    record.ubisoft.configuration_from = borrowedFrom;
 
     // A download in progress is shown as updating (the game can still be launched, see CanLaunchWhileUpdating). The game
     //   is only listed if its executable exists: an update, or a progressive install that is already playable.
@@ -1517,7 +1727,9 @@ app_record_ubisoft_s::GetStoreDebugFields (void) const
     { "Uninstall Name",    ubisoft.display_name                           },
     { "Launch Target",     (ubisoft.updater_fallback) ? "Updater (registry value not written yet)" : "Executable" },
     { "Language",          ubisoft.language                               },
-    { "Configuration",     (ubisoft.configuration) ? "Found" : "Missing"  },
+    { "Configuration",     (! ubisoft.configuration)          ? "Missing"
+                         : (ubisoft.configuration_from != 0) ? "Borrowed from product " + std::to_string (ubisoft.configuration_from)
+                                                              : "Found"  },
     { "Client Icon",       SK_WideCharToUTF8 (ubisoft.icon)               }
   };
 }
