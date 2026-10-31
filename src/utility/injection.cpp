@@ -1618,13 +1618,6 @@ const char* SKIF_InjectionContext::GetBuiltInListMatch (const char* szExecutable
     R"(Origin Games\)"
   };
 
-  // Auto-detection of Xbox games added in Special K v 24.1.27.1
-  /* TODO: Some more testing is required here
-  if (SKIF_Util_CompareVersionStrings (SKVer32, L"24.1.27.1") >= 0 &&
-      StrStrIA (szExecutable, R"(\Content\)")        != NULL)
-    return R"(\Content\)";
-  */
-
   // Simplified variant of the internal blacklisting that SK performs
   static constexpr const char* builtInBlacklist [] = {
     "GameBar"
