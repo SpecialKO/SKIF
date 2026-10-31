@@ -88,6 +88,10 @@ struct app_record_s {
 
     DWORD running_pid = 0;
 
+    // Used when the store client owns the running state (see IsRunningStateFromClient ( )): running is the combination of both
+    DWORD running_client = 0; // As reported by the store client (Steam: the registry)
+    DWORD running_skif   = 0; // As tracked by SKIF itself (an instant play process it launched, or the process scan), which the store client is unaware of
+
     // For Registry Key Watch
     static DWORD
       _TimeLastNotified;
@@ -612,6 +616,7 @@ struct app_record_s {
   };
 
   virtual ProcessMatch MatchProcess                (const wchar_t* wszExeFile, const wchar_t* wszExePath, DWORD dwExePathLen); // app_record.cpp: full path match
+  bool                 MatchesLaunchExecutable     (const wchar_t* wszExePath, DWORD dwExePathLen) const; // app_record.cpp: the executable of any launch config
   virtual bool         KeepsRunningStateDuringScan (void) const { return false; } // Keep the staged running state instead of clearing it before the process scan (Steam: unless in process fallback without the client)
   virtual bool         IsRunningStateFromClient    (void) const { return false; } // The store client owns the running state, so the scan result is not committed (Steam: client running, registry monitoring available)
   virtual bool         HasPendingStoreDetails      (void) const { return false; } // Store data still to be parsed in the background (Steam: appinfo.vdf, for the process fallback)

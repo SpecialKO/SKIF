@@ -1599,13 +1599,16 @@ SKIF_Steam_UpdateAppState (app_record_s *pApp)
       &pApp->_status.installed);
 
     if (pApp->_status.installed != 0x0)
-    {   pApp->_status.running    = 0x0;
+    {   pApp->_status.running_client = 0x0;
 
       SKIF_Steam_GetAppStateDWORD (
         &hKey,   L"Running",
-        &pApp->_status.running);
+        &pApp->_status.running_client);
 
-      if (! pApp->_status.running)
+      // Steam is unaware of processes SKIF launched itself (instant play, custom launch configs), so include SKIF's own tracking
+      pApp->_status.running = (pApp->_status.running_client || pApp->_status.running_skif);
+
+      if (! pApp->_status.running_client)
       {
         SKIF_Steam_GetAppStateDWORD (
           &hKey,   L"Updating",
@@ -2154,15 +2157,11 @@ app_record_steam_s::MatchProcess (const wchar_t* wszExeFile, const wchar_t* wszE
 {
   UNREFERENCED_PARAMETER (wszExeFile);
 
-  // Called by SKIF_LibRefreshWorker: only read the launch configs (operator [] would insert a missing entry)
-  auto primary = launch_configs.find (0);
-
-  if (primary == launch_configs.end ( ))
-    return ProcessMatch::None;
-
-  if (dwExePathLen != 0 && _wcsnicmp (primary->second.getExecutableFullPath ( ).c_str(), wszExePath, dwExePathLen) == 0)
+  // The executable of any launch config (the primary one, or another launched instead: see MatchesLaunchExecutable ( ))
+  if (MatchesLaunchExecutable (wszExePath, dwExePathLen))
   {
     // Only set the running state if the primary registry monitoring is unavailable
+    //   (otherwise the match is still tracked as running_skif, combined with Steam's state in RefreshRunningApps ( ))
     return (steamFallback) ? ProcessMatch::Running : ProcessMatch::PidOnly;
   }
 

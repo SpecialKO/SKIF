@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-10-31 20:08+0100\n"
+"POT-Creation-Date: 2026-10-31 20:37+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -211,8 +211,8 @@ msgstr ""
 #: src/stores/SKIF/custom_library.cpp:391
 #: src/stores/SKIF/custom_library.cpp:714
 #: src/stores/SKIF/custom_library.cpp:722
-#: src/tabs/library/library_properties.cpp:1494
-#: src/tabs/library/library_properties.cpp:1509
+#: src/tabs/library/library_properties.cpp:1504
+#: src/tabs/library/library_properties.cpp:1519
 msgid "Browse..."
 msgstr ""
 
@@ -220,8 +220,8 @@ msgstr ""
 #: src/stores/SKIF/custom_library.cpp:437
 #: src/stores/SKIF/custom_library.cpp:715
 #: src/stores/SKIF/custom_library.cpp:753
-#: src/tabs/library/library_properties.cpp:1550
-#: src/tabs/library/library_properties.cpp:1566
+#: src/tabs/library/library_properties.cpp:1560
+#: src/tabs/library/library_properties.cpp:1576
 msgid "Change..."
 msgstr ""
 
@@ -231,8 +231,8 @@ msgstr ""
 #: src/tabs/library/library_popups.cpp:238
 #: src/tabs/library/library_popups.cpp:268
 #: src/tabs/library/library_popups.cpp:317
-#: src/tabs/library/library_properties.cpp:2013
-#: src/tabs/library/library_properties.cpp:2108
+#: src/tabs/library/library_properties.cpp:2023
+#: src/tabs/library/library_properties.cpp:2118
 #: src/tabs/local.cpp:1213
 #: src/tabs/local.cpp:1238
 #: src/tabs/monitor.cpp:1985
@@ -281,7 +281,7 @@ msgstr ""
 
 #: src/stores/SKIF/custom_library.cpp:494
 #: src/stores/SKIF/custom_library.cpp:764
-#: src/tabs/library/library_properties.cpp:1595
+#: src/tabs/library/library_properties.cpp:1605
 msgid "Leave empty if unsure"
 msgstr ""
 
@@ -298,19 +298,19 @@ msgid "No changes will be made to the game files."
 msgstr ""
 
 #: src/stores/SKIF/custom_library.cpp:718
-#: src/tabs/library/library_properties.cpp:1492
-#: src/tabs/library/library_properties.cpp:1657
+#: src/tabs/library/library_properties.cpp:1502
+#: src/tabs/library/library_properties.cpp:1667
 msgid "Executable"
 msgstr ""
 
 #: src/stores/SKIF/custom_library.cpp:749
-#: src/tabs/library/library_properties.cpp:1548
-#: src/tabs/library/library_properties.cpp:1660
+#: src/tabs/library/library_properties.cpp:1558
+#: src/tabs/library/library_properties.cpp:1670
 msgid "Working directory"
 msgstr ""
 
 #: src/stores/SKIF/custom_library.cpp:762
-#: src/tabs/library/library_properties.cpp:1952
+#: src/tabs/library/library_properties.cpp:1962
 msgid "Launch options"
 msgstr ""
 
@@ -319,29 +319,29 @@ msgid "Select the executable and the working directory of the game."
 msgstr ""
 
 #: src/stores/Steam/app_record.cpp:739
-#: src/stores/Steam/steam_library.cpp:1887
+#: src/stores/Steam/steam_library.cpp:1890
 msgid "Conflicting configuration"
 msgstr ""
 
 #: src/stores/Steam/app_record.cpp:740
-#: src/stores/Steam/steam_library.cpp:1888
+#: src/stores/Steam/steam_library.cpp:1891
 msgid "Could not launch game due to conflicting launch options in Steam:"
 msgstr ""
 
 #: src/stores/Steam/app_record.cpp:744
-#: src/stores/Steam/steam_library.cpp:1892
+#: src/stores/Steam/steam_library.cpp:1895
 msgid "Please change the launch options in Steam before trying again."
 msgstr ""
 
-#: src/stores/Steam/steam_library.cpp:1981
+#: src/stores/Steam/steam_library.cpp:1984
 msgid "Details"
 msgstr ""
 
-#: src/stores/Steam/steam_library.cpp:1991
+#: src/stores/Steam/steam_library.cpp:1994
 msgid "A controller must be connected."
 msgstr ""
 
-#: src/stores/Steam/steam_library.cpp:1994
+#: src/stores/Steam/steam_library.cpp:1997
 msgid "Game properties"
 msgstr ""
 
@@ -547,7 +547,7 @@ msgstr ""
 
 #. TRANSLATORS: 'Use Microsoft Detours API hooking' is an option of RTSS (in English)
 #: src/tabs/common_ui.cpp:248
-#: src/utility/games.cpp:417
+#: src/utility/games.cpp:420
 msgid ""
 "RivaTuner Statistics Server (RTSS) occasionally conflicts with Special K.\n"
 "Try closing it down if Special K does not behave as expected, or enable\n"
@@ -1030,7 +1030,7 @@ msgid "{0} - Editor"
 msgstr ""
 
 #: src/tabs/ini_editor.cpp:90
-#: src/tabs/library/library_properties.cpp:2139
+#: src/tabs/library/library_properties.cpp:2149
 msgid "Save Changes?"
 msgstr ""
 
@@ -1090,8 +1090,8 @@ msgid "Open"
 msgstr ""
 
 #: src/tabs/ini_editor.cpp:519
-#: src/tabs/library/library_properties.cpp:2011
-#: src/tabs/library/library_properties.cpp:2090
+#: src/tabs/library/library_properties.cpp:2021
+#: src/tabs/library/library_properties.cpp:2100
 #: src/utility/skif_imgui.cpp:1792
 msgid "Save"
 msgstr ""
@@ -1162,7 +1162,7 @@ msgstr ""
 
 #. TRANSLATORS: {0} is the name of a file (or of a game)
 #: src/tabs/ini_editor.cpp:944
-#: src/tabs/library/library_properties.cpp:2141
+#: src/tabs/library/library_properties.cpp:2151
 msgid "Do you want to save changes to {0}?"
 msgstr ""
 
@@ -1315,17 +1315,17 @@ msgstr ""
 #: src/tabs/library/library_details.cpp:789
 #: src/tabs/library/library_details.cpp:838
 #: src/tabs/library/library_details.cpp:884
-#: src/tabs/library/library_properties.cpp:1020
+#: src/tabs/library/library_properties.cpp:1030
 msgid "Disable Special K"
 msgstr ""
 
 #: src/tabs/library/library_details.cpp:804
-#: src/tabs/library/library_properties.cpp:1025
+#: src/tabs/library/library_properties.cpp:1035
 msgid "Special K is disabled through a blacklist pattern in the Settings tab."
 msgstr ""
 
 #: src/tabs/library/library_details.cpp:815
-#: src/tabs/library/library_properties.cpp:1002
+#: src/tabs/library/library_properties.cpp:1012
 #: src/utility/injection.cpp:1068
 msgid "Special K is unavailable due to missing files."
 msgstr ""
@@ -1383,7 +1383,7 @@ msgstr ""
 #: src/tabs/library/library_list.cpp:502
 #: src/tabs/library/library_menus.cpp:774
 #: src/tabs/library/library_menus.cpp:893
-#: src/tabs/library/library_properties.cpp:659
+#: src/tabs/library/library_properties.cpp:669
 #: src/tabs/monitor.cpp:2089
 #: src/tabs/monitor.cpp:2097
 msgid "Remove"
@@ -1573,7 +1573,7 @@ msgid "Images"
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:1437
-#: src/tabs/library/library_properties.cpp:817
+#: src/tabs/library/library_properties.cpp:827
 msgid "Clear"
 msgstr ""
 
@@ -1732,9 +1732,9 @@ msgstr ""
 #: src/tabs/library/library_properties.cpp:408
 #: src/tabs/library/library_properties.cpp:413
 #: src/tabs/library/library_properties.cpp:414
-#: src/tabs/library/library_properties.cpp:1473
-#: src/tabs/library/library_properties.cpp:1611
-#: src/tabs/library/library_properties.cpp:1612
+#: src/tabs/library/library_properties.cpp:1483
+#: src/tabs/library/library_properties.cpp:1621
+#: src/tabs/library/library_properties.cpp:1622
 #: src/tabs/settings.cpp:850
 #: src/tabs/settings.cpp:851
 #: src/tabs/settings.cpp:1305
@@ -1749,9 +1749,9 @@ msgstr ""
 #: src/tabs/library/library_properties.cpp:410
 #: src/tabs/library/library_properties.cpp:411
 #: src/tabs/library/library_properties.cpp:484
-#: src/tabs/library/library_properties.cpp:1473
-#: src/tabs/library/library_properties.cpp:1609
-#: src/tabs/library/library_properties.cpp:1610
+#: src/tabs/library/library_properties.cpp:1483
+#: src/tabs/library/library_properties.cpp:1619
+#: src/tabs/library/library_properties.cpp:1620
 #: src/tabs/settings.cpp:727
 #: src/tabs/settings.cpp:848
 #: src/tabs/settings.cpp:1303
@@ -1791,8 +1791,8 @@ msgid "{0} (new)"
 msgstr ""
 
 #: src/tabs/library/library_properties.cpp:404
-#: src/tabs/library/library_properties.cpp:1600
-#: src/tabs/library/library_properties.cpp:1669
+#: src/tabs/library/library_properties.cpp:1610
+#: src/tabs/library/library_properties.cpp:1679
 msgid "Instant Play"
 msgstr ""
 
@@ -1900,364 +1900,364 @@ msgid ""
 "after the game has been closed."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:557
+#: src/tabs/library/library_properties.cpp:563
 msgid "This launch option has no executable that can be started directly."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:560
+#: src/tabs/library/library_properties.cpp:566
 msgid "The executable of this launch option is outside of the game's install folder."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:628
+#: src/tabs/library/library_properties.cpp:638
 msgid "This game has no launch options."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:641
+#: src/tabs/library/library_properties.cpp:651
 msgid "Add"
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:644
+#: src/tabs/library/library_properties.cpp:654
 msgid "Adds a new launch option of your own (lc_user.json)."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:651
+#: src/tabs/library/library_properties.cpp:661
 msgid "Duplicate"
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:654
+#: src/tabs/library/library_properties.cpp:664
 msgid "Creates an editable copy of the selected launch option."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:662
+#: src/tabs/library/library_properties.cpp:672
 msgid "Removes the selected launch option."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:662
+#: src/tabs/library/library_properties.cpp:672
 msgid "Launch options of the platform and Special K can't be removed."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:675
+#: src/tabs/library/library_properties.cpp:685
 msgid "Clear default"
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:675
+#: src/tabs/library/library_properties.cpp:685
 msgid "Set as default"
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:681
+#: src/tabs/library/library_properties.cpp:691
 msgid "SKIF goes back to using the primary launch option of the game."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:682
+#: src/tabs/library/library_properties.cpp:692
 msgid "SKIF uses this launch option when the game is launched through the Play button."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:694
+#: src/tabs/library/library_properties.cpp:704
 msgid "Moves the launch option up among your own."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:702
+#: src/tabs/library/library_properties.cpp:712
 msgid "Moves the launch option down among your own."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:710
-#: src/tabs/library/library_properties.cpp:724
+#: src/tabs/library/library_properties.cpp:720
+#: src/tabs/library/library_properties.cpp:734
 msgid "Import..."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:710
-#: src/tabs/library/library_properties.cpp:732
+#: src/tabs/library/library_properties.cpp:720
+#: src/tabs/library/library_properties.cpp:742
 msgid "Export..."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:710
-#: src/tabs/library/library_properties.cpp:741
+#: src/tabs/library/library_properties.cpp:720
+#: src/tabs/library/library_properties.cpp:751
 msgid "Export All..."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:727
+#: src/tabs/library/library_properties.cpp:737
 msgid ""
 "Adds launch options from the clipboard to your own,\n"
 "as copied by Export / Export All."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:735
+#: src/tabs/library/library_properties.cpp:745
 msgid "Copies the selected launch option to the clipboard."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:736
+#: src/tabs/library/library_properties.cpp:746
 msgid "Only your own launch options can be exported."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:744
+#: src/tabs/library/library_properties.cpp:754
 msgid "Copies all of your own launch options to the clipboard."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:780
-#: src/tabs/library/library_properties.cpp:858
+#: src/tabs/library/library_properties.cpp:790
+#: src/tabs/library/library_properties.cpp:868
 msgid "<no description>"
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:789
+#: src/tabs/library/library_properties.cpp:799
 msgid "The default launch option."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:789
+#: src/tabs/library/library_properties.cpp:799
 msgid "The default launch option (the primary one, as no other is set)."
 msgstr ""
 
 #. TRANSLATORS: {0} is the name of a launch option
-#: src/tabs/library/library_properties.cpp:815
+#: src/tabs/library/library_properties.cpp:825
 msgid "The default launch option ({0}) is not available, so the primary one is used."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:839
+#: src/tabs/library/library_properties.cpp:849
 msgid "lc_user.json could not be read, so your own launch options can't be changed here. Fix or remove the file to edit them."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:856
+#: src/tabs/library/library_properties.cpp:866
 msgid "More than one launch option is called \"{0}\"."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:861
+#: src/tabs/library/library_properties.cpp:871
 msgid "Every launch option of your own needs a description."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:864
+#: src/tabs/library/library_properties.cpp:874
 msgid "\"{0}\" has no executable."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:867
+#: src/tabs/library/library_properties.cpp:877
 msgid "The executable of \"{0}\" must be inside the install folder of the game."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:870
+#: src/tabs/library/library_properties.cpp:880
 msgid "The executable of \"{0}\" was not found."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:873
+#: src/tabs/library/library_properties.cpp:883
 msgid "The working directory of \"{0}\" must be inside the install folder of the game."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:903
+#: src/tabs/library/library_properties.cpp:913
 msgid "Your launch options could not be saved to lc_user.json. See the log for details."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:996
+#: src/tabs/library/library_properties.cpp:1006
 msgid "Special K"
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:996
+#: src/tabs/library/library_properties.cpp:1006
 msgid "Applies to the executable, so to every launch option that starts it."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1011
+#: src/tabs/library/library_properties.cpp:1021
 msgid "Save first to change these for this executable."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1037
+#: src/tabs/library/library_properties.cpp:1047
 msgid "Elevated service"
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1042
+#: src/tabs/library/library_properties.cpp:1052
 msgid "Special K is disabled for this executable, so the service is not used."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1200
+#: src/tabs/library/library_properties.cpp:1210
 msgid "New launch option"
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1253
+#: src/tabs/library/library_properties.cpp:1263
 msgid "Launch option"
 msgstr ""
 
 #. TRANSLATORS: {0} is the name of the launch option that was copied
-#: src/tabs/library/library_properties.cpp:1257
+#: src/tabs/library/library_properties.cpp:1267
 msgid "{0} (Instant Play)"
 msgstr ""
 
 #. TRANSLATORS: {0} is the name of the launch option that was copied
-#: src/tabs/library/library_properties.cpp:1259
+#: src/tabs/library/library_properties.cpp:1269
 msgid "{0} (copy)"
 msgstr ""
 
 #. TRANSLATORS: {0} is the name of the copy, {1} the name of the launch option it is a copy of
-#: src/tabs/library/library_properties.cpp:1332
+#: src/tabs/library/library_properties.cpp:1342
 msgid "\"{0}\" is already a copy of \"{1}\" with Instant Play."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1353
+#: src/tabs/library/library_properties.cpp:1363
 msgid "Created an editable copy of \"{0}\" with Instant Play. The original launch option stays unchanged."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1356
+#: src/tabs/library/library_properties.cpp:1366
 msgid "The copy is now the default launch option."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1359
+#: src/tabs/library/library_properties.cpp:1369
 msgid "The launch options set in the platform client were added to its arguments."
 msgstr ""
 
 #. TRANSLATORS: %command% is the placeholder of Steam's launch options, keep it as it is; {0} is what came before it
-#: src/tabs/library/library_properties.cpp:1363
+#: src/tabs/library/library_properties.cpp:1373
 msgid "The part before %command% ({0}) could not be copied."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1384
+#: src/tabs/library/library_properties.cpp:1394
 msgid "The launch options could not be exported."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1391
+#: src/tabs/library/library_properties.cpp:1401
 msgid "Copied \"{0}\" to the clipboard."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1392
+#: src/tabs/library/library_properties.cpp:1402
 msgid "Copied {0} launch option to the clipboard."
 msgid_plural "Copied {0} launch options to the clipboard."
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/tabs/library/library_properties.cpp:1404
+#: src/tabs/library/library_properties.cpp:1414
 msgid "The clipboard does not contain any launch options."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1415
+#: src/tabs/library/library_properties.cpp:1425
 msgid "Imported launch option"
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1426
+#: src/tabs/library/library_properties.cpp:1436
 msgid "Imported \"{0}\" from the clipboard. Save to keep it."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1427
+#: src/tabs/library/library_properties.cpp:1437
 msgid "Imported {0} launch option from the clipboard. Save to keep it."
 msgid_plural "Imported {0} launch options from the clipboard. Save to keep them."
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/tabs/library/library_properties.cpp:1478
+#: src/tabs/library/library_properties.cpp:1488
 msgid "Always (required)"
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1479
+#: src/tabs/library/library_properties.cpp:1489
 msgid "The platform client can't start this launch option itself, so it always uses Instant Play."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1488
-#: src/tabs/library/library_properties.cpp:1654
+#: src/tabs/library/library_properties.cpp:1498
+#: src/tabs/library/library_properties.cpp:1664
 msgid "Description"
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1489
+#: src/tabs/library/library_properties.cpp:1499
 msgid "Shown in the menus"
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1492
+#: src/tabs/library/library_properties.cpp:1502
 msgid "Relative to the install folder of the game."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1502
+#: src/tabs/library/library_properties.cpp:1512
 msgid "Select an executable"
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1521
+#: src/tabs/library/library_properties.cpp:1531
 msgid "Please select an executable (.exe or .bat), or a shortcut to one."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1524
+#: src/tabs/library/library_properties.cpp:1534
 msgid "The executable must be inside the install folder of the game."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1548
+#: src/tabs/library/library_properties.cpp:1558
 msgid ""
 "Relative to the install folder of the game.\n"
 "Leave it as the executable's folder if unsure."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1557
+#: src/tabs/library/library_properties.cpp:1567
 msgid "(install folder)"
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1559
-#: src/tabs/library/library_properties.cpp:1661
+#: src/tabs/library/library_properties.cpp:1569
+#: src/tabs/library/library_properties.cpp:1671
 msgid "(executable folder)"
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1581
+#: src/tabs/library/library_properties.cpp:1591
 msgid "The working directory must be inside the install folder of the game."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1589
+#: src/tabs/library/library_properties.cpp:1599
 msgid "Use the folder of the executable."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1594
-#: src/tabs/library/library_properties.cpp:1663
+#: src/tabs/library/library_properties.cpp:1604
+#: src/tabs/library/library_properties.cpp:1673
 msgid "Arguments"
 msgstr ""
 
 #. TRANSLATORS: {0} is what the game's setting is: "Always" or "Never"
-#: src/tabs/library/library_properties.cpp:1608
-#: src/tabs/library/library_properties.cpp:1680
+#: src/tabs/library/library_properties.cpp:1618
+#: src/tabs/library/library_properties.cpp:1690
 msgid "Game setting ({0})"
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1629
+#: src/tabs/library/library_properties.cpp:1639
 msgid "Starts:"
 msgstr ""
 
 #. TRANSLATORS: {0} is the platform (e.g. Steam), {1} its launch options for the game
-#: src/tabs/library/library_properties.cpp:1639
+#: src/tabs/library/library_properties.cpp:1649
 msgid "The launch options set in {0} ({1}) are not used by this launch option."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1651
+#: src/tabs/library/library_properties.cpp:1661
 msgid "Provided by Special K (lc.json). Duplicate it to make changes."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1652
+#: src/tabs/library/library_properties.cpp:1662
 msgid "Provided by the platform. Duplicate it to make changes."
 msgstr ""
 
 #. TRANSLATORS: {0} is "Always" or "Never"
-#: src/tabs/library/library_properties.cpp:1678
+#: src/tabs/library/library_properties.cpp:1688
 msgid "{0} (set by Special K)"
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1687
+#: src/tabs/library/library_properties.cpp:1697
 msgid "Use Instant Play"
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1692
+#: src/tabs/library/library_properties.cpp:1702
 msgid ""
 "Creates an editable copy of this launch option among your own,\n"
 "set to always use Instant Play. The original stays unchanged."
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1702
+#: src/tabs/library/library_properties.cpp:1712
 msgid "Client options"
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:1702
+#: src/tabs/library/library_properties.cpp:1712
 msgid "Set in the platform client. SKIF does not change these."
 msgstr ""
 
 #. TRANSLATORS: Title of the Properties window; {0} is the name of the game
-#: src/tabs/library/library_properties.cpp:1864
+#: src/tabs/library/library_properties.cpp:1874
 msgid "{0} - Properties"
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:2012
-#: src/tabs/library/library_properties.cpp:2100
+#: src/tabs/library/library_properties.cpp:2022
+#: src/tabs/library/library_properties.cpp:2110
 msgid "Apply"
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:2032
-#: src/tabs/library/library_properties.cpp:2085
+#: src/tabs/library/library_properties.cpp:2042
+#: src/tabs/library/library_properties.cpp:2095
 msgid "Could not save"
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:2051
+#: src/tabs/library/library_properties.cpp:2061
 msgid "Some of the changes could not be saved."
 msgstr ""
 
@@ -3555,11 +3555,11 @@ msgstr ""
 msgid "The blacklist could not be saved! Please remove any non-Latin characters and try again."
 msgstr ""
 
-#: src/utility/games.cpp:414
+#: src/utility/games.cpp:417
 msgid "One-time warning about RTSS.exe"
 msgstr ""
 
-#: src/utility/games.cpp:423
+#: src/utility/games.cpp:426
 msgid "This warning will not appear again."
 msgstr ""
 

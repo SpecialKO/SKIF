@@ -304,13 +304,15 @@ SKIF_GamingCollection::RefreshRunningApps (app_list_t *apps, bool forced)
       if (app.second->_status.running)
         any_running = true;
 
-      app.second->_staging.running_pid = app.second->_status.running_pid;
-      app.second->_staging.running     = app.second->_status.running;
+      app.second->_staging.running_pid  = app.second->_status.running_pid;
+      app.second->_staging.running      = app.second->_status.running;
+      app.second->_staging.running_skif = app.second->_status.running_skif;
 
       if (app.second->_status.dwTimeDelayChecks > current_time && (! forced))
         continue;
 
-      app.second->_staging.running_pid = 0;
+      app.second->_staging.running_pid  = 0;
+      app.second->_staging.running_skif = 0;
 
       // Some store clients keep their own running state (Steam, unless in process fallback without the client)
       if (app.second->KeepsRunningStateDuringScan ( ))
@@ -394,7 +396,8 @@ SKIF_GamingCollection::RefreshRunningApps (app_list_t *apps, bool forced)
             if (match == app_record_s::ProcessMatch::None)
               continue;
 
-            app.second->_staging.running_pid = pe32.th32ProcessID;
+            app.second->_staging.running_pid  = pe32.th32ProcessID;
+            app.second->_staging.running_skif = true; // Used when the store client owns the running state (PidOnly)
 
             if (match == app_record_s::ProcessMatch::PidOnly)
               continue;
@@ -445,23 +448,28 @@ SKIF_GamingCollection::RefreshRunningApps (app_list_t *apps, bool forced)
       HANDLE hProcess      = monitored_app.hProcess.load();
       HANDLE hWorkerThread = monitored_app.hWorkerThread.load();
       int    iReturnCode   = monitored_app.iReturnCode.load();
+      DWORD  dwProcessId   = monitored_app.dwProcessId.load();
 
       for (auto& app : *apps)
       {
         if (monitored_app.id       ==      app.second->id &&
             monitored_app.store_id == (int)app.second->store)
         {
-          app.second->_staging.running = 1;
+          app.second->_staging.running      = 1;
+          app.second->_staging.running_skif = 1; // The store client (Steam) is unaware of processes SKIF launched itself
 
           // Failed start -- let's clean up the wrong data
           if (iReturnCode > 0)
           {
             PLOG_ERROR << "Worker thread for launching app ID " << monitored_app.id << " from platform ID " << monitored_app.store_id << " failed!";
-            app.second->_staging.running =  0;
+            app.second->_staging.running      =  0;
+            app.second->_staging.running_skif =  0;
+            app.second->_status .running_skif =  0;
 
             monitored_app.id               =  0;
             monitored_app.store_id         = -1;
             monitored_app.iReturnCode.store (-1);
+            monitored_app.dwProcessId.store ( 0);
 
             if (hProcess != NULL)
             {
@@ -484,12 +492,15 @@ SKIF_GamingCollection::RefreshRunningApps (app_list_t *apps, bool forced)
           {
             if (WAIT_OBJECT_0 == WaitForSingleObject (hProcess, 0))
             {
-              PLOG_DEBUG << "Game process for app ID " << monitored_app.id << " from platform ID " << monitored_app.store_id << " has ended!";
-              app.second->_staging.running = 0;
-              app.second->_status.running  = 0;
+              PLOG_DEBUG << "Game process (PID " << dwProcessId << ") for app ID " << monitored_app.id << " from platform ID " << monitored_app.store_id << " has ended!";
+              app.second->_staging.running      = 0;
+              app.second->_status .running      = 0;
+              app.second->_staging.running_skif = 0;
+              app.second->_status .running_skif = 0;
 
               monitored_app.id              =  0;
               monitored_app.store_id        = -1;
+              monitored_app.dwProcessId.store (0);
 
               CloseHandle (hProcess);
               hProcess = NULL;
@@ -530,9 +541,21 @@ SKIF_GamingCollection::RefreshRunningApps (app_list_t *apps, bool forced)
     // Push staging changes to actual state
     for (auto& app : *apps)
     {
-      // The store client owns the running state (Steam: client running, registry monitoring available)
+      // The store client owns the running state (Steam: client running, registry monitoring available),
+      //   but is unaware of processes SKIF launched itself (instant play, custom launch configs), so combine it with SKIF's own tracking
       if (app.second->IsRunningStateFromClient ( ))
+      {
+        if (app.second->_staging.running_skif || app.second->_status.running_skif)
+          any_running = true;
+
+        if (app.second->_status.dwTimeDelayChecks > current_time && (! forced))
+          continue;
+
+        app.second->_status.running_skif = app.second->_staging.running_skif;
+        app.second->_status.running_pid  = app.second->_staging.running_pid;
+        app.second->_status.running      = (app.second->_status.running_client || app.second->_status.running_skif);
         continue;
+      }
 
       if (app.second->_staging.running || app.second->_status.running)
         any_running = true;
@@ -540,8 +563,9 @@ SKIF_GamingCollection::RefreshRunningApps (app_list_t *apps, bool forced)
       if (app.second->_status.dwTimeDelayChecks > current_time && (! forced))
           continue;
 
-      app.second->_status.running     = app.second->_staging.running;
-      app.second->_status.running_pid = app.second->_staging.running_pid;
+      app.second->_status.running      = app.second->_staging.running;
+      app.second->_status.running_pid  = app.second->_staging.running_pid;
+      app.second->_status.running_skif = app.second->_staging.running_skif;
     }
   }
 
@@ -760,10 +784,12 @@ SKIF_GamingCollection::SwapInPopulatedGames (bool* pChanged)
     // The run state, until SKIF_LibRefreshWorker checks it again (it would otherwise blink out for a moment)
     if (cur.second->_status.running != 0 && app.second->_status.running == 0)
     {
-      app.second->_status .running     = cur.second->_status .running;
-      app.second->_status .running_pid = cur.second->_status .running_pid;
-      app.second->_staging.running     = cur.second->_staging.running;
-      app.second->_staging.running_pid = cur.second->_staging.running_pid;
+      app.second->_status .running      = cur.second->_status .running;
+      app.second->_status .running_pid  = cur.second->_status .running_pid;
+      app.second->_status .running_skif = cur.second->_status .running_skif;
+      app.second->_staging.running      = cur.second->_staging.running;
+      app.second->_staging.running_pid  = cur.second->_staging.running_pid;
+      app.second->_staging.running_skif = cur.second->_staging.running_skif;
     }
   }
 

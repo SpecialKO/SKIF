@@ -514,6 +514,12 @@ public:
   {
     using LaunchSource = app_record_s::LaunchSource;
 
+    // The launch config selected before (when loaded again), to select it again below
+    app_record_s::launch_ref_s selectedRef;
+
+    if (loadedOnce && selected >= 0 && selected < static_cast <int> (rows.size ( )))
+      selectedRef = _RowRef (rows [selected]);
+
     rows.clear ( );
 
     installDir              = app.install_dir;
@@ -609,9 +615,13 @@ public:
     keepMissing    = true;
 
     // When the window opens: the default launch config. When loaded again (after Save / Apply, or a library refresh): the
-    //   launch config at the same position in the list as before, so the one being edited stays selected
+    //   same launch config as before, wherever it is in the list now, so the one being edited stays selected; if it is
+    //     gone, the one at the same position
     if (! loadedOnce)
       selected = (defaultRow != -1) ? defaultRow : 0;
+
+    else if (int row = _FindRow (selectedRef); row != -1)
+      selected = row;
 
     else if (selected >= static_cast <int> (rows.size ( )))
       selected = std::max (0, static_cast <int> (rows.size ( )) - 1);

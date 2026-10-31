@@ -1228,6 +1228,8 @@ SKIF_Util_CreateProcess (
         &supinfo,
         &procinfo))
     {
+      PLOG_INFO << "Created process with PID " << procinfo.dwProcessId;
+
       if (_data->proc != nullptr)
       {
         _data->proc->iReturnCode.store (0);
@@ -1277,7 +1279,7 @@ SKIF_Util_CreateProcess (
 
         if (ShellExecuteExW (&sexi))
         {
-          PLOG_INFO << "The operation was successful.";
+          PLOG_INFO << "The operation was successful (PID " << ((sexi.hProcess != NULL) ? GetProcessId (sexi.hProcess) : 0) << ").";
 
           if (_data->proc != nullptr)
           {

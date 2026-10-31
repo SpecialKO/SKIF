@@ -823,14 +823,31 @@ app_record_s::LaunchInstant (const launch_context_s& ctx)
 
       // Attempt to execute the call
       if (ShellExecuteExW (&sexi))
-        proc->hProcess = sexi.hProcess;
+      {
+        DWORD dwProcessId = (sexi.hProcess != NULL) ? GetProcessId (sexi.hProcess) : 0;
+
+        PLOG_INFO << "The operation was successful (PID " << dwProcessId << ").";
+
+        if (proc != nullptr)
+        {
+          proc->hProcess    = sexi.hProcess;
+          proc->dwProcessId = dwProcessId;
+        }
+
+        // No free instant play slot to monitor the process with, so the handle is unneeded
+        else if (sexi.hProcess != NULL)
+          CloseHandle (sexi.hProcess);
+      }
 
       else {
         PLOG_ERROR << "Shell execute failed ?!";
         PLOG_ERROR << SKIF_Util_GetErrorAsWStr ( );
 
-        proc->id       =  0;
-        proc->store_id = -1;
+        if (proc != nullptr)
+        {
+          proc->id       =  0;
+          proc->store_id = -1;
+        }
       }
 
       // (scopedEnv restores the environment variables when this scope ends)
@@ -1046,19 +1063,40 @@ app_record_s::GetDefaultLaunchConfig (void)
 
 #pragma region Run State
 
-// Epic, GOG and SKIF Custom should be straight forward: match the full path of the primary launch config
+// Whether the process is the executable of one of the launch configs: the primary one, or another that may have been
+//   launched instead (the default launch config, Instant play, the user's own). Matched by the full path.
+//   Called by SKIF_LibRefreshWorker, under the apps lock: only reads the launch configs (no operator [ ], and not the
+//     is...Valid ( ) checks, which cache their result)
+bool
+app_record_s::MatchesLaunchExecutable (const wchar_t* wszExePath, DWORD dwExePathLen) const
+{
+  if (wszExePath == nullptr || dwExePathLen == 0)
+    return false;
+
+  for (const auto& launch_cfg : launch_configs)
+  {
+    const launch_config_s& lc = launch_cfg.second;
+
+    // Not a launch config of this game (e.g. Steam's of another branch), or without an executable (e.g. Link2EA)
+    if (lc.valid == 0)
+      continue;
+
+    const std::wstring path = lc.getExecutableFullPath ( );
+
+    if (! path.empty ( ) && _wcsnicmp (path.c_str ( ), wszExePath, dwExePathLen) == 0) // full path
+      return true;
+  }
+
+  return false;
+}
+
+// Epic, GOG and SKIF Custom should be straight forward: match the full path of a launch config's executable
 app_record_s::ProcessMatch
 app_record_s::MatchProcess (const wchar_t* wszExeFile, const wchar_t* wszExePath, DWORD dwExePathLen)
 {
   UNREFERENCED_PARAMETER (wszExeFile);
 
-  // Called by SKIF_LibRefreshWorker: only read the launch configs (operator [] would insert a missing entry)
-  auto primary = launch_configs.find (0);
-
-  if (primary == launch_configs.end ( ))
-    return ProcessMatch::None;
-
-  if (dwExePathLen != 0 && _wcsnicmp (primary->second.getExecutableFullPath ( ).c_str(), wszExePath, dwExePathLen) == 0) // full path
+  if (MatchesLaunchExecutable (wszExePath, dwExePathLen))
     return ProcessMatch::Running;
 
   // One can also perform a partial match with the below OR clause in the IF statement, however from testing

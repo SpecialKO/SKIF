@@ -1001,13 +1001,23 @@ app_record_xbox_s::DrawDeveloperActions (void)
 app_record_s::ProcessMatch
 app_record_xbox_s::MatchProcess (const wchar_t* wszExeFile, const wchar_t* wszExePath, DWORD dwExePathLen)
 {
-  // Compare the file name exactly, as a partial match would also match e.g. Game.exe against MyGame.exe
-  const std::wstring& executable = launch_configs[0].getExecutableFileName ( );
-  const size_t        pos        = executable.find_last_of (LR"(\/)");
-  const wchar_t*      wszName    = executable.c_str ( ) + ((pos != std::wstring::npos) ? pos + 1 : 0);
+  // The executable of any launch config (the primary one, or another launched instead). Compare the file name exactly,
+  //   as a partial match would also match e.g. Game.exe against MyGame.exe. Called by SKIF_LibRefreshWorker: only reads the
+  //     launch configs (getExecutableFileName ( ) would write to an empty one)
+  for (const auto& launch_cfg : launch_configs)
+  {
+    const std::wstring& executable = launch_cfg.second.executable;
 
-  if (_wcsicmp (wszName, wszExeFile) == 0)
-    return ProcessMatch::Running;
+    // Not the validity flag: the paths under the virtual folder may not exist as such, which flags the launch config invalid
+    if (executable.empty ( ))
+      continue;
+
+    const size_t        pos        = executable.find_last_of (LR"(\/)");
+    const wchar_t*      wszName    = executable.c_str ( ) + ((pos != std::wstring::npos) ? pos + 1 : 0);
+
+    if (_wcsicmp (wszName, wszExeFile) == 0)
+      return ProcessMatch::Running;
+  }
 
   return app_record_s::MatchProcess (wszExeFile, wszExePath, dwExePathLen);
 }
