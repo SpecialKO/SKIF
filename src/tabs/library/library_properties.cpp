@@ -608,7 +608,15 @@ public:
     defaultMissing = (! defaultOrig.empty ( ) && defaultRow == -1);
     keepMissing    = true;
 
-    selected       = (defaultRow != -1) ? defaultRow : 0;
+    // When the window opens: the default launch config. When loaded again (after Save / Apply, or a library refresh): the
+    //   launch config at the same position in the list as before, so the one being edited stays selected
+    if (! loadedOnce)
+      selected = (defaultRow != -1) ? defaultRow : 0;
+
+    else if (selected >= static_cast <int> (rows.size ( )))
+      selected = std::max (0, static_cast <int> (rows.size ( )) - 1);
+
+    loadedOnce = true;
   }
 
   void Draw (app_record_s& app) override
@@ -659,15 +667,19 @@ public:
 
     ImGui::SameLine ( );
 
-    const bool isDefault = (selected == defaultRow);
+    const bool isDefault       = (selected == defaultRow);
+    const bool isImplicitDefault = (defaultRow == -1 && selected == primaryRow); // The primary one, used as no other is set
 
-    if (ImGui::Button ((isDefault) ? L_("Clear default###PropsLaunchDefault") : LI_(ICON_FA_STAR, "Set as default###PropsLaunchDefault")))
+    // Nothing to set for the primary launch config while no other one is the default: it is the default already
+    SKIF_ImGui_PushDisableState (isImplicitDefault);
+    if (ImGui::Button ((isDefault) ? L_("Clear default###PropsLaunchDefault") : LI_(ICON_FA_STAR, "Set as default###PropsLaunchDefault")) && ! isImplicitDefault)
     {
       defaultRow  = (isDefault) ? -1 : selected;
       keepMissing = false;
     }
+    SKIF_ImGui_PopDisableState  (isImplicitDefault);
     SKIF_ImGui_SetHoverTip ((isDefault) ? _("SKIF goes back to using the primary launch option of the game.")
-                                        : _("SKIF uses this launch option when the game is launched through the Play button."));
+                                        : _("SKIF uses this launch option when the game is launched through the Play button."), false, true);
 
     ImGui::SameLine ( );
 
@@ -1037,6 +1049,7 @@ private:
   bool                               instantPlayCompatible = false;
   bool                               instantPlayGlobal     = false; // The store's global Instant Play setting (Settings tab)
   int                                selected              =  0;
+  bool                               loadedOnce            = false; // Load ( ) keeps the selection after the first time
   int                                primaryRow            = -1;   // The primary platform launch config: the default if no other is set
   int                                defaultRow            = -1;   // The row tagged as the default; -1 = none
   app_record_s::launch_ref_s         defaultOrig;                   // As loaded (db.json "DefaultLaunch")
@@ -1716,6 +1729,10 @@ struct properties_window_s {
   PendingAction                                    pending      = PendingAction::None;
   bool                                             promptShow   = false;
 
+  // The library swap-in the sections were last loaded after (GetSwapCount ( )): a later one may have replaced the record,
+  //   e.g. after new launch options were saved, so they are loaded again from it (see _SKIF_Properties_DrawWindow ( ))
+  uint32_t                                         loadedSwap   = 0;
+
   bool IsDirty (void) const
   {
     for (auto& section : sections)
@@ -1757,6 +1774,8 @@ _SKIF_Properties_Create (app_record_s* pApp)
   for (auto& section : wnd->sections)
     section->Load (*pApp);
 
+  wnd->loadedSwap = SKIF_GamingCollection::Get ( ).GetSwapCount ( );
+
   wnd->id   = nextId++;
   wnd->game = pApp->GetKey ( );
 
@@ -1772,6 +1791,17 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
 
   // Validated before drawing, as the footer is sized after the number of issues
   std::vector <property_issue_s> issues;
+
+  // The library was refreshed since the sections were loaded (e.g. after Apply saved new launch options, which only then
+  //   get their per-executable settings): load them again from the current record. Not while there are unsaved changes,
+  //     which would be lost; that waits until they are saved or discarded
+  if (wnd.loadedSwap != _games.GetSwapCount ( ) && ! wnd.IsDirty ( ))
+  {
+    for (auto& section : wnd.sections)
+      section->Load (*pApp);
+
+    wnd.loadedSwap = _games.GetSwapCount ( );
+  }
 
   for (auto& section : wnd.sections)
     section->Validate (*pApp, issues);
@@ -1979,14 +2009,15 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
     // Both as wide as the wider of the two (at least as wide as before)
     ImVec2 vButtonSize = ImVec2 (std::max ({ 80.0f * SKIF_ImGui_GlobalDPIScale,
                                              ImGui::CalcTextSize (L_("Save###PropsSave"),     nullptr, true).x + style.FramePadding.x * 2.0f,
+                                             ImGui::CalcTextSize (L_("Apply###PropsApply"),   nullptr, true).x + style.FramePadding.x * 2.0f,
                                              ImGui::CalcTextSize (L_("Cancel###PropsCancel"), nullptr, true).x + style.FramePadding.x * 2.0f }), 0.0f);
 
     const bool saveDisabled = (! anyDirty || hasErrors);
 
     SKIF_ImGui_Spacing ( );
 
-    // Save / Cancel, centered
-    ImGui::SetCursorPosX ((ImGui::GetWindowWidth ( ) - vButtonSize.x * 2.0f - style.ItemSpacing.x) / 2.0f);
+    // Save / Apply / Cancel, centered
+    ImGui::SetCursorPosX ((ImGui::GetWindowWidth ( ) - vButtonSize.x * 3.0f - style.ItemSpacing.x * 2.0f) / 2.0f);
 
     SKIF_ImGui_PushDisableState (saveDisabled);
 
@@ -2061,6 +2092,13 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
       if (_Save ( ))
         closed = true;
     }
+
+    ImGui::SameLine ( );
+
+    // Apply saves as well, but keeps the window open: settings that only appear once something is saved (e.g. those of a
+    //   new launch option's executable) show up when the library has been refreshed (the sections are loaded again then)
+    if (ImGui::Button (L_("Apply###PropsApply"), vButtonSize))
+      _Save ( );
 
     SKIF_ImGui_PopDisableState (saveDisabled);
 

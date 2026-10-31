@@ -121,6 +121,7 @@ struct SKIF_GamingCollection {
         bool IsPopulateFinished   (void) const;
         int  SwapInPopulatedGames (bool* pChanged = nullptr);
         bool HasPopulatedOnce     (void) const { return m_populatedOnce.load ( ); } // A library has been swapped in (any thread)
+        uint32_t GetSwapCount     (void) const { return m_swapCount; }             // Increased by every swap-in (records may have been replaced); main thread
 
         // Steam app tickets and the keyboard-hint label trie produced by the last population
   std::set <std::string>& GetAppTickets (void) { return m_apptickets; }
@@ -173,6 +174,7 @@ private:
   CComPtr <ID3D11ShaderResourceView> m_pSKLogoTexSRV_small;
   AppList                   m_apps;
   std::atomic <bool>        m_populatedOnce = false;
+  uint32_t                  m_swapCount     = 0;     // See GetSwapCount ( )
   std::array <SKIF_Util_CreateProcess_s, 15>
                             m_iPlayCache = { };
   std::recursive_mutex      m_apps_mutex; // More specifically, this is intended to guard access to the run state of games.

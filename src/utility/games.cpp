@@ -793,6 +793,7 @@ SKIF_GamingCollection::SwapInPopulatedGames (bool* pChanged)
   m_tLabels    = std::move (m_worker->labels); // Trie is move-only (it owns its nodes)
 
   m_populatedOnce.store (true);
+  m_swapCount++;
 
   // The Steam appinfo.vdf reader the worker created
   appinfo = std::move (m_worker->appinfo);
