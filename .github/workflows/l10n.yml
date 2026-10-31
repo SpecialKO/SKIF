@@ -1,0 +1,45 @@
+name: Translations
+
+# Checks that resources/l10n/SKIF.pot matches the translatable text in the sources, and that the translations
+#   (resources/l10n/*.po) have no mistakes that would make SKIF skip or misshow them. See resources/l10n/README.md.
+#   Both checks can be run locally as well:
+#     powershell -ExecutionPolicy Bypass -File tools\l10n_extract.ps1 -Check
+#     powershell -ExecutionPolicy Bypass -File tools\l10n_check.ps1
+
+on:
+  push:
+    paths:
+      - 'src/**'
+      - 'include/**'
+      - 'resources/l10n/**'
+      - 'tools/l10n_*.ps1'
+      - '.github/workflows/l10n.yml'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'include/**'
+      - 'resources/l10n/**'
+      - 'tools/l10n_*.ps1'
+      - '.github/workflows/l10n.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  Check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    # Fails if a text was added, changed or removed without running tools\l10n_extract.ps1
+    #   (moved code, i.e. changed line numbers alone, does not count)
+    - name: SKIF.pot is up to date
+      shell: pwsh
+      run: ./tools/l10n_extract.ps1 -Check
+
+    # Runs even if the step above failed, so both are reported at once
+    - name: Translations have no mistakes
+      if: success() || failure()
+      shell: pwsh
+      run: ./tools/l10n_check.ps1

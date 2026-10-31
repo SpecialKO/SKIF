@@ -84,7 +84,7 @@ Translations are contributed as pull requests to [SpecialKO/SKIF](https://github
 1. Fork the repository and create a branch (e.g. `l10n-pt-BR`).
 2. Add or update `resources/l10n/<language>.po`. Only that file is needed: a maintainer embeds new languages in `l10n.rc`.
 3. Update it from the current `SKIF.pot` first, so it covers the latest text (Poedit: *Translation > Update from POT file*).
-4. Test it as described above, and mention in the pull request which parts of SKIF you checked.
+4. Test it as described above, and mention in the pull request which parts of SKIF you checked. To check the file for mistakes as the pull request will (below), run `powershell -ExecutionPolicy Bypass -File tools\l10n_check.ps1 resources\l10n\<language>.po`.
 5. Open the pull request with the language in the title, e.g. *Translation: Portuguese (Brazil)*.
 
 A partial translation is welcome: untranslated text shows in English, and the picker shows how complete each language is. Improvements to an existing translation are sent the same way; if the language has a regular translator, they may be asked to review.
@@ -94,6 +94,10 @@ A partial translation is welcome: untranslated text shows in English, and the pi
 ### Routine
 
 * After changing UI text, run `powershell -ExecutionPolicy Bypass -File tools\l10n_extract.ps1` to update `SKIF.pot`, and commit it with the change. Translators update their `.po` files from it in their next pull request; to do it for them, use Poedit (*Translation > Update from POT file*) or `msgmerge --update --backup=off <language>.po SKIF.pot` (GNU gettext).
+* **Automatic checks** (`.github\workflows\l10n.yml`, on every push and pull request that touches the sources or the translations):
+  * `tools\l10n_extract.ps1 -Check` fails if `SKIF.pot` does not match the text in the sources: a text was added, changed or removed without running the extractor. Code that only moved (other line numbers) does not count.
+  * `tools\l10n_check.ps1` fails on mistakes in a `.po` file that make SKIF skip or misshow a translation: syntax errors, a missing `Language` or `Plural-Forms` header, a `{placeholder}` the English text does not have, unpaired braces, a missing or added `[link]`, a wrong number of plural forms, or a notification title over 63 characters. A file that is behind `SKIF.pot` only gets a warning.
+  * Both run locally the same way (`powershell -ExecutionPolicy Bypass -File tools\<script>.ps1`), or with `pwsh` on any system.
 * Reviewing a translation pull request: open the `.po` file in SKIF via the `Languages` folder and check `SKIF.log` for skipped entries and syntax errors. The `Language` and `Plural-Forms` headers must be set; the picker uses the language's own name from Windows.
 * To embed a new language, add a line to `l10n.rc`: `de SKIF_PO "resources\\l10n\\de.po"`. Do this when a language is complete enough to ship; until then it can live in the repository without being embedded.
 * The *Pseudo-locale* (listed in the language picker when *Settings > Advanced > Developer mode* is enabled) shows every translated text accented and ~35% longer, which makes text that is not marked for translation (it stays plain English) and layouts that are too narrow for longer languages easy to spot.

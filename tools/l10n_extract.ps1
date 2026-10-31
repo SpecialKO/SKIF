@@ -16,11 +16,19 @@
   before "##" / "###" is extracted. A comment starting with "TRANSLATORS:" before the text (or on the same line)
   is passed on to translators. A "TRANSLATORS:" comment applies to the next text within three lines.
 
-  Needs nothing but Windows PowerShell 5.1 (included in Windows) or PowerShell 7.
+  Needs nothing but Windows PowerShell 5.1 (included in Windows) or PowerShell 7 (also on Linux and macOS).
   The template is only rewritten if the text changed (not just the date).
+
+  With -Check, nothing is written: the script only checks that the template is up to date, and exits with 1 if it
+  is not (or if a text could not be extracted). Source references (#: lines) and the date are ignored, so moving
+  code around does not make the template out of date; adding, changing or removing a text (or its context, plural
+  form or TRANSLATORS: comment) does. Used by the l10n workflow (.github\workflows\l10n.yml).
 
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File tools\l10n_extract.ps1
+
+.EXAMPLE
+  pwsh -File tools/l10n_extract.ps1 -Check
 #>
 
 [CmdletBinding()]
@@ -28,7 +36,9 @@ param (
   # Root of the repository (default: the parent folder of this script)
   [string] $Root   = (Split-Path -Parent $PSScriptRoot),
   # The template to write, relative to the root
-  [string] $Output = 'resources\l10n\SKIF.pot'
+  [string] $Output = 'resources\l10n\SKIF.pot',
+  # Only check that the template is up to date (see above); write nothing
+  [switch] $Check
 )
 
 Set-StrictMode -Version 2.0
@@ -73,6 +83,12 @@ function Write-ExtractWarning ([string] $where, [string] $message)
 {
   $script:warnings++
   Write-Warning "${where}: $message"
+
+  # An annotation on the line in GitHub Actions ("file:line")
+  if ($env:GITHUB_ACTIONS -eq 'true' -and $where -match '^(?<file>.+):(?<line>\d+)$')
+  {
+    Write-Host "::warning file=$($Matches.file),line=$($Matches.line)::$message"
+  }
 }
 
 # Decodes the escape sequences of a C++ string literal (the source is UTF-8; \x and octal escapes are UTF-8 bytes)
@@ -403,15 +419,57 @@ $content = ($header.Replace("`r`n", "`n").TrimEnd("`n") + "`n" + $body.ToString(
 $path    = Join-Path $Root $Output
 
 # Only rewrite the template if something other than the date changed
-$changed = $true
+$changed  = $true
+$existing = $null
+$pattern  = '(?m)^"POT-Creation-Date: [^"]*"\r?$'
 if (Test-Path -LiteralPath $path)
 {
-  $pattern  = '(?m)^"POT-Creation-Date: [^"]*"\r?$'
   $existing = [System.IO.File]::ReadAllText($path, $utf8).Replace("`r`n", "`n")
   $changed  = ([regex]::Replace($existing, $pattern, '') -ne [regex]::Replace($content, $pattern, ''))
 }
 
 $count = $entries.Count
+
+if ($Check)
+{
+  # The text only: without the date and the source references (which change whenever code moves)
+  $refs     = '(?m)^#: [^\n]*\n'
+  $current  = ''
+  if ($null -ne $existing) { $current = [regex]::Replace([regex]::Replace($existing, $pattern, ''), $refs, '') }
+  $expected = [regex]::Replace([regex]::Replace($content, $pattern, ''), $refs, '')
+
+  $failed = $false
+
+  if ($current -ne $expected)
+  {
+    $failed  = $true
+    $message = "$Output is out of date: the translatable text in the sources changed. Run tools\l10n_extract.ps1 and commit $Output."
+    if ($env:GITHUB_ACTIONS -eq 'true') { Write-Host "::error file=$($Output.Replace('\', '/'))::$message" } else { Write-Host $message }
+
+    # Which texts differ (the msgctxt and msgid lines only, to keep it short)
+    $was = @($current  -split "`n" | Where-Object { $_ -like 'msgid *' -or $_ -like 'msgctxt *' })
+    $now = @($expected -split "`n" | Where-Object { $_ -like 'msgid *' -or $_ -like 'msgctxt *' })
+    foreach ($d in (Compare-Object $was $now))
+    {
+      $what = 'removed:'
+      if ($d.SideIndicator -eq '=>') { $what = 'added:  ' }
+      Write-Host "  $what $($d.InputObject)"
+    }
+  }
+  else
+  {
+    Write-Host "$Output is up to date ($count texts from $($files.Count) files)."
+  }
+
+  if ($warnings -gt 0)
+  {
+    $failed = $true
+    Write-Host "$warnings warning(s): some texts could not be extracted (see above)."
+  }
+
+  exit ([int] $failed)
+}
+
 if ($changed)
 {
   $folder = Split-Path -Parent $path
