@@ -916,7 +916,7 @@ public:
     if (ref != app.skif.default_launch)
     {
       app.skif.default_launch = ref;
-      ret |= PropertiesApply_WriteMetaDB;
+      ret |= PropertiesApply_WriteMetaDB | PropertiesApply_Reload; // The details follow the default launch config
     }
 
     return ret;
@@ -2038,6 +2038,10 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
         RepopulateGames = true;
         update          = true;
       }
+
+      // Only for the selected game: another one is loaded again when it is selected
+      else if ((effects & PropertiesApply_Reload) && pApp == GetLibraryTab ( ).pApp)
+        update = true;
 
       else if (effects & PropertiesApply_Resort)
       {

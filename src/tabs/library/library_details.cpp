@@ -1280,9 +1280,6 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
     }
   }
 
-  // TODO: Make the specialk.injection bitness/state/etc stuff bound
-  //         to launch_config so it is not universal any longer
-
   // If we cannot detect any launch configs, add an empty one
   if (pApp->launch_configs.empty ())
   {
@@ -1320,9 +1317,17 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
       launch.injection.injection.bitness = (InjectionBitness)pApp->skif.cpu_type;
   }
 
-  // Main UI stuff should follow the primary launch config
+  // Main UI stuff (details, menus, the profile and config, the cached bitness) follows the launch config that Play
+  //   launches: the default one (Properties > Launch), else the primary one. Also the primary one when the default one
+  //     was not resolved above (no valid executable, e.g. Link2EA, or skipped as a launch config of the other bitness).
+  //   Launching itself uses the state of the launch config it launches (library_launch.cpp)
+  app_record_s::launch_config_s* shown = pApp->GetDefaultLaunchConfig ( );
+
+  if (shown == nullptr || shown->injection.injection.type == InjectionType::Unknown)
+    shown = &launch;
+
   if (! registry_local)
-    pApp->specialk.injection = launch.injection;
+    pApp->specialk.injection = shown->injection;
 
   if ( InjectionType::Global ==
       pApp->specialk.injection.injection.type )
@@ -1360,18 +1365,42 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
     pApp->specialk.injection.dll.version_utf8   = SK_WideCharToUTF8 (pApp->specialk.injection.dll.version);
   }
 
-  // For local injections, we need to populate the registry as well (used for managed updates)
-  else if ( InjectionType::Local ==
-           pApp->specialk.injection.injection.type )
+  // For local injections, we need to populate the registry as well (used for managed updates): the one shown, and those
+  //   found next to the executables of the other launch configs, so the Local Manager lists and updates them all
   {
-    LSTATUS lsKey = RegCreateKeyW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\Local)", &hKey);
+    std::set <std::wstring>                               registered;
+    std::vector <const app_record_s::sk_install_state_s*> locals;
 
-    if (ERROR_SUCCESS == lsKey)
+    if (InjectionType::Local == pApp->specialk.injection.injection.type)
+      locals.push_back (&pApp->specialk.injection);
+
+    for (const auto& launch_cfg : pApp->launch_configs)
     {
-      if (ERROR_SUCCESS != RegSetValueExW (hKey, pApp->specialk.injection.dll.full_path.c_str(), 0, REG_SZ, (LPBYTE)pApp->specialk.injection.dll.version.data(), (DWORD)pApp->specialk.injection.dll.version.length() * sizeof(wchar_t)))
-        PLOG_ERROR << "Failed adding local install (" << pApp->specialk.injection.dll.version << ") to registry value: " << pApp->specialk.injection.dll.full_path;
+      if (InjectionType::Local == launch_cfg.second.injection.injection.type)
+        locals.push_back (&launch_cfg.second.injection);
+    }
 
-      RegCloseKey (hKey);
+    if (! locals.empty ( ))
+    {
+      LSTATUS lsKey = RegCreateKeyW (HKEY_CURRENT_USER, LR"(SOFTWARE\Kaldaien\Special K\Local)", &hKey);
+
+      if (ERROR_SUCCESS == lsKey)
+      {
+        for (const app_record_s::sk_install_state_s* local : locals)
+        {
+          // Launch configs of a registered local install (registry_local) only have the type, not the DLL
+          if (local->dll.full_path.empty ( ) || local->dll.version.empty ( ))
+            continue;
+
+          if (! registered.emplace (SKIF_Util_ToLowerW (local->dll.full_path)).second)
+            continue;
+
+          if (ERROR_SUCCESS != RegSetValueExW (hKey, local->dll.full_path.c_str(), 0, REG_SZ, (LPBYTE)local->dll.version.data(), (DWORD)local->dll.version.length() * sizeof(wchar_t)))
+            PLOG_ERROR << "Failed adding local install (" << local->dll.version << ") to registry value: " << local->dll.full_path;
+        }
+
+        RegCloseKey (hKey);
+      }
     }
   }
 

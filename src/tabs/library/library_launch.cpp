@@ -46,7 +46,11 @@ LaunchGame (app_record_s* pApp)
   }
 
   else {
-    bool localInjection        = (pApp->specialk.injection.injection.type == InjectionType::Local);
+    // The state of the launch config being launched (a local install may be next to only one of the executables), else
+    //   of the game (launch configs that were not resolved, e.g. without a valid executable)
+    const InjectionType lcType = launchConfig->injection.injection.type;
+    bool localInjection        = (lcType != InjectionType::Unknown) ? (lcType                                   == InjectionType::Local)
+                                                                    : (pApp->specialk.injection.injection.type == InjectionType::Local);
     bool usingSK               = localInjection;
 
     // Increment the uses count and used timestamp

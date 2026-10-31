@@ -54,6 +54,7 @@ enum PropertiesApplyEffect : uint32_t {
   PropertiesApply_Resort      = 1 << 1, // SortApps
   PropertiesApply_Repopulate  = 1 << 2, // RepopulateGames (also resorts)
   PropertiesApply_Failed      = 1 << 3, // Nothing was saved (GetApplyError ( ) says why): the window stays open with the changes kept
+  PropertiesApply_Reload      = 1 << 4, // The game's details are loaded again (e.g. the default launch config, which they follow, changed)
 };
 
 // Shown below the tabs; errors block Save

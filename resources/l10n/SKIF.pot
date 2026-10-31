@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-10-31 18:43+0100\n"
+"POT-Creation-Date: 2026-10-31 19:01+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -232,7 +232,7 @@ msgstr ""
 #: src/tabs/library/library_popups.cpp:268
 #: src/tabs/library/library_popups.cpp:317
 #: src/tabs/library/library_properties.cpp:1982
-#: src/tabs/library/library_properties.cpp:2066
+#: src/tabs/library/library_properties.cpp:2070
 #: src/tabs/local.cpp:1213
 #: src/tabs/local.cpp:1238
 #: src/tabs/monitor.cpp:1985
@@ -1030,7 +1030,7 @@ msgid "{0} - Editor"
 msgstr ""
 
 #: src/tabs/ini_editor.cpp:90
-#: src/tabs/library/library_properties.cpp:2097
+#: src/tabs/library/library_properties.cpp:2101
 msgid "Save Changes?"
 msgstr ""
 
@@ -1091,7 +1091,7 @@ msgstr ""
 
 #: src/tabs/ini_editor.cpp:519
 #: src/tabs/library/library_properties.cpp:1981
-#: src/tabs/library/library_properties.cpp:2055
+#: src/tabs/library/library_properties.cpp:2059
 #: src/utility/skif_imgui.cpp:1792
 msgid "Save"
 msgstr ""
@@ -1162,7 +1162,7 @@ msgstr ""
 
 #. TRANSLATORS: {0} is the name of a file (or of a game)
 #: src/tabs/ini_editor.cpp:944
-#: src/tabs/library/library_properties.cpp:2099
+#: src/tabs/library/library_properties.cpp:2103
 msgid "Do you want to save changes to {0}?"
 msgstr ""
 
@@ -1336,16 +1336,16 @@ msgid "Please reinstall Special K using the latest available installer."
 msgstr ""
 
 #. TRANSLATORS: Where the configuration of Special K is kept (one folder for all games)
-#: src/tabs/library/library_details.cpp:1458
+#: src/tabs/library/library_details.cpp:1487
 #: src/utility/injection.cpp:840
 msgid "Centralized"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:1460
+#: src/tabs/library/library_details.cpp:1489
 msgid "Localized"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:1462
+#: src/tabs/library/library_details.cpp:1491
 msgid "Unknown"
 msgstr ""
 
@@ -2248,7 +2248,7 @@ msgid "{0} - Properties"
 msgstr ""
 
 #: src/tabs/library/library_properties.cpp:2001
-#: src/tabs/library/library_properties.cpp:2050
+#: src/tabs/library/library_properties.cpp:2054
 msgid "Could not save"
 msgstr ""
 
