@@ -18,7 +18,7 @@ struct app_record_gog_s : app_record_store_s <app_record_gog_s, app_record_s::St
   std::string GetPCGamingWikiURL      (void) const override { return "https://www.pcgamingwiki.com/api/gog.php?page=" + std::to_string (id); }
 
   // Launching (gog_library.cpp)
-  bool        PrefersInstantLaunch    (bool fromGameMenu, launch_config_s* config) const override;
+  bool        PrefersInstantLaunch    (bool viaPlatform, launch_config_s* config) const override;
   void        Launch                  (const launch_context_s& ctx) override;
 
   // Library UI (gog_library.cpp)

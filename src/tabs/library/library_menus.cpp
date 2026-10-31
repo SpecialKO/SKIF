@@ -153,6 +153,27 @@ SKIF_Lib_GetLaunchCommand (app_record_s* pApp, app_record_s::launch_config_s* lc
   return SK_WideCharToUTF8 (pApp->GetLaunchCommand (lc).display);
 }
 
+// How Play (the button, and Play in the game menu) starts a launch config, as LaunchGame ( ) decides it: through the
+//   platform client or directly, and which launch option, if it is not the platform's primary one. Empty for Custom games,
+//     which are always started directly (so there is nothing to tell apart)
+std::string
+SKIF_Lib_GetPlayDescription (app_record_s* pApp, app_record_s::launch_config_s* lc)
+{
+  if (pApp == nullptr || lc == nullptr || pApp->store == app_record_s::Store::Custom)
+    return "";
+
+  std::string desc = (pApp->PrefersInstantLaunch (false, lc))
+                   ? std::string (_("Starts the game directly (Instant play)."))
+                   : F_("Starts the game through {0}.", pApp->store_utf8);
+
+  if (! pApp->launch_configs.empty ( ) && lc != &pApp->launch_configs.begin ( )->second)
+    desc += "\n" + F_("Launch option: {0}", lc->getDescriptionUTF8 ( ).empty ( )
+                                               ? lc->getExecutableFileNameUTF8 ( )
+                                               : lc->getDescriptionUTF8 ( ));
+
+  return desc;
+}
+
 // Whether launching "without Special K" makes a difference for a launch config: otherwise the injection service would inject
 //   Special K into it. As LaunchGame ( ) resolves it: a local install (of the launch config itself, else of the game) or a
 //     blacklist (the launch config's own, or the global one) already means a launch without the service.
@@ -257,9 +278,9 @@ DrawGameContextMenu_PlayWith (app_record_s* pApp, bool playDisabled)
     if (SKIF_ImGui_MenuItemEx3 ((pApp->store_utf8 + "###GameContextMenu_PlayWithPlatform").c_str ( ), ICON_FA_GAMEPAD, _RightIcon (primary, wosk),
                                 ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Icon), ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), ! playDisabled && ! localBlocked))
     {
-      launchConfig    = primary;
-      launchGameMenu  = true; // Explicit: through the platform client, whatever the Instant Play setting
-      launchWithoutSK = withoutSK;
+      launchConfig      = primary;
+      launchViaPlatform = true; // Explicit: through the platform client, whatever the Instant Play setting
+      launchWithoutSK   = withoutSK;
     }
 
     if (ImGui::IsItemHovered (ImGuiHoveredFlags_AllowWhenDisabled))
@@ -1152,10 +1173,21 @@ DrawGameContextMenu (app_record_s* pApp)
 
   SKIF_ImGui_SetHoverText (launchCommand);
 
-  if (SKIF_Lib_GetWithoutSKState (pApp, firstLaunchConfig) == SKIF_Lib_WithoutSK::Available)
+  const bool offerWithoutSK = (SKIF_Lib_GetWithoutSKState (pApp, firstLaunchConfig) == SKIF_Lib_WithoutSK::Available);
+
+  // How it starts (as the Play button's tooltip), and whether it starts the injection service as well
+  if (ImGui::IsItemHovered ( ))
   {
-    if (! _inject.bCurrentState)
-      SKIF_ImGui_SetHoverTip (_("Starts the injection service as well."));
+    std::string tip = SKIF_Lib_GetPlayDescription (pApp, firstLaunchConfig);
+
+    if (offerWithoutSK && ! _inject.bCurrentState)
+      tip += ((tip.empty ( )) ? "" : "\n\n") + std::string (_("Starts the injection service as well."));
+
+    SKIF_ImGui_SetHoverTip (tip);
+  }
+
+  if (offerWithoutSK)
+  {
 
     ImGui::PushStyleColor      (ImGuiCol_Text,
       ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)

@@ -1596,7 +1596,7 @@ SKIF_Ubisoft_IsClientInstalled (void)
 #pragma region Launching
 
 bool
-app_record_ubisoft_s::PrefersInstantLaunch (bool fromGameMenu, launch_config_s* config) const
+app_record_ubisoft_s::PrefersInstantLaunch (bool viaPlatform, launch_config_s* config) const
 {
   // Fallback if Ubisoft Connect is not installed
   if (ubisoft.product_id == 0 || ! SKIF_Ubisoft_IsClientInstalled ( ))
@@ -1606,7 +1606,7 @@ app_record_ubisoft_s::PrefersInstantLaunch (bool fromGameMenu, launch_config_s* 
   if (config != nullptr && ! ClientCanLaunch (*config))
     return true;
 
-  return (! fromGameMenu && UsesInstantPlay (GetInstantPlayDefault ( ), config));
+  return (! viaPlatform && UsesInstantPlay (GetInstantPlayDefault ( ), config));
 }
 
 // Launch Ubisoft game through Ubisoft Connect, unless an instant launch was requested

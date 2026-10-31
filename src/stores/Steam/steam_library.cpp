@@ -1846,7 +1846,7 @@ app_record_steam_s::GetStoreLaunchOptions (uint32_t steamAppID)
 }
 
 bool
-app_record_steam_s::PrefersInstantLaunch (bool fromGameMenu, launch_config_s* config) const
+app_record_steam_s::PrefersInstantLaunch (bool viaPlatform, launch_config_s* config) const
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
@@ -1855,7 +1855,7 @@ app_record_steam_s::PrefersInstantLaunch (bool fromGameMenu, launch_config_s* co
     return true;
 
   // Convert all except those where we are dealing with an invalid launch config (e.g. Link2EA)
-  return (! fromGameMenu && UsesInstantPlay (GetInstantPlayDefault ( ), config) && config->isExecutableFullPathValid ( ));
+  return (! viaPlatform && UsesInstantPlay (GetInstantPlayDefault ( ), config) && config->isExecutableFullPathValid ( ));
 }
 
 // Launch Steam game (regular), unless an instant launch was requested

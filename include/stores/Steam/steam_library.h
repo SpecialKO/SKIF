@@ -330,7 +330,7 @@ struct app_record_steam_s : app_record_store_s <app_record_steam_s, app_record_s
   // Launching (steam_library.cpp)
   bool         RequiresValidExecutable (void) const override { return false; } // Launches through the Steam client
   void         WhitelistForInjection   (launch_config_s* config) override { UNREFERENCED_PARAMETER (config); } // Steam games need no manual whitelisting
-  bool         PrefersInstantLaunch    (bool fromGameMenu, launch_config_s* config) const override;
+  bool         PrefersInstantLaunch    (bool viaPlatform, launch_config_s* config) const override;
   void         Launch                  (const launch_context_s& ctx) override;
   uint32_t     GetSteamAppID           (void) const override { return id; }
   std::string  GetStoreLaunchOptions   (uint32_t steamAppID) override;

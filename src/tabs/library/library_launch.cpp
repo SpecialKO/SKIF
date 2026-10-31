@@ -108,8 +108,8 @@ LaunchGame (app_record_s* pApp)
     // LAUNCH PREPARATIONS
 
 
-    // Some stores and situations always or preferably use an instant launch (but the game menu is always explicit)
-    if (! launchInstant && pApp->PrefersInstantLaunch (launchGameMenu, launchConfig))
+    // Some stores and situations always or preferably use an instant launch (but Play with > platform is always explicit)
+    if (! launchInstant && pApp->PrefersInstantLaunch (launchViaPlatform, launchConfig))
       launchInstant = true;
 
 

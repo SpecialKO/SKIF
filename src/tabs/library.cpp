@@ -99,7 +99,7 @@ bool                   sort_changed      = false;
 app_record_s::launch_config_s*
                        launchConfig      = nullptr; // Used to launch games. Defaults to the game's default launch config (GetDefaultLaunchConfig).
 bool                   launchGame        = false;   // Respects Instant Play preference
-bool                   launchGameMenu    = false;   // Explicitly through the platform client (Play with > platform): ignores the Instant Play setting
+bool                   launchViaPlatform = false;   // Explicitly through the platform client (Play with > platform): ignores the Instant Play setting
 bool                   launchInstant     = false;
 bool                   launchWithoutSK   = false;
 
@@ -1505,16 +1505,16 @@ SKIF_UI_Tab_DrawLibrary (void)
 
 #pragma region GameLaunchLogic
 
-  if ((launchGame || launchGameMenu || launchInstant) &&
+  if ((launchGame || launchViaPlatform || launchInstant) &&
        pApp != nullptr && launchConfig != nullptr)
   {
     LaunchGame         (pApp);
 
-    launchConfig     = pApp->GetDefaultLaunchConfig ( ); // Reset to the default launch config
-    launchGame       = false;
-    launchGameMenu   = false;
-    launchInstant    = false;
-    launchWithoutSK  = false;
+    launchConfig      = pApp->GetDefaultLaunchConfig ( ); // Reset to the default launch config
+    launchGame        = false;
+    launchViaPlatform = false;
+    launchInstant     = false;
+    launchWithoutSK   = false;
   }
 
 #pragma endregion

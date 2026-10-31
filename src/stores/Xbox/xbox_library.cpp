@@ -691,7 +691,7 @@ app_record_xbox_s::WhitelistForInjection (launch_config_s* config)
 }
 
 bool
-app_record_xbox_s::PrefersInstantLaunch (bool fromGameMenu, launch_config_s* config) const
+app_record_xbox_s::PrefersInstantLaunch (bool viaPlatform, launch_config_s* config) const
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
@@ -699,7 +699,7 @@ app_record_xbox_s::PrefersInstantLaunch (bool fromGameMenu, launch_config_s* con
   if (config != nullptr && ! ClientCanLaunch (*config))
     return true;
 
-  return (! fromGameMenu && UsesInstantPlay (GetInstantPlayDefault ( ), config));
+  return (! viaPlatform && UsesInstantPlay (GetInstantPlayDefault ( ), config));
 }
 
 // Launch Xbox game (through gamelaunchhelper.exe, or Instant Play)

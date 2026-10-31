@@ -601,7 +601,7 @@ SKIF_itch_IsClientInstalled (const std::string& app)
 #pragma region Launching
 
 bool
-app_record_itch_s::PrefersInstantLaunch (bool fromGameMenu, launch_config_s* config) const
+app_record_itch_s::PrefersInstantLaunch (bool viaPlatform, launch_config_s* config) const
 {
   // Fallback if the itch app is not installed
   if (itch.game_id == 0 || ! SKIF_itch_IsClientInstalled (itch.app))
@@ -611,7 +611,7 @@ app_record_itch_s::PrefersInstantLaunch (bool fromGameMenu, launch_config_s* con
   if (config != nullptr && ! ClientCanLaunch (*config))
     return true;
 
-  return (! fromGameMenu && UsesInstantPlay (GetInstantPlayDefault ( ), config));
+  return (! viaPlatform && UsesInstantPlay (GetInstantPlayDefault ( ), config));
 }
 
 // Launch itch game through the itch app (headless), unless an instant launch was requested

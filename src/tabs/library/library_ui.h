@@ -185,7 +185,7 @@ extern bool                   sort_changed;
 extern app_record_s::launch_config_s*
                               launchConfig;      // Used to launch games. Defaults to the game's default launch config (GetDefaultLaunchConfig).
 extern bool                   launchGame;        // Respects Instant Play preference
-extern bool                   launchGameMenu;    // Explicitly through the platform client (Play with > platform): ignores the Instant Play setting
+extern bool                   launchViaPlatform; // Explicitly through the platform client (Play with > platform): ignores the Instant Play setting
 extern bool                   launchInstant;
 extern bool                   launchWithoutSK;
 extern int                    numPinnedOnTop;
@@ -220,6 +220,7 @@ void DrawGameContextMenu     (app_record_s* pApp);
 // The command line a launch config runs: the executable and its arguments, with the launch options set in the store
 //   client (Steam) where they apply. Shown in the status bar when hovering Play / Instant play (library_menus.cpp)
 std::string SKIF_Lib_GetLaunchCommand (app_record_s* pApp, app_record_s::launch_config_s* lc);
+std::string SKIF_Lib_GetPlayDescription (app_record_s* pApp, app_record_s::launch_config_s* lc); // How Play starts the launch config (for its tooltips); empty for Custom games
 void DrawSpecialKContextMenu (app_record_s* pApp);
 void DrawCoverMenu           (void);
 void DrawIconMenu            (void);

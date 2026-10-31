@@ -486,7 +486,7 @@ struct app_record_s {
 
   virtual bool         RequiresValidExecutable (void) const               { return true; }   // Steam / Epic launch through their client
   virtual void         WhitelistForInjection   (launch_config_s* config);                     // app_record.cpp
-  virtual bool         PrefersInstantLaunch    (bool fromGameMenu, launch_config_s* config) const { UNREFERENCED_PARAMETER (fromGameMenu); return (config != nullptr && ! ClientCanLaunch (*config)); }
+  virtual bool         PrefersInstantLaunch    (bool viaPlatform, launch_config_s* config) const { UNREFERENCED_PARAMETER (viaPlatform); return (config != nullptr && ! ClientCanLaunch (*config)); }
   virtual bool         ClientCanLaunch         (const launch_config_s& lc) const { return (! lc.custom_skif && ! lc.custom_user && ! launch_configs.empty ( ) && lc.id == launch_configs.begin ( )->first); } // The store client can start this exact launch config (base: only the primary one); other configs launch instantly
   virtual void         Launch                  (const launch_context_s& ctx);                 // app_record.cpp: instant launch if requested, else nothing applicable
   void                 LaunchInstant           (const launch_context_s& ctx);                 // app_record.cpp: runs the executable directly

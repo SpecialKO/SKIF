@@ -925,7 +925,7 @@ SKIF_EA_IsClientInstalled (void)
 #pragma region Launching
 
 bool
-app_record_ea_s::PrefersInstantLaunch (bool fromGameMenu, launch_config_s* config) const
+app_record_ea_s::PrefersInstantLaunch (bool viaPlatform, launch_config_s* config) const
 {
   // Fallback if the EA app is not installed, or there is no offer ID to launch through it
   if (ea.offer_ids.empty ( ) || ! SKIF_EA_IsClientInstalled ( ))
@@ -935,7 +935,7 @@ app_record_ea_s::PrefersInstantLaunch (bool fromGameMenu, launch_config_s* confi
   if (config != nullptr && ! ClientCanLaunch (*config))
     return true;
 
-  return (! fromGameMenu && UsesInstantPlay (GetInstantPlayDefault ( ), config));
+  return (! viaPlatform && UsesInstantPlay (GetInstantPlayDefault ( ), config));
 }
 
 // Launch EA game through the EA app, unless an instant launch was requested

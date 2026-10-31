@@ -282,7 +282,7 @@ SKIF_GOG_IdentifyAssetPCGW (uint32_t app_id)
 #pragma region Launching
 
 bool
-app_record_gog_s::PrefersInstantLaunch (bool fromGameMenu, launch_config_s* config) const
+app_record_gog_s::PrefersInstantLaunch (bool viaPlatform, launch_config_s* config) const
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   extern bool GOGGalaxy_Installed;
@@ -295,7 +295,7 @@ app_record_gog_s::PrefersInstantLaunch (bool fromGameMenu, launch_config_s* conf
   if (config != nullptr && ! ClientCanLaunch (*config))
     return true;
 
-  return (! fromGameMenu && UsesInstantPlay (GetInstantPlayDefault ( ), config));
+  return (! viaPlatform && UsesInstantPlay (GetInstantPlayDefault ( ), config));
 }
 
 // Launch GOG Galaxy game (default for GOG games since 2024-01-05), unless an instant launch was requested

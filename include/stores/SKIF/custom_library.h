@@ -15,7 +15,7 @@ struct app_record_custom_s : app_record_store_s <app_record_custom_s, app_record
   using app_record_store_s::app_record_store_s;
 
   // Custom games always use an instant launch
-  bool        PrefersInstantLaunch    (bool fromGameMenu, launch_config_s* config) const override { UNREFERENCED_PARAMETER (fromGameMenu); UNREFERENCED_PARAMETER (config); return true; }
+  bool        PrefersInstantLaunch    (bool viaPlatform, launch_config_s* config) const override { UNREFERENCED_PARAMETER (viaPlatform); UNREFERENCED_PARAMETER (config); return true; }
 
   // Library UI (custom_library.cpp)
   std::wstring GetStoreAssetDirectory  (void) const override;

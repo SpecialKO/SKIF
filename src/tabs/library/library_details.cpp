@@ -686,24 +686,8 @@ DrawGameDetails_Play (app_record_s* pApp)
     app_record_s::launch_config_s*
       playConfig = pApp->GetDefaultLaunchConfig ( );
 
-    SKIF_ImGui_SetHoverText (SKIF_Lib_GetLaunchCommand (pApp, playConfig));
-
-    // Custom games are always started directly, so there is nothing to tell apart
-    if (playConfig != nullptr && pApp->store != app_record_s::Store::Custom)
-    {
-      // As LaunchGame ( ) decides it for the Play button (see also the rocket in the bottom bar)
-      std::string tip = (pApp->PrefersInstantLaunch (false, playConfig))
-                      ? std::string (_("Starts the game directly (Instant play)."))
-                      : F_("Starts the game through {0}.", pApp->store_utf8);
-
-      // The launch option, if it is not the platform's primary one
-      if (! pApp->launch_configs.empty ( ) && playConfig != &pApp->launch_configs.begin ( )->second)
-        tip += "\n" + F_("Launch option: {0}", playConfig->getDescriptionUTF8 ( ).empty ( )
-                                                   ? playConfig->getExecutableFileNameUTF8 ( )
-                                                   : playConfig->getDescriptionUTF8 ( ));
-
-      SKIF_ImGui_SetHoverTip (tip);
-    }
+    SKIF_ImGui_SetHoverText (SKIF_Lib_GetLaunchCommand   (pApp, playConfig));
+    SKIF_ImGui_SetHoverTip  (SKIF_Lib_GetPlayDescription (pApp, playConfig)); // Empty (none) for Custom games
   }
 
   if (loading || pApp->_status.running || pApp->IsUpdateBlockingLaunch ( ) || buttonPending)

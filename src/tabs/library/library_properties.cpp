@@ -502,11 +502,24 @@ public:
       return;
     }
 
+    // As in the list: Special K disabled / elevated service for the executable
+    auto _ServiceIcon = [&](const row_s& row) -> const char*
+    {
+      const int  svcIdx   = _FindService (_RowFullExe (row));
+      const bool blocked  = (svcIdx != -1 && (services [svcIdx].blocked || services [svcIdx].blockedPattern));
+      const bool elevated = (svcIdx != -1 && ! blocked && services [svcIdx].elevated);
+
+      return (blocked) ? (ICON_FA_LOCK "  ") : (elevated) ? (ICON_FA_USER_SHIELD "  ") : "";
+    };
+
     const int   effective = _PlayRow ( );
     std::string preview   = (effective != -1) ? _RowLabel (rows [effective]) : "";
 
     if (preview.empty ( ))
       preview = _("<no description>");
+
+    if (effective != -1)
+      preview = _ServiceIcon (rows [effective]) + preview;
 
     ImGui::SetNextItemWidth (-FLT_MIN);
 
@@ -533,6 +546,8 @@ public:
         // TRANSLATORS: {0} is the name of the platform's own launch option, which Play uses when no other is picked
         if (i == primaryRow)
           label = F_("{0} (primary)", label);
+
+        label = _ServiceIcon (row) + label;
 
         // The library can't use it (see IsIdentical ( ))
         const bool identical = row.IsIdentical ( );

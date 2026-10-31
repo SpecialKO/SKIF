@@ -101,7 +101,7 @@ struct app_record_ubisoft_s : app_record_store_s <app_record_ubisoft_s, app_reco
   // Launching (ubisoft_library.cpp)
   bool         isInstantPlayCompatible (void) const override { return true; }
   bool         RequiresValidExecutable (void) const override { return false; } // Launches through Ubisoft Connect
-  bool         PrefersInstantLaunch    (bool fromGameMenu, launch_config_s* config) const override;
+  bool         PrefersInstantLaunch    (bool viaPlatform, launch_config_s* config) const override;
   void         Launch                  (const launch_context_s& ctx) override;
   void         RefreshClientState      (DWORD dwTimeNow) override; // A download in progress is shown as updating
   ProcessMatch MatchProcess            (const wchar_t* wszExeFile, const wchar_t* wszExePath, DWORD dwExePathLen) override; // Also executables next to the primary one (stubs)
