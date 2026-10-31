@@ -1851,6 +1851,9 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
     ImGui::SetCursorPosX (ImGui::GetCursorPosX ( ) + (fAreaWidth - fContentWidth) / 2.0f);
     ImGui::BeginChild    ("###PropsColumn", ImVec2 (fContentWidth, 0.0f), ImGuiChildFlags_AutoResizeY, ImGuiWindowFlags_NoScrollWithMouse); // The mouse wheel scrolls the page
 
+    SKIF_ImGui_Spacing  ( );
+    SKIF_ImGui_Spacing  ( );
+
     // A bit more room between the rows, so they don't feel cramped
     ImGui::PushStyleVar (ImGuiStyleVar_ItemSpacing, ImVec2 (style.ItemSpacing.x, style.ItemSpacing.y + 6.0f * SKIF_ImGui_GlobalDPIScale));
 
