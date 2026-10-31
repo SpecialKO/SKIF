@@ -2,6 +2,7 @@
 #include <stores/xbox/xbox_library.h>
 #include <pugixml/src/pugixml.hpp>
 #include <wtypes.h>
+#include <shlwapi.h>
 #include <fstream>
 #include <filesystem>
 #include <mutex>
@@ -1004,19 +1005,27 @@ app_record_xbox_s::MatchProcess (const wchar_t* wszExeFile, const wchar_t* wszEx
   // The executable of any launch config (the primary one, or another launched instead). Compare the file name exactly,
   //   as a partial match would also match e.g. Game.exe against MyGame.exe. Called by SKIF_LibRefreshWorker: only reads the
   //     launch configs (getExecutableFileName ( ) would write to an empty one)
-  for (const auto& launch_cfg : launch_configs)
+  //
+  // Not for processes under a Steam library (\steamapps\), as the Steam copy of the same game often has an executable of the
+  //   same name, which would otherwise mark this one as running as well. The full path match below still applies.
+  const bool steamLibrary = (wszExePath != nullptr && dwExePathLen != 0 && StrStrIW (wszExePath, LR"(\steamapps\)") != nullptr);
+
+  if (! steamLibrary)
   {
-    const std::wstring& executable = launch_cfg.second.executable;
+    for (const auto& launch_cfg : launch_configs)
+    {
+      const std::wstring& executable = launch_cfg.second.executable;
 
-    // Not the validity flag: the paths under the virtual folder may not exist as such, which flags the launch config invalid
-    if (executable.empty ( ))
-      continue;
+      // Not the validity flag: the paths under the virtual folder may not exist as such, which flags the launch config invalid
+      if (executable.empty ( ))
+        continue;
 
-    const size_t        pos        = executable.find_last_of (LR"(\/)");
-    const wchar_t*      wszName    = executable.c_str ( ) + ((pos != std::wstring::npos) ? pos + 1 : 0);
+      const size_t        pos        = executable.find_last_of (LR"(\/)");
+      const wchar_t*      wszName    = executable.c_str ( ) + ((pos != std::wstring::npos) ? pos + 1 : 0);
 
-    if (_wcsicmp (wszName, wszExeFile) == 0)
-      return ProcessMatch::Running;
+      if (_wcsicmp (wszName, wszExeFile) == 0)
+        return ProcessMatch::Running;
+    }
   }
 
   return app_record_s::MatchProcess (wszExeFile, wszExePath, dwExePathLen);

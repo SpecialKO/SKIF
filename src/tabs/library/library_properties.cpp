@@ -369,8 +369,8 @@ public:
   PropertiesPage GetPage  (void) const override { return PropertiesPage::General; }
   int            GetOrder (void) const override { return 20; }
 
-  // The working copy, for PropertiesSection_LaunchOptions
-  const int*     GetInstantPlay (void) const { return &instantPlay; }
+  // The working copy, for PropertiesSection_LaunchOptions (its "Use Instant Play" on the primary launch option sets it)
+  int*           GetInstantPlay (void)       { return &instantPlay; }
 
   void Load (app_record_s& app) override
   {
@@ -504,7 +504,7 @@ class PropertiesSection_LaunchOptions : public IPropertySection
 {
 public:
   // gameInstantPlay_: the working copy of the game's Instant Play setting (PropertiesSection_LaunchBehavior), shown on the rows that use it
-  explicit PropertiesSection_LaunchOptions (const int* gameInstantPlay_) : gameInstantPlay (gameInstantPlay_) { }
+  explicit PropertiesSection_LaunchOptions (int* gameInstantPlay_) : gameInstantPlay (gameInstantPlay_) { }
 
   const char*    GetTitle (void) const override { return ""; }
   PropertiesPage GetPage  (void) const override { return PropertiesPage::Launch; }
@@ -608,6 +608,51 @@ public:
       rows.push_back (row);
     }
 
+    // Your own launch options identical to an earlier one (same executable, arguments and working directory; flagged by
+    //   vdf.cpp, so Steam only): the library hides them from the menus and can't use them as the default launch option.
+    //     Matched the same way as vdf.cpp does it, in the same order (the map is ordered by id, as the configs were flagged).
+    {
+      std::map <std::wstring, std::string> firstLabels; // Key -> name of the first launch config with it
+
+      for (auto& it : app.launch_configs)
+      {
+        app_record_s::launch_config_s& lc = it.second;
+
+        if (! lc.valid || ! lc.isExecutableFileNameValid ( ))
+          continue;
+
+        const std::wstring key = lc.getExecutableFileName ( ) + lc.getLaunchOptions ( ) + L"|" + lc.working_dir;
+
+        if (! lc.duplicate_exe_args)
+        {
+          firstLabels.emplace (key, (! lc.description.empty ( )) ? SK_WideCharToUTF8 (lc.description) : lc.getExecutableFileNameUTF8 ( ));
+          continue;
+        }
+
+        auto first = firstLabels.find (key);
+
+        if (first == firstLabels.end ( ) || app_record_s::GetLaunchSource (lc) != LaunchSource::User)
+          continue;
+
+        const app_record_s::launch_ref_s ref = app.MakeLaunchRef (lc);
+
+        for (auto& row : rows)
+        {
+          if (row.source != LaunchSource::User || ! row.identicalTo.empty ( ))
+            continue;
+
+          const app_record_s::launch_ref_s rowRef = _RowRef (row);
+
+          if (rowRef.args == ref.args && rowRef.desc == ref.desc && _stricmp (rowRef.exe.c_str ( ), ref.exe.c_str ( )) == 0)
+          {
+            row.identicalTo   = first->second;
+            row.identicalUser = row.user;
+            break;
+          }
+        }
+      }
+    }
+
     // The default launch config
     defaultOrig    = app.skif.default_launch;
     defaultRow     = _FindRow (defaultOrig);
@@ -659,7 +704,7 @@ public:
 
     SKIF_ImGui_PushDisableState (! canDuplicate);
     if (ImGui::Button (L_("Duplicate###PropsLaunchDuplicate")))
-      _Duplicate (selected, 0, false);
+      _Duplicate (selected);
     SKIF_ImGui_PopDisableState  (! canDuplicate);
     SKIF_ImGui_SetHoverTip ((canDuplicate || ! userReadable) ? _("Creates an editable copy of the selected launch option.") : rows [selected].duplicateBlocker.c_str ( ), false, true);
 
@@ -679,17 +724,19 @@ public:
 
     const bool isDefault       = (selected == defaultRow);
     const bool isImplicitDefault = (defaultRow == -1 && selected == primaryRow); // The primary one, used as no other is set
+    const bool isIdentical       = (! isDefault && rows [selected].IsIdentical ( )); // The library can't use it (Clear default stays possible)
 
     // Nothing to set for the primary launch config while no other one is the default: it is the default already
-    SKIF_ImGui_PushDisableState (isImplicitDefault);
-    if (ImGui::Button ((isDefault) ? L_("Clear default###PropsLaunchDefault") : LI_(ICON_FA_STAR, "Set as default###PropsLaunchDefault")) && ! isImplicitDefault)
+    SKIF_ImGui_PushDisableState (isImplicitDefault || isIdentical);
+    if (ImGui::Button ((isDefault) ? L_("Clear default###PropsLaunchDefault") : LI_(ICON_FA_STAR, "Set as default###PropsLaunchDefault")) && ! isImplicitDefault && ! isIdentical)
     {
       defaultRow  = (isDefault) ? -1 : selected;
       keepMissing = false;
     }
-    SKIF_ImGui_PopDisableState  (isImplicitDefault);
-    SKIF_ImGui_SetHoverTip ((isDefault) ? _("SKIF goes back to using the primary launch option of the game.")
-                                        : _("SKIF uses this launch option when the game is launched through the Play button."), false, true);
+    SKIF_ImGui_PopDisableState  (isImplicitDefault || isIdentical);
+    SKIF_ImGui_SetHoverTip ((isDefault)   ? _("SKIF goes back to using the primary launch option of the game.") :
+                            (isIdentical) ? _("This launch option is identical to another one, so it can't be the default until it is changed.")
+                                          : _("SKIF uses this launch option when the game is launched through the Play button."), false, true);
 
     ImGui::SameLine ( );
 
@@ -961,6 +1008,18 @@ private:
 
     // User rows: the lc_user.json entry being edited
     user_launch_config_s       user;
+
+    // User rows identical to another launch option when loaded (its name), and the entry as it was then: the warning
+    //   is shown until the executable, arguments or working directory are changed (checked again once saved)
+    std::string                identicalTo;
+    user_launch_config_s       identicalUser;
+
+    bool IsIdentical (void) const
+    {
+      return (! identicalTo.empty ( ) && user.exe  == identicalUser.exe
+                                      && user.args == identicalUser.args
+                                      && user.dir  == identicalUser.dir);
+    }
   };
 
   // Special K settings of an executable (as in the details panel), applied through a launch config that starts it
@@ -1065,7 +1124,7 @@ private:
   app_record_s::launch_ref_s         defaultOrig;                   // As loaded (db.json "DefaultLaunch")
   bool                               defaultMissing        = false; // defaultOrig is set but matches no row
   bool                               keepMissing           = true;  // Keep defaultOrig while it matches no row (until changed or cleared)
-  const int*                         gameInstantPlay       = nullptr; // Owned by PropertiesSection_LaunchBehavior
+  int*                               gameInstantPlay       = nullptr; // Owned by PropertiesSection_LaunchBehavior
   std::wstring                       installDir;
   std::string                        clientOptions;                 // Launch options set in the store client (Steam)
   std::string                        note;                          // Shown below the editor (auto-duplicate)
@@ -1224,8 +1283,8 @@ private:
     pickError.clear ( );
   }
 
-  // Copies a row into a new user row (Duplicate, or Instant Play on a read-only row). Returns the new row, or -1
-  int _Duplicate (int index, int instantPlay, bool forInstantPlay)
+  // Copies a row into a new user row (Duplicate). Returns the new row, or -1
+  int _Duplicate (int index)
   {
     const row_s& src = rows [index];
 
@@ -1255,18 +1314,12 @@ private:
         row.user.dir.clear ( );
     }
 
-    if (forInstantPlay)
-      row.user.instant_play = instantPlay;
-
     std::string label = _RowLabel (src);
     if (label.empty ( ))
       label = _("Launch option");
 
-    row.user.desc = _UniqueDescription ((forInstantPlay)
-                                          // TRANSLATORS: {0} is the name of the launch option that was copied
-                                          ? F_("{0} (Instant Play)", label)
-                                          // TRANSLATORS: {0} is the name of the launch option that was copied
-                                          : F_("{0} (copy)", label));
+    // TRANSLATORS: {0} is the name of the launch option that was copied
+    row.user.desc = _UniqueDescription (F_("{0} (copy)", label));
 
     rows.push_back (row);
 
@@ -1274,103 +1327,9 @@ private:
 
     selected = newIndex;
     pickError.clear ( );
-
-    if (! forInstantPlay)
-      note.clear ( );
+    note.clear      ( );
 
     return newIndex;
-  }
-
-  // Instant Play on a platform / lc.json launch option: those are read-only, so an editable copy is made instead
-  // The launch options set in the store client (Steam) as plain arguments: launching a platform config adds them, but
-  //   lc_user.json configs never get them, so an Instant Play copy carries them in its own arguments instead.
-  //   With %command%, only what follows it can be kept (dropped: what precedes it, e.g. another program).
-  static std::string _FoldClientOptions (const std::string& options, std::string& dropped)
-  {
-    auto _Trim = [](std::string str) -> std::string
-    {
-      const size_t first = str.find_first_not_of (" \t");
-      const size_t last  = str.find_last_not_of  (" \t");
-      return (first == std::string::npos) ? "" : str.substr (first, last - first + 1);
-    };
-
-    dropped.clear ( );
-
-    std::string lower = options;
-    std::transform (lower.begin ( ), lower.end ( ), lower.begin ( ), [](unsigned char c) { return static_cast <char> (std::tolower (c)); });
-
-    const std::string command = "%command%";
-    const size_t      pos     = lower.find (command);
-
-    if (pos == std::string::npos)
-      return _Trim (options);
-
-    dropped = _Trim (options.substr (0, pos));
-
-    // SKIF %COMMAND% (the launcher mode of SKIF itself) is not needed, as SKIF does the launching
-    if (lower.rfind ("skif", 0) == 0 && (dropped.length ( ) == 4 || std::isspace (static_cast <unsigned char> (dropped [4]))))
-      dropped.clear ( );
-
-    return _Trim (options.substr (pos + command.length ( )));
-  }
-
-  void _InstantPlayCopy (int index)
-  {
-    const row_s       src   = rows [index];
-    const std::string label = _RowLabel (src);
-
-    // Only launches of the game's own launch configs get the client's launch options
-    std::string dropped,
-                folded  = (src.source == app_record_s::LaunchSource::Platform && ! clientOptions.empty ( ))
-                        ? _FoldClientOptions (clientOptions, dropped) : "";
-
-    std::string args    = src.args;
-
-    if (! folded.empty ( ))
-      args = (args.empty ( )) ? folded : args + " " + folded;
-
-    // A copy made before
-    for (int i = 0; i < static_cast <int> (rows.size ( )); i++)
-    {
-      const row_s& row = rows [i];
-
-      if (row.source == app_record_s::LaunchSource::User && row.user.instant_play == 1 &&
-          row.user.args == args && _SamePath (_UserFullExe (row.user), SK_UTF8ToWideChar (src.fullExe)))
-      {
-        selected = i;
-        // TRANSLATORS: {0} is the name of the copy, {1} the name of the launch option it is a copy of
-        note     = F_("\"{0}\" is already a copy of \"{1}\" with Instant Play.", row.user.desc, label);
-        return;
-      }
-    }
-
-    const int  effectiveDefault = (defaultRow != -1) ? defaultRow : primaryRow;
-    const bool wasDefault       = (index == effectiveDefault);
-    const int  newIndex         = _Duplicate (index, 1, true);
-
-    if (newIndex == -1)
-      return;
-
-    rows [newIndex].user.args = args;
-
-    // Otherwise the Play button would keep using the original without Instant Play
-    if (wasDefault)
-    {
-      defaultRow  = newIndex;
-      keepMissing = false;
-    }
-
-    note = F_("Created an editable copy of \"{0}\" with Instant Play. The original launch option stays unchanged.", label);
-
-    if (wasDefault)
-      note += std::string (" ") + _("The copy is now the default launch option.");
-
-    if (! folded.empty ( ))
-      note += std::string (" ") + _("The launch options set in the platform client were added to its arguments.");
-
-    // TRANSLATORS: %command% is the placeholder of Steam's launch options, keep it as it is; {0} is what came before it
-    if (! dropped.empty ( ))
-      note += " " + F_("The part before %command% ({0}) could not be copied.", dropped);
   }
 
   // Clipboard sharing of your own launch options (the lc_user.json format)
@@ -1492,6 +1451,15 @@ private:
   void _DrawUserRow (app_record_s& app, row_s& row)
   {
     user_launch_config_s& user = row.user;
+
+    if (row.IsIdentical ( ))
+    {
+      ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
+      ImGui::SameLine    ( );
+      // TRANSLATORS: {0} is the name of the other launch option
+      SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning),
+        F_("Identical to \"{0}\" (same executable, arguments and working directory). It is hidden from the menus and can't be the default launch option until it is changed.", row.identicalTo).c_str ( ));
+    }
 
     SKIF_ImGui_PushDisableState (! userReadable);
 
@@ -1689,18 +1657,23 @@ private:
         else
           ImGui::TextDisabled ("%s", F_("Game setting ({0})", _GameInstantPlayName ( )).c_str ( ));
 
-        ImGui::SameLine ( );
+        // This launch option follows the game's Instant Play setting (General), unless lc.json sets its own: offered while
+        //   it doesn't use Instant Play, as setting the game's setting to Always (a copy would be identical to it, see vdf.cpp)
+        const int  gameValue = (gameInstantPlay != nullptr) ? *gameInstantPlay : 0;
+        const bool usesIP    = (gameValue != 0) ? (gameValue == 1) : instantPlayGlobal;
 
-        const bool disabled = (! userReadable || ! row.duplicateBlocker.empty ( ));
+        if (row.instantPlay == 0 && ! usesIP && gameInstantPlay != nullptr)
+        {
+          ImGui::SameLine ( );
 
-        SKIF_ImGui_PushDisableState (disabled);
-        if (ImGui::SmallButton (LI_(ICON_FA_ROCKET, "Use Instant Play###PropsLaunchROInstant")))
-          _InstantPlayCopy (index);
-        SKIF_ImGui_PopDisableState  (disabled);
+          if (ImGui::SmallButton (LI_(ICON_FA_ROCKET, "Use Instant Play###PropsLaunchROInstant")))
+          {
+            *gameInstantPlay = 1;
+            note = _("The game's Instant Play setting (above) is now set to Always, which this launch option follows. Save to apply.");
+          }
 
-        SKIF_ImGui_SetHoverTip ((! row.duplicateBlocker.empty ( )) ? row.duplicateBlocker.c_str ( )
-                                : _("Creates an editable copy of this launch option among your own,\n"
-                                    "set to always use Instant Play. The original stays unchanged."), false, true);
+          SKIF_ImGui_SetHoverTip (_("Sets the game's Instant Play setting to Always, which this launch option follows."), false, true);
+        }
       }
     }
 

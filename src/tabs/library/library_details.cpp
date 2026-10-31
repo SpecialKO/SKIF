@@ -679,9 +679,32 @@ DrawGameDetails_Play (app_record_s* pApp)
   if (buttonPending)
     SKIF_ImGui_SetHoverTip (_("Please finish the ongoing mod installation first."));
 
-  // The command line of the launch config Play uses (the default one), as for Play in the game's context menu
-  else if (! buttonInstall)
-    SKIF_ImGui_SetHoverText (SKIF_Lib_GetLaunchCommand (pApp, pApp->GetDefaultLaunchConfig ( )));
+  // Only built while hovered: the command line of the launch config Play uses (the default one, as for Play in the game's
+  //   context menu) in the status bar, and how it is launched in the tooltip
+  else if (! buttonInstall && ImGui::IsItemHovered ( ))
+  {
+    app_record_s::launch_config_s*
+      playConfig = pApp->GetDefaultLaunchConfig ( );
+
+    SKIF_ImGui_SetHoverText (SKIF_Lib_GetLaunchCommand (pApp, playConfig));
+
+    // Custom games are always started directly, so there is nothing to tell apart
+    if (playConfig != nullptr && pApp->store != app_record_s::Store::Custom)
+    {
+      // As LaunchGame ( ) decides it for the Play button (see also the rocket in the bottom bar)
+      std::string tip = (pApp->PrefersInstantLaunch (false, playConfig))
+                      ? std::string (_("Starts the game directly (Instant play)."))
+                      : F_("Starts the game through {0}.", pApp->store_utf8);
+
+      // The launch option, if it is not the platform's primary one
+      if (! pApp->launch_configs.empty ( ) && playConfig != &pApp->launch_configs.begin ( )->second)
+        tip += "\n" + F_("Launch option: {0}", playConfig->getDescriptionUTF8 ( ).empty ( )
+                                                   ? playConfig->getExecutableFileNameUTF8 ( )
+                                                   : playConfig->getDescriptionUTF8 ( ));
+
+      SKIF_ImGui_SetHoverTip (tip);
+    }
+  }
 
   if (loading || pApp->_status.running || pApp->IsUpdateBlockingLaunch ( ) || buttonPending)
   {
@@ -729,6 +752,33 @@ DrawGameDetails_Play (app_record_s* pApp)
   }
 }
 
+
+// Whether a blacklist pattern (Settings tab) matches the executable of a launch config. The details panel asks every frame,
+//   so the result is kept until the executable or the committed blacklist changes (blacklistRevision): _TestUserList ( )
+//     matches the path against every pattern, and the built-in list, each time
+static bool
+SKIF_Lib_IsBlacklistedByPattern (app_record_s::launch_config_s* lc)
+{
+  static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
+
+  static std::wstring cachedPath;
+  static int          cachedRevision = -1;
+  static bool         cachedResult   = false;
+
+  if (lc == nullptr || ! lc->isExecutableFullPathValid ( ))
+    return false;
+
+  std::wstring path = lc->getExecutableFullPath ( );
+
+  if (cachedRevision != _inject.blacklistRevision || cachedPath != path)
+  {
+    cachedRevision = _inject.blacklistRevision;
+    cachedResult   = _inject._TestUserList (SK_WideCharToUTF8 (path).c_str ( ), false);
+    cachedPath     = std::move (path);
+  }
+
+  return cachedResult;
+}
 
 // Details panel, bottom bar: whether Special K is disabled for the default launch config (changed in Properties), or unavailable
 static void
@@ -839,16 +889,16 @@ DrawGameDetails_LaunchBar (app_record_s* pApp)
     // Special K disabled, or an elevated service (a blocked executable does not use the service, so never both)
     if (! defaultLocal)
     {
-      const bool blacklisted        = defaultLaunchConfig->isBlacklisted ( );
-      const bool blacklistedPattern = defaultLaunchConfig->isExecutableFullPathValid ( ) &&
-                                      _inject._TestUserList (defaultLaunchConfig->getExecutableFullPathUTF8 ( ).c_str ( ), false);
+      const bool blacklisted        = defaultLaunchConfig->isBlacklisted ( );             // Cached by the launch config
+      const bool blacklistedPattern = SKIF_Lib_IsBlacklistedByPattern (defaultLaunchConfig); // Cached above
 
       if (blacklisted || blacklistedPattern)
       {
         if (_RightIconButton (ICON_FA_LOCK "###SKDisabledIndicator", ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning)))
           _OpenProperties (PropertiesPage::Launch);
 
-        SKIF_ImGui_SetHoverText (defaultLaunchConfig->getExecutableFullPathUTF8 ( ).c_str ( ));
+        if (ImGui::IsItemHovered ( ))
+          SKIF_ImGui_SetHoverText (defaultLaunchConfig->getExecutableFullPathUTF8 ( ).c_str ( ));
 
         if (blacklistedPattern)
           SKIF_ImGui_SetHoverTip (_("Special K is disabled through a blacklist pattern in the Settings tab."));
@@ -862,7 +912,9 @@ DrawGameDetails_LaunchBar (app_record_s* pApp)
         if (_RightIconButton (ICON_FA_USER_SHIELD "###SKElevatedIndicator", ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled)))
           _OpenProperties (PropertiesPage::Launch);
 
-        SKIF_ImGui_SetHoverText (defaultLaunchConfig->getExecutableFullPathUTF8 ( ).c_str ( ));
+        if (ImGui::IsItemHovered ( ))
+          SKIF_ImGui_SetHoverText (defaultLaunchConfig->getExecutableFullPathUTF8 ( ).c_str ( ));
+
         SKIF_ImGui_SetHoverTip  (_("The injection service is started elevated for the default launch option.\n"
                                    "Click to change it in Properties."));
       }
@@ -878,12 +930,15 @@ DrawGameDetails_LaunchBar (app_record_s* pApp)
       if (_RightIconButton (ICON_FA_ROCKET "###InstantPlayIndicator", ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled)))
         _OpenProperties ((notByClient) ? PropertiesPage::Launch : PropertiesPage::General);
 
-      SKIF_ImGui_SetHoverText (SKIF_Lib_GetLaunchCommand (pApp, defaultLaunchConfig));
-      SKIF_ImGui_SetHoverTip  (std::string ((notByClient) ? _("Play uses Instant play, as the platform cannot start the default launch option.")
+      if (ImGui::IsItemHovered ( ))
+      {
+        SKIF_ImGui_SetHoverText (SKIF_Lib_GetLaunchCommand (pApp, defaultLaunchConfig));
+        SKIF_ImGui_SetHoverTip  (std::string ((notByClient) ? _("Play uses Instant play, as the platform cannot start the default launch option.")
                                                           : _("Play uses Instant play for this game."))
                                + "\n\n" +
                                _("Skips the regular platform launch process for the game,\n"
                                  "including steps such as cloud saves synchronization."));
+      }
     }
   }
 
