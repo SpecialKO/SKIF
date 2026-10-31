@@ -25,7 +25,7 @@
 // Last, as it defines short macros such as _ ( )
 #include <utility/l10n.h>
 
-// The games list: categories, entries, selection, icon workers (moved verbatim from SKIF_UI_Tab_DrawLibrary)
+// The games list: categories, entries, selection, icon workers (moved from SKIF_UI_Tab_DrawLibrary; rows clipped since 2026-10-31)
 void
 DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop3, ImVec2& fTop3ScreenPos)
 {
@@ -144,6 +144,237 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
 
   bool categoryMenuOpened = false;
 
+  // Rows are drawn through ImGuiListClipper, one section at a time: the pinned games on top, and then each expanded
+  //   category. The rows of a section are collected while walking the library, and drawn once the section ends (before
+  //     the next category header, before switching from the pinned games to the rest, and after the last game). Rows
+  //       out of view are not submitted, except the selected game and the game found by type-to-search: their rows act
+  //         on their own (scroll to the game, activate its row; see sort_changed and search_selection). The clipper
+  //           itself keeps the row under keyboard / gamepad navigation, and the rows a navigation move goes to.
+  //  All rows of a section have the same height (the icon), which the clipper measures from the first row.
+  static DWORD timeClicked = 0;
+
+  static std::vector <app_record_s*> sectionRows; // Static to keep its memory between frames
+  sectionRows.clear ( );
+
+  // One row of the list: the icon and the title (Selectable)
+  auto _DrawGameRow = [&](app_record_s* rec)
+  {
+    bool selected = (selection.game == rec->GetKey ( ));
+    bool change   = false;
+
+    //if (_registry._TouchDevice)
+    //  ImGui::SetCursorPosY (ImGui::GetCursorPosY() + 15.0f);
+
+    float fOriginalY =
+      ImGui::GetCursorPosY ();
+
+
+    // Start Icon + Selectable row
+
+    ImGui::BeginGroup      ();
+    ImGui::PushID          (rec->ImGuiPushID.c_str());
+
+    if (_registry.bFadeCovers)
+      ImGui::PushStyleVar (ImGuiStyleVar_Alpha, fAlphaList);
+
+    SKIF_ImGui_OptImage    (rec->tex_icon.iWorker == 2 ? rec->tex_icon.texture.p : nullptr,
+                              ImVec2 ( _ICON_HEIGHT,
+                                       _ICON_HEIGHT )
+                            );
+
+    change |=
+      _HandleItemSelection (rec, true);
+
+    ImGui::SameLine        ();
+
+    ImVec4 _color =
+      ( rec->_status.updating != 0x0 )
+                  ? ImVec4 (ImColor::HSV (0.6f, .6f, 1.f)) :
+      ( rec->_status.running  != 0x0 )
+                  ? ImVec4 (ImColor::HSV (0.3f, 1.f, 1.f)) :
+                    ImGui::GetStyleColorVec4(ImGuiCol_Text);
+
+    // Game Title
+    ImGui::PushStyleColor  (ImGuiCol_Text, _color);
+    ImGui::PushStyleColor  (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
+    SKIF_ImGui_SelectableVAligned (rec->ImGuiLabelID.c_str(), rec->names.normal.c_str(), &selected, ImGuiSelectableFlags_None, ImVec2(maxWidth, _ICON_HEIGHT));
+    ImGui::PopStyleColor   (2);
+
+    if (_registry.bFadeCovers)
+      ImGui::PopStyleVar ( ); // -ImGuiStyleVar_Alpha
+
+    // Handle double click on a game row
+    if ( ImGui::IsItemHovered ( ) && pApp != nullptr && pApp->id != SKIF_STEAM_APPID && ! pApp->_status.running && ! pApp->IsUpdateBlockingLaunch ( ) )
+    {
+      if ( ImGui::IsMouseDoubleClicked (ImGuiMouseButton_Left) &&
+           timeClicked != 0 && (item_clicked.game == pApp->GetKey ( )))
+      {
+        timeClicked       = 0;
+        item_clicked.reset ( );
+        launchGame = true;
+      }
+
+      else if (ImGui::IsMouseClicked (ImGuiMouseButton_Left) )
+      {
+        timeClicked        = SKIF_Util_timeGetTime ( );
+        item_clicked.game  = pApp->GetKey ( );
+      }
+
+      else if (timeClicked + 500 < SKIF_Util_timeGetTime ( ))
+      {
+        // Reset after 500 ms
+        timeClicked = 0;
+        item_clicked.reset ( );
+      }
+    }
+
+    // Show full title in tooltip if the title spans longer than the width of the Selectable row
+    if (ImGui::IsItemHovered ( ) && ImGui::CalcTextSize  (rec->names.normal.c_str()).x >= (maxWidth - ImGui::GetStyle().ItemSpacing.x))
+      SKIF_ImGui_SetHoverTip (rec->names.normal);
+
+    // Handle search input
+    if (search_selection.game == rec->GetKey ( ))
+    {
+      // Set focus on current row
+      ImGui::ActivateItemByID (ImGui::GetID(rec->ImGuiLabelID.c_str()));
+      ImGui::SetFocusID       (ImGui::GetID(rec->ImGuiLabelID.c_str()), ImGui::GetCurrentWindow());
+
+      // Clear stuff
+      selection.game         = { };
+      selection.category     = "Games";
+      search_selection.game  = { };
+      search_selection.category = "";
+      change                 = true;
+    }
+
+    change |=
+      _HandleItemSelection (rec);
+
+    ImGui::SetCursorPosY   (fOriginalY - ImGui::GetStyle ().ItemSpacing.y);
+
+    ImGui::PopID           ();
+    ImGui::EndGroup        ();
+
+    // End Icon + Selectable row
+
+
+    if ( rec->GetKey ( ) == selection.game &&
+                   sort_changed )
+    {
+      sort_changed = false;
+
+      // Special handling for Special K to reset the scroll pos
+      if (isSpecialK)
+      {
+        selection.reset ( );
+        selection.game     = { };
+        selection.category = "Games";
+        change             = true;
+      }
+
+      // The list was re-sorted: only keep the selected game in view. Going through `change` would treat it as a newly
+      //   selected game, reloading its details (pApp->loading empties an open context menu, closing its submenus) and
+      //     activating its row
+      else
+      {
+        selection.category = (rec->skif.pinned > 50) ? "Favorites (pinned)" // Same workaround as below
+                                                            : GetEffectiveCategory (rec);
+
+        if (! ImGui::IsItemVisible ( ))
+          ImGui::SetScrollHereY (0.5f);
+      }
+    }
+
+    if (change)
+    {
+      update = (selection.game != rec->GetKey ( ));
+
+      selection.game               =    rec->GetKey ( );
+      selection.category           = (  rec->skif.pinned > 50)
+                                   ?   "Favorites (pinned)" // Workaround to not expand Favorites tab on launch
+                                   :    GetEffectiveCategory (rec);
+      selected                     =    true;
+
+      // Only update the last selected value if we're not in hidden view
+      if (! _registry._LibraryHidden)
+      {
+        SetLastSelectedGame (selection.game);
+      }
+
+      if (update)
+      {
+        timeClicked = SKIF_Util_timeGetTime ( );
+        item_clicked.game  = selection.game;
+
+        rec->_status.invalidate ();
+
+        if (! ImGui::IsMouseClicked (ImGuiMouseButton_Right))
+        {
+          // Activate the row of the current game
+          ImGui::ActivateItemByID (ImGui::GetID (rec->ImGuiLabelID.c_str()));
+
+          if (! ImGui::IsItemVisible    (    ))
+            ImGui::SetScrollHereY       (0.5f);
+
+          //ImGui::SetKeyboardFocusHere (    ); // Disabled after ImGui update since this set the keyboard focus on the next item
+
+          // This fixes ImGui not allowing the GameContextMenu to be opened on first search
+          //   without an additional keyboard input
+          ImGuiContext& g = *ImGui::GetCurrentContext();
+          g.NavCursorVisible = true;
+        }
+
+        //ImGui::SetFocusID(ImGui::GetID(app.first.c_str()), ImGui::GetCurrentWindow());
+      }
+    }
+
+    if (selected)
+    {
+      static bool  _horizon = _registry._LibHorizonMode;
+      static float _scale   = SKIF_ImGui_GlobalDPIScale; // The DPI scale of the main window, as we are within it
+
+      // This allows the scroll to reset on DPI changes, to keep the selected item on-screen
+      if (SKIF_ImGui_GlobalDPIScale != _scale ||
+          _registry._LibHorizonMode != _horizon)
+      {
+        ImGui::SetScrollHereY (0.5f);
+        _horizon = _registry._LibHorizonMode;
+        _scale   = SKIF_ImGui_GlobalDPIScale;
+      }
+    }
+
+    // Stream the icon in once the game is visible in the list (up to 8 icon workers at once). Not until SKIF has
+    //   started: the icons can't be created before the hardware device exists (created after the first present), and
+    //   starting the workers would only delay the first present.
+    if (SKIF_StartupFinished && ImGui::IsItemVisible ( ) && rec->tex_icon.iWorker == 0 && _art.CanStartIconWorker ( ))
+      _art.StartIconWorker (rec);
+  };
+
+  auto _DrawSectionRows = [&](void)
+  {
+    if (sectionRows.empty ( ))
+      return;
+
+    ImGuiListClipper clipper;
+    clipper.Begin ((int)sectionRows.size ( )); // Row height measured from the first row
+
+    for (int i = 0; i < (int)sectionRows.size ( ); i++)
+    {
+      const app_key_s key = sectionRows[i]->GetKey ( );
+
+      if (key == selection.game || key == search_selection.game)
+        clipper.IncludeItemByIndex (i);
+    }
+
+    while (clipper.Step ( ))
+      for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++)
+        _DrawGameRow (sectionRows [i]);
+
+    clipper.End ( );
+
+    sectionRows.clear ( );
+  };
+
   // Populate the list of games with all recognized games
   for (auto& app : _games.GetApps())
   {
@@ -168,6 +399,9 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
       pinned_top++;
     else if (pinned_top > 0)
     {
+      // The pinned games on top are done
+      _DrawSectionRows ( );
+
       if (! _registry.bUIBorders)
       {
         ImGui::SetCursorPosY (ImFloor (
@@ -203,6 +437,9 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
 
       if (tmpCategory != current_category)
       {
+        // The previous category is done
+        _DrawSectionRows ( );
+
         auto it = std::find_if(_registry.vecCategories.begin(), _registry.vecCategories.end(), [&](const SKIF_RegistrySettings::category_s& category) { return category.name == tmpCategory; });
 
         // Always expand a category if a filter is active or the selected game was changed
@@ -306,200 +543,14 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
         continue;
     }
 
-    bool selected = (selection.game == app.second->GetKey ( ));
-    bool change   = false;
-
+    // Its client state (running, updating) is refreshed even while the row is out of view, as before clipping
     app.second->RefreshClientState (current_time);
 
-    //if (_registry._TouchDevice)
-    //  ImGui::SetCursorPosY (ImGui::GetCursorPosY() + 15.0f);
-
-    float fOriginalY =
-      ImGui::GetCursorPosY ();
-
-
-    // Start Icon + Selectable row
-
-    ImGui::BeginGroup      ();
-    ImGui::PushID          (app.second->ImGuiPushID.c_str());
-
-    if (_registry.bFadeCovers)
-      ImGui::PushStyleVar (ImGuiStyleVar_Alpha, fAlphaList);
-
-    SKIF_ImGui_OptImage    (app.second->tex_icon.iWorker == 2 ? app.second->tex_icon.texture.p : nullptr,
-                              ImVec2 ( _ICON_HEIGHT,
-                                       _ICON_HEIGHT )
-                            );
-
-    change |=
-      _HandleItemSelection (app.second.get ( ), true);
-
-    ImGui::SameLine        ();
-
-    ImVec4 _color =
-      ( app.second->_status.updating != 0x0 )
-                  ? ImVec4 (ImColor::HSV (0.6f, .6f, 1.f)) :
-      ( app.second->_status.running  != 0x0 )
-                  ? ImVec4 (ImColor::HSV (0.3f, 1.f, 1.f)) :
-                    ImGui::GetStyleColorVec4(ImGuiCol_Text);
-
-    // Game Title
-    ImGui::PushStyleColor  (ImGuiCol_Text, _color);
-    ImGui::PushStyleColor  (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
-    SKIF_ImGui_SelectableVAligned (app.second->ImGuiLabelID.c_str(), app.second->names.normal.c_str(), &selected, ImGuiSelectableFlags_None, ImVec2(maxWidth, _ICON_HEIGHT));
-    ImGui::PopStyleColor   (2);
-
-    if (_registry.bFadeCovers)
-      ImGui::PopStyleVar ( ); // -ImGuiStyleVar_Alpha
-
-    static DWORD    timeClicked = 0;
-
-    // Handle double click on a game row
-    if ( ImGui::IsItemHovered ( ) && pApp != nullptr && pApp->id != SKIF_STEAM_APPID && ! pApp->_status.running && ! pApp->IsUpdateBlockingLaunch ( ) )
-    {
-      if ( ImGui::IsMouseDoubleClicked (ImGuiMouseButton_Left) &&
-           timeClicked != 0 && (item_clicked.game == pApp->GetKey ( )))
-      {
-        timeClicked       = 0;
-        item_clicked.reset ( );
-        launchGame = true;
-      }
-
-      else if (ImGui::IsMouseClicked (ImGuiMouseButton_Left) )
-      {
-        timeClicked        = SKIF_Util_timeGetTime ( );
-        item_clicked.game  = pApp->GetKey ( );
-      }
-
-      else if (timeClicked + 500 < SKIF_Util_timeGetTime ( ))
-      {
-        // Reset after 500 ms
-        timeClicked = 0;
-        item_clicked.reset ( );
-      }
-    }
-
-    // Show full title in tooltip if the title spans longer than the width of the Selectable row
-    if (ImGui::IsItemHovered ( ) && ImGui::CalcTextSize  (app.second->names.normal.c_str()).x >= (maxWidth - ImGui::GetStyle().ItemSpacing.x))
-      SKIF_ImGui_SetHoverTip (app.second->names.normal);
-
-    // Handle search input
-    if (search_selection.game == app.second->GetKey ( ))
-    {
-      // Set focus on current row
-      ImGui::ActivateItemByID (ImGui::GetID(app.second->ImGuiLabelID.c_str()));
-      ImGui::SetFocusID       (ImGui::GetID(app.second->ImGuiLabelID.c_str()), ImGui::GetCurrentWindow());
-
-      // Clear stuff
-      selection.game         = { };
-      selection.category     = "Games";
-      search_selection.game  = { };
-      search_selection.category = "";
-      change                 = true;
-    }
-
-    change |=
-      _HandleItemSelection (app.second.get ( ));
-
-    ImGui::SetCursorPosY   (fOriginalY - ImGui::GetStyle ().ItemSpacing.y);
-
-    ImGui::PopID           ();
-    ImGui::EndGroup        ();
-
-    // End Icon + Selectable row
-
-
-    if ( app.second->GetKey ( ) == selection.game &&
-                   sort_changed )
-    {
-      sort_changed = false;
-
-      // Special handling for Special K to reset the scroll pos
-      if (isSpecialK)
-      {
-        selection.reset ( );
-        selection.game     = { };
-        selection.category = "Games";
-        change             = true;
-      }
-
-      // The list was re-sorted: only keep the selected game in view. Going through `change` would treat it as a newly
-      //   selected game, reloading its details (pApp->loading empties an open context menu, closing its submenus) and
-      //     activating its row
-      else
-      {
-        selection.category = (app.second->skif.pinned > 50) ? "Favorites (pinned)" // Same workaround as below
-                                                            : GetEffectiveCategory (app.second.get ( ));
-
-        if (! ImGui::IsItemVisible ( ))
-          ImGui::SetScrollHereY (0.5f);
-      }
-    }
-
-    if (change)
-    {
-      update = (selection.game != app.second->GetKey ( ));
-
-      selection.game               =    app.second->GetKey ( );
-      selection.category           = (  app.second->skif.pinned > 50)
-                                   ?   "Favorites (pinned)" // Workaround to not expand Favorites tab on launch
-                                   :    GetEffectiveCategory (app.second.get ( ));
-      selected                     =    true;
-
-      // Only update the last selected value if we're not in hidden view
-      if (! _registry._LibraryHidden)
-      {
-        SetLastSelectedGame (selection.game);
-      }
-
-      if (update)
-      {
-        timeClicked = SKIF_Util_timeGetTime ( );
-        item_clicked.game  = selection.game;
-
-        app.second->_status.invalidate ();
-
-        if (! ImGui::IsMouseClicked (ImGuiMouseButton_Right))
-        {
-          // Activate the row of the current game
-          ImGui::ActivateItemByID (ImGui::GetID (app.second->ImGuiLabelID.c_str()));
-
-          if (! ImGui::IsItemVisible    (    ))
-            ImGui::SetScrollHereY       (0.5f);
-
-          //ImGui::SetKeyboardFocusHere (    ); // Disabled after ImGui update since this set the keyboard focus on the next item
-
-          // This fixes ImGui not allowing the GameContextMenu to be opened on first search
-          //   without an additional keyboard input
-          ImGuiContext& g = *ImGui::GetCurrentContext();
-          g.NavCursorVisible = true;
-        }
-
-        //ImGui::SetFocusID(ImGui::GetID(app.first.c_str()), ImGui::GetCurrentWindow());
-      }
-    }
-
-    if (selected)
-    {
-      static bool  _horizon = _registry._LibHorizonMode;
-      static float _scale   = SKIF_ImGui_GlobalDPIScale; // The DPI scale of the main window, as we are within it
-
-      // This allows the scroll to reset on DPI changes, to keep the selected item on-screen
-      if (SKIF_ImGui_GlobalDPIScale != _scale ||
-          _registry._LibHorizonMode != _horizon)
-      {
-        ImGui::SetScrollHereY (0.5f);
-        _horizon = _registry._LibHorizonMode;
-        _scale   = SKIF_ImGui_GlobalDPIScale;
-      }
-    }
-
-    // Stream the icon in once the game is visible in the list (up to 8 icon workers at once). Not until SKIF has
-    //   started: the icons can't be created before the hardware device exists (created after the first present), and
-    //   starting the workers would only delay the first present.
-    if (SKIF_StartupFinished && ImGui::IsItemVisible ( ) && app.second->tex_icon.iWorker == 0 && _art.CanStartIconWorker ( ))
-      _art.StartIconWorker (app.second.get ( ));
+    sectionRows.push_back (app.second.get ( ));
   }
+
+  // The last section
+  _DrawSectionRows ( );
 
   if (apply_header_state > 0)
   {

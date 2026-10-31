@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-10-31 13:50+0100\n"
+"POT-Creation-Date: 2026-10-31 14:20+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1321,26 +1321,26 @@ msgstr ""
 msgid "Loading games..."
 msgstr ""
 
-#: src/tabs/library/library_list.cpp:227
+#: src/tabs/library/library_list.cpp:464
 #: src/tabs/library/library_menus.cpp:701
 msgctxt "category"
 msgid "Favorites"
 msgstr ""
 
 #. TRANSLATORS: The default category of the library
-#: src/tabs/library/library_list.cpp:228
+#: src/tabs/library/library_list.cpp:465
 #: src/tabs/library/library_properties.cpp:243
 #: src/tabs/library/library_properties.cpp:245
 msgctxt "category"
 msgid "Games"
 msgstr ""
 
-#: src/tabs/library/library_list.cpp:257
+#: src/tabs/library/library_list.cpp:494
 #: src/tabs/library/library_menus.cpp:790
 msgid "Rename"
 msgstr ""
 
-#: src/tabs/library/library_list.cpp:265
+#: src/tabs/library/library_list.cpp:502
 #: src/tabs/library/library_menus.cpp:797
 #: src/tabs/library/library_menus.cpp:916
 #: src/tabs/library/library_properties.cpp:651
@@ -1349,15 +1349,15 @@ msgstr ""
 msgid "Remove"
 msgstr ""
 
-#: src/tabs/library/library_list.cpp:277
+#: src/tabs/library/library_list.cpp:514
 msgid "Expand all"
 msgstr ""
 
-#: src/tabs/library/library_list.cpp:285
+#: src/tabs/library/library_list.cpp:522
 msgid "Collapse all"
 msgstr ""
 
-#: src/tabs/library/library_list.cpp:293
+#: src/tabs/library/library_list.cpp:530
 msgid "Remember collapsible state"
 msgstr ""
 
