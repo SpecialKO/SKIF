@@ -3224,3 +3224,234 @@ SKIF_ImGui_AprilFools_Process (void)
 
   return true;
 }
+
+#pragma region SKIF_ImGui_FilterHistory
+
+bool
+SKIF_ImGui_FilterHistory::Contains (const char* text) const
+{
+  if (_entries == nullptr || text == nullptr)
+    return false;
+
+  for (const auto& entry : *_entries)
+    if (_stricmp (entry.c_str(), text) == 0)
+      return true;
+
+  return false;
+}
+
+void
+SKIF_ImGui_FilterHistory::Add (const std::string& filter)
+{
+  if (_entries == nullptr || filter.empty())
+    return;
+
+  // Filtering is case-insensitive, so treat searches differing only in case as the same one
+  std::erase_if (*_entries, [&](const std::string& entry) {
+    return _stricmp (entry.c_str(), filter.c_str()) == 0;
+  });
+
+  _entries->insert (_entries->begin(), filter);
+
+  if (_entries->size() > _max)
+    _entries->resize (_max);
+
+  if (_save != nullptr)
+  {
+    std::vector <std::wstring> wEntries;
+    wEntries.reserve (_entries->size());
+    for (const auto& entry : *_entries)
+      wEntries.push_back (SK_UTF8ToWideChar (entry));
+
+    _save (wEntries);
+  }
+}
+
+// Up/Down in the field steps through the history
+//   Keyboard: ImGui reports Up/Down arrows through ImGuiInputTextFlags_CallbackHistory
+//   Gamepad:  ImGui does not, so D-pad/left stick presses are queued in _step and applied here
+//               through ImGuiInputTextFlags_CallbackAlways (the buffer of an active field can only be changed here)
+int
+SKIF_ImGui_FilterHistory::_Callback (ImGuiInputTextCallbackData* data)
+{
+  auto* self = static_cast <SKIF_ImGui_FilterHistory*> (data->UserData);
+
+  if (self == nullptr || self->_entries == nullptr || self->_entries->empty())
+    return 0;
+
+  int step = 0;
+
+  if (data->EventFlag == ImGuiInputTextFlags_CallbackHistory)
+    step = (data->EventKey == ImGuiKey_DownArrow) ? 1 : (data->EventKey == ImGuiKey_UpArrow) ? -1 : 0;
+
+  else if (data->EventFlag == ImGuiInputTextFlags_CallbackAlways)
+  {
+    step = self->_step;
+    self->_step = 0;
+  }
+
+  if (step == 0)
+    return 0;
+
+  const int prevPos = self->_pos;
+  const int maxPos  = static_cast <int> (self->_entries->size()) - 1;
+
+  self->_pos = std::clamp (self->_pos + step, -1, maxPos);
+
+  if (prevPos != self->_pos)
+  {
+    // Stepping back past the first entry restores what was in the field to begin with
+    const std::string& text = (self->_pos == -1) ? self->_onActivate
+                                                 : (*self->_entries) [self->_pos];
+
+    data->DeleteChars (0, data->BufTextLen);
+    data->InsertChars (0, text.c_str());
+  }
+
+  return 0;
+}
+
+bool
+SKIF_ImGui_FilterHistory::InputText (const char* label, char* buf, size_t buf_size, const ImVec2& size_arg, ImGuiInputTextFlags flags)
+{
+  // Up/Down only steps through the history while the list is shown. Requesting the history callback makes ImGui stop
+  //   using up/down for navigation while the field is active (for the gamepad too), but only the keyboard arrows are
+  //     passed on to the callback, so gamepad up/down presses are queued here and applied in the callback
+  const bool useHistory = (_visible && _entries != nullptr && ! _entries->empty());
+
+  if (useHistory)
+  {
+    flags |= ImGuiInputTextFlags_CallbackHistory;
+
+    if (ImGui::GetActiveID ( ) == ImGui::GetID (label))
+    {
+      if (     ImGui::IsKeyPressed (ImGuiKey_GamepadDpadDown) || ImGui::IsKeyPressed (ImGuiKey_GamepadLStickDown))
+        _step =  1;
+      else if (ImGui::IsKeyPressed (ImGuiKey_GamepadDpadUp)   || ImGui::IsKeyPressed (ImGuiKey_GamepadLStickUp))
+        _step = -1;
+    }
+
+    if (_step != 0)
+      flags |= ImGuiInputTextFlags_CallbackAlways;
+  }
+
+  const bool ret =
+    ImGui::InputTextEx (label, "", buf, static_cast <int> (buf_size), size_arg, flags, _Callback, this);
+
+  // Drop a queued step the callback did not get to (e.g. the field was deactivated on the same frame)
+  _step = 0;
+
+  _fieldMin    = ImGui::GetItemRectMin ( );
+  _fieldMax    = ImGui::GetItemRectMax ( );
+  _fieldActive = ImGui::IsItemActive   ( );
+
+  // ImGui only ever adds Up/Down to the directions reserved by the active field (they are cleared on deactivation),
+  //   so release them again once the list is hidden, letting Up/Down navigate as usual
+  if (_fieldActive && ! useHistory)
+    ImGui::GetCurrentContext()->ActiveIdUsingNavDirMask &= ~((1u << ImGuiDir_Up) | (1u << ImGuiDir_Down));
+
+  if (ImGui::IsItemActivated ( ))
+  {
+    _onActivate = buf;
+    _pos        = -1;
+  }
+
+  // Remember the search once the user is done with the field (Enter, clicking or navigating elsewhere, etc.)
+  //   Escape reverts the field, so it will not be remembered
+  else if (ImGui::IsItemDeactivated ( ) && _onActivate != buf)
+    Add (buf);
+
+  return ret;
+}
+
+// Drawn after the content it should overlap. Clicks are checked by hand, since the active field would otherwise
+//   block the entries from reacting on the very frame the user clicks one
+bool
+SKIF_ImGui_FilterHistory::DrawList (char* buf, size_t buf_size, bool restore_cursor)
+{
+  const bool typed     = (buf[0] != '\0' && _onActivate != buf && ! Contains (buf));
+
+  // Clicking an entry deactivates the field, so keep the list around while the mouse is being pressed on it
+  const bool keepAlive = (_hovered && (ImGui::IsMouseClicked (ImGuiMouseButton_Left) || ImGui::IsMouseDown (ImGuiMouseButton_Left)));
+
+  _hovered = false;
+  _visible = (_entries != nullptr && ! _entries->empty ( ) && ! typed && (_fieldActive || keepAlive));
+
+  if (! _visible)
+    return false;
+
+  const auto&  entries        = *_entries;
+  const ImVec2 vPrevCursorPos = ImGui::GetCursorPos ( );
+  int          iClicked       = -1;
+
+  ImGui::SetCursorScreenPos (ImVec2 (_fieldMin.x, _fieldMax.y + 2.0f * SKIF_ImGui_GlobalDPIScale));
+
+  ImGui::PushStyleColor (ImGuiCol_ChildBg, ImGui::GetStyleColorVec4 (ImGuiCol_PopupBg));
+  ImGui::PushStyleVar   (ImGuiStyleVar_ChildBorderSize, 1.0f);
+
+  if (ImGui::BeginChild ("###SKIF_FilterHistory", ImVec2 (_fieldMax.x - _fieldMin.x, 0.0f),
+                          ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY,
+                          ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoNav))
+  {
+    ImGui::PushStyleVar (ImGuiStyleVar_ItemSpacing, ImVec2 (ImGui::GetStyle().ItemSpacing.x, 0.0f));
+
+    const ImVec2 vPadding = ImGui::GetStyle().FramePadding;
+
+    for (int iEntry = 0; iEntry < static_cast <int> (entries.size()); iEntry++)
+    {
+      const ImVec2 vRowMin  = ImGui::GetCursorScreenPos ( );
+      const ImVec2 vRowSize = ImVec2 (ImGui::GetContentRegionAvail().x, ImGui::GetTextLineHeight ( ) + vPadding.y * 2.0f);
+      const ImVec2 vRowMax  = vRowMin + vRowSize;
+
+      ImGui::PushID (iEntry);
+      ImGui::Dummy  (vRowSize);
+      ImGui::PopID  ( );
+
+      const bool bHovered  = ImGui::IsMouseHoveringRect (vRowMin, vRowMax);
+      const bool bSelected = (iEntry == _pos);
+
+      if (bHovered || bSelected)
+        ImGui::GetWindowDrawList()->AddRectFilled (vRowMin, vRowMax,
+          ImGui::GetColorU32 (bHovered ? ImGuiCol_HeaderHovered : ImGuiCol_Header), ImGui::GetStyle().FrameRounding);
+
+      // Drawn as plain text so "##" in a search is shown as-is rather than treated as an ID separator
+      ImGui::RenderTextClipped (vRowMin + vPadding, vRowMax - vPadding, entries[iEntry].c_str(), nullptr, nullptr, ImVec2 (0.0f, 0.5f));
+
+      if (bHovered && ImGui::IsMouseClicked (ImGuiMouseButton_Left))
+        iClicked = iEntry;
+    }
+
+    ImGui::PopStyleVar ( ); // ImGuiStyleVar_ItemSpacing
+  }
+  ImGui::EndChild ( );
+
+  ImGui::PopStyleVar   ( ); // ImGuiStyleVar_ChildBorderSize
+  ImGui::PopStyleColor ( ); // ImGuiCol_ChildBg
+
+  _hovered = ImGui::IsMouseHoveringRect (ImGui::GetItemRectMin ( ), ImGui::GetItemRectMax ( ));
+
+  // Only when more items follow: moving the cursor back past the last item and then ending the window
+  //   trips ImGui's "SetCursorPos() to extend boundaries" check
+  if (restore_cursor)
+    ImGui::SetCursorPos (vPrevCursorPos);
+
+  if (iClicked == -1)
+    return false;
+
+  // Copy first, as adding it to the history reorders the vector
+  const std::string filter = entries [iClicked];
+
+  strncpy (buf, filter.c_str(), buf_size - 1);
+  buf[buf_size - 1] = '\0';
+
+  _onActivate = filter; // Prevents it from being added a second time on deactivation
+  _pos        = -1;
+  _hovered    = false;  // Close the list
+  _visible    = false;
+
+  Add (filter);
+
+  return true;
+}
+
+#pragma endregion

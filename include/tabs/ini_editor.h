@@ -14,6 +14,7 @@
 #include <utility/ini_reader.h>
 #include <utility/utility.h>
 
+#include <utility/skif_imgui.h>
 #include <imgui/imgui.h>
 
 enum EditorAction
@@ -56,11 +57,8 @@ struct IniWindow {
   char          charFilterTmp [MAX_PATH + 2] = { };
   bool          bFilterActive = false;
 
-  // Filter history (the entries themselves are shared across all windows through the registry)
-  std:: string  strFilterOnActivate;           // Contents of the filter field when it was last activated
-  int           iFilterHistoryPos     = -1;    // Entry picked using Up/Down (-1 = none)
-  int           iFilterHistoryStep    =  0;    // Pending step through the history requested by a gamepad (-1 = up, 1 = down)
-  bool          bFilterHistoryHovered = false; // Whether the mouse was over the history list last frame
+  // Recent searches, shown below the filter field (the entries are shared across all windows through the registry)
+  SKIF_ImGui_FilterHistory filterHistory;
 
   // Focused state?
   bool          bFocused = false;

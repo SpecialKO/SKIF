@@ -2,6 +2,9 @@
 
 #include <SKIF.h>
 
+#include <string>
+#include <vector>
+
 // This file is included mostly everywhere else, so lets define using ImGui's math operators here.
 #define IMGUI_DEFINE_MATH_OPERATORS
 
@@ -158,3 +161,47 @@ extern PopupState  PopupMessageInfo;  // App Mode: show an informational message
 
 // Fonts
 extern ImFont* fontConsolas;
+
+// Filter history: the latest searches made in a filter field, shown as a list right below the field while it is selected
+//
+//   - Clicking an entry, or stepping to it with Up/Down (keyboard, gamepad D-pad or left stick), puts it in the field
+//   - Up/Down only steps through the history while the list is shown; once a new search is typed the list hides
+//       and Up/Down navigates as usual again (e.g. on to the list being filtered)
+//   - A search is added once the user is done with the field (Enter, clicking or navigating elsewhere, picking an entry);
+//       Escape reverts the field, so it is not added. Searches differing only in case count as the same one
+//
+//   The entries are kept in a vector owned by the caller (so several fields can share one history, e.g. through
+//     SKIF_RegistrySettings), and are passed to the save function whenever they change (e.g. to store them in the registry)
+//
+//   Usage:
+//     history.InputText ("###Filter", buf, buf_size, size, flags); // Instead of ImGui::InputTextEx ( ); the field remains the last item
+//     ...                                                           // Content the list should be drawn on top of
+//     history.DrawList  (buf, buf_size);                           // The list (if shown), right below the field
+class SKIF_ImGui_FilterHistory
+{
+public:
+  using SaveFn = void (*) (const std::vector <std::wstring>& entries);
+
+  SKIF_ImGui_FilterHistory (std::vector <std::string>* entries, SaveFn save, size_t max_entries = 5)
+    : _entries (entries), _save (save), _max (max_entries) { }
+
+  bool InputText (const char* label, char* buf, size_t buf_size, const ImVec2& size_arg = ImVec2 (0, 0), ImGuiInputTextFlags flags = ImGuiInputTextFlags_None);
+  bool DrawList  (char* buf, size_t buf_size, bool restore_cursor = false); // True if an entry was picked (buf is updated). restore_cursor: only if more items are submitted afterwards
+  void Add       (const std::string& filter);                               // Moves (or adds) a search to the top
+  bool Contains  (const char* text) const;
+
+private:
+  static int  _Callback (ImGuiInputTextCallbackData* data);
+
+  std::vector <std::string>* _entries     = nullptr;
+  SaveFn                     _save        = nullptr;
+  size_t                     _max         = 5;
+
+  std::string                _onActivate;           // Contents of the field when it was last activated
+  int                        _pos         = -1;     // Entry picked using Up/Down (-1 = none)
+  int                        _step        =  0;     // Pending step requested by a gamepad (-1 = up, 1 = down)
+  bool                       _hovered     = false;  // Whether the mouse was over the list last frame
+  bool                       _visible     = false;  // Whether the list was shown last frame
+  bool                       _fieldActive = false;
+  ImVec2                     _fieldMin, _fieldMax;
+};
