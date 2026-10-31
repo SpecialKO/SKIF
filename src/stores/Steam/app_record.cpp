@@ -1136,6 +1136,7 @@ app_record_s::HasSameLibraryData (const app_record_s& other) const
           names.normal      == other.names.normal      &&
           skif.name         == other.skif.name         &&
           skif.cpu_type     == other.skif.cpu_type     &&
+          skif.cpu_cached   == other.skif.cpu_cached   &&
           skif.instant_play == other.skif.instant_play &&
           skif.default_launch == other.skif.default_launch &&
           skif.uses         == other.skif.uses         &&

@@ -437,6 +437,7 @@ struct app_record_s {
   struct custom_metadata_s {
     std::string        name;
     int            cpu_type =  0; // 0 = Common,             1 = x86,                 2 = x64,                0xFFFF = Any
+    long long    cpu_cached =  0; // Unix timestamp of when cpu_type was last detected (db.json "CPUCached"; 0 = never)
     int        instant_play =  0; // 0 = use global default, 1 = always instant play, 2 = never instant play
     int                uses =  0; // Number of times game has been launched
     std::string        used = ""; // Unix timestamp (in string) of when the game was last used
@@ -445,6 +446,15 @@ struct app_record_s {
     int              hidden = -1; // Is app hidden?    (-1 = unset;   0 = no;   1 = yes)
     int              pinned = -1; // Is app favorited? (-1 = unset;   0 = no;   1 = yes;   51 = yes (on top);   99 = Special K)
     launch_ref_s default_launch;  // Launch config SKIF uses by default (db.json "DefaultLaunch"); empty = the primary one
+
+    // The cached cpu_type spares SKIF from reading the executable every time, but is only trusted for a week: the
+    //   executable is then checked again, in case the game changed bitness (an update replacing a 32-bit executable)
+    static constexpr long long cpu_cache_lifetime = 7LL * 24 * 60 * 60;
+
+    bool IsCPUCacheFresh (long long now) const
+    {
+      return (cpu_type != 0 && cpu_cached > 0 && cpu_cached <= now && now - cpu_cached < cpu_cache_lifetime);
+    }
   } skif;
   // The auto-stop behavior is not part of this: it is stored per install folder / executable in the registry (SKIF_LaunchBehaviors)
 

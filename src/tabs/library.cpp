@@ -24,6 +24,7 @@
 
 #include <wmsdk.h>
 #include <filesystem>
+#include <ctime>
 #include <SKIF.h>
 #include <utility/utility.h>
 #include <utility/skif_imgui.h>
@@ -115,6 +116,7 @@ struct SKIF_Lib_GameWorkerThread_s {
   HANDLE                hWorker    = NULL;
   bool                  free       = true;
   int                   cpu_pre    = -1;
+  long long             cpu_cached_pre = 0; // skif.cpu_cached when the worker was started
   uint32_t              iteration  =  0; // The library iteration the worker was started on
 };
 
@@ -879,11 +881,20 @@ SKIF_UI_Tab_DrawLibrary (void)
 
             // If the CPU has changed, we need to update the metadata as well,
             //   but only if it differs from our cached value...
-            if (cpu_post != worker.cpu_pre &&
-                cpu_post != app.second->skif.cpu_type)
-            {
-              app.second->skif.cpu_type = cpu_post; // 0 = Common,  1 = x86, 2 = x64, 0xFFFF = Any
+            const bool cpuChanged = (cpu_post != worker.cpu_pre &&
+                                     cpu_post != app.second->skif.cpu_type);
 
+            // ... or if the executable was checked again (the cached value was a week old), to store the new timestamp
+            const bool cpuChecked = (app.second->skif.cpu_cached != worker.cpu_cached_pre);
+
+            if (cpuChanged)
+            {
+              app.second->skif.cpu_type   = cpu_post; // 0 = Common,  1 = x86, 2 = x64, 0xFFFF = Any
+              app.second->skif.cpu_cached = (long long)time (nullptr);
+            }
+
+            if (cpuChanged || cpuChecked)
+            {
               // Update the db.json file with any new values
               SKIF_GamingCollection::Get ( ).MetaDB_UpdateApp (app.second.get ( ), true);
             }
@@ -930,6 +941,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         worker->target     = pApp;
         worker->apptickets = _games.GetAppTickets ( );
         worker->cpu_pre    = (int)pApp->specialk.injection.injection.bitness;
+        worker->cpu_cached_pre = pApp->skif.cpu_cached;
         worker->iteration  = uiLibraryIteration;
 
         HANDLE hWorkerThread = (HANDLE)

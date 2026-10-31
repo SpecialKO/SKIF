@@ -22,6 +22,8 @@
 
 #include "library_ui.h"
 
+#include <ctime>
+
 // Last, as it defines short macros such as _ ( )
 #include <utility/l10n.h>
 
@@ -1069,6 +1071,12 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
 
   int firstValidFound = -1;
 
+  // Whether the cached bitness (db.json "CPU") can be used instead of reading the executables. Decided once, before
+  //   the loop: the first launch config that reads its executable sets a new timestamp, which must not make the old
+  //     cached value count as fresh for the launch configs after it
+  const long long now           = (long long)time (nullptr);
+  const bool      cpuCacheFresh = pApp->skif.IsCPUCacheFresh (now);
+
   for ( auto& launch_cfg : pApp->launch_configs )
   {
     auto& launch = launch_cfg.second;
@@ -1138,11 +1146,11 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
       else if (cpu_type == app_record_s::CPUType::x86)
         launch.injection.injection.bitness = InjectionBitness::ThirtyTwo;
 
-      // If we still haven't resolved it, use SKIF's cached property
-      else if (pApp->skif.cpu_type != 0)
+      // If we still haven't resolved it, use SKIF's cached property, as long as it is less than a week old
+      else if (cpuCacheFresh)
         launch.injection.injection.bitness = (InjectionBitness)pApp->skif.cpu_type;
 
-      // In case we still haven't resolved the CPU architecture,
+      // In case we still haven't resolved the CPU architecture (or the cached value is a week old),
       //   we need to check the actual arch of the game executable
       else // Common || Any
       {
@@ -1159,7 +1167,15 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
             launch.injection.injection.bitness = InjectionBitness::SixtyFour;
           else if (bitness == PEBitness_32bit)
             launch.injection.injection.bitness = InjectionBitness::ThirtyTwo;
+
+          // Checked: the cached value is renewed (stored in db.json once the game worker's results are applied)
+          if (bitness == PEBitness_64bit || bitness == PEBitness_32bit)
+            pApp->skif.cpu_cached = now;
         }
+
+        // The executable could not be checked: an outdated cached value is still better than none
+        if (launch.injection.injection.bitness == InjectionBitness::Unknown && pApp->skif.cpu_type != 0)
+          launch.injection.injection.bitness = (InjectionBitness)pApp->skif.cpu_type;
       }
     }
     // End checking bitness

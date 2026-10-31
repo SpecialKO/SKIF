@@ -1629,6 +1629,7 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
 
           std::string keyName         = "";
           int         keyCPU          =  0;
+          long long   keyCPUCached    =  0;   // Missing in older db.json files: the executable is checked again
           int         keyAutoStop     =  0;   // Only read to migrate it to the registry
           app_record_s::launch_ref_s
                       keyDefaultLaunch;
@@ -1649,6 +1650,9 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
 
             if (key.contains("CPU"))
               keyCPU         = key.at("CPU");
+
+            if (key.contains("CPUCached") && key.at("CPUCached").is_number_integer ( ))
+              keyCPUCached   = key.at("CPUCached").get <long long> ( );
 
             if (key.contains("AutoStop"))
               keyAutoStop    = key.at("AutoStop");
@@ -1675,6 +1679,7 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
           // Populate SKIF's custom variables with the values as well
           app.second->skif.name           = keyName;
           app.second->skif.cpu_type       = keyCPU;
+          app.second->skif.cpu_cached     = keyCPUCached;
           app.second->skif.hidden         = keyHidden;
           app.second->skif.default_launch = keyDefaultLaunch;
 
@@ -1714,6 +1719,7 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
           key = {
             { "Name",     app.second->skif.name      },
             { "CPU",      app.second->skif.cpu_type  },
+            { "CPUCached",app.second->skif.cpu_cached},
             { "Hidden",   app.second->skif.hidden    },
             { "Uses",     app.second->skif.uses      },
             { "Used",     app.second->skif.used      },
@@ -2499,6 +2505,7 @@ SKIF_GamingCollection::MetaDB_UpdateApp (app_record_s* pApp, bool bWriteToDisk)
       key = {
         { "Name",     pApp->skif.name      },
         { "CPU",      pApp->skif.cpu_type  },
+        { "CPUCached",pApp->skif.cpu_cached},
         { "Hidden",   pApp->skif.hidden    },
         { "Uses",     pApp->skif.uses      },
         { "Used",     pApp->skif.used      },

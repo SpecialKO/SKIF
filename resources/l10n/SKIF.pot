@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-10-31 14:39+0100\n"
+"POT-Creation-Date: 2026-10-31 15:35+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -106,9 +106,9 @@ msgid "About"
 msgstr ""
 
 #: src/SKIF.cpp:3499
-#: src/stores/SKIF/custom_library.cpp:311
-#: src/stores/SKIF/custom_library.cpp:380
-#: src/stores/SKIF/custom_library.cpp:518
+#: src/stores/SKIF/custom_library.cpp:309
+#: src/stores/SKIF/custom_library.cpp:378
+#: src/stores/SKIF/custom_library.cpp:516
 msgid "Add Game"
 msgstr ""
 
@@ -167,26 +167,26 @@ msgid ""
 "Instant Play launches are not affected as they skip the sandbox."
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:378
-#: src/stores/SKIF/custom_library.cpp:393
-#: src/stores/SKIF/custom_library.cpp:716
-#: src/stores/SKIF/custom_library.cpp:724
+#: src/stores/SKIF/custom_library.cpp:376
+#: src/stores/SKIF/custom_library.cpp:391
+#: src/stores/SKIF/custom_library.cpp:714
+#: src/stores/SKIF/custom_library.cpp:722
 #: src/tabs/library/library_properties.cpp:1481
 #: src/tabs/library/library_properties.cpp:1496
 msgid "Browse..."
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:379
-#: src/stores/SKIF/custom_library.cpp:439
-#: src/stores/SKIF/custom_library.cpp:717
-#: src/stores/SKIF/custom_library.cpp:755
+#: src/stores/SKIF/custom_library.cpp:377
+#: src/stores/SKIF/custom_library.cpp:437
+#: src/stores/SKIF/custom_library.cpp:715
+#: src/stores/SKIF/custom_library.cpp:753
 #: src/tabs/library/library_properties.cpp:1537
 #: src/tabs/library/library_properties.cpp:1553
 msgid "Change..."
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:381
-#: src/stores/SKIF/custom_library.cpp:560
+#: src/stores/SKIF/custom_library.cpp:379
+#: src/stores/SKIF/custom_library.cpp:558
 #: src/tabs/library/library_popups.cpp:154
 #: src/tabs/library/library_popups.cpp:238
 #: src/tabs/library/library_popups.cpp:268
@@ -205,76 +205,76 @@ msgstr ""
 msgid "Cancel"
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:384
-#: src/stores/SKIF/custom_library.cpp:428
+#: src/stores/SKIF/custom_library.cpp:382
+#: src/stores/SKIF/custom_library.cpp:426
 msgid "Path"
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:384
-#: src/stores/SKIF/custom_library.cpp:474
+#: src/stores/SKIF/custom_library.cpp:382
+#: src/stores/SKIF/custom_library.cpp:472
 msgid "Working Directory"
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:385
-#: src/stores/SKIF/custom_library.cpp:492
+#: src/stores/SKIF/custom_library.cpp:383
+#: src/stores/SKIF/custom_library.cpp:490
 #: src/tabs/library/library_properties.cpp:219
 msgid "Name"
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:385
-#: src/stores/SKIF/custom_library.cpp:499
+#: src/stores/SKIF/custom_library.cpp:383
+#: src/stores/SKIF/custom_library.cpp:497
 msgid "Launch Options"
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:397
+#: src/stores/SKIF/custom_library.cpp:395
 msgid "Executables"
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:433
-#: src/stores/SKIF/custom_library.cpp:735
+#: src/stores/SKIF/custom_library.cpp:431
+#: src/stores/SKIF/custom_library.cpp:733
 msgid "Incompatible type! Please select another file."
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:479
+#: src/stores/SKIF/custom_library.cpp:477
 msgid "Incompatible folder! Please select another folder."
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:496
-#: src/stores/SKIF/custom_library.cpp:766
+#: src/stores/SKIF/custom_library.cpp:494
+#: src/stores/SKIF/custom_library.cpp:764
 #: src/tabs/library/library_properties.cpp:1582
 msgid "Leave empty if unsure"
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:600
+#: src/stores/SKIF/custom_library.cpp:598
 msgid "Remove Game?"
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:600
+#: src/stores/SKIF/custom_library.cpp:598
 msgid "Are you sure you want to remove the game from the library?"
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:600
+#: src/stores/SKIF/custom_library.cpp:598
 msgid "No changes will be made to the game files."
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:720
+#: src/stores/SKIF/custom_library.cpp:718
 #: src/tabs/library/library_properties.cpp:1479
 #: src/tabs/library/library_properties.cpp:1644
 msgid "Executable"
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:751
+#: src/stores/SKIF/custom_library.cpp:749
 #: src/tabs/library/library_properties.cpp:1535
 #: src/tabs/library/library_properties.cpp:1647
 msgid "Working directory"
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:764
+#: src/stores/SKIF/custom_library.cpp:762
 #: src/tabs/library/library_properties.cpp:1913
 msgid "Launch options"
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:781
+#: src/stores/SKIF/custom_library.cpp:779
 msgid "Select the executable and the working directory of the game."
 msgstr ""
 
@@ -894,7 +894,7 @@ msgid "Please Wait..."
 msgstr ""
 
 #: src/tabs/hardware.cpp:1379
-#: src/tabs/library/library_details.cpp:466
+#: src/tabs/library/library_details.cpp:468
 msgid "Pending..."
 msgstr ""
 
@@ -1126,61 +1126,61 @@ msgstr ""
 msgid "Do you want to save changes to {0}?"
 msgstr ""
 
-#: src/tabs/library.cpp:255
+#: src/tabs/library.cpp:257
 #: src/tabs/settings.cpp:1388
 #: src/tabs/settings.cpp:1405
 msgid "Large icons"
 msgstr ""
 
-#: src/tabs/library.cpp:261
+#: src/tabs/library.cpp:263
 #: src/tabs/settings.cpp:1411
 msgid "Currently enforced by touch input mode."
 msgstr ""
 
-#: src/tabs/library.cpp:1464
-#: src/tabs/library/library_details.cpp:495
+#: src/tabs/library.cpp:1476
+#: src/tabs/library/library_details.cpp:497
 msgid "Loading..."
 msgstr ""
 
-#: src/tabs/library.cpp:1622
+#: src/tabs/library.cpp:1634
 msgid "New 32-bit DLL Installed"
 msgstr ""
 
-#: src/tabs/library.cpp:1623
+#: src/tabs/library.cpp:1635
 msgid "New 64-bit DLL Installed"
 msgstr ""
 
-#: src/tabs/library.cpp:1742
-#: src/tabs/library.cpp:1850
+#: src/tabs/library.cpp:1754
+#: src/tabs/library.cpp:1862
 msgid "Missing Files"
 msgstr ""
 
-#: src/tabs/library.cpp:1743
-#: src/tabs/library.cpp:1851
+#: src/tabs/library.cpp:1755
+#: src/tabs/library.cpp:1863
 msgid "Unable to extract Special K DLL files from the provided {0} file."
 msgstr ""
 
-#: src/tabs/library.cpp:1889
+#: src/tabs/library.cpp:1901
 msgid "Unsupported Feature"
 msgstr ""
 
-#: src/tabs/library.cpp:1890
+#: src/tabs/library.cpp:1902
 msgid "SKIF cannot perform a drag-n-drop update because Special K {0} or newer is required."
 msgstr ""
 
-#: src/tabs/library.cpp:1905
+#: src/tabs/library.cpp:1917
 msgid "Unsupported file format"
 msgstr ""
 
-#: src/tabs/library.cpp:1907
+#: src/tabs/library.cpp:1919
 msgid "Add a game to the library:"
 msgstr ""
 
-#: src/tabs/library.cpp:1913
+#: src/tabs/library.cpp:1925
 msgid "Update the cover for the current selected game:"
 msgstr ""
 
-#: src/tabs/library.cpp:1924
+#: src/tabs/library.cpp:1936
 msgid "Note that the app has no support for animated images."
 msgstr ""
 
@@ -1202,110 +1202,110 @@ msgstr ""
 msgid "Special Kudos to our Patrons:"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:113
+#: src/tabs/library/library_details.cpp:115
 msgid "Profile folder:"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:114
+#: src/tabs/library/library_details.cpp:116
 msgid "Config file:"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:115
+#: src/tabs/library/library_details.cpp:117
 msgid "Platform:"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:202
+#: src/tabs/library/library_details.cpp:204
 msgid "Update to v {0}"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:208
+#: src/tabs/library/library_details.cpp:210
 msgid "Uninstall"
 msgstr ""
 
 #. TRANSLATORS: Not available
-#: src/tabs/library/library_details.cpp:298
+#: src/tabs/library/library_details.cpp:300
 msgid "N/A"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:393
+#: src/tabs/library/library_details.cpp:395
 #: src/tabs/local.cpp:1021
 msgid ""
 "The local DLL file is outdated.\n"
 "Click to update it to v {0}."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:436
+#: src/tabs/library/library_details.cpp:438
 #: src/tabs/library/library_menus.cpp:1207
 msgid "Play"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:444
+#: src/tabs/library/library_details.cpp:446
 msgid "Install Mod"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:453
+#: src/tabs/library/library_details.cpp:455
 msgid "Installing..."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:459
+#: src/tabs/library/library_details.cpp:461
 msgid "Downloading..."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:496
+#: src/tabs/library/library_details.cpp:498
 msgid "Running..."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:497
+#: src/tabs/library/library_details.cpp:499
 msgid "Updating..."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:677
+#: src/tabs/library/library_details.cpp:679
 msgid "Please finish the ongoing mod installation first."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:695
+#: src/tabs/library/library_details.cpp:697
 msgid "Warning: VAC protected game; injection is not recommended!"
 msgstr ""
 
 #. TRANSLATORS: A launch option in the "Disable Special K" menu; {0} is its name
-#: src/tabs/library/library_details.cpp:775
+#: src/tabs/library/library_details.cpp:777
 msgid "for {0}"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:783
-#: src/tabs/library/library_details.cpp:832
-#: src/tabs/library/library_details.cpp:878
+#: src/tabs/library/library_details.cpp:785
+#: src/tabs/library/library_details.cpp:834
+#: src/tabs/library/library_details.cpp:880
 #: src/tabs/library/library_properties.cpp:1008
 msgid "Disable Special K"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:798
+#: src/tabs/library/library_details.cpp:800
 #: src/tabs/library/library_properties.cpp:1013
 msgid "Special K is disabled through a blacklist pattern in the Settings tab."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:809
+#: src/tabs/library/library_details.cpp:811
 #: src/tabs/library/library_properties.cpp:990
 #: src/utility/injection.cpp:1068
 msgid "Special K is unavailable due to missing files."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:811
+#: src/tabs/library/library_details.cpp:813
 #: src/utility/injection.cpp:1070
 msgid "Please reinstall Special K using the latest available installer."
 msgstr ""
 
 #. TRANSLATORS: Where the configuration of Special K is kept (one folder for all games)
-#: src/tabs/library/library_details.cpp:1422
+#: src/tabs/library/library_details.cpp:1438
 #: src/utility/injection.cpp:840
 msgid "Centralized"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:1424
+#: src/tabs/library/library_details.cpp:1440
 msgid "Localized"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:1426
+#: src/tabs/library/library_details.cpp:1442
 msgid "Unknown"
 msgstr ""
 
