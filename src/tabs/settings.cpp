@@ -66,6 +66,131 @@ SKIF_UI_Settings_CancelHiddenKeybindDialogs (void)
   }
 }
 
+
+// Assigning a gamepad button (Settings > Controller Config: the screen saver and power off bindings)
+//   Shown like the keybinding dialog of the keyboard (SK_ImGui_KeybindDialog ( ), sk_utility.cpp): a SKIF popup centered on
+//     the window it is opened from (here the Config popup), which dims and blocks only that window, rather than an ImGui modal
+//       (which, with io.ConfigViewportsNoAutoMerge, got a platform window of its own: an empty box that blocked every window).
+//   While it waits it owns the gamepad buttons and Escape, so ImGui's navigation does not act on them (B or Escape would
+//     otherwise close the Config popup, the D-pad move its selection); ownership lasts while a button is held, so the press
+//       that assigns it does not reach the Config popup either.
+//   Call every frame while the Config popup is drawn, after the selectable that opens it. Returns the XINPUT_GAMEPAD_* button
+//     that was pressed (0 while waiting, after Escape, or when not assigning)
+struct gamepad_binding_s {
+  bool assigning   = false; // The dialog is shown
+  int  openedFrame = 0;     // Frame the dialog was opened in (its press is not read as the new binding)
+  int  shownFrame  = 0;     // Frame the dialog was last shown in
+};
+
+static DWORD
+SKIF_UI_GamepadBindingDialog (const char* str_id, gamepad_binding_s& state)
+{
+  if (! state.assigning)
+    return 0;
+
+  const int frame = ImGui::GetFrameCount ( );
+
+  // Not shown since the previous frame (e.g. the Config popup was closed while waiting): cancelled
+  if (frame != state.openedFrame && state.shownFrame != frame - 1)
+  {
+    state.assigning = false;
+    return 0;
+  }
+
+  state.shownFrame = frame;
+
+  const ImGuiID owner = ImGui::GetID (str_id);
+
+  for (ImGuiKey key = ImGuiKey_Gamepad_BEGIN; key < ImGuiKey_Gamepad_END; key = (ImGuiKey)(key + 1))
+    ImGui::SetKeyOwner (key, owner);
+  ImGui::SetKeyOwner (ImGuiKey_Escape, owner);
+
+  // The window the dialog is shown in (the Config popup). ImGui popups never take the OS focus, so this also listens while
+  //   the main window has it; not while another SKIF window (Local Manager, INI editor, ...) has it, as gamepad input
+  //     reaches those as well
+  ImGuiWindow*         host    = ImGui::GetCurrentWindow   ( );
+  const ImGuiViewport* vp      = ImGui::GetWindowViewport  ( );
+  const bool           focused = (SKIF_ImGui_IsViewportFocused (vp) || SKIF_Hotkey_MainWindowFocused ( ));
+
+  // SKIF's hotkeys are held back meanwhile, as for the keyboard keybindings (this also blocks L1/R1 tab switching)
+  if (focused)
+    g_activeKeybindPopup = true;
+
+  static const std::pair <ImGuiKey, DWORD> buttons [] = {
+    { ImGuiKey_GamepadL1,        XINPUT_GAMEPAD_LEFT_SHOULDER  },
+    { ImGuiKey_GamepadL2,        XINPUT_GAMEPAD_LEFT_TRIGGER   },
+    { ImGuiKey_GamepadL3,        XINPUT_GAMEPAD_LEFT_THUMB     },
+    { ImGuiKey_GamepadR1,        XINPUT_GAMEPAD_RIGHT_SHOULDER },
+    { ImGuiKey_GamepadR2,        XINPUT_GAMEPAD_RIGHT_TRIGGER  },
+    { ImGuiKey_GamepadR3,        XINPUT_GAMEPAD_RIGHT_THUMB    },
+    { ImGuiKey_GamepadDpadUp,    XINPUT_GAMEPAD_DPAD_UP        },
+    { ImGuiKey_GamepadDpadDown,  XINPUT_GAMEPAD_DPAD_DOWN      },
+    { ImGuiKey_GamepadDpadLeft,  XINPUT_GAMEPAD_DPAD_LEFT      },
+    { ImGuiKey_GamepadDpadRight, XINPUT_GAMEPAD_DPAD_RIGHT     },
+    { ImGuiKey_GamepadStart,     XINPUT_GAMEPAD_START          },
+    { ImGuiKey_GamepadBack,      XINPUT_GAMEPAD_BACK           },
+    { ImGuiKey_GamepadFaceUp,    XINPUT_GAMEPAD_Y              },
+    { ImGuiKey_GamepadFaceDown,  XINPUT_GAMEPAD_A              },
+    { ImGuiKey_GamepadFaceLeft,  XINPUT_GAMEPAD_X              },
+    { ImGuiKey_GamepadFaceRight, XINPUT_GAMEPAD_B              },
+  };
+
+  DWORD pressed = 0;
+  bool  cancel  = false;
+
+  // Not in the frame it was opened in, as that could be the press (e.g. of A) that opened it
+  if (focused && frame != state.openedFrame)
+  {
+    cancel = ImGui::IsKeyPressed (ImGuiKey_Escape, ImGuiInputFlags_None, owner);
+
+    for (const auto& button : buttons)
+    {
+      if (ImGui::IsKeyPressed (button.first, ImGuiInputFlags_None, owner))
+      {
+        pressed = button.second;
+        break;
+      }
+    }
+  }
+
+  // At most 30 times the font size wide, and never wider than the window it is centered on; longer text wraps
+  const float font_size = ImGui::GetFontSize ( );
+  const float max_width = ImMax (font_size * 9.0f, ImMin (font_size * 30.0f, vp->Size.x - font_size * 2.0f));
+
+  // One dialog per window (viewport), as for the keyboard keybindings
+  char dialog_name [64];
+  snprintf (dialog_name, sizeof (dialog_name), "###SKIFGamepadBindingDialog_%08X", vp->ID);
+
+  if (SKIF_ImGui_BeginPopup (dialog_name, nullptr, ImVec2 (0.0f, 0.0f),
+                             ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove))
+  {
+    // Minimum width (SKIF popups do not take size constraints)
+    ImGui::Dummy (ImVec2 (font_size * 9.0f - ImGui::GetStyle ( ).WindowPadding.x * 2.0f, 0.0f));
+
+    ImGui::PushTextWrapPos (ImGui::GetCursorPosX ( ) + max_width - ImGui::GetStyle ( ).WindowPadding.x * 2.0f);
+
+    ImGui::Text         ("%s", _("Press a button on the gamepad to assign it."));
+    ImGui::Separator    ( );
+    // TRANSLATORS: ESC is a key of the keyboard (use the name printed on keyboards in your language)
+    ImGui::TextDisabled ("%s", _("Press ESC to cancel."));
+
+    ImGui::PopTextWrapPos  ( );
+  }
+
+  SKIF_ImGui_EndPopup ( ); // Must always be called, regardless of the return value of SKIF_ImGui_BeginPopup
+
+  if (pressed != 0 || cancel)
+  {
+    state.assigning = false;
+
+    // Back to the Config popup: otherwise ImGui would move the focus elsewhere once the dialog is gone, closing the popup
+    if (host != nullptr)
+      ImGui::FocusWindow (host);
+  }
+
+  return pressed;
+}
+
 void
 SKIF_UI_Tab_DrawSettings (void)
 {
@@ -296,13 +421,9 @@ SKIF_UI_Tab_DrawSettings (void)
 
         ImGui::SameLine ();
 
-        static bool         selected = false;
-        static DWORD dwButtonPressed = 0;
+        static gamepad_binding_s binding;
 
-        if (! selected)
-        {
-          dwButtonPressed = 0;
-        }
+        bool selected = false;
 
         ImGui::PushID ("ScreenSaverBinding");
         switch (_registry.skinput.dwScreenSaverChord)
@@ -330,80 +451,17 @@ SKIF_UI_Tab_DrawSettings (void)
         }
         ImGui::PopID ();
 
-        static DWORD dwPopupOpenedTime = 0;
-               DWORD dwTimeNow         = SKIF_Util_timeGetTime ();
-
-        static bool open = false;
         if (selected)
         {
-          dwPopupOpenedTime = dwTimeNow;
-          ImGui::OpenPopup ("ChordBinding_ScreenSaver");
-          open = true;
+          binding.assigning   = true;
+          binding.openedFrame = ImGui::GetFrameCount ( );
         }
 
-        if (ImGui::BeginPopupModal ("ChordBinding_ScreenSaver", &open, ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground))
+        if (const DWORD dwButtonPressed = SKIF_UI_GamepadBindingDialog ("###ScreenSaverBindingDialog", binding))
         {
-          selected = false;
-
-          // Avoid immediately closing the popup again before it has a chance to process the button press.
-          //   Only while the main window has the focus: gamepad input also reaches SKIF's other windows
-          if (dwTimeNow != dwPopupOpenedTime && SKIF_Hotkey_MainWindowFocused ( ))
-          {
-                 if (ImGui::IsKeyPressed (ImGuiKey_GamepadL1))         dwButtonPressed = XINPUT_GAMEPAD_LEFT_SHOULDER;
-            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadL2))         dwButtonPressed = XINPUT_GAMEPAD_LEFT_TRIGGER;
-            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadL3))         dwButtonPressed = XINPUT_GAMEPAD_LEFT_THUMB;
-            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadR1))         dwButtonPressed = XINPUT_GAMEPAD_RIGHT_SHOULDER;
-            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadR2))         dwButtonPressed = XINPUT_GAMEPAD_RIGHT_TRIGGER;
-            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadR3))         dwButtonPressed = XINPUT_GAMEPAD_RIGHT_THUMB;
-
-            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadDpadUp))     dwButtonPressed = XINPUT_GAMEPAD_DPAD_UP;
-            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadDpadDown))   dwButtonPressed = XINPUT_GAMEPAD_DPAD_DOWN;
-            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadDpadLeft))   dwButtonPressed = XINPUT_GAMEPAD_DPAD_LEFT;
-            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadDpadRight))  dwButtonPressed = XINPUT_GAMEPAD_DPAD_RIGHT;
-
-            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadStart))      dwButtonPressed = XINPUT_GAMEPAD_START;
-            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadBack))       dwButtonPressed = XINPUT_GAMEPAD_BACK;
-
-            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadFaceUp))     dwButtonPressed = XINPUT_GAMEPAD_Y;
-            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadFaceDown))   dwButtonPressed = XINPUT_GAMEPAD_A;
-            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadFaceLeft))   dwButtonPressed = XINPUT_GAMEPAD_X;
-            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadFaceRight))  dwButtonPressed = XINPUT_GAMEPAD_B;
-
-            switch (dwButtonPressed)
-            {
-              case XINPUT_GAMEPAD_LEFT_SHOULDER:  _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
-              case XINPUT_GAMEPAD_LEFT_TRIGGER:   _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
-              case XINPUT_GAMEPAD_LEFT_THUMB:     _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
-              case XINPUT_GAMEPAD_RIGHT_SHOULDER: _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
-              case XINPUT_GAMEPAD_RIGHT_TRIGGER:  _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
-              case XINPUT_GAMEPAD_RIGHT_THUMB:    _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
-              case XINPUT_GAMEPAD_DPAD_UP:        _registry.skinput.dwScreenSaverChord = 0x3;             break;
-              case XINPUT_GAMEPAD_DPAD_DOWN:      _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
-              case XINPUT_GAMEPAD_DPAD_LEFT:      _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
-              case XINPUT_GAMEPAD_DPAD_RIGHT:     _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
-
-              case XINPUT_GAMEPAD_START:          _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
-              case XINPUT_GAMEPAD_BACK:           _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
-
-              case XINPUT_GAMEPAD_Y:              _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
-              case XINPUT_GAMEPAD_A:              _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
-              case XINPUT_GAMEPAD_X:              _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
-              case XINPUT_GAMEPAD_B:              _registry.skinput.dwScreenSaverChord = dwButtonPressed; break;
-              default:
-                selected = true;
-                break;
-            }
-
-            if (! selected)
-            {
-              _registry.regKVControllerScreenSaverChord.putData (_registry.skinput.dwScreenSaverChord);
-
-              ImGui::CloseCurrentPopup ();
-              open = false;
-            }
-          }
-
-          ImGui::EndPopup ();
+          // D-pad Up is stored as 0x3 (0x1, its XInput value, stands for A / Cross here)
+          _registry.skinput.dwScreenSaverChord = (dwButtonPressed == XINPUT_GAMEPAD_DPAD_UP) ? 0x3 : dwButtonPressed;
+          _registry.regKVControllerScreenSaverChord.putData (_registry.skinput.dwScreenSaverChord);
         }
       }
 
@@ -458,13 +516,9 @@ SKIF_UI_Tab_DrawSettings (void)
 
         ImGui::SameLine ();
 
-        static bool         selected = false;
-        static DWORD dwButtonPressed = 0;
+        static gamepad_binding_s binding;
 
-        if (! selected)
-        {
-          dwButtonPressed = 0;
-        }
+        bool selected = false;
 
         ImGui::PushID ("PowerOffBinding");
         switch (_registry.skinput.dwPowerOffChord)
@@ -492,80 +546,17 @@ SKIF_UI_Tab_DrawSettings (void)
         }
         ImGui::PopID ();
 
-        static DWORD dwPopupOpenedTime = 0;
-               DWORD dwTimeNow         = SKIF_Util_timeGetTime ();
-
-        static bool open = false;
         if (selected)
         {
-          dwPopupOpenedTime = dwTimeNow;
-          ImGui::OpenPopup ("ChordBinding_PowerOff");
-          open = true;
+          binding.assigning   = true;
+          binding.openedFrame = ImGui::GetFrameCount ( );
         }
 
-        if (ImGui::BeginPopupModal ("ChordBinding_PowerOff", &open, ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground))
+        if (const DWORD dwButtonPressed = SKIF_UI_GamepadBindingDialog ("###PowerOffBindingDialog", binding))
         {
-          selected = false;
-
-          // Avoid immediately closing the popup again before it has a chance to process the button press.
-          //   Only while the main window has the focus: gamepad input also reaches SKIF's other windows
-          if (dwTimeNow != dwPopupOpenedTime && SKIF_Hotkey_MainWindowFocused ( ))
-          {
-                 if (ImGui::IsKeyPressed (ImGuiKey_GamepadL1))         dwButtonPressed = XINPUT_GAMEPAD_LEFT_SHOULDER;
-            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadL2))         dwButtonPressed = XINPUT_GAMEPAD_LEFT_TRIGGER;
-            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadL3))         dwButtonPressed = XINPUT_GAMEPAD_LEFT_THUMB;
-            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadR1))         dwButtonPressed = XINPUT_GAMEPAD_RIGHT_SHOULDER;
-            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadR2))         dwButtonPressed = XINPUT_GAMEPAD_RIGHT_TRIGGER;
-            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadR3))         dwButtonPressed = XINPUT_GAMEPAD_RIGHT_THUMB;
-
-            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadDpadUp))     dwButtonPressed = XINPUT_GAMEPAD_DPAD_UP;
-            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadDpadDown))   dwButtonPressed = XINPUT_GAMEPAD_DPAD_DOWN;
-            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadDpadLeft))   dwButtonPressed = XINPUT_GAMEPAD_DPAD_LEFT;
-            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadDpadRight))  dwButtonPressed = XINPUT_GAMEPAD_DPAD_RIGHT;
-
-            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadStart))      dwButtonPressed = XINPUT_GAMEPAD_START;
-            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadBack))       dwButtonPressed = XINPUT_GAMEPAD_BACK;
-
-            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadFaceUp))     dwButtonPressed = XINPUT_GAMEPAD_Y;
-            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadFaceDown))   dwButtonPressed = XINPUT_GAMEPAD_A;
-            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadFaceLeft))   dwButtonPressed = XINPUT_GAMEPAD_X;
-            else if (ImGui::IsKeyPressed (ImGuiKey_GamepadFaceRight))  dwButtonPressed = XINPUT_GAMEPAD_B;
-
-            switch (dwButtonPressed)
-            {
-              case XINPUT_GAMEPAD_LEFT_SHOULDER:  _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
-              case XINPUT_GAMEPAD_LEFT_TRIGGER:   _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
-              case XINPUT_GAMEPAD_LEFT_THUMB:     _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
-              case XINPUT_GAMEPAD_RIGHT_SHOULDER: _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
-              case XINPUT_GAMEPAD_RIGHT_TRIGGER:  _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
-              case XINPUT_GAMEPAD_RIGHT_THUMB:    _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
-              case XINPUT_GAMEPAD_DPAD_UP:        _registry.skinput.dwPowerOffChord = 0x3;             break;
-              case XINPUT_GAMEPAD_DPAD_DOWN:      _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
-              case XINPUT_GAMEPAD_DPAD_LEFT:      _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
-              case XINPUT_GAMEPAD_DPAD_RIGHT:     _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
-
-              case XINPUT_GAMEPAD_START:          _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
-              case XINPUT_GAMEPAD_BACK:           _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
-
-              case XINPUT_GAMEPAD_Y:              _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
-              case XINPUT_GAMEPAD_A:              _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
-              case XINPUT_GAMEPAD_X:              _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
-              case XINPUT_GAMEPAD_B:              _registry.skinput.dwPowerOffChord = dwButtonPressed; break;
-              default:
-                selected = true;
-                break;
-            }
-
-            if (! selected)
-            {
-              _registry.regKVControllerPowerOffChord.putData (_registry.skinput.dwPowerOffChord);
-
-              ImGui::CloseCurrentPopup ();
-              open = false;
-            }
-          }
-
-          ImGui::EndPopup ();
+          // D-pad Up is stored as 0x3 (0x1, its XInput value, stands for Triangle here)
+          _registry.skinput.dwPowerOffChord = (dwButtonPressed == XINPUT_GAMEPAD_DPAD_UP) ? 0x3 : dwButtonPressed;
+          _registry.regKVControllerPowerOffChord.putData (_registry.skinput.dwPowerOffChord);
         }
       }
 
