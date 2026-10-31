@@ -1883,9 +1883,8 @@ DrawEmptySpaceMenu (bool showClearBtn)
       static bool* pbLibraryXbox   = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryXbox;
       static bool* pbLibraryCustom = (_registry._LibraryHidden) ? &_registry._LibraryHidden : &_registry.bLibraryCustom;
 
-      if (_games.IsPopulating ( ))
-        SKIF_ImGui_PushDisableState ( );
-
+      // Not disabled while the library is being populated (it flickered on every toggle): a toggle made meanwhile is
+      //   applied by another refresh once the current one is done (see RepopulateGames in library.cpp)
       if (ImGui::MenuItem ("EA",      spaces, pbLibraryEA,     (! _registry._LibraryHidden)))
       {
         _registry.regKVLibraryEA.putData    (_registry.bLibraryEA);
@@ -1950,9 +1949,6 @@ DrawEmptySpaceMenu (bool showClearBtn)
 
         RepopulateGames = true;
       }
-
-      if (_games.IsPopulating ( ))
-        SKIF_ImGui_PopDisableState ( );
 
       ImGui::EndMenu ( );
     }

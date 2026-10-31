@@ -618,7 +618,9 @@ SKIF_UI_Tab_DrawLibrary (void)
   }
 
   // We cannot manipulate the apps array while the game worker thread is running, nor any active icon workers
-  if (RepopulateGames && _art.GetActiveIconWorkers ( ) == 0) // ! gameWorkerRunning.load()
+  // A request made while the library is being populated waits until that one has been swapped in, as that one does not
+  //   include the change (e.g. a platform toggled meanwhile) and would otherwise mark the library as populated
+  if (RepopulateGames && _art.GetActiveIconWorkers ( ) == 0 && ! _games.IsPopulating ( )) // ! gameWorkerRunning.load()
   {
     PLOG_VERBOSE << "RepopulateGames && activeIconWorkers == 0";
 

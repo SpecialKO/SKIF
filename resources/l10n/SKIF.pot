@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-10-31 13:39+0100\n"
+"POT-Creation-Date: 2026-10-31 13:50+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -852,7 +852,7 @@ msgstr ""
 #: src/tabs/hardware.cpp:1259
 #: src/tabs/library/library_menus.cpp:1455
 #: src/tabs/library/library_menus.cpp:1710
-#: src/tabs/library/library_menus.cpp:1967
+#: src/tabs/library/library_menus.cpp:1963
 #: src/tabs/local.cpp:750
 msgid "Refresh"
 msgstr ""
@@ -1137,50 +1137,50 @@ msgstr ""
 msgid "Currently enforced by touch input mode."
 msgstr ""
 
-#: src/tabs/library.cpp:1462
+#: src/tabs/library.cpp:1464
 #: src/tabs/library/library_details.cpp:495
 msgid "Loading..."
 msgstr ""
 
-#: src/tabs/library.cpp:1620
+#: src/tabs/library.cpp:1622
 msgid "New 32-bit DLL Installed"
 msgstr ""
 
-#: src/tabs/library.cpp:1621
+#: src/tabs/library.cpp:1623
 msgid "New 64-bit DLL Installed"
 msgstr ""
 
-#: src/tabs/library.cpp:1740
-#: src/tabs/library.cpp:1848
+#: src/tabs/library.cpp:1742
+#: src/tabs/library.cpp:1850
 msgid "Missing Files"
 msgstr ""
 
-#: src/tabs/library.cpp:1741
-#: src/tabs/library.cpp:1849
+#: src/tabs/library.cpp:1743
+#: src/tabs/library.cpp:1851
 msgid "Unable to extract Special K DLL files from the provided {0} file."
 msgstr ""
 
-#: src/tabs/library.cpp:1887
+#: src/tabs/library.cpp:1889
 msgid "Unsupported Feature"
 msgstr ""
 
-#: src/tabs/library.cpp:1888
+#: src/tabs/library.cpp:1890
 msgid "SKIF cannot perform a drag-n-drop update because Special K {0} or newer is required."
 msgstr ""
 
-#: src/tabs/library.cpp:1903
+#: src/tabs/library.cpp:1905
 msgid "Unsupported file format"
 msgstr ""
 
-#: src/tabs/library.cpp:1905
+#: src/tabs/library.cpp:1907
 msgid "Add a game to the library:"
 msgstr ""
 
-#: src/tabs/library.cpp:1911
+#: src/tabs/library.cpp:1913
 msgid "Update the cover for the current selected game:"
 msgstr ""
 
-#: src/tabs/library.cpp:1922
+#: src/tabs/library.cpp:1924
 msgid "Note that the app has no support for animated images."
 msgstr ""
 
@@ -1620,12 +1620,12 @@ msgid "Platforms"
 msgstr ""
 
 #. TRANSLATORS: Games added by the user (shown among the platforms: Steam, GOG, ...)
-#: src/tabs/library/library_menus.cpp:1934
+#: src/tabs/library/library_menus.cpp:1933
 msgctxt "platform"
 msgid "Custom"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1940
+#: src/tabs/library/library_menus.cpp:1939
 msgid "Hidden games"
 msgstr ""
 
