@@ -143,6 +143,16 @@ DrawGameConfigMenu (app_record_s* pApp)
 
 #pragma region DrawGameContextMenu
 
+std::string
+SKIF_Lib_GetLaunchCommand (app_record_s* pApp, app_record_s::launch_config_s* lc)
+{
+  if (pApp == nullptr || lc == nullptr)
+    return "";
+
+  // Built by the same code that launches it (app_record_s::GetLaunchCommand ( ), used by LaunchInstant ( ))
+  return SK_WideCharToUTF8 (pApp->GetLaunchCommand (lc).display);
+}
+
 // Game context menu: Instant Play launch options (moved verbatim from DrawGameContextMenu)
 static void
 DrawGameContextMenu_InstantPlay (app_record_s* pApp, bool playDisabled, app_record_s::launch_config_s* firstLaunchConfig)
@@ -172,22 +182,7 @@ DrawGameContextMenu_InstantPlay (app_record_s* pApp, bool playDisabled, app_reco
       if (playDisabled)
         ImGui::EndDisabled ( );
 
-      std::string hoverText = (firstLaunchConfig != nullptr) ? firstLaunchConfig->getExecutableFullPathUTF8() : "";
-
-      if (firstLaunchConfig != nullptr && ! pApp->GetClientLaunchOptions ( ).empty())
-      {
-        hoverText = pApp->GetClientCommandLine (firstLaunchConfig);
-      }
-
-      else {
-        if (firstLaunchConfig != nullptr && ! firstLaunchConfig->getLaunchOptionsUTF8().empty())
-          hoverText += (" " + firstLaunchConfig->getLaunchOptionsUTF8());
-
-        std::string clientLaunchOptions = pApp->GetClientLaunchOptions ( );
-
-        if (! clientLaunchOptions.empty ( ))
-          hoverText += (" " + clientLaunchOptions);
-      }
+      std::string hoverText = SKIF_Lib_GetLaunchCommand (pApp, firstLaunchConfig);
 
       SKIF_ImGui_SetHoverText (hoverText.c_str());
 
@@ -286,25 +281,7 @@ DrawGameContextMenu_InstantPlay (app_record_s* pApp, bool playDisabled, app_reco
           else
             ImGui::PopStyleColor  ( );
 
-          std::string hoverText = _launch.getExecutableFullPathUTF8();
-
-          if (! _launch_cfg.second.custom_skif &&
-              ! _launch_cfg.second.custom_user &&
-              ! pApp->GetClientLaunchOptions ( ).empty())
-          {
-            hoverText = pApp->GetClientCommandLine (&_launch_cfg.second);
-          }
-
-          else
-          {
-            if (! _launch.getLaunchOptionsUTF8().empty())
-              hoverText += (" " + _launch.getLaunchOptionsUTF8());
-
-            // Also add Steam defined launch options, but only if not using custom launch configs
-            if (! pApp->GetClientLaunchOptions ( ).empty() &&
-                ! _launch_cfg.second.custom_skif && ! _launch_cfg.second.custom_user)
-              hoverText += (" " + pApp->GetClientLaunchOptions ( ));
-          }
+          std::string hoverText = SKIF_Lib_GetLaunchCommand (pApp, &_launch_cfg.second);
 
           if (! playDisabled && ! blacklisted)
             SKIF_ImGui_SetMouseCursorHand ( );
@@ -1210,10 +1187,15 @@ DrawGameContextMenu (app_record_s* pApp)
   if (playDisabled)
     ImGui::EndDisabled ( );
 
+  // The command line of the launch config Play uses (the default one), as for Instant play
+  const std::string launchCommand = SKIF_Lib_GetLaunchCommand (pApp, firstLaunchConfig);
+
+  SKIF_ImGui_SetHoverText (launchCommand);
+
   if (pApp->specialk.injection.injection.type != InjectionType::Local && _inject.bHasServlet)
   {
     if (! _inject.bCurrentState)
-      SKIF_ImGui_SetHoverText (_("Starts the injection service as well."));
+      SKIF_ImGui_SetHoverTip (_("Starts the injection service as well."));
 
     ImGui::PushStyleColor      (ImGuiCol_Text,
       ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
@@ -1230,8 +1212,10 @@ DrawGameContextMenu (app_record_s* pApp)
 
     ImGui::PopStyleColor   ( );
 
+    SKIF_ImGui_SetHoverText (launchCommand);
+
     if (_inject.bCurrentState)
-      SKIF_ImGui_SetHoverText (_("Stops the injection service as well."));
+      SKIF_ImGui_SetHoverTip (_("Stops the injection service as well."));
   }
 
   // Instant Play launch options

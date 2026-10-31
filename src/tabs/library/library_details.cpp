@@ -678,6 +678,10 @@ DrawGameDetails_Play (app_record_s* pApp)
   if (buttonPending)
     SKIF_ImGui_SetHoverTip (_("Please finish the ongoing mod installation first."));
 
+  // The command line of the launch config Play uses (the default one), as for Play in the game's context menu
+  else if (! buttonInstall)
+    SKIF_ImGui_SetHoverText (SKIF_Lib_GetLaunchCommand (pApp, pApp->GetDefaultLaunchConfig ( )));
+
   if (loading || pApp->_status.running || pApp->IsUpdateBlockingLaunch ( ) || buttonPending)
   {
     ImGui::EndDisabled   ( );
@@ -970,7 +974,11 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
   static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
 
-  bool registry_local = false;
+  // A local install listed in the registry (SOFTWARE\Kaldaien\Special K\Local) somewhere below the install folder. The
+  //   launch configs detect the local installs in their own folders below; this is only used for the game as a whole when
+  //     none of its launch configs could be resolved (no valid executable, e.g. Link2EA), as it may be in any subfolder
+  bool                             registry_local = false;
+  app_record_s::sk_install_state_s registryLocal  = { };
 
   // Use a registry based method as the primary choice of information for local injections
   HKEY hKey;
@@ -1035,25 +1043,25 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
                   dll_name = clean;
               }
 
-              pApp->specialk.injection.injection.type         = InjectionType::Local;
-              pApp->specialk.injection.dll.shorthand          = dll_name + L".dll";
-              pApp->specialk.injection.dll.shorthand_utf8     = SK_WideCharToUTF8 (pApp->specialk.injection.dll.shorthand);
-              pApp->specialk.injection.dll.full_path          = test_path + LR"(\)" + dll_name + L".dll"; // This allows us to "clean" the DLL file of the full patch as well
-              pApp->specialk.injection.dll.full_path_utf8     = SK_WideCharToUTF8 (pApp->specialk.injection.dll.full_path);
-              pApp->specialk.injection.dll.version            = dll_ver;
-              pApp->specialk.injection.dll.version_utf8       = SK_WideCharToUTF8 (pApp->specialk.injection.dll.version);
+              registryLocal.injection.type         = InjectionType::Local;
+              registryLocal.dll.shorthand          = dll_name + L".dll";
+              registryLocal.dll.shorthand_utf8     = SK_WideCharToUTF8 (registryLocal.dll.shorthand);
+              registryLocal.dll.full_path          = test_path + LR"(\)" + dll_name + L".dll"; // This allows us to "clean" the DLL file of the full patch as well
+              registryLocal.dll.full_path_utf8     = SK_WideCharToUTF8 (registryLocal.dll.full_path);
+              registryLocal.dll.version            = dll_ver;
+              registryLocal.dll.version_utf8       = SK_WideCharToUTF8 (registryLocal.dll.version);
 
               if (PathFileExistsW ((test_path + LR"(\SpecialK.Central)").c_str()))
-                pApp->specialk.injection.config.type          = ConfigType::Centralized;
+                registryLocal.config.type          = ConfigType::Centralized;
               else
               {
-                pApp->specialk.injection.config.type          = ConfigType::Localized;
-                pApp->specialk.injection.config.root_dir      = test_path;
-                pApp->specialk.injection.config.root_dir_utf8 = SK_WideCharToUTF8 (pApp->specialk.injection.config.root_dir);
+                registryLocal.config.type          = ConfigType::Localized;
+                registryLocal.config.root_dir      = test_path;
+                registryLocal.config.root_dir_utf8 = SK_WideCharToUTF8 (registryLocal.config.root_dir);
               }
 
-              pApp->specialk.injection.config.shorthand       = dll_name + L".ini";
-              pApp->specialk.injection.config.shorthand_utf8  = SK_WideCharToUTF8 (pApp->specialk.injection.config.shorthand);
+              registryLocal.config.shorthand       = dll_name + L".ini";
+              registryLocal.config.shorthand_utf8  = SK_WideCharToUTF8 (registryLocal.config.shorthand);
             }
 
             else {
@@ -1090,16 +1098,10 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
     if (firstValidFound == -1)
       firstValidFound = launch_cfg.first;
 
-    // Assume global
-    launch.injection.injection.type        =
-      (registry_local) ? InjectionType::Local
-                       : InjectionType::Global;
-    launch.injection.config.type           =
-      (registry_local) ? pApp->specialk.injection.config.type
-                       : ConfigType::Centralized;
-    launch.injection.config.shorthand      =
-      (registry_local) ? pApp->specialk.injection.config.shorthand
-                       : L"SpecialK.ini";
+    // Assume global (a local install in the folders of this launch config is detected below)
+    launch.injection.injection.type        = InjectionType::Global;
+    launch.injection.config.type           = ConfigType::Centralized;
+    launch.injection.config.shorthand      = L"SpecialK.ini";
     launch.injection.config.shorthand_utf8 =
       SK_WideCharToUTF8 (launch.injection.config.shorthand);
 
@@ -1182,8 +1184,7 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
     }
     // End checking bitness
 
-    // Fall back to the classic local detection code
-    if (InjectionType::Local != pApp->specialk.injection.injection.type)
+    // Local installs in the folders of this launch config (not the game's state of the last refresh, which would skip this)
     {
       // Check for local injections
       struct {
@@ -1326,8 +1327,15 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
   if (shown == nullptr || shown->injection.injection.type == InjectionType::Unknown)
     shown = &launch;
 
-  if (! registry_local)
-    pApp->specialk.injection = shown->injection;
+  pApp->specialk.injection = shown->injection;
+
+  // No launch config with a valid executable (e.g. Link2EA), so a registered local install can't be tied to one: it
+  //   applies to the game, as Special K would be loaded from it
+  if (registry_local && firstValidFound == -1)
+  {
+    registryLocal.injection.bitness = pApp->specialk.injection.injection.bitness;
+    pApp->specialk.injection        = registryLocal;
+  }
 
   if ( InjectionType::Global ==
       pApp->specialk.injection.injection.type )
@@ -1388,7 +1396,7 @@ UpdateInjectionStrategy (app_record_s* pApp, std::set <std::string> apptickets)
       {
         for (const app_record_s::sk_install_state_s* local : locals)
         {
-          // Launch configs of a registered local install (registry_local) only have the type, not the DLL
+          // Only those with a known DLL and version
           if (local->dll.full_path.empty ( ) || local->dll.version.empty ( ))
             continue;
 

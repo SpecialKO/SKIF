@@ -217,6 +217,9 @@ bool SaveGameCover           (app_record_s* pApp, std::wstring_view path); // Co
 // library/library_menus.cpp
 void DrawGameConfigMenu      (app_record_s* pApp);
 void DrawGameContextMenu     (app_record_s* pApp);
+// The command line a launch config runs: the executable and its arguments, with the launch options set in the store
+//   client (Steam) where they apply. Shown in the status bar when hovering Play / Instant play (library_menus.cpp)
+std::string SKIF_Lib_GetLaunchCommand (app_record_s* pApp, app_record_s::launch_config_s* lc);
 void DrawSpecialKContextMenu (app_record_s* pApp);
 void DrawCoverMenu           (void);
 void DrawIconMenu            (void);

@@ -487,6 +487,19 @@ struct app_record_s {
   virtual void         Launch                  (const launch_context_s& ctx);                 // app_record.cpp: instant launch if requested, else nothing applicable
   void                 LaunchInstant           (const launch_context_s& ctx);                 // app_record.cpp: runs the executable directly
 
+  // The command line of a launch config, as LaunchInstant ( ) runs it: its executable and arguments, with the launch
+  //   options set in the store client (Steam) applied to the store's own launch configs. Also what the UI shows, so the
+  //     two can't differ. forLaunch: read the store client's launch options again (else the ones read last, for the UI)
+  struct launch_command_s {
+    std::wstring cmdLine;                 // The arguments; with Steam's %command%, the whole command line (shellExecute)
+    bool         shellExecute  = false;   // Steam's %command%: cmdLine starts with what to run
+    uint32_t     steamAppID    = 0;       // SKIF_SteamAppID= in the arguments (removed from cmdLine), else GetSteamAppID ( )
+    std::wstring wsSteamAppID;
+    std::string  clientOptions;           // The store client's launch options that were applied (empty: none)
+    std::wstring display;                 // The full command line, as shown
+  };
+  launch_command_s     GetLaunchCommand        (launch_config_s* config, bool forLaunch = false); // app_record.cpp
+
   // Hooks used by LaunchInstant ( )
   virtual uint32_t     GetSteamAppID           (void) const                { return 0; }      // Steam App ID exposed to the game (SteamAppId)
   virtual std::string  GetStoreLaunchOptions   (uint32_t steamAppID)       { UNREFERENCED_PARAMETER (steamAppID); return ""; } // Launch options set in the store client
@@ -515,7 +528,6 @@ struct app_record_s {
   virtual std::wstring GetStoreAssetDirectory  (void) const               { return L""; }     // Assets\<Store>\<id or key>\ (store .cpp files)
   virtual bool         IsUserAdded             (void) const               { return false; }   // Custom game added by the user (editable target, removable)
   virtual std::string  GetClientLaunchOptions  (void) const               { return ""; }      // Launch options the user set in the store client
-  virtual std::string  GetClientCommandLine    (launch_config_s* config)  { UNREFERENCED_PARAMETER (config); return ""; } // Command line built from them when they use %command% (Steam)
 
   // Special K compatibility
   virtual bool         HasLegacySpecialKVersion(void) const               { return false; }   // Game is known to use an older, game-specific Special K: skip the local DLL update check

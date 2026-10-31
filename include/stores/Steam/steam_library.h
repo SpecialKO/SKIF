@@ -299,7 +299,6 @@ struct app_record_steam_s : app_record_store_s <app_record_steam_s, app_record_s
   struct steam_s {
     struct {
       std::string launch_option        = ""; // Holds the custom launch option set in the Steam client
-      std::string launch_option_parsed = ""; // Holds a cached parsed value of the launch option set in the Steam client
     } local;
 
     struct {
@@ -341,7 +340,6 @@ struct app_record_steam_s : app_record_store_s <app_record_steam_s, app_record_s
   bool         GetInstantPlayDefault   (void) const override;
   std::wstring GetStoreAssetDirectory  (void) const override;
   std::string  GetClientLaunchOptions  (void) const override { return steam.local.launch_option; }
-  std::string  GetClientCommandLine    (launch_config_s* config) override;
   int          GetClientFavorite       (void) const override { return steam.shared.favorite; }
   int          GetClientHidden         (void) const override { return steam.shared.hidden;   }
   bool         HasLegacySpecialKVersion(void) const override;

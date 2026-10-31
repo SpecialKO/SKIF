@@ -637,7 +637,6 @@ SKIF_Steam_GetLaunchOptions (AppId_t appid, SteamId3_t userid , app_record_steam
 {
   // Clear values
   app->steam.local.launch_option.clear();
-  app->steam.local.launch_option_parsed.clear();
 
   // Implementation using the ValveFileVDF project
   std::ifstream file (SKIF_Steam_GetUserConfigStorePath (userid, ConfigStore_UserLocal));
@@ -2180,47 +2179,6 @@ bool
 app_record_steam_s::IsRunningStateFromClient (void) const
 {
   return (steamRunning && ! steamFallback);
-}
-
-#pragma endregion
-
-#pragma region Client Launch Options
-
-// Builds the command line from the launch options set in the Steam client when they use %COMMAND%
-std::string
-app_record_steam_s::GetClientCommandLine (launch_config_s* pLaunchCfg)
-{
-  if (! steam.local.launch_option_parsed.empty())
-    return steam.local.launch_option_parsed;
-
-  // Check if there is a custom launch option set up
-  if (steam.local.launch_option.size() > 0)
-  {
-    std::string strSteam_Command  = "%command%"; // Only for Steam games
-    size_t start_pos = SKIF_Util_ToLower (steam.local.launch_option).find (strSteam_Command);
-
-    // Check if a %COMMAND% is a part of the launch options
-    // %COMMAND% is special in that the original developer-specified launch options are placed at its exact position,
-    //   making the user-specified Steam launch options the _primary_ and the developer-specified launch options _secondary_
-    if (start_pos != std::string::npos)
-    {
-      // Base is dev-specified executable
-      std::string newCmdLine = pLaunchCfg->getExecutableFullPathUTF8 ( );
-      std::string strSteamLO = steam.local.launch_option;
-
-      // Appended is dev-specified cmd line arguments
-      if (! pLaunchCfg->getLaunchOptionsUTF8().empty())
-        newCmdLine += " " + pLaunchCfg->getLaunchOptionsUTF8();
-
-      // Replace %command% with the dev-specified exe and args
-      strSteamLO.replace (start_pos, strSteam_Command.length(), newCmdLine);
-
-      // Swap in the result and flag to use shell execute
-      steam.local.launch_option_parsed = strSteamLO;
-    }
-  }
-
-  return steam.local.launch_option_parsed;
 }
 
 #pragma endregion

@@ -571,23 +571,17 @@ app_record_s::Launch (const launch_context_s& ctx)
     PLOG_ERROR << "No applicable launch option was found?!";
 }
 
-// Instant Play: launches the executable of the launch config directly
-// - Custom games
-// - GOG games when Galaxy is not installed
-// - Prefer Instant Play for GOG
-// - Prefer Instant Play for Steam
-void
-app_record_s::LaunchInstant (const launch_context_s& ctx)
+// The command line of a launch config (see app_record.h): used by LaunchInstant ( ) and shown in the UI
+app_record_s::launch_command_s
+app_record_s::GetLaunchCommand (launch_config_s* config, bool forLaunch)
 {
-  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  launch_command_s ret;
 
-  PLOG_VERBOSE << "Performing an instant launch...";
-
-  bool launchDecision       = true;
+  if (config == nullptr)
+    return ret;
 
   // We need to use proxy variables since we might remove a substring of the launch options
-  std::wstring cmdLine = ctx.config->getLaunchOptions();
-  bool useShellExecute = false; // This is in case a %COMMAND% Steam call is made
+  std::wstring cmdLine = config->getLaunchOptions();
 
   // Transform to lowercase
   std::wstring cmdLineLower = SKIF_Util_ToLowerW (cmdLine);
@@ -624,10 +618,94 @@ app_record_s::LaunchInstant (const launch_context_s& ctx)
     catch (const std::exception& e)
     {
       UNREFERENCED_PARAMETER(e);
-      PLOG_ERROR << "Unable to convert found Steam App ID to integer: " << wsSteamAppID;
+      if (forLaunch)
+        PLOG_ERROR << "Unable to convert found Steam App ID to integer: " << wsSteamAppID;
       uiSteamAppID = 0;
     }
   }
+
+  // The launch options set in the store client (Steam) apply to the store's own launch configs only, not to SKIF's or the
+  //   user's. Read again for a launch; the UI uses the ones read last (only those of the game itself are kept)
+  if (uiSteamAppID != 0 &&
+      ! config->custom_skif &&
+      ! config->custom_user)
+  {
+    std::string steamLaunchOptions = (forLaunch) ? GetStoreLaunchOptions (uiSteamAppID)
+                                   : (uiSteamAppID == GetSteamAppID ( )) ? GetClientLaunchOptions ( ) : std::string ( );
+
+    if (steamLaunchOptions.size() > 0)
+    {
+      ret.clientOptions = steamLaunchOptions;
+
+      std::string steamLaunchOptionsLower =
+        SKIF_Util_ToLower (steamLaunchOptions);
+
+      std::string sSteam_Command = "%command%"; // Only for Steam games
+      size_t posSteam_Command_start = steamLaunchOptionsLower.find(sSteam_Command);
+
+      // Check if a %COMMAND% is a part of the launch options
+      // %COMMAND% is special in that the original developer-specified launch options are placed at its exact position,
+      //   making the user-specified Steam launch options the _primary_ and the developer-specified launch options _secondary_
+      if (posSteam_Command_start != std::string::npos)
+      {
+        // Base is dev-specified executable
+        std::wstring newCmdLine = config->getExecutableFullPath ( );
+        std::wstring wsSteamLO  = SK_UTF8ToWideChar (steamLaunchOptions);
+
+        // Appended is dev-specified cmd line arguments
+        if (! cmdLine.empty())
+          newCmdLine += L" " + cmdLine;
+
+        // Replace %command% with the dev-specified exe and args
+        wsSteamLO.replace(posSteam_Command_start, sSteam_Command.length(), newCmdLine);
+
+        // Swap in the result and flag to use shell execute
+        cmdLine          = wsSteamLO;
+        ret.shellExecute = true;
+      }
+
+      // Append the launch command string with the one from Steam...
+      else {
+        // If the cmdLine is not empty, add a space as well
+        if (! cmdLine.empty())
+          cmdLine += L" ";
+
+        cmdLine += SK_UTF8ToWideChar (steamLaunchOptions);
+      }
+    }
+  }
+
+  ret.cmdLine      = cmdLine;
+  ret.steamAppID   = uiSteamAppID;
+  ret.wsSteamAppID = wsSteamAppID;
+  ret.display      = (ret.shellExecute) ? cmdLine
+                                        : config->getExecutableFullPath ( ) + ((cmdLine.empty ( )) ? L"" : L" " + cmdLine);
+
+  return ret;
+}
+
+// Instant Play: launches the executable of the launch config directly
+// - Custom games
+// - GOG games when Galaxy is not installed
+// - Prefer Instant Play for GOG
+// - Prefer Instant Play for Steam
+void
+app_record_s::LaunchInstant (const launch_context_s& ctx)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  PLOG_VERBOSE << "Performing an instant launch...";
+
+  bool launchDecision       = true;
+
+  // The command line, with the launch options set in the store client (Steam) applied (GetLaunchCommand ( ), which also
+  //   builds what the UI shows). They are read again for the launch
+  launch_command_s command = GetLaunchCommand (ctx.config, true);
+
+  std::wstring cmdLine         = command.cmdLine;
+  bool         useShellExecute = command.shellExecute; // This is in case a %COMMAND% Steam call is made
+  uint32_t     uiSteamAppID    = command.steamAppID;
+  std::wstring wsSteamAppID    = command.wsSteamAppID;
 
   std::map<std::wstring, std::wstring> env;
   bool steamOverlay = true;
@@ -648,67 +726,24 @@ app_record_s::LaunchInstant (const launch_context_s& ctx)
       env.emplace (L"SteamNoOverlayUIDrawing", L"1");
     }
 
-    // If both of these are false, see if there is any custom Steam launch options to append...
-    if (! ctx.config->custom_skif &&
-        ! ctx.config->custom_user)
+    if (! command.clientOptions.empty ( ))
     {
-      std::string steamLaunchOptions = GetStoreLaunchOptions (uiSteamAppID); // Launch options set in the store client (Steam only)
+      PLOG_DEBUG << "Found additional launch options for this app in Steam: " << command.clientOptions;
 
-      if (steamLaunchOptions.size() > 0)
+      // Check if SKIF %COMMAND% is being used, when we're trying to launch without Special K
+      if (! ctx.usingSK && SKIF_Util_ToLower (command.clientOptions).find ("skif ") == 0)
       {
-        PLOG_DEBUG << "Found additional launch options for this app in Steam: " << steamLaunchOptions;
+        launchDecision = false;
 
-        std::string steamLaunchOptionsLower =
-          SKIF_Util_ToLower (steamLaunchOptions);
+        // The message is shown as is (not as a format), so percent signs (%) need no escaping
+        SKIF_ImGui_InfoMessage (_("Conflicting configuration"),
+                                std::string (_("Could not launch game due to conflicting launch options in Steam:")) + "\n"
+                                "\n"
+                              +  command.clientOptions + "\n"
+                                "\n"
+                              + _("Please change the launch options in Steam before trying again."));
 
-        std::string sSteam_Command = "%command%"; // Only for Steam games
-        size_t posSteam_Command_start = steamLaunchOptionsLower.find(sSteam_Command);
-
-        // Check if SKIF %COMMAND% is being used, when we're trying to launch without Special K
-        if (! ctx.usingSK && steamLaunchOptionsLower.find("skif ") == 0)
-        {
-          launchDecision = false;
-
-          // The message is shown as is (not as a format), so percent signs (%) need no escaping
-          SKIF_ImGui_InfoMessage (_("Conflicting configuration"),
-                                  std::string (_("Could not launch game due to conflicting launch options in Steam:")) + "\n"
-                                  "\n"
-                                +  steamLaunchOptions + "\n"
-                                  "\n"
-                                + _("Please change the launch options in Steam before trying again."));
-
-          PLOG_WARNING << "Steam game " << id << " (" << names.normal << ") was unable to launch due to a conflict with the launch option of Steam!";
-        }
-
-        // Check if a %COMMAND% is a part of the launch options
-        // %COMMAND% is special in that the original developer-specified launch options are placed at its exact position,
-        //   making the user-specified Steam launch options the _primary_ and the developer-specified launch options _secondary_
-        else if (posSteam_Command_start != std::string::npos)
-        {
-          // Base is dev-specified executable
-          std::wstring newCmdLine = ctx.config->getExecutableFullPath ( );
-          std::wstring wsSteamLO  = SK_UTF8ToWideChar (steamLaunchOptions);
-
-          // Appended is dev-specified cmd line arguments
-          if (! cmdLine.empty())
-            newCmdLine += L" " + cmdLine;
-
-          // Replace %command% with the dev-specified exe and args
-          wsSteamLO.replace(posSteam_Command_start, sSteam_Command.length(), newCmdLine);
-
-          // Swap in the result and flag to use shell execute
-          cmdLine = wsSteamLO;
-          useShellExecute = true;
-        }
-
-        // Append the launch command string with the one from Steam...
-        else {
-          // If the cmdLine is not empty, add a space as well
-          if (! cmdLine.empty())
-            cmdLine += L" ";
-
-          cmdLine += SK_UTF8ToWideChar (steamLaunchOptions);
-        }
+        PLOG_WARNING << "Steam game " << id << " (" << names.normal << ") was unable to launch due to a conflict with the launch option of Steam!";
       }
     }
   }
