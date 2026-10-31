@@ -812,6 +812,9 @@ SK_ImGui_KeybindDialog (SK_KeybindMultiState* keybind)
     return keybind->hasNewState ( );
   }
 
+  // Seen by SK_ImGui_KeybindCancelIfHidden ( )
+  keybind->dialogFrame = ImGui::GetFrameCount ( );
+
   const ImGuiViewport* vp        = ImGui::GetWindowViewport ( );
 
   // Keys are only read while the window the dialog is in has focus, so typing in another window (the INI editor, the main
@@ -953,6 +956,25 @@ SK_ImGui_KeybindDialog (SK_KeybindMultiState* keybind)
 
   // This returns true every time we change the state (active -> pending -> active, etc)
   return keybind->hasNewState ( );
+}
+
+bool
+SK_ImGui_KeybindCancelIfHidden (SK_KeybindMultiState* binding)
+{
+  if (binding == nullptr || ! binding->assigning || binding->dialogFrame == ImGui::GetFrameCount ( ))
+    return false;
+
+  // As Esc in the dialog: back to the saved keybinding
+  binding->pending = binding->saved;
+  binding->pending.parse    ( );
+  binding->pending.makeMask ( );
+  binding->pending.update   ( );
+  binding->assigning = false;
+
+  binding->applyChanges ( );
+  binding->hasNewState  ( );
+
+  return true;
 }
 
 bool

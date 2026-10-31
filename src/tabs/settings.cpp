@@ -34,12 +34,11 @@ struct kb_kv_s
   std::function <bool (void)>                     _show;
 };
 
-void
-SKIF_UI_Tab_DrawSettings (void)
+// The keybindings of the Settings tab (SKIF's own global hotkeys)
+static std::vector <kb_kv_s>&
+SKIF_UI_Settings_GetKeybinds (void)
 {
-  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
-  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
-  static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
 
   // The names of the keybindings in registry.h (where they are also IDs, so they are translated where they are shown)
   [[maybe_unused]] static constexpr const char* keybindNames [] = { N_("Toggle Display HDR"), N_("Start Service") };
@@ -49,6 +48,33 @@ SKIF_UI_Tab_DrawSettings (void)
     { &_registry.kbToggleHDRDisplay, &_registry.regKVHotkeyToggleHDRDisplay, { [](SK_KeybindMultiState* ptr) { SKIF_Util_RegisterHotKeyHDRToggle (ptr->getKeybind()); } }, { []() { return (SKIF_Util_IsWindows10v1709OrGreater ( ) && SKIF_Util_IsHDRSupported (NULL)); } } },
     { &_registry.kbStartService,     &_registry.regKVHotkeyStartService,     { [](SK_KeybindMultiState* ptr) { SKIF_Util_RegisterHotKeySVCTemp   (ptr->getKeybind()); } }, { []() { return true;                                                                      } } }
   };
+
+  return keybinds;
+}
+
+// Cancels the assignment of a keybinding whose dialog is no longer shown (the tab, the window mode or the shown keybindings
+//   changed while it was open; e.g. L1/R1 or a launch through SKIF), so its hotkey is not left unregistered until the
+//     user returns to the Settings tab. Called once per frame, after all UI.
+void
+SKIF_UI_Settings_CancelHiddenKeybindDialogs (void)
+{
+  for (auto& keybind : SKIF_UI_Settings_GetKeybinds ( ))
+  {
+    // Registers the hotkey again (the saved keybinding is unchanged, so there is nothing to write to the registry)
+    if (SK_ImGui_KeybindCancelIfHidden (keybind._key))
+      keybind._callback (keybind._key);
+  }
+}
+
+void
+SKIF_UI_Tab_DrawSettings (void)
+{
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
+
+  static std::vector <kb_kv_s>&
+    keybinds = SKIF_UI_Settings_GetKeybinds ( );
 
   static const std::wstring valvePlugPath = SK_FormatStringW (LR"(%ws\XInput1_4.dll)", _path_cache.steam_install);
   static       bool         valvePlug     = false;

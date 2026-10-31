@@ -2950,7 +2950,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
     {
       SKIF_FrameCount.store(ImGui::GetFrameCount());
 
-      // Reset every frame
+      // Reset every frame (the keybinding dialog sets it again while it is shown); what it was in the previous frame
+      //   is kept for the navigation below, which runs before the dialog
+      const bool keybindDialogShown = g_activeKeybindPopup;
       g_activeKeybindPopup = false;
 
       if (SKIF_vecCurrentModeNext.x != 0.0f &&
@@ -3113,8 +3115,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
           RefreshSettingsTab = true;
       }
 
-      // Only allow navigational hotkeys when in Large Mode and as long as no popups are opened
-      if (! _registry.bMiniMode && ! SKIF_ImGui_IsAnyPopupOpen ( ))
+      // Only allow navigational hotkeys when in Large Mode and as long as no popups are opened (the keybinding dialog
+      //   is a SKIF popup, not an ImGui one, so it is checked separately)
+      if (! _registry.bMiniMode && ! SKIF_ImGui_IsAnyPopupOpen ( ) && ! keybindDialogShown)
       {
         int gamepad_tab = 0;
 
@@ -3908,6 +3911,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
       // Needs to be processed after all ImGui windows have run
       if (! HoverTipActive)
         HoverTipDuration = 0;
+
+      // A keybinding dialog of the Settings tab that was not shown this frame is cancelled, so its hotkey is not left
+      //   unregistered (also after all ImGui windows have run)
+      SKIF_UI_Settings_CancelHiddenKeybindDialogs ( );
 
     } // ImGui::NewFrame
 

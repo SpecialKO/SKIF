@@ -763,6 +763,7 @@ struct SK_KeybindMultiState
   std::string  bind_name = ""; // Needed as otherwise this is limited to solely static objects
   bool         assigning = false,
                state     = false;
+  int          dialogFrame = -1; // The ImGui frame the dialog of SK_ImGui_Keybinding ( ) was last shown in
   SK_Keybind   default, pending, saved;
 
   // This empty object is used during assignment to disable hotkeys temporarily
@@ -782,6 +783,10 @@ struct SK_KeybindMultiState
 };
 
 bool SK_ImGui_Keybinding    (SK_KeybindMultiState* binding);
+// Cancels the assignment of a keybinding (as Esc would) if its dialog was not shown in the current frame, e.g. because
+//   the tab or the window mode changed while it was open. Call after all UI of the frame; returns true if it was cancelled.
+//     Only for keybindings that outlive their UI (the INI editor's are discarded with their window).
+bool SK_ImGui_KeybindCancelIfHidden (SK_KeybindMultiState* binding);
 
 #include <winstring.h>
 
