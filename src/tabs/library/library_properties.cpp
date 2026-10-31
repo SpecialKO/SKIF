@@ -1789,9 +1789,16 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
   extern ImRect windowRect;
   const float   fOffset = static_cast <float> ((wnd.id % 5) * 24) * fDPI;
 
-  ImGui::SetNextWindowPos             (windowRect.GetCenter ( ) + ImVec2 (fOffset, fOffset), ImGuiCond_Appearing, ImVec2 (0.5f, 0.5f));
-  ImGui::SetNextWindowSize            (ImVec2 (1030.0f, 920.0f) * fDPI, ImGuiCond_Appearing);
-  ImGui::SetNextWindowSizeConstraints (ImVec2 (720.0f, 460.0f) * fDPI, ImVec2 (FLT_MAX, FLT_MAX));
+  // Room for the spacing above and below the Save / Cancel buttons (two SKIF_ImGui_Spacing ( ), each a quarter of a line
+  //   plus the item spacing; see the footer), at 100%, so the pages keep the height they had before it was added
+  const float   fFooterSpacing = 2.0f * (ImGui::GetTextLineHeightWithSpacing ( ) * 0.25f + ImGui::GetStyle ( ).ItemSpacing.y) / SKIF_ImGui_GlobalDPIScale;
+
+  // Centered on the main window, but kept within the work area of its monitor (smaller if needed) on small displays
+  const ImVec2  vCenter        = windowRect.GetCenter ( ) + ImVec2 (fOffset, fOffset);
+
+  // 960 px: tall enough for the pages of most games without a scrollbar
+  SKIF_ImGui_SetNextWindowCentered    (vCenter, ImVec2 (1030.0f, 960.0f + fFooterSpacing) * fDPI, ImGuiCond_Appearing);
+  ImGui::SetNextWindowSizeConstraints (SKIF_ImGui_FitSizeToWorkArea (vCenter, ImVec2 (720.0f, 460.0f + fFooterSpacing) * fDPI), ImVec2 (FLT_MAX, FLT_MAX));
 
   if (wnd.focusRequest)
   {
@@ -1872,11 +1879,13 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
 
     ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
 
-    // The footer below the pages: up to three lines of warnings / errors, then the buttons
+    // The footer below the pages: up to three lines of warnings / errors, then the buttons with spacing above and below
+    //   them (as in the updater's window)
     const ImGuiStyle& style      = ImGui::GetStyle ( );
     const int         issueLines = std::min (static_cast <int> (issues.size ( )), 3);
     const float       fIssuesH   = (issueLines > 0) ? issueLines * ImGui::GetTextLineHeightWithSpacing ( ) + style.ItemSpacing.y : 0.0f;
-    const float       fFooterH   = fIssuesH + ImGui::GetFrameHeightWithSpacing ( ) + style.ItemSpacing.y * 2.0f;
+    const float       fSpacingH  = ImGui::GetTextLineHeightWithSpacing ( ) * 0.25f + style.ItemSpacing.y; // One SKIF_ImGui_Spacing ( ) (a quarter of a line)
+    const float       fFooterH   = fIssuesH + fSpacingH * 2.0f + ImGui::GetFrameHeightWithSpacing ( ) + style.ItemSpacing.y * 2.0f;
 
     // The content is limited to a readable width and centered, so a large (maximized) window doesn't stretch it all the way.
     //   Its width and position don't depend on the page's scrollbar: room for the scrollbar is always kept free on both
@@ -1974,6 +1983,8 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
 
     const bool saveDisabled = (! anyDirty || hasErrors);
 
+    SKIF_ImGui_Spacing ( );
+
     // Save / Cancel, centered
     ImGui::SetCursorPosX ((ImGui::GetWindowWidth ( ) - vButtonSize.x * 2.0f - style.ItemSpacing.x) / 2.0f);
 
@@ -2054,6 +2065,8 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
     // Cancel discards the changes without asking: it is the explicit way to do so
     if (ImGui::Button (L_("Cancel###PropsCancel"), vButtonSize))
       closed = true;
+
+    SKIF_ImGui_Spacing ( );
 
     ImGui::PopStyleColor ( );
 

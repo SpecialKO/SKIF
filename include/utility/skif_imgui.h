@@ -142,6 +142,10 @@ void     SKIF_ImGui_ApplyDPIScale         (float scale);               // Rescal
 void     SKIF_ImGui_OnChangedViewport     (ImGuiViewport* viewport);   // ImGuiPlatformIO::Platform_OnChangedViewport: per-monitor DPI
 void     SKIF_ImGui_RestoreMainDPIScale   (void);                      // Back to the main window's DPI scale (between frames)
 float    SKIF_ImGui_GetDPIScaleForWindow  (const char* name);          // DPI scale for sizes set up before ImGui::Begin () of that window
+// For windows opened centered on a point (screen coordinates), e.g. the main window's center, so they don't extend past
+//   the work area (the desktop minus the taskbar) of the monitor that point is on (or the nearest one) on small displays
+ImVec2   SKIF_ImGui_FitSizeToWorkArea     (const ImVec2& center, const ImVec2& size); // size, made to fit (e.g. for a minimum size)
+void     SKIF_ImGui_SetNextWindowCentered (const ImVec2& center, const ImVec2& size, ImGuiCond cond); // SetNextWindowPos () + SetNextWindowSize (), fitted and kept inside
 void     SKIF_ImGui_BeginHighlightLine    (ImU32 hover_color = ImGui::GetColorU32 (ImGuiCol_SKIF_HighlightLineBg));
 void     SKIF_ImGui_PushHighlightLineLine (void);
 void     SKIF_ImGui_PopHighlightLineLine  (void);

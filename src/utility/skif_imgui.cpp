@@ -2473,6 +2473,61 @@ SKIF_ImGui_GetDPIScaleForWindow (const char* name)
   return SKIF_ImGui_MainDPIScale;
 }
 
+// The monitor whose work area contains the point (screen coordinates), else the nearest one; nullptr if there are none
+static const ImGuiPlatformMonitor*
+SKIF_ImGui_GetMonitorAt (const ImVec2& pos)
+{
+  const ImGuiPlatformMonitor* nearest  = nullptr;
+  float                       distance = FLT_MAX;
+
+  for (const ImGuiPlatformMonitor& monitor : ImGui::GetPlatformIO ( ).Monitors)
+  {
+    const ImVec2 work_min = monitor.WorkPos;
+    const ImVec2 work_max = monitor.WorkPos + monitor.WorkSize;
+    const ImVec2 delta    = ImClamp (pos, work_min, work_max) - pos; // Zero inside the work area
+
+    const float  dist     = delta.x * delta.x + delta.y * delta.y;
+
+    if (dist < distance)
+    {
+      distance = dist;
+      nearest  = &monitor;
+    }
+  }
+
+  return nearest;
+}
+
+ImVec2
+SKIF_ImGui_FitSizeToWorkArea (const ImVec2& center, const ImVec2& size)
+{
+  if (const ImGuiPlatformMonitor* monitor = SKIF_ImGui_GetMonitorAt (center))
+    return ImMin (size, monitor->WorkSize);
+
+  return size;
+}
+
+void
+SKIF_ImGui_SetNextWindowCentered (const ImVec2& center, const ImVec2& size, ImGuiCond cond)
+{
+  const ImGuiPlatformMonitor* monitor = SKIF_ImGui_GetMonitorAt (center);
+
+  if (monitor == nullptr)
+  {
+    ImGui::SetNextWindowPos  (center, cond, ImVec2 (0.5f, 0.5f));
+    ImGui::SetNextWindowSize (size,   cond);
+    return;
+  }
+
+  // At most as large as the work area, and moved inside it if centering it on the point would put a part outside
+  const ImVec2 fitted   = ImMin (size, monitor->WorkSize);
+  const ImVec2 work_min = monitor->WorkPos;
+  const ImVec2 work_max = monitor->WorkPos + monitor->WorkSize - fitted;
+
+  ImGui::SetNextWindowPos  (ImFloor (ImClamp (center - fitted * 0.5f, work_min, work_max)), cond);
+  ImGui::SetNextWindowSize (fitted, cond);
+}
+
 // Do not use mid-frame to change the style!
 void
 SKIF_ImGui_SetStyle (ImGuiStyle* dst)

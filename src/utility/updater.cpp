@@ -1348,10 +1348,10 @@ SKIF_Updater::DrawWindowChanges (Window* wnd, WindowType type)
     wc.ClassId = ImGui::GetID ("SKIF_ChangelogClass");
     wc.ViewportFlagsOverrideSet = ImGuiViewportFlags_NoAutoMerge; // Work around a pesky bug where the viewport tries to merge into the... debug fallback window?
   ImGui::SetNextWindowClass (&wc);
-  ImGui::SetNextWindowSizeConstraints (ImVec2 (500.0f, 300.0f) * SKIF_ImGui_GetDPIScaleForWindow (wnd->label.c_str()), ImVec2 (FLT_MAX, FLT_MAX));
   extern ImRect windowRect;
-  ImGui::SetNextWindowPos  (windowRect.GetCenter(), ImGuiCond_Appearing, ImVec2 (0.5f, 0.5f));
-  ImGui::SetNextWindowSize (ImVec2 (900.0f, 600.0f) * SKIF_ImGui_MainDPIScale, ImGuiCond_Appearing); // Opens centered on the main window
+  // Opens centered on the main window, but kept within the work area of its monitor (smaller if needed) on small displays
+  ImGui::SetNextWindowSizeConstraints (SKIF_ImGui_FitSizeToWorkArea (windowRect.GetCenter(), ImVec2 (500.0f, 300.0f) * SKIF_ImGui_GetDPIScaleForWindow (wnd->label.c_str())), ImVec2 (FLT_MAX, FLT_MAX));
+  SKIF_ImGui_SetNextWindowCentered    (windowRect.GetCenter(), ImVec2 (900.0f, 600.0f) * SKIF_ImGui_MainDPIScale, ImGuiCond_Appearing);
 
   bool cache_show = wnd->show;
 
@@ -1449,10 +1449,10 @@ SKIF_Updater::DrawWindowUpdater (Window* wnd)
     wc.ClassId = ImGui::GetID ("SKIF_UpdaterClass");
     wc.ViewportFlagsOverrideSet = ImGuiViewportFlags_NoAutoMerge; // Work around a pesky bug where the viewport tries to merge into the... debug fallback window?
   ImGui::SetNextWindowClass (&wc);
-  ImGui::SetNextWindowSizeConstraints (ImVec2 (500.0f, 300.0f) * SKIF_ImGui_GetDPIScaleForWindow (wnd->label.c_str()), ImVec2 (FLT_MAX, FLT_MAX));
   extern ImRect windowRect;
-  ImGui::SetNextWindowPos  (windowRect.GetCenter(), ImGuiCond_Appearing, ImVec2 (0.5f, 0.5f));
-  ImGui::SetNextWindowSize (ImVec2 (900.0f, 600.0f) * SKIF_ImGui_MainDPIScale, ImGuiCond_Appearing); // Opens centered on the main window
+  // Opens centered on the main window, but kept within the work area of its monitor (smaller if needed) on small displays
+  ImGui::SetNextWindowSizeConstraints (SKIF_ImGui_FitSizeToWorkArea (windowRect.GetCenter(), ImVec2 (500.0f, 300.0f) * SKIF_ImGui_GetDPIScaleForWindow (wnd->label.c_str())), ImVec2 (FLT_MAX, FLT_MAX));
+  SKIF_ImGui_SetNextWindowCentered    (windowRect.GetCenter(), ImVec2 (900.0f, 600.0f) * SKIF_ImGui_MainDPIScale, ImGuiCond_Appearing);
 
   bool cache_show = wnd->show;
 
