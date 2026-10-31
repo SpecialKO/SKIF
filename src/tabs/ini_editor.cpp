@@ -306,6 +306,48 @@ SKIF_UI_IniEditor_ApplyPreset (IniWindow* iniWindow, std::vector<IniEntry> entri
   iniWindow->UpdateWindowTitle ( );
 }
 
+// Saves a copy of the document as a custom preset (the Custom presets folder is suggested). The document itself is left
+//   as it is: it keeps its own file, and any unsaved changes stay unsaved
+static void
+SKIF_UI_IniEditor_SaveAsPreset (IniWindow* iniWindow)
+{
+  const std::wstring& folder = SKIF_IniPresets_GetCustomFolder ( );
+
+  std::error_code ec;
+  // Create any missing directories, so the dialog can open in the folder
+  if (! std::filesystem::exists             (folder, ec))
+        std::filesystem::create_directories (folder, ec);
+
+  LPWSTR pwszFilePath = NULL;
+  HRESULT hr          =
+    SKIF_Util_FileExplorer_SaveFile (&pwszFilePath, (HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, { { W_("Configuration Files"), L"*.ini" }, { W_("All files"), L"*.*" } }, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST, FOLDERID_ComputerFolder, folder.c_str(), L"ini");
+
+  if (hr == HRESULT_FROM_WIN32 (ERROR_CANCELLED))
+    return;
+
+  else if (FAILED (hr) || pwszFilePath == NULL)
+  {
+    MessageBoxW ((HWND)ImGui::GetWindowViewport()->PlatformHandleRaw, W_("Unknown error attempting to retrieve file path!"), W_("Error"), MB_OK | MB_ICONEXCLAMATION);
+    return;
+  }
+
+  const std::wstring path = pwszFilePath;
+
+  // Saving over the document's own file is a regular save
+  if (! iniWindow->path.empty() && _wcsicmp (path.c_str(), iniWindow->path.c_str()) == 0)
+    return SKIF_UI_IniEditor_Save (iniWindow);
+
+  SKIF_IniReader_WriteIni (iniWindow->ini, path);
+  SKIF_IniPresets_Refresh ( );
+
+  ImGui::InsertNotification ({
+    ImGuiToastType::Success, 3000,
+    // TRANSLATORS: Notification title, at most 63 characters
+    _("Custom preset saved"),
+    "%s", SK_WideCharToUTF8 (std::filesystem::path (path).filename().wstring()).c_str()
+  });
+}
+
 // Builds the entries of a preset for a document of the given type. Returns false if the preset could not be read
 static bool
 SKIF_UI_IniEditor_BuildPreset (const SKIF_IniPresetChoice& preset, IniType type, std::vector<IniEntry>& entries)
@@ -377,9 +419,13 @@ SKIF_UI_IniEditor_Process (void)
          saveAs   = false,
          reload   = false,
          reset    = false,
-         minimize = false;
+         minimize = false,
+         saveAsPreset = false;
 
     SKIF_IniPresetChoice preset;
+
+    // Presets are configs of Special K itself, so not for the other INI files (OSD, input, notifications, ...)
+    const bool presetsDisabled = (window.type != IniType_DLL && window.type != IniType_Unknown);
 
     ImGuiWindowClass
       wc;
@@ -454,6 +500,15 @@ SKIF_UI_IniEditor_Process (void)
         if (ImGui::MenuItem (L_("Save As"),    ImGui::GetKeyChordName (SKIF_Hotkey_IniSaveAs)))
           saveAs   = true;
 
+        if (presetsDisabled)
+          SKIF_ImGui_PushDisableState ( );
+
+        if (ImGui::MenuItem (L_("Save as Custom Preset...")))
+          saveAsPreset = true;
+
+        if (presetsDisabled)
+          SKIF_ImGui_PopDisableState ( );
+
         if (ImGui::MenuItem (L_("Close"), C_("key", "Escape")))
           show     = false;
 
@@ -473,10 +528,7 @@ SKIF_UI_IniEditor_Process (void)
 
         ImGui::Separator ( );
 
-        // Apply Preset, Apply Compatibility Config and Reset (shared with the Library tab, see <utility/ini_presets.h>).
-        //   Presets are configs of Special K itself, so not for the other INI files (OSD, input, notifications, ...)
-        const bool presetsDisabled = (window.type != IniType_DLL && window.type != IniType_Unknown);
-
+        // Apply Preset, Apply Compatibility Config and Reset (shared with the Library tab, see <utility/ini_presets.h>)
         if (presetsDisabled)
           SKIF_ImGui_PushDisableState ( );
 
@@ -909,6 +961,9 @@ SKIF_UI_IniEditor_Process (void)
 
     if (saveAs)
       SKIF_UI_IniEditor_SaveAs   (&window);
+
+    if (saveAsPreset)
+      SKIF_UI_IniEditor_SaveAsPreset (&window);
 
     if (openFile)
       SKIF_UI_IniEditor_OpenFile (&window, IniType_Unknown, L"", "");

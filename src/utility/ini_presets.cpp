@@ -38,6 +38,26 @@ struct Preset
 
 } // namespace
 
+// Re-read the preset folders the next time the preset items are drawn
+static bool s_refreshDefaultPresets = true;
+static bool s_refreshCustomPresets  = true;
+
+const std::wstring&
+SKIF_IniPresets_GetCustomFolder (void)
+{
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+  static std::wstring CustomPresetsFolder   = SK_FormatStringW (LR"(%ws\Global\Custom\)", _path_cache.specialk_userdata);
+
+  return CustomPresetsFolder;
+}
+
+void
+SKIF_IniPresets_Refresh (void)
+{
+  s_refreshDefaultPresets = true;
+  s_refreshCustomPresets  = true;
+}
+
 // Finds the presets in a folder. Empty files, and files only holding a byte order mark, are skipped
 static std::vector <Preset>
 SKIF_IniPresets_Find (const std::wstring& folder, const std::wstring& find_pattern)
@@ -143,25 +163,23 @@ SKIF_ImGui_IniPresetItems (bool handCursor)
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
   static std::wstring DefaultPresetsFolder = SK_FormatStringW (LR"(%ws\Global\)",        _path_cache.specialk_userdata);
-  static std::wstring  CustomPresetsFolder = SK_FormatStringW (LR"(%ws\Global\Custom\)", _path_cache.specialk_userdata);
+  static std::wstring  CustomPresetsFolder = SKIF_IniPresets_GetCustomFolder ( );
   static SKIF_DirectoryWatch  GlobalWatch;
   static SKIF_DirectoryWatch  CustomWatch;
   static std::vector <Preset> DefaultPresets;
   static std::vector <Preset> DefaultPresetsMissing;
   static std::vector <Preset>  CustomPresets;
-  static bool refreshDefaultPresets = true;
-  static bool refreshCustomPresets  = true;
 
   // Directory watches -- updates the vectors automatically
-  if (CustomWatch.isSignaled (CustomPresetsFolder)  || refreshCustomPresets)
+  if (CustomWatch.isSignaled (CustomPresetsFolder)  || s_refreshCustomPresets)
   {
-    refreshCustomPresets  = false;
+    s_refreshCustomPresets  = false;
     CustomPresets         = SKIF_IniPresets_Find (CustomPresetsFolder,  L"*.ini");
   }
 
-  if (GlobalWatch.isSignaled (DefaultPresetsFolder) || refreshDefaultPresets)
+  if (GlobalWatch.isSignaled (DefaultPresetsFolder) || s_refreshDefaultPresets)
   {
-    refreshDefaultPresets = false;
+    s_refreshDefaultPresets = false;
     DefaultPresets        = SKIF_IniPresets_Find (DefaultPresetsFolder, L"default_*.ini");
     DefaultPresetsMissing.clear();
 
@@ -248,7 +266,7 @@ SKIF_ImGui_IniPresetItems (bool handCursor)
         // An existing Untitled.ini is opened as it is (it is not emptied)
         std::wstring path = (CustomPresetsFolder + LR"(Untitled.ini)");
         SKIF_IniPresets_CreateEmpty (CustomPresetsFolder, path);
-        refreshCustomPresets = true; // The watch might only have been set up now that the folder exists
+        s_refreshCustomPresets = true; // The watch might only have been set up now that the folder exists
 
         choice = { SKIF_IniPresetAction_Edit, path };
       }
@@ -263,7 +281,7 @@ SKIF_ImGui_IniPresetItems (bool handCursor)
         if (ImGui::Selectable (preset.Name.c_str()))
         {
           SKIF_IniPresets_CreateEmpty (DefaultPresetsFolder, preset.Path);
-          refreshDefaultPresets = true;
+          s_refreshDefaultPresets = true;
 
           choice = { SKIF_IniPresetAction_Edit, preset.Path };
         }

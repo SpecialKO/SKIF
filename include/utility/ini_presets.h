@@ -73,3 +73,10 @@ struct SKIF_IniPresetChoice
 //   Nothing is applied or opened here, the caller acts on the returned choice (the INI editor cannot open new editor
 //     windows in the middle of drawing its own ones). The preset lists are refreshed when their folders change
 SKIF_IniPresetChoice SKIF_ImGui_IniPresetItems (bool handCursor = true);
+
+// The folder of the custom presets (%specialk_userdata%\Global\Custom\, with the trailing backslash)
+const std::wstring&  SKIF_IniPresets_GetCustomFolder (void);
+
+// Re-reads the preset folders the next time the preset items are drawn (after creating a preset, as the folder watches
+//   are only set up once their folder exists)
+void                 SKIF_IniPresets_Refresh         (void);
