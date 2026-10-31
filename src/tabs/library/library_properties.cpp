@@ -178,12 +178,6 @@ _SamePath (const std::wstring& a, const std::wstring& b)
   return (_wcsicmp (x.c_str ( ), y.c_str ( )) == 0);
 }
 
-static const char*
-_InstantPlayName (int value)
-{
-  return (value == 1) ? _("Always") : (value == 2) ? _("Never") : _("Default");
-}
-
 #pragma endregion
 
 
@@ -359,8 +353,12 @@ private:
 
 #pragma region Launch behavior
 
+class PropertiesSection_LaunchOptions;
+
 // How the game is launched (General page, below the library settings):
-//   Instant Play: the game's setting (db.json), used by the launch options the platform client can start itself
+//   Play:         the launch option the Play button uses (the default one, kept by PropertiesSection_LaunchOptions), and
+//                   how it starts: the game's Instant Play setting (db.json). Only the platform's primary launch option can
+//                     be started by the platform client, so the setting only matters for that one; all others start directly
 //   Auto-stop:    the injection service's behavior, stored for the install folder in the registry (SKIF_LaunchBehaviors)
 class PropertiesSection_LaunchBehavior : public IPropertySection
 {
@@ -369,14 +367,15 @@ public:
   PropertiesPage GetPage  (void) const override { return PropertiesPage::General; }
   int            GetOrder (void) const override { return 20; }
 
-  // The working copy, for PropertiesSection_LaunchOptions (its "Use Instant Play" on the primary launch option sets it)
-  int*           GetInstantPlay (void)       { return &instantPlay; }
+  // The launch options (Launch page), which hold the default launch option the Play setting picks
+  void           SetLaunchOptions (PropertiesSection_LaunchOptions* options) { launchOptions = options; }
 
   void Load (app_record_s& app) override
   {
     instantPlayCompatible = app.isInstantPlayCompatible ( );
     instantPlayGlobal     = app.GetInstantPlayDefault   ( );
     instantPlay           = instantPlayOrig = app.skif.instant_play;
+    storeName             = app.store_utf8;
 
     folder = app.install_dir;
     value  = valueOrig = 0;
@@ -398,26 +397,9 @@ public:
     ImGui::Separator   ( );
     SKIF_ImGui_Spacing ( );
 
-    // Instant Play (the game's setting)
-    if (instantPlayCompatible)
-    {
-      SKIF_Properties_Label  (_("Instant Play"), _("Used by the launch options of the game that the platform client can start itself.\n"
-                                              "Other launch options always use Instant Play."));
-
-      // TRANSLATORS: {0} is what the default is: "Always" or "Never"
-      SKIF_ImGui_RadioButton (( F_("Default ({0})", (instantPlayGlobal) ? _("Always") : _("Never")) + "###PropsIPDefault").c_str ( ), &instantPlay, 0);
-      SKIF_ImGui_SetHoverTip (_("The game will use the default behavior configured in the Settings tab."));
-      SKIF_ImGui_SameLineIfFits (SKIF_ImGui_CheckboxWidth (L_("Never###PropsIPNever")));
-      SKIF_ImGui_RadioButton     (L_("Never###PropsIPNever"),   &instantPlay, 2);
-      SKIF_ImGui_SetHoverTip (_("The game will never use instant play except\nwhen launched through the right click menu."));
-      SKIF_ImGui_SameLineIfFits (SKIF_ImGui_CheckboxWidth (L_("Always###PropsIPAlways")));
-      SKIF_ImGui_RadioButton     (L_("Always###PropsIPAlways"), &instantPlay, 1);
-      SKIF_ImGui_SetHoverTip (_("The game will always use instant play except\nwhen launched through the right click menu."));
-      ImGui::SameLine        ( );
-      ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
-      SKIF_ImGui_SetHoverTip (_("Warning: This skips the regular platform launch process for the game,\n"
-                              "including steps like the cloud saves synchronization that usually occurs."));
-    }
+    // Play: the launch option and how it starts (defined below PropertiesSection_LaunchOptions)
+    if (launchOptions != nullptr)
+      _DrawPlay ( );
 
     // Auto-stop
     SKIF_Properties_Label  (_("Auto-stop"), _("This determines how long the service will remain running when launching the game.\n"
@@ -456,6 +438,11 @@ private:
   bool                           instantPlayGlobal     = false; // The store's global Instant Play setting (Settings tab)
   int                            instantPlay           = 0,
                                  instantPlayOrig       = 0;
+  std::string                    storeName;
+  PropertiesSection_LaunchOptions*
+                                 launchOptions         = nullptr; // Owned by the window, as this section
+
+  void _DrawPlay (void);
 
   void _DrawAutoStop (void)
   {
@@ -499,12 +486,100 @@ private:
 
 #pragma region Launch options
 
-// Instant Play (game), the launch options of the game (platform, lc.json and lc_user.json), and the default one
+// The launch options of the game (platform, lc.json and lc_user.json), and the default one (picked in General > Play)
 class PropertiesSection_LaunchOptions : public IPropertySection
 {
 public:
-  // gameInstantPlay_: the working copy of the game's Instant Play setting (PropertiesSection_LaunchBehavior), shown on the rows that use it
-  explicit PropertiesSection_LaunchOptions (int* gameInstantPlay_) : gameInstantPlay (gameInstantPlay_) { }
+  // For the Play setting (PropertiesSection_LaunchBehavior): the launch option the Play button uses (the default one,
+  //   else the primary one), picked from a combo
+  void DrawPlayCombo (void)
+  {
+    using LaunchSource = app_record_s::LaunchSource;
+
+    if (rows.empty ( ))
+    {
+      SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), _("This game has no launch options."));
+      return;
+    }
+
+    const int   effective = _PlayRow ( );
+    std::string preview   = (effective != -1) ? _RowLabel (rows [effective]) : "";
+
+    if (preview.empty ( ))
+      preview = _("<no description>");
+
+    ImGui::SetNextItemWidth (-FLT_MIN);
+
+    if (ImGui::BeginCombo ("###PropsPlayOption", preview.c_str ( )))
+    {
+      LaunchSource lastSource = rows.front ( ).source;
+
+      for (int i = 0; i < static_cast <int> (rows.size ( )); i++)
+      {
+        const row_s& row = rows [i];
+
+        // Separators between the platform, SKIF and user launch options (as in the list)
+        if (row.source != lastSource)
+        {
+          lastSource = row.source;
+          ImGui::Separator ( );
+        }
+
+        std::string label = _RowLabel (row);
+
+        if (label.empty ( ))
+          label = _("<no description>");
+
+        // TRANSLATORS: {0} is the name of the platform's own launch option, which Play uses when no other is picked
+        if (i == primaryRow)
+          label = F_("{0} (primary)", label);
+
+        // The library can't use it (see IsIdentical ( ))
+        const bool identical = row.IsIdentical ( );
+
+        SKIF_ImGui_PushDisableState (identical);
+        if (ImGui::Selectable ((label + "###PropsPlayOption-" + std::to_string (i)).c_str ( ), i == effective) && ! identical)
+        {
+          // The primary one is used when none is set
+          defaultRow  = (i == primaryRow) ? -1 : i;
+          keepMissing = false;
+        }
+        SKIF_ImGui_PopDisableState  (identical);
+
+        if (identical)
+          SKIF_ImGui_SetHoverTip (_("This launch option is identical to another one, so it can't be the default until it is changed."), false, true);
+      }
+
+      ImGui::EndCombo ( );
+    }
+
+    // The default launch option is gone (removed, or hidden by its Steam branch / DLC)
+    if (defaultMissing && keepMissing && defaultRow == -1)
+    {
+      ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
+      ImGui::SameLine    ( );
+      // TRANSLATORS: {0} is the name of a launch option
+      ImGui::TextWrapped ("%s", F_("The default launch option ({0}) is not available, so the primary one is used.", (defaultOrig.desc.empty ( )) ? defaultOrig.exe : defaultOrig.desc).c_str ( ));
+      ImGui::SameLine    ( );
+      if (ImGui::SmallButton (L_("Clear###PropsLaunchClearMissing")))
+        keepMissing = false;
+    }
+  }
+
+  // Opened for a page (the launch bar's icons): select the launch option the Play button uses, whatever was selected before
+  void ShowDefault (void) override
+  {
+    if (const int row = _PlayRow ( ); row != -1)
+    {
+      selected = row;
+      pickError.clear ( );
+    }
+  }
+
+  // Whether the platform client can start the launch option Play uses (only the primary one), and that launch option's
+  //   own Instant Play value (lc.json "InstantPlay": 0 = the game's setting)
+  bool PlayClientCanLaunch (void) const { const int row = _PlayRow ( ); return (row != -1 && rows [row].clientCanLaunch); }
+  int  PlayInstantPlay     (void) const { const int row = _PlayRow ( ); return (row != -1) ? rows [row].instantPlay : 0; }
 
   const char*    GetTitle (void) const override { return ""; }
   PropertiesPage GetPage  (void) const override { return PropertiesPage::Launch; }
@@ -523,16 +598,9 @@ public:
     rows.clear ( );
 
     installDir              = app.install_dir;
-    instantPlayCompatible   = app.isInstantPlayCompatible ( );
-    instantPlayGlobal       = app.GetInstantPlayDefault   ( );
     clientOptions           = app.GetClientLaunchOptions ( );
     note.clear              ( );
     pickError.clear         ( );
-
-    // Whether the store client could start a launch config from lc_user.json (none can today: they always launch instantly)
-    app_record_s::launch_config_s userProbe;
-    userProbe.custom_user   = true;
-    userClientCanLaunch     = app.ClientCanLaunch (userProbe);
 
     primaryRow              = -1;
     const int primaryId     = (! app.launch_configs.empty ( )) ? app.launch_configs.begin ( )->first : -1;
@@ -722,23 +790,7 @@ public:
 
     ImGui::SameLine ( );
 
-    const bool isDefault       = (selected == defaultRow);
-    const bool isImplicitDefault = (defaultRow == -1 && selected == primaryRow); // The primary one, used as no other is set
-    const bool isIdentical       = (! isDefault && rows [selected].IsIdentical ( )); // The library can't use it (Clear default stays possible)
-
-    // Nothing to set for the primary launch config while no other one is the default: it is the default already
-    SKIF_ImGui_PushDisableState (isImplicitDefault || isIdentical);
-    if (ImGui::Button ((isDefault) ? L_("Clear default###PropsLaunchDefault") : LI_(ICON_FA_STAR, "Set as default###PropsLaunchDefault")) && ! isImplicitDefault && ! isIdentical)
-    {
-      defaultRow  = (isDefault) ? -1 : selected;
-      keepMissing = false;
-    }
-    SKIF_ImGui_PopDisableState  (isImplicitDefault || isIdentical);
-    SKIF_ImGui_SetHoverTip ((isDefault)   ? _("SKIF goes back to using the primary launch option of the game.") :
-                            (isIdentical) ? _("This launch option is identical to another one, so it can't be the default until it is changed.")
-                                          : _("SKIF uses this launch option when the game is launched through the Play button."), false, true);
-
-    ImGui::SameLine ( );
+    // (The default launch option is picked in General > Play)
 
     const bool selectedUser = (rows [selected].source == LaunchSource::User);
     const bool canUp        = (selectedUser && selected > 0                                     && rows [selected - 1].source == LaunchSource::User);
@@ -802,7 +854,7 @@ public:
 
     // The launch options, below the buttons: always room for six of them, the list scrolls for more
     //   (after the buttons, which may have changed the rows, the selection or the default)
-    const int   effectiveDefault = (defaultRow != -1) ? defaultRow : primaryRow;
+    const int   effectiveDefault = _PlayRow ( );
 
     const float fListHeight = 6.0f * ImGui::GetTextLineHeightWithSpacing ( )
                             + 2.0f * style.ItemSpacing.y // The separators between the platform, SKIF and user launch options
@@ -843,7 +895,7 @@ public:
       }
 
       if (i == effectiveDefault)
-        SKIF_ImGui_SetHoverTip ((defaultRow != -1) ? _("The default launch option.") : _("The default launch option (the primary one, as no other is set)."));
+        SKIF_ImGui_SetHoverTip (_("Used by the Play button (General > Play)."));
     }
 
     ImGui::EndChild ( );
@@ -861,18 +913,6 @@ public:
       ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info));
       ImGui::TextWrapped    ("%s", note.c_str ( ));
       ImGui::PopStyleColor  ( );
-    }
-
-    // The default launch option is gone (removed, or hidden by its Steam branch / DLC)
-    if (defaultMissing && keepMissing && defaultRow == -1)
-    {
-      ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
-      ImGui::SameLine    ( );
-      // TRANSLATORS: {0} is the name of a launch option
-      ImGui::TextWrapped ("%s", F_("The default launch option ({0}) is not available, so the primary one is used.", (defaultOrig.desc.empty ( )) ? defaultOrig.exe : defaultOrig.desc).c_str ( ));
-      ImGui::SameLine    ( );
-      if (ImGui::SmallButton (L_("Clear###PropsLaunchClearMissing")))
-        keepMissing = false;
     }
 
     // The fields of the selected launch option, below the list
@@ -1114,9 +1154,6 @@ private:
   std::vector <row_s>                rows;           // Platform, SKIF, then User (in lc_user.json order)
   std::vector <user_launch_config_s> userOrig;       // lc_user.json as loaded
   bool                               userReadable          = true;
-  bool                               userClientCanLaunch   = false;
-  bool                               instantPlayCompatible = false;
-  bool                               instantPlayGlobal     = false; // The store's global Instant Play setting (Settings tab)
   int                                selected              =  0;
   bool                               loadedOnce            = false; // Load ( ) keeps the selection after the first time
   int                                primaryRow            = -1;   // The primary platform launch config: the default if no other is set
@@ -1124,11 +1161,16 @@ private:
   app_record_s::launch_ref_s         defaultOrig;                   // As loaded (db.json "DefaultLaunch")
   bool                               defaultMissing        = false; // defaultOrig is set but matches no row
   bool                               keepMissing           = true;  // Keep defaultOrig while it matches no row (until changed or cleared)
-  int*                               gameInstantPlay       = nullptr; // Owned by PropertiesSection_LaunchBehavior
   std::wstring                       installDir;
   std::string                        clientOptions;                 // Launch options set in the store client (Steam)
   std::string                        note;                          // Shown below the editor (auto-duplicate)
   std::string                        pickError;
+
+  // The row of the launch option the Play button uses: the default one, else the primary one (also while a missing default is kept)
+  int _PlayRow (void) const
+  {
+    return (defaultRow >= 0 && defaultRow < static_cast <int> (rows.size ( ))) ? defaultRow : primaryRow;
+  }
 
   static bool _RefMatches (const app_record_s::launch_ref_s& a, const app_record_s::launch_ref_s& b)
   {
@@ -1434,20 +1476,6 @@ private:
     selected = other;
   }
 
-  // What the game's Instant Play setting resolves to
-  const char* _GameInstantPlayName (void) const
-  {
-    const int value = (gameInstantPlay != nullptr) ? *gameInstantPlay : 0;
-
-    return (value != 0) ? _InstantPlayName (value) : (instantPlayGlobal) ? _("Always") : _("Never");
-  }
-
-  void _DrawInstantPlayRequired (void)
-  {
-    SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), _("Always (required)"));
-    SKIF_ImGui_SetHoverTip (_("The platform client can't start this launch option itself, so it always uses Instant Play."));
-  }
-
   void _DrawUserRow (app_record_s& app, row_s& row)
   {
     user_launch_config_s& user = row.user;
@@ -1572,24 +1600,8 @@ private:
     SKIF_Properties_Label (_("Arguments"));
     _InputString          ("###PropsLaunchArgs", user.args, _("Leave empty if unsure"));
 
-    // Instant Play
-    if (instantPlayCompatible)
-    {
-      SKIF_Properties_Label (_("Instant Play"));
-
-      if (! userClientCanLaunch)
-        _DrawInstantPlayRequired ( );
-
-      else
-      {
-        // TRANSLATORS: {0} is what the game's setting is: "Always" or "Never"
-        SKIF_ImGui_RadioButton ((F_("Game setting ({0})", _GameInstantPlayName ( )) + "###PropsLaunchIPDefault").c_str ( ), &user.instant_play, 0);
-        SKIF_ImGui_SameLineIfFits (SKIF_ImGui_CheckboxWidth (L_("Never###PropsLaunchIPNever")));
-        SKIF_ImGui_RadioButton (L_("Never###PropsLaunchIPNever"),   &user.instant_play, 2);
-        SKIF_ImGui_SameLineIfFits (SKIF_ImGui_CheckboxWidth (L_("Always###PropsLaunchIPAlways")));
-        SKIF_ImGui_RadioButton (L_("Always###PropsLaunchIPAlways"), &user.instant_play, 1);
-      }
-    }
+    // (Your own launch options always start directly: the platform client can't start them. How the primary one
+    //   starts is set in General > Play.)
 
     SKIF_ImGui_PopDisableState (! userReadable);
 
@@ -1641,42 +1653,6 @@ private:
     SKIF_Properties_Label (_("Arguments"));
     _ReadOnlyString       ("###PropsLaunchROArgs", row.args);
 
-    // Instant Play: choosing it creates an editable copy (the original is read-only)
-    if (instantPlayCompatible)
-    {
-      SKIF_Properties_Label (_("Instant Play"));
-
-      if (! row.clientCanLaunch)
-        _DrawInstantPlayRequired ( );
-
-      else
-      {
-        if (row.instantPlay != 0)
-          // TRANSLATORS: {0} is "Always" or "Never"
-          ImGui::TextDisabled ("%s", F_("{0} (set by Special K)", _InstantPlayName (row.instantPlay)).c_str ( ));
-        else
-          ImGui::TextDisabled ("%s", F_("Game setting ({0})", _GameInstantPlayName ( )).c_str ( ));
-
-        // This launch option follows the game's Instant Play setting (General), unless lc.json sets its own: offered while
-        //   it doesn't use Instant Play, as setting the game's setting to Always (a copy would be identical to it, see vdf.cpp)
-        const int  gameValue = (gameInstantPlay != nullptr) ? *gameInstantPlay : 0;
-        const bool usesIP    = (gameValue != 0) ? (gameValue == 1) : instantPlayGlobal;
-
-        if (row.instantPlay == 0 && ! usesIP && gameInstantPlay != nullptr)
-        {
-          ImGui::SameLine ( );
-
-          if (ImGui::SmallButton (LI_(ICON_FA_ROCKET, "Use Instant Play###PropsLaunchROInstant")))
-          {
-            *gameInstantPlay = 1;
-            note = _("The game's Instant Play setting (above) is now set to Always, which this launch option follows. Save to apply.");
-          }
-
-          SKIF_ImGui_SetHoverTip (_("Sets the game's Instant Play setting to Always, which this launch option follows."), false, true);
-        }
-      }
-    }
-
     _DrawService (SK_UTF8ToWideChar (row.fullExe));
 
     // The client's own launch options (Steam), never edited by SKIF
@@ -1689,6 +1665,59 @@ private:
     UNREFERENCED_PARAMETER (app);
   }
 };
+
+// General > Play: the launch option the Play button uses, and how it starts
+void
+PropertiesSection_LaunchBehavior::_DrawPlay (void)
+{
+  SKIF_Properties_Label (_("Play"), _("The launch option the Play button uses.\n"
+                                      "Any launch option can also be started through Play with in the right click menu."));
+  launchOptions->DrawPlayCombo ( );
+
+  if (! instantPlayCompatible)
+    return;
+
+  // TRANSLATORS: How the game is started; {0} is the platform (e.g. Steam)
+  const std::string platformLabel = F_("Through {0}", storeName);
+  const std::string directLabel   = _("Directly (Instant Play)");
+
+  SKIF_Properties_Label (_("Start"), _("How the Play button starts the launch option: through the platform client, or directly.\n"
+                                       "Only the primary launch option can be started through the platform client."));
+
+  // Only the primary launch option can be started by the platform client
+  if (! launchOptions->PlayClientCanLaunch ( ))
+  {
+    // TRANSLATORS: How the game is started, when the platform client can't start the launch option
+    SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), _("Directly (Instant Play, required)"));
+    SKIF_ImGui_SetHoverTip (_("The platform client can't start this launch option itself, so it always uses Instant Play."));
+    return;
+  }
+
+  // Set by Special K for the launch option (lc.json), which takes priority over the game's setting
+  if (const int own = launchOptions->PlayInstantPlay ( ); own != 0)
+  {
+    // TRANSLATORS: {0} is how the game is started ("Through Steam" or "Directly (Instant Play)")
+    SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), F_("{0} (set by Special K)", (own == 1) ? directLabel : platformLabel).c_str ( ));
+    return;
+  }
+
+  const std::string defaultLabel = F_("Default ({0})", (instantPlayGlobal) ? directLabel : platformLabel) + "###PropsIPDefault";
+  const std::string neverLabel   = platformLabel + "###PropsIPNever";
+  const std::string alwaysLabel  = directLabel   + "###PropsIPAlways";
+
+  SKIF_ImGui_RadioButton    (defaultLabel.c_str ( ), &instantPlay, 0);
+  SKIF_ImGui_SetHoverTip    (_("The game will use the default behavior configured in the Settings tab."));
+  SKIF_ImGui_SameLineIfFits (SKIF_ImGui_CheckboxWidth (neverLabel.c_str ( )));
+  SKIF_ImGui_RadioButton    (neverLabel.c_str ( ),   &instantPlay, 2);
+  SKIF_ImGui_SetHoverTip    (_("The game is started through the platform client, as usual."));
+  SKIF_ImGui_SameLineIfFits (SKIF_ImGui_CheckboxWidth (alwaysLabel.c_str ( )));
+  SKIF_ImGui_RadioButton    (alwaysLabel.c_str ( ),  &instantPlay, 1);
+  SKIF_ImGui_SetHoverTip    (_("The game is started directly, without the platform client."));
+  ImGui::SameLine           ( );
+  ImGui::TextColored        (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
+  SKIF_ImGui_SetHoverTip    (_("Warning: This skips the regular platform launch process for the game,\n"
+                               "including steps like the cloud saves synchronization that usually occurs."));
+}
 
 #pragma endregion
 
@@ -1750,7 +1779,10 @@ _SKIF_Properties_Create (app_record_s* pApp)
   auto wnd = std::make_unique <properties_window_s> ( );
 
   auto launchBehavior = std::make_unique <PropertiesSection_LaunchBehavior> ( );
-  auto launchOptions  = std::make_unique <PropertiesSection_LaunchOptions>  (launchBehavior->GetInstantPlay ( ));
+  auto launchOptions  = std::make_unique <PropertiesSection_LaunchOptions>  ( );
+
+  // General > Play picks the default launch option, which the launch options section keeps
+  launchBehavior->SetLaunchOptions (launchOptions.get ( ));
 
   wnd->sections.push_back (std::make_unique <PropertiesSection_General> ( ));
   wnd->sections.push_back (std::move (launchBehavior));
@@ -2211,11 +2243,14 @@ SKIF_Properties_Draw (void)
       else
         existing = s_windows.insert (s_windows.end ( ), _SKIF_Properties_Create (pSelected));
 
-      // Scrolled to a page if one was requested along with the opening
+      // Scrolled to a page if one was requested along with the opening, showing what the game uses now
       if (s_requestedPage != -1)
       {
         (*existing)->scrollPage   = static_cast <PropertiesPage> (s_requestedPage);
         (*existing)->scrollFrames = 3;
+
+        for (auto& section : (*existing)->sections)
+          section->ShowDefault ( );
       }
     }
   }

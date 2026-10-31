@@ -78,6 +78,7 @@ public:
 
   virtual void           Load     (app_record_s& app) = 0;          // Copies the current values into the working copy
   virtual void           Draw     (app_record_s& app) = 0;          // ImGui; only changes the working copy
+  virtual void           ShowDefault (void) { }                     // Opened for a page (SKIF_Properties_RequestPage ( )): show what the game uses now (e.g. select the default launch option)
   virtual void           Validate (app_record_s& app, std::vector <property_issue_s>& out) { UNREFERENCED_PARAMETER (app); UNREFERENCED_PARAMETER (out); }
   virtual bool           IsDirty  (void) const = 0;                 // The working copy differs from what was loaded
   virtual uint32_t       Apply    (app_record_s& app) = 0;          // Writes the working copy; returns PropertiesApplyEffect flags. Loaded again after a successful Apply
@@ -97,5 +98,6 @@ bool  SKIF_Properties_BrowseForFolder   (std::wstring& out, const wchar_t* folde
 //   Called every frame by SKIF.cpp, after the main window.
 void  SKIF_Properties_Draw              (void);
 
-// Scrolls the window opened next (ModifyGamePopup = PopupState_Open), or the one brought forward, to the start of a page
+// Scrolls the window opened next (ModifyGamePopup = PopupState_Open), or the one brought forward, to the start of a page,
+//   and has its sections show what the game uses now (IPropertySection::ShowDefault ( ): the default launch option is selected)
 void  SKIF_Properties_RequestPage       (PropertiesPage page);

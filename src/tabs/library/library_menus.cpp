@@ -183,266 +183,178 @@ SKIF_Lib_GetWithoutSKState (app_record_s* pApp, app_record_s::launch_config_s* l
   return SKIF_Lib_WithoutSK::Available;
 }
 
-// Game context menu: Instant Play launch options (moved verbatim from DrawGameContextMenu)
+// Game context menu: "Play with" submenu, to start a specific launch option: the primary one through the platform client,
+//   and every launch option directly (Instant play). "Without Special K" applies to the entry clicked next.
 static void
-DrawGameContextMenu_InstantPlay (app_record_s* pApp, bool playDisabled, app_record_s::launch_config_s* firstLaunchConfig)
+DrawGameContextMenu_PlayWith (app_record_s* pApp, bool playDisabled)
 {
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
 
-  // Instant Play options
-  if (pApp->CanLaunchExecutableDirectly ( ))
+  // Reset whenever the submenu opens, so it only applies to the launch it was ticked for
+  static bool withoutSK = false;
+
+  app_record_s::launch_config_s*
+    primary = (! pApp->launch_configs.empty ( )) ? &pApp->launch_configs.begin ( )->second : nullptr;
+
+  // The primary launch config through the platform client (Custom games are always started directly)
+  const bool platformEntry = (primary != nullptr                                &&
+                              pApp->store != app_record_s::Store::Custom        &&
+                              pApp->IsLaunchConfigAvailable (*primary)          &&
+                            ! pApp->PrefersInstantLaunch    (true, primary)); // As launched from here: only if the platform client can start it
+
+  // The launch configs started directly: if the platform allows it, or there are several (as the former Instant play menu)
+  const bool directEntries = (pApp->CanLaunchExecutableDirectly ( ) &&
+                             (pApp->ui.numSecondaryLaunchConfigs > 0 || pApp->isInstantPlayCompatible ( )));
+
+  if (! platformEntry && ! directEntries)
+    return;
+
+  // Nothing to choose from: only the platform entry, while Play starts that one through the platform client already
+  if (! directEntries && pApp->GetDefaultLaunchConfig ( ) == primary && ! pApp->PrefersInstantLaunch (false, primary))
+    return;
+
+  ImGui::Separator ( );
+
+  if (playDisabled)
+    ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
+
+  const bool open = SKIF_ImGui_BeginMenuEx2 (L_("Play with###GameContextMenu_PlayWith"), ICON_FA_PLAY);
+
+  if (playDisabled)
+    ImGui::PopStyleColor ( );
+
+  SKIF_ImGui_SetHoverTip (_("Starts a specific launch option: through the platform client, or directly (Instant play)."));
+
+  if (! open)
+    return;
+
+  if (ImGui::IsWindowAppearing ( ))
+    withoutSK = false;
+
+  // Not available when a local install is used, as stopping the injection service does not keep that one out
+  auto _LocalTip = [](void) { SKIF_ImGui_SetHoverTip (_("This option is not available due to a local injection being used."), false, true); };
+
+  // The icon on the right: a lock when the launch starts without Special K (disabled for the launch config, or the toggle
+  //   below is ticked), else a shield for an elevated service. Nothing when a local install is used with the toggle ticked
+  //     (the entry is disabled then)
+  auto _RightIcon = [&](app_record_s::launch_config_s* lc, SKIF_Lib_WithoutSK wosk) -> const char*
   {
-    if (pApp->ui.numSecondaryLaunchConfigs > 0 || pApp->isInstantPlayCompatible ( ))
+    if (wosk == SKIF_Lib_WithoutSK::Blacklisted || (withoutSK && wosk == SKIF_Lib_WithoutSK::Available))
+      return ICON_FA_LOCK;
+
+    if (wosk == SKIF_Lib_WithoutSK::Available && lc->isElevated ( ))
+      return ICON_FA_USER_SHIELD;
+
+    return nullptr;
+  };
+
+  // The primary launch config through the platform client
+  if (platformEntry)
+  {
+    const SKIF_Lib_WithoutSK wosk         = SKIF_Lib_GetWithoutSKState (pApp, primary);
+    const bool               localBlocked = (withoutSK && wosk == SKIF_Lib_WithoutSK::LocalInjection);
+
+    if (SKIF_ImGui_MenuItemEx3 ((pApp->store_utf8 + "###GameContextMenu_PlayWithPlatform").c_str ( ), ICON_FA_GAMEPAD, _RightIcon (primary, wosk),
+                                ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Icon), ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), ! playDisabled && ! localBlocked))
+    {
+      launchConfig    = primary;
+      launchGameMenu  = true; // Explicit: through the platform client, whatever the Instant Play setting
+      launchWithoutSK = withoutSK;
+    }
+
+    if (ImGui::IsItemHovered (ImGuiHoveredFlags_AllowWhenDisabled))
+      SKIF_ImGui_SetHoverText (SKIF_Lib_GetLaunchCommand (pApp, primary));
+
+    if (localBlocked)
+      _LocalTip ( );
+    else if (wosk == SKIF_Lib_WithoutSK::Blacklisted)
+      SKIF_ImGui_SetHoverTip (_("Special K has been disabled for this launch configuration."), false, true);
+    else
+      SKIF_ImGui_SetHoverTip (_("Starts the primary launch option through the platform client."), false, true);
+  }
+
+  // Every launch config, directly
+  if (directEntries)
+  {
+    if (platformEntry)
       ImGui::Separator ( );
 
-    // If there is only one valid launch config (Steam, GOG, Xbox games only)
-    if (pApp->ui.numSecondaryLaunchConfigs == 0   &&
-        pApp->isInstantPlayCompatible ( ))
+    bool sepCustomSKIF = true,
+         sepCustomUser = true;
+
+    for (auto& _launch_cfg : pApp->launch_configs)
     {
-      if (playDisabled)
-        ImGui::BeginDisabled ( );
+      auto& _launch = _launch_cfg.second;
 
-      ImGui::PushStyleColor (ImGuiCol_SKIF_Icon, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Failure));
+      // Valid, not a duplicate, and any required DLC is owned
+      if (! pApp->IsLaunchConfigAvailable (_launch))
+        continue;
 
-      if (ImGui::MenuItemEx (L_("Instant play###GameContextMenu_InstantPlay"), ICON_FA_ROCKET))
-        launchInstant = true;
-
-      ImGui::PopStyleColor ( );
-
-      if (playDisabled)
-        ImGui::EndDisabled ( );
-
-      std::string hoverText = SKIF_Lib_GetLaunchCommand (pApp, firstLaunchConfig);
-
-      SKIF_ImGui_SetHoverText (hoverText.c_str());
-
-      SKIF_ImGui_SetHoverTip  (_("Skips the regular platform launch process for the game,\n"
-                                "including steps such as cloud saves synchronization."));
-
-      if (SKIF_Lib_GetWithoutSKState (pApp, firstLaunchConfig) == SKIF_Lib_WithoutSK::Available)
+      // Separators between official / user / SKIF launch configs
+      if (_launch.custom_user && sepCustomUser)
       {
-        ImGui::PushStyleColor      (ImGuiCol_Text,
-          ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
-        );
-
-        if (playDisabled)
-          ImGui::BeginDisabled ( );
-
-        if (ImGui::MenuItem (LI_("\xe2\x94\x94", "without Special K###GameContextMenu_InstantPlayWoSK")))
-          launchInstant = launchWithoutSK = true;
-
-        if (playDisabled)
-          ImGui::EndDisabled ( );
-
-        ImGui::PopStyleColor   ( );
-
-        SKIF_ImGui_SetHoverText (hoverText.c_str());
-      }
-    }
-
-    // Multiple launch configs
-    else if (pApp->ui.numSecondaryLaunchConfigs > 0)
-    {
-      if (playDisabled)
-        ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
-
-      if (SKIF_ImGui_BeginMenuEx2 (L_("Instant play###GameContextMenu_InstantPlayMenu"), ICON_FA_ROCKET, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Failure)))
-      {
-        bool sepCustomSKIF = true,
-             sepCustomUser = true;
-
-        for (auto& _launch_cfg : pApp->launch_configs)
-        {
-          if (! _launch_cfg.second.valid ||
-                _launch_cfg.second.duplicate_exe_args)
-            continue;
-
-          // Filter out launch configs requiring not owned DLCs
-          if (! _launch_cfg.second.owns_dlc)
-            continue;
-
-          auto& _launch = _launch_cfg.second;
-
-          // Separators between official / user / SKIF launch configs
-          if (_launch_cfg.second.custom_user && sepCustomUser)
-          {
-            sepCustomUser = false;
-            ImGui::Separator ( );
-          }
-
-          else if (_launch_cfg.second.custom_skif && sepCustomSKIF)
-          {
-            sepCustomSKIF = false;
-            ImGui::Separator ( );
-          }
-
-          bool blacklisted = (_launch.isBlacklisted ( ) || _inject._TestUserList (_launch.getExecutableFullPathUTF8 ( ).c_str (), false));
-
-          char        szButtonLabel [256] = { };
-
-          sprintf_s ( szButtonLabel, 255,
-                        "%s%s%s###GameContextMenu_InstantPlayMenu-%d",
-                                  (blacklisted) ? (ICON_FA_LOCK        "  ") : "",
-                         (_launch.isElevated()) ? (ICON_FA_USER_SHIELD "  ") : "",
-                          _launch.getDescriptionUTF8().empty ()
-                            ? _launch.getExecutableFileNameUTF8().c_str ()
-                            : _launch.getDescriptionUTF8().c_str (),
-                          _launch.id);
-
-          if (playDisabled || blacklisted)
-          {
-            ImGui::PushItemFlag   (ImGuiItemFlags_Disabled, true);
-            ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
-          }
-          else
-            ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
-
-          if (ImGui::Selectable (szButtonLabel))
-          {
-            launchConfig = &_launch_cfg.second;
-            launchInstant = true;
-          }
-
-          if (playDisabled || blacklisted)
-          {
-            ImGui::PopStyleColor  ( );
-            ImGui::PopItemFlag    ( );
-          }
-          else
-            ImGui::PopStyleColor  ( );
-
-          std::string hoverText = SKIF_Lib_GetLaunchCommand (pApp, &_launch_cfg.second);
-
-          if (! playDisabled && ! blacklisted)
-            SKIF_ImGui_SetMouseCursorHand ( );
-
-          SKIF_ImGui_SetHoverText       (hoverText.c_str());
-
-          if (blacklisted)
-            SKIF_ImGui_SetHoverTip      (_("Special K has been disabled for this launch configuration."));
-        }
-
-        ImGui::EndMenu ();
+        sepCustomUser = false;
+        ImGui::Separator ( );
       }
 
-      if (pApp->isInstantPlayCompatible ())
-        SKIF_ImGui_SetHoverTip  (_("Skips the regular platform launch process for the game,\n"
-                                  "including steps such as cloud saves synchronization."));
-
-      // Only if at least one of the launch configs listed can launch without Special K (not a local install). Blacklisted
-      //   launch configs are included: Instant play does not offer them, so this is where they are launched from
-      bool anyWithoutSK = false;
-
-      for (auto& _launch_cfg : pApp->launch_configs)
+      else if (_launch.custom_skif && sepCustomSKIF)
       {
-        if (! _launch_cfg.second.valid || _launch_cfg.second.duplicate_exe_args || ! _launch_cfg.second.owns_dlc)
-          continue;
-
-        const SKIF_Lib_WithoutSK wosk = SKIF_Lib_GetWithoutSKState (pApp, &_launch_cfg.second);
-
-        if (wosk == SKIF_Lib_WithoutSK::Available || wosk == SKIF_Lib_WithoutSK::Blacklisted)
-        {
-          anyWithoutSK = true;
-          break;
-        }
+        sepCustomSKIF = false;
+        ImGui::Separator ( );
       }
 
-      if (anyWithoutSK)
+      // Blocked launch configs are started as well (without Special K, as always for them)
+      const SKIF_Lib_WithoutSK wosk         = SKIF_Lib_GetWithoutSKState (pApp, &_launch);
+      const bool               blocked      = (wosk == SKIF_Lib_WithoutSK::Blacklisted);
+      const bool               localBlocked = (withoutSK && wosk == SKIF_Lib_WithoutSK::LocalInjection);
+
+      char szButtonLabel [256] = { };
+
+      sprintf_s ( szButtonLabel, 255,
+                    "%s###GameContextMenu_PlayWith-%d",
+                      _launch.getDescriptionUTF8 ( ).empty ( )
+                        ? _launch.getExecutableFileNameUTF8 ( ).c_str ( )
+                        : _launch.getDescriptionUTF8 ( ).c_str ( ),
+                      _launch.id);
+
+      if (SKIF_ImGui_MenuItemEx3 (szButtonLabel, ICON_FA_ROCKET, _RightIcon (&_launch, wosk),
+                                  ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Icon), ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), ! playDisabled && ! localBlocked))
       {
-        if (! playDisabled)
-          ImGui::PushStyleColor      (ImGuiCol_Text,
-            ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
-          );
-
-        if (ImGui::BeginMenu (LI_("\xe2\x94\x94", "without Special K###GameContextMenu_InstantPlayWoSKMenu")))
-        {
-          bool sepCustomSKIF = true,
-               sepCustomUser = true;
-
-          for (auto& _launch_cfg : pApp->launch_configs)
-          {
-            if (! _launch_cfg.second.valid ||
-                  _launch_cfg.second.duplicate_exe_args)
-              continue;
-
-            // Filter out launch configs requiring not owned DLCs
-            if (! _launch_cfg.second.owns_dlc)
-              continue;
-
-            auto& _launch = _launch_cfg.second;
-
-            // Separators between official / user / SKIF launch configs
-            if (_launch_cfg.second.custom_user && sepCustomUser)
-            {
-              sepCustomUser = false;
-              ImGui::Separator ( );
-            }
-
-            else if (_launch_cfg.second.custom_skif && sepCustomSKIF)
-            {
-              sepCustomSKIF = false;
-              ImGui::Separator ( );
-            }
-
-            // A local install injects Special K regardless (blacklisted launch configs are available: this launches without Special K)
-            const SKIF_Lib_WithoutSK wosk = SKIF_Lib_GetWithoutSKState (pApp, &_launch);
-            bool localDisabled = (wosk == SKIF_Lib_WithoutSK::LocalInjection);
-
-            char        szButtonLabel [256] = { };
-
-            sprintf_s ( szButtonLabel, 255,
-                          "%s%s%s###GameContextMenu_InstantPlayWoSKMenu-%d",
-                                  (localDisabled) ? (ICON_FA_LOCK        "  ") : "",
-                           (_launch.isElevated()) ? (ICON_FA_USER_SHIELD "  ") : "",
-                            _launch.getDescriptionUTF8().empty ()
-                              ? _launch.getExecutableFileNameUTF8().c_str ()
-                              : _launch.getDescriptionUTF8().c_str (),
-                            _launch.id);
-
-            if (playDisabled || localDisabled)
-            {
-              ImGui::PushItemFlag   (ImGuiItemFlags_Disabled, true);
-              ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
-            }
-            else
-              ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase));
-
-            if (ImGui::Selectable (szButtonLabel))
-            {
-              launchConfig = &_launch_cfg.second;
-              launchInstant = launchWithoutSK = true;
-            }
-
-            if (playDisabled || localDisabled)
-            {
-              ImGui::PopStyleColor  ( );
-              ImGui::PopItemFlag    ( );
-            }
-            else
-              ImGui::PopStyleColor  ( );
-
-            std::string hoverText = SKIF_Lib_GetLaunchCommand (pApp, &_launch);
-
-            if (! playDisabled && ! localDisabled)
-              SKIF_ImGui_SetMouseCursorHand ( );
-
-            SKIF_ImGui_SetHoverText       (hoverText.c_str());
-
-            if (localDisabled)
-              SKIF_ImGui_SetHoverTip      (_("This option is not available due to a local injection being used."));
-          }
-
-          ImGui::EndMenu ();
-        }
-
-        if (! playDisabled)
-          ImGui::PopStyleColor ( );
+        launchConfig    = &_launch;
+        launchInstant   = true;
+        launchWithoutSK = withoutSK;
       }
 
-      if (playDisabled)
-        ImGui::PopStyleColor ( );
+      if (ImGui::IsItemHovered (ImGuiHoveredFlags_AllowWhenDisabled))
+        SKIF_ImGui_SetHoverText (SKIF_Lib_GetLaunchCommand (pApp, &_launch));
+
+      if (localBlocked)
+        _LocalTip ( );
+      else if (blocked)
+        SKIF_ImGui_SetHoverTip (_("Special K has been disabled for this launch configuration."), false, true);
     }
   }
+
+  // Applies to the entry clicked next; the submenu stays open when it is toggled
+  if (_inject.bHasServlet)
+  {
+    ImGui::Separator ( );
+
+    // A checkbox as the icon on the left, so it lines up with the icons of the entries above
+    ImGui::PushItemFlag   (ImGuiItemFlags_AutoClosePopups, false);
+    ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f));
+    if (SKIF_ImGui_MenuItemEx3 (L_("without Special K###GameContextMenu_PlayWithWoSK"),
+                                (withoutSK) ? ICON_FA_SQUARE_CHECK : ICON_FA_SQUARE, nullptr,
+                                ImGui::GetStyleColorVec4 ((withoutSK) ? ImGuiCol_SKIF_Icon : ImGuiCol_TextDisabled)))
+      withoutSK = ! withoutSK;
+    ImGui::PopStyleColor  ( ); // ImGuiCol_Text
+    ImGui::PopItemFlag    ( ); // ImGuiItemFlags_AutoClosePopups
+
+    SKIF_ImGui_SetHoverTip (_("Starts the launch option clicked next without Special K.\n"
+                              "This stops the injection service, so other games launched meanwhile are affected as well."));
+  }
+
+  ImGui::EndMenu ( );
 }
 
 
@@ -845,7 +757,7 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
         sort_changed = true; // Disabled as this causes a noticable flicker on the menu when the game goes out and in of visibility
       }
 
-      if (! _registry.vecCategories.size() > 2) // Any other than the defaults: Favorites, Games ?
+      if (_registry.vecCategories.size() > 2) // Any other than the defaults: Favorites, Games ?
         ImGui::Separator ( );
 
       if (isFavorite)
@@ -1216,7 +1128,7 @@ DrawGameContextMenu (app_record_s* pApp)
   static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
 
   app_record_s::launch_config_s*
-    firstLaunchConfig = (pApp != nullptr) ? pApp->GetDefaultLaunchConfig ( ) : nullptr; // The default launch config (Properties > Launch), else the primary one
+    firstLaunchConfig = (pApp != nullptr) ? pApp->GetDefaultLaunchConfig ( ) : nullptr; // The default launch config (Properties > General > Play), else the primary one
 
   bool playDisabled = (pApp->_status.running || pApp->IsUpdateBlockingLaunch ( ));
 
@@ -1228,13 +1140,14 @@ DrawGameContextMenu (app_record_s* pApp)
   if (playDisabled)
     ImGui::BeginDisabled ( );
 
+  // Same as the Play button: the default launch option, started as set in Properties (General > Play)
   if (ImGui::MenuItemEx (L_("Play###GameContextMenu_Launch"), ICON_FA_GAMEPAD))
-    launchGameMenu = true;
+    launchGame = true;
 
   if (playDisabled)
     ImGui::EndDisabled ( );
 
-  // The command line of the launch config Play uses (the default one), as for Instant play
+  // The command line of the launch config Play uses (the default one)
   const std::string launchCommand = SKIF_Lib_GetLaunchCommand (pApp, firstLaunchConfig);
 
   SKIF_ImGui_SetHoverText (launchCommand);
@@ -1252,7 +1165,7 @@ DrawGameContextMenu (app_record_s* pApp)
       ImGui::BeginDisabled ( );
 
     if (ImGui::MenuItem (LI_("\xe2\x94\x94", "without Special K###GameContextMenu_LaunchWoSK")))
-      launchGameMenu = launchWithoutSK = true;
+      launchGame = launchWithoutSK = true;
 
     if (playDisabled)
       ImGui::EndDisabled ( );
@@ -1265,65 +1178,8 @@ DrawGameContextMenu (app_record_s* pApp)
       SKIF_ImGui_SetHoverTip (_("Stops the injection service as well."));
   }
 
-  // The platform's own launch (the primary launch config, through the store client) when Play uses another default launch config;
-  //   otherwise it is only reachable through Instant play
-  app_record_s::launch_config_s*
-    primaryLaunchConfig = (! pApp->launch_configs.empty ( )) ? &pApp->launch_configs.begin ( )->second : nullptr;
-
-  if (primaryLaunchConfig != nullptr           &&
-      primaryLaunchConfig != firstLaunchConfig &&
-      pApp->store         != app_record_s::Store::Custom &&
-    ! pApp->PrefersInstantLaunch (true, primaryLaunchConfig)) // The store client launches it (not Instant play)
-  {
-    ImGui::Separator ( );
-
-    if (playDisabled)
-      ImGui::BeginDisabled ( );
-
-    if (ImGui::MenuItemEx ((F_("Play via {0}", pApp->store_utf8) + "###GameContextMenu_LaunchPrimary").c_str ( ), ICON_FA_GAMEPAD))
-    {
-      launchConfig   = primaryLaunchConfig;
-      launchGameMenu = true;
-    }
-
-    if (playDisabled)
-      ImGui::EndDisabled ( );
-
-    const std::string primaryCommand = SKIF_Lib_GetLaunchCommand (pApp, primaryLaunchConfig);
-
-    SKIF_ImGui_SetHoverText (primaryCommand);
-    SKIF_ImGui_SetHoverTip  (_("Uses the platform's own launch option instead of the default launch option."));
-
-    // The state of the primary launch config itself (a local install may be next to only one of the executables)
-    if (SKIF_Lib_GetWithoutSKState (pApp, primaryLaunchConfig) == SKIF_Lib_WithoutSK::Available)
-    {
-      ImGui::PushStyleColor      (ImGuiCol_Text,
-        ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
-      );
-
-      if (playDisabled)
-        ImGui::BeginDisabled ( );
-
-      if (ImGui::MenuItem (LI_("\xe2\x94\x94", "without Special K###GameContextMenu_LaunchPrimaryWoSK")))
-      {
-        launchConfig   = primaryLaunchConfig;
-        launchGameMenu = launchWithoutSK = true;
-      }
-
-      if (playDisabled)
-        ImGui::EndDisabled ( );
-
-      ImGui::PopStyleColor   ( );
-
-      SKIF_ImGui_SetHoverText (primaryCommand);
-
-      if (_inject.bCurrentState)
-        SKIF_ImGui_SetHoverTip (_("Stops the injection service as well."));
-    }
-  }
-
-  // Instant Play launch options
-  DrawGameContextMenu_InstantPlay (pApp, playDisabled, firstLaunchConfig);
+  // A specific launch option, through the platform client or directly
+  DrawGameContextMenu_PlayWith (pApp, playDisabled);
 
   // Items for a running game
   DrawGameContextMenu_Running (pApp);

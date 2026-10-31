@@ -1073,7 +1073,8 @@ SKIF_UI_Tab_DrawSettings (void)
     ImGui::SameLine    ( );
     SKIF_ImGui_TextColoredWrapped (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-        _("Prefer Instant Play for these platforms:"));
+        _("Start games directly (Instant Play) for these platforms:"));
+    SKIF_ImGui_SetHoverTip (_("The default for the games of these platforms; each game can change it in Properties (General > Play)."));
 
     ImGui::TreePush      ("InstantPlay");
 

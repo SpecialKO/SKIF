@@ -72,6 +72,7 @@ ImVec2   SKIF_ImGui_GetWindowContentRegionMax (void); // Same as ImGui::GetWindo
 void     SKIF_ImGui_BeginTabChildFrame    (void);
 bool     SKIF_ImGui_BeginMenuEx2          (const char* label, const char* icon, const ImVec4& colIcon = ImGui::GetStyleColorVec4 (ImGuiCol_Text), bool enabled = true);
 bool     SKIF_ImGui_MenuItemEx2           (const char* label, const char* icon, const ImVec4& colIcon = ImGui::GetStyleColorVec4 (ImGuiCol_Text), const char* shortcut = NULL, bool* p_selected = nullptr, bool enabled = true);
+bool     SKIF_ImGui_MenuItemEx3           (const char* label, const char* iconLeft, const char* iconRight, const ImVec4& colLeft = ImGui::GetStyleColorVec4 (ImGuiCol_Text), const ImVec4& colRight = ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), bool enabled = true); // An icon on each side: the left one in the icon column, the right one (may be nullptr) right-aligned in the checkmark column
 bool     SKIF_ImGui_IconButton            (ImGuiID id, std::string icon, std::string label, const ImVec4& colIcon = ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption));
 bool     SKIF_ImGui_MinimizeButton        (ImGuiID id, const ImVec2& pos);
 bool     SKIF_ImGui_TitleBarMinimizeButton(void);

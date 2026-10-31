@@ -924,17 +924,14 @@ DrawGameDetails_LaunchBar (app_record_s* pApp)
     //   for the Play button). Custom games are always started directly, so it says nothing there.
     if (pApp->store != app_record_s::Store::Custom && pApp->PrefersInstantLaunch (false, defaultLaunchConfig))
     {
-      // The platform cannot start the default launch config (one of the user's own, or not its primary one), or the setting
-      const bool notByClient = ! pApp->ClientCanLaunch (*defaultLaunchConfig);
-
+      // Properties > General > Play explains why (the launch option, or the Start setting)
       if (_RightIconButton (ICON_FA_ROCKET "###InstantPlayIndicator", ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled)))
-        _OpenProperties ((notByClient) ? PropertiesPage::Launch : PropertiesPage::General);
+        _OpenProperties (PropertiesPage::General);
 
       if (ImGui::IsItemHovered ( ))
       {
         SKIF_ImGui_SetHoverText (SKIF_Lib_GetLaunchCommand (pApp, defaultLaunchConfig));
-        SKIF_ImGui_SetHoverTip  (std::string ((notByClient) ? _("Play uses Instant play, as the platform cannot start the default launch option.")
-                                                          : _("Play uses Instant play for this game."))
+        SKIF_ImGui_SetHoverTip  (std::string (_("Starts the game directly (Instant play)."))
                                + "\n\n" +
                                _("Skips the regular platform launch process for the game,\n"
                                  "including steps such as cloud saves synchronization."));

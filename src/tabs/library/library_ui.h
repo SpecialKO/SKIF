@@ -185,7 +185,7 @@ extern bool                   sort_changed;
 extern app_record_s::launch_config_s*
                               launchConfig;      // Used to launch games. Defaults to the game's default launch config (GetDefaultLaunchConfig).
 extern bool                   launchGame;        // Respects Instant Play preference
-extern bool                   launchGameMenu;    // Menu is always explicit
+extern bool                   launchGameMenu;    // Explicitly through the platform client (Play with > platform): ignores the Instant Play setting
 extern bool                   launchInstant;
 extern bool                   launchWithoutSK;
 extern int                    numPinnedOnTop;

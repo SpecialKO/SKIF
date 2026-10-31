@@ -1513,6 +1513,47 @@ SKIF_ImGui_MenuItemEx2 (const char* label, const char* icon, const ImVec4& colIc
   return ret;
 }
 
+// A menu item with an icon on each side: the left one in the icon column, the right one right-aligned in the checkmark column.
+//   MenuItemEx ( ) always reserves that column (for the tick of a selected item, unused here), so the right icon makes the
+//     menu no wider; the shortcut column would add a column of its own plus spacing in front of it. Tooltips on a disabled
+//       item need the allowWhenItemDisabled parameter of SKIF_ImGui_SetHoverTip ( ), as for SKIF_ImGui_MenuItemEx2 ( ).
+bool
+SKIF_ImGui_MenuItemEx3 (const char* label, const char* iconLeft, const char* iconRight, const ImVec4& colLeft, const ImVec4& colRight, bool enabled)
+{
+  ImGuiWindow* window = ImGui::GetCurrentWindow ( );
+
+  // As MenuItemEx ( ) lays out a menu item in a vertical menu (taken before the item, as it moves the cursor)
+  const ImVec2 pos   (window->DC.CursorPos.x, window->DC.CursorPos.y + window->DC.CurrLineTextBaseOffset);
+  const float  avail = ImGui::GetContentRegionAvail ( ).x;
+
+  // MenuItemEx ( ) draws the icon in ImGuiCol_SKIF_Icon (SKIF CUSTOM)
+  ImGui::PushStyleColor (ImGuiCol_SKIF_Icon, colLeft);
+  bool ret = ImGui::MenuItemEx (label, iconLeft, nullptr, false, enabled);
+  ImGui::PopStyleColor  ( );
+
+  if (iconRight != nullptr && iconRight [0] != '\0' && window->DC.LayoutType == ImGuiLayoutType_Vertical && ImGui::IsItemVisible ( ))
+  {
+    const ImGuiMenuColumns& columns = window->DC.MenuColumns;
+
+    // The item's width (all columns, as MenuItemEx ( ) declared them) and how far it is stretched to the width of the menu
+    const float minWidth   = static_cast <float> (ImMax (columns.TotalWidth, columns.NextTotalWidth)); // ImU32 in ImGuiMenuColumns
+    const float stretch    = ImMax (0.0f, avail - minWidth);
+    const float markWidth  = IM_TRUNC (ImGui::GetFontSize ( ) * 1.20f); // As MenuItemEx ( )
+    const float iconWidth  = ImGui::CalcTextSize (iconRight).x;
+
+    // Faded as the rest of the item when it is disabled
+    if (! enabled)
+      ImGui::BeginDisabled ( );
+
+    window->DrawList->AddText (ImVec2 (pos.x + columns.OffsetMark + stretch + markWidth - iconWidth, pos.y), ImGui::GetColorU32 (colRight), iconRight);
+
+    if (! enabled)
+      ImGui::EndDisabled ( );
+  }
+
+  return ret;
+}
+
 bool SKIF_ImGui_IconButton (ImGuiID id, std::string icon, std::string label, const ImVec4& colIcon)
 {
   bool ret   = false;
