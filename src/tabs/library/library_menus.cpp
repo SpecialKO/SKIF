@@ -1427,7 +1427,7 @@ DrawCoverMenu (void)
       {
         LPWSTR pwszFilePath = NULL;
         HRESULT hr          =
-          SKIF_Util_FileExplorer_BrowseForFile(&pwszFilePath, SKIF_ImGui_hWnd, { { W_("Images"), L"*.png;*.jpg;*.jpeg;*.webp;*.psd;*.bmp" } }, FOS_FILEMUSTEXIST, FOLDERID_Pictures);
+          SKIF_Util_FileExplorer_BrowseForFile (&pwszFilePath, SKIF_ImGui_hWnd, { { W_("Images"), L"*.png;*.jpg;*.jpeg;*.webp;*.psd;*.bmp" } }, FOS_FILEMUSTEXIST, FOLDERID_Pictures);
 
         if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED))
         {

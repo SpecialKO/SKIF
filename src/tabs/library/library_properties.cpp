@@ -84,7 +84,7 @@ SKIF_Properties_BrowseForFile (std::wstring& out, const wchar_t* folder)
 {
   LPWSTR  pwszFilePath = NULL;
   HRESULT hr           =
-    SKIF_Util_FileExplorer_BrowseForFile (&pwszFilePath, SKIF_ImGui_hWnd, { { L"Executables", L"*.exe;*.bat;*.lnk" } }, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST, FOLDERID_ComputerFolder, folder);
+    SKIF_Util_FileExplorer_BrowseForFile (&pwszFilePath, SKIF_ImGui_GetFocusedWindow ( ), {{L"Executables", L"*.exe;*.bat;*.lnk"}}, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST, FOLDERID_ComputerFolder, folder);
 
   bool ret = (SUCCEEDED (hr) && pwszFilePath != NULL);
 
@@ -102,7 +102,7 @@ SKIF_Properties_BrowseForFolder (std::wstring& out, const wchar_t* folder)
 {
   LPWSTR  pwszFolder = NULL;
   HRESULT hr         =
-    SKIF_Util_FileExplorer_BrowseForFolder (&pwszFolder, SKIF_ImGui_hWnd, FOLDERID_ComputerFolder, folder);
+    SKIF_Util_FileExplorer_BrowseForFolder (&pwszFolder, SKIF_ImGui_GetFocusedWindow ( ), FOLDERID_ComputerFolder, folder);
 
   bool ret = (SUCCEEDED (hr) && pwszFolder != NULL);
 

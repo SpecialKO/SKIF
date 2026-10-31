@@ -392,7 +392,7 @@ SKIF_Custom_AddGame (void)
     {
       LPWSTR pwszFilePath = NULL;
       HRESULT hr          =
-        SKIF_Util_FileExplorer_BrowseForFile (&pwszFilePath, SKIF_ImGui_hWnd, { { W_("Executables"), L"*.exe;*.bat" } }, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST);
+        SKIF_Util_FileExplorer_BrowseForFile (&pwszFilePath, SKIF_ImGui_GetFocusedWindow ( ), { { W_("Executables"), L"*.exe;*.bat" } }, FOS_NODEREFERENCELINKS | FOS_NOVALIDATE | FOS_FILEMUSTEXIST);
 
       if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED))
       {
@@ -440,7 +440,7 @@ SKIF_Custom_AddGame (void)
       LPWSTR pwszWorkingDir = NULL;
 
       HRESULT hr          =
-        SKIF_Util_FileExplorer_BrowseForFolder (&pwszWorkingDir, SKIF_ImGui_hWnd);
+        SKIF_Util_FileExplorer_BrowseForFolder (&pwszWorkingDir, SKIF_ImGui_GetFocusedWindow ( ));
 
       if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED))
       {
