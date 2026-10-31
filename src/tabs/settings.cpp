@@ -248,6 +248,13 @@ SKIF_UI_Tab_DrawSettings (void)
     pos.y = std::max (pos.y, vpMin.y);
 
     ImGui::SetNextWindowPos (pos, ImGuiCond_Always);
+
+    // The frame it opens on, ImGui keeps the popup hidden while it measures the content, at the width the popup has then.
+    //   Without a width it is a 16 px wide window, where the wrapping labels break after every word: the next frame would
+    //     show it far too tall (e.g. 417x1434 instead of 403x252), placed and sized wrong for a frame. So it is measured at
+    //       the width of the window it opens from, where nothing needs to wrap. Only for that frame: it then fits its width
+    //         to the content as usual (the height is never set, so it keeps fitting the content).
+    ImGui::SetNextWindowSize (ImVec2 (vpMax.x - vpMin.x, 0.0f), ImGuiCond_Appearing);
   }
 
   if (_registry.bControllers)
