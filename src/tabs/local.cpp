@@ -791,7 +791,7 @@ SKIF_LocalManager::Process (void)
     if (this->hwnd == nullptr && ImGui::GetWindowViewport()->PlatformHandleRaw)
       this->hwnd = (HWND)ImGui::GetWindowViewport()->PlatformHandleRaw;
 
-    // Read by SKIF.cpp next frame so the global Ctrl+A (Add game) stays out of the way
+    // Our own hotkeys only apply while this window has focus (the main window's hotkeys do not reach it)
     focused = ImGui::IsWindowFocused (ImGuiFocusedFlags_RootAndChildWindows);
 
     // Ctrl+A: select outdated, then all rows; never deselects.

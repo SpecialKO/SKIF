@@ -184,11 +184,6 @@ SKIF_UI_Tab_DrawAbout (void)
     ImGui::PushStyleColor   (ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption));
     char szSteamCommand[MAX_PATH] = "SKIF %COMMAND%";
     ImGui::InputTextEx      ("###Launcher", NULL, szSteamCommand, MAX_PATH, ImVec2(0, 0), ImGuiInputTextFlags_ReadOnly);
-    if (ImGui::IsItemActive    ( ))
-    {
-      extern bool allowShortcutCtrlA;
-      allowShortcutCtrlA = false;
-    }
     ImGui::PopStyleColor    ( );
     ImGui::TreePop          ( );
 

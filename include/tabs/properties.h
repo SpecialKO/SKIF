@@ -95,7 +95,3 @@ bool  SKIF_Properties_BrowseForFolder   (std::wstring& out, const wchar_t* folde
 //   (SKIF.h) opens one for the selected game, or brings its window forward; it is PopupState_Opened while any is open.
 //   Called every frame by SKIF.cpp, after the main window.
 void  SKIF_Properties_Draw              (void);
-
-// Whether one of the windows has the keyboard focus (OS focus; main thread). They handle Ctrl+Q themselves, so they can
-//   ask about unsaved changes first, so SKIF.cpp does not handle the main window's Ctrl+Q while this is true
-bool  SKIF_Properties_IsFocused         (void);

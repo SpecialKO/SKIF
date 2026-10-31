@@ -120,7 +120,6 @@ std::atomic<int>  SKIF_FrameCount = 0;
 int   addAdditionalFrames       = 0;
 DWORD dwDwmPeriod               = 62500; // Assume 60 Hz (16 ms) by default
 bool  SteamOverlayDisabled      = false;
-bool  allowShortcutCtrlA        = true; // Used to disable the Ctrl+A when interacting with text input
 bool  SKIF_MouseDragMoveAllowed = true;
 bool  SKIF_debuggerPresent      = false;
 DWORD SKIF_startupTime          = 0; // Used as a basis of how long the initialization took
@@ -1717,6 +1716,14 @@ void SKIF_Initialize (LPWSTR lpCmdLine)
             << "\n+------------------+-------------------------------------+";
 }
 
+// Hotkeys pressed this frame, acted on next frame: see "Hotkeys" in the main loop
+static struct {
+  bool F5, F6, F7, F8, F9, F11,
+       CtrlQ, CtrlW, CtrlR, CtrlT, CtrlA,
+       Ctrl1, Ctrl2, Ctrl3, Ctrl4, Ctrl5,
+       CtrlShiftN, CtrlShiftM, CtrlShiftD;
+} s_hotkeysPressed = { };
+
 bool bKeepWindowAlive  = true,
      bKeepProcessAlive = true;
 
@@ -2432,31 +2439,31 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
 #endif // DEBUG
 
-    // Various hotkeys that SKIF supports (resets on every frame)
-    extern bool INIEditorActive;
-    extern bool SKIF_Properties_IsFocused (void); // Properties windows handle Ctrl+Q themselves (unsaved changes prompt)
-    bool hotkeysEnabled   = ! (INIEditorActive || g_activeKeybindPopup);
-    bool hotkeyF5         = (hotkeysEnabled &&                              ImGui::GetKeyData (ImGuiKey_F5 )->DownDuration == 0.0f), // Library/About: Refresh data
-         hotkeyF6         = (hotkeysEnabled &&                              ImGui::GetKeyData (ImGuiKey_F6 )->DownDuration == 0.0f), // Appearance: Toggle DPI scaling
-         hotkeyF7         = (hotkeysEnabled &&                              ImGui::GetKeyData (ImGuiKey_F7 )->DownDuration == 0.0f), // Appearance: Cycle between color themes
-         hotkeyF8         = (hotkeysEnabled &&                              ImGui::GetKeyData (ImGuiKey_F8 )->DownDuration == 0.0f), // Appearance: Toggle UI borders
-         hotkeyF9         = (hotkeysEnabled &&                              ImGui::GetKeyData (ImGuiKey_F9 )->DownDuration == 0.0f), // Appearance: Toggle color depth
-         hotkeyF11        = (hotkeysEnabled &&                              ImGui::GetKeyData (ImGuiKey_F11)->DownDuration == 0.0f), // Appearance: Toggle app mode (Library/Service)
-         hotkeyCtrlQ      = (hotkeysEnabled && io.KeyCtrl &&                ImGui::GetKeyData (ImGuiKey_Q  )->DownDuration == 0.0f   // Close the app
-                                            && ! SKIF_Properties_IsFocused ( )),                                                //   (Properties asks about unsaved changes first)
-         hotkeyCtrlW      = (hotkeysEnabled && io.KeyCtrl &&                ImGui::GetKeyData (ImGuiKey_W  )->DownDuration == 0.0f   // Close the app, but only from the main window
-                                            && SKIF_Hotkey_MainWindowFocused ( )),                                              //   (other windows use Ctrl+W to close themselves)
-         hotkeyCtrlR      = (hotkeysEnabled && io.KeyCtrl &&                ImGui::GetKeyData (ImGuiKey_R  )->DownDuration == 0.0f), // Library/About: Refresh data
-         hotkeyCtrlT      = (hotkeysEnabled && io.KeyCtrl &&                ImGui::GetKeyData (ImGuiKey_T  )->DownDuration == 0.0f), // Appearance: Toggle app mode (Library/Service)
-         hotkeyCtrlA      = (hotkeysEnabled && io.KeyCtrl &&                ImGui::GetKeyData (ImGuiKey_A  )->DownDuration == 0.0f), // Library: Add game
-         hotkeyCtrl1      = (hotkeysEnabled && io.KeyCtrl &&                ImGui::GetKeyData (ImGuiKey_1  )->DownDuration == 0.0f), // Switch to Library
-         hotkeyCtrl2      = (hotkeysEnabled && io.KeyCtrl &&                ImGui::GetKeyData (ImGuiKey_2  )->DownDuration == 0.0f), // Switch to Monitor
-         hotkeyCtrl3      = (hotkeysEnabled && io.KeyCtrl &&                ImGui::GetKeyData (ImGuiKey_3  )->DownDuration == 0.0f), // Switch to Hardware
-         hotkeyCtrl4      = (hotkeysEnabled && io.KeyCtrl &&                ImGui::GetKeyData (ImGuiKey_4  )->DownDuration == 0.0f), // Switch to Settings
-         hotkeyCtrl5      = (hotkeysEnabled && io.KeyCtrl &&                ImGui::GetKeyData (ImGuiKey_5  )->DownDuration == 0.0f), // Switch to About
-         hotkeyCtrlShiftN = (hotkeysEnabled && io.KeyCtrl && io.KeyShift && ImGui::GetKeyData (ImGuiKey_N  )->DownDuration == 0.0f), // Minimize app // 2026-09-22: Changed to open INI Editor instead
-         hotkeyCtrlShiftM = (hotkeysEnabled && io.KeyCtrl && io.KeyShift && ImGui::GetKeyData (ImGuiKey_M  )->DownDuration == 0.0f), // Local Manager
-         hotkeyCtrlShiftD = (hotkeysEnabled && io.KeyCtrl && io.KeyShift && ImGui::GetKeyData (ImGuiKey_D  )->DownDuration == 0.0f); // ImGui Debug + Demo
+    // Hotkeys (include/utility/hotkeys.h lists them all, with their scopes)
+    //   Detected with ImGui::Shortcut ( ) during the previous frame ("Hotkeys: Main" in the main window, "Hotkeys: App" after
+    //     all windows), and acted on during this frame, as the appearance ones (F6-F9) have to be applied before
+    //       ImGui::NewFrame ( ). The same timing as when the keys were polled here (which read the previous frame's input).
+    //         Some are also set by buttons further down (Ctrl+Q, Ctrl+T, Ctrl+Shift+M)
+    bool hotkeyF5         = s_hotkeysPressed.F5,         // Library/Hardware/Settings: Refresh data
+         hotkeyF6         = s_hotkeysPressed.F6,         // Appearance: Toggle DPI scaling
+         hotkeyF7         = s_hotkeysPressed.F7,         // Appearance: Cycle between color themes
+         hotkeyF8         = s_hotkeysPressed.F8,         // Appearance: Toggle UI borders
+         hotkeyF9         = s_hotkeysPressed.F9,         // Appearance: Toggle color depth
+         hotkeyF11        = s_hotkeysPressed.F11,        // Appearance: Toggle app mode (Library/Service)
+         hotkeyCtrlQ      = s_hotkeysPressed.CtrlQ,      // Close the app
+         hotkeyCtrlW      = s_hotkeysPressed.CtrlW,      // Close the app (from the main window)
+         hotkeyCtrlR      = s_hotkeysPressed.CtrlR,      // Library/Hardware/Settings: Refresh data
+         hotkeyCtrlT      = s_hotkeysPressed.CtrlT,      // Appearance: Toggle app mode (Library/Service)
+         hotkeyCtrlA      = s_hotkeysPressed.CtrlA,      // Library: Add game
+         hotkeyCtrl1      = s_hotkeysPressed.Ctrl1,      // Switch to Library
+         hotkeyCtrl2      = s_hotkeysPressed.Ctrl2,      // Switch to Monitor
+         hotkeyCtrl3      = s_hotkeysPressed.Ctrl3,      // Switch to Hardware
+         hotkeyCtrl4      = s_hotkeysPressed.Ctrl4,      // Switch to Settings
+         hotkeyCtrl5      = s_hotkeysPressed.Ctrl5,      // Switch to About
+         hotkeyCtrlShiftN = s_hotkeysPressed.CtrlShiftN, // Open an INI Editor
+         hotkeyCtrlShiftM = s_hotkeysPressed.CtrlShiftM, // Local Manager
+         hotkeyCtrlShiftD = s_hotkeysPressed.CtrlShiftD; // ImGui Debug + Demo
+    s_hotkeysPressed = { };
     bool minimizeWindow = false; // Replaced old Ctrl+N boolean
 
     auto _TranslateAndDispatch = [&](void) -> bool
@@ -3046,6 +3053,25 @@ wWinMain ( _In_     HINSTANCE hInstance,
       HiddenFramesContinueProcessing = (ImGui::GetCurrentWindowRead()->HiddenFramesCannotSkipItems > 0);
       HoverTipActive = false;
 
+      // Hotkeys: Main (acted on next frame, see "Hotkeys" at the top of the loop)
+      //   Only while the main window (or a child window of it) has the focus: not from SKIF's other windows, and not while
+      //     a SKIF popup (e.g. Add Game) or a menu has it, much like with a modal popup. An active text field keeps Ctrl+A.
+      //       Every Shortcut ( ) is called every frame, as that is what keeps its route registered
+      if (! g_activeKeybindPopup)
+      {
+        s_hotkeysPressed.CtrlW = ImGui::Shortcut (SKIF_Hotkey_CloseMain);
+        s_hotkeysPressed.CtrlR = ImGui::Shortcut (SKIF_Hotkey_Refresh);
+        s_hotkeysPressed.F5    = ImGui::Shortcut (SKIF_Hotkey_RefreshAlt);
+        s_hotkeysPressed.CtrlT = ImGui::Shortcut (SKIF_Hotkey_ToggleMiniMode);
+        s_hotkeysPressed.F11   = ImGui::Shortcut (SKIF_Hotkey_ToggleMiniModeAlt);
+        s_hotkeysPressed.CtrlA = ImGui::Shortcut (SKIF_Hotkey_AddGame);
+        s_hotkeysPressed.Ctrl1 = ImGui::Shortcut (SKIF_Hotkey_TabLibrary);
+        s_hotkeysPressed.Ctrl2 = ImGui::Shortcut (SKIF_Hotkey_TabMonitor);
+        s_hotkeysPressed.Ctrl3 = ImGui::Shortcut (SKIF_Hotkey_TabHardware);
+        s_hotkeysPressed.Ctrl4 = ImGui::Shortcut (SKIF_Hotkey_TabSettings);
+        s_hotkeysPressed.Ctrl5 = ImGui::Shortcut (SKIF_Hotkey_TabAbout);
+      }
+
       extern ImGuiPlatformMonitor*
         SKIF_ImGui_ImplWin32_GetPlatformMonitorProxy (ImGuiViewport* viewport, bool center);
       ImGuiPlatformMonitor* actMonitor =
@@ -3179,8 +3205,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
           }
         }
 
-        // Ctrl+A belongs to the Local Installs window (select all) while it has focus
-        if (hotkeyCtrlA && allowShortcutCtrlA && ! SKIF_LocalManager::GetInstance ( ).IsFocused ( ))
+        // Main-window hotkey: not from the Local Manager (select all there) or while a text field is active (select all)
+        if (hotkeyCtrlA)
         {
           if (SKIF_Tab_Selected != UITab_Library)
               SKIF_Tab_ChangeTo  = UITab_Library;
@@ -3188,8 +3214,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
           AddGamePopup = PopupState_Open;
         }
       }
-
-      allowShortcutCtrlA = true;
 
       // Only from the main window: the INI editor, Local Manager and Properties use Escape to close themselves
       if (SKIF_Hotkey_MainWindowFocused ( ) && ImGui::IsKeyPressed (ImGuiKey_Escape))
@@ -3912,6 +3936,24 @@ wWinMain ( _In_     HINSTANCE hInstance,
       extern void
         SKIF_Properties_Draw (void);
         SKIF_Properties_Draw (    );
+
+      // Hotkeys: App (acted on next frame, see "Hotkeys" at the top of the loop)
+      //   From any SKIF window, unless the focused window handles the same hotkey itself with Shortcut ( ), which takes
+      //     priority over a global route (e.g. Ctrl+Q in an INI editor or Properties, to ask about unsaved changes first,
+      //       and Ctrl+Shift+N in an INI editor). Not while a keybinding is being recorded (Settings)
+      if (! g_activeKeybindPopup)
+      {
+        constexpr ImGuiInputFlags fApp = ImGuiInputFlags_RouteGlobal;
+
+        s_hotkeysPressed.CtrlQ      = ImGui::Shortcut (SKIF_Hotkey_Quit,             fApp);
+        s_hotkeysPressed.F6         = ImGui::Shortcut (SKIF_Hotkey_ToggleDPIScaling, fApp);
+        s_hotkeysPressed.F7         = ImGui::Shortcut (SKIF_Hotkey_CycleTheme,       fApp);
+        s_hotkeysPressed.F8         = ImGui::Shortcut (SKIF_Hotkey_ToggleBorders,    fApp);
+        s_hotkeysPressed.F9         = ImGui::Shortcut (SKIF_Hotkey_CycleColorDepth,  fApp);
+        s_hotkeysPressed.CtrlShiftN = ImGui::Shortcut (SKIF_Hotkey_OpenIniEditor,    fApp);
+        s_hotkeysPressed.CtrlShiftM = ImGui::Shortcut (SKIF_Hotkey_OpenLocalManager, fApp);
+        s_hotkeysPressed.CtrlShiftD = ImGui::Shortcut (SKIF_Hotkey_ToggleDebug,      fApp);
+      }
 
       // Needs to be processed after all ImGui windows have run
       if (! HoverTipActive)

@@ -168,7 +168,6 @@ change_category_s static_category; // library_ui.h
 std::wstring dragDroppedFilePath = L"";
 std::wstring dragDroppedFilePathGame = L"";
 
-extern bool            allowShortcutCtrlA;
 extern ImVec2          SKIF_vecServiceMode;
 extern ImVec2          SKIF_vecHorizonMode;
 extern std::string     SKIF_StatusBarHelp;
@@ -1216,9 +1215,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   bFilterActive = ImGui::IsItemActive ( );
 
-  if (bFilterActive)
-    allowShortcutCtrlA = false;
-  else if (ImGui::IsItemFocused ( ) && ! ImGui::IsItemHovered( ) && ImGui::IsAnyMouseDown( ))
+  if (! bFilterActive && ImGui::IsItemFocused ( ) && ! ImGui::IsItemHovered( ) && ImGui::IsAnyMouseDown( ))
   {
     // Clear highlight from filter box
     ImGuiContext& g = *ImGui::GetCurrentContext();

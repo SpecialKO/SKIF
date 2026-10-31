@@ -23,7 +23,6 @@
 // Last, as it defines short macros such as _ ( )
 #include <utility/l10n.h>
 
-extern bool allowShortcutCtrlA;
 bool saveIniOSD = false;
 
 
@@ -1664,9 +1663,6 @@ SKIF_UI_Tab_DrawSettings (void)
           _registry.regKVHDRBrightness.putData (_registry.iHDRBrightness);
         }
 
-        if (ImGui::IsItemActive    ( ))
-          allowShortcutCtrlA = false;
-
         if (_registry.iHDRMode == 0)
           SKIF_ImGui_PopDisableState  ( );
       }
@@ -2338,9 +2334,6 @@ SKIF_UI_Tab_DrawSettings (void)
                                          150 * SKIF_ImGui_GlobalDPIScale ), // 120 // 150
                                   ImGuiInputTextFlags_Multiline );
 
-    if (ImGui::IsItemActive    ( ))
-      allowShortcutCtrlA = false;
-
     if (*whitelist_edit == '\0')
     {
       SKIF_ImGui_SetHoverTip (
@@ -2435,9 +2428,6 @@ SKIF_UI_Tab_DrawSettings (void)
                                 ImVec2 ( 700 * SKIF_ImGui_GlobalDPIScale,
                                          120 * SKIF_ImGui_GlobalDPIScale ),
                                   ImGuiInputTextFlags_Multiline );
-
-    if (ImGui::IsItemActive    ( ))
-      allowShortcutCtrlA = false;
 
     _CheckWarnings (blacklist_edit);
 

@@ -450,9 +450,6 @@ DrawSpecialKPatreon (bool& isCoverHovered, ImVec2 vecPosCover)
         ImGui::IsItemActive       ( ) ||
         ImGui::IsItemHovered      ( );
 
-        if (ImGui::IsItemActive   ( ))
-          allowShortcutCtrlA = false;
-
         ImGui::EndChild           ( );
         ImGui::PopStyleColor      ( );
 

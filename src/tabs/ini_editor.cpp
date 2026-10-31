@@ -20,7 +20,6 @@
 
 unsigned int window_identifier = 0;
 std::vector <IniWindow> vIniWindow;
-bool INIEditorActive = false;
 
 void
 IniWindow::ApplyFilter (void)
@@ -699,11 +698,11 @@ SKIF_UI_IniEditor_Process (void)
            if (! window.bFilterActive && ImGui::IsKeyPressed (ImGuiKey_Escape))                                                     show = false; // Escape (not while the filter field is active, where it reverts the field)
            if (ImGui::IsKeyChordPressed (SKIF_Hotkey_CloseWindow))                                                                  show = false; // Ctrl+W (also while the filter field is active)
            if (ImGui::GetIO().KeyCtrl &&                            ImGui::GetKeyData (ImGuiKey_O)->DownDuration == 0.0f)         openFile =  true; // Ctrl+O
-           if (ImGui::GetIO().KeyCtrl && ImGui::GetIO().KeyShift && ImGui::GetKeyData (ImGuiKey_N)->DownDuration == 0.0f)           newWnd =  true; // Ctrl+Shift+N
-      else if (ImGui::GetIO().KeyCtrl &&                            ImGui::GetKeyData (ImGuiKey_N)->DownDuration == 0.0f)          newFile =  true; // Ctrl+N
+           if (ImGui::Shortcut (SKIF_Hotkey_IniNewWindow))                                                                         newWnd =  true; // Ctrl+Shift+N (takes priority over the app-wide one, which opens an editor as well)
+      else if (ImGui::GetIO().KeyCtrl && ! ImGui::GetIO().KeyShift && ImGui::GetKeyData (ImGuiKey_N)->DownDuration == 0.0f)        newFile =  true; // Ctrl+N
            if (ImGui::GetIO().KeyCtrl && ImGui::GetIO().KeyShift && ImGui::GetKeyData (ImGuiKey_S)->DownDuration == 0.0f)           saveAs =  true; // Ctrl+Shift+S
       else if (ImGui::GetIO().KeyCtrl &&                            ImGui::GetKeyData (ImGuiKey_S)->DownDuration == 0.0f)             save =  true; // Ctrl+S
-           if (ImGui::GetIO().KeyCtrl &&                            ImGui::GetKeyData (ImGuiKey_Q)->DownDuration == 0.0f) bKeepWindowAlive = false; // Ctrl+Q
+           if (ImGui::Shortcut (SKIF_Hotkey_Quit))                                                                     bKeepWindowAlive = false; // Ctrl+Q (takes priority over the app-wide one, so unsaved changes are asked about first)
     }
 
     // Suppress some actions if we have unsaved changes
@@ -830,19 +829,7 @@ SKIF_UI_IniEditor_Process (void)
   if (newWnd)
     SKIF_UI_IniEditor_NewWindow ( );
 
-  INIEditorActive = false;
-  for (auto& window : vIniWindow)
-    INIEditorActive = (INIEditorActive || window.bFocused);
-
-  if (INIEditorActive)
-  {
-    extern bool allowShortcutCtrlA;
-    allowShortcutCtrlA = false;
-  }
-
-  // We need to clean up windows after setting INIEditorActive
-  //   as otherwise hotkeys such as Ctrl+W will survive the window
-  //     being closed and will close the main SKIF window instead
+  // Closed windows are removed last, after all of them have been processed this frame
   if (cleanup)
   {
     std::erase_if(vIniWindow, [](const auto& window) {

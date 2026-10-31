@@ -1138,9 +1138,6 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
       if (activeInput)
         bCategoryMgnt = true;
 
-      if (bCategoryMgnt)
-        allowShortcutCtrlA = false;
-
       ImGui::PopID       ( );
       ImGui::PopItemFlag ( );
 

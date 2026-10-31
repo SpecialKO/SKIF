@@ -40,7 +40,6 @@ struct SKIF_LocalManager {
 
          void Show              (void);
          void Process           (void);
-         bool IsFocused         (void) const { return focused; } // Local Installs window had focus last frame
 
 private:
 

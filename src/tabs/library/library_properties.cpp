@@ -1840,10 +1840,6 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
 
     const bool focused = ImGui::IsWindowFocused (ImGuiFocusedFlags_RootAndChildWindows);
 
-    // Keep Ctrl+A (Add Game) from triggering while the window has focus
-    if (focused)
-      allowShortcutCtrlA = false;
-
     // Closing the window: the title bar's close button, Escape (unless it closes a combo box or menu of ours first)
     //   or Ctrl+W. With unsaved changes the user is asked first (see below)
     bool closeRequest = ! open;
@@ -1855,10 +1851,10 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
     if (focused && ImGui::IsKeyChordPressed (SKIF_Hotkey_CloseWindow))
       closeRequest = true;
 
-    // Ctrl+Q exits the app, as from the main window, but asks about unsaved changes first (the main window's Ctrl+Q is
-    //   not handled while a Properties window has the focus, see SKIF_Properties_IsFocused). Asked right away: the main
-    //     window would otherwise exit the app next frame, before this window gets to the check above Begin ( )
-    if (focused && ImGui::IsKeyChordPressed (SKIF_Hotkey_Quit))
+    // Ctrl+Q exits the app, as from the main window, but asks about unsaved changes first: this focused route takes priority
+    //   over the main window's global one (SKIF.cpp, "Hotkeys: App"). Asked right away: the main window would otherwise
+    //     exit the app next frame, before this window gets to the check above Begin ( )
+    if (ImGui::Shortcut (SKIF_Hotkey_Quit))
     {
       if (anyDirty)
       {
@@ -2160,21 +2156,6 @@ SKIF_Properties_Draw (void)
 
   // Opened while any window is
   ModifyGamePopup = (s_windows.empty ( )) ? PopupState_Closed : PopupState_Opened;
-}
-
-bool
-SKIF_Properties_IsFocused (void)
-{
-  const HWND hWndFocused = SKIF_ImGui_GetFocusedWindow ( );
-
-  if (hWndFocused == NULL)
-    return false;
-
-  for (const auto& wnd : s_windows)
-    if (wnd->hwnd == hWndFocused)
-      return true;
-
-  return false;
 }
 
 #pragma endregion

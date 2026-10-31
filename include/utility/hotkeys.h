@@ -3,12 +3,18 @@
 // Every keyboard hotkey of SKIF, and which window(s) it belongs to
 //
 //   Scopes:
-//     App    - works from any SKIF window (main window, Local Manager, INI editors, Properties, ...),
-//                unless the focused window handles the same hotkey itself (e.g. Ctrl+Q in an INI editor)
-//     Main   - only while SKIF's main window has the keyboard focus (see SKIF_Hotkey_MainWindowFocused)
+//     App    - works from any SKIF window (main window, Local Manager, INI editors, Properties, ...), also while a SKIF
+//                popup has the focus, unless the focused window handles the same hotkey itself with ImGui::Shortcut ( )
+//                (e.g. Ctrl+Q in an INI editor or Properties). SKIF.cpp: ImGui::Shortcut ( ) with ImGuiInputFlags_RouteGlobal
+//     Main   - only while SKIF's main window (or a child window of it) has the focus; not while a SKIF popup (e.g. Add Game)
+//                or a menu has it. SKIF.cpp: ImGui::Shortcut ( ) called from the main window (focused route).
+//                A few are still checked against the OS focus instead, see SKIF_Hotkey_MainWindowFocused
 //     Window - only while the window that defines it has the keyboard focus
 //     System - registered with Windows (RegisterHotKey), so they work even while SKIF is not focused
+//   No hotkey works while a keybinding is being recorded in Settings (g_activeKeybindPopup).
 //
+//   A window's own ImGui::Shortcut ( ) of the same chord as an App hotkey takes priority over it while that window has
+//     the focus; a polled one (IsKeyPressed / IsKeyChordPressed) does not, so such overlaps must use Shortcut ( ).
 //   Not every hotkey is checked through these constants yet; where it is not, the comment names where it is handled.
 //   When adding a hotkey, add it here as well, and check that it does not clash with one of the same scope.
 
@@ -24,7 +30,6 @@ constexpr ImGuiKeyChord SKIF_Hotkey_CycleColorDepth   = ImGuiKey_F9;            
 constexpr ImGuiKeyChord SKIF_Hotkey_OpenIniEditor     = ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_N;  // SKIF.cpp: open a new INI editor
 constexpr ImGuiKeyChord SKIF_Hotkey_OpenLocalManager  = ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_M;  // SKIF.cpp: open the Local Manager
 constexpr ImGuiKeyChord SKIF_Hotkey_ToggleDebug       = ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_D;  // SKIF.cpp: Dear ImGui debug log + demo windows
-//   Note: the App hotkeys above are currently all disabled while an INI editor has the focus (hotkeysEnabled in SKIF.cpp)
 
 // Main
 constexpr ImGuiKeyChord SKIF_Hotkey_CloseMain         = ImGuiMod_Ctrl | ImGuiKey_W;                   // SKIF.cpp: same as Quit, from the main window only
@@ -39,6 +44,7 @@ constexpr ImGuiKeyChord SKIF_Hotkey_TabHardware       = ImGuiMod_Ctrl | ImGuiKey
 constexpr ImGuiKeyChord SKIF_Hotkey_TabSettings       = ImGuiMod_Ctrl | ImGuiKey_4;                   // SKIF.cpp: switch to the Settings tab
 constexpr ImGuiKeyChord SKIF_Hotkey_TabAbout          = ImGuiMod_Ctrl | ImGuiKey_5;                   // SKIF.cpp: switch to the About tab
 constexpr ImGuiKeyChord SKIF_Hotkey_ClosePopup        = ImGuiKey_Escape;                              // SKIF.cpp: close the Add Game / Remove Game / category popups
+                                                                                                       //   (OS focus check, as it has to work while those popups have the focus)
 constexpr ImGuiKeyChord SKIF_Hotkey_SettingsSave      = ImGuiMod_Ctrl | ImGuiKey_S;                   // settings.cpp: save the whitelist / blacklist
 //   Also Main: typing letters/digits selects the first matching game in the Library (library.cpp: SearchAppsList),
 //              and gamepad L1/R1 switches between the tabs (SKIF.cpp)
