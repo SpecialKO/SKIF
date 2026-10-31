@@ -38,8 +38,8 @@ app_launch_config_s::getExecutableFileName (void)
   if (! executable.empty())
     return executable;
 
-  // EA games using link2ea:// protocol handlers to launch games does not have an executable,
-  //  so this ensures we do not end up testing the installation folder instead (since this has
+  // Launch configs without an executable (e.g. EA games launched through the link2ea:// or steam2ea:// protocol
+  //  handlers) must not end up testing the installation folder instead (since this has
   //   bearing on whether a launch config is deemed valid or not as part of the blacklist check)
   executable_valid = 0;
   executable = L"<InvalidPath>";
@@ -64,9 +64,11 @@ app_launch_config_s::isExecutableFileNameValid (void)
   if (executable_valid != -1)
     return executable_valid;
 
+  // A protocol link (e.g. link2ea://, or steam2ea:// as used by Mass Effect Legendary Edition) is not an executable:
+  //   no path is built from it (see vdf.cpp), so it is not shown or tested as if it were a file in the install folder
   executable_valid = (! executable.empty( )                                    &&
                         executable.find (L"InvalidPath") == std::wstring::npos &&
-                        executable.find (L"link2ea")     == std::wstring::npos);
+                        executable.find (L"://")         == std::wstring::npos);
 
   if (executable_valid == 0)
   {

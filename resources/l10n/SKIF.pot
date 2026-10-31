@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-10-31 15:47+0100\n"
+"POT-Creation-Date: 2026-10-31 16:57+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -278,17 +278,17 @@ msgstr ""
 msgid "Select the executable and the working directory of the game."
 msgstr ""
 
-#: src/stores/Steam/app_record.cpp:671
+#: src/stores/Steam/app_record.cpp:673
 #: src/stores/Steam/steam_library.cpp:1888
 msgid "Conflicting configuration"
 msgstr ""
 
-#: src/stores/Steam/app_record.cpp:672
+#: src/stores/Steam/app_record.cpp:674
 #: src/stores/Steam/steam_library.cpp:1889
 msgid "Could not launch game due to conflicting launch options in Steam:"
 msgstr ""
 
-#: src/stores/Steam/app_record.cpp:676
+#: src/stores/Steam/app_record.cpp:678
 #: src/stores/Steam/steam_library.cpp:1893
 msgid "Please change the launch options in Steam before trying again."
 msgstr ""
@@ -1296,16 +1296,16 @@ msgid "Please reinstall Special K using the latest available installer."
 msgstr ""
 
 #. TRANSLATORS: Where the configuration of Special K is kept (one folder for all games)
-#: src/tabs/library/library_details.cpp:1456
+#: src/tabs/library/library_details.cpp:1458
 #: src/utility/injection.cpp:840
 msgid "Centralized"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:1458
+#: src/tabs/library/library_details.cpp:1460
 msgid "Localized"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:1460
+#: src/tabs/library/library_details.cpp:1462
 msgid "Unknown"
 msgstr ""
 
