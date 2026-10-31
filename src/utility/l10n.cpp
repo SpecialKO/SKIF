@@ -82,7 +82,7 @@ SKIF_L10n_Trim (std::string_view sv)
   return sv;
 }
 
-// gettext language names (pt_BR, sr@latin) to BCP 47 tags (pt-BR, sr-Latn)
+// gettext language names (pt_BR, sr@latin, en@pirate) to BCP 47 tags (pt-BR, sr-Latn, en-x-pirate)
 static std::string
 SKIF_L10n_NormalizeTag (std::string_view in)
 {
@@ -97,6 +97,8 @@ SKIF_L10n_NormalizeTag (std::string_view in)
       tag += "-Latn";
     else if (modifier == "cyrillic")
       tag += "-Cyrl";
+    else if (! modifier.empty ( ))
+      tag += "-x-" + modifier; // Any other variant as a private-use subtag (e.g. Poedit saves en-x-pirate as en@pirate)
   }
 
   std::replace (tag.begin ( ), tag.end ( ), '_', '-');

@@ -17,7 +17,7 @@ SKIF uses gettext `.po` files, read directly by SKIF (no compiling, no third-par
 3. Read the comments of an entry (*Notes for translators* in Poedit). They say what the placeholders are and any limits.
 4. Entries marked *fuzzy* and empty ones are shown in English.
 
-To see what a finished translation looks like, open `en-x-pirate.po`. It uses a private-use tag (`en-x-pirate`) that Windows has no name for, so it sets the name shown in the language picker with an `X-Language-Name` header. A regular language does not need that header.
+To see what a finished translation looks like, open `en-x-pirate.po`. Its language, `en@pirate` (a variant, as Poedit writes it; SKIF reads it as the private-use tag `en-x-pirate`), is one that Windows has no name for, so it sets the name shown in the language picker with an `X-Language-Name` header. A regular language does not need that header.
 
 ### Placeholders and markup
 

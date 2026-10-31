@@ -1800,7 +1800,7 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
 
   const bool        anyDirty = wnd.IsDirty ( );
   // TRANSLATORS: Title of the Properties window; {0} is the name of the game
-  const std::string title    = F_("Properties - {0}", pApp->names.normal) + windowId;
+  const std::string title    = F_("{0} - Properties", pApp->names.normal) + windowId;
 
   bool open   = true;
   bool closed = false;

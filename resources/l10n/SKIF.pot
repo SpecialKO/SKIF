@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-10-31 01:09+0100\n"
+"POT-Creation-Date: 2026-10-31 01:18+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2207,7 +2207,7 @@ msgstr ""
 
 #. TRANSLATORS: Title of the Properties window; {0} is the name of the game
 #: src/tabs/library/library_properties.cpp:1803
-msgid "Properties - {0}"
+msgid "{0} - Properties"
 msgstr ""
 
 #: src/tabs/library/library_properties.cpp:1949

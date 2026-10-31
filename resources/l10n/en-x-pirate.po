@@ -6,10 +6,10 @@
 #       in SKIF.exe. To try it, copy it to <Special K folder>\Languages\, restart SKIF, and pick
 #         "Pirate English" in Settings > Appearance > Language.
 #
-# "en-x-pirate" is a private-use language tag, so Windows has no name for it; the X-Language-Name
-#   header gives the name shown in the language picker. Real translations use a regular tag
-#     (e.g. de, pt-BR) and do not need that header. SKIF never picks this language on its own:
-#       it has to be chosen in the settings.
+# "en@pirate" (as Poedit writes it; SKIF reads it as the private-use tag en-x-pirate) is a language
+#   Windows has no name for, so the X-Language-Name header gives the name shown in the language
+#     picker. Real translations use a regular language (e.g. de, pt_BR) and do not need that header.
+#       SKIF never picks this language on its own: it has to be chosen in the settings.
 #
 msgid ""
 msgstr ""
@@ -3529,8 +3529,8 @@ msgstr "Set in the platform client. SKIF don't touch these."
 
 #. TRANSLATORS: Title of the Properties window; {0} is the name of the game
 #: src/tabs/library/library_properties.cpp:1803
-msgid "Properties - {0}"
-msgstr "Particulars - {0}"
+msgid "{0} - Properties"
+msgstr "{0} - Particulars"
 
 #: src/tabs/library/library_properties.cpp:1949
 msgid "Some of the changes could not be saved."

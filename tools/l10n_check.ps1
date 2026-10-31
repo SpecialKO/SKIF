@@ -8,6 +8,7 @@
   Errors (the check fails):
     * Syntax errors, and files that are not valid UTF-8.
     * A missing Language header, a charset other than UTF-8, or a Plural-Forms header without a valid nplurals.
+    * A Language that SKIF ignores: plain English (en), or its pseudo-locale (qps-ploc).
     * Translations that use a {placeholder} the English text does not have, or with unpaired braces
       (SKIF ignores these and shows the English text).
     * Translations whose [links] / [highlights] do not match the English text in number (a [link] that is missing
@@ -284,6 +285,26 @@ foreach ($file in $Path)
     if (-not $fields.ContainsKey('language') -or $fields['language'] -eq '')
     {
       Write-Problem 'error' $rel $header.Line 'the Language header is missing (e.g. "Language: de" or "Language: pt_BR").'
+    }
+    else
+    {
+      # The language as SKIF reads it: pt_BR -> pt-BR, sr@latin -> sr-Latn, en@pirate -> en-x-pirate
+      $tag = $fields['language']
+      $at  = $tag.IndexOf('@')
+      if ($at -ge 0)
+      {
+        $modifier = $tag.Substring($at + 1).ToLowerInvariant()
+        $tag      = $tag.Substring(0, $at)
+        if     ($modifier -eq 'latin')    { $tag += '-Latn' }
+        elseif ($modifier -eq 'cyrillic') { $tag += '-Cyrl' }
+        elseif ($modifier -ne '')         { $tag += "-x-$modifier" }
+      }
+      $tag = $tag.Replace('_', '-')
+
+      if ($tag.ToLowerInvariant() -eq 'en' -or $tag -eq 'qps-ploc')
+      {
+        Write-Problem 'error' $rel $header.Line "SKIF ignores a translation with the language `"$($fields['language'])`" ($tag is SKIF's own English, or its pseudo-locale)."
+      }
     }
 
     if ($fields.ContainsKey('content-type') -and $fields['content-type'] -match 'charset=(?<cs>[^;\s]+)' -and $Matches.cs -notmatch '^utf-?8$')
