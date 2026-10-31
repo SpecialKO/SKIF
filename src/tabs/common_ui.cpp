@@ -408,19 +408,30 @@ void SKIF_UI_DrawShellyTheGhost (void)
   //if (! _registry.bMiniMode)
   //  fMaxPos -= (50.0f * SKIF_ImGui_GlobalDPIScale);
 
-  static float direction = -0.33f; // Each frame takes a 0.33% step in either direction
+  const  float fRelStep  = 0.33f;  // Each frame takes (at most) a 0.33% step in either direction
+  const  float fMaxSpeed = 1.0f * SKIF_ImGui_GlobalDPIScale; // ... but never more than this many pixels per frame
+  static float direction = -1.0f;  // -1 = left, 1 = right
   static float fMinPos   =  0.0f;
   static float fRelPos   = 50.0f;  // Percentage based (0% -> 100%)
 
   // Change direction if we go below 1% or above 99% of the distance
-  if (fRelPos <= 1.0f || fRelPos >= 99.0f)
-    direction = -direction;
+  if (fRelPos <= 1.0f)
+    direction =  1.0f;
+  else if (fRelPos >= 99.0f)
+    direction = -1.0f;
 
-  // Take a new relative step in the new direction
-  fRelPos += direction;
+  // Cap the relative step so that wider areas do not result in a faster Shelly
+  float fRange = fMaxPos - fMinPos;
+  float fStep  = fRelStep;
+
+  if (fRange > 0.0f)
+    fStep = std::min (fRelStep, (fMaxSpeed / fRange) * 100.0f);
+
+  // Take a new relative step in the current direction
+  fRelPos += direction * fStep;
 
   // Convert relative position for an actual position
-  float fActPos = (fMaxPos - fMinPos) * (fRelPos / 100.0f);
+  float fActPos = fRange * (fRelPos / 100.0f);
 
   ImGui::SameLine      (0.0f, fActPos);
 
