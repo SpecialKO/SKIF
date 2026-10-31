@@ -214,6 +214,42 @@ SKIF_UI_Tab_DrawSettings (void)
                                                                25 * SKIF_ImGui_GlobalDPIScale ) ) )
     ImGui::OpenPopup ("Special K Input Config###SKInput_GamepadCfg");
 
+  // The popup opens next to the button: to its right, or to its left if it does not fit there, moved up if needed to
+  //   stay within the window. (Without a position, ImGui places a popup at the mouse cursor, or at the keyboard/gamepad
+  //     navigation position, as of when it was opened, which could put it far from the button.)
+  const ImRect  gamepadCfgButton (ImGui::GetItemRectMin ( ), ImGui::GetItemRectMax ( ));
+
+  if (_registry.bControllers && ImGui::IsPopupOpen ("Special K Input Config###SKInput_GamepadCfg"))
+  {
+    // The size the popup will have this frame: it sizes itself to its content, as measured in the previous frame. (Not
+    //   the size it had in the previous frame, which on its first, hidden frame is not its real size yet, and would have it
+    //     placed wrong for a frame.) Unknown on the frame it opens, which ImGui keeps hidden.
+    ImGuiContext& g                = *ImGui::GetCurrentContext ( );
+    const ImGuiID gamepadCfgId     = ImGui::GetID ("Special K Input Config###SKInput_GamepadCfg");
+    ImVec2        gamepadCfgSize   = ImVec2 (0.0f, 0.0f);
+
+    for (const ImGuiPopupData& popup : g.OpenPopupStack)
+      if (popup.PopupId == gamepadCfgId && popup.Window != nullptr)
+        gamepadCfgSize = ImGui::CalcWindowNextAutoFitSize (popup.Window);
+
+    const ImGuiViewport* vp      = ImGui::GetWindowViewport ( );
+    const float          spacing = ImGui::GetStyle ( ).ItemSpacing.x;
+    const ImVec2         vpMin   = vp->WorkPos;
+    const ImVec2         vpMax   = vp->WorkPos + vp->WorkSize;
+
+    ImVec2 pos (gamepadCfgButton.Max.x + spacing, gamepadCfgButton.Min.y);
+
+    if (pos.x + gamepadCfgSize.x > vpMax.x)
+      pos.x = gamepadCfgButton.Min.x - spacing - gamepadCfgSize.x;
+    if (pos.y + gamepadCfgSize.y > vpMax.y)
+      pos.y = vpMax.y - gamepadCfgSize.y;
+
+    pos.x = std::max (pos.x, vpMin.x);
+    pos.y = std::max (pos.y, vpMin.y);
+
+    ImGui::SetNextWindowPos (pos, ImGuiCond_Always);
+  }
+
   if (_registry.bControllers)
   {
     if (ImGui::BeginPopup ("Special K Input Config###SKInput_GamepadCfg",
