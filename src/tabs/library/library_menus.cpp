@@ -698,7 +698,6 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
       ImGui::PushItemFlag (ImGuiItemFlags_AutoClosePopups, false); // ImGuiItemFlags_SelectableDontClosePopup before ImGui 1.91.0
       ImGui::PushID       ("###ManageCategories");
 
-      // TODO: Figure out why unchecking this closes the popup
       if (ImGui::MenuItem (CL_("category", "Favorites###ManageCategoiesFavorites"), "", isFavorite))
       {
         if (pApp->skif.pinned > 50)
@@ -819,7 +818,7 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
         SKIF_GamingCollection::Get ( ).MetaDB_UpdateApp (pApp, true);
 
         SKIF_GamingCollection::SortApps (&_games.GetApps());
-        //sort_changed = true; // Disabled as this causes a noticable flicker on the menu when the game goes out and in of visibility
+        sort_changed = true; // Disabled as this causes a noticable flicker on the menu when the game goes out and in of visibility
       }
 
       if (! _registry.vecCategories.empty())
