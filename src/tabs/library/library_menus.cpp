@@ -845,7 +845,7 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
         sort_changed = true; // Disabled as this causes a noticable flicker on the menu when the game goes out and in of visibility
       }
 
-      if (! _registry.vecCategories.empty())
+      if (! _registry.vecCategories.size() > 2) // Any other than the defaults: Favorites, Games ?
         ImGui::Separator ( );
 
       if (isFavorite)
