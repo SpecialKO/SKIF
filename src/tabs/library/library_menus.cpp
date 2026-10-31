@@ -1869,7 +1869,9 @@ DrawEmptySpaceMenu (bool showClearBtn)
 
     ImGui::PopID ( );
 
-    ImGui::PushID ("#Platforms");
+    // Prevent the popup from being closed when toggling a platform
+    ImGui::PushItemFlag (ImGuiItemFlags_AutoClosePopups, false);
+    ImGui::PushID       ("#Platforms");
 
     if (SKIF_ImGui_BeginMenuEx2 (L_("Platforms"), ICON_FA_GEARS))
     {
@@ -1956,7 +1958,8 @@ DrawEmptySpaceMenu (bool showClearBtn)
       ImGui::EndMenu ( );
     }
 
-    ImGui::PopID ( );
+    ImGui::PopID          ( ); // #Platforms
+    ImGui::PopItemFlag    ( ); // ImGuiItemFlags_AutoClosePopups
 
     ImGui::Separator      ( );
 
