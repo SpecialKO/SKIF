@@ -2717,6 +2717,27 @@ void SKIF_ImGui_ImplWin32_SetFocused (HWND hWnd, bool focused, HWND hWndOther)
     vd->Focused = focused;
 
   SKIF_ImGui_ImplWin32_UpdateFocused ((focused) ? NULL : hWndOther);
+
+  // SKIF CUSTOM: Release all keyboard keys when the keyboard focus leaves SKIF's windows (to another app, or to a modal
+  //   dialog such as the Save As dialog, which SKIF opens in the middle of a frame), but not when it moves between them.
+  //     ImGui only clears the keys when the app is still unfocused at the start of the next frame (io.AppFocusLost), but
+  //       a modal dialog gives the focus back before that (AddFocusEvent (false) + AddFocusEvent (true) in the same frame).
+  //         The keys of the hotkey that opened the dialog (Ctrl+S) were then left held down, as their key-up messages went
+  //           to the dialog: frames kept being rendered, and the next press of the hotkey was ignored (S was still down).
+  //   The key-up events are queued like any other input; ones that change nothing are discarded by io.AddKeyEvent ( ).
+  //     Gamepad keys are left alone, as their state is polled every frame.
+  if (! focused && SKIF_ImGui_ImplWin32_GetFocusableViewportData (hWndOther) == nullptr && ImGui::GetCurrentContext ( ) != nullptr)
+  {
+    ImGuiIO& io = ImGui::GetIO ( );
+
+    for (int key = ImGuiKey_Keyboard_BEGIN; key < ImGuiKey_Keyboard_END; key++)
+      io.AddKeyEvent ((ImGuiKey)key, false);
+
+    io.AddKeyEvent (ImGuiMod_Ctrl,  false);
+    io.AddKeyEvent (ImGuiMod_Shift, false);
+    io.AddKeyEvent (ImGuiMod_Alt,   false);
+    io.AddKeyEvent (ImGuiMod_Super, false);
+  }
 }
 
 // Returns true if any of the viewports are focused
