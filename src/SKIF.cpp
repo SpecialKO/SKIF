@@ -3151,8 +3151,13 @@ wWinMain ( _In_     HINSTANCE hInstance,
         int gamepad_tab = 0;
 
         // Gamepad input also reaches SKIF's other windows (Local Manager, INI Editor, ...), so only switch tabs
-        //   when L1/R1 is pressed while the main window has the focus
-        if (SKIF_ImGui_GetFocusedWindow ( ) == SKIF_ImGui_hWnd)
+        //   when L1/R1 is pressed while the main window has the focus.
+        //   Not while ImGui's window switching is in use either (holding the Menu button: NavWindowingOverlay), which
+        //     uses L1/R1 to select the window; its inputs are accepted at once, before the overlay is shown
+        const bool navWindowing = (ImGui::GetCurrentContext ( )->NavWindowingTarget != nullptr ||
+                                   ImGui::IsKeyDown (ImGuiKey_NavGamepadMenu));
+
+        if (SKIF_ImGui_GetFocusedWindow ( ) == SKIF_ImGui_hWnd && ! navWindowing)
         {
           if (ImGui::IsKeyPressed (ImGuiKey_GamepadL1)) gamepad_tab--;
           if (ImGui::IsKeyPressed (ImGuiKey_GamepadR1)) gamepad_tab++;
