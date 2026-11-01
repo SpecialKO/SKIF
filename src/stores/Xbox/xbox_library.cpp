@@ -528,17 +528,20 @@ SKIF_Xbox_GetInstalledAppIDs (app_list_t *apps)
                                 std::filesystem::create_directories (targetPath, ec);
                         }
 
-                        if (!icon)
+                        // The package's icon (the first application's): kept on the record, so the icon can be copied again
+                        //   after Refresh in the icon menu deletes SKIF's copy (PrepareIconSource)
+                        if (record.xbox.icon_source.empty ( ))
                         {
                           std::wstring file = SK_UTF8ToWideChar (app.child("uap:VisualElements").attribute("Square44x44Logo").value());
 
                           if (!file.empty())
-                          {
-                            std::wstring fullPath = record.install_dir + LR"(\)" + file;
+                            record.xbox.icon_source = record.install_dir + LR"(\)" + file;
+                        }
 
-                            if (CopyFile(fullPath.c_str(), iconPath.c_str(), FALSE))
-                              icon = true;
-                          }
+                        if (!icon && ! record.xbox.icon_source.empty ( ))
+                        {
+                          if (CopyFile(record.xbox.icon_source.c_str(), iconPath.c_str(), FALSE))
+                            icon = true;
                         }
 
                         if (!iconIco && icon)
@@ -1089,6 +1092,32 @@ app_record_xbox_s::ResolveArtwork (LibraryTexture type, const std::wstring& sour
   }
 
   return load_str;
+}
+
+// Main thread, before loading the icon: SKIF's copy of the package's icon (icon-original.png, and the .ico of desktop
+//   shortcuts) is made when the games are detected, and deleted by Refresh in the icon menu, so make it again if missing
+void
+app_record_xbox_s::PrepareIconSource (void)
+{
+  if (xbox.icon_source.empty ( ))
+    return;
+
+  std::wstring targetPath  = GetStoreAssetDirectory ( );
+  std::wstring iconPath    = targetPath + L"icon-original.png";
+  std::wstring iconIcoPath = targetPath + L"icon-original.ico";
+
+  bool icon = PathFileExistsW (iconPath.c_str ( ));
+
+  if (! icon)
+  {
+    std::error_code ec;
+    std::filesystem::create_directories (targetPath, ec);
+
+    icon = CopyFileW (xbox.icon_source.c_str ( ), iconPath.c_str ( ), FALSE);
+  }
+
+  if (icon && ! PathFileExistsW (iconIcoPath.c_str ( )))
+    SKIF_Util_SaveImageAsICO (iconPath.c_str ( ), iconIcoPath.c_str ( ), 32);
 }
 
 // Cover worker thread: the downloaded cover, else look it up in the Microsoft Store
