@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-01 14:20+0100\n"
+"POT-Creation-Date: 2026-11-01 16:16+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,58 +16,58 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
-#: src/SKIF.cpp:1256
-#: src/SKIF.cpp:1410
+#: src/SKIF.cpp:1292
+#: src/SKIF.cpp:1446
 #: src/tabs/settings.cpp:42
 msgid "Start Service"
 msgstr ""
 
-#: src/SKIF.cpp:1257
-#: src/SKIF.cpp:1429
+#: src/SKIF.cpp:1293
+#: src/SKIF.cpp:1465
 msgid "Start Service (manual stop)"
 msgstr ""
 
-#: src/SKIF.cpp:1258
-#: src/SKIF.cpp:1447
+#: src/SKIF.cpp:1294
+#: src/SKIF.cpp:1483
 msgid "Stop Service"
 msgstr ""
 
-#: src/SKIF.cpp:1260
+#: src/SKIF.cpp:1296
 #: src/tabs/settings.cpp:794
 msgid "Check for updates"
 msgstr ""
 
-#: src/SKIF.cpp:1265
-#: src/SKIF.cpp:1513
+#: src/SKIF.cpp:1301
+#: src/SKIF.cpp:1549
 msgid "Exit"
 msgstr ""
 
-#: src/SKIF.cpp:1408
+#: src/SKIF.cpp:1444
 msgid ""
 "Starts the injection service and\n"
 "stops it after injection."
 msgstr ""
 
-#: src/SKIF.cpp:1427
+#: src/SKIF.cpp:1463
 msgid ""
 "Starts the injection service but\n"
 "does not stop it after injection."
 msgstr ""
 
-#: src/SKIF.cpp:1446
+#: src/SKIF.cpp:1482
 msgid "Stops the injection service"
 msgstr ""
 
-#: src/SKIF.cpp:1478
+#: src/SKIF.cpp:1514
 msgid "Checks for any available updates"
 msgstr ""
 
-#: src/SKIF.cpp:1479
+#: src/SKIF.cpp:1515
 msgid "Check for Updates"
 msgstr ""
 
 #. TRANSLATORS: Controlled Folder Access is a feature of Windows (use the name Windows uses in your language)
-#: src/SKIF.cpp:2122
+#: src/SKIF.cpp:2158
 msgid ""
 "Controlled Folder Access is enabled in Windows and may prevent Special K and even some games from working properly. It is recommended to either disable the feature or add exclusions for games where Special K is used as well as SKIF (this application).\n"
 "\n"
@@ -76,127 +76,127 @@ msgid ""
 "Microsoft's support page with more information will open when you select any of the options below."
 msgstr ""
 
-#: src/SKIF.cpp:2128
+#: src/SKIF.cpp:2164
 msgid "Warning about Controlled Folder Access"
 msgstr ""
 
-#: src/SKIF.cpp:3298
+#: src/SKIF.cpp:3334
 msgctxt "tab"
 msgid "Library"
 msgstr ""
 
-#: src/SKIF.cpp:3299
+#: src/SKIF.cpp:3335
 msgctxt "tab"
 msgid "Monitor"
 msgstr ""
 
-#: src/SKIF.cpp:3300
+#: src/SKIF.cpp:3336
 msgctxt "tab"
 msgid "Hardware"
 msgstr ""
 
-#: src/SKIF.cpp:3301
+#: src/SKIF.cpp:3337
 msgctxt "tab"
 msgid "Settings"
 msgstr ""
 
-#: src/SKIF.cpp:3302
+#: src/SKIF.cpp:3338
 msgctxt "tab"
 msgid "About"
 msgstr ""
 
-#: src/SKIF.cpp:3558
+#: src/SKIF.cpp:3594
 #: src/utility/injection.cpp:933
 msgid "Starting..."
 msgstr ""
 
-#: src/SKIF.cpp:3559
+#: src/SKIF.cpp:3595
 #: src/utility/injection.cpp:932
 msgid "Stopping..."
 msgstr ""
 
-#: src/SKIF.cpp:3560
+#: src/SKIF.cpp:3596
 #: src/utility/injection.cpp:853
 #: src/utility/injection.cpp:861
 #: src/utility/injection.cpp:1360
 msgid "Waiting for game..."
 msgstr ""
 
-#: src/SKIF.cpp:3561
+#: src/SKIF.cpp:3597
 #: src/utility/injection.cpp:855
 #: src/utility/injection.cpp:863
 #: src/utility/injection.cpp:1361
 msgid "Running"
 msgstr ""
 
-#: src/SKIF.cpp:3562
+#: src/SKIF.cpp:3598
 #: src/utility/injection.cpp:857
 #: src/utility/injection.cpp:865
 msgid "Stopped"
 msgstr ""
 
-#: src/SKIF.cpp:3564
+#: src/SKIF.cpp:3600
 #: src/utility/injection.cpp:1375
 msgid "Click to stop the service"
 msgstr ""
 
-#: src/SKIF.cpp:3565
+#: src/SKIF.cpp:3601
 #: src/utility/injection.cpp:1376
 msgid "Click to start the service"
 msgstr ""
 
-#: src/SKIF.cpp:3582
+#: src/SKIF.cpp:3618
 #: src/stores/SKIF/custom_library.cpp:309
 #: src/stores/SKIF/custom_library.cpp:378
 #: src/stores/SKIF/custom_library.cpp:516
 msgid "Add Game"
 msgstr ""
 
-#: src/SKIF.cpp:3595
+#: src/SKIF.cpp:3631
 msgid "Local Manager"
 msgstr ""
 
-#: src/SKIF.cpp:3739
+#: src/SKIF.cpp:3775
 msgid "Toggle horizontal mode"
 msgstr ""
 
-#: src/SKIF.cpp:3747
+#: src/SKIF.cpp:3783
 msgid "Toggle mini mode"
 msgstr ""
 
-#: src/SKIF.cpp:3781
+#: src/SKIF.cpp:3817
 msgid "This app will close to the notification area."
 msgstr ""
 
-#: src/SKIF.cpp:3783
+#: src/SKIF.cpp:3819
 #: src/utility/injection.cpp:981
 msgid "Service continues running after this app is closed."
 msgstr ""
 
-#: src/SKIF.cpp:5428
+#: src/SKIF.cpp:5445
 msgid "Blink and you'll miss it ;)"
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/SKIF.cpp:5430
+#: src/SKIF.cpp:5447
 msgid "An update is being installed..."
 msgstr ""
 
-#: src/SKIF.cpp:5456
+#: src/SKIF.cpp:5473
 msgid "Open the app to continue."
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/SKIF.cpp:5458
+#: src/SKIF.cpp:5475
 msgid "An update to Special K is available!"
 msgstr ""
 
-#: src/SKIF.cpp:5470
+#: src/SKIF.cpp:5487
 msgid "The update will be retried later."
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/SKIF.cpp:5472
+#: src/SKIF.cpp:5489
 msgid "Update failed :("
 msgstr ""
 

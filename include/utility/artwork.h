@@ -80,7 +80,7 @@ public:
   void StartIconWorker        (app_record_s* pApp);  // tex_icon.iWorker 0 → 1 (SKIF_LibIconWorker)
   void ReloadIcon             (app_record_s* pApp);  // Loads the icon again on this thread (icon changed or reset); waits for its icon worker first
 
-  // Thumbnails (the grid view). Loaded from the thumbnail cache (<asset folder>cover-thumb-<size>-<sources>.png) by up to
+  // Thumbnails (the grid view). Loaded from the thumbnail cache (<asset folder>cover-thumb-<size>-<sources>.dds, BC7) by up to
   //   16 workers; a game without a usable cache is built by up to 16 workers: the same cover pipeline as the cover worker
   //   (which may download the cover), scaled down and saved to the cache. Only tiles that are drawn request one.
   void SetThumbnailSize       (ImVec2 size);         // The size thumbnails are made at (pixels); a change reloads them all

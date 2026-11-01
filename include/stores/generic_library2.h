@@ -41,8 +41,9 @@ struct library_texture_s {
   bool                               isManaged  = false; // A file SKIF manages, so the menus can refresh / reset it (games only)
 };
 
-// A cover loaded as a thumbnail (the grid view): scaled to fill width x height, and saved to cachePath (if set)
-//   before it is turned into a texture, so the next time it loads from there (LoadLibraryThumbnailFromCache)
+// A cover loaded as a thumbnail (the grid view): scaled to fill width x height (rounded up to multiples of 4), with 3 mip
+//   levels, compressed to BC7, and saved to cachePath (if set) as a DDS before it is turned into a texture, so the next
+//   time it loads from there as it is (LoadLibraryThumbnailFromCache)
 struct library_thumbnail_s {
   float                              width      = 0.0f;
   float                              height     = 0.0f;

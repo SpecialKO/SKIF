@@ -5,6 +5,7 @@
 #include <utility/fsutil.h>
 #include <filesystem>
 #include <algorithm>
+#include <cmath>
 
 #include <images/patreon.png.h>
 #include <images/sk_icon.jpg.h>
@@ -103,9 +104,10 @@ FastTextureLoading (const std::wstring& path, DirectX::TexMetadata& meta, Direct
 }
 
 // Scales the image to fill width x height, keeping its aspect ratio (one side ends up larger: it is cropped where drawn).
-//   On success, pImg points to target and meta is its metadata.
+//   multipleOf4: both sides rounded up to a multiple of 4 (block-compressed textures need that). On success, pImg points
+//     to target and meta is its metadata.
 static bool
-_ScaleLibraryImageToFill (DirectX::TexMetadata& meta, DirectX::ScratchImage*& pImg, DirectX::ScratchImage& target, float width, float height)
+_ScaleLibraryImageToFill (DirectX::TexMetadata& meta, DirectX::ScratchImage*& pImg, DirectX::ScratchImage& target, float width, float height, bool multipleOf4 = false)
 {
   float imageAspectRatio   = static_cast<float> (meta.width) / static_cast<float> (meta.height);
   float defaultAspectRatio = static_cast<float> (width) / static_cast<float> (height);
@@ -114,6 +116,12 @@ _ScaleLibraryImageToFill (DirectX::TexMetadata& meta, DirectX::ScratchImage*& pI
     width = height * imageAspectRatio;
   else
     height = width / imageAspectRatio;
+
+  if (multipleOf4)
+  {
+    width  = std::ceil (width  / 4.0f) * 4.0f;
+    height = std::ceil (height / 4.0f) * 4.0f;
+  }
 
   // Resize into an image of its own: pImg may already point to target (single-channel covers converted earlier),
   //   and DirectX::Resize () releases its output image before reading the source images (and metadata) it was given
@@ -137,6 +145,37 @@ _ScaleLibraryImageToFill (DirectX::TexMetadata& meta, DirectX::ScratchImage*& pI
   }
 
   return false;
+}
+
+// A thumbnail as it is kept: 3 mip levels (it is drawn at most about 1.5 times smaller than it is made), compressed to
+//   BC7 (a quarter of the memory of RGBA, also on the GPU). If compressing fails it stays uncompressed, with its mips.
+//   On success, pImg points to target and meta is its metadata. Worker threads: CPU only.
+static bool
+_MakeThumbnailImage (DirectX::TexMetadata& meta, DirectX::ScratchImage*& pImg, DirectX::ScratchImage& target)
+{
+  DirectX::ScratchImage mipmapped;
+
+  if (FAILED (DirectX::GenerateMipMaps (pImg->GetImages ( ), pImg->GetImageCount ( ), pImg->GetMetadata ( ),
+                                        DirectX::TEX_FILTER_FORCE_NON_WIC, 3, mipmapped)))
+    return false;
+
+  DirectX::ScratchImage compressed;
+
+  // BC7_QUICK: the fast mode of the CPU encoder (good for covers; the full search is many times slower)
+  if (SUCCEEDED (DirectX::Compress (mipmapped.GetImages ( ), mipmapped.GetImageCount ( ), mipmapped.GetMetadata ( ),
+                                    DXGI_FORMAT_BC7_UNORM, DirectX::TEX_COMPRESS_BC7_QUICK, DirectX::TEX_THRESHOLD_DEFAULT, compressed)))
+    target = std::move (compressed);
+
+  else
+  {
+    PLOG_WARNING << "Could not compress a thumbnail to BC7; keeping it uncompressed.";
+    target = std::move (mipmapped);
+  }
+
+  meta =  target.GetMetadata ( );
+  pImg = &target;
+
+  return true;
 }
 
 // The last steps of loading a library texture: mipmaps, then the texture and its view on the D3D11 device.
@@ -387,17 +426,20 @@ LoadLibraryTextureEx (
     }
   }
 
-  // Thumbnails (the grid view): the cover, scaled to fill the tile, and saved as the game's thumbnail cache
+  // Thumbnails (the grid view): the cover, scaled to fill the tile, mipmapped and compressed (_MakeThumbnailImage), and
+  //   saved as the game's thumbnail cache: a DDS, which loads as it is (no decoding, scaling or mipmaps)
+  DirectX::ScratchImage thumb_img;
+
   if (thumb != nullptr && libTexToLoad == LibraryTexture::Cover)
   {
-    if (_ScaleLibraryImageToFill (meta, pImg, converted_img, thumb->width, thumb->height) && ! thumb->cachePath.empty ( ))
+    if (_ScaleLibraryImageToFill (meta, pImg, converted_img, thumb->width, thumb->height, true) &&
+        _MakeThumbnailImage      (meta, pImg, thumb_img) && ! thumb->cachePath.empty ( ))
     {
-      // PNG through WIC (the worker thread has initialized COM). Written to a temporary file first, so a thumbnail
-      //   being read (another worker) is never a partial file
+      // Written to a temporary file first, so a thumbnail being read (another worker) is never a partial file
       std::wstring tmp = thumb->cachePath + L".tmp";
 
-      if (SUCCEEDED (DirectX::SaveToWICFile (*pImg->GetImage (0, 0, 0), DirectX::WIC_FLAGS_NONE,
-                                             DirectX::GetWICCodec (DirectX::WIC_CODEC_PNG), tmp.c_str ( ))))
+      if (SUCCEEDED (DirectX::SaveToDDSFile (pImg->GetImages ( ), pImg->GetImageCount ( ), pImg->GetMetadata ( ),
+                                             DirectX::DDS_FLAGS_NONE, tmp.c_str ( ))))
       {
         if (! MoveFileExW (tmp.c_str ( ), thumb->cachePath.c_str ( ), MOVEFILE_REPLACE_EXISTING))
           DeleteFileW (tmp.c_str ( ));
@@ -429,14 +471,14 @@ LoadLibraryTextureEx (
   return true;
 }
 
-// A thumbnail from the thumbnail cache (a PNG SKIF saved at the size it is shown at)
+// A thumbnail from the thumbnail cache: a DDS SKIF saved (BC7 with its mips, see _MakeThumbnailImage), used as it is
 bool
 LoadLibraryThumbnailFromCache (const std::wstring& path, library_texture_s& out, const library_thumbnail_s* thumb)
 {
   DirectX::TexMetadata  meta = { };
   DirectX::ScratchImage img  = { };
 
-  if (! FastTextureLoading (path, meta, img))
+  if (FAILED (DirectX::LoadFromDDSFile (path.c_str ( ), DirectX::DDS_FLAGS_NONE, &meta, img)))
     return false;
 
   // No longer needed (see library_thumbnail_s::wanted)

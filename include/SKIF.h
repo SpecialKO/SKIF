@@ -28,6 +28,7 @@
 
 #include <string>
 #include <string_view>
+#include <atomic>
 
 #ifndef PLOG_ENABLE_WCHAR_INPUT
 #define PLOG_ENABLE_WCHAR_INPUT 1
@@ -174,6 +175,8 @@ extern std::string SKIF_StatusBarHelp;
 
 extern bool        PopulatedGames;
 extern bool        SKIF_StartupFinished; // Set once the first frame has been presented (see SKIF_OnStartupFinished)
+extern std::atomic<bool>
+                   SKIF_D3D11_FlushPending; // A D3D11 resource was released (any thread): flush before SKIF sleeps, so its memory is reclaimed (SKIF.cpp)
 extern bool        RepopulateGames;
 extern bool        RefreshHardwareTab;
 extern bool        RefreshSettingsTab;

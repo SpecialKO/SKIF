@@ -118,6 +118,11 @@ int   SKIF_ExitCode             = 0;
 int   SKIF_nCmdShow             = -1;
 std::atomic<int>  SKIF_FrameCount = 0;
 int   addAdditionalFrames       = 0;
+
+// D3D11 destroys released resources lazily, once the immediate context is flushed (otherwise the next Present). Anything
+//   that releases one (the release queue, a thumbnail worker dropping its texture) sets this, and the main loop flushes
+//     once before it goes to sleep, so the memory isn't kept until SKIF wakes up.
+std::atomic<bool> SKIF_D3D11_FlushPending = false;
 DWORD dwDwmPeriod               = 62500; // Assume 60 Hz (16 ms) by default
 bool  SteamOverlayDisabled      = false;
 bool  SKIF_MouseDragMoveAllowed = true;
@@ -524,6 +529,37 @@ SKIF_EfficiencyModeTimerProc (HWND hWnd, UINT Msg, UINT wParamIDEvent, DWORD dwT
     {
       msgDontRedraw        = false;
       addAdditionalFrames += 3;
+    }
+  }
+}
+
+// Flushes the immediate context if resources were released since the last flush (SKIF_D3D11_FlushPending), so the
+//   memory of released resources is reclaimed while SKIF sleeps. In efficiency mode (idle in the background) it also gives
+//     back the memory the driver keeps for reuse, as Microsoft recommends for apps going idle (IDXGIDevice3::Trim, Windows
+//       8.1+; ClearState first, as documented). The next frame sets up its render state again.
+static void
+_FlushReleasedResources (void)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  if (SKIF_pd3dDeviceContext == nullptr || ! SKIF_D3D11_FlushPending.exchange (false))
+    return;
+
+  SKIF_pd3dDeviceContext->Flush ( );
+
+  if (_registry._EfficiencyMode)
+  {
+    CComPtr   <ID3D11Device> pDevice;
+    SKIF_pd3dDeviceContext->GetDevice (&pDevice.p);
+
+    CComQIPtr <IDXGIDevice3> pDXGIDevice3 (pDevice);
+
+    if (pDXGIDevice3 != nullptr)
+    {
+      SKIF_pd3dDeviceContext->ClearState ( );
+      pDXGIDevice3->Trim ( );
+
+      PLOG_VERBOSE << "Trimmed the graphics memory of the device (efficiency mode)";
     }
   }
 }
@@ -4259,32 +4295,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
         invalidatedDevice = 0;
     }
 
-    // D3D11 destroys released resources lazily: their memory is only reclaimed once the immediate context is flushed,
-    //   which is otherwise the next Present ( ). SKIF may go to sleep right after this (e.g. the grid view's thumbnails
-    //     unloaded as it goes idle), which would keep them in VRAM until it wakes up. So flush now.
-    if (released && SKIF_pd3dDeviceContext != nullptr)
-    {
-      SKIF_pd3dDeviceContext->Flush ( );
-
-      // Idle in the background (efficiency mode): also give back the memory the driver keeps for reuse, as Microsoft
-      //   recommends for apps going idle (IDXGIDevice3::Trim, Windows 8.1+; ClearState first, as documented). The next
-      //     frame sets up its render state again.
-      if (_registry._EfficiencyMode)
-      {
-        CComPtr   <ID3D11Device> pDevice;
-        SKIF_pd3dDeviceContext->GetDevice (&pDevice.p);
-
-        CComQIPtr <IDXGIDevice3> pDXGIDevice3 (pDevice);
-
-        if (pDXGIDevice3 != nullptr)
-        {
-          SKIF_pd3dDeviceContext->ClearState ( );
-          pDXGIDevice3->Trim ( );
-
-          PLOG_VERBOSE << "Trimmed the graphics memory of the device (efficiency mode)";
-        }
-      }
-    }
+    // Flushed before SKIF goes to sleep (see SKIF_D3D11_FlushPending)
+    if (released)
+      SKIF_D3D11_FlushPending.store (true);
 
     // If process should stop, post WM_QUIT
     if ((! bKeepProcessAlive))// && SKIF_ImGui_hWnd != 0)
@@ -4376,6 +4389,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
         // - Bad idea because it will immediately hitch when that stuff has to be moved back from the pagefile
         //   There's no predicting how long it will take to move those pages back into memory
         SK_RunOnce (SKIF_Util_CompactWorkingSet ( ));
+
+        // Resources were released since the last flush (see SKIF_D3D11_FlushPending): flush now, as SKIF goes to sleep and
+        //   there is no Present ( ) to do it. While rendering, each Present ( ) flushes anyway.
+        _FlushReleasedResources ( );
 
         // Create/update the timer when we are pausing
         if (_registry.bEfficiencyMode && ! _registry._EfficiencyMode && SKIF_Notify_hWnd != NULL && ! msgDontRedraw && ! SKIF_ImGui_IsFocused ( ))

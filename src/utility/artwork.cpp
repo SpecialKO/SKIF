@@ -778,7 +778,7 @@ SKIF_LibraryArtwork::GetThumbnailCachePath (app_record_s* pApp) const
 
   // Named after what it is made from: its size, and the cover sources preferred for the store (Settings). A change of
   //   either uses another file, and the build of that one removes the others (_DeleteOtherThumbnails).
-  return SK_FormatStringW (L"%wscover-thumb-%ix%i%ws%ws.png", assetDir.c_str ( ),
+  return SK_FormatStringW (L"%wscover-thumb-%ix%i%ws%ws.dds", assetDir.c_str ( ),
                              static_cast <int> (m_thumbSize.x), static_cast <int> (m_thumbSize.y),
                                (pApp->WantsPCGWCover ( )) ? L"-pcgw" : L"",
                                (pApp->WantsIGDBCover ( )) ? L"-igdb" : L"");
@@ -899,7 +899,7 @@ SKIF_LibraryArtwork::StartThumbnailWorker (app_record_s* pApp, bool build)
     thread_s* _data = static_cast <thread_s*> (var);
 
     SKIF_Util_SetThreadDescription (GetCurrentThread (), (_data->build) ? L"SKIF_LibThumbnailBuilder"
-                                                                         : L"SKIF_LibThumbnailWorker");
+                                                                        : L"SKIF_LibThumbnailWorker");
 
     CoInitializeEx (nullptr, 0x0); // WIC: decoding, and saving the thumbnail cache
 
@@ -960,6 +960,9 @@ SKIF_LibraryArtwork::StartThumbnailWorker (app_record_s* pApp, bool build)
     {
       result.texture.srv.Release ( );
       result.dropped = true;
+
+      // Destroyed once the main thread flushes (it does before it sleeps)
+      SKIF_D3D11_FlushPending.store (true);
     }
 
     // The record goes back with the result, so it is released on the main thread
