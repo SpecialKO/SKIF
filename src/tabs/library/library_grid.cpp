@@ -164,12 +164,18 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
 
     // The tile itself: hover, selection, navigation (moving onto a tile selects it), and the ID that type-to-search and
     //   the list use (ImGuiLabelID)
-    ImGui::PushStyleColor  (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
+    ImGui::PushStyleColor  (ImGuiCol_NavCursor,     ImVec4(0,0,0,0));
+    ImGui::PushStyleColor  (ImGuiCol_Header,        ImVec4(0,0,0,0));
+    ImGui::PushStyleColor  (ImGuiCol_HeaderHovered, ImVec4(0,0,0,0));
+    ImGui::PushStyleColor  (ImGuiCol_HeaderActive,  ImVec4(0,0,0,0));
     bool pressed =
     ImGui::Selectable      (rec->ImGuiLabelID.c_str(), selected,
                             static_cast <ImGuiSelectableFlags> (ImGuiSelectableFlags_SelectOnNav) |
                             static_cast <ImGuiSelectableFlags> (ImGuiSelectableFlags_NoPadWithHalfSpacing), sizeTile); // The latter is internal (another enum)
-    ImGui::PopStyleColor   ( );
+    ImGui::PopStyleColor   ( ); // ImGuiCol_HeaderActive
+    ImGui::PopStyleColor   ( ); // ImGuiCol_HeaderHovered
+    ImGui::PopStyleColor   ( ); // ImGuiCol_Header
+    ImGui::PopStyleColor   ( ); // ImGuiCol_NavCursor
 
     const bool hovered   = ImGui::IsItemHovered ( );
     const bool isFocused = (ImGui::GetFocusID ( ) == ImGui::GetID (rec->ImGuiLabelID.c_str()));
