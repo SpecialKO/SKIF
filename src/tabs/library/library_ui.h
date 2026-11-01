@@ -216,6 +216,7 @@ bool SaveGameCover           (app_record_s* pApp, std::wstring_view path); // Co
 
 // library/library_menus.cpp
 void DrawCoverMenuChangeReset (app_record_s* pApp, bool isCustom, bool isManaged); // Change / Reset of the cover (cover menu, grid view's game menu)
+std::string SKIF_Lib_GetClientFavoriteTip (const std::string& client); // Tooltip of a game favorited in its store client (Steam)
 void DrawGameConfigMenu      (app_record_s* pApp);
 void DrawGameContextMenu     (app_record_s* pApp);
 // The command line a launch config runs: the executable and its arguments, with the launch options set in the store

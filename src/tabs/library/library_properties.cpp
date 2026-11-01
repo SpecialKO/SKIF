@@ -198,6 +198,8 @@ public:
     hint          = (! app.names.original.empty ( )) ? app.names.original : app.names.clean;
 
     favorite      = favoriteOrig = app.IsFavorite ( );
+    clientFavorite = (app.skif.pinned == -1 && app.GetClientFavorite ( ) == 1);
+    clientName     = app.store_utf8;
     hidden        = hiddenOrig   = app.IsHidden   ( );
     category      = categoryOrig = app.skif.category;
     newCategory [0] = '\0';
@@ -218,6 +220,10 @@ public:
     // Library
     SKIF_Properties_Label   (_("Library"));
     SKIF_ImGui_Checkbox         (L_("Favorited###PropsFavorite"), &favorite);
+
+    // A favorite only because the game is one in the store client (Steam), until it is changed here
+    if (clientFavorite)
+      SKIF_ImGui_SetHoverTip (SKIF_Lib_GetClientFavoriteTip (clientName));
     ImGui::SameLine         ( );
     ImGui::Spacing          ( );
     SKIF_ImGui_SameLineIfFits (SKIF_ImGui_CheckboxWidth (L_("Hidden###PropsHidden")));
@@ -338,6 +344,8 @@ private:
   std::string hint;
   bool        favorite     = false,
               favoriteOrig = false;
+  bool        clientFavorite = false; // Favorited in the store client, and not set in Special K
+  std::string clientName;             // The store client
   bool        hidden       = false,
               hiddenOrig   = false;
   std::string category,

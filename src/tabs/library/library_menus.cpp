@@ -628,6 +628,15 @@ DrawGameContextMenu_Browse (app_record_s* pApp)
 }
 
 
+// The tooltip of a game that is a favorite because it is one in its store client (Steam): Favorite / Unfavorite in the
+//   game menu, and Favorited in Properties
+std::string
+SKIF_Lib_GetClientFavoriteTip (const std::string& client)
+{
+  // TRANSLATORS: {0} is the name of a store client, e.g. Steam
+  return F_("Favorited in {0}. Changing it here only affects Special K.", client);
+}
+
 // Game context menu: "Manage" submenu (moved verbatim from DrawGameContextMenu)
 static void
 DrawGameContextMenu_Manage (app_record_s* pApp)
@@ -658,6 +667,10 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
       sort_changed = true;
     }
 
+    // A favorite only because the game is one in the store client (Steam), until it is changed here
+    else if (pApp->skif.pinned == -1 && pApp->GetClientFavorite ( ) == 1)
+      SKIF_ImGui_SetHoverTip (SKIF_Lib_GetClientFavoriteTip (pApp->store_utf8));
+
     ImGui::Separator ( );
 
     // Category
@@ -667,16 +680,12 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
       ImGui::PushItemFlag (ImGuiItemFlags_AutoClosePopups, false); // ImGuiItemFlags_SelectableDontClosePopup before ImGui 1.91.0
       ImGui::PushID       ("###ManageCategories");
 
-      if (ImGui::MenuItem (CL_("category", "Favorites###ManageCategoiesFavorites"), "", isFavorite))
+      // Favorites is not a category of its own here (Favorite / Unfavorite above), but a favorite is only shown there
+      if (isFavorite)
       {
-        pApp->skif.pinned = isFavorite ? 0 : 1;
-        SKIF_GamingCollection::Get ( ).MetaDB_UpdateApp (pApp, true);
-
-        SKIF_GamingCollection::SortApps (&_games.GetApps());
-        sort_changed = true;
+        ImGui::TextDisabled ("%s", _("Favorited games are always shown under Favorites."));
+        ImGui::Separator    ( );
       }
-
-      ImGui::Separator ( );
 
       static char charCategoryRename[maxCategoryNameLen] = {  };
       static char charCategoryName  [maxCategoryNameLen] = {  };
