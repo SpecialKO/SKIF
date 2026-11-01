@@ -316,6 +316,23 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
     if (srv != nullptr)
       _DrawCover (srv, res, minCover, maxCover, alpha);
 
+    // The selected game: an accent border around the cover, and a faint light line just inside its edge (a "glow")
+    if (selected)
+    {
+      const float  border = std::max (2.0f, ImFloor (2.0f * dpi));
+      const ImVec2 out    = ImVec2 (border * 0.5f + 1.0f, border * 0.5f + 1.0f);
+
+      draw_list->AddRect (minCover - out, maxCover + out, ImGui::GetColorU32 (ImGuiCol_SKIF_Info),
+                          rounding + out.x, border, ImDrawFlags_None);
+      draw_list->AddRect (minCover + ImVec2 (0.5f, 0.5f), maxCover - ImVec2 (0.5f, 0.5f),
+                          IM_COL32 (255, 255, 255, 90), rounding, 1.0f, ImDrawFlags_None);
+    }
+
+    // Hovered: the faint inner line only
+    else if (hovered)
+      draw_list->AddRect (minCover + ImVec2 (0.5f, 0.5f), maxCover - ImVec2 (0.5f, 0.5f),
+                          IM_COL32 (255, 255, 255, 60), rounding, 1.0f, ImDrawFlags_None);
+
     // Badges: running or updating (top right). Favorites need none: they have a section of their own
     const float badgeInset = ImFloor (4.0f * dpi);
 
