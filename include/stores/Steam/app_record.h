@@ -115,8 +115,7 @@ struct app_record_s {
     bool            isCustom    = false; // Indicates whether SKIF is using a custom texture or not
     bool            isManaged   = false; // Indicates whether the texture is managed by SKIF or not (can be refreshed by SKIF)
     bool            queriedPCGW = false; // Has we queried PCGW for an artwork?
-    int             iWorker     = 0;     // 0 = worker not started, 1 = worker active, 2 = worker done
-    HANDLE          hWorker     = NULL;
+    int             iWorker     = 0;     // 0 = worker not started, 1 = worker active, 2 = worker done (SKIF_LibraryArtwork tracks the threads)
   } tex_icon, tex_cover;
 
   enum class Store {
@@ -653,7 +652,9 @@ using ConfigType =
 
 // An entry in the game list: the (cleaned) display name used for sorting/searching, and the record itself.
 // Records are heap-allocated so the list can later hold store-specific derived types without slicing.
-using app_entry_t = std::pair <std::string, std::unique_ptr <app_record_s>>;
+// They are shared so a background worker (cover, icon) can keep the record it was started for alive after a library
+//   refresh has replaced it (SKIF_GamingCollection::FindShared); everything else uses the record through the list.
+using app_entry_t = std::pair <std::string, std::shared_ptr <app_record_s>>;
 using app_list_t  = std::vector <app_entry_t>;
 
 // Identifies a game across library refreshes (records are replaced on every refresh): (store, appid)

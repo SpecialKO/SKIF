@@ -648,15 +648,15 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (! PopulatedGames && ! _games.IsPopulating ( ))
     _games.PopulateGames ( );
 
-  // Swapping in frees the old records, so it waits until no cover / icon worker still uses one
-  else if (! PopulatedGames && _games.IsPopulateFinished ( ) && ! _art.IsUsingRecords ( ))
+  // Swapping in frees the old records; a cover / icon worker still using one keeps it alive (FindShared)
+  else if (! PopulatedGames && _games.IsPopulateFinished ( ))
   {
     firstLibrary = (! _games.HasPopulatedOnce ( ));
 
     const app_record_s* pPrevSelected  = _games.Find (selection.game);
     bool                libraryChanged = true;
 
-    _art.OnIconWorkersReaped (_games.SwapInPopulatedGames (&libraryChanged));
+    _games.SwapInPopulatedGames (&libraryChanged);
 
     // Any game worker still running was started on the old library, so its results are outdated,
     //   unless the swap kept the record it was started for (SwapInPopulatedGames keeps unchanged records)

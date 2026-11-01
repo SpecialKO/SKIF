@@ -105,15 +105,17 @@ SKIF_LibraryArtwork::StartCoverWorker (app_record_s* pApp)
   m_tryingToLoadCover = true;
   m_queuePosCover     = m_queueLength.load() + 1;
 
-  // Counted until the thread no longer uses the record (IsUsingRecords)
-  m_coverWorkers++;
-
   struct thread_s {
-    app_record_s* app;
-    bool          queryPCGW; // Look up a PCGamingWiki cover: decided (and marked on the record) here, on the main thread
+    std::shared_ptr <app_record_s>
+          app;       // Kept alive until the result is applied, even if a library refresh replaces it
+    bool  queryPCGW; // Look up a PCGamingWiki cover: decided (and marked on the record) here, on the main thread
+    app_key_s
+          game;      // The game, also when its record could not be found
   };
 
-  thread_s* data = new thread_s { pApp, false };
+  thread_s* data = new thread_s { (pApp != nullptr) ? SKIF_GamingCollection::Get ( ).FindShared (pApp->GetKey ( )) : nullptr,
+                                  false,
+                                  (pApp != nullptr) ? pApp->GetKey ( ) : app_key_s { } };
 
   if (pApp != nullptr && pApp->WantsPCGWCover ( ) && ! pApp->tex_cover.queriedPCGW)
   {
@@ -135,22 +137,29 @@ SKIF_LibraryArtwork::StartCoverWorker (app_record_s* pApp)
     PLOG_DEBUG  << "Streaming game cover asynchronously...";
 
     thread_s*            _data      = static_cast <thread_s*> (var);
-    app_record_s*        _pApp      = _data->app;
-    bool                 _queryPCGW = _data->queryPCGW;
     SKIF_LibraryArtwork& self       = SKIF_LibraryArtwork::Get ( );
-
-    delete _data;
-
-    if (_pApp == nullptr)
-    {
-      PLOG_ERROR << "Aborting due to pApp being a nullptr!";
-      self.m_coverWorkers--;
-      return 0;
-    }
 
     worker_result_s result;
     result.type       = LibraryTexture::Cover;
-    result.game       = _pApp->GetKey ( );
+    result.record     = std::move (_data->app); // Keeps the record alive; released on the main thread (ApplyWorkerResults)
+    result.game       = _data->game;
+    bool  _queryPCGW  = _data->queryPCGW;
+
+    delete _data;
+
+    app_record_s*        _pApp      = result.record.get ( );
+
+    // Not in the library (a record ApplyWorkerResults would not find either)
+    if (_pApp == nullptr)
+    {
+      PLOG_ERROR << "Aborting due to pApp being a nullptr!";
+      result.queuePos   = self.NextQueuePos ( );
+      result.generation = self.m_generation.load ( );
+      self.m_results.push (result); // Ends the cover load (no texture)
+      PostMessage (SKIF_Notify_hWnd, WM_SKIF_COVER, 0x0, 0x0);
+      return 0;
+    }
+
     result.queuePos   = self.NextQueuePos ( );
     result.generation = self.m_generation.load ( );
     //PLOG_VERBOSE << "queuePos = " << result.queuePos;
@@ -180,14 +189,12 @@ SKIF_LibraryArtwork::StartCoverWorker (app_record_s* pApp)
 
     // The main thread swaps it in if this is still the latest load (ApplyWorkerResults)
     self.m_results.push (result);
+    result.record.reset ( ); // The main thread releases it (the copy in the queue)
 
     PLOG_DEBUG << "Finished streaming game cover asynchronously...";
     PLOG_VERBOSE << "SKIF_LibCoverWorker thread stopped!";
 
-    // The record is no longer used from here on (a deferred library swap-in may now free it)
-    self.m_coverWorkers--;
-
-    // Force a frame, so the result is swapped in (and a library swap-in waiting on this worker can run)
+    // Force a frame, so the result is swapped in
     PostMessage (SKIF_Notify_hWnd, WM_SKIF_COVER, 0x0, 0x0);
 
     return 0;
@@ -200,7 +207,6 @@ SKIF_LibraryArtwork::StartCoverWorker (app_record_s* pApp)
   {
     PLOG_ERROR << "Failed to start the cover worker thread!";
     delete data;
-    m_coverWorkers--;
     m_coverLoading.store (false);
     m_tryingToLoadCover = false;
   }
@@ -226,14 +232,31 @@ SKIF_LibraryArtwork::ApplyWorkerResults (void)
 
   while (m_results.try_pop (result))
   {
+    // The game's current record: the worker's own, or the one a library refresh replaced it with.
+    //   nullptr if the game is gone. (The worker's record, result.record, is released with the next result.)
+    app_record_s* pApp = _games.Find (result.game);
+
+    // The worker is done: icon workers are counted, and their thread handle is no longer needed
+    if (result.type == LibraryTexture::Icon)
+    {
+      ForgetThread (LibraryTexture::Icon, result.game);
+      m_activeIconWorkers--;
+
+      if (pApp != nullptr && pApp->tex_icon.iWorker == 1)
+        pApp->tex_icon.iWorker = 2;
+    }
+
     // Made on the device from before a device reset
     if (result.generation != m_generation.load ( ))
     {
       _Release (result.texture.srv);
+
+      // Load the icon again (ReleaseTextures left icons that were loading alone, as their result was still to come)
+      if (result.type == LibraryTexture::Icon && pApp != nullptr)
+        pApp->tex_icon.iWorker = 0;
+
       continue;
     }
-
-    app_record_s* pApp = _games.Find (result.game); // nullptr if the game is gone (library refreshed)
 
     if (result.type == LibraryTexture::Cover)
     {
@@ -283,25 +306,33 @@ SKIF_LibraryArtwork::ApplyWorkerResults (void)
 
     _Release (result.texture.srv); // Our reference (the cover / icon holds its own)
   }
+
+  // The worker's record, if this was the last reference: released here, on the main thread
+  result.record.reset ( );
 }
 
-// Records must outlive the workers using them: the library swap-in is deferred while this is true
-bool
-SKIF_LibraryArtwork::IsUsingRecords (void) const
+HANDLE
+SKIF_LibraryArtwork::FindThread (LibraryTexture type, app_key_s game) const
 {
-  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
+  for (auto& thread : m_threads)
+    if (thread.type == type && thread.game == game)
+      return thread.hThread;
 
-  if (m_coverWorkers.load ( ) > 0)
-    return true;
+  return NULL;
+}
 
-  // Icon workers are reaped by the games list, but the thread itself may already be done
-  for (auto& app : _games.GetApps ( ))
+void
+SKIF_LibraryArtwork::ForgetThread (LibraryTexture type, app_key_s game)
+{
+  for (auto it = m_threads.begin ( ); it != m_threads.end ( ); ++it)
   {
-    if (app.second->tex_icon.iWorker == 1 && WaitForSingleObject (app.second->tex_icon.hWorker, 0) != WAIT_OBJECT_0)
-      return true;
+    if (it->type == type && it->game == game)
+    {
+      CloseHandle (it->hThread);
+      m_threads.erase (it);
+      return;
+    }
   }
-
-  return false;
 }
 
 bool
@@ -454,7 +485,8 @@ SKIF_LibraryArtwork::StartIconWorker (app_record_s* pApp)
   struct thread_s {
     app_key_s                     game;
     unsigned int                  generation;
-    app_record_s*                 app;  // Used by ResolveArtwork only; the swap-in waits for this thread (IsUsingRecords)
+    std::shared_ptr <app_record_s>
+                                  app;  // Used by ResolveArtwork only; kept alive until the result is applied
     std::wstring                  path;
   };
 
@@ -463,7 +495,7 @@ SKIF_LibraryArtwork::StartIconWorker (app_record_s* pApp)
   data->path       = load_str;
   data->game       = pApp->GetKey ( );
   data->generation = m_generation.load ( );
-  data->app        = pApp;
+  data->app        = SKIF_GamingCollection::Get ( ).FindShared (data->game); // nullptr: not in the library (ResolveArtwork is skipped)
 
   // We're going to stream game icons asynchronously on this thread
   HANDLE hWorkerThread = (HANDLE)
@@ -483,13 +515,17 @@ SKIF_LibraryArtwork::StartIconWorker (app_record_s* pApp)
     LoadLibraryTextureEx ( LibraryTexture::Icon,
                               _data->game.appid,
                                 _data->path,
-                                  _data->app,
+                                  _data->app.get ( ),
                                     result.texture );
 
-    // The main thread puts it on the game (ApplyWorkerResults)
-    SKIF_LibraryArtwork::Get ( ).m_results.push (result);
+    // The record goes back with the result, so it is released on the main thread
+    result.record     = std::move (_data->app);
 
     delete _data;
+
+    // The main thread puts it on the game (ApplyWorkerResults). Always pushed: it also ends the worker's bookkeeping.
+    SKIF_LibraryArtwork::Get ( ).m_results.push (result);
+    result.record.reset ( );
 
     // Force a refresh when the game icons have finished being streamed
     PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
@@ -502,7 +538,7 @@ SKIF_LibraryArtwork::StartIconWorker (app_record_s* pApp)
   if (threadCreated)
   {
     PLOG_VERBOSE << "An icon worker was spawned successfully!";
-    pApp->tex_icon.hWorker = hWorkerThread;
+    m_threads.push_back ({ LibraryTexture::Icon, pApp->GetKey ( ), hWorkerThread }); // Closed once its result is applied
     pApp->tex_icon.iWorker = 1;
   }
 
@@ -517,34 +553,14 @@ SKIF_LibraryArtwork::StartIconWorker (app_record_s* pApp)
 }
 
 void
-SKIF_LibraryArtwork::ReapIconWorker (app_record_s* pApp)
-{
-  if (pApp->tex_icon.iWorker == 1 && WaitForSingleObject (pApp->tex_icon.hWorker, 0) == WAIT_OBJECT_0)
-  {
-    CloseHandle (pApp->tex_icon.hWorker);
-    pApp->tex_icon.hWorker = NULL;
-    pApp->tex_icon.iWorker = 2;
-    m_activeIconWorkers--;
-
-    // Its result was made on the old device (ReleaseTextures), so let the icon load again
-    auto stale = std::find (m_staleIconWorkers.begin ( ), m_staleIconWorkers.end ( ), pApp->GetKey ( ));
-
-    if (stale != m_staleIconWorkers.end ( ))
-    {
-      m_staleIconWorkers.erase (stale);
-      pApp->tex_icon.iWorker = 0;
-    }
-  }
-}
-
-void
 SKIF_LibraryArtwork::ReloadIcon (app_record_s* pApp)
 {
   // An icon worker still running for this game would deliver the old icon after this one:
   //   let it finish, and apply its result first
-  if (pApp->tex_icon.iWorker == 1 && pApp->tex_icon.hWorker != NULL)
-    WaitForSingleObject (pApp->tex_icon.hWorker, 2000);
+  if (HANDLE hThread = FindThread (LibraryTexture::Icon, pApp->GetKey ( )); hThread != NULL)
+    WaitForSingleObject (hThread, 2000);
 
+  // Workers push their result before their thread ends, so it is queued by now (unless the wait timed out)
   ApplyWorkerResults ( );
 
   ImVec2 dontCare;
@@ -600,13 +616,10 @@ SKIF_LibraryArtwork::ReleaseTextures (void)
       app.second->tex_icon.texture.p = nullptr;
     }
 
-    // Load the icon again once it is drawn: right away if its worker is done, otherwise once it has been reaped
+    // Load the icon again once it is drawn: right away if its worker is done, otherwise once its result (made on
+    //   the old device) has been dropped (ApplyWorkerResults)
     if (app.second->tex_icon.iWorker == 2)
       app.second->tex_icon.iWorker = 0;
-
-    else if (app.second->tex_icon.iWorker == 1 &&
-             std::find (m_staleIconWorkers.begin ( ), m_staleIconWorkers.end ( ), app.second->GetKey ( )) == m_staleIconWorkers.end ( ))
-      m_staleIconWorkers.push_back (app.second->GetKey ( ));
   }
 }
 

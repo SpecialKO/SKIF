@@ -1,6 +1,8 @@
 #pragma once
 #include <atomic>
 #include <cstdint>
+#include <memory>
+#include <vector>
 #include <atlbase.h>
 #include <d3d11.h>
 #include <imgui/imgui.h>
@@ -37,9 +39,8 @@ public:
   void StartCoverWorker       (app_record_s* pApp);  // Streams the requested cover in on a background thread (SKIF_LibCoverWorker)
   void ApplyWorkerResults     (void);                // Once per frame (SKIF_UI_Tab_DrawLibrary): swaps in the textures the workers finished
 
-  // Workers use the game record they were started for, so records must not be freed while this is true
-  //   (the library swap-in, SKIF_GamingCollection::SwapInPopulatedGames ( ), waits for it)
-  bool IsUsingRecords         (void) const;          // A cover worker is running, or an icon worker thread has not exited yet
+  // Workers keep the game record they were started for alive (SKIF_GamingCollection::FindShared), so a library
+  //   refresh never waits for them. The reference comes back with the result and is released on the main thread.
 
   // Cover state, for drawing
   bool IsCoverLoading         (void) const { return m_tryingToLoadCover; }
@@ -63,12 +64,11 @@ public:
   void RefreshShownCover      (void);                // Reloads the shown cover (cover settings changed)
   bool ProcessCoverRefresh    (void);                // Once per frame; true if the shown cover must be reloaded (caller sets update)
 
-  // Icons (one background worker per game, up to 8 at once)
+  // Icons (one background worker per game, up to 8 at once). tex_icon.iWorker: 0 → 1 (StartIconWorker) → 2 once its
+  //   result has been applied (ApplyWorkerResults), to whichever record the game has by then
   int  GetActiveIconWorkers   (void) const { return m_activeIconWorkers; }
   bool CanStartIconWorker     (void) const { return m_activeIconWorkers < 8; }
   void StartIconWorker        (app_record_s* pApp);  // tex_icon.iWorker 0 → 1 (SKIF_LibIconWorker)
-  void ReapIconWorker         (app_record_s* pApp);  // tex_icon.iWorker 1 → 2 once the worker has finished
-  void OnIconWorkersReaped    (int count) { m_activeIconWorkers -= count; m_staleIconWorkers.clear ( ); } // Workers reaped by SKIF_GamingCollection::SwapInPopulatedGames ( ) (new records: their icons load anyway)
   void ReloadIcon             (app_record_s* pApp);  // Loads the icon again on this thread (icon changed or reset); waits for its icon worker first
 
   // Textures
@@ -82,6 +82,17 @@ private:
 
   void RetireCover    (void);                        // Current cover → previous (released once faded out)
   int  NextQueuePos   (void) { return m_queueLength.fetch_add (1) + 1; }
+
+  // Worker threads, by game, until their result has been applied (ApplyWorkerResults closes the handle)
+  struct worker_thread_s {
+    LibraryTexture          type       = LibraryTexture::Icon;
+    app_key_s               game;
+    HANDLE                  hThread    = NULL;
+  };
+  std::vector <worker_thread_s>
+                            m_threads;
+  HANDLE FindThread   (LibraryTexture type, app_key_s game) const; // NULL if none
+  void   ForgetThread (LibraryTexture type, app_key_s game);       // Closes the handle
 
   // Cover textures (written by the cover worker when its result is still current)
   CComPtr <ID3D11ShaderResourceView> m_pTexSRV;
@@ -103,7 +114,6 @@ private:
   std::atomic<bool>         m_coverLoading      = false;
   std::atomic<int>          m_queueLength       { 1 };
   int                       m_queuePosCover     = 0;
-  std::atomic<int>          m_coverWorkers      { 0 }; // Cover worker threads still running (stale ones included)
 
   // Custom cover being saved, and the refresh it triggers
   bool                      m_savingCover       = false;
@@ -112,10 +122,6 @@ private:
 
   int                       m_activeIconWorkers = 0;
 
-  // Games whose icon worker was still running when the textures were released (device reset):
-  //   their result is dropped, so ReapIconWorker ( ) lets their icon load again
-  std::vector <app_key_s>   m_staleIconWorkers;
-
   // Finished worker results, applied on the main thread (ApplyWorkerResults)
   struct worker_result_s {
     LibraryTexture          type       = LibraryTexture::Cover;
@@ -123,6 +129,8 @@ private:
     int                     queuePos   = 0;  // Covers: the load's queue position; only the latest load is shown
     unsigned int            generation = 0;  // m_generation when the worker started
     library_texture_s       texture;
+    std::shared_ptr <app_record_s>
+                            record;          // The record the worker used, kept alive until here (released on the main thread)
   };
   concurrency::concurrent_queue <worker_result_s>
                             m_results;

@@ -386,10 +386,6 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
     if (app.second->skif.pinned > 50)
       resetNumOnTop = false;
 
-    // Check if there is an icon worker pending that we need to acknowledge the results for...
-    //   ... *before* we filter out the game and skips the whole rest of the loop for this one!
-    _art.ReapIconWorker (app.second.get ( ));
-
     // Skips those filtered out by an active search field entry
     if (app.second->filtered)
       continue;
