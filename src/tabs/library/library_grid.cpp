@@ -181,9 +181,7 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
     const bool isFocused = (ImGui::GetFocusID ( ) == ImGui::GetID (rec->ImGuiLabelID.c_str()));
 
     // Selection: a click (either button), navigation, or activation (Enter / A)
-    extern bool bAutoScrollActive;
-
-    if (! bAutoScrollActive &&
+    if (! SKIF_ImGui_IsAutoScrollActive ( ) &&
          (pressed                                         || // Also when navigation moves onto it (SelectOnNav)
           ImGui::IsItemActivated (                      ) ||
           ImGui::IsItemClicked   (ImGuiMouseButton_Left ) ||
@@ -199,7 +197,7 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
                      ( ImGui::GetKeyData (ImGuiKey_Enter          )->DownDuration     >= _LONG_INTERVAL   &&
                        ImGui::GetKeyData (ImGuiKey_Enter          )->DownDurationPrev <= _LONG_INTERVAL ) );
 
-    if (! bAutoScrollActive && GameMenu == PopupState_Closed && (ImGui::IsItemClicked (ImGuiMouseButton_Right) || longPress))
+    if (! SKIF_ImGui_IsAutoScrollActive ( ) && GameMenu == PopupState_Closed && (ImGui::IsItemClicked (ImGuiMouseButton_Right) || longPress))
       GameMenu = PopupState_Open;
 
     // Launch: double-click, or a short press of Enter / A, on the selected game (pApp: the menu and the launch act on it)
@@ -490,7 +488,7 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
     EmptySpaceMenu = PopupState_Open;
 
   // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
-  SKIF_ImGui_AutoScroll  (false, SKIF_ImGuiAxis_Y);
+  SKIF_ImGui_AutoScroll  (false, SKIF_ImGuiAxis_Y, "##AutoScrollLibraryGrid");
 
   ImGui::EndChild        ( );
   ImGui::PopStyleColor   ( );

@@ -200,9 +200,7 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
 
   auto _HandleItemSelection = [&](app_record_s* selected_app, bool isIconMenu = false) -> bool
   {
-    extern bool
-        bAutoScrollActive;
-    if (bAutoScrollActive)
+    if (SKIF_ImGui_IsAutoScrollActive ( ))
       return false;
 
     // ImGui::IsItemFocused ( ) cannot be used here as it requires two button inputs to trigger on game change
@@ -578,7 +576,7 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
   // Stop populating the list
 
   // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
-  SKIF_ImGui_AutoScroll  (false, SKIF_ImGuiAxis_Y);
+  SKIF_ImGui_AutoScroll  (false, SKIF_ImGuiAxis_Y, "##AutoScrollLibraryList");
 
   ImGui::EndChild        ( );
   ImGui::EndGroup        ( ); // End GamesList

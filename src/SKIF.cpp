@@ -3444,10 +3444,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SKIF_UI_Tab_DrawMonitor ( );
           SKIF_ImGui_EndCenteredColumn   ( );
 
-          // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
-          // Currently not possible since the Monitor tab includes another scrollable child window (the process list)
-          //SKIF_ImGui_AutoScroll  (true, SKIF_ImGuiAxis_Y);
-
           ImGui::EndChild         ( );
           ImGui::EndTabItem       ( );
         }
@@ -3464,7 +3460,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SKIF_ImGui_EndCenteredColumn   (true);
 
           // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
-          SKIF_ImGui_AutoScroll  (true, SKIF_ImGuiAxis_Y);
+          SKIF_ImGui_AutoScroll  (true, SKIF_ImGuiAxis_Y, "##AutoScrollHardwareColumn");
 
           ImGui::EndChild         ( );
           ImGui::EndTabItem       ( );
@@ -3482,7 +3478,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SKIF_ImGui_EndCenteredColumn   (true);
 
           // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
-          SKIF_ImGui_AutoScroll  (true, SKIF_ImGuiAxis_Y);
+          SKIF_ImGui_AutoScroll  (true, SKIF_ImGuiAxis_Y, "##AutoScrollSettingsColumn");
 
           ImGui::EndChild         ( );
           ImGui::EndTabItem       ( );
@@ -3511,7 +3507,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SKIF_ImGui_EndCenteredColumn   (true);
 
           // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
-          SKIF_ImGui_AutoScroll  (true, SKIF_ImGuiAxis_Y);
+          SKIF_ImGui_AutoScroll  (true, SKIF_ImGuiAxis_Y, "##AutoScrollAboutColumn");
 
           ImGui::EndChild         ( );
           ImGui::EndTabItem       ( );
