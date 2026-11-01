@@ -276,15 +276,11 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
 
   const float widthIcon    = (showIcons) ? _ICON_HEIGHT + ImGui::GetStyle().ItemSpacing.x : 0.0f;
 
-  float _ICON_HEIGHT_OnTop = _ICON_HEIGHT + ImGui::GetStyle().ItemSpacing.y;
-
-  ImGui::BeginChild          ( "###GameListOnTop",
+  ImGui::BeginChild          ( "###GameList",
                                 ImFloor (ImVec2 ((sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
-                                        (! _registry._LibHorizonMode && _registry._LibPinnedVisible && numPinnedOnTop > 0 && numRegular > 0)
-                                          ? numPinnedOnTop * _ICON_HEIGHT_OnTop + ImGui::GetStyle().WindowPadding.y
-                                          : sizeList.y - (fTop3.y - fTop1.y))), //  - (ImGui::GetStyle().FramePadding.x - 2.0f * SKIF_ImGui_GlobalDPIScale)
+                                                  sizeList.y - (fTop3.y - fTop1.y))), //  - (ImGui::GetStyle().FramePadding.x - 2.0f * SKIF_ImGui_GlobalDPIScale)
                                   flags_cld | (_registry.bUIBorders ? ImGuiChildFlags_Borders : ImGuiChildFlags_None),
-                                  flags_wnd | ((! _registry._LibHorizonMode && _registry._LibPinnedVisible && numPinnedOnTop > 0 && numRegular > 0) ? (ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse) : ImGuiWindowFlags_None));
+                                  flags_wnd );
 
   // Start populating the list
 
@@ -298,17 +294,15 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
 
   std::string current_category = "";
   int         categories       = 0;
-  int         pinned_top       = 0;
-  bool        resetNumOnTop    = true;
 
 
   float maxWidth    = (SKIF_ImGui_GetContentRegionMax ( ).x - widthIcon);
 
   BeginCategoryHeaders ( );
 
-  // Rows are drawn through ImGuiListClipper, one section at a time: the pinned games on top, and then each expanded
-  //   category. The rows of a section are collected while walking the library, and drawn once the section ends (before
-  //     the next category header, before switching from the pinned games to the rest, and after the last game). Rows
+  // Rows are drawn through ImGuiListClipper, one section at a time: each expanded category (Favorites first). The rows of
+  //   a section are collected while walking the library, and drawn once the section ends (before the next category
+  //     header, and after the last game). Rows
   //       out of view are not submitted, except the selected game and the game found by type-to-search: their rows act
   //         on their own (scroll to the game, activate its row; see sort_changed and search_selection). The clipper
   //           itself keeps the row under keyboard / gamepad navigation, and the rows a navigation move goes to.
@@ -442,8 +436,7 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
       //     activating its row
       else
       {
-        selection.category = (rec->skif.pinned > 50) ? "Favorites (pinned)" // Same workaround as below
-                                                            : GetEffectiveCategory (rec);
+        selection.category = GetEffectiveCategory (rec);
 
         if (! ImGui::IsItemVisible ( ))
           ImGui::SetScrollHereY (0.5f);
@@ -455,9 +448,7 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
       update = (selection.game != rec->GetKey ( ));
 
       selection.game               =    rec->GetKey ( );
-      selection.category           = (  rec->skif.pinned > 50)
-                                   ?   "Favorites (pinned)" // Workaround to not expand Favorites tab on launch
-                                   :    GetEffectiveCategory (rec);
+      selection.category           =    GetEffectiveCategory (rec);
       selected                     =    true;
 
       // Only update the last selected value if we're not in hidden view
@@ -547,49 +538,11 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
     if (app.second->id == 0)
       continue;
 
-    // Count the number of pinned entries separately from filtered entries
-    if (app.second->skif.pinned > 50)
-      resetNumOnTop = false;
-
     // Skips those filtered out by an active search field entry
     if (app.second->filtered)
       continue;
 
-    // Separate always on top (>50) from regular pinned (1-50), but only in regular mode
-    if (app.second->skif.pinned > 50 && ! _registry._LibHorizonMode && _registry._LibPinnedVisible) //  // ! _registry._LibHorizonMode
-      pinned_top++;
-    else if (pinned_top > 0)
-    {
-      // The pinned games on top are done
-      _DrawSectionRows ( );
-
-      if (! _registry.bUIBorders)
-      {
-        ImGui::SetCursorPosY (ImFloor (
-          ImGui::GetCursorPosY ( )
-            - ImGui::GetStyle().SeparatorSize   // Separator ( ) takes up layout height since ImGui 1.92.7
-        ));
-
-        ImGui::Separator ( );
-      }
-
-      ImGui::EndChild             ( );
-
-      ImVec2 fTop4 = ImGui::GetCursorPos ( );
-
-      ImGui::BeginChild           ( "###GameList",
-                                     ImFloor (ImVec2 ((sizeList.x -  ImGui::GetStyle().WindowPadding.x / 2.0f),
-                                                       sizeList.y - (fTop4.y - fTop1.y))), // - (ImGui::GetStyle().FramePadding.x - 2.0f * SKIF_ImGui_GlobalDPIScale)
-                                     flags_cld,
-                                     flags_wnd );
-
-      maxWidth    = (SKIF_ImGui_GetContentRegionMax ( ).x - widthIcon);
-
-      pinned_top = 0;
-    }
-
-    // If we have passed the pinned on top games, order the rest by group
-    if (pinned_top == 0)
+    // By category (Favorites first, see SortApps)
     {
       static bool category_opened    = false;
 
@@ -621,9 +574,6 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
   _DrawSectionRows ( );
 
   EndCategoryHeaders ( );
-
-  if (resetNumOnTop)
-    numPinnedOnTop = 0;
 
   // Stop populating the list
 

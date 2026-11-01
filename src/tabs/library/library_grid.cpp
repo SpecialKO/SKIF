@@ -32,7 +32,7 @@
 //   It takes the place of the selected game's cover (size: the cover's area); the filter row, the games list and the
 //   details stay beside it, and the list stays in charge of type-to-search and of keeping the selection in view after a
 //   re-sort (it is drawn after the grid). The covers are thumbnails (SKIF_LibraryArtwork::RequestThumbnail), requested
-//   as their tiles are drawn. Each section (the pinned games on top, then each expanded category) is drawn through
+//   as their tiles are drawn. Each section (each expanded category, Favorites first) is drawn through
 //   ImGuiListClipper by rows of tiles, like the list's rows.
 void
 DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
@@ -242,9 +242,7 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
       update = (selection.game != key);
 
       selection.game     =    key;
-      selection.category = (  rec->skif.pinned > 50)
-                         ?   "Favorites (pinned)" // Workaround to not expand Favorites tab on launch
-                         :    GetEffectiveCategory (rec);
+      selection.category =    GetEffectiveCategory (rec);
       selected           =    true;
 
       // Only update the last selected value if we're not in hidden view
@@ -319,11 +317,8 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
     if (srv != nullptr)
       _DrawCover (srv, res, minCover, maxCover, alpha);
 
-    // Badges: pinned (top left); running or updating (top right)
+    // Badges: running or updating (top right). Favorites need none: they have a section of their own
     const float badgeInset = ImFloor (4.0f * dpi);
-
-    if (rec->skif.pinned > 0)
-      _DrawBadge (ICON_FA_THUMBTACK, minCover + ImVec2 (badgeInset, badgeInset), IM_COL32 (255, 207, 72, 255));
 
     if (rec->_status.updating != 0x0 || rec->_status.running != 0x0)
     {
@@ -421,10 +416,9 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
     sectionGames.clear ( );
   };
 
-  // Walk the library as the list does: the pinned games on top, then the games by category
+  // Walk the library as the list does: the games by category (Favorites first)
   std::string current_category = "";
   int         categories       = 0;
-  bool        pinnedOnTop      = false; // In the section of the pinned games on top
   bool        category_opened  = false;
 
   // EndCategoryHeaders ( ) is called by the list, drawn after the grid
@@ -440,35 +434,20 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
     if (app.second->filtered)
       continue;
 
-    // Always on top (>50), as in the list (these come first)
-    if (app.second->skif.pinned > 50 && _registry._LibPinnedVisible)
-      pinnedOnTop = true;
+    std::string tmpCategory = GetEffectiveCategory (app.second.get ( ));
 
-    else
+    if (tmpCategory != current_category)
     {
-      // The pinned games on top are done
-      if (pinnedOnTop)
-      {
-        _DrawSection ( );
-        ImGui::Separator ( );
-        pinnedOnTop = false;
-      }
+      // The previous category is done
+      _DrawSection ( );
 
-      std::string tmpCategory = GetEffectiveCategory (app.second.get ( ));
-
-      if (tmpCategory != current_category)
-      {
-        // The previous category is done
-        _DrawSection ( );
-
-        category_opened  = DrawCategoryHeader (tmpCategory, categories, showClearBtn);
-        current_category = tmpCategory;
-        categories++;
-      }
-
-      if (! category_opened)
-        continue;
+      category_opened  = DrawCategoryHeader (tmpCategory, categories, showClearBtn);
+      current_category = tmpCategory;
+      categories++;
     }
+
+    if (! category_opened)
+      continue;
 
     // Its client state (running, updating) is refreshed even while the tile is out of view, as in the list
     app.second->RefreshClientState (current_time);

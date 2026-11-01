@@ -315,10 +315,6 @@ public:
 
     if (favorite != favoriteOrig)
     {
-      // Pinned on top (51) counts against the limit of those
-      if (! favorite && app.skif.pinned > 50)
-        numPinnedOnTop--;
-
       app.skif.pinned = (favorite) ? 1 : 0;
       ret |= PropertiesApply_Resort | PropertiesApply_WriteMetaDB;
     }

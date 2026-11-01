@@ -628,22 +628,6 @@ DrawGameContextMenu_Browse (app_record_s* pApp)
 }
 
 
-// The number of games pinned on top in the whole library, including filtered and hidden ones
-//   (numPinnedOnTop only counts the visible ones, so it cannot be used to enforce the limit of 5)
-static int
-SKIF_Lib_CountPinnedOnTop (void)
-{
-  static SKIF_GamingCollection& _games = SKIF_GamingCollection::Get ( );
-
-  int count = 0;
-
-  for (auto& app : _games.GetApps ( ))
-    if (app.second->id != 0 && app.second->skif.pinned > 50)
-      count++;
-
-  return count;
-}
-
 // Game context menu: "Manage" submenu (moved verbatim from DrawGameContextMenu)
 static void
 DrawGameContextMenu_Manage (app_record_s* pApp)
@@ -660,29 +644,12 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
     if (SKIF_ImGui_MenuItemEx2 (L_("Properties"), ICON_FA_GEAR, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info)))
       ModifyGamePopup = PopupState_Open;
 
-    if (51 > pApp->skif.pinned && 5 > SKIF_Lib_CountPinnedOnTop ( ))
-    {
-      if (SKIF_ImGui_MenuItemEx2 (L_("Favorite (pinned; max 5)"), ICON_FA_STAR, ImColor(255, 207, 72)))
-      {
-        pApp->skif.pinned =  51;
-        numPinnedOnTop++;
-
-        SKIF_GamingCollection::Get ( ).MetaDB_UpdateApp  ( pApp, true);
-
-        SKIF_GamingCollection::SortApps (&_games.GetApps());
-        sort_changed = true;
-      }
-    }
-
     constexpr char* labelPin   =   NL_("Favorite###Manage-Favorite");
     constexpr char* labelUnpin = NL_("Unfavorite###Manage-Favorite");
 
     bool isFavorite = pApp->IsFavorite ( );
     if (SKIF_ImGui_MenuItemEx2 (TL_(isFavorite ? labelUnpin : labelPin), (isFavorite ? ICON_FA_HEART_CRACK : ICON_FA_HEART), ImColor(245, 66, 66, 255)))
     {
-      if (pApp->skif.pinned > 50)
-        numPinnedOnTop--;
-
       pApp->skif.pinned = isFavorite ? 0 : 1;
 
       SKIF_GamingCollection::Get ( ).MetaDB_UpdateApp   (pApp, true);
@@ -702,9 +669,6 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
 
       if (ImGui::MenuItem (CL_("category", "Favorites###ManageCategoiesFavorites"), "", isFavorite))
       {
-        if (pApp->skif.pinned > 50)
-          numPinnedOnTop--;
-
         pApp->skif.pinned = isFavorite ? 0 : 1;
         SKIF_GamingCollection::Get ( ).MetaDB_UpdateApp (pApp, true);
 
@@ -1388,14 +1352,8 @@ DrawSpecialKContextMenu (app_record_s* pApp)
   bool isFavorite = (pApp->skif.pinned > 0);
   if (SKIF_ImGui_MenuItemEx2 (TL_(isFavorite ? labelUnpin : labelPin), (isFavorite ? ICON_FA_HEART_CRACK : ICON_FA_HEART), ImColor(245, 66, 66, 255)))
   {
-    int old_value = pApp->skif.pinned;
-
-    pApp->skif.pinned =  (isFavorite ? 0 : (5 > SKIF_Lib_CountPinnedOnTop ( ) ? 99 : 50));
-
-    if (pApp->skif.pinned > 50)
-      numPinnedOnTop++;
-    else if (old_value > 50)
-      numPinnedOnTop--;
+    // Special K's default (99) sorts it first among the Favorites
+    pApp->skif.pinned =  (isFavorite ? 0 : 99);
 
     SKIF_GamingCollection::Get ( ).MetaDB_UpdateApp  ( pApp, true);
 

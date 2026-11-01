@@ -103,8 +103,6 @@ bool                   launchViaPlatform = false;   // Explicitly through the pl
 bool                   launchInstant     = false;
 bool                   launchWithoutSK   = false;
 
-int                    numRegular        = 0;
-int                    numPinnedOnTop    = 0;
 
 // Support up to 16 running games at once, lol
 
@@ -509,7 +507,7 @@ SearchAppsList (void)
 
 #pragma endregion
 
-// Clears the search filter and counts the regular / pinned-on-top entries again
+// Clears the search filter
 void
 ClearCharFilter (void)
 {
@@ -518,20 +516,8 @@ ClearCharFilter (void)
   strncpy (charFilter,    "\0", MAX_PATH);
   strncpy (charFilterTmp, "\0", MAX_PATH);
 
-  numPinnedOnTop = 0;
-  numRegular     = 0;
-
   for (auto& app : _games.GetApps())
-  {
     app.second->filtered = false;
-
-    numRegular++;
-
-    if (app.second->skif.pinned > 50)
-      numPinnedOnTop++;
-  }
-
-  numRegular -= numPinnedOnTop;
 }
 
 
@@ -760,9 +746,6 @@ SKIF_UI_Tab_DrawLibrary (void)
     if (! keepSelection && selection.game.appid != 0)
       selection.reset();
 
-    bool resortGames   = false;
-    int tmpPinnedOnTop = 0;
-
     // Do other misc stuff
     for (auto& app : _games.GetApps())
     {
@@ -774,9 +757,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       {
         PLOG_VERBOSE << "Selected app ID " << app.second->id << " from platform ID " << (int)app.second->store << ".";
         selection.game         =    app.second->GetKey ( );
-        selection.category     =   (app.second->skif.pinned > 50 && ! _registry._LibHorizonMode && _registry._LibPinnedVisible) // Only when not using horizon mode
-                               ?   "Favorites (pinned)" // Workaround to not expand Favorites tab on launch
-                               :    GetEffectiveCategory (app.second.get ( ));
+        selection.category     =    GetEffectiveCategory (app.second.get ( ));
         search_selection.game  =    selection.game;
         search_selection.category = selection.category;
         update = true;
@@ -793,47 +774,16 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Apply the current filter
       app.second->filtered = (charFilter[0] != '\0' && (StrStrIA (app.first.c_str(), charFilter) == NULL &&                // Name
                                                        StrStrIA (app.second->skif.category.c_str(), charFilter) == NULL)); // Category
-
-      // Count the number of pinned entries on top
-      if (app.second->skif.pinned > 50)
-      {
-        // Only allow 5 pinned on top
-        if (5 > tmpPinnedOnTop)
-          tmpPinnedOnTop++;
-
-        // Reduce all other to normal favorite status
-        else
-        {
-          app.second->skif.pinned = 50;
-          resortGames = true;
-        }
-      }
     }
 
-    if (resortGames)
-    {
-      SKIF_GamingCollection::SortApps (&_games.GetApps());
-      sort_changed = true;
-    }
-
-    // Use a separate pass to count the actual figures used for the UI calculations later
-    numRegular       = 0;
-    numPinnedOnTop   = 0;
-
+    // The keyboard hint search of the games shown
     for (auto& app : _games.GetApps())
     {
       if (app.second->id == 0 || app.second->filtered)
         continue;
 
       InsertTrieKey (&app, &labelsFiltered);
-
-      numRegular++;
-
-      if (app.second->skif.pinned > 50)
-        numPinnedOnTop++;
     }
-
-    numRegular -= numPinnedOnTop;
 
     PopulatedGames = true;
 
@@ -1132,8 +1082,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     float horizon_cutoff_height = 550.0f * SKIF_ImGui_GlobalDPIScale; // 750.0f // 650.0f
 
-    _registry._LibPinnedVisible = tab_ContentRegionAvail.y >= horizon_cutoff_height;
-
     _registry._LibHorizonMode  = (tab_ContentRegionAvail.x > 600.0f * SKIF_ImGui_GlobalDPIScale &&
                                   tab_ContentRegionAvail.y < horizon_cutoff_height);
     _registry._UseLowResCovers = (_registry._LibHorizonMode &&
@@ -1145,7 +1093,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     tab_scrollbar_width    = ImGui::GetCurrentWindowRead()->ScrollbarY ? ImGui::GetStyle().ScrollbarSize : 0.0f;
     lib_column2_width      = 376.0f * SKIF_ImGui_GlobalDPIScale; // tab_scrollbar_width // SKIF_vecServiceMode (not ready yet) // ((_registry._LibHorizonMode) ? 376.0f : 376.0f) * SKIF_ImGui_GlobalDPIScale
 
-    sizeList        = ImFloor ((_registry._LibHorizonMode || ! _registry._LibPinnedVisible)  ? (_registry.bUIBorders)
+    sizeList        = ImFloor ((_registry._LibHorizonMode)  ? (_registry.bUIBorders)
                                                                    ? ImVec2 (lib_column2_width, 334.0f * SKIF_ImGui_GlobalDPIScale)   // Horizon + Borders
                                                                    : ImVec2 (lib_column2_width, 332.0f * SKIF_ImGui_GlobalDPIScale)   // Horizon
                                                                    : ImVec2 (lib_column2_width, 620.0f * SKIF_ImGui_GlobalDPIScale)); // Regular
@@ -1303,11 +1251,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   ImGui::SameLine ( );
 
-  //static int numPinned   = 0;
-  //static int numRegular  = 0;
-  //bool       resortGames = false;
-
-  // Preprocess pinned/favorite entries
 
   // Update some stuff if filter query has changed
   if (strncmp (charFilter, charFilterTmp, MAX_PATH) != 0)
@@ -1315,8 +1258,6 @@ SKIF_UI_Tab_DrawLibrary (void)
     strncpy (charFilter, charFilterTmp, MAX_PATH);
 
     labelsFiltered = Trie { };
-    numPinnedOnTop = 0;
-    numRegular     = 0;
 
     for (auto& app : _games.GetApps())
     {
@@ -1330,17 +1271,8 @@ SKIF_UI_Tab_DrawLibrary (void)
         continue;
 
       InsertTrieKey (&app, &labelsFiltered);
-
-      numRegular++;
-
-      if (app.second->skif.pinned > 50)
-        numPinnedOnTop++;
     }
-
-    numRegular -= numPinnedOnTop;
   }
-
-  //PLOG_VERBOSE << "Numbers: " << numRegular << " (regular) -- " << numPinnedOnTop << " (on top)";
 
   // Clears the search filter: ClearCharFilter ( ) (library.cpp)
 

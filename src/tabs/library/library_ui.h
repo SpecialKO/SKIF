@@ -161,7 +161,6 @@ extern std::atomic<bool>      modDownloading;
 extern std::atomic<bool>      modInstalling;
 extern std::atomic<uint32_t>  modAppId;
 extern bool                   bCategoryMgnt;
-extern int                    numRegular;
 extern float                  fAlphaList;
 
 // Fade-in of a label shown while something loads (the list's "Loading games...", the cover's "..."). It starts over
@@ -188,7 +187,6 @@ extern bool                   launchGame;        // Respects Instant Play prefer
 extern bool                   launchViaPlatform; // Explicitly through the platform client (Play with > platform): ignores the Instant Play setting
 extern bool                   launchInstant;
 extern bool                   launchWithoutSK;
-extern int                    numPinnedOnTop;
 extern PopupState             GameMenu;
 extern PopupState             EmptySpaceMenu;
 extern PopupState             ServiceMenu;
