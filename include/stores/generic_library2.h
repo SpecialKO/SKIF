@@ -20,7 +20,8 @@ enum class LibraryTexture
   Icon,
   Cover,
   Patreon,
-  Logo
+  Logo,
+  Thumbnail  // A cover scaled down for the grid view (loaded as a Cover, see library_thumbnail_s)
 };
 
 enum ImageDecoder {
@@ -39,6 +40,14 @@ struct library_texture_s {
   bool                               isManaged  = false; // A file SKIF manages, so the menus can refresh / reset it (games only)
 };
 
+// A cover loaded as a thumbnail (the grid view): scaled to fill width x height, and saved to cachePath (if set)
+//   before it is turned into a texture, so the next time it loads from there (LoadLibraryThumbnailFromCache)
+struct library_thumbnail_s {
+  float                              width      = 0.0f;
+  float                              height     = 0.0f;
+  std::wstring                       cachePath;
+};
+
 // Loads a cover / icon (pApp: from ResolveArtwork) or an embedded Special K texture into 'out'. Returns true if out.srv is set.
 //   Safe to call from several threads at once for different games: it only reads settings, creates the texture on the
 //   (free-threaded) D3D11 device and may write files in the game's asset folder (ResolveArtwork). It writes nothing to
@@ -49,7 +58,12 @@ LoadLibraryTextureEx (
         uint32_t                            appid,
         const std::wstring&                 name,
         app_record_s*                       pApp,
-        library_texture_s&                  out);
+        library_texture_s&                  out,
+        const library_thumbnail_s*          thumb = nullptr); // Covers only: load as a thumbnail
+
+// A thumbnail saved by LoadLibraryTextureEx (thumb->cachePath). Thread-safe like LoadLibraryTextureEx.
+bool
+LoadLibraryThumbnailFromCache (const std::wstring& path, library_texture_s& out);
 
 // LoadLibraryTextureEx, applied directly: replaces pLibTexSRV (the old one is released after the frame) and pApp's
 //   custom / managed flags. Only for textures nothing else is using at the time (the library worker's Patreon / logo).

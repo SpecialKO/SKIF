@@ -21,6 +21,15 @@
 //   Cover flow: SelectCover (pApp) when the selection changes → IsCoverRequested ( ) → StartCoverWorker (pApp)
 //   → ApplyWorkerResults ( ) (main thread) swaps it in. A custom cover being saved (SaveGameCover in library.cpp)
 //   uses BeginSavingCover (pApp) → WM_SKIF_REFRESHCOVER → OnCoverSaved ( ) → ProcessCoverRefresh ( ).
+// Thumbnails (the grid view): app_record_s::tex_thumb.iWorker
+enum SKIF_ThumbnailState {
+  SKIF_Thumbnail_None     = 0, // Not loaded
+  SKIF_Thumbnail_Loading  = 1, // Loading from the thumbnail cache
+  SKIF_Thumbnail_Done     = 2, // Loaded (no texture: the game has no cover)
+  SKIF_Thumbnail_NoCache  = 3, // No usable cache: waits for a build (started once its tile is drawn)
+  SKIF_Thumbnail_Building = 4  // Building: the cover pipeline (may download), scaled down and saved to the cache
+};
+
 class SKIF_LibraryArtwork
 {
 public:
@@ -71,6 +80,17 @@ public:
   void StartIconWorker        (app_record_s* pApp);  // tex_icon.iWorker 0 → 1 (SKIF_LibIconWorker)
   void ReloadIcon             (app_record_s* pApp);  // Loads the icon again on this thread (icon changed or reset); waits for its icon worker first
 
+  // Thumbnails (the grid view). Loaded from the thumbnail cache (<asset folder>cover-thumb-<size>-<sources>.png) by up to
+  //   4 workers; a game without a usable cache is built by up to 2 workers: the same cover pipeline as the cover worker
+  //   (which may download the cover), scaled down and saved to the cache. Only tiles that are drawn request one.
+  void SetThumbnailSize       (ImVec2 size);         // The size thumbnails are made at (pixels); a change reloads them all
+  ImVec2 GetThumbnailSize     (void) const { return m_thumbSize; }
+  void RequestThumbnail       (app_record_s* pApp);  // Its tile is drawn: marks it as used, and starts a load or build when there is room
+  void UpdateThumbnails       (bool gridShown);      // Once per frame: unloads thumbnails out of view for a while (all of them when the grid is not shown)
+  void InvalidateThumbnail    (app_record_s* pApp);  // Its cover changed (custom cover saved, cover reset): deletes its cache and loads it again
+  void ReleaseThumbnails      (void);                // Unloads all of them (cover sources changed in Settings, size changed)
+  bool IsThumbnailWorkActive  (void) const { return (m_activeThumbLoads + m_activeThumbBuilds) > 0; }
+
   // Textures
   void ReleaseCurrentCover    (void);                // Pushes the current cover to SKIF_ResourcesToFree
   void ReleaseTextures        (void);                // Covers and all game icons (device reset); results still in flight are dropped, and the icons load again as they are drawn
@@ -88,11 +108,23 @@ private:
     LibraryTexture          type       = LibraryTexture::Icon;
     app_key_s               game;
     HANDLE                  hThread    = NULL;
+    int                     request    = 0;  // Thumbnails: the request it serves
   };
   std::vector <worker_thread_s>
                             m_threads;
-  HANDLE FindThread   (LibraryTexture type, app_key_s game) const; // NULL if none
-  void   ForgetThread (LibraryTexture type, app_key_s game);       // Closes the handle
+  HANDLE FindThread   (LibraryTexture type, app_key_s game) const;                  // NULL if none
+  void   ForgetThread (LibraryTexture type, app_key_s game, int request = 0);       // Closes the handle
+
+  // Thumbnails
+  void   StartThumbnailWorker (app_record_s* pApp, bool build);
+  void   ReleaseThumbnail     (app_record_s* pApp);  // Pushes its texture for release; back to SKIF_Thumbnail_None
+  std::wstring GetThumbnailCachePath (app_record_s* pApp) const; // Empty if the game has no asset folder
+  ImVec2                    m_thumbSize         = ImVec2 (0, 0);
+  int                       m_activeThumbLoads  = 0;
+  int                       m_activeThumbBuilds = 0;
+  int                       m_thumbRequests     = 0;  // The last request ID handed out
+  int                       m_thumbsLoaded      = 0;  // Thumbnails with a texture
+  DWORD                     m_thumbsChecked     = 0;  // When UpdateThumbnails last looked for ones to unload
 
   // Cover textures (written by the cover worker when its result is still current)
   CComPtr <ID3D11ShaderResourceView> m_pTexSRV;
@@ -126,7 +158,9 @@ private:
   struct worker_result_s {
     LibraryTexture          type       = LibraryTexture::Cover;
     app_key_s               game;
-    int                     queuePos   = 0;  // Covers: the load's queue position; only the latest load is shown
+    int                     queuePos   = 0;  // Covers: the load's queue position; only the latest load is shown. Thumbnails: the request
+    bool                    build      = false; // Thumbnails: made by a build (else loaded from the cache)
+    bool                    noCache    = false; // Thumbnails: the cache was missing or outdated (a build is needed)
     unsigned int            generation = 0;  // m_generation when the worker started
     library_texture_s       texture;
     std::shared_ptr <app_record_s>

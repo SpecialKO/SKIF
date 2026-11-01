@@ -783,6 +783,10 @@ SKIF_GamingCollection::SwapInPopulatedGames (bool* pChanged)
     else if (cur.second->tex_icon.iWorker == 1)
       app.second->tex_icon.iWorker = 1;
 
+    // The thumbnail (grid view), with its state: a load in flight is put on this record (its request matches)
+    app.second->tex_thumb = std::move (cur.second->tex_thumb);
+    cur.second->tex_thumb = { }; // Not for release
+
     // The run state, until SKIF_LibRefreshWorker checks it again (it would otherwise blink out for a moment)
     if (cur.second->_status.running != 0 && app.second->_status.running == 0)
     {
@@ -805,13 +809,19 @@ SKIF_GamingCollection::SwapInPopulatedGames (bool* pChanged)
                                       << ((! m_populatedOnce.load ( )) ? " (first library)" :
                                           (! changed)                  ? " (unchanged)"     : "") << ".";
 
-  // Push the icons of the records not carried over for release
+  // Push the icons and thumbnails of the records not carried over for release
   for (auto& app : m_apps)
   {
     if (app.second != nullptr && app.second->tex_icon.texture.p != nullptr)
     {
       SKIF_ResourcesToFree.push(app.second->tex_icon.texture.p);
       app.second->tex_icon.texture.p = nullptr;
+    }
+
+    if (app.second != nullptr && app.second->tex_thumb.texture.p != nullptr)
+    {
+      SKIF_ResourcesToFree.push(app.second->tex_thumb.texture.p);
+      app.second->tex_thumb.texture.p = nullptr;
     }
   }
 

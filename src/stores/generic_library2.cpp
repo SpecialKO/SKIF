@@ -4,6 +4,7 @@
 #include <utility/utility.h>
 #include <utility/fsutil.h>
 #include <filesystem>
+#include <algorithm>
 
 #include <images/patreon.png.h>
 #include <images/sk_icon.jpg.h>
@@ -101,19 +102,179 @@ FastTextureLoading (const std::wstring& path, DirectX::TexMetadata& meta, Direct
   return success;
 }
 
+// Scales the image to fill width x height, keeping its aspect ratio (one side ends up larger: it is cropped where drawn).
+//   On success, pImg points to target and meta is its metadata.
+static bool
+_ScaleLibraryImageToFill (DirectX::TexMetadata& meta, DirectX::ScratchImage*& pImg, DirectX::ScratchImage& target, float width, float height)
+{
+  float imageAspectRatio   = static_cast<float> (meta.width) / static_cast<float> (meta.height);
+  float defaultAspectRatio = static_cast<float> (width) / static_cast<float> (height);
+
+  if (imageAspectRatio > defaultAspectRatio)
+    width = height * imageAspectRatio;
+  else
+    height = width / imageAspectRatio;
+
+  // Resize into an image of its own: pImg may already point to target (single-channel covers converted earlier),
+  //   and DirectX::Resize () releases its output image before reading the source images (and metadata) it was given
+  DirectX::ScratchImage resized_img;
+
+  if (
+    SUCCEEDED (
+      DirectX::Resize (
+        pImg->GetImages   (), pImg->GetImageCount (),
+        pImg->GetMetadata (), std::max (static_cast<size_t> (width), size_t (1)), std::max (static_cast<size_t> (height), size_t (1)),
+        DirectX::TEX_FILTER_FANT,
+            resized_img
+      )
+    )
+  )
+  {
+    target = std::move (resized_img);
+    meta   =  target.GetMetadata ();
+    pImg   = &target;
+    return true;
+  }
+
+  return false;
+}
+
+// The last steps of loading a library texture: mipmaps, then the texture and its view on the D3D11 device.
+//   pImg is the decoded (and converted / scaled) image, meta its metadata. Sets out.srv and out.resolution.
+static bool
+_CreateLibraryTexture (DirectX::TexMetadata& meta, DirectX::ScratchImage* pImg, library_texture_s& out)
+{
+  CComPtr <ID3D11Texture2D> pTex2D;
+  DirectX::ScratchImage     converted_img;
+
+  // Generate mipmaps, so covers and icons drawn smaller than their resolution (e.g. 600x900 covers in horizon mode, or the
+  //   larger extracted icons at low DPI scales) are filtered smoothly instead of aliasing. Images with transparency are
+  //     mipmapped with premultiplied alpha, as the color of fully transparent pixels (often black) would otherwise bleed
+  //       into the edges. FORCE_NON_WIC keeps this independent of COM/WIC on the worker thread.
+  if (meta.mipLevels <= 1 && (meta.width > 1 || meta.height > 1))
+  {
+    DirectX::ScratchImage  premultiplied_img,
+                           mipmapped_img,
+                           straight_img;
+    DirectX::ScratchImage* pSrc     = pImg;
+    const bool             hasAlpha = ! pImg->IsAlphaAllOpaque ( );
+
+    if (hasAlpha &&
+      SUCCEEDED (
+        DirectX::PremultiplyAlpha (
+          pImg->GetImages   (), pImg->GetImageCount (),
+          pImg->GetMetadata (), DirectX::TEX_PMALPHA_DEFAULT,
+              premultiplied_img
+        )
+      )
+    )
+      pSrc = &premultiplied_img;
+
+    if (
+      SUCCEEDED (
+        DirectX::GenerateMipMaps (
+          pSrc->GetImages   (), pSrc->GetImageCount (),
+          pSrc->GetMetadata (), DirectX::TEX_FILTER_FORCE_NON_WIC, 0, // 0 = the full mip chain
+              mipmapped_img
+        )
+      )
+    )
+    {
+      bool success = true;
+
+      // Back to straight alpha, which is what the rest of SKIF expects
+      if (pSrc == &premultiplied_img)
+      {
+        success =
+          SUCCEEDED (
+            DirectX::PremultiplyAlpha (
+              mipmapped_img.GetImages   (), mipmapped_img.GetImageCount (),
+              mipmapped_img.GetMetadata (), DirectX::TEX_PMALPHA_REVERSE,
+                  straight_img
+            )
+          );
+
+        if (success)
+          mipmapped_img = std::move (straight_img);
+      }
+
+      if (success)
+      {
+        converted_img = std::move (mipmapped_img);
+        meta          =  converted_img.GetMetadata ();
+        pImg          = &converted_img;
+      }
+    }
+  }
+
+  // Store the resolution of the loaded image
+  out.resolution.x = static_cast<float> (meta.width);
+  out.resolution.y = static_cast<float> (meta.height);
+
+  auto pDevice =
+    SKIF_D3D11_GetDevice ();
+
+  if (! pDevice)
+    return false;
+
+  pTex2D = nullptr;
+
+  if (
+    SUCCEEDED (
+      DirectX::CreateTexture (
+        pDevice,
+          pImg->GetImages (), pImg->GetImageCount (),
+            meta, (ID3D11Resource **)&pTex2D.p
+      )
+    )
+  )
+  {
+    D3D11_SHADER_RESOURCE_VIEW_DESC
+      srv_desc                           = { };
+      srv_desc.Format                    = DXGI_FORMAT_UNKNOWN;
+      srv_desc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
+      srv_desc.Texture2D.MipLevels       = UINT_MAX;
+      srv_desc.Texture2D.MostDetailedMip =  0;
+
+      //CComPtr <ID3D11ShaderResourceView>
+      //    pOrigTexSRV (pLibTexSRV.p);
+                        //pLibTexSRV = nullptr; // Crashes on Intel
+
+      //if (libTexToLoad == LibraryTexture::Cover)
+      //  OutputDebugString((L"[App#" + std::to_wstring(appid) + L"] Game cover loaded\n").c_str());
+
+    if (    pTex2D.p == nullptr ||
+      FAILED (
+        pDevice->CreateShaderResourceView (
+            pTex2D.p, &srv_desc,
+          &out.srv.p
+        )
+      )
+    )
+    {
+      //pLibTexSRV = pOrigTexSRV;
+    }
+
+    // SRV is holding a reference, this is not needed anymore.
+    pTex2D = nullptr;
+  }
+
+  return (out.srv.p != nullptr);
+}
+
 bool
 LoadLibraryTextureEx (
         LibraryTexture                      libTexToLoad,
         uint32_t                            appid,
         const std::wstring&                 name,
         app_record_s*                       pApp,
-        library_texture_s&                  out)
+        library_texture_s&                  out,
+        const library_thumbnail_s*          thumb)
 {
   // Settings and paths are only read here; see the threading notes in generic_library2.h
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
-  CComPtr <ID3D11Texture2D> pTex2D;
   DirectX::TexMetadata        meta = { };
   DirectX::ScratchImage        img = { };
 
@@ -226,163 +387,55 @@ LoadLibraryTextureEx (
     }
   }
 
+  // Thumbnails (the grid view): the cover, scaled to fill the tile, and saved as the game's thumbnail cache
+  if (thumb != nullptr && libTexToLoad == LibraryTexture::Cover)
+  {
+    if (_ScaleLibraryImageToFill (meta, pImg, converted_img, thumb->width, thumb->height) && ! thumb->cachePath.empty ( ))
+    {
+      // PNG through WIC (the worker thread has initialized COM). Written to a temporary file first, so a thumbnail
+      //   being read (another worker) is never a partial file
+      std::wstring tmp = thumb->cachePath + L".tmp";
+
+      if (SUCCEEDED (DirectX::SaveToWICFile (*pImg->GetImage (0, 0, 0), DirectX::WIC_FLAGS_NONE,
+                                             DirectX::GetWICCodec (DirectX::WIC_CODEC_PNG), tmp.c_str ( ))))
+      {
+        if (! MoveFileExW (tmp.c_str ( ), thumb->cachePath.c_str ( ), MOVEFILE_REPLACE_EXISTING))
+          DeleteFileW (tmp.c_str ( ));
+      }
+
+      else
+        PLOG_WARNING << "Could not save the thumbnail: " << thumb->cachePath;
+    }
+  }
+
   // Downscale covers to 220x330, which will then be shown in horizon mode
-  if ((_registry._UseLowResCovers && ! _registry._UseLowResCoversHiDPIBypass && libTexToLoad == LibraryTexture::Cover) ||
-      (libTexToLoad == LibraryTexture::Logo  && name == L"sk_boxart_small.png"))
-  {
-    float width  = 220.0f;
-    float height = 330.0f;
-    float imageAspectRatio   = static_cast<float> (meta.width) / static_cast<float> (meta.height);
-    float defaultAspectRatio = static_cast<float> (width) / static_cast<float> (height);
+  else if ((_registry._UseLowResCovers && ! _registry._UseLowResCoversHiDPIBypass && libTexToLoad == LibraryTexture::Cover) ||
+           (libTexToLoad == LibraryTexture::Logo  && name == L"sk_boxart_small.png"))
+    _ScaleLibraryImageToFill (meta, pImg, converted_img, 220.0f, 330.0f);
 
-    if (imageAspectRatio > defaultAspectRatio)
-      width = height * imageAspectRatio;
-    else
-      height = width / imageAspectRatio;
-
-    // Resize into an image of its own: pImg may already point to converted_img (single-channel covers converted above),
-    //   and DirectX::Resize () releases its output image before reading the source images (and metadata) it was given
-    DirectX::ScratchImage resized_img;
-
-    if (
-      SUCCEEDED (
-        DirectX::Resize (
-          pImg->GetImages   (), pImg->GetImageCount (),
-          pImg->GetMetadata (), static_cast<size_t> (width), static_cast<size_t> (height),
-          DirectX::TEX_FILTER_FANT,
-              resized_img
-        )
-      )
-    )
-    {
-      converted_img = std::move (resized_img);
-      meta          =  converted_img.GetMetadata ();
-      pImg          = &converted_img;
-    }
-  }
-
-  // Generate mipmaps, so covers and icons drawn smaller than their resolution (e.g. 600x900 covers in horizon mode, or the
-  //   larger extracted icons at low DPI scales) are filtered smoothly instead of aliasing. Images with transparency are
-  //     mipmapped with premultiplied alpha, as the color of fully transparent pixels (often black) would otherwise bleed
-  //       into the edges. FORCE_NON_WIC keeps this independent of COM/WIC on the worker thread.
-  if (meta.mipLevels <= 1 && (meta.width > 1 || meta.height > 1))
-  {
-    DirectX::ScratchImage  premultiplied_img,
-                           mipmapped_img,
-                           straight_img;
-    DirectX::ScratchImage* pSrc     = pImg;
-    const bool             hasAlpha = ! pImg->IsAlphaAllOpaque ( );
-
-    if (hasAlpha &&
-      SUCCEEDED (
-        DirectX::PremultiplyAlpha (
-          pImg->GetImages   (), pImg->GetImageCount (),
-          pImg->GetMetadata (), DirectX::TEX_PMALPHA_DEFAULT,
-              premultiplied_img
-        )
-      )
-    )
-      pSrc = &premultiplied_img;
-
-    if (
-      SUCCEEDED (
-        DirectX::GenerateMipMaps (
-          pSrc->GetImages   (), pSrc->GetImageCount (),
-          pSrc->GetMetadata (), DirectX::TEX_FILTER_FORCE_NON_WIC, 0, // 0 = the full mip chain
-              mipmapped_img
-        )
-      )
-    )
-    {
-      bool success = true;
-
-      // Back to straight alpha, which is what the rest of SKIF expects
-      if (pSrc == &premultiplied_img)
-      {
-        success =
-          SUCCEEDED (
-            DirectX::PremultiplyAlpha (
-              mipmapped_img.GetImages   (), mipmapped_img.GetImageCount (),
-              mipmapped_img.GetMetadata (), DirectX::TEX_PMALPHA_REVERSE,
-                  straight_img
-            )
-          );
-
-        if (success)
-          mipmapped_img = std::move (straight_img);
-      }
-
-      if (success)
-      {
-        converted_img = std::move (mipmapped_img);
-        meta          =  converted_img.GetMetadata ();
-        pImg          = &converted_img;
-      }
-    }
-  }
-
-  // Store the resolution of the loaded image
-  out.resolution.x = static_cast<float> (meta.width);
-  out.resolution.y = static_cast<float> (meta.height);
-
-  auto pDevice =
-    SKIF_D3D11_GetDevice ();
-
-  if (! pDevice)
+  if (! _CreateLibraryTexture (meta, pImg, out))
     return false;
 
-  pTex2D = nullptr;
+  DWORD post = SKIF_Util_timeGetTime1 ( );
+  PLOG_DEBUG << "[Image Processing] Processed image in " << (post - pre) << " ms.";
 
-  if (
-    SUCCEEDED (
-      DirectX::CreateTexture (
-        pDevice,
-          pImg->GetImages (), pImg->GetImageCount (),
-            meta, (ID3D11Resource **)&pTex2D.p
-      )
-    )
-  )
-  {
-    D3D11_SHADER_RESOURCE_VIEW_DESC
-      srv_desc                           = { };
-      srv_desc.Format                    = DXGI_FORMAT_UNKNOWN;
-      srv_desc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
-      srv_desc.Texture2D.MipLevels       = UINT_MAX;
-      srv_desc.Texture2D.MostDetailedMip =  0;
+  out.isCustom  = customAsset;
+  out.isManaged = managedAsset;
 
-      //CComPtr <ID3D11ShaderResourceView>
-      //    pOrigTexSRV (pLibTexSRV.p);
-                        //pLibTexSRV = nullptr; // Crashes on Intel
+  return true;
+}
 
-      //if (libTexToLoad == LibraryTexture::Cover)
-      //  OutputDebugString((L"[App#" + std::to_wstring(appid) + L"] Game cover loaded\n").c_str());
+// A thumbnail from the thumbnail cache (a PNG SKIF saved at the size it is shown at)
+bool
+LoadLibraryThumbnailFromCache (const std::wstring& path, library_texture_s& out)
+{
+  DirectX::TexMetadata  meta = { };
+  DirectX::ScratchImage img  = { };
 
-    if (    pTex2D.p == nullptr ||
-      FAILED (
-        pDevice->CreateShaderResourceView (
-            pTex2D.p, &srv_desc,
-          &out.srv.p
-        )
-      )
-    )
-    {
-      //pLibTexSRV = pOrigTexSRV;
-    }
+  if (! FastTextureLoading (path, meta, img))
+    return false;
 
-    // If everything went well
-    else {
-      DWORD post = SKIF_Util_timeGetTime1 ( );
-      PLOG_DEBUG << "[Image Processing] Processed image in " << (post - pre) << " ms.";
-
-      out.isCustom  = customAsset;
-      out.isManaged = managedAsset;
-    }
-
-    // SRV is holding a reference, this is not needed anymore.
-    pTex2D = nullptr;
-  }
-
-  return (out.srv.p != nullptr);
+  return _CreateLibraryTexture (meta, &img, out);
 }
 
 void

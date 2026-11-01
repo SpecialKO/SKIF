@@ -115,8 +115,13 @@ struct app_record_s {
     bool            isCustom    = false; // Indicates whether SKIF is using a custom texture or not
     bool            isManaged   = false; // Indicates whether the texture is managed by SKIF or not (can be refreshed by SKIF)
     bool            queriedPCGW = false; // Has we queried PCGW for an artwork?
-    int             iWorker     = 0;     // 0 = worker not started, 1 = worker active, 2 = worker done (SKIF_LibraryArtwork tracks the threads)
-  } tex_icon, tex_cover;
+    int             iWorker     = 0;     // 0 = worker not started, 1 = worker active, 2 = worker done (SKIF_LibraryArtwork tracks the threads); thumbnails: SKIF_ThumbnailState
+    int             request     = 0;     // Thumbnails: the load in flight (results of an older one are dropped)
+    DWORD           lastUsed    = 0;     // Thumbnails: when its tile was last drawn (unloaded when out of view for a while)
+    DWORD           loadedAt    = 0;     // Thumbnails: when the texture arrived (fade-in)
+    float           width       = 0.0f;  // Thumbnails: the texture's size (cropped to fill the tile where drawn)
+    float           height      = 0.0f;
+  } tex_icon, tex_cover, tex_thumb;      // tex_thumb: the grid view's cover (SKIF_LibraryArtwork::RequestThumbnail)
 
   enum class Store {
     Steam       = 0x1,   // Initial commit

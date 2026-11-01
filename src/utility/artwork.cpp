@@ -7,6 +7,9 @@
 #include <concurrent_queue.h>
 #include <process.h>
 #include <algorithm>
+#include <filesystem>
+#include <cmath>
+#include <utility/sk_utility.h>
 
 extern concurrency::concurrent_queue <IUnknown *> SKIF_ResourcesToFree;
 
@@ -91,6 +94,34 @@ SKIF_LibraryArtwork::ReleaseOldCoverIfFaded (void)
 
 #pragma region Cover Worker
 
+// The cover pipeline of the cover worker and the thumbnail builds (worker threads): the store's cover (downloaded when
+//   missing), the IGDB cover when preferred, then the texture (thumb: as a thumbnail, saved to the thumbnail cache)
+static bool
+_LoadCover (app_record_s* pApp, bool queryPCGW, library_texture_s& out, const library_thumbnail_s* thumb)
+{
+  // Store-specific: fetch or download the store's cover (Steam, Epic, Xbox, PCGamingWiki)
+  std::wstring load_str = pApp->PrepareCoverSource (queryPCGW);
+
+  // The IGDB cover, when preferred for this store (Settings): downloaded once and kept as cover-igdb.jpg.
+  //   Not needed when there is a PCGamingWiki cover (just prepared above), which takes precedence.
+  if (pApp->WantsIGDBCover ( ) && pApp->FindCustomArtwork (LibraryTexture::Cover).empty ( ))
+  {
+    std::wstring assetDir  = pApp->GetAssetDirectory ( );
+    std::wstring igdbCover = assetDir + L"cover-igdb.jpg";
+
+    if (! PathFileExistsW (igdbCover.c_str ( )) &&
+        ! (pApp->WantsPCGWCover ( ) && PathFileExistsW ((assetDir + L"cover-pcgw.png").c_str ( ))))
+      pApp->DownloadIGDBCover (igdbCover);
+  }
+
+  return LoadLibraryTextureEx ( LibraryTexture::Cover,
+                                  pApp->id,
+                                    load_str,
+                                      pApp,
+                                        out,
+                                          thumb );
+}
+
 void
 SKIF_LibraryArtwork::StartCoverWorker (app_record_s* pApp)
 {
@@ -164,26 +195,7 @@ SKIF_LibraryArtwork::StartCoverWorker (app_record_s* pApp)
     result.generation = self.m_generation.load ( );
     //PLOG_VERBOSE << "queuePos = " << result.queuePos;
 
-    // Store-specific: fetch or download the store's cover (Steam, Epic, Xbox, PCGamingWiki)
-    std::wstring load_str = _pApp->PrepareCoverSource (_queryPCGW);
-
-    // The IGDB cover, when preferred for this store (Settings): downloaded once and kept as cover-igdb.jpg.
-    //   Not needed when there is a PCGamingWiki cover (just prepared above), which takes precedence.
-    if (_pApp->WantsIGDBCover ( ) && _pApp->FindCustomArtwork (LibraryTexture::Cover).empty ( ))
-    {
-      std::wstring assetDir  = _pApp->GetAssetDirectory ( );
-      std::wstring igdbCover = assetDir + L"cover-igdb.jpg";
-
-      if (! PathFileExistsW (igdbCover.c_str ( )) &&
-          ! (_pApp->WantsPCGWCover ( ) && PathFileExistsW ((assetDir + L"cover-pcgw.png").c_str ( ))))
-        _pApp->DownloadIGDBCover (igdbCover);
-    }
-
-    LoadLibraryTextureEx ( LibraryTexture::Cover,
-                              _pApp->id,
-                                load_str,
-                                  _pApp,
-                                    result.texture );
+    _LoadCover (_pApp, _queryPCGW, result.texture, nullptr);
 
     PLOG_VERBOSE << "_pTexSRV = " << result.texture.srv.p;
 
@@ -244,6 +256,57 @@ SKIF_LibraryArtwork::ApplyWorkerResults (void)
 
       if (pApp != nullptr && pApp->tex_icon.iWorker == 1)
         pApp->tex_icon.iWorker = 2;
+    }
+
+    // Thumbnails: only the request the game is waiting for (a newer one replaced it if it was unloaded or invalidated)
+    else if (result.type == LibraryTexture::Thumbnail)
+    {
+      ForgetThread (LibraryTexture::Thumbnail, result.game, result.queuePos);
+
+      if (result.build)
+        m_activeThumbBuilds--;
+      else
+        m_activeThumbLoads--;
+
+      bool live = (pApp != nullptr && pApp->tex_thumb.request == result.queuePos && result.generation == m_generation.load ( ) &&
+                  (pApp->tex_thumb.iWorker == SKIF_Thumbnail_Loading || pApp->tex_thumb.iWorker == SKIF_Thumbnail_Building));
+
+      if (! live)
+      {
+        _Release (result.texture.srv);
+        continue;
+      }
+
+      auto& thumb = pApp->tex_thumb;
+
+      // No usable cache: build it once the tile is drawn again (RequestThumbnail)
+      if (result.noCache)
+        thumb.iWorker = SKIF_Thumbnail_NoCache;
+
+      else
+      {
+        thumb.iWorker   = SKIF_Thumbnail_Done;
+        thumb.loadedAt  = SKIF_Util_timeGetTime ( );
+        thumb.isCustom  = result.texture.isCustom;
+        thumb.isManaged = result.texture.isManaged;
+
+        if (thumb.texture.p != nullptr) // Not expected: a thumbnail is released before it loads again
+        {
+          _Release (thumb.texture);
+          m_thumbsLoaded--;
+        }
+
+        if (result.texture.srv.p != nullptr)
+        {
+          thumb.width  = result.texture.resolution.x;
+          thumb.height = result.texture.resolution.y;
+          thumb.texture.Attach (result.texture.srv.Detach ( ));
+          m_thumbsLoaded++;
+        }
+      }
+
+      _Release (result.texture.srv);
+      continue;
     }
 
     // Made on the device from before a device reset
@@ -322,11 +385,11 @@ SKIF_LibraryArtwork::FindThread (LibraryTexture type, app_key_s game) const
 }
 
 void
-SKIF_LibraryArtwork::ForgetThread (LibraryTexture type, app_key_s game)
+SKIF_LibraryArtwork::ForgetThread (LibraryTexture type, app_key_s game, int request)
 {
   for (auto it = m_threads.begin ( ); it != m_threads.end ( ); ++it)
   {
-    if (it->type == type && it->game == game)
+    if (it->type == type && it->game == game && it->request == request)
     {
       CloseHandle (it->hThread);
       m_threads.erase (it);
@@ -440,12 +503,21 @@ SKIF_LibraryArtwork::OnCoverSaved (app_key_s game)
 {
   m_refreshPending = true;
   m_refresh        = game;
+
+  // Its thumbnail shows the old cover (a custom cover was saved)
+  if (app_record_s* pApp = SKIF_GamingCollection::Get ( ).Find (game); pApp != nullptr)
+    InvalidateThumbnail (pApp);
 }
 
 void
 SKIF_LibraryArtwork::RefreshShownCover (void)
 {
-  OnCoverSaved (m_cover);
+  m_refreshPending = true;
+  m_refresh        = m_cover;
+
+  // The cover sources changed (Settings): every thumbnail may come from another source now. Their cache files are
+  //   named after the sources (GetThumbnailCachePath), so they are only unloaded here.
+  ReleaseThumbnails ( );
 }
 
 bool
@@ -620,6 +692,331 @@ SKIF_LibraryArtwork::ReleaseTextures (void)
     //   the old device) has been dropped (ApplyWorkerResults)
     if (app.second->tex_icon.iWorker == 2)
       app.second->tex_icon.iWorker = 0;
+
+    // Thumbnails load again once drawn (results in flight are dropped: they were made on the old device)
+    ReleaseThumbnail (app.second.get ( ));
+  }
+}
+
+#pragma endregion
+
+#pragma region Thumbnails
+
+// Worker threads: whether the thumbnail cache is newer than every cover in the game's asset folder (custom covers and the
+//   ones SKIF downloaded). A cover SKIF reads from elsewhere (e.g. the Steam client's library cache) is not checked.
+static bool
+_IsThumbnailCacheCurrent (const std::wstring& cachePath)
+{
+  std::error_code ec;
+
+  const std::filesystem::path fsCache (cachePath);
+  auto cacheTime = std::filesystem::last_write_time (fsCache, ec);
+
+  if (ec)
+    return false;
+
+  for (auto& entry : std::filesystem::directory_iterator (fsCache.parent_path ( ), ec))
+  {
+    std::wstring name = SKIF_Util_ToLowerW (entry.path ( ).filename ( ).wstring ( ));
+
+    if (name.rfind (L"cover", 0) != 0 || name.rfind (L"cover-thumb", 0) == 0)
+      continue;
+
+    std::error_code ec2;
+    if (entry.is_regular_file (ec2) && entry.last_write_time (ec2) > cacheTime)
+      return false;
+  }
+
+  return true;
+}
+
+// Worker threads: removes the game's other thumbnail cache files (another size, or other cover sources)
+static void
+_DeleteOtherThumbnails (const std::wstring& cachePath)
+{
+  std::error_code ec;
+
+  const std::filesystem::path fsCache (cachePath);
+  std::wstring keep = SKIF_Util_ToLowerW (fsCache.filename ( ).wstring ( ));
+
+  std::vector <std::filesystem::path> remove;
+
+  for (auto& entry : std::filesystem::directory_iterator (fsCache.parent_path ( ), ec))
+  {
+    std::wstring name = SKIF_Util_ToLowerW (entry.path ( ).filename ( ).wstring ( ));
+
+    if (name.rfind (L"cover-thumb", 0) == 0 && name != keep)
+      remove.push_back (entry.path ( ));
+  }
+
+  for (auto& path : remove)
+    std::filesystem::remove (path, ec);
+}
+
+std::wstring
+SKIF_LibraryArtwork::GetThumbnailCachePath (app_record_s* pApp) const
+{
+  std::wstring assetDir = pApp->GetAssetDirectory ( );
+
+  if (assetDir.empty ( ) || m_thumbSize.x <= 0.0f)
+    return L"";
+
+  // Named after what it is made from: its size, and the cover sources preferred for the store (Settings). A change of
+  //   either uses another file, and the build of that one removes the others (_DeleteOtherThumbnails).
+  return SK_FormatStringW (L"%wscover-thumb-%ix%i%ws%ws.png", assetDir.c_str ( ),
+                             static_cast <int> (m_thumbSize.x), static_cast <int> (m_thumbSize.y),
+                               (pApp->WantsPCGWCover ( )) ? L"-pcgw" : L"",
+                               (pApp->WantsIGDBCover ( )) ? L"-igdb" : L"");
+}
+
+void
+SKIF_LibraryArtwork::SetThumbnailSize (ImVec2 size)
+{
+  size = ImVec2 (std::floor (size.x), std::floor (size.y));
+
+  if (size.x == m_thumbSize.x && size.y == m_thumbSize.y)
+    return;
+
+  m_thumbSize = size;
+
+  // Made at another size: load them again
+  ReleaseThumbnails ( );
+}
+
+void
+SKIF_LibraryArtwork::RequestThumbnail (app_record_s* pApp)
+{
+  constexpr int maxLoads  = 4;
+  constexpr int maxBuilds = 2;
+
+  auto& thumb = pApp->tex_thumb;
+
+  thumb.lastUsed = SKIF_Util_timeGetTime ( );
+
+  // Not until SKIF has started (the hardware device is created after the first present), nor before a size is set
+  if (! SKIF_StartupFinished || m_thumbSize.x <= 0.0f)
+    return;
+
+  if      (thumb.iWorker == SKIF_Thumbnail_None    && m_activeThumbLoads  < maxLoads)
+    StartThumbnailWorker (pApp, false);
+
+  else if (thumb.iWorker == SKIF_Thumbnail_NoCache && m_activeThumbBuilds < maxBuilds)
+    StartThumbnailWorker (pApp, true);
+}
+
+void
+SKIF_LibraryArtwork::StartThumbnailWorker (app_record_s* pApp, bool build)
+{
+  struct thread_s {
+    std::shared_ptr <app_record_s>
+                        app;        // Kept alive until the result is applied, even if a library refresh replaces it
+    app_key_s           game;
+    int                 request    = 0;
+    unsigned int        generation = 0;
+    bool                build      = false;
+    bool                queryPCGW  = false;
+    library_thumbnail_s thumb;
+  };
+
+  thread_s* data = new thread_s;
+
+  data->app        = SKIF_GamingCollection::Get ( ).FindShared (pApp->GetKey ( ));
+  data->game       = pApp->GetKey ( );
+  data->request    = ++m_thumbRequests;
+  data->generation = m_generation.load ( );
+  data->build      = build;
+  data->thumb      = { m_thumbSize.x, m_thumbSize.y, GetThumbnailCachePath (pApp) };
+
+  // Not in the library (nothing to keep alive): show it without a cover
+  if (data->app == nullptr)
+  {
+    delete data;
+    pApp->tex_thumb.iWorker = SKIF_Thumbnail_Done;
+    return;
+  }
+
+  // As the cover worker: a PCGamingWiki cover is looked up once per record (decided here, on the main thread)
+  if (build && pApp->WantsPCGWCover ( ) && ! pApp->tex_cover.queriedPCGW)
+  {
+    pApp->tex_cover.queriedPCGW = true;
+    data->queryPCGW             = true;
+  }
+
+  pApp->tex_thumb.request = data->request;
+  pApp->tex_thumb.iWorker = (build) ? SKIF_Thumbnail_Building : SKIF_Thumbnail_Loading;
+
+  if (build)
+    m_activeThumbBuilds++;
+  else
+    m_activeThumbLoads++;
+
+  HANDLE hWorkerThread = (HANDLE)
+  _beginthreadex (nullptr, 0x0, [](void* var) -> unsigned
+  {
+    thread_s* _data = static_cast <thread_s*> (var);
+
+    SKIF_Util_SetThreadDescription (GetCurrentThread (), (_data->build) ? L"SKIF_LibThumbnailBuilder"
+                                                                         : L"SKIF_LibThumbnailWorker");
+
+    CoInitializeEx (nullptr, 0x0); // WIC: decoding, and saving the thumbnail cache
+
+    SKIF_LibraryArtwork& self = SKIF_LibraryArtwork::Get ( );
+
+    worker_result_s result;
+    result.type       = LibraryTexture::Thumbnail;
+    result.game       = _data->game;
+    result.queuePos   = _data->request;
+    result.generation = _data->generation;
+    result.build      = _data->build;
+
+    const std::wstring& cachePath = _data->thumb.cachePath;
+
+    // From the cache, if it is current; otherwise the main thread schedules a build (once the tile is drawn again)
+    if (! _data->build)
+    {
+      result.noCache = (cachePath.empty ( )                       ||
+                        ! _IsThumbnailCacheCurrent    (cachePath) ||
+                        ! LoadLibraryThumbnailFromCache (cachePath, result.texture));
+    }
+
+    // The cover pipeline (may download the cover), scaled down and saved to the cache (LoadLibraryTextureEx)
+    else
+    {
+      if (! cachePath.empty ( ))
+      {
+        std::error_code ec;
+        std::filesystem::create_directories (std::filesystem::path (cachePath).parent_path ( ), ec);
+        std::filesystem::remove             (cachePath, ec); // A build replaces it
+        _DeleteOtherThumbnails (cachePath);
+      }
+
+      _LoadCover (_data->app.get ( ), _data->queryPCGW, result.texture, &_data->thumb);
+    }
+
+    // The record goes back with the result, so it is released on the main thread
+    result.record = std::move (_data->app);
+
+    delete _data;
+
+    self.m_results.push (result);
+    result.record.reset ( );
+
+    // Force a frame, so the result is applied
+    PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
+
+    return 0;
+  }, data, 0x0, nullptr);
+
+  if (hWorkerThread != NULL)
+    m_threads.push_back ({ LibraryTexture::Thumbnail, pApp->GetKey ( ), hWorkerThread, pApp->tex_thumb.request }); // Closed once its result is applied
+
+  else
+  {
+    PLOG_ERROR << "Failed to start a thumbnail worker thread!";
+
+    delete data;
+
+    pApp->tex_thumb.iWorker = SKIF_Thumbnail_Done; // Shown without a cover
+
+    if (build)
+      m_activeThumbBuilds--;
+    else
+      m_activeThumbLoads--;
+  }
+}
+
+void
+SKIF_LibraryArtwork::ReleaseThumbnail (app_record_s* pApp)
+{
+  auto& thumb = pApp->tex_thumb;
+
+  if (thumb.texture.p != nullptr)
+  {
+    SKIF_ResourcesToFree.push (thumb.texture.p);
+    thumb.texture.p = nullptr;
+
+    if (m_thumbsLoaded > 0)
+      m_thumbsLoaded--;
+  }
+
+  // A load in flight is dropped when it comes back (another request, or none)
+  thumb.iWorker  = SKIF_Thumbnail_None;
+  thumb.request  = 0;
+  thumb.loadedAt = 0;
+}
+
+void
+SKIF_LibraryArtwork::ReleaseThumbnails (void)
+{
+  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
+
+  for (auto& app : _games.GetApps ( ))
+    if (app.second != nullptr)
+      ReleaseThumbnail (app.second.get ( ));
+
+  m_thumbsLoaded = 0;
+}
+
+void
+SKIF_LibraryArtwork::InvalidateThumbnail (app_record_s* pApp)
+{
+  ReleaseThumbnail (pApp);
+
+  // Deleted here, so a load started before the cover changed can't pick it up again
+  std::wstring cachePath = GetThumbnailCachePath (pApp);
+
+  if (! cachePath.empty ( ))
+    _DeleteOtherThumbnails (cachePath + L"-"); // Every cache file of the game (no file has this name)
+}
+
+void
+SKIF_LibraryArtwork::UpdateThumbnails (bool gridShown)
+{
+  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
+
+  constexpr DWORD unloadAfter = 5000; // ms out of view
+  constexpr int   budget      = 300;  // Thumbnails kept loaded at most (about 70 MB at 200x300)
+
+  // Not shown: unload all of them (once)
+  if (! gridShown)
+  {
+    if (m_thumbsLoaded > 0)
+      ReleaseThumbnails ( );
+
+    return;
+  }
+
+  DWORD now = SKIF_Util_timeGetTime ( );
+
+  // Once a second is enough
+  if (now - m_thumbsChecked < 1000)
+    return;
+
+  m_thumbsChecked = now;
+
+  std::vector <app_record_s*> loaded;
+
+  for (auto& app : _games.GetApps ( ))
+  {
+    if (app.second == nullptr || app.second->tex_thumb.texture.p == nullptr)
+      continue;
+
+    if (now - app.second->tex_thumb.lastUsed > unloadAfter)
+      ReleaseThumbnail (app.second.get ( ));
+    else
+      loaded.push_back (app.second.get ( ));
+  }
+
+  // Counted anew (a library refresh frees the thumbnails of the games it removes)
+  m_thumbsLoaded = static_cast <int> (loaded.size ( ));
+
+  // Over the budget: the ones drawn the longest ago go first
+  if (static_cast <int> (loaded.size ( )) > budget)
+  {
+    std::sort (loaded.begin ( ), loaded.end ( ), [](const app_record_s* a, const app_record_s* b) { return a->tex_thumb.lastUsed < b->tex_thumb.lastUsed; });
+
+    for (size_t i = 0; i < loaded.size ( ) - budget; i++)
+      ReleaseThumbnail (loaded [i]);
   }
 }
 

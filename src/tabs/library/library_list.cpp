@@ -25,6 +25,149 @@
 // Last, as it defines short macros such as _ ( )
 #include <utility/l10n.h>
 
+// Category headers, shared by the games list and the grid view (only one of them is drawn per frame)
+static int  s_applyHeaderState = 0;     // Expand all / Collapse all: the frame it was chosen in
+static bool s_newHeaderState   = false; // ... and what was chosen
+static bool s_categoryMenuOpen = false; // A category's menu was open this frame
+
+void
+BeginCategoryHeaders (void)
+{
+  s_newHeaderState   = false;
+  s_categoryMenuOpen = false;
+}
+
+// The header of a category, with its menu (Rename, Remove, Expand all, ...). Returns whether the category is expanded.
+//   categories: how many headers were drawn before this one (popup IDs)
+bool
+DrawCategoryHeader (const std::string& tmpCategory, int categories, bool showClearBtn)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static library_selection_s&   selection   = GetLibraryTab ( ).selection;
+
+  bool category_opened = false;
+
+  auto it = std::find_if(_registry.vecCategories.begin(), _registry.vecCategories.end(), [&](const SKIF_RegistrySettings::category_s& category) { return category.name == tmpCategory; });
+
+  // Always expand a category if a filter is active or the selected game was changed
+  if ((sort_changed && selection.category == tmpCategory) || (it != _registry.vecCategories.end() && it->expanded))
+    ImGui::SetNextItemOpen (true);
+
+  if (search_selection.category == tmpCategory)
+    ImGui::SetNextItemOpen (true);
+
+  if (s_applyHeaderState > 0 && ImGui::GetFrameCount ( ) > s_applyHeaderState && it != _registry.vecCategories.end())
+    ImGui::SetNextItemOpen (it->expanded);
+
+  if (! _registry._StyleLightMode)
+  {
+    ImGui::PushStyleColor (ImGuiCol_Header, ImGui::GetStyleColorVec4 (ImGuiCol_Header) * ImVec4 (0.7f, 0.7f, 0.7f, 1.0f));
+    ImGui::PushStyleColor (ImGuiCol_Text,   ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
+  }
+
+  // The built-in categories are kept in English (the registry, comparisons), and translated where shown; the names of
+  //   the categories of the user are shown as is
+  const char* szCategoryHeader =
+    (tmpCategory == "Favorites") ? CL_("category", "Favorites") :
+    (tmpCategory == "Games")     ? CL_("category", "Games")     :
+                                   tmpCategory.c_str ( );
+
+  category_opened = ImGui::CollapsingHeader (szCategoryHeader, (showClearBtn) ? ImGuiTreeNodeFlags_DefaultOpen : 0); // ImGuiTreeNodeFlags_DefaultOpen
+
+  if (it != _registry.vecCategories.end())
+    it->expanded = category_opened;
+
+  if (! _registry._StyleLightMode)
+    ImGui::PopStyleColor  (2);
+
+  if (CategoryMenu == PopupState_Closed              &&
+      ImGui::IsItemHovered ( )                       &&
+      ImGui::IsMouseClicked (ImGuiMouseButton_Right) &&
+    ! SKIF_ImGui_IsAnyPopupOpen ( ))
+    CategoryMenu = PopupState_Open;
+
+  if (CategoryMenu == PopupState_Open)
+    ImGui::OpenPopup (SKIF_Util_FormatStringRaw ("###Popup-%i", categories));
+
+  if (ImGui::BeginPopup (SKIF_Util_FormatStringRaw ("###Popup-%i", categories), ImGuiWindowFlags_NoMove))
+  {
+    CategoryMenu = PopupState_Opened;
+    s_categoryMenuOpen = true;
+
+    ImGui::PushStyleColor  (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
+
+    if (tmpCategory != "Games" && tmpCategory != "Favorites")
+    {
+      if (ImGui::Selectable ((std::string (_("Rename")) + SKIF_Util_FormatStringRaw ("###PopupRename-%i", categories)).c_str ( )))
+      {
+        static_category.Name   = tmpCategory;
+        static_category.change = true;
+        static_category.rename = true;
+        ImGui::CloseCurrentPopup ( );
+      }
+
+      if (ImGui::Selectable ((std::string (_("Remove")) + SKIF_Util_FormatStringRaw ("###PopupRemove-%i", categories)).c_str ( )))
+      {
+        static_category.Name   = tmpCategory;
+        static_category.change = true;
+        static_category.remove = true;
+
+        ImGui::CloseCurrentPopup ( );
+      }
+
+      ImGui::Separator ( );
+    }
+
+    if (ImGui::Selectable ((std::string (_("Expand all")) + SKIF_Util_FormatStringRaw ("###PopupExpand-%i", categories)).c_str ( )))
+    {
+      s_applyHeaderState = ImGui::GetFrameCount ( );
+      s_newHeaderState = true;
+
+      ImGui::CloseCurrentPopup ( );
+    }
+
+    if (ImGui::Selectable ((std::string (_("Collapse all")) + SKIF_Util_FormatStringRaw ("###PopupCollapse-%i", categories)).c_str ( )))
+    {
+      s_applyHeaderState = ImGui::GetFrameCount ( );
+      s_newHeaderState = false;
+
+      ImGui::CloseCurrentPopup ( );
+    }
+
+    if (ImGui::MenuItem (L_("Remember collapsible state###PopupRememberState"), "", &_registry.bRememberCategoryState))
+      _registry.regKVRememberCategoryState.putData (_registry.bRememberCategoryState);
+
+    ImGui::PopStyleColor ( );
+
+    ImGui::EndPopup ( );
+  }
+
+  return category_opened;
+}
+
+void
+EndCategoryHeaders (void)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  if (s_applyHeaderState > 0)
+  {
+    if (ImGui::GetFrameCount() == s_applyHeaderState)
+    {
+      for (auto& category : _registry.vecCategories)
+        category.expanded = s_newHeaderState;
+    }
+
+    else
+    {
+      s_applyHeaderState = 0;
+    }
+  }
+
+  if (! s_categoryMenuOpen)
+    CategoryMenu = PopupState_Closed;
+}
+
 // The games list: categories, entries, selection, icon workers (moved from SKIF_UI_Tab_DrawLibrary; rows clipped since 2026-10-31)
 void
 DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop3, ImVec2& fTop3ScreenPos)
@@ -137,12 +280,10 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
   int         pinned_top       = 0;
   bool        resetNumOnTop    = true;
 
-  static int  apply_header_state = 0;
-  bool        new_header_state   = false;
 
   float maxWidth    = (SKIF_ImGui_GetContentRegionMax ( ).x - _ICON_HEIGHT - ImGui::GetStyle().ItemSpacing.x);
 
-  bool categoryMenuOpened = false;
+  BeginCategoryHeaders ( );
 
   // Rows are drawn through ImGuiListClipper, one section at a time: the pinned games on top, and then each expanded
   //   category. The rows of a section are collected while walking the library, and drawn once the section ends (before
@@ -436,100 +577,7 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
         // The previous category is done
         _DrawSectionRows ( );
 
-        auto it = std::find_if(_registry.vecCategories.begin(), _registry.vecCategories.end(), [&](const SKIF_RegistrySettings::category_s& category) { return category.name == tmpCategory; });
-
-        // Always expand a category if a filter is active or the selected game was changed
-        if ((sort_changed && selection.category == tmpCategory) || (it != _registry.vecCategories.end() && it->expanded))
-          ImGui::SetNextItemOpen (true);
-
-        if (search_selection.category == tmpCategory)
-          ImGui::SetNextItemOpen (true);
-
-        if (apply_header_state > 0 && ImGui::GetFrameCount ( ) > apply_header_state && it != _registry.vecCategories.end())
-          ImGui::SetNextItemOpen (it->expanded);
-
-        if (! _registry._StyleLightMode)
-        {
-          ImGui::PushStyleColor (ImGuiCol_Header, ImGui::GetStyleColorVec4 (ImGuiCol_Header) * ImVec4 (0.7f, 0.7f, 0.7f, 1.0f));
-          ImGui::PushStyleColor (ImGuiCol_Text,   ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
-        }
-
-        // The built-in categories are kept in English (the registry, comparisons), and translated where shown; the names of
-        //   the categories of the user are shown as is
-        const char* szCategoryHeader =
-          (tmpCategory == "Favorites") ? CL_("category", "Favorites") :
-          (tmpCategory == "Games")     ? CL_("category", "Games")     :
-                                         tmpCategory.c_str ( );
-
-        category_opened = ImGui::CollapsingHeader (szCategoryHeader, (showClearBtn) ? ImGuiTreeNodeFlags_DefaultOpen : 0); // ImGuiTreeNodeFlags_DefaultOpen
-
-        if (it != _registry.vecCategories.end())
-          it->expanded = category_opened;
-
-        if (! _registry._StyleLightMode)
-          ImGui::PopStyleColor  (2);
-
-        if (CategoryMenu == PopupState_Closed              &&
-            ImGui::IsItemHovered ( )                       &&
-            ImGui::IsMouseClicked (ImGuiMouseButton_Right) &&
-          ! SKIF_ImGui_IsAnyPopupOpen ( ))
-          CategoryMenu = PopupState_Open;
-
-        if (CategoryMenu == PopupState_Open)
-          ImGui::OpenPopup (SKIF_Util_FormatStringRaw ("###Popup-%i", categories));
-
-        if (ImGui::BeginPopup (SKIF_Util_FormatStringRaw ("###Popup-%i", categories), ImGuiWindowFlags_NoMove))
-        {
-          CategoryMenu = PopupState_Opened;
-          categoryMenuOpened = true;
-
-          ImGui::PushStyleColor  (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
-
-          if (tmpCategory != "Games" && tmpCategory != "Favorites")
-          {
-            if (ImGui::Selectable ((std::string (_("Rename")) + SKIF_Util_FormatStringRaw ("###PopupRename-%i", categories)).c_str ( )))
-            {
-              static_category.Name   = tmpCategory;
-              static_category.change = true;
-              static_category.rename = true;
-              ImGui::CloseCurrentPopup ( );
-            }
-
-            if (ImGui::Selectable ((std::string (_("Remove")) + SKIF_Util_FormatStringRaw ("###PopupRemove-%i", categories)).c_str ( )))
-            {
-              static_category.Name   = tmpCategory;
-              static_category.change = true;
-              static_category.remove = true;
-
-              ImGui::CloseCurrentPopup ( );
-            }
-
-            ImGui::Separator ( );
-          }
-
-          if (ImGui::Selectable ((std::string (_("Expand all")) + SKIF_Util_FormatStringRaw ("###PopupExpand-%i", categories)).c_str ( )))
-          {
-            apply_header_state = ImGui::GetFrameCount ( );
-            new_header_state = true;
-
-            ImGui::CloseCurrentPopup ( );
-          }
-
-          if (ImGui::Selectable ((std::string (_("Collapse all")) + SKIF_Util_FormatStringRaw ("###PopupCollapse-%i", categories)).c_str ( )))
-          {
-            apply_header_state = ImGui::GetFrameCount ( );
-            new_header_state = false;
-
-            ImGui::CloseCurrentPopup ( );
-          }
-
-          if (ImGui::MenuItem (L_("Remember collapsible state###PopupRememberState"), "", &_registry.bRememberCategoryState))
-            _registry.regKVRememberCategoryState.putData (_registry.bRememberCategoryState);
-
-          ImGui::PopStyleColor ( );
-
-          ImGui::EndPopup ( );
-        }
+        category_opened = DrawCategoryHeader (tmpCategory, categories, showClearBtn);
 
         current_category = tmpCategory;
         categories++;
@@ -548,25 +596,10 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
   // The last section
   _DrawSectionRows ( );
 
-  if (apply_header_state > 0)
-  {
-    if (ImGui::GetFrameCount() == apply_header_state)
-    {
-      for (auto& category : _registry.vecCategories)
-        category.expanded = new_header_state;
-    }
-
-    else
-    {
-      apply_header_state = 0;
-    }
-  }
+  EndCategoryHeaders ( );
 
   if (resetNumOnTop)
     numPinnedOnTop = 0;
-
-  if (! categoryMenuOpened)
-    CategoryMenu = PopupState_Closed;
 
   // Stop populating the list
 

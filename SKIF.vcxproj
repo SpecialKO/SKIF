@@ -504,6 +504,7 @@
     <ClCompile Include="src\tabs\library\library_cover.cpp" />
     <ClCompile Include="src\tabs\library\library_details.cpp" />
     <ClCompile Include="src\tabs\library\library_launch.cpp" />
+    <ClCompile Include="src\tabs\library\library_grid.cpp" />
     <ClCompile Include="src\tabs\library\library_list.cpp" />
     <ClCompile Include="src\tabs\library\library_menus.cpp" />
     <ClCompile Include="src\tabs\library\library_popups.cpp" />

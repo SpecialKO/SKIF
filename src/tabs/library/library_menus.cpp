@@ -1406,6 +1406,114 @@ DrawSpecialKContextMenu (app_record_s* pApp)
 
 #pragma endregion
 
+// Change / Reset (Clear, Refresh) of a game's cover: the cover menu, and the game menu of the grid view.
+//   isCustom / isManaged: whether its cover is the user's own, or one SKIF manages (both enable Reset)
+void
+DrawCoverMenuChangeReset (app_record_s* pApp, bool isCustom, bool isManaged)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_LibraryArtwork&   _art        = SKIF_LibraryArtwork  ::Get ( );
+
+  static bool&                update       = GetLibraryTab ( ).update;
+
+  // Preparations
+
+  bool resetVisible = (pApp->HasStoreCover ( )   || // Not for Special K or custom games, unless they have custom / managed covers
+                       isCustom ||
+                       isManaged);
+
+  if (SKIF_ImGui_MenuItemEx2 (L_("Change"), ICON_FA_FILE_IMAGE, (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255)))
+  {
+    LPWSTR pwszFilePath = NULL;
+    HRESULT hr          =
+      SKIF_Util_FileExplorer_BrowseForFile (&pwszFilePath, SKIF_ImGui_hWnd, { { W_("Images"), L"*.png;*.jpg;*.jpeg;*.webp;*.psd;*.bmp" } }, FOS_FILEMUSTEXIST, FOLDERID_Pictures);
+
+    if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED))
+    {
+      // If cancelled, do nothing
+    }
+
+    else if (SUCCEEDED(hr))
+    {
+      std::wstring filePath = std::wstring(pwszFilePath);
+      if (SaveGameCover (pApp, filePath))
+      {
+        // Shows the "..." loading dots, and sets up the current cover to be released
+        _art.BeginSavingCover (pApp);
+      }
+    }
+  }
+
+  else
+    SKIF_ImGui_SetMouseCursorHand ( );
+
+  if (resetVisible)
+  {
+    constexpr char* textCustom1 = NL_("Clear");
+    constexpr char* textCustom2 = NL_("Reset");
+    constexpr char* textDefault = NL_("Refresh");
+    char*           textPtr     = textDefault;
+    constexpr char* iconCustom  = ICON_FA_ROTATE_LEFT;
+    constexpr char* iconDefault = ICON_FA_ROTATE;
+    char*           iconPtr     = iconDefault;
+    ImColor         iconColor   = (_registry._StyleLightMode) ? ImColor (128, 128, 128) : ImColor (128, 128, 128); // If neither custom nor managed (aka disabled)
+
+    if (isCustom)
+    {
+      iconColor = (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255);
+      iconPtr   = iconCustom;
+      textPtr   = ((pApp->IsUserAdded ( )) ? textCustom1 : textCustom2);
+    }
+
+    else if (isManaged)
+    {
+      iconColor = (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255);
+    }
+
+    bool enabled = (isCustom || isManaged);
+    bool doReset = SKIF_ImGui_MenuItemEx2 (TL_(textPtr), iconPtr, iconColor, 0, nullptr, enabled);
+
+    if (! enabled)
+      SKIF_ImGui_SetHoverTip (_("Managed by the platform client."), false, true);
+
+    else
+      SKIF_ImGui_SetMouseCursorHand ( );
+
+    if (doReset)
+    {
+      std::wstring targetPath = L"";
+
+      targetPath = pApp->GetAssetDirectory ( );
+
+      if (PathFileExists (targetPath.c_str()))
+      {
+        std::wstring fileName = (isCustom) ? L"cover" : L"cover-original";
+
+        // Will fail on read-only marked files
+        bool d1 = DeleteFile ((targetPath + fileName + L".png").c_str()),
+             d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
+             d3 = false;
+
+        // Store-managed fallback covers (PCGamingWiki covers for GOG and Steam, Xbox fallback cover)
+        if (! isCustom)
+          d3 = pApp->DeleteStoreCoverFiles (targetPath);
+
+        // The preferred IGDB cover (Settings), downloaded again on the reload
+        bool d4 = (! isCustom && DeleteFile ((targetPath + L"cover-igdb.jpg").c_str()));
+
+        // If any file was removed
+        if (d1 || d2 || d3 || d4)
+        {
+          update    = true;
+          _art.ForgetCover ( ); // Needed as otherwise SKIF would not reload the cover
+          _art.InvalidateThumbnail (pApp); // The grid view's thumbnail
+        }
+      }
+    }
+  }
+
+}
+
 // Context menu for the selected game's cover (moved verbatim from SKIF_UI_Tab_DrawLibrary)
 void
 DrawCoverMenu (void)
@@ -1434,100 +1542,7 @@ DrawCoverMenu (void)
     {
       ImGui::PushStyleColor (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
 
-      // Preparations
-
-      bool resetVisible = (pApp->HasStoreCover ( )   || // Not for Special K or custom games, unless they have custom / managed covers
-                           pApp->tex_cover.isCustom ||
-                           pApp->tex_cover.isManaged);
-
-      if (SKIF_ImGui_MenuItemEx2 (L_("Change"), ICON_FA_FILE_IMAGE, (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255)))
-      {
-        LPWSTR pwszFilePath = NULL;
-        HRESULT hr          =
-          SKIF_Util_FileExplorer_BrowseForFile (&pwszFilePath, SKIF_ImGui_hWnd, { { W_("Images"), L"*.png;*.jpg;*.jpeg;*.webp;*.psd;*.bmp" } }, FOS_FILEMUSTEXIST, FOLDERID_Pictures);
-
-        if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED))
-        {
-          // If cancelled, do nothing
-        }
-
-        else if (SUCCEEDED(hr))
-        {
-          std::wstring filePath = std::wstring(pwszFilePath);
-          if (SaveGameCover (pApp, filePath))
-          {
-            // Shows the "..." loading dots, and sets up the current cover to be released
-            _art.BeginSavingCover (pApp);
-          }
-        }
-      }
-
-      else
-        SKIF_ImGui_SetMouseCursorHand ( );
-
-      if (resetVisible)
-      {
-        constexpr char* textCustom1 = NL_("Clear");
-        constexpr char* textCustom2 = NL_("Reset");
-        constexpr char* textDefault = NL_("Refresh");
-        char*           textPtr     = textDefault;
-        constexpr char* iconCustom  = ICON_FA_ROTATE_LEFT;
-        constexpr char* iconDefault = ICON_FA_ROTATE;
-        char*           iconPtr     = iconDefault;
-        ImColor         iconColor   = (_registry._StyleLightMode) ? ImColor (128, 128, 128) : ImColor (128, 128, 128); // If neither custom nor managed (aka disabled)
-
-        if (pApp->tex_cover.isCustom)
-        {
-          iconColor = (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255);
-          iconPtr   = iconCustom;
-          textPtr   = ((pApp->IsUserAdded ( )) ? textCustom1 : textCustom2);
-        }
-
-        else if (pApp->tex_cover.isManaged)
-        {
-          iconColor = (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255);
-        }
-
-        bool enabled = (pApp->tex_cover.isCustom || pApp->tex_cover.isManaged);
-        bool doReset = SKIF_ImGui_MenuItemEx2 (TL_(textPtr), iconPtr, iconColor, 0, nullptr, enabled);
-
-        if (! enabled)
-          SKIF_ImGui_SetHoverTip (_("Managed by the platform client."), false, true);
-
-        else
-          SKIF_ImGui_SetMouseCursorHand ( );
-
-        if (doReset)
-        {
-          std::wstring targetPath = L"";
-
-          targetPath = pApp->GetAssetDirectory ( );
-
-          if (PathFileExists (targetPath.c_str()))
-          {
-            std::wstring fileName = (pApp->tex_cover.isCustom) ? L"cover" : L"cover-original";
-
-            // Will fail on read-only marked files
-            bool d1 = DeleteFile ((targetPath + fileName + L".png").c_str()),
-                 d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
-                 d3 = false;
-
-            // Store-managed fallback covers (PCGamingWiki covers for GOG and Steam, Xbox fallback cover)
-            if (! pApp->tex_cover.isCustom)
-              d3 = pApp->DeleteStoreCoverFiles (targetPath);
-
-            // The preferred IGDB cover (Settings), downloaded again on the reload
-            bool d4 = (! pApp->tex_cover.isCustom && DeleteFile ((targetPath + L"cover-igdb.jpg").c_str()));
-
-            // If any file was removed
-            if (d1 || d2 || d3 || d4)
-            {
-              update    = true;
-              _art.ForgetCover ( ); // Needed as otherwise SKIF would not reload the cover
-            }
-          }
-        }
-      }
+      DrawCoverMenuChangeReset (pApp, pApp->tex_cover.isCustom, pApp->tex_cover.isManaged);
 
       ImGui::Separator ( );
 
@@ -1975,7 +1990,7 @@ DrawEmptySpaceMenu (bool showClearBtn)
 
     ImGui::Separator      ( );
 
-    ShowLargeIconToggle   ( );
+    ShowLibraryViewToggles ( );
 
     if (SKIF_ImGui_MenuItemEx2 (L_("Refresh"), ICON_FA_ROTATE_RIGHT, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)))
       RepopulateGames = true;

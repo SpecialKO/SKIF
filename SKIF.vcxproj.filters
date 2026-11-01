@@ -356,6 +356,9 @@
     <ClCompile Include="src\tabs\library\library_properties.cpp">
       <Filter>Source Files\UI Tabs</Filter>
     </ClCompile>
+    <ClCompile Include="src\tabs\library\library_grid.cpp">
+      <Filter>Source Files\UI Tabs</Filter>
+    </ClCompile>
     <ClCompile Include="src\tabs\library\library_list.cpp">
       <Filter>Source Files\UI Tabs</Filter>
     </ClCompile>

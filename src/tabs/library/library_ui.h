@@ -208,6 +208,8 @@ std::string GetEffectiveCategory (const app_record_s* app);
 bool SKIF_Lib_CategoryExists (const std::string& name);
 bool SKIF_Lib_AddCategory    (const std::string& name);  // Adds the category (sorted) and saves the list in the registry; false if empty or it already exists
 void ShowLargeIconToggle     (void);                 // Shared between the Icon menu and the Filter menu
+void ShowLibraryViewToggles  (void);                 // The Filter menu's view options: Grid view, then Show titles (grid) or Large icons (list)
+bool IsLibraryGridView       (void);                 // The grid view is shown: chosen (Library View), and in regular mode
 void ClearCharFilter         (void);
 
 // library/library_launch.cpp
@@ -215,6 +217,7 @@ void LaunchGame              (app_record_s* pApp);
 bool SaveGameCover           (app_record_s* pApp, std::wstring_view path); // Copies / downloads an image as the game's custom cover (background thread)
 
 // library/library_menus.cpp
+void DrawCoverMenuChangeReset (app_record_s* pApp, bool isCustom, bool isManaged); // Change / Reset of the cover (cover menu, grid view's game menu)
 void DrawGameConfigMenu      (app_record_s* pApp);
 void DrawGameContextMenu     (app_record_s* pApp);
 // The command line a launch config runs: the executable and its arguments, with the launch options set in the store
@@ -228,6 +231,12 @@ void DrawEmptySpaceMenu      (bool showClearBtn);
 
 // library/library_list.cpp
 void DrawGamesList           (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop3, ImVec2& fTop3ScreenPos);
+void BeginCategoryHeaders    (void);                 // Category headers (the list and the grid): before the first one of a frame,
+bool DrawCategoryHeader      (const std::string& category, int categories, bool showClearBtn); //   each one (returns whether it is expanded),
+void EndCategoryHeaders      (void);                 //   and after the last one (Expand all / Collapse all, the category menu)
+
+// library/library_grid.cpp
+void DrawGamesGrid           (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop3, ImVec2& fTop3ScreenPos); // Instead of DrawGamesList in the grid view
 
 // library/library_popups.cpp
 void DrawLibraryPopups       (void);
