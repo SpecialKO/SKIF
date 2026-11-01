@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-01 10:50+0100\n"
+"POT-Creation-Date: 2026-11-01 10:54+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1190,60 +1190,64 @@ msgstr ""
 msgid "Cover size: {0}"
 msgstr ""
 
-#: src/tabs/library.cpp:1534
+#: src/tabs/library.cpp:307
+msgid "Show icons"
+msgstr ""
+
+#: src/tabs/library.cpp:1544
 #: src/tabs/library/library_details.cpp:498
 msgid "Loading..."
 msgstr ""
 
-#: src/tabs/library.cpp:1546
+#: src/tabs/library.cpp:1556
 msgid "Cover"
 msgstr ""
 
-#: src/tabs/library.cpp:1559
+#: src/tabs/library.cpp:1569
 #: src/tabs/library/library_menus.cpp:1642
 #: src/tabs/library/library_menus.cpp:1800
 msgid "Open SteamGridDB"
 msgstr ""
 
-#: src/tabs/library.cpp:1723
+#: src/tabs/library.cpp:1733
 msgid "New 32-bit DLL Installed"
 msgstr ""
 
-#: src/tabs/library.cpp:1724
+#: src/tabs/library.cpp:1734
 msgid "New 64-bit DLL Installed"
 msgstr ""
 
-#: src/tabs/library.cpp:1843
-#: src/tabs/library.cpp:1951
+#: src/tabs/library.cpp:1853
+#: src/tabs/library.cpp:1961
 msgid "Missing Files"
 msgstr ""
 
-#: src/tabs/library.cpp:1844
-#: src/tabs/library.cpp:1952
+#: src/tabs/library.cpp:1854
+#: src/tabs/library.cpp:1962
 msgid "Unable to extract Special K DLL files from the provided {0} file."
 msgstr ""
 
-#: src/tabs/library.cpp:1990
+#: src/tabs/library.cpp:2000
 msgid "Unsupported Feature"
 msgstr ""
 
-#: src/tabs/library.cpp:1991
+#: src/tabs/library.cpp:2001
 msgid "SKIF cannot perform a drag-n-drop update because Special K {0} or newer is required."
 msgstr ""
 
-#: src/tabs/library.cpp:2006
+#: src/tabs/library.cpp:2016
 msgid "Unsupported file format"
 msgstr ""
 
-#: src/tabs/library.cpp:2008
+#: src/tabs/library.cpp:2018
 msgid "Add a game to the library:"
 msgstr ""
 
-#: src/tabs/library.cpp:2014
+#: src/tabs/library.cpp:2024
 msgid "Update the cover for the current selected game:"
 msgstr ""
 
-#: src/tabs/library.cpp:2025
+#: src/tabs/library.cpp:2035
 msgid "Note that the app has no support for animated images."
 msgstr ""
 
@@ -1390,7 +1394,7 @@ msgid "Unknown"
 msgstr ""
 
 #: src/tabs/library/library_grid.cpp:105
-#: src/tabs/library/library_list.cpp:286
+#: src/tabs/library/library_list.cpp:295
 msgid "Loading games..."
 msgstr ""
 

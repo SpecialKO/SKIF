@@ -267,6 +267,15 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
 //float _ICON_HEIGHT_SCALE = (_registry._TouchDevice ? 1.0f : (ImGui::GetTextLineHeightWithSpacing () / _ICON_HEIGHT_BASE));
 //float _ICON_HEIGHT       = std::min (1.0f, std::max (0.1f, _ICON_HEIGHT_SCALE)) * _ICON_HEIGHT_BASE;
   float _ICON_HEIGHT       = _ICON_HEIGHT_BASE * SKIF_ImGui_GlobalDPIScale;
+
+  // Without icons (Show icons), a row is the height of a frame, and the title takes the whole width
+  const bool showIcons     = _registry.bLibraryShowIcons;
+
+  if (! showIcons)
+    _ICON_HEIGHT           = ImGui::GetFrameHeight ( );
+
+  const float widthIcon    = (showIcons) ? _ICON_HEIGHT + ImGui::GetStyle().ItemSpacing.x : 0.0f;
+
   float _ICON_HEIGHT_OnTop = _ICON_HEIGHT + ImGui::GetStyle().ItemSpacing.y;
 
   ImGui::BeginChild          ( "###GameListOnTop",
@@ -293,7 +302,7 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
   bool        resetNumOnTop    = true;
 
 
-  float maxWidth    = (SKIF_ImGui_GetContentRegionMax ( ).x - _ICON_HEIGHT - ImGui::GetStyle().ItemSpacing.x);
+  float maxWidth    = (SKIF_ImGui_GetContentRegionMax ( ).x - widthIcon);
 
   BeginCategoryHeaders ( );
 
@@ -330,15 +339,18 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
     if (_registry.bFadeCovers)
       ImGui::PushStyleVar (ImGuiStyleVar_Alpha, fAlphaList);
 
-    SKIF_ImGui_OptImage    (rec->tex_icon.iWorker == 2 ? rec->tex_icon.texture.p : nullptr,
-                              ImVec2 ( _ICON_HEIGHT,
-                                       _ICON_HEIGHT )
-                            );
+    if (showIcons)
+    {
+      SKIF_ImGui_OptImage    (rec->tex_icon.iWorker == 2 ? rec->tex_icon.texture.p : nullptr,
+                                ImVec2 ( _ICON_HEIGHT,
+                                         _ICON_HEIGHT )
+                              );
 
-    change |=
-      _HandleItemSelection (rec, true);
+      change |=
+        _HandleItemSelection (rec, true);
 
-    ImGui::SameLine        ();
+      ImGui::SameLine        ();
+    }
 
     ImVec4 _color =
       ( rec->_status.updating != 0x0 )
@@ -499,7 +511,7 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
     // Stream the icon in once the game is visible in the list (up to 8 icon workers at once). Not until SKIF has
     //   started: the icons can't be created before the hardware device exists (created after the first present), and
     //   starting the workers would only delay the first present.
-    if (SKIF_StartupFinished && ImGui::IsItemVisible ( ) && rec->tex_icon.iWorker == 0 && _art.CanStartIconWorker ( ))
+    if (showIcons && SKIF_StartupFinished && ImGui::IsItemVisible ( ) && rec->tex_icon.iWorker == 0 && _art.CanStartIconWorker ( ))
       _art.StartIconWorker (rec);
   };
 
@@ -571,7 +583,7 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
                                      flags_cld,
                                      flags_wnd );
 
-      maxWidth    = (SKIF_ImGui_GetContentRegionMax ( ).x - _ICON_HEIGHT - ImGui::GetStyle().ItemSpacing.x);
+      maxWidth    = (SKIF_ImGui_GetContentRegionMax ( ).x - widthIcon);
 
       pinned_top = 0;
     }

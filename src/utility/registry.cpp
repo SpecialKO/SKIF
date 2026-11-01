@@ -329,6 +329,8 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
     bWin11Corners          =   regKVWin11Corners           .getData (&hKey);
   if (regKVUILargeIcons.hasData(&hKey))
     bUILargeIcons          =   regKVUILargeIcons           .getData (&hKey);
+  if (regKVLibraryShowIcons.hasData(&hKey))
+    bLibraryShowIcons      =   regKVLibraryShowIcons       .getData (&hKey);
   if (regKVLibraryView.hasData(&hKey))
     iLibraryView           =   regKVLibraryView            .getData (&hKey);
   if (regKVLibraryGridTitles.hasData(&hKey))

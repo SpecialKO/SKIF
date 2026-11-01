@@ -272,8 +272,8 @@ IsLibraryGridView (void)
   return (_registry.iLibraryView == 1);
 }
 
-// The view options of the Filter menu (the empty space menu): Grid view, Show titles (grid view), and Large icons (the
-//   list, shown in both views)
+// The view options of the Filter menu (the empty space menu): Grid view, Show titles and Cover size (grid view), then
+//   Show icons and Large icons (the list, shown in both views)
 void
 ShowLibraryViewToggles (void)
 {
@@ -304,7 +304,17 @@ ShowLibraryViewToggles (void)
   }
 
   // The list is shown in both views
+  if (SKIF_ImGui_MenuItemEx2 (L_("Show icons"), ICON_FA_ICONS, ImColor(255, 207, 72), spaces, &_registry.bLibraryShowIcons))
+    _registry.regKVLibraryShowIcons.putData (_registry.bLibraryShowIcons);
+
+  // Large icons only matter while the icons are shown
+  if (! _registry.bLibraryShowIcons)
+    SKIF_ImGui_PushDisableState ( );
+
   ShowLargeIconToggle ( );
+
+  if (! _registry.bLibraryShowIcons)
+    SKIF_ImGui_PopDisableState  ( );
 }
 
 

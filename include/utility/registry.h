@@ -271,6 +271,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(UI Large Icons)" );
 
+  KeyValue <bool> regKVLibraryShowIcons =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Library Show Icons)" );
+
   KeyValue <int> regKVLibraryView =
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Library View)" );
@@ -678,6 +682,7 @@ struct SKIF_RegistrySettings {
   bool bUIStatusBar             =  true;
   bool bUILargeIcons            = false; // 32x32 icons instead of 24x24
   bool bLibraryGridTitles       =  true; // Titles beneath the covers in the library's grid view
+  bool bLibraryShowIcons        =  true; // The game icons in the library's games list
   bool bDPIScaling              =  true;
   bool bWin11Corners            =  true; // 2023-08-28: Enabled by default
   bool bTouchInput              =  true; // Automatically make the UI more optimized for touch input on capable devices
