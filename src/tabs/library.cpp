@@ -269,11 +269,11 @@ IsLibraryGridView (void)
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
-  return (_registry.iLibraryView == 1 && ! _registry._LibHorizonMode);
+  return (_registry.iLibraryView == 1);
 }
 
-// The view options of the Filter menu (the empty space menu): Grid view (regular mode only), Show titles (grid view),
-//   and Large icons (the list, shown in both views)
+// The view options of the Filter menu (the empty space menu): Grid view, Show titles (grid view), and Large icons (the
+//   list, shown in both views)
 void
 ShowLibraryViewToggles (void)
 {
@@ -281,15 +281,10 @@ ShowLibraryViewToggles (void)
 
   bool gridView = IsLibraryGridView ( );
 
-  if (! _registry._LibHorizonMode)
+  if (SKIF_ImGui_MenuItemEx2 (L_("Grid view"), ICON_FA_TABLE_CELLS_LARGE, ImColor(255, 207, 72), spaces, &gridView))
   {
-    bool grid = (_registry.iLibraryView == 1);
-
-    if (SKIF_ImGui_MenuItemEx2 (L_("Grid view"), ICON_FA_TABLE_CELLS_LARGE, ImColor(255, 207, 72), spaces, &grid))
-    {
-      _registry.iLibraryView = (grid) ? 1 : 0;
-      _registry.regKVLibraryView.putData (_registry.iLibraryView);
-    }
+    _registry.iLibraryView = (gridView) ? 1 : 0;
+    _registry.regKVLibraryView.putData (_registry.iLibraryView);
   }
 
   if (gridView)
@@ -1196,8 +1191,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   bool          isCoverHovered     = false;
   ImVec2        vecPosCover        = ImVec2 (0, 0);
 
-  // The grid view (regular mode only): a grid of covers in place of the selected game's cover, with the same list and
-  //   details beside it (library/library_grid.cpp)
+  // The grid view: a grid of covers in place of the selected game's cover (regular and horizon mode), with the same list
+  //   and details beside it (library/library_grid.cpp)
   if (IsLibraryGridView ( ) && uiCoverVisible)
   {
     DrawGamesGrid (current_time, sizeCover, (charFilter[0] != '\0'));

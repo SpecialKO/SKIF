@@ -649,7 +649,7 @@ struct SKIF_RegistrySettings {
   int iAutoStopBehavior        =   1; //  0 = Never [not implemented],     1 = Stop on Injection,      2 = Stop on Game Exit
   int iLogging                 =   4; //  0 = None,                        1 = Fatal,                  2 = Error,                       3 = Warning,                        4 = Info,       5 = Debug,       6 = Verbose
   int iLibrarySort             =   0; //  0 = Name,                        1 = Uses (frequently),      2 = Last Used (recently)
-  int iLibraryView             =   0; //  0 = List,                        1 = Grid (regular mode only; horizon mode always shows its own layout)
+  int iLibraryView             =   0; //  0 = List,                        1 = Grid (the grid takes the cover's place)
   int iProcessSort             =   0; //  0 = Status,                      1 = PID,                    2 = Arch,                        3 = Admin,                          4 = Name
   int iProcessRefreshInterval  =   2; //  0 = Paused,                      1 = Slow (5s),              2 = Normal (1s),                [3 = High (0.5s; not implemented)]
   int iSDRMode                 =   2; //  0 = 8 bpc,                       1 = 10 bpc,                 2 = 16 bpc

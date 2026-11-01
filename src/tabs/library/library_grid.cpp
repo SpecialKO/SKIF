@@ -28,7 +28,7 @@
 // Last, as it defines short macros such as _ ( )
 #include <utility/l10n.h>
 
-// The grid view (regular mode only, IsLibraryGridView): the games as a grid of covers, by category like the games list.
+// The grid view (IsLibraryGridView): the games as a grid of covers, by category like the games list.
 //   It takes the place of the selected game's cover (size: the cover's area); the filter row, the games list and the
 //   details stay beside it, and the list stays in charge of type-to-search and of keeping the selection in view after a
 //   re-sort (it is drawn after the grid). The covers are thumbnails (SKIF_LibraryArtwork::RequestThumbnail), requested
@@ -85,7 +85,7 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
   ImGui::PushStyleColor      (ImGuiCol_ScrollbarBg, ImVec4(0,0,0,0));
 
   ImGui::BeginChild          ( "###GameGrid", ImFloor (size),
-                                  ImGuiChildFlags_AlwaysUseWindowPadding | ImGuiChildFlags_NavFlattened,
+                                  ImGuiChildFlags_AlwaysUseWindowPadding | ((! _registry._LibHorizonMode) ? ImGuiChildFlags_NavFlattened : ImGuiChildFlags_None), // As the list
                                   ImGuiWindowFlags_NoBackground ); // As the cover
 
   // As many columns as fit, with the spare width spread between them
