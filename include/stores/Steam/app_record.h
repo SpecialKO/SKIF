@@ -118,6 +118,7 @@ struct app_record_s {
     int             iWorker     = 0;     // 0 = worker not started, 1 = worker active, 2 = worker done (SKIF_LibraryArtwork tracks the threads); thumbnails: SKIF_ThumbnailState
     int             request     = 0;     // Thumbnails: the load in flight (results of an older one are dropped)
     DWORD           lastUsed    = 0;     // Thumbnails: when its tile was last drawn (unloaded when out of view for a while)
+    int             lastFrame   = 0;     // Thumbnails: the frame its tile was last drawn in (in view: the grid's last frame)
     DWORD           loadedAt    = 0;     // Thumbnails: when the texture arrived (fade-in)
     float           width       = 0.0f;  // Thumbnails: the texture's size (cropped to fill the tile where drawn)
     float           height      = 0.0f;

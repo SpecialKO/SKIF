@@ -413,6 +413,10 @@ LoadLibraryTextureEx (
            (libTexToLoad == LibraryTexture::Logo  && name == L"sk_boxart_small.png"))
     _ScaleLibraryImageToFill (meta, pImg, converted_img, 220.0f, 330.0f);
 
+  // A thumbnail no longer needed (its tile went out of view while it loaded): no texture
+  if (thumb != nullptr && thumb->wanted && ! thumb->wanted ( ))
+    return false;
+
   if (! _CreateLibraryTexture (meta, pImg, out))
     return false;
 
@@ -427,12 +431,16 @@ LoadLibraryTextureEx (
 
 // A thumbnail from the thumbnail cache (a PNG SKIF saved at the size it is shown at)
 bool
-LoadLibraryThumbnailFromCache (const std::wstring& path, library_texture_s& out)
+LoadLibraryThumbnailFromCache (const std::wstring& path, library_texture_s& out, const library_thumbnail_s* thumb)
 {
   DirectX::TexMetadata  meta = { };
   DirectX::ScratchImage img  = { };
 
   if (! FastTextureLoading (path, meta, img))
+    return false;
+
+  // No longer needed (see library_thumbnail_s::wanted)
+  if (thumb != nullptr && thumb->wanted && ! thumb->wanted ( ))
     return false;
 
   return _CreateLibraryTexture (meta, &img, out);

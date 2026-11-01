@@ -9,6 +9,7 @@
 #include <d3d11.h>
 #include <vector>
 #include <atomic>
+#include <functional>
 
 #include "Steam/app_record.h"
 #include <imgui/imgui.h>
@@ -46,6 +47,8 @@ struct library_thumbnail_s {
   float                              width      = 0.0f;
   float                              height     = 0.0f;
   std::wstring                       cachePath;
+  std::function <bool (void)>        wanted;    // If set: whether the texture is still needed (its tile in view); asked before the
+                                                //   texture is created, so one no longer needed is never created (the cache is still saved)
 };
 
 // Loads a cover / icon (pApp: from ResolveArtwork) or an embedded Special K texture into 'out'. Returns true if out.srv is set.
@@ -63,7 +66,7 @@ LoadLibraryTextureEx (
 
 // A thumbnail saved by LoadLibraryTextureEx (thumb->cachePath). Thread-safe like LoadLibraryTextureEx.
 bool
-LoadLibraryThumbnailFromCache (const std::wstring& path, library_texture_s& out);
+LoadLibraryThumbnailFromCache (const std::wstring& path, library_texture_s& out, const library_thumbnail_s* thumb = nullptr); // thumb: its wanted ( ) only
 
 // LoadLibraryTextureEx, applied directly: replaces pLibTexSRV (the old one is released after the frame) and pApp's
 //   custom / managed flags. Only for textures nothing else is using at the time (the library worker's Patreon / logo).

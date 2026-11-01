@@ -279,8 +279,15 @@ SKIF_LibraryArtwork::ApplyWorkerResults (void)
 
       auto& thumb = pApp->tex_thumb;
 
+      // Its tile went out of view while it loaded: not loaded, so it loads again once drawn again
+      if (result.dropped)
+      {
+        thumb.iWorker = SKIF_Thumbnail_None;
+        thumb.request = 0;
+      }
+
       // No usable cache: build it once the tile is drawn again (RequestThumbnail)
-      if (result.noCache)
+      else if (result.noCache)
         thumb.iWorker = SKIF_Thumbnail_NoCache;
 
       else
@@ -799,7 +806,8 @@ SKIF_LibraryArtwork::RequestThumbnail (app_record_s* pApp)
 
   auto& thumb = pApp->tex_thumb;
 
-  thumb.lastUsed = SKIF_Util_timeGetTime ( );
+  thumb.lastUsed  = SKIF_Util_timeGetTime ( );
+  std::atomic_ref <int> (thumb.lastFrame).store (ImGui::GetFrameCount ( ), std::memory_order_relaxed); // Read by its worker (wanted)
 
   // The one retry of a build that found no cover (see ApplyWorkerResults)
   if (thumb.iWorker == SKIF_Thumbnail_Done && thumb.texture.p == nullptr &&
@@ -842,6 +850,17 @@ SKIF_LibraryArtwork::StartThumbnailWorker (app_record_s* pApp, bool build)
   data->generation = m_generation.load ( );
   data->build      = build;
   data->thumb      = { m_thumbSize.x, m_thumbSize.y, GetThumbnailCachePath (pApp) };
+
+  // Still needed: its tile was drawn in the grid's latest frame (or the one being drawn). The worker's record is kept
+  //   alive by data->app; its lastFrame is written by the main thread (RequestThumbnail), hence atomic_ref.
+  if (app_record_s* rec = data->app.get ( ); rec != nullptr)
+  {
+    data->thumb.wanted = [rec](void) -> bool
+    {
+      return std::atomic_ref <int> (rec->tex_thumb.lastFrame).load (std::memory_order_relaxed) >=
+             SKIF_LibraryArtwork::Get ( ).m_gridFrame.load (std::memory_order_relaxed);
+    };
+  }
 
   // Not in the library (nothing to keep alive): show it without a cover
   if (data->app == nullptr)
@@ -895,15 +914,31 @@ SKIF_LibraryArtwork::StartThumbnailWorker (app_record_s* pApp, bool build)
 
     const std::wstring& cachePath = _data->thumb.cachePath;
 
+    // Whether its tile is still in view (drawn in the grid's latest frame). One that went out of view while this worker
+    //   waited or worked makes no texture: one finished while SKIF is asleep would otherwise stay in memory until SKIF
+    //     wakes up and applies it. It loads again once the tile is drawn again (the main thread sets it back to not loaded).
+    auto _Wanted = [&](void) -> bool { return (! _data->thumb.wanted || _data->thumb.wanted ( )); };
+
+    if (! _Wanted ( ))
+      result.dropped = true;
+
     // From the cache, if it is current; otherwise the main thread schedules a build (once the tile is drawn again)
-    if (! _data->build)
+    else if (! _data->build)
     {
-      result.noCache = (cachePath.empty ( )                       ||
-                        ! _IsThumbnailCacheCurrent    (cachePath) ||
-                        ! LoadLibraryThumbnailFromCache (cachePath, result.texture));
+      if (cachePath.empty ( ) || ! _IsThumbnailCacheCurrent (cachePath))
+        result.noCache = true;
+
+      else if (! LoadLibraryThumbnailFromCache (cachePath, result.texture, &_data->thumb))
+      {
+        if (_Wanted ( ))
+          result.noCache = true; // It doesn't decode: build it again
+        else
+          result.dropped = true;
+      }
     }
 
-    // The cover pipeline (may download the cover), scaled down and saved to the cache (LoadLibraryTextureEx)
+    // The cover pipeline (may download the cover), scaled down and saved to the cache (LoadLibraryTextureEx; the cache
+    //   is saved even if the texture is no longer wanted by then)
     else
     {
       if (! cachePath.empty ( ))
@@ -915,6 +950,16 @@ SKIF_LibraryArtwork::StartThumbnailWorker (app_record_s* pApp, bool build)
       }
 
       _LoadCover (_data->app.get ( ), _data->queryPCGW, result.texture, &_data->thumb);
+
+      if (result.texture.srv.p == nullptr && ! _Wanted ( ))
+        result.dropped = true;
+    }
+
+    // It went out of view just as the texture was made: release it here (it was never drawn)
+    if (result.texture.srv.p != nullptr && ! _Wanted ( ))
+    {
+      result.texture.srv.Release ( );
+      result.dropped = true;
     }
 
     // The record goes back with the result, so it is released on the main thread
@@ -995,55 +1040,133 @@ SKIF_LibraryArtwork::InvalidateThumbnail (app_record_s* pApp)
     _DeleteOtherThumbnails (cachePath + L"-"); // Every cache file of the game (no file has this name)
 }
 
-void
-SKIF_LibraryArtwork::UpdateThumbnails (bool gridShown)
+// Thumbnails out of view are unloaded once they have been for a while (s_thumbUnloadAfter). In view means drawn in the
+//   grid's last frame. SKIF stops rendering while nothing happens, so this can't rely on frames: while some loaded
+//     thumbnails are out of view, a timer (cIDT_TIMER_THUMBNAILS) runs this every second, also while SKIF is asleep.
+//       The tiles in view aren't drawn then either, which is why it goes by the grid's last frame rather than by how long
+//         ago a tile was drawn.
+static constexpr DWORD s_thumbUnloadAfter = 5000; // ms out of view
+static constexpr DWORD s_thumbTimerPeriod = 1000; // ms between the timer's checks
+static constexpr int   s_thumbBudget      = 300;  // Thumbnails kept loaded at most
+
+// SetTimer, asking Windows not to coalesce it: in efficiency mode (idle priority + EcoQoS) Windows otherwise delays the
+//   timers of SKIF by several seconds. SetCoalescableTimer is Windows 8+ (the headers target Windows 7), so it is looked up.
+static UINT_PTR
+_SetThumbnailTimer (HWND hWnd, UINT_PTR id, UINT elapse)
+{
+  using SetCoalescableTimer_pfn = UINT_PTR (WINAPI *)(HWND, UINT_PTR, UINT, TIMERPROC, ULONG);
+
+  static SetCoalescableTimer_pfn
+    _SetCoalescableTimer = reinterpret_cast <SetCoalescableTimer_pfn> (GetProcAddress (GetModuleHandleW (L"user32.dll"), "SetCoalescableTimer"));
+
+  constexpr ULONG NoCoalescing = 0xFFFFFFFE; // TIMERV_NO_COALESCING
+
+  if (_SetCoalescableTimer != nullptr)
+    return _SetCoalescableTimer (hWnd, id, elapse, NULL, NoCoalescing);
+
+  return SetTimer (hWnd, id, elapse, NULL);
+}
+
+int
+SKIF_LibraryArtwork::UnloadThumbnailsOutOfView (bool now_)
 {
   static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
 
-  constexpr DWORD unloadAfter = 5000; // ms out of view
-  constexpr int   budget      = 300;  // Thumbnails kept loaded at most (about 70 MB at 200x300)
+  const DWORD now      = SKIF_Util_timeGetTime ( );
+  int         unloaded = 0;
+  int         waiting  = 0; // Out of view, but not long enough yet
 
-  // Not shown: unload all of them (once)
-  if (! gridShown)
-  {
-    if (m_thumbsLoaded > 0)
-      ReleaseThumbnails ( );
-
-    return;
-  }
-
-  DWORD now = SKIF_Util_timeGetTime ( );
-
-  // Once a second is enough
-  if (now - m_thumbsChecked < 1000)
-    return;
-
-  m_thumbsChecked = now;
-
-  std::vector <app_record_s*> loaded;
+  static std::vector <app_record_s*> loaded; // Static to keep its memory between frames
+  loaded.clear ( );
 
   for (auto& app : _games.GetApps ( ))
   {
     if (app.second == nullptr || app.second->tex_thumb.texture.p == nullptr)
       continue;
 
-    if (now - app.second->tex_thumb.lastUsed > unloadAfter)
-      ReleaseThumbnail (app.second.get ( ));
-    else
-      loaded.push_back (app.second.get ( ));
+    auto& thumb = app.second->tex_thumb;
+
+    if (thumb.lastFrame != m_gridFrame.load ( )) // Out of view
+    {
+      if (now_ || now - thumb.lastUsed >= s_thumbUnloadAfter)
+      {
+        ReleaseThumbnail (app.second.get ( ));
+        unloaded++;
+        continue;
+      }
+
+      waiting++;
+    }
+
+    loaded.push_back (app.second.get ( ));
   }
 
   // Counted anew (a library refresh frees the thumbnails of the games it removes)
   m_thumbsLoaded = static_cast <int> (loaded.size ( ));
 
-  // Over the budget: the ones drawn the longest ago go first
-  if (static_cast <int> (loaded.size ( )) > budget)
+  // Over the budget: the ones drawn the longest ago go first (the ones in view were drawn last)
+  if (static_cast <int> (loaded.size ( )) > s_thumbBudget)
   {
     std::sort (loaded.begin ( ), loaded.end ( ), [](const app_record_s* a, const app_record_s* b) { return a->tex_thumb.lastUsed < b->tex_thumb.lastUsed; });
 
-    for (size_t i = 0; i < loaded.size ( ) - budget; i++)
+    for (size_t i = 0; i < loaded.size ( ) - s_thumbBudget; i++)
+    {
       ReleaseThumbnail (loaded [i]);
+      unloaded++;
+    }
+
+    m_thumbsLoaded = s_thumbBudget;
   }
+
+  if (unloaded > 0)
+    PLOG_VERBOSE << "Unloaded " << unloaded << " thumbnail(s) out of view; " << waiting << " more out of view, " << m_thumbsLoaded << " loaded.";
+
+  // The timer runs while some are out of view, and stops once none are
+  if (waiting > 0 && ! m_thumbTimer && SKIF_Notify_hWnd != NULL)
+    m_thumbTimer = (_SetThumbnailTimer (SKIF_Notify_hWnd, cIDT_TIMER_THUMBNAILS, s_thumbTimerPeriod) != 0);
+
+  else if (waiting == 0 && m_thumbTimer)
+  {
+    KillTimer (SKIF_Notify_hWnd, cIDT_TIMER_THUMBNAILS);
+    m_thumbTimer = false;
+  }
+
+  return unloaded;
+}
+
+// Once per frame of the library tab (after the grid)
+void
+SKIF_LibraryArtwork::UpdateThumbnails (bool gridShown)
+{
+  // Not shown: unload all of them (once)
+  if (! gridShown)
+  {
+    if (m_thumbsLoaded > 0)
+      ReleaseThumbnails ( );
+
+    if (m_thumbTimer)
+    {
+      KillTimer (SKIF_Notify_hWnd, cIDT_TIMER_THUMBNAILS);
+      m_thumbTimer = false;
+    }
+
+    return;
+  }
+
+  // The tiles in view were drawn in this frame
+  m_gridFrame.store (ImGui::GetFrameCount ( ));
+
+  // Every frame, so the timer runs for whatever went out of view before SKIF stops rendering (cheap: it only does
+  //   anything for the loaded thumbnails, at most the budget)
+  UnloadThumbnailsOutOfView ( );
+}
+
+// WM_TIMER cIDT_TIMER_THUMBNAILS (SKIF.cpp), every second while some are out of view: runs while SKIF is asleep too.
+//   Only what was unloaded needs frames (that is when the textures are released, SKIF_ResourcesToFree).
+bool
+SKIF_LibraryArtwork::OnThumbnailTimer (void)
+{
+  return (UnloadThumbnailsOutOfView ( ) > 0); // Stops the timer once none are out of view
 }
 
 #pragma endregion

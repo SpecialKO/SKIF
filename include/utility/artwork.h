@@ -81,12 +81,15 @@ public:
   void ReloadIcon             (app_record_s* pApp);  // Loads the icon again on this thread (icon changed or reset); waits for its icon worker first
 
   // Thumbnails (the grid view). Loaded from the thumbnail cache (<asset folder>cover-thumb-<size>-<sources>.png) by up to
-  //   6 workers; a game without a usable cache is built by up to 4 workers: the same cover pipeline as the cover worker
+  //   16 workers; a game without a usable cache is built by up to 16 workers: the same cover pipeline as the cover worker
   //   (which may download the cover), scaled down and saved to the cache. Only tiles that are drawn request one.
   void SetThumbnailSize       (ImVec2 size);         // The size thumbnails are made at (pixels); a change reloads them all
   ImVec2 GetThumbnailSize     (void) const { return m_thumbSize; }
   void RequestThumbnail       (app_record_s* pApp);  // Its tile is drawn: marks it as used, and starts a load or build when there is room
   void UpdateThumbnails       (bool gridShown);      // Once per frame: unloads thumbnails out of view for a while (all of them when the grid is not shown)
+  bool OnThumbnailTimer       (void);                // WM_TIMER cIDT_TIMER_THUMBNAILS (SKIF.cpp): unloads those due, also while SKIF is asleep; true if any was
+  int  UnloadThumbnailsOutOfView (bool now = false); // Unloads those out of view long enough (now: all of them, e.g. as SKIF goes idle), and
+                                                     //   runs the timer while others wait; returns how many it unloaded
   void InvalidateThumbnail    (app_record_s* pApp);  // Its cover changed (custom cover saved, cover reset): deletes its cache and loads it again
   void ReleaseThumbnails      (void);                // Unloads all of them (cover sources changed in Settings, size changed)
   bool IsThumbnailWorkActive  (void) const { return (m_activeThumbLoads + m_activeThumbBuilds) > 0; }
@@ -124,7 +127,8 @@ private:
   int                       m_activeThumbBuilds = 0;
   int                       m_thumbRequests     = 0;  // The last request ID handed out
   int                       m_thumbsLoaded      = 0;  // Thumbnails with a texture
-  DWORD                     m_thumbsChecked     = 0;  // When UpdateThumbnails last looked for ones to unload
+  std::atomic<int>          m_gridFrame         { 0 }; // The last frame the grid was drawn in (UpdateThumbnails); read by the workers
+  bool                      m_thumbTimer        = false; // cIDT_TIMER_THUMBNAILS is running (every second, while some are out of view)
 
   // Cover textures (written by the cover worker when its result is still current)
   CComPtr <ID3D11ShaderResourceView> m_pTexSRV;
@@ -161,6 +165,7 @@ private:
     int                     queuePos   = 0;  // Covers: the load's queue position; only the latest load is shown. Thumbnails: the request
     bool                    build      = false; // Thumbnails: made by a build (else loaded from the cache)
     bool                    noCache    = false; // Thumbnails: the cache was missing or outdated (a build is needed)
+    bool                    dropped    = false; // Thumbnails: its tile went out of view while it loaded, so it made no texture
     unsigned int            generation = 0;  // m_generation when the worker started
     library_texture_s       texture;
     std::shared_ptr <app_record_s>

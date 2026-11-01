@@ -517,6 +517,14 @@ SKIF_EfficiencyModeTimerProc (HWND hWnd, UINT Msg, UINT wParamIDEvent, DWORD dwT
     // Enable Efficiency Mode in Windows 11 (requires idle (low) priority + EcoQoS)
     SKIF_Util_SetProcessPowerThrottling (SKIF_Util_GetCurrentProcess(), 1);
     SetPriorityClass (SKIF_Util_GetCurrentProcess(), IDLE_PRIORITY_CLASS );
+
+    // SKIF is idle and in the background: unload the grid view's thumbnails out of view now, rather than once their time
+    //   is up (timers are slow in efficiency mode). Their textures are released after the next frames.
+    if (SKIF_LibraryArtwork::Get ( ).UnloadThumbnailsOutOfView (true) > 0)
+    {
+      msgDontRedraw        = false;
+      addAdditionalFrames += 3;
+    }
   }
 }
 
@@ -4236,6 +4244,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     // Release any leftover resources from last frame
     IUnknown* pResource = nullptr;
+    bool      released  = false;
     while (! SKIF_ResourcesToFree.empty ())
     {
       if (SKIF_ResourcesToFree.try_pop (pResource))
@@ -4243,10 +4252,38 @@ wWinMain ( _In_     HINSTANCE hInstance,
         CComPtr <IUnknown> ptr = pResource;
         PLOG_VERBOSE << "SKIF_ResourcesToFree: Releasing " << ptr.p;
         ptr.p->Release();
+        released = true;
       }
 
       if (invalidatedDevice == 2)
         invalidatedDevice = 0;
+    }
+
+    // D3D11 destroys released resources lazily: their memory is only reclaimed once the immediate context is flushed,
+    //   which is otherwise the next Present ( ). SKIF may go to sleep right after this (e.g. the grid view's thumbnails
+    //     unloaded as it goes idle), which would keep them in VRAM until it wakes up. So flush now.
+    if (released && SKIF_pd3dDeviceContext != nullptr)
+    {
+      SKIF_pd3dDeviceContext->Flush ( );
+
+      // Idle in the background (efficiency mode): also give back the memory the driver keeps for reuse, as Microsoft
+      //   recommends for apps going idle (IDXGIDevice3::Trim, Windows 8.1+; ClearState first, as documented). The next
+      //     frame sets up its render state again.
+      if (_registry._EfficiencyMode)
+      {
+        CComPtr   <ID3D11Device> pDevice;
+        SKIF_pd3dDeviceContext->GetDevice (&pDevice.p);
+
+        CComQIPtr <IDXGIDevice3> pDXGIDevice3 (pDevice);
+
+        if (pDXGIDevice3 != nullptr)
+        {
+          SKIF_pd3dDeviceContext->ClearState ( );
+          pDXGIDevice3->Trim ( );
+
+          PLOG_VERBOSE << "Trimmed the graphics memory of the device (efficiency mode)";
+        }
+      }
     }
 
     // If process should stop, post WM_QUIT
@@ -5502,6 +5539,14 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
           break;
         case  IDT_REFRESH_UPDATER:
           //OutputDebugString(L"IDT_REFRESH_UPDATER\n");
+          break;
+        // Unloads the grid view's thumbnails that went out of view. Frames only if any was (they release the textures)
+        case cIDT_TIMER_THUMBNAILS:
+          if (! SKIF_LibraryArtwork::Get ( ).OnThumbnailTimer ( ))
+          {
+            msgDontRedraw = true;
+            addAdditionalFrames -= 3; // Undo the 3 frames we added just above
+          }
           break;
       }
       break;
