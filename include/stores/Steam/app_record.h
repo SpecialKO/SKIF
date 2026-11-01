@@ -322,7 +322,6 @@ struct app_record_s {
     int          owns_dlc           = -1;    // Does the user own the required DLC ?
     int          blacklisted        = -1;
     int          elevated           = -1;
-    int          instant_play       =  0;    // lc.json / lc_user.json "InstantPlay": 0 = use the game's setting, 1 = always, 2 = never
   };
 
   // Where a launch config comes from: the store itself, lc.json (SKIF), or lc_user.json (the user)
@@ -509,10 +508,10 @@ struct app_record_s {
   virtual std::string  GetStoreLaunchOptions   (uint32_t steamAppID)       { UNREFERENCED_PARAMETER (steamAppID); return ""; } // Launch options set in the store client
   virtual std::wstring GetJumpListIconPath     (launch_config_s* config) const { return config->getExecutableFullPath ( ); }
 
-  // Instant Play preference: the launch config's own (lc.json / lc_user.json "InstantPlay"), else the game's (skif.instant_play), else the store's
-  //   global default. Both use 0 = not set, 1 = always, 2 = never.
-  int                  GetInstantPlay          (const launch_config_s* lc) const { return (lc != nullptr && lc->instant_play != 0) ? lc->instant_play : skif.instant_play; }
-  bool                 UsesInstantPlay         (bool globalDefault, const launch_config_s* lc = nullptr) const { const int v = GetInstantPlay (lc); return (v == 1 || (v == 0 && globalDefault)); }
+  // Instant Play preference, for the launch config the platform client can start (the primary one; all others always start directly):
+  //     the game's (skif.instant_play: 0 = not set, 1 = always, 2 = never), else the store's global default
+  int                  GetInstantPlay          (void) const { return skif.instant_play; }
+  bool                 UsesInstantPlay         (bool globalDefault) const { const int v = GetInstantPlay ( ); return (v == 1 || (v == 0 && globalDefault)); }
   virtual bool         GetInstantPlayDefault   (void) const               { return false; }  // The store's global Instant Play setting
 
   // Default launch config (app_record.cpp). launch_configs is rebuilt on selection for some stores (Steam), so these

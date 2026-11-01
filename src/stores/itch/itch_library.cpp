@@ -611,7 +611,7 @@ app_record_itch_s::PrefersInstantLaunch (bool viaPlatform, launch_config_s* conf
   if (config != nullptr && ! ClientCanLaunch (*config))
     return true;
 
-  return (! viaPlatform && UsesInstantPlay (GetInstantPlayDefault ( ), config));
+  return (! viaPlatform && UsesInstantPlay (GetInstantPlayDefault ( )));
 }
 
 // Launch itch game through the itch app (headless), unless an instant launch was requested

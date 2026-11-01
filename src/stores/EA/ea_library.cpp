@@ -935,7 +935,7 @@ app_record_ea_s::PrefersInstantLaunch (bool viaPlatform, launch_config_s* config
   if (config != nullptr && ! ClientCanLaunch (*config))
     return true;
 
-  return (! viaPlatform && UsesInstantPlay (GetInstantPlayDefault ( ), config));
+  return (! viaPlatform && UsesInstantPlay (GetInstantPlayDefault ( )));
 }
 
 // Launch EA game through the EA app, unless an instant launch was requested

@@ -1606,7 +1606,7 @@ app_record_ubisoft_s::PrefersInstantLaunch (bool viaPlatform, launch_config_s* c
   if (config != nullptr && ! ClientCanLaunch (*config))
     return true;
 
-  return (! viaPlatform && UsesInstantPlay (GetInstantPlayDefault ( ), config));
+  return (! viaPlatform && UsesInstantPlay (GetInstantPlayDefault ( )));
 }
 
 // Launch Ubisoft game through Ubisoft Connect, unless an instant launch was requested

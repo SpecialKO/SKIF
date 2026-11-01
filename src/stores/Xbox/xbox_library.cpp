@@ -699,7 +699,7 @@ app_record_xbox_s::PrefersInstantLaunch (bool viaPlatform, launch_config_s* conf
   if (config != nullptr && ! ClientCanLaunch (*config))
     return true;
 
-  return (! viaPlatform && UsesInstantPlay (GetInstantPlayDefault ( ), config));
+  return (! viaPlatform && UsesInstantPlay (GetInstantPlayDefault ( )));
 }
 
 // Launch Xbox game (through gamelaunchhelper.exe, or Instant Play)

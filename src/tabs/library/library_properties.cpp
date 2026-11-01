@@ -591,10 +591,8 @@ public:
     }
   }
 
-  // Whether the platform client can start the launch option Play uses (only the primary one), and that launch option's
-  //   own Instant Play value (lc.json "InstantPlay": 0 = the game's setting)
+  // Whether the platform client can start the launch option Play uses (only the primary one)
   bool PlayClientCanLaunch (void) const { const int row = _PlayRow ( ); return (row != -1 && rows [row].clientCanLaunch); }
-  int  PlayInstantPlay     (void) const { const int row = _PlayRow ( ); return (row != -1) ? rows [row].instantPlay : 0; }
 
   const char*    GetTitle (void) const override { return ""; }
   PropertiesPage GetPage  (void) const override { return PropertiesPage::Launch; }
@@ -637,7 +635,6 @@ public:
         row.fullExe         = SK_WideCharToUTF8 (lc.getExecutableFullPath ( ));
         row.args            = SK_WideCharToUTF8 (lc.getLaunchOptions      ( ));
         row.workDir         = SK_WideCharToUTF8 (lc.getWorkingDirectory   ( ));
-        row.instantPlay     = lc.instant_play;
         row.clientCanLaunch = app.ClientCanLaunch (lc);
         row.ref             = app.MakeLaunchRef   (lc);
 
@@ -1056,7 +1053,6 @@ private:
     std::string                fullExe;
     std::string                args;
     std::string                workDir;
-    int                        instantPlay     = 0;     // The launch config's own value (lc.json "InstantPlay")
     bool                       clientCanLaunch = false;
     std::string                duplicateBlocker;        // Why it can't be copied to lc_user.json (empty if it can)
     app_record_s::launch_ref_s ref;
@@ -1364,7 +1360,6 @@ private:
 
       row.user.exe          = _ToForwardSlashes (SK_WideCharToUTF8 (rel));
       row.user.args         = src.args;
-      row.user.instant_play = src.instantPlay;
 
       // A working directory outside of the install folder can't be stored, so the copy uses the executable's folder
       if (! _MakeUserDir (SK_UTF8ToWideChar (src.workDir), fullExe, row.user.dir))
@@ -1705,14 +1700,6 @@ PropertiesSection_LaunchBehavior::_DrawPlay (void)
     // TRANSLATORS: How the game is started, when the platform client can't start the launch option
     SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), _("Directly (Instant Play, required)"));
     SKIF_ImGui_SetHoverTip (_("The platform client can't start this launch option itself, so it always uses Instant Play."));
-    return;
-  }
-
-  // Set by Special K for the launch option (lc.json), which takes priority over the game's setting
-  if (const int own = launchOptions->PlayInstantPlay ( ); own != 0)
-  {
-    // TRANSLATORS: {0} is how the game is started ("Through Steam" or "Directly (Instant Play)")
-    SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), F_("{0} (set by Special K)", (own == 1) ? directLabel : platformLabel).c_str ( ));
     return;
   }
 

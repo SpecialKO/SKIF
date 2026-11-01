@@ -295,7 +295,7 @@ app_record_gog_s::PrefersInstantLaunch (bool viaPlatform, launch_config_s* confi
   if (config != nullptr && ! ClientCanLaunch (*config))
     return true;
 
-  return (! viaPlatform && UsesInstantPlay (GetInstantPlayDefault ( ), config));
+  return (! viaPlatform && UsesInstantPlay (GetInstantPlayDefault ( )));
 }
 
 // Launch GOG Galaxy game (default for GOG games since 2024-01-05), unless an instant launch was requested

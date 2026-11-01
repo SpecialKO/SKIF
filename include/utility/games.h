@@ -48,15 +48,14 @@ nlohmann::json             SKIF_Library_LaunchRefToJson   (const app_record_s::l
 app_record_s::launch_ref_s SKIF_Library_LaunchRefFromJson (const nlohmann::json& j); // Empty if missing or not valid
 
 // User launch configs: <SK user data>\Assets\lc_user.json, same format as lc.json:
-//   { "<store>": { "<GetPersistentKey ( )>": [ { "Desc": "", "Exe": "", "Dir": "", "Args": "", "InstantPlay": 0 }, ... ] } }
-//   Exe and Dir are relative to the install folder of the game; InstantPlay is optional (0 / missing = the game's setting).
+//   { "<store>": { "<GetPersistentKey ( )>": [ { "Desc": "", "Exe": "", "Dir": "", "Args": "" }, ... ] } }
+//   Exe and Dir are relative to the install folder of the game.
 //   The file is read when the library is populated (games.cpp); these read and write one game's entries for Properties.
 struct user_launch_config_s {
   std::string    desc, exe, dir, args;           // UTF-8, as stored (Exe with forward slashes)
-  int            instant_play = 0;               // "InstantPlay"; only written when not 0
   nlohmann::json extra        = nlohmann::json::object ( ); // Keys SKIF doesn't know, written back unchanged
 
-  bool operator== (const user_launch_config_s& o) const { return (desc == o.desc && exe == o.exe && dir == o.dir && args == o.args && instant_play == o.instant_play && extra == o.extra); }
+  bool operator== (const user_launch_config_s& o) const { return (desc == o.desc && exe == o.exe && dir == o.dir && args == o.args && extra == o.extra); }
   bool operator!= (const user_launch_config_s& o) const { return ! (*this == o); }
 };
 

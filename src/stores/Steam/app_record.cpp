@@ -1186,8 +1186,7 @@ app_record_s::HasSameLaunchConfigs (const std::map <int, launch_config_s>& a,
         lcA.branches                != lcB.branches                ||
         lcA.requires_dlc            != lcB.requires_dlc            ||
         lcA.custom_skif             != lcB.custom_skif             ||
-        lcA.custom_user             != lcB.custom_user             ||
-        lcA.instant_play            != lcB.instant_play)
+        lcA.custom_user             != lcB.custom_user)
       return false;
   }
 

@@ -1506,15 +1506,6 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
           if (! lc.working_dir.empty ( ) && PathIsRelativeW (lc.working_dir.c_str ( )))
             lc.working_dir            = record.install_dir + LR"(\)" + lc.working_dir;
 
-          // Optional keys
-          auto keyInstantPlay         = launch_config.find ("InstantPlay");
-
-          if (keyInstantPlay != launch_config.end ( ) && keyInstantPlay->is_number_integer ( ))
-            lc.instant_play           = keyInstantPlay->get <int> ( );
-
-          if (lc.instant_play < 0 || lc.instant_play > 2)
-            lc.instant_play           = 0;
-
           append_cfg.emplace (lc.id, lc);
         }
       }
@@ -2227,11 +2218,6 @@ SKIF_UserLaunchConfigs::ToJson (const user_launch_config_s& lc)
   entry ["Dir"]  = lc.dir;
   entry ["Args"] = lc.args;
 
-  if (lc.instant_play != 0)
-    entry ["InstantPlay"] = lc.instant_play;
-  else
-    entry.erase ("InstantPlay");
-
   return entry;
 }
 
@@ -2257,17 +2243,9 @@ SKIF_UserLaunchConfigs::FromJson (const nlohmann::json& entry, user_launch_confi
   out.dir  = _String ("Dir",  unused);
   out.args = _String ("Args", unused);
 
-  auto instantPlay = entry.find ("InstantPlay");
-
-  if (instantPlay != entry.end ( ) && instantPlay->is_number_integer ( ))
-    out.instant_play = instantPlay->get <int> ( );
-
-  if (out.instant_play < 0 || out.instant_play > 2)
-    out.instant_play = 0;
-
   out.extra = entry;
 
-  static const char* knownKeys [] = { "Desc", "Exe", "Dir", "Args", "InstantPlay" };
+  static const char* knownKeys [] = { "Desc", "Exe", "Dir", "Args" };
 
   for (const char* known : knownKeys)
     out.extra.erase (std::string (known));

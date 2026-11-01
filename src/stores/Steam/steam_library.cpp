@@ -1855,7 +1855,7 @@ app_record_steam_s::PrefersInstantLaunch (bool viaPlatform, launch_config_s* con
     return true;
 
   // Convert all except those where we are dealing with an invalid launch config (e.g. Link2EA)
-  return (! viaPlatform && UsesInstantPlay (GetInstantPlayDefault ( ), config) && config->isExecutableFullPathValid ( ));
+  return (! viaPlatform && UsesInstantPlay (GetInstantPlayDefault ( )) && config->isExecutableFullPathValid ( ));
 }
 
 // Launch Steam game (regular), unless an instant launch was requested
