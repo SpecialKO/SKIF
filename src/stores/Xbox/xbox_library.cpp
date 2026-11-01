@@ -105,6 +105,14 @@ SKIF_Xbox_SaveNames (void)
   xbox_names_dirty = false;
 }
 
+// Whether a display name is usable as it is: not empty, and not an ms-resource reference that could not be resolved
+//   (SKIF_Xbox_LoadMSResource ( ) returns the reference itself then, e.g. "ResourceMap Not Found" for packages whose
+//     resources.pri lacks it, such as Wasteland Remastered)
+static bool SKIF_Xbox_IsDisplayName (const std::string& name)
+{
+  return (! name.empty ( ) && SKIF_Util_ToLower (name).find ("ms-resource:") == std::string::npos);
+}
+
 static std::string SKIF_Xbox_LoadMSResource (std::string input, std::wstring packageName, std::wstring packageFullName, std::wstring packageFamilyName)
 {
   std::string lowercaseName = SKIF_Util_ToLower (input);
@@ -414,7 +422,15 @@ SKIF_Xbox_GetInstalledAppIDs (app_list_t *apps)
                         std::string appDisplayName = app.child("uap:VisualElements").attribute("DisplayName").value();
 
                         if (! appDisplayName.empty())
-                          lc.description = SK_UTF8ToWideChar (SKIF_Xbox_LoadMSResource (appDisplayName, SK_UTF8ToWideChar(record.xbox.package_name), packageFullName, packageFamilyName));
+                        {
+                          std::string resolved = SKIF_Xbox_LoadMSResource (appDisplayName, SK_UTF8ToWideChar(record.xbox.package_name), packageFullName, packageFamilyName);
+
+                          // Unresolved: the package's own display name instead of the ms-resource reference
+                          if (! SKIF_Xbox_IsDisplayName (resolved) && SKIF_Xbox_IsDisplayName (record.names.normal))
+                            resolved = record.names.normal;
+
+                          lc.description = SK_UTF8ToWideChar (resolved);
+                        }
 
                         if (config.load_file((record.install_dir + LR"(\MicrosoftGame.config)").c_str()))
                         {
@@ -450,7 +466,20 @@ SKIF_Xbox_GetInstalledAppIDs (app_list_t *apps)
                               std::string exeOverrideDisplayName = exe.attribute("OverrideDisplayName").value();
                               if (! exeOverrideDisplayName.empty())
                               {
-                                lc.description = SK_UTF8ToWideChar (SKIF_Xbox_LoadMSResource (exeOverrideDisplayName, SK_UTF8ToWideChar(record.xbox.package_name), packageFullName, packageFamilyName));
+                                std::string resolved = SKIF_Xbox_LoadMSResource (exeOverrideDisplayName, SK_UTF8ToWideChar(record.xbox.package_name), packageFullName, packageFamilyName);
+
+                                // Unresolved: the default display name of the game (ShellVisuals), else the name found so far
+                                if (! SKIF_Xbox_IsDisplayName (resolved))
+                                {
+                                  std::string defaultDisplayName = xmlConfigRoot.child("ShellVisuals").attribute("DefaultDisplayName").value();
+
+                                  resolved = (SKIF_Xbox_IsDisplayName (defaultDisplayName)) ? defaultDisplayName
+                                                                                            : SK_WideCharToUTF8 (lc.description);
+
+                                  PLOG_VERBOSE << "Could not resolve the override display name " << exeOverrideDisplayName << ", using: " << resolved;
+                                }
+
+                                lc.description = SK_UTF8ToWideChar (resolved);
                                 PLOG_VERBOSE << "Found override display name: " << lc.description;
                               }
                             }

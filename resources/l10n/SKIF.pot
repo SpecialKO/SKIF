@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-01 08:58+0100\n"
+"POT-Creation-Date: 2026-11-01 09:19+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -352,12 +352,12 @@ msgid ""
 "Instant Play may run it before all of its files are in place."
 msgstr ""
 
-#: src/stores/Xbox/xbox_library.cpp:929
-#: src/stores/Xbox/xbox_library.cpp:947
+#: src/stores/Xbox/xbox_library.cpp:958
+#: src/stores/Xbox/xbox_library.cpp:976
 msgid "Open Terminal"
 msgstr ""
 
-#: src/stores/Xbox/xbox_library.cpp:994
+#: src/stores/Xbox/xbox_library.cpp:1023
 msgid "This invokes a terminal in the context of the desktop package."
 msgstr ""
 
