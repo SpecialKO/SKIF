@@ -231,12 +231,12 @@ void DrawEmptySpaceMenu      (bool showClearBtn);
 
 // library/library_list.cpp
 void DrawGamesList           (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop3, ImVec2& fTop3ScreenPos);
-void BeginCategoryHeaders    (void);                 // Category headers (the list and the grid): before the first one of a frame,
+void BeginCategoryHeaders    (void);                 // Category headers (the list and the grid): before the first one of a frame (once per frame),
 bool DrawCategoryHeader      (const std::string& category, int categories, bool showClearBtn); //   each one (returns whether it is expanded),
-void EndCategoryHeaders      (void);                 //   and after the last one (Expand all / Collapse all, the category menu)
+void EndCategoryHeaders      (void);                 //   and after the last one (Expand all / Collapse all, the category menu); by the list only
 
 // library/library_grid.cpp
-void DrawGamesGrid           (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop3, ImVec2& fTop3ScreenPos); // Instead of DrawGamesList in the grid view
+void DrawGamesGrid           (DWORD current_time, ImVec2 size, bool showClearBtn); // In place of the cover in the grid view (DrawGameCover)
 
 // library/library_popups.cpp
 void DrawLibraryPopups       (void);

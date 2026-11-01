@@ -29,11 +29,13 @@
 #include <utility/l10n.h>
 
 // The grid view (regular mode only, IsLibraryGridView): the games as a grid of covers, by category like the games list.
-//   It replaces the cover, the games list and the details; the filter row above it stays. The covers are thumbnails
-//   (SKIF_LibraryArtwork::RequestThumbnail), requested as their tiles are drawn. Each section (the pinned games on top,
-//   then each expanded category) is drawn through ImGuiListClipper by rows of tiles, like the list's rows.
+//   It takes the place of the selected game's cover (size: the cover's area); the filter row, the games list and the
+//   details stay beside it, and the list stays in charge of type-to-search and of keeping the selection in view after a
+//   re-sort (it is drawn after the grid). The covers are thumbnails (SKIF_LibraryArtwork::RequestThumbnail), requested
+//   as their tiles are drawn. Each section (the pinned games on top, then each expanded category) is drawn through
+//   ImGuiListClipper by rows of tiles, like the list's rows.
 void
-DrawGamesGrid (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop3, ImVec2& fTop3ScreenPos)
+DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
@@ -42,7 +44,6 @@ DrawGamesGrid (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
   static library_selection_s& selection    = GetLibraryTab ( ).selection;
   static app_record_s*&       pApp         = GetLibraryTab ( ).pApp;
   static bool&                update       = GetLibraryTab ( ).update;
-  static ImVec2&              sizeList     = GetLibraryTab ( ).sizeList;
 
   extern bool                 coverFadeActive;
 
@@ -50,20 +51,23 @@ DrawGamesGrid (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
   const DWORD  now          = SKIF_Util_timeGetTime ( );
 
   // A tile: the cover, inset so the hover / selection highlight frames it, and the title beneath it (unless turned off)
-  const ImVec2 sizeCover    = ImFloor (ImVec2 (150.0f, 225.0f) * dpi);
-  const float  inset        = ImFloor (  4.0f * dpi);
+  const ImVec2 sizeCover    = ImFloor (ImVec2 (100.0f, 150.0f) * dpi);
+  const float  inset        = ImFloor (  3.0f * dpi);
   const float  heightTitle  = (_registry.bLibraryGridTitles) ? ImGui::GetTextLineHeight ( ) + inset : 0.0f;
   const ImVec2 sizeTile     = ImVec2 (sizeCover.x + inset * 2.0f, sizeCover.y + inset * 2.0f + heightTitle);
-  const float  spacing      = ImFloor ( 10.0f * dpi);  // Between the rows, and at least between the columns
+  const float  spacing      = ImFloor (  6.0f * dpi);  // Between the rows, and at least between the columns
   const float  rounding     = ImFloor (  3.0f * dpi);
 
   // The thumbnails are made at the size of the cover (a change of the DPI scale reloads them)
   _art.SetThumbnailSize (sizeCover);
 
-  // The first frame of the grid (switched to it, or back to the library tab): show the selected game
-  static int lastFrame  = -2;
-  bool scrollToSelected = (lastFrame != ImGui::GetFrameCount ( ) - 1);
+  // The first frame of the grid (switched to it, or back to the library tab), or another game was selected (e.g. in the
+  //   list, or by type-to-search): show the selected game
+  static int       lastFrame    = -2;
+  static app_key_s lastSelected;
+  bool scrollToSelected = (lastFrame != ImGui::GetFrameCount ( ) - 1 || lastSelected != selection.game || sort_changed);
   lastFrame             = ImGui::GetFrameCount ( );
+  lastSelected          = selection.game;
 
   // DPI changes: keep the selected game in view
   static float lastScale = dpi;
@@ -80,16 +84,9 @@ DrawGamesGrid (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
 
   ImGui::PushStyleColor      (ImGuiCol_ScrollbarBg, ImVec4(0,0,0,0));
 
-  ImGui::BeginGroup          ( ); // Start GamesGrid
-
-  fTop3                 = ImGui::GetCursorPos ( );
-  fTop3ScreenPos        = ImGui::GetCursorScreenPos ( );
-
-  ImGui::BeginChild          ( "###GameGrid",
-                                ImFloor (ImVec2 ((sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
-                                                  sizeList.y - (fTop3.y - fTop1.y))),
-                                  ImGuiChildFlags_AlwaysUseWindowPadding | ImGuiChildFlags_NavFlattened | (_registry.bUIBorders ? ImGuiChildFlags_Borders : ImGuiChildFlags_None),
-                                  ImGuiWindowFlags_None );
+  ImGui::BeginChild          ( "###GameGrid", ImFloor (size),
+                                  ImGuiChildFlags_AlwaysUseWindowPadding | ImGuiChildFlags_NavFlattened,
+                                  ImGuiWindowFlags_NoBackground ); // As the cover
 
   // As many columns as fit, with the spare width spread between them
   const float avail   = ImGui::GetContentRegionAvail ( ).x;
@@ -229,32 +226,9 @@ DrawGamesGrid (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
         launchGame = true;
     }
 
-    // Type-to-search found this game: select it and move the focus here
-    if (search_selection.game == key)
+    // Type-to-search found this game (the list, drawn next, selects it), or the selected game should be shown
+    if (search_selection.game == key || (selected && scrollToSelected))
     {
-      ImGui::SetFocusID       (ImGui::GetID(rec->ImGuiLabelID.c_str()), ImGui::GetCurrentWindow());
-
-      search_selection.game     = { };
-      search_selection.category = "";
-      change                    = true;
-
-      if (! ImGui::IsItemVisible ( ))
-        ImGui::SetScrollHereY (0.5f);
-
-      ImGuiContext& g = *ImGui::GetCurrentContext();
-      g.NavCursorVisible = true;
-    }
-
-    // The library was re-sorted, or the grid was just shown: keep the selected game in view
-    if (selected && (sort_changed || scrollToSelected))
-    {
-      if (sort_changed)
-      {
-        sort_changed       = false;
-        selection.category = (rec->skif.pinned > 50) ? "Favorites (pinned)" // Same workaround as the list
-                                                     : GetEffectiveCategory (rec);
-      }
-
       if (! ImGui::IsItemVisible ( ))
         ImGui::SetScrollHereY (0.5f);
     }
@@ -274,7 +248,14 @@ DrawGamesGrid (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
         SetLastSelectedGame (selection.game);
 
       if (update)
+      {
         rec->_status.invalidate ( );
+
+        // The list (drawn next) opens its category and scrolls to it, as after a re-sort. Not for Special K, which the
+        //   list resets the scroll position for instead
+        if (! isSK)
+          sort_changed = true;
+      }
     }
 
     // The cover (Special K: its logo), or a placeholder with the title while there is none
@@ -440,9 +421,9 @@ DrawGamesGrid (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
   std::string current_category = "";
   int         categories       = 0;
   bool        pinnedOnTop      = false; // In the section of the pinned games on top
-  bool        resetNumOnTop    = true;
   bool        category_opened  = false;
 
+  // EndCategoryHeaders ( ) is called by the list, drawn after the grid
   BeginCategoryHeaders ( );
 
   for (auto& app : _games.GetApps())
@@ -450,10 +431,6 @@ DrawGamesGrid (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
     // ID = 0 is assigned to corrupted entries, do not list these.
     if (app.second->id == 0)
       continue;
-
-    // Count the number of pinned entries separately from filtered entries
-    if (app.second->skif.pinned > 50)
-      resetNumOnTop = false;
 
     // Skips those filtered out by an active search field entry
     if (app.second->filtered)
@@ -498,15 +475,18 @@ DrawGamesGrid (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
   // The last section
   _DrawSection ( );
 
-  EndCategoryHeaders ( );
-
-  if (resetNumOnTop)
-    numPinnedOnTop = 0;
+  // Right-click on empty space: the same menu as the list's empty space (the Filter menu)
+  if (SKIF_ImGui_IsViewportFocused ( )                 &&
+      ImGui::IsWindowHovered ( )                       &&
+      EmptySpaceMenu == PopupState_Closed              &&
+    ! ImGui::IsAnyItemHovered ( )                      &&
+      ImGui::IsMouseClicked   (ImGuiMouseButton_Right) &&
+    ! SKIF_ImGui_IsAnyPopupOpen ( ))
+    EmptySpaceMenu = PopupState_Open;
 
   // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
   SKIF_ImGui_AutoScroll  (false, SKIF_ImGuiAxis_Y);
 
   ImGui::EndChild        ( );
-  ImGui::EndGroup        ( ); // End GamesGrid
   ImGui::PopStyleColor   ( );
 }

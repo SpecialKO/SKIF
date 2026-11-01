@@ -272,8 +272,8 @@ IsLibraryGridView (void)
   return (_registry.iLibraryView == 1 && ! _registry._LibHorizonMode);
 }
 
-// The view options of the Filter menu (the empty space menu): Grid view (regular mode only), then Show titles in the
-//   grid view, or Large icons in the list
+// The view options of the Filter menu (the empty space menu): Grid view (regular mode only), Show titles (grid view),
+//   and Large icons (the list, shown in both views)
 void
 ShowLibraryViewToggles (void)
 {
@@ -298,8 +298,8 @@ ShowLibraryViewToggles (void)
       _registry.regKVLibraryGridTitles.putData (_registry.bLibraryGridTitles);
   }
 
-  else
-    ShowLargeIconToggle ( );
+  // The list is shown in both views
+  ShowLargeIconToggle ( );
 }
 
 
@@ -1102,16 +1102,13 @@ SKIF_UI_Tab_DrawLibrary (void)
   //   so we need to use a change in that value as a trigger to calculate everything anew
   extern ImVec2 SKIF_vecRegularMode;
   static ImVec2 SKIF_vecRegularMode_last;
-  static int    iLibraryView_last = -1;  // The view (list or grid) the values below were calculated for
 
   if (tab_ContentRegionAvail    != tab_ContentRegionAvail_last    ||
     //SKIF_ImGui_GlobalDPIScale != SKIF_ImGui_GlobalDPIScale_Last || // Not necessary when using SKIF_vecRegularMode
-      SKIF_vecRegularMode.x     != SKIF_vecRegularMode_last.x     || // Only one dimension needs to be checked since both will change when the DPI scaling changes
-      _registry.iLibraryView    != iLibraryView_last               )
+      SKIF_vecRegularMode.x     != SKIF_vecRegularMode_last.x      ) // Only one dimension needs to be checked since both will change when the DPI scaling changes
   {
     tab_ContentRegionAvail_last  = tab_ContentRegionAvail;
     SKIF_vecRegularMode_last     = SKIF_vecRegularMode;
-    iLibraryView_last            = _registry.iLibraryView;
 
     sizeSK       = ImVec2 (600.0f, 900.0f) * SKIF_ImGui_GlobalDPIScale;
     sizeSK_small = ImVec2 (220.0f, 330.0f) * SKIF_ImGui_GlobalDPIScale;
@@ -1188,15 +1185,6 @@ SKIF_UI_Tab_DrawLibrary (void)
     sizeList.y = tab_ContentRegionAvail.y;
     sizeList.y -= (  _registry._LibHorizonMode || ! uiDetailsVisible)   ? 0.0f                             : sizeDetails.y;
   //sizeList.y -= (! _registry._LibHorizonMode && _registry.bUIBorders) ? 2.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
-
-    // The grid view (regular mode only): no cover and no details. The grid takes the whole tab, below the filter row
-    //   (which keeps the width of the list's)
-    if (IsLibraryGridView ( ))
-    {
-      uiCoverVisible   = false;
-      uiDetailsVisible = false;
-      sizeList         = ImFloor (tab_ContentRegionAvail);
-    }
   }
 
   // From now on ImGui UI calls starts being made...
@@ -1208,7 +1196,18 @@ SKIF_UI_Tab_DrawLibrary (void)
   bool          isCoverHovered     = false;
   ImVec2        vecPosCover        = ImVec2 (0, 0);
 
-  DrawGameCover (true, isCoverHovered, vecPosCover);
+  // The grid view (regular mode only): a grid of covers in place of the selected game's cover, with the same list and
+  //   details beside it (library/library_grid.cpp)
+  if (IsLibraryGridView ( ) && uiCoverVisible)
+  {
+    DrawGamesGrid (current_time, sizeCover, (charFilter[0] != '\0'));
+
+    // The same line as the list + details, as the cover
+    ImGui::SameLine (0.0f, 3.0f * SKIF_ImGui_GlobalDPIScale);
+  }
+
+  else
+    DrawGameCover (true, isCoverHovered, vecPosCover);
 
 #pragma endregion
 
@@ -1385,17 +1384,12 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // End top options
 
-  // Games list (library/library_list.cpp), or the grid view (library/library_grid.cpp); fTop3 / fTop3ScreenPos: where
-  //   the list starts
+  // Games list (library/library_list.cpp); fTop3 / fTop3ScreenPos: where the list starts
   ImVec2 fTop3, fTop3ScreenPos;
-
-  if (IsLibraryGridView ( ))
-    DrawGamesGrid (current_time, fTop1, showClearBtn, fTop3, fTop3ScreenPos);
-  else
-    DrawGamesList (current_time, fTop1, showClearBtn, fTop3, fTop3ScreenPos);
+  DrawGamesList (current_time, fTop1, showClearBtn, fTop3, fTop3ScreenPos);
 
   // Unloads the thumbnails out of view for a while (all of them when the grid is not shown)
-  _art.UpdateThumbnails (IsLibraryGridView ( ));
+  _art.UpdateThumbnails (IsLibraryGridView ( ) && uiCoverVisible);
 
   // Filter history (drawn after the games list so it overlaps it). The cursor is restored, as the code below positions
   //   itself relative to where the games list ended
@@ -1485,7 +1479,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 #pragma region SpecialKPatreon
 
   // Special K's Patreon panel at the bottom of the cover (library/library_cover.cpp)
-  DrawSpecialKPatreon (isCoverHovered, vecPosCover);
+  if (! IsLibraryGridView ( )) // The grid view has no cover for it to sit on
+    DrawSpecialKPatreon (isCoverHovered, vecPosCover);
 
 #pragma endregion
 
@@ -1614,7 +1609,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   // Streams the cover in on a background thread once the cover area is visible (not while a custom cover is being saved for this game).
   //   Not until SKIF has started: the cover can't be created before the hardware device exists (created after the first
   //   present), and starting the worker would only delay the first present.
-  if (SKIF_StartupFinished && uiCoverVisible && _art.IsCoverRequested ( ) && PopulatedGames && ! _art.IsSavingCover (pApp))
+  //   Not in the grid view: the grid replaces the cover.
+  if (SKIF_StartupFinished && uiCoverVisible && ! IsLibraryGridView ( ) && _art.IsCoverRequested ( ) && PopulatedGames && ! _art.IsSavingCover (pApp))
     _art.StartCoverWorker (pApp);
 
 #pragma endregion

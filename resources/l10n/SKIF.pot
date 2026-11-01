@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-01 10:09+0100\n"
+"POT-Creation-Date: 2026-11-01 10:25+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1185,60 +1185,60 @@ msgstr ""
 msgid "Show titles"
 msgstr ""
 
-#: src/tabs/library.cpp:1534
+#: src/tabs/library.cpp:1529
 #: src/tabs/library/library_details.cpp:498
 msgid "Loading..."
 msgstr ""
 
-#: src/tabs/library.cpp:1546
+#: src/tabs/library.cpp:1541
 msgid "Cover"
 msgstr ""
 
-#: src/tabs/library.cpp:1559
+#: src/tabs/library.cpp:1554
 #: src/tabs/library/library_menus.cpp:1642
 #: src/tabs/library/library_menus.cpp:1800
 msgid "Open SteamGridDB"
 msgstr ""
 
-#: src/tabs/library.cpp:1722
+#: src/tabs/library.cpp:1718
 msgid "New 32-bit DLL Installed"
 msgstr ""
 
-#: src/tabs/library.cpp:1723
+#: src/tabs/library.cpp:1719
 msgid "New 64-bit DLL Installed"
 msgstr ""
 
-#: src/tabs/library.cpp:1842
-#: src/tabs/library.cpp:1950
+#: src/tabs/library.cpp:1838
+#: src/tabs/library.cpp:1946
 msgid "Missing Files"
 msgstr ""
 
-#: src/tabs/library.cpp:1843
-#: src/tabs/library.cpp:1951
+#: src/tabs/library.cpp:1839
+#: src/tabs/library.cpp:1947
 msgid "Unable to extract Special K DLL files from the provided {0} file."
 msgstr ""
 
-#: src/tabs/library.cpp:1989
+#: src/tabs/library.cpp:1985
 msgid "Unsupported Feature"
 msgstr ""
 
-#: src/tabs/library.cpp:1990
+#: src/tabs/library.cpp:1986
 msgid "SKIF cannot perform a drag-n-drop update because Special K {0} or newer is required."
 msgstr ""
 
-#: src/tabs/library.cpp:2005
+#: src/tabs/library.cpp:2001
 msgid "Unsupported file format"
 msgstr ""
 
-#: src/tabs/library.cpp:2007
+#: src/tabs/library.cpp:2003
 msgid "Add a game to the library:"
 msgstr ""
 
-#: src/tabs/library.cpp:2013
+#: src/tabs/library.cpp:2009
 msgid "Update the cover for the current selected game:"
 msgstr ""
 
-#: src/tabs/library.cpp:2024
+#: src/tabs/library.cpp:2020
 msgid "Note that the app has no support for animated images."
 msgstr ""
 
@@ -1384,8 +1384,8 @@ msgstr ""
 msgid "Unknown"
 msgstr ""
 
-#: src/tabs/library/library_grid.cpp:104
-#: src/tabs/library/library_list.cpp:274
+#: src/tabs/library/library_grid.cpp:101
+#: src/tabs/library/library_list.cpp:279
 msgid "Loading games..."
 msgstr ""
 
@@ -1397,26 +1397,26 @@ msgstr ""
 msgid "Could not launch game due to missing executable:"
 msgstr ""
 
-#: src/tabs/library/library_list.cpp:71
+#: src/tabs/library/library_list.cpp:83
 #: src/tabs/library/library_menus.cpp:703
 msgctxt "category"
 msgid "Favorites"
 msgstr ""
 
 #. TRANSLATORS: The default category of the library
-#: src/tabs/library/library_list.cpp:72
+#: src/tabs/library/library_list.cpp:84
 #: src/tabs/library/library_properties.cpp:237
 #: src/tabs/library/library_properties.cpp:239
 msgctxt "category"
 msgid "Games"
 msgstr ""
 
-#: src/tabs/library/library_list.cpp:101
+#: src/tabs/library/library_list.cpp:113
 #: src/tabs/library/library_menus.cpp:792
 msgid "Rename"
 msgstr ""
 
-#: src/tabs/library/library_list.cpp:109
+#: src/tabs/library/library_list.cpp:121
 #: src/tabs/library/library_menus.cpp:799
 #: src/tabs/library/library_menus.cpp:918
 #: src/tabs/library/library_properties.cpp:794
@@ -1425,15 +1425,15 @@ msgstr ""
 msgid "Remove"
 msgstr ""
 
-#: src/tabs/library/library_list.cpp:121
+#: src/tabs/library/library_list.cpp:133
 msgid "Expand all"
 msgstr ""
 
-#: src/tabs/library/library_list.cpp:129
+#: src/tabs/library/library_list.cpp:141
 msgid "Collapse all"
 msgstr ""
 
-#: src/tabs/library/library_list.cpp:137
+#: src/tabs/library/library_list.cpp:149
 msgid "Remember collapsible state"
 msgstr ""
 

@@ -25,16 +25,28 @@
 // Last, as it defines short macros such as _ ( )
 #include <utility/l10n.h>
 
-// Category headers, shared by the games list and the grid view (only one of them is drawn per frame)
+// Category headers, shared by the games list and the grid view. In the grid view both draw them in the same frame (the
+//   grid first): BeginCategoryHeaders ( ) only starts a frame once, and the list calls EndCategoryHeaders ( ).
 static int  s_applyHeaderState = 0;     // Expand all / Collapse all: the frame it was chosen in
 static bool s_newHeaderState   = false; // ... and what was chosen
 static bool s_categoryMenuOpen = false; // A category's menu was open this frame
+static int  s_headersFrame     = -1;    // The frame the headers were begun in
 
 void
 BeginCategoryHeaders (void)
 {
+  const int frame = ImGui::GetFrameCount ( );
+
+  if (frame == s_headersFrame)
+    return;
+
+  s_headersFrame     = frame;
   s_newHeaderState   = false;
   s_categoryMenuOpen = false;
+
+  // Expand all / Collapse all is applied to the headers of every view in the frame after it was chosen
+  if (s_applyHeaderState > 0 && frame > s_applyHeaderState + 1)
+    s_applyHeaderState = 0;
 }
 
 // The header of a category, with its menu (Rename, Remove, Expand all, ...). Returns whether the category is expanded.
@@ -150,18 +162,11 @@ EndCategoryHeaders (void)
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
-  if (s_applyHeaderState > 0)
+  // Expand all / Collapse all was chosen this frame (the headers follow next frame; reset by BeginCategoryHeaders)
+  if (s_applyHeaderState > 0 && ImGui::GetFrameCount() == s_applyHeaderState)
   {
-    if (ImGui::GetFrameCount() == s_applyHeaderState)
-    {
-      for (auto& category : _registry.vecCategories)
-        category.expanded = s_newHeaderState;
-    }
-
-    else
-    {
-      s_applyHeaderState = 0;
-    }
+    for (auto& category : _registry.vecCategories)
+      category.expanded = s_newHeaderState;
   }
 
   if (! s_categoryMenuOpen)
