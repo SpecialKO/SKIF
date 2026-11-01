@@ -379,6 +379,69 @@ DrawGameContextMenu_PlayWith (app_record_s* pApp, bool playDisabled)
 }
 
 
+// "Switch to game": brings the main window of a process to the front. That is the window the taskbar shows for it: a visible
+//   top-level window that is either marked WS_EX_APPWINDOW, or is not owned and not a tool window. Many games (older ones in
+//     particular) do not mark their window WS_EX_APPWINDOW at all, and a process may have other windows marked so that are
+//       hidden (e.g. created by a wrapper or overlay), so the first visible WS_EX_APPWINDOW one is preferred, else the first
+//         other one the taskbar would show
+static void
+SKIF_Lib_SwitchToProcessWindow (DWORD pid)
+{
+  if (pid == 0)
+    return;
+
+  struct search_s {
+    DWORD pid       = 0;
+    HWND  appWindow = nullptr; // Visible, WS_EX_APPWINDOW
+    HWND  taskbar   = nullptr; // Visible, not owned, not a tool window
+  } search;
+
+  search.pid = pid;
+
+  EnumWindows ([](HWND hWnd, LPARAM lParam) -> BOOL
+  {
+    search_s* _search = reinterpret_cast <search_s*> (lParam);
+
+    DWORD                            dwPID = 0;
+    GetWindowThreadProcessId (hWnd, &dwPID);
+
+    if (dwPID != _search->pid || ! IsWindowVisible (hWnd)) // Minimized windows are still visible
+      return TRUE;
+
+    const LONG_PTR exStyle = GetWindowLongPtrW (hWnd, GWL_EXSTYLE);
+
+    if (exStyle & WS_EX_APPWINDOW)
+    {
+      _search->appWindow = hWnd;
+      return FALSE; // The best match
+    }
+
+    if (_search->taskbar == nullptr && ! (exStyle & WS_EX_TOOLWINDOW) && GetWindow (hWnd, GW_OWNER) == nullptr)
+      _search->taskbar = hWnd;
+
+    return TRUE;
+  }, reinterpret_cast <LPARAM> (&search));
+
+  HWND hWnd = (search.appWindow != nullptr) ? search.appWindow : search.taskbar;
+
+  if (hWnd == nullptr)
+  {
+    PLOG_WARNING << "Could not find a window to switch to for process " << pid;
+    return;
+  }
+
+  wchar_t wszClass [128] = { };
+  GetClassNameW (hWnd, wszClass, 127);
+
+  PLOG_VERBOSE << "Switching to the window " << hWnd << " (class: " << wszClass << ", " << ((search.appWindow != nullptr) ? "app window" : "taskbar window") << ") of process " << pid;
+
+  if (IsIconic (hWnd))
+    ShowWindow (hWnd, SW_RESTORE);
+
+  SetForegroundWindow (hWnd);
+}
+
+
 // Game context menu: items for a running game (moved verbatim from DrawGameContextMenu)
 static void
 DrawGameContextMenu_Running (app_record_s* pApp)
@@ -392,29 +455,7 @@ DrawGameContextMenu_Running (app_record_s* pApp)
 
     auto ResumeGame = [](DWORD pid)
     {
-      if (pid == 0)
-        return;
-
-      EnumWindows ([](HWND hWnd, LPARAM lParam) -> BOOL
-      {
-        DWORD                            dwPID = 0;
-        GetWindowThreadProcessId (hWnd, &dwPID);
-
-        if (dwPID == (DWORD)lParam)
-        {
-          if (GetWindowLongPtrW (hWnd, GWL_EXSTYLE) & WS_EX_APPWINDOW)
-          {
-            if (IsIconic (hWnd))
-              ShowWindow (hWnd, SW_RESTORE);
-
-            SetForegroundWindow (hWnd);
-
-            return FALSE;
-          }
-        }
-
-        return TRUE;
-      }, pid);
+      SKIF_Lib_SwitchToProcessWindow (pid);
     };
 
     if (mon_app != nullptr)
