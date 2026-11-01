@@ -303,6 +303,14 @@ SKIF_LibraryArtwork::ApplyWorkerResults (void)
           thumb.texture.Attach (result.texture.srv.Detach ( ));
           m_thumbsLoaded++;
         }
+
+        // A build that found no cover: the game may have none, or a lookup failed for the moment (e.g. a cover proxy
+        //   answered 429 and pauses lookups for 60 seconds, see igdb.cpp). Try once more after that, if it is drawn then.
+        else if (result.build && ! thumb.retried)
+        {
+          thumb.retried = true;
+          thumb.retryAt = SKIF_Util_timeGetTime ( ) + 65000;
+        }
       }
 
       _Release (result.texture.srv);
@@ -786,12 +794,20 @@ SKIF_LibraryArtwork::SetThumbnailSize (ImVec2 size)
 void
 SKIF_LibraryArtwork::RequestThumbnail (app_record_s* pApp)
 {
-  constexpr int maxLoads  = 4;
-  constexpr int maxBuilds = 2;
+  constexpr int maxLoads  = 6; // From the cache: local only
+  constexpr int maxBuilds = 4; // Mostly waiting on downloads (Steam's store API, the PCGamingWiki / IGDB cover proxies)
 
   auto& thumb = pApp->tex_thumb;
 
   thumb.lastUsed = SKIF_Util_timeGetTime ( );
+
+  // The one retry of a build that found no cover (see ApplyWorkerResults)
+  if (thumb.iWorker == SKIF_Thumbnail_Done && thumb.texture.p == nullptr &&
+      thumb.retryAt != 0 && static_cast <LONG> (thumb.lastUsed - thumb.retryAt) >= 0)
+  {
+    thumb.retryAt = 0;
+    thumb.iWorker = SKIF_Thumbnail_NoCache;
+  }
 
   // Not until SKIF has started (the hardware device is created after the first present), nor before a size is set
   if (! SKIF_StartupFinished || m_thumbSize.x <= 0.0f)
@@ -951,6 +967,8 @@ SKIF_LibraryArtwork::ReleaseThumbnail (app_record_s* pApp)
   thumb.iWorker  = SKIF_Thumbnail_None;
   thumb.request  = 0;
   thumb.loadedAt = 0;
+  thumb.retryAt  = 0;
+  thumb.retried  = false;
 }
 
 void

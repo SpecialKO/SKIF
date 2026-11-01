@@ -121,6 +121,8 @@ struct app_record_s {
     DWORD           loadedAt    = 0;     // Thumbnails: when the texture arrived (fade-in)
     float           width       = 0.0f;  // Thumbnails: the texture's size (cropped to fill the tile where drawn)
     float           height      = 0.0f;
+    DWORD           retryAt     = 0;     // Thumbnails: a build that found no cover is tried once more after this (0 = not)
+    bool            retried     = false; // Thumbnails: ... and has been
   } tex_icon, tex_cover, tex_thumb;      // tex_thumb: the grid view's cover (SKIF_LibraryArtwork::RequestThumbnail)
 
   enum class Store {

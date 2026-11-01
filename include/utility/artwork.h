@@ -81,7 +81,7 @@ public:
   void ReloadIcon             (app_record_s* pApp);  // Loads the icon again on this thread (icon changed or reset); waits for its icon worker first
 
   // Thumbnails (the grid view). Loaded from the thumbnail cache (<asset folder>cover-thumb-<size>-<sources>.png) by up to
-  //   4 workers; a game without a usable cache is built by up to 2 workers: the same cover pipeline as the cover worker
+  //   6 workers; a game without a usable cache is built by up to 4 workers: the same cover pipeline as the cover worker
   //   (which may download the cover), scaled down and saved to the cache. Only tiles that are drawn request one.
   void SetThumbnailSize       (ImVec2 size);         // The size thumbnails are made at (pixels); a change reloads them all
   ImVec2 GetThumbnailSize     (void) const { return m_thumbSize; }
