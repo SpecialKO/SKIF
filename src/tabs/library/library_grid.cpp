@@ -60,10 +60,9 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
   const float  spacing      = ImFloor (std::max (6.0f, width * 0.08f) * dpi); // Between the rows, and at least between the columns
   const float  rounding     = ImFloor (std::max (3.0f, width * 0.04f) * dpi);
 
-  // The thumbnails are made at one of three sizes, the smallest that is at least as large as the covers are drawn (a
-  //   change of the size or of the DPI scale reloads them, so dragging the slider only does at the steps)
-  const float  widthThumb   = (width <= 120.0f) ? 120.0f : (width <= 180.0f) ? 180.0f : 240.0f;
-  _art.SetThumbnailSize (ImFloor (ImVec2 (widthThumb, widthThumb * 1.5f) * dpi));
+  // The thumbnails are made at the largest cover size (BC7 keeps them small), and drawn smaller through their mips, so the
+  //   size slider never reloads or rebuilds them. Only a change of the DPI scale does (another cache file).
+  _art.SetThumbnailSize (ImFloor (ImVec2 (240.0f, 360.0f) * dpi));
 
   // The first frame of the grid (switched to it, or back to the library tab), or another game was selected (e.g. in the
   //   list, or by type-to-search): show the selected game

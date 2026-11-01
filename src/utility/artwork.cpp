@@ -717,8 +717,39 @@ SKIF_LibraryArtwork::ReleaseTextures (void)
 
 #pragma region Thumbnails
 
-// Worker threads: whether the thumbnail cache is newer than every cover in the game's asset folder (custom covers and the
-//   ones SKIF downloaded). A cover SKIF reads from elsewhere (e.g. the Steam client's library cache) is not checked.
+// Worker threads: the time of the newest cover in the game's asset folder (custom covers and the ones SKIF downloaded),
+//   which a thumbnail must be newer than to be current. A cover SKIF reads from elsewhere (e.g. the Steam client's library
+//     cache) is not checked. False if there is none.
+static bool
+_GetNewestCoverTime (const std::filesystem::path& folder, std::filesystem::file_time_type& newest)
+{
+  std::error_code ec;
+  bool            found = false;
+
+  for (auto& entry : std::filesystem::directory_iterator (folder, ec))
+  {
+    std::wstring name = SKIF_Util_ToLowerW (entry.path ( ).filename ( ).wstring ( ));
+
+    if (name.rfind (L"cover", 0) != 0 || name.rfind (L"cover-thumb", 0) == 0)
+      continue;
+
+    std::error_code ec2;
+    if (! entry.is_regular_file (ec2))
+      continue;
+
+    auto time = entry.last_write_time (ec2);
+
+    if (! ec2 && (! found || time > newest))
+    {
+      newest = time;
+      found  = true;
+    }
+  }
+
+  return found;
+}
+
+// Worker threads: whether the thumbnail cache is newer than every cover in the game's asset folder
 static bool
 _IsThumbnailCacheCurrent (const std::wstring& cachePath)
 {
@@ -730,29 +761,25 @@ _IsThumbnailCacheCurrent (const std::wstring& cachePath)
   if (ec)
     return false;
 
-  for (auto& entry : std::filesystem::directory_iterator (fsCache.parent_path ( ), ec))
-  {
-    std::wstring name = SKIF_Util_ToLowerW (entry.path ( ).filename ( ).wstring ( ));
+  std::filesystem::file_time_type newest;
 
-    if (name.rfind (L"cover", 0) != 0 || name.rfind (L"cover-thumb", 0) == 0)
-      continue;
-
-    std::error_code ec2;
-    if (entry.is_regular_file (ec2) && entry.last_write_time (ec2) > cacheTime)
-      return false;
-  }
-
-  return true;
+  return (! _GetNewestCoverTime (fsCache.parent_path ( ), newest) || newest <= cacheTime);
 }
 
-// Worker threads: removes the game's other thumbnail cache files (another size, or other cover sources)
+// Removes thumbnail cache files of the game. all: every one (its cover changed). Otherwise (a build, which replaces
+//   cachePath itself) only those no longer of use: outdated ones (older than the newest cover), and leftovers from older
+//     versions (PNG) or interrupted builds (.tmp). Current ones made for another DPI scale or other cover sources (the
+//       name says which) are kept, as they are used again when SKIF goes back to them.
 static void
-_DeleteOtherThumbnails (const std::wstring& cachePath)
+_DeleteThumbnails (const std::wstring& cachePath, bool all)
 {
   std::error_code ec;
 
   const std::filesystem::path fsCache (cachePath);
-  std::wstring keep = SKIF_Util_ToLowerW (fsCache.filename ( ).wstring ( ));
+  const std::wstring          keep = SKIF_Util_ToLowerW (fsCache.filename ( ).wstring ( ));
+
+  std::filesystem::file_time_type newest;
+  const bool hasCover = (! all && _GetNewestCoverTime (fsCache.parent_path ( ), newest));
 
   std::vector <std::filesystem::path> remove;
 
@@ -760,7 +787,20 @@ _DeleteOtherThumbnails (const std::wstring& cachePath)
   {
     std::wstring name = SKIF_Util_ToLowerW (entry.path ( ).filename ( ).wstring ( ));
 
-    if (name.rfind (L"cover-thumb", 0) == 0 && name != keep)
+    if (name.rfind (L"cover-thumb", 0) != 0 || (! all && name == keep))
+      continue;
+
+    bool outdated = all;
+
+    if (! outdated)
+    {
+      std::error_code ec2;
+      auto time = entry.last_write_time (ec2);
+
+      outdated = (entry.path ( ).extension ( ) != L".dds" || ec2 || (hasCover && time < newest));
+    }
+
+    if (outdated)
       remove.push_back (entry.path ( ));
   }
 
@@ -776,8 +816,8 @@ SKIF_LibraryArtwork::GetThumbnailCachePath (app_record_s* pApp) const
   if (assetDir.empty ( ) || m_thumbSize.x <= 0.0f)
     return L"";
 
-  // Named after what it is made from: its size, and the cover sources preferred for the store (Settings). A change of
-  //   either uses another file, and the build of that one removes the others (_DeleteOtherThumbnails).
+  // Named after what it is made from: its size (one per DPI scale), and the cover sources preferred for the store
+  //   (Settings). A change of either uses another file; the others are kept while current (_DeleteThumbnails).
   return SK_FormatStringW (L"%wscover-thumb-%ix%i%ws%ws.dds", assetDir.c_str ( ),
                              static_cast <int> (m_thumbSize.x), static_cast <int> (m_thumbSize.y),
                                (pApp->WantsPCGWCover ( )) ? L"-pcgw" : L"",
@@ -946,7 +986,7 @@ SKIF_LibraryArtwork::StartThumbnailWorker (app_record_s* pApp, bool build)
         std::error_code ec;
         std::filesystem::create_directories (std::filesystem::path (cachePath).parent_path ( ), ec);
         std::filesystem::remove             (cachePath, ec); // A build replaces it
-        _DeleteOtherThumbnails (cachePath);
+        _DeleteThumbnails (cachePath, false); // Only outdated ones and leftovers
       }
 
       _LoadCover (_data->app.get ( ), _data->queryPCGW, result.texture, &_data->thumb);
@@ -1040,7 +1080,7 @@ SKIF_LibraryArtwork::InvalidateThumbnail (app_record_s* pApp)
   std::wstring cachePath = GetThumbnailCachePath (pApp);
 
   if (! cachePath.empty ( ))
-    _DeleteOtherThumbnails (cachePath + L"-"); // Every cache file of the game (no file has this name)
+    _DeleteThumbnails (cachePath, true); // Every cache file of the game, this one included
 }
 
 // Thumbnails out of view are unloaded once they have been for a while (s_thumbUnloadAfter). In view means drawn in the
