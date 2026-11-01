@@ -279,6 +279,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Library Grid Titles)" );
 
+  KeyValue <int> regKVLibraryGridSize =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Library Grid Size)" );
+
   KeyValue <bool> regKVTouchInput =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(UI Touch Input)" );
@@ -650,6 +654,7 @@ struct SKIF_RegistrySettings {
   int iLogging                 =   4; //  0 = None,                        1 = Fatal,                  2 = Error,                       3 = Warning,                        4 = Info,       5 = Debug,       6 = Verbose
   int iLibrarySort             =   0; //  0 = Name,                        1 = Uses (frequently),      2 = Last Used (recently)
   int iLibraryView             =   0; //  0 = List,                        1 = Grid (the grid takes the cover's place)
+  int iLibraryGridSize         = 120; // The width of the covers in the grid view at 100% DPI scale (80-240; their height is 1.5 times it)
   int iProcessSort             =   0; //  0 = Status,                      1 = PID,                    2 = Arch,                        3 = Admin,                          4 = Name
   int iProcessRefreshInterval  =   2; //  0 = Paused,                      1 = Slow (5s),              2 = Normal (1s),                [3 = High (0.5s; not implemented)]
   int iSDRMode                 =   2; //  0 = 8 bpc,                       1 = 10 bpc,                 2 = 16 bpc

@@ -50,16 +50,20 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
   const float  dpi          = SKIF_ImGui_GlobalDPIScale;
   const DWORD  now          = SKIF_Util_timeGetTime ( );
 
-  // A tile: the cover, inset so the hover / selection highlight frames it, and the title beneath it (unless turned off)
-  const ImVec2 sizeCover    = ImFloor (ImVec2 (100.0f, 150.0f) * dpi);
+  // A tile: the cover (its size is a setting: the Filter menu's slider), inset so the hover / selection highlight frames
+  //   it, and the title beneath it (unless turned off). The spacing and the rounding grow with the covers.
+  const float  width        = static_cast <float> (std::clamp (_registry.iLibraryGridSize, 80, 240));
+  const ImVec2 sizeCover    = ImFloor (ImVec2 (width, width * 1.5f) * dpi);
   const float  inset        = ImFloor (  3.0f * dpi);
   const float  heightTitle  = (_registry.bLibraryGridTitles) ? ImGui::GetTextLineHeight ( ) + inset : 0.0f;
   const ImVec2 sizeTile     = ImVec2 (sizeCover.x + inset * 2.0f, sizeCover.y + inset * 2.0f + heightTitle);
-  const float  spacing      = ImFloor (  6.0f * dpi);  // Between the rows, and at least between the columns
-  const float  rounding     = ImFloor (  3.0f * dpi);
+  const float  spacing      = ImFloor (std::max (6.0f, width * 0.08f) * dpi); // Between the rows, and at least between the columns
+  const float  rounding     = ImFloor (std::max (3.0f, width * 0.04f) * dpi);
 
-  // The thumbnails are made at the size of the cover (a change of the DPI scale reloads them)
-  _art.SetThumbnailSize (sizeCover);
+  // The thumbnails are made at one of three sizes, the smallest that is at least as large as the covers are drawn (a
+  //   change of the size or of the DPI scale reloads them, so dragging the slider only does at the steps)
+  const float  widthThumb   = (width <= 120.0f) ? 120.0f : (width <= 180.0f) ? 180.0f : 240.0f;
+  _art.SetThumbnailSize (ImFloor (ImVec2 (widthThumb, widthThumb * 1.5f) * dpi));
 
   // The first frame of the grid (switched to it, or back to the library tab), or another game was selected (e.g. in the
   //   list, or by type-to-search): show the selected game
@@ -138,7 +142,7 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
     ImVec2 size = ImGui::CalcTextSize (icon);
     float  pad  = ImFloor (3.0f * dpi);
 
-    draw_list->AddRectFilled (pos, pos + size + ImVec2 (pad, pad) * 2.0f, IM_COL32 (0, 0, 0, 170), rounding);
+    draw_list->AddRectFilled (pos, pos + size + ImVec2 (pad, pad) * 2.0f, IM_COL32 (0, 0, 0, 170), ImFloor (3.0f * dpi));
     draw_list->AddText       (pos + ImVec2 (pad, pad), color, icon);
 
     return size.x + pad * 2.0f;

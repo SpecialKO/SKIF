@@ -291,6 +291,16 @@ ShowLibraryViewToggles (void)
   {
     if (SKIF_ImGui_MenuItemEx2 (L_("Show titles"), ICON_FA_HEADING, ImColor(255, 207, 72), spaces, &_registry.bLibraryGridTitles))
       _registry.regKVLibraryGridTitles.putData (_registry.bLibraryGridTitles);
+
+    // The size of the covers: the grid follows while dragging, and the registry is written once released
+    // TRANSLATORS: {0} is the width of the covers in the library's grid view (in pixels at 100% scale)
+    const std::string sizeFormat = SKIF_L10n_PrintfFormat (_("Cover size: {0}"), "%d");
+
+    ImGui::SetNextItemWidth (ImMax (ImGui::GetContentRegionAvail ( ).x, ImFloor (180.0f * SKIF_ImGui_GlobalDPIScale)));
+    ImGui::SliderInt        ("###LibraryGridSize", &_registry.iLibraryGridSize, 80, 240, sizeFormat.c_str ( ), ImGuiSliderFlags_AlwaysClamp);
+
+    if (ImGui::IsItemDeactivatedAfterEdit ( ))
+      _registry.regKVLibraryGridSize.putData (_registry.iLibraryGridSize);
   }
 
   // The list is shown in both views
