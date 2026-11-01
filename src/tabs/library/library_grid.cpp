@@ -167,7 +167,8 @@ DrawGamesGrid (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
     ImGui::PushStyleColor  (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
     bool pressed =
     ImGui::Selectable      (rec->ImGuiLabelID.c_str(), selected,
-                            ImGuiSelectableFlags_SelectOnNav | ImGuiSelectableFlags_NoPadWithHalfSpacing, sizeTile);
+                            static_cast <ImGuiSelectableFlags> (ImGuiSelectableFlags_SelectOnNav) |
+                            static_cast <ImGuiSelectableFlags> (ImGuiSelectableFlags_NoPadWithHalfSpacing), sizeTile); // The latter is internal (another enum)
     ImGui::PopStyleColor   ( );
 
     const bool hovered   = ImGui::IsItemHovered ( );
