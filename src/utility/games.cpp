@@ -2028,6 +2028,14 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
         }
       }
     }
+
+    // Special K: no profile mappings and not in the labels above, but it needs its sort key (names.all_upper_alnum) all the
+    //   same, or SortApps ( ) puts it before every other game (an empty name sorts first)
+    else if (app.second->id != 0 && app.second->IsSpecialK ( ))
+    {
+      Trie unused;
+      InsertTrieKey (&app, &unused);
+    }
   }
 
   if (ERROR_SUCCESS == lsKey) {
