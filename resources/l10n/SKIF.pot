@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-01 08:50+0100\n"
+"POT-Creation-Date: 2026-11-01 08:58+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -467,7 +467,7 @@ msgid "Online resources:"
 msgstr ""
 
 #: src/tabs/about.cpp:347
-#: src/tabs/library/library_menus.cpp:1332
+#: src/tabs/library/library_menus.cpp:1336
 msgid "Wiki"
 msgstr ""
 
@@ -890,9 +890,9 @@ msgid "Support depends on the GPU and display configuration. Unusual driver or d
 msgstr ""
 
 #: src/tabs/hardware.cpp:1259
-#: src/tabs/library/library_menus.cpp:1468
-#: src/tabs/library/library_menus.cpp:1723
-#: src/tabs/library/library_menus.cpp:1976
+#: src/tabs/library/library_menus.cpp:1472
+#: src/tabs/library/library_menus.cpp:1727
+#: src/tabs/library/library_menus.cpp:1980
 #: src/tabs/local.cpp:750
 msgid "Refresh"
 msgstr ""
@@ -1275,7 +1275,7 @@ msgid ""
 msgstr ""
 
 #: src/tabs/library/library_details.cpp:439
-#: src/tabs/library/library_menus.cpp:1204
+#: src/tabs/library/library_menus.cpp:1208
 #: src/tabs/library/library_properties.cpp:1683
 msgid "Play"
 msgstr ""
@@ -1309,7 +1309,7 @@ msgid "Warning: VAC protected game; injection is not recommended!"
 msgstr ""
 
 #: src/tabs/library/library_details.cpp:835
-#: src/tabs/library/library_menus.cpp:656
+#: src/tabs/library/library_menus.cpp:660
 msgid "Properties"
 msgstr ""
 
@@ -1379,7 +1379,7 @@ msgid "Loading games..."
 msgstr ""
 
 #: src/tabs/library/library_list.cpp:464
-#: src/tabs/library/library_menus.cpp:699
+#: src/tabs/library/library_menus.cpp:703
 msgctxt "category"
 msgid "Favorites"
 msgstr ""
@@ -1393,13 +1393,13 @@ msgid "Games"
 msgstr ""
 
 #: src/tabs/library/library_list.cpp:494
-#: src/tabs/library/library_menus.cpp:788
+#: src/tabs/library/library_menus.cpp:792
 msgid "Rename"
 msgstr ""
 
 #: src/tabs/library/library_list.cpp:502
-#: src/tabs/library/library_menus.cpp:795
-#: src/tabs/library/library_menus.cpp:914
+#: src/tabs/library/library_menus.cpp:799
+#: src/tabs/library/library_menus.cpp:918
 #: src/tabs/library/library_properties.cpp:794
 #: src/tabs/monitor.cpp:2089
 #: src/tabs/monitor.cpp:2097
@@ -1444,255 +1444,255 @@ msgstr ""
 msgid "This option is not available due to a local injection being used."
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:290
-#: src/tabs/library/library_menus.cpp:353
+#: src/tabs/library/library_menus.cpp:292
+#: src/tabs/library/library_menus.cpp:357
 msgid "Special K has been disabled for this launch configuration."
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:292
+#: src/tabs/library/library_menus.cpp:294
 msgid "Starts the primary launch option through the platform client."
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:365
-#: src/tabs/library/library_menus.cpp:1236
+#: src/tabs/library/library_menus.cpp:369
+#: src/tabs/library/library_menus.cpp:1240
 msgid "without Special K"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:372
+#: src/tabs/library/library_menus.cpp:376
 msgid ""
 "Starts the launch option clicked next without Special K.\n"
 "This stops the injection service, so other games launched meanwhile are affected as well."
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:472
-#: src/tabs/library/library_menus.cpp:498
+#: src/tabs/library/library_menus.cpp:476
+#: src/tabs/library/library_menus.cpp:502
 msgid "Switch to game"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:484
-#: src/tabs/library/library_menus.cpp:510
+#: src/tabs/library/library_menus.cpp:488
+#: src/tabs/library/library_menus.cpp:514
 msgid "Terminate game"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:524
-#: src/tabs/library/library_menus.cpp:1313
+#: src/tabs/library/library_menus.cpp:528
+#: src/tabs/library/library_menus.cpp:1317
 #: src/tabs/monitor.cpp:1621
 msgid "Browse"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:526
+#: src/tabs/library/library_menus.cpp:530
 msgid "Game folder"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:533
+#: src/tabs/library/library_menus.cpp:537
 msgid "Profile folder"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:549
+#: src/tabs/library/library_menus.cpp:553
 msgid "Screenshots"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:561
+#: src/tabs/library/library_menus.cpp:565
 msgid "Configuration"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:598
+#: src/tabs/library/library_menus.cpp:602
 msgid "Save/config folders"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:652
+#: src/tabs/library/library_menus.cpp:656
 msgid "Manage"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:661
+#: src/tabs/library/library_menus.cpp:665
 msgid "Favorite (pinned; max 5)"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:673
-#: src/tabs/library/library_menus.cpp:1381
+#: src/tabs/library/library_menus.cpp:677
+#: src/tabs/library/library_menus.cpp:1385
 msgid "Favorite"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:674
-#: src/tabs/library/library_menus.cpp:1382
+#: src/tabs/library/library_menus.cpp:678
+#: src/tabs/library/library_menus.cpp:1386
 msgid "Unfavorite"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:693
+#: src/tabs/library/library_menus.cpp:697
 #: src/tabs/library/library_properties.cpp:229
 msgid "Category"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:828
+#: src/tabs/library/library_menus.cpp:832
 #: src/tabs/library/library_properties.cpp:265
 msgid "New category..."
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:871
-#: src/tabs/library/library_menus.cpp:879
+#: src/tabs/library/library_menus.cpp:875
+#: src/tabs/library/library_menus.cpp:883
 msgid "Create desktop shortcut"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:880
+#: src/tabs/library/library_menus.cpp:884
 msgid "A desktop shortcut has been created."
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:881
+#: src/tabs/library/library_menus.cpp:885
 msgid "Failed to create a desktop shortcut!"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:898
+#: src/tabs/library/library_menus.cpp:902
 msgid "Hide"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:899
+#: src/tabs/library/library_menus.cpp:903
 msgid "Unhide"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:933
+#: src/tabs/library/library_menus.cpp:937
 msgid "Developer"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1172
+#: src/tabs/library/library_menus.cpp:1176
 msgid "Copy ID"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1221
+#: src/tabs/library/library_menus.cpp:1225
 msgid "Starts the injection service as well."
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1247
+#: src/tabs/library/library_menus.cpp:1251
 msgid "Stops the injection service as well."
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1271
+#: src/tabs/library/library_menus.cpp:1275
 msgid "Websites"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1299
+#: src/tabs/library/library_menus.cpp:1303
 msgid "Start service"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1302
+#: src/tabs/library/library_menus.cpp:1306
 msgid "Start service (manual stop)"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1307
+#: src/tabs/library/library_menus.cpp:1311
 msgid "Stop service"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1315
+#: src/tabs/library/library_menus.cpp:1319
 #: src/tabs/monitor.cpp:886
 msgid "Install folder"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1321
+#: src/tabs/library/library_menus.cpp:1325
 msgid "Profile folders"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1439
-#: src/tabs/library/library_menus.cpp:1669
+#: src/tabs/library/library_menus.cpp:1443
+#: src/tabs/library/library_menus.cpp:1673
 msgid "Change"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1443
+#: src/tabs/library/library_menus.cpp:1447
 msgid "Images"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1466
+#: src/tabs/library/library_menus.cpp:1470
 #: src/tabs/library/library_properties.cpp:579
 msgid "Clear"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1467
-#: src/tabs/library/library_menus.cpp:1722
+#: src/tabs/library/library_menus.cpp:1471
+#: src/tabs/library/library_menus.cpp:1726
 #: src/tabs/monitor.cpp:1566
 #: src/tabs/settings.cpp:2491
 #: src/utility/ini_presets.cpp:302
 msgid "Reset"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1491
-#: src/tabs/library/library_menus.cpp:1746
+#: src/tabs/library/library_menus.cpp:1495
+#: src/tabs/library/library_menus.cpp:1750
 msgid "Managed by the platform client."
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1533
+#: src/tabs/library/library_menus.cpp:1537
 msgid "Scaling"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1541
+#: src/tabs/library/library_menus.cpp:1545
 msgctxt "cover scaling"
 msgid "Default"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1554
+#: src/tabs/library/library_menus.cpp:1558
 msgid "Scales the cover to a maximum height of 600px"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1556
+#: src/tabs/library/library_menus.cpp:1560
 msgctxt "cover scaling"
 msgid "Fill"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1569
+#: src/tabs/library/library_menus.cpp:1573
 msgctxt "cover scaling"
 msgid "Fit"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1582
+#: src/tabs/library/library_menus.cpp:1586
 msgctxt "cover scaling"
 msgid "None"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1623
-#: src/tabs/library/library_menus.cpp:1781
+#: src/tabs/library/library_menus.cpp:1627
+#: src/tabs/library/library_menus.cpp:1785
 msgid "Open SteamGridDB"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1673
+#: src/tabs/library/library_menus.cpp:1677
 msgid "Icons"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1822
+#: src/tabs/library/library_menus.cpp:1826
 msgid "Clear filter"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1828
+#: src/tabs/library/library_menus.cpp:1832
 msgid "Add game"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1835
+#: src/tabs/library/library_menus.cpp:1839
 msgid "Sort by"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1841
+#: src/tabs/library/library_menus.cpp:1845
 msgid "Alphabetical"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1853
+#: src/tabs/library/library_menus.cpp:1857
 msgid "Most played"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1865
+#: src/tabs/library/library_menus.cpp:1869
 msgid "Sort by the number of launches of the game through this app."
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1867
+#: src/tabs/library/library_menus.cpp:1871
 msgid "Last played"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1888
+#: src/tabs/library/library_menus.cpp:1892
 msgid "Platforms"
 msgstr ""
 
 #. TRANSLATORS: Games added by the user (shown among the platforms: Steam, GOG, ...)
-#: src/tabs/library/library_menus.cpp:1946
+#: src/tabs/library/library_menus.cpp:1950
 msgctxt "platform"
 msgid "Custom"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1952
+#: src/tabs/library/library_menus.cpp:1956
 msgid "Hidden games"
 msgstr ""
 

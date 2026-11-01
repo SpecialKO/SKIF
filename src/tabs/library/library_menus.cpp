@@ -273,6 +273,7 @@ DrawGameContextMenu_PlayWith (app_record_s* pApp, bool playDisabled)
     const SKIF_Lib_WithoutSK wosk         = SKIF_Lib_GetWithoutSKState (pApp, primary);
     const bool               localBlocked = (withoutSK && wosk == SKIF_Lib_WithoutSK::LocalInjection);
 
+    SKIF_ImGui_PushDisableState (localBlocked);
     if (SKIF_ImGui_MenuItemEx3 ((pApp->store_utf8 + "###GameContextMenu_PlayWithPlatform").c_str ( ), ICON_FA_GAMEPAD, _RightIcon (primary, wosk),
                                 ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Icon), ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), ! playDisabled && ! localBlocked))
     {
@@ -280,6 +281,7 @@ DrawGameContextMenu_PlayWith (app_record_s* pApp, bool playDisabled)
       launchViaPlatform = true; // Explicit: through the platform client, whatever the Instant Play setting
       launchWithoutSK   = withoutSK;
     }
+    SKIF_ImGui_PopDisableState  (localBlocked);
 
     if (ImGui::IsItemHovered (ImGuiHoveredFlags_AllowWhenDisabled))
       SKIF_ImGui_SetHoverText (SKIF_Lib_GetLaunchCommand (pApp, primary));
@@ -336,6 +338,7 @@ DrawGameContextMenu_PlayWith (app_record_s* pApp, bool playDisabled)
                         : _launch.getDescriptionUTF8 ( ).c_str ( ),
                       _launch.id);
 
+      SKIF_ImGui_PushDisableState (localBlocked);
       if (SKIF_ImGui_MenuItemEx3 (szButtonLabel, ICON_FA_ROCKET, _RightIcon (&_launch, wosk),
                                   ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Icon), ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), ! playDisabled && ! localBlocked))
       {
@@ -343,6 +346,7 @@ DrawGameContextMenu_PlayWith (app_record_s* pApp, bool playDisabled)
         launchInstant   = true;
         launchWithoutSK = withoutSK;
       }
+      SKIF_ImGui_PopDisableState  (localBlocked);
 
       if (ImGui::IsItemHovered (ImGuiHoveredFlags_AllowWhenDisabled))
         SKIF_ImGui_SetHoverText (SKIF_Lib_GetLaunchCommand (pApp, &_launch));
