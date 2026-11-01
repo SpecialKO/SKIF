@@ -1,6 +1,7 @@
 #include <utility/skif_imgui.h>
 
 #include <algorithm>
+#include <atomic>
 #include <filesystem>
 #include <fstream>
 #include <unordered_set>
@@ -566,10 +567,19 @@ SKIF_ImGui_IsAnyInputDown (void)
   return false;
 }
 
+// The last frame a (blocking) SKIF_ImGui_BeginPopup ( ) was shown in. Atomic, as SKIF_ImGui_IsAnyPopupOpen ( ) is also
+//   called from SKIF_LibRefreshWorker
+static std::atomic <int> s_skifPopupFrame = -2;
+
+// SKIF_ImGui_BeginPopup ( ) windows are not ImGui popups, so they are tracked separately. Most checks run before the
+//   popups are drawn later in the frame, so one shown in the previous frame counts as well
 bool
-SKIF_ImGui_IsAnyPopupOpen (void)
+SKIF_ImGui_IsAnyPopupOpen (bool includeSKIFPopups)
 {
-  return ImGui::IsPopupOpen ("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel);
+  if (ImGui::IsPopupOpen ("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
+    return true;
+
+  return (includeSKIFPopups && ImGui::GetFrameCount ( ) - s_skifPopupFrame.load ( ) <= 1);
 }
 
 void
@@ -1730,8 +1740,12 @@ SKIF_ImGui_DimBackgroundViewport (const ImGuiViewport* vp)
 // 
 // Not compatible with ImGui::SetNextWindowSize() as the dimmed background eats it
 bool
-SKIF_ImGui_BeginPopup (const char* name, bool* p_open, ImVec2 size, ImGuiWindowFlags flags)
+SKIF_ImGui_BeginPopup (const char* name, bool* p_open, ImVec2 size, ImGuiWindowFlags flags, bool blocking)
 {
+  // Blocks the main window's hotkeys and menus as an ImGui popup would (see SKIF_ImGui_IsAnyPopupOpen ( ))
+  if (blocking)
+    s_skifPopupFrame.store (ImGui::GetFrameCount ( ));
+
   // Use same background color as real model popups
   ImGui::PushStyleColor (ImGuiCol_WindowBg, ImGui::GetStyleColorVec4 (ImGuiCol_PopupBg));
 
@@ -2759,9 +2773,8 @@ SKIF_ImGui_CanMouseDragMove (void)
   return    ! _registry._TouchDevice      &&           // Only if we are not on a touch input device
               SKIF_MouseDragMoveAllowed   &&           // Manually disabled by a few UI elements
             ! ImGui::IsAnyItemHovered ( ) &&           // Disabled if any item is hovered
-          ( ! SKIF_ImGui_IsAnyPopupOpen ( )         || // Disabled if any popup is opened..
-          (PopupMessageInfo    == PopupState_Opened || // ..except for a few standard ones which are
-           PopupCategoryModify == PopupState_Opened)); //    aligned to the center of the app window
+          ( ! SKIF_ImGui_IsAnyPopupOpen (false)    || // Disabled if any ImGui popup is opened (SKIF's own are centered in the app window)..
+           PopupCategoryModify == PopupState_Opened);  // ..except for the category prompt, which is as well
 }
 
 // Based on https://github.com/ocornut/imgui/issues/3379#issuecomment-1678718752

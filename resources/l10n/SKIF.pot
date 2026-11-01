@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-01 08:20+0100\n"
+"POT-Creation-Date: 2026-11-01 08:36+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -173,30 +173,30 @@ msgstr ""
 msgid "Service continues running after this app is closed."
 msgstr ""
 
-#: src/SKIF.cpp:5425
+#: src/SKIF.cpp:5391
 msgid "Blink and you'll miss it ;)"
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/SKIF.cpp:5427
+#: src/SKIF.cpp:5393
 msgid "An update is being installed..."
 msgstr ""
 
-#: src/SKIF.cpp:5453
+#: src/SKIF.cpp:5419
 msgid "Open the app to continue."
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/SKIF.cpp:5455
+#: src/SKIF.cpp:5421
 msgid "An update to Special K is available!"
 msgstr ""
 
-#: src/SKIF.cpp:5467
+#: src/SKIF.cpp:5433
 msgid "The update will be retried later."
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/SKIF.cpp:5469
+#: src/SKIF.cpp:5435
 msgid "Update failed :("
 msgstr ""
 
@@ -229,8 +229,8 @@ msgstr ""
 #: src/stores/SKIF/custom_library.cpp:558
 #: src/tabs/library/library_popups.cpp:154
 #: src/tabs/library/library_popups.cpp:238
-#: src/tabs/library/library_popups.cpp:268
-#: src/tabs/library/library_popups.cpp:317
+#: src/tabs/library/library_popups.cpp:266
+#: src/tabs/library/library_popups.cpp:306
 #: src/tabs/library/library_properties.cpp:2058
 #: src/tabs/library/library_properties.cpp:2153
 #: src/tabs/local.cpp:1213
@@ -239,7 +239,7 @@ msgstr ""
 #: src/tabs/monitor.cpp:2003
 #: src/tabs/monitor.cpp:2090
 #: src/tabs/monitor.cpp:2123
-#: src/utility/skif_imgui.cpp:1828
+#: src/utility/skif_imgui.cpp:1842
 #: src/utility/updater.cpp:1570
 #: src/utility/updater.cpp:1627
 msgid "Cancel"
@@ -766,7 +766,7 @@ msgstr ""
 #: src/tabs/library/library_popups.cpp:163
 #: src/tabs/monitor.cpp:1704
 #: src/tabs/monitor.cpp:1897
-#: src/utility/skif_imgui.cpp:1830
+#: src/utility/skif_imgui.cpp:1844
 msgid "Yes"
 msgstr ""
 
@@ -774,7 +774,7 @@ msgstr ""
 #: src/tabs/monitor.cpp:1704
 #: src/tabs/monitor.cpp:1897
 #: src/tabs/settings.cpp:1616
-#: src/utility/skif_imgui.cpp:1831
+#: src/utility/skif_imgui.cpp:1845
 msgid "No"
 msgstr ""
 
@@ -1092,7 +1092,7 @@ msgstr ""
 #: src/tabs/ini_editor.cpp:519
 #: src/tabs/library/library_properties.cpp:2056
 #: src/tabs/library/library_properties.cpp:2135
-#: src/utility/skif_imgui.cpp:1833
+#: src/utility/skif_imgui.cpp:1847
 msgid "Save"
 msgstr ""
 
@@ -1182,45 +1182,45 @@ msgstr ""
 msgid "Loading..."
 msgstr ""
 
-#: src/tabs/library.cpp:1634
+#: src/tabs/library.cpp:1632
 msgid "New 32-bit DLL Installed"
 msgstr ""
 
-#: src/tabs/library.cpp:1635
+#: src/tabs/library.cpp:1633
 msgid "New 64-bit DLL Installed"
 msgstr ""
 
-#: src/tabs/library.cpp:1754
-#: src/tabs/library.cpp:1862
+#: src/tabs/library.cpp:1752
+#: src/tabs/library.cpp:1860
 msgid "Missing Files"
 msgstr ""
 
-#: src/tabs/library.cpp:1755
-#: src/tabs/library.cpp:1863
+#: src/tabs/library.cpp:1753
+#: src/tabs/library.cpp:1861
 msgid "Unable to extract Special K DLL files from the provided {0} file."
 msgstr ""
 
-#: src/tabs/library.cpp:1901
+#: src/tabs/library.cpp:1899
 msgid "Unsupported Feature"
 msgstr ""
 
-#: src/tabs/library.cpp:1902
+#: src/tabs/library.cpp:1900
 msgid "SKIF cannot perform a drag-n-drop update because Special K {0} or newer is required."
 msgstr ""
 
-#: src/tabs/library.cpp:1917
+#: src/tabs/library.cpp:1915
 msgid "Unsupported file format"
 msgstr ""
 
-#: src/tabs/library.cpp:1919
+#: src/tabs/library.cpp:1917
 msgid "Add a game to the library:"
 msgstr ""
 
-#: src/tabs/library.cpp:1925
+#: src/tabs/library.cpp:1923
 msgid "Update the cover for the current selected game:"
 msgstr ""
 
-#: src/tabs/library.cpp:1936
+#: src/tabs/library.cpp:1934
 msgid "Note that the app has no support for animated images."
 msgstr ""
 
@@ -1420,7 +1420,7 @@ msgstr ""
 
 #: src/tabs/library/library_menus.cpp:56
 #: src/tabs/settings.cpp:1996
-#: src/utility/skif_imgui.cpp:2046
+#: src/utility/skif_imgui.cpp:2060
 msgid "Troubleshooting:"
 msgstr ""
 
@@ -1734,23 +1734,23 @@ msgstr ""
 
 #. TRANSLATORS: {0} is the name of a game
 #. TRANSLATORS: {0} is the file name of a process
-#: src/tabs/library/library_popups.cpp:262
+#: src/tabs/library/library_popups.cpp:260
 #: src/tabs/monitor.cpp:1975
 msgid "Do you want to end {0}?"
 msgstr ""
 
-#: src/tabs/library/library_popups.cpp:263
+#: src/tabs/library/library_popups.cpp:261
 msgid "Any unsaved game data may be lost."
 msgstr ""
 
-#: src/tabs/library/library_popups.cpp:267
-#: src/tabs/library/library_popups.cpp:301
+#: src/tabs/library/library_popups.cpp:265
+#: src/tabs/library/library_popups.cpp:289
 #: src/tabs/monitor.cpp:1984
 #: src/tabs/monitor.cpp:1989
 msgid "End Process"
 msgstr ""
 
-#: src/tabs/library/library_popups.cpp:280
+#: src/tabs/library/library_popups.cpp:273
 #: src/tabs/monitor.cpp:1970
 msgid "Task Manager"
 msgstr ""
@@ -3106,7 +3106,7 @@ msgid "Tooltips"
 msgstr ""
 
 #: src/tabs/settings.cpp:1368
-#: src/utility/skif_imgui.cpp:633
+#: src/utility/skif_imgui.cpp:643
 msgid "Info: "
 msgstr ""
 
@@ -3702,91 +3702,91 @@ msgstr ""
 msgid "Injection service is running."
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:476
-#: src/utility/skif_imgui.cpp:480
-#: src/utility/skif_imgui.cpp:1839
+#: src/utility/skif_imgui.cpp:477
+#: src/utility/skif_imgui.cpp:481
+#: src/utility/skif_imgui.cpp:1853
 msgid "OK"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1827
+#: src/utility/skif_imgui.cpp:1841
 msgid "None"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1834
+#: src/utility/skif_imgui.cpp:1848
 msgid "Don't Save"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1893
+#: src/utility/skif_imgui.cpp:1907
 msgid "Are you sure you want to continue?"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1909
+#: src/utility/skif_imgui.cpp:1923
 msgid "Do you want to save the changes made?"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1910
+#: src/utility/skif_imgui.cpp:1924
 msgid "Your changes will be lost if you don't save them."
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1938
+#: src/utility/skif_imgui.cpp:1952
 msgid "Should 64-bit or 32-bit be used?"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1939
+#: src/utility/skif_imgui.cpp:1953
 msgid "Processes can only load DLL files of the same bitness."
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:2051
+#: src/utility/skif_imgui.cpp:2065
 msgid "Force start service"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:2058
+#: src/utility/skif_imgui.cpp:2072
 msgid "Elevated"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:2063
+#: src/utility/skif_imgui.cpp:2077
 msgid "Force stop service"
 msgstr ""
 
 #. TRANSLATORS: An April Fools' Day joke (a fake activation of Special K, with technobabble), shown on April 1st
-#: src/utility/skif_imgui.cpp:3262
+#: src/utility/skif_imgui.cpp:3275
 msgid "Special K Activation"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3270
+#: src/utility/skif_imgui.cpp:3283
 msgid "Special K  //  Nominal Flow Activation"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3274
+#: src/utility/skif_imgui.cpp:3287
 msgid "Client fingerprint:"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3313
+#: src/utility/skif_imgui.cpp:3326
 msgid "This title is missing its nominal constant (0x00000000)."
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3318
+#: src/utility/skif_imgui.cpp:3331
 msgid "Contacting activation server  sk-activation.local ..."
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3323
+#: src/utility/skif_imgui.cpp:3336
 msgid "Transforming constant against client fingerprint ..."
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3328
+#: src/utility/skif_imgui.cpp:3341
 msgid "Nominal flow restored."
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3344
+#: src/utility/skif_imgui.cpp:3357
 msgid "Just kidding -- Special K needs no such thing. Happy April Fools' Day!"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3347
-#: src/utility/skif_imgui.cpp:3349
+#: src/utility/skif_imgui.cpp:3360
+#: src/utility/skif_imgui.cpp:3362
 msgid "Phew, OK"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3356
+#: src/utility/skif_imgui.cpp:3369
 msgid "Please wait, this will only take a moment ..."
 msgstr ""
 

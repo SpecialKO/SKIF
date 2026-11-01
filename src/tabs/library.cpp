@@ -416,7 +416,8 @@ SearchAppsList (void)
 
     KeyboardHint = PopupState_Open;
 
-    if (SKIF_ImGui_BeginPopup ("###KeyboardHint", nullptr, ImVec2(), ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar))
+    // A transient hint while typing, so not blocking (SKIF_ImGui_IsAnyPopupOpen ( ))
+    if (SKIF_ImGui_BeginPopup ("###KeyboardHint", nullptr, ImVec2(), ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar, false))
     {
       if (KeyboardHint == PopupState_Open)
       {
@@ -1363,7 +1364,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   if (SKIF_ImGui_IsViewportFocused ( ) &&
       EmptySpaceMenu == PopupState_Closed              &&
-      AddGamePopup   == PopupState_Closed              &&
       IconMenu != PopupState_Open                      &&
     ! ImGui::IsAnyItemHovered ( )                      &&
       ImGui::IsMouseClicked   (ImGuiMouseButton_Right) &&
@@ -1531,10 +1531,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 
 #pragma region Popups::KeyboardSearch
 
-  if (AddGamePopup        == PopupState_Closed &&
-      ModifyGamePopup     == PopupState_Closed &&
-      PopupCategoryModify == PopupState_Closed &&
-      RemoveGamePopup     == PopupState_Closed &&
+  // Not while a popup is shown (ImGui ones, and SKIF's own prompts such as Add Game)
+  if (! SKIF_ImGui_IsAnyPopupOpen ( ) &&
       ! io.KeyCtrl)
   {
     // Only while the main window has the focus, so typing in another window (Local Manager, INI editor, ...)

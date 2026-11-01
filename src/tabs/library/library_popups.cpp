@@ -256,8 +256,6 @@ DrawLibraryPopups (void)
   if (static_proc.handle != INVALID_HANDLE_VALUE ||
       static_proc.pid    != 0)
   {
-    ImGui::OpenPopup         ("###TaskManagerLibrary");
-
     // TRANSLATORS: {0} is the name of a game
     const char* question = _("Do you want to end {0}?");
     const char* warning  = _("Any unsaved game data may be lost.");
@@ -267,23 +265,13 @@ DrawLibraryPopups (void)
                                            ImGui::CalcTextSize (L_("End Process"), nullptr, true).x + ImGui::GetStyle ( ).FramePadding.x * 2.0f,
                                            ImGui::CalcTextSize (L_("Cancel"),      nullptr, true).x + ImGui::GetStyle ( ).FramePadding.x * 2.0f });
 
-    ImGui::SetNextWindowSize (
-      ImVec2 (
-        std::max ({ ImGui::CalcTextSize (SKIF_L10n_Format (question, nullptr, static_proc.name).c_str ()).x + 20.0f * SKIF_ImGui_GlobalDPIScale,
-                    fXwarning + ImGui::GetStyle().ItemSpacing.x * 2,
-                    fButtonWidth * 2.0f + ImGui::GetStyle().ItemSpacing.x * 4 }),
-        0.0f
-      )
-    );
-    ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead()->Viewport->GetMainRect().GetCenter(), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
+    const float fPopupWidth  = std::max ({ ImGui::CalcTextSize (SKIF_L10n_Format (question, nullptr, static_proc.name).c_str ()).x + 20.0f * SKIF_ImGui_GlobalDPIScale,
+                                           fXwarning + ImGui::GetStyle().ItemSpacing.x * 2,
+                                           fButtonWidth * 2.0f + ImGui::GetStyle().ItemSpacing.x * 4 });
 
-    if (ImGui::BeginPopupModal ( L_("Task Manager###TaskManagerLibrary"), nullptr,
-                                    ImGuiWindowFlags_NoResize |
-                                    ImGuiWindowFlags_NoMove   |
-                                    ImGuiWindowFlags_AlwaysAutoResize )
-        )
+    // Centered with a dimmed background (as the Task Manager of the Monitor tab), and closed by resetting static_proc
+    if (SKIF_ImGui_BeginPopup (L_("Task Manager###TaskManagerLibrary"), nullptr, ImVec2 (fPopupWidth, 0.0f)))
     {
-
       SKIF_ImGui_TextHighlighted (question, { static_proc.name.c_str() }, ImColor::HSV (0.11F, 1.F, 1.F));
       SKIF_ImGui_Spacing ( );
 
@@ -307,8 +295,9 @@ DrawLibraryPopups (void)
           SKIF_Util_TerminateProcess (static_proc.pid,    0x0);
 
         static_proc = terminate_process_s { };
-        ImGui::CloseCurrentPopup ( );
       }
+
+      SKIF_ImGui_BlockDragMoveWhenItemActive ( );
 
       ImGui::SameLine ( );
       ImGui::Spacing  ( );
@@ -318,11 +307,16 @@ DrawLibraryPopups (void)
                                              25 * SKIF_ImGui_GlobalDPIScale )))
       {
         static_proc = terminate_process_s { };
-        ImGui::CloseCurrentPopup ( );
       }
 
-      ImGui::EndPopup ( );
+      SKIF_ImGui_BlockDragMoveWhenItemActive ( );
+
+      // Escape cancels, as it would a regular popup
+      if (ImGui::IsWindowFocused (ImGuiFocusedFlags_RootAndChildWindows) && ImGui::IsKeyPressed (ImGuiKey_Escape, false))
+        static_proc = terminate_process_s { };
     }
+
+    SKIF_ImGui_EndPopup ( ); // Must always be called, regardless of the return value of SKIF_ImGui_BeginPopup
   }
 
 #pragma endregion

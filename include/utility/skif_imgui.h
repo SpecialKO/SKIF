@@ -62,7 +62,7 @@ HWND     SKIF_ImGui_GetFocusedWindow      (void); // The SKIF window that has th
 bool     SKIF_ImGui_IsViewportFocused     (const ImGuiViewport* vp = ImGui::GetWindowViewport ( ));
 bool     SKIF_ImGui_IsMouseHovered        (void);
 bool     SKIF_ImGui_IsAnyInputDown        (void);
-bool     SKIF_ImGui_IsAnyPopupOpen        (void);
+bool     SKIF_ImGui_IsAnyPopupOpen        (bool includeSKIFPopups = true); // ImGui popups, and SKIF_ImGui_BeginPopup ( ) ones shown this frame or the last (unless excluded)
 void     SKIF_ImGui_SetMouseCursorHand    (void);
 void     SKIF_ImGui_SetHoverTip           (const std::string_view& szText, bool ignoreDisabledTooltips = false, bool allowWhenItemDisabled = false);
 void     SKIF_ImGui_SetHoverText          (const std::string_view& szText, bool overrideExistingText = false);
@@ -101,7 +101,7 @@ std::string SKIF_ImGui_TextRichEscape     (const std::string& text);            
 bool     SKIF_ImGui_SelectableVAligned    (const char* unique_id, const char* label, bool* p_selected, ImGuiSelectableFlags flags, const ImVec2& size_arg);
 bool     SKIF_ImGui_SeparatorTextClickable(const char* label, const bool* collapsed = nullptr, bool hand_cursor = false);
 void     SKIF_ImGui_DimBackgroundViewport (const ImGuiViewport* vp = ImGui::GetWindowViewport ( ));
-bool     SKIF_ImGui_BeginPopup            (const char* name, bool* p_open = nullptr, ImVec2 size = ImVec2(0, 0), ImGuiWindowFlags flags = ImGuiWindowFlags_None);
+bool     SKIF_ImGui_BeginPopup            (const char* name, bool* p_open = nullptr, ImVec2 size = ImVec2(0, 0), ImGuiWindowFlags flags = ImGuiWindowFlags_None, bool blocking = true); // blocking: counts for SKIF_ImGui_IsAnyPopupOpen ( ) (false for transient hints)
 void     SKIF_ImGui_EndPopup              (void);
 bool     SKIF_ImGui_AprilFools_Process    (void); // April Fools' gag: fake "nominal flow" activation theater (see skif_imgui.cpp)
 DChoice  SKIF_ImGui_DialogPrompt          (const char* name, bool* p_open, const char* message = nullptr, const char* description = nullptr, std::vector<DChoice> choices = { DChoice_None });

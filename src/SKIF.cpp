@@ -3926,28 +3926,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if (PopulatedGames && UpdatePromptPopup == PopupState_Open && ! _registry.bMiniMode && ! HiddenFramesContinueProcessing && ! ImGui::IsMouseDragging (ImGuiMouseButton_Left))
         _updater.Show (SKIF_Updater::WindowType::Updater);
 
-      /* 2023-08-04: Disabled due to having been replaced by a new
-      // Special handling to allow the main window to be moved when some popups are opened
-      if (ImGui::IsMouseDragging (ImGuiMouseButton_Left) &&
-                 SKIF_ImGui_GetWindowModeState ( ) &&
-          (      AddGamePopup == PopupState_Opened ||
-             PopupMessageInfo == PopupState_Opened ||
-              ModifyGamePopup == PopupState_Opened ||
-              RemoveGamePopup == PopupState_Opened ))
-      {
-        ImGui::StartMouseMovingWindow (ImGui::GetCurrentWindowRead());
-
-        if      (     AddGamePopup == PopupState_Opened)
-                      AddGamePopup  = PopupState_Open;
-        else if ( PopupMessageInfo == PopupState_Opened)
-                  PopupMessageInfo  = PopupState_Open;
-        else if (  ModifyGamePopup == PopupState_Opened)
-                   ModifyGamePopup  = PopupState_Open;
-        else if (  RemoveGamePopup == PopupState_Opened)
-                   RemoveGamePopup  = PopupState_Open;
-      }
-      */
-
       // Ensure the taskbar overlay icon always shows the correct state
       if (_inject.bTaskbarOverlayIcon != _inject.bCurrentState)
         _inject._SetTaskbarOverlay      (_inject.bCurrentState);
@@ -4061,17 +4039,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
     // If there is any popups opened when SKIF is unfocused and not hovered, close them.
     // 2024-01-28: This can probably mistakenly bug out, seeing how the focus state isn't tracked reliable at times
     // 2026-10-11: This shouldn't misfire any longer after the move to WM_KILLFOCUS/WM_SETFOCUS and making SKIF_ImGui_IsFocused() atomic.
-    if (! SKIF_ImGui_IsFocused ( ) && ! ImGui::IsAnyItemHovered ( ) && SKIF_ImGui_IsAnyPopupOpen ( ))
+    if (! SKIF_ImGui_IsFocused ( ) && ! ImGui::IsAnyItemHovered ( ) && SKIF_ImGui_IsAnyPopupOpen (false)) // Only ImGui popups can be closed here
     {
-      // But don't close those of interest
-      if (     AddGamePopup != PopupState_Open   &&
-               AddGamePopup != PopupState_Opened &&
-           PopupMessageInfo != PopupState_Open   &&
-           PopupMessageInfo != PopupState_Opened &&
-            ModifyGamePopup != PopupState_Open   &&
-            ModifyGamePopup != PopupState_Opened &&
-        PopupCategoryModify != PopupState_Open   &&
-        PopupCategoryModify != PopupState_Opened)
+      // But don't close the category prompt (the other prompts are SKIF popups or windows, which this does not close)
+      if (PopupCategoryModify != PopupState_Open   &&
+          PopupCategoryModify != PopupState_Opened)
       {
         PLOG_DEBUG << "Closing unwanted opened popups because SKIF lost focus...";
         ImGui::ClosePopupsOverWindow (ImGui::GetCurrentWindowRead ( ), false); // CurrentWindow == Debug##Default at this point
@@ -4309,12 +4281,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       processAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If we have any visible notifications
     else if (addAdditionalFrames > 0)
       processAdditionalFrames = ImGui::GetFrameCount ( ) + addAdditionalFrames; // Used when the cover is currently loading in, or the update check just completed
-    /*
-    else if (  AddGamePopup == PopupState_Open ||
-               ConfirmPopup == PopupState_Open ||
-            ModifyGamePopup == PopupState_Open )
-      processAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If a popup is transitioning to an opened state
-    */
     else if (ImGui::GetFrameCount ( ) > processAdditionalFrames)
       processAdditionalFrames = 0;
 
