@@ -236,13 +236,9 @@ DrawGameContextMenu_PlayWith (app_record_s* pApp, bool playDisabled)
 
   ImGui::Separator ( );
 
-  if (playDisabled)
-    ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
-
+  SKIF_ImGui_PushDisableState (playDisabled);
   const bool open = SKIF_ImGui_BeginMenuEx2 (L_("Play with###GameContextMenu_PlayWith"), ICON_FA_PLAY);
-
-  if (playDisabled)
-    ImGui::PopStyleColor ( );
+  SKIF_ImGui_PopDisableState  (playDisabled);
 
   SKIF_ImGui_SetHoverTip (_("Starts a specific launch option: through the platform client, or directly (Instant play)."));
 
@@ -268,6 +264,8 @@ DrawGameContextMenu_PlayWith (app_record_s* pApp, bool playDisabled)
 
     return nullptr;
   };
+
+  SKIF_ImGui_PushDisableState (playDisabled);
 
   // The primary launch config through the platform client
   if (platformEntry)
@@ -374,6 +372,8 @@ DrawGameContextMenu_PlayWith (app_record_s* pApp, bool playDisabled)
     SKIF_ImGui_SetHoverTip (_("Starts the launch option clicked next without Special K.\n"
                               "This stops the injection service, so other games launched meanwhile are affected as well."));
   }
+
+  SKIF_ImGui_PopDisableState  (playDisabled);
 
   ImGui::EndMenu ( );
 }
@@ -1158,15 +1158,11 @@ DrawGameContextMenu (app_record_s* pApp)
     ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled)  * ImVec4 (1.0f, 1.0f, 1.0f, 0.7f)
   );
 
-  if (playDisabled)
-    ImGui::BeginDisabled ( );
-
+  SKIF_ImGui_PushDisableState (playDisabled);
   // Same as the Play button: the default launch option, started as set in Properties (General > Play)
   if (ImGui::MenuItemEx (L_("Play###GameContextMenu_Launch"), ICON_FA_GAMEPAD))
     launchGame = true;
-
-  if (playDisabled)
-    ImGui::EndDisabled ( );
+  SKIF_ImGui_PopDisableState  (playDisabled);
 
   // The command line of the launch config Play uses (the default one)
   const std::string launchCommand = SKIF_Lib_GetLaunchCommand (pApp, firstLaunchConfig);
