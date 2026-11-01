@@ -794,8 +794,8 @@ SKIF_LibraryArtwork::SetThumbnailSize (ImVec2 size)
 void
 SKIF_LibraryArtwork::RequestThumbnail (app_record_s* pApp)
 {
-  constexpr int maxLoads  = 6; // From the cache: local only
-  constexpr int maxBuilds = 4; // Mostly waiting on downloads (Steam's store API, the PCGamingWiki / IGDB cover proxies)
+  constexpr int maxLoads  = 16; // From the cache: local only
+  constexpr int maxBuilds = 16; // Mostly waiting on downloads (Steam's store API, the PCGamingWiki / IGDB cover proxies)
 
   auto& thumb = pApp->tex_thumb;
 
