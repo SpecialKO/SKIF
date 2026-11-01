@@ -911,7 +911,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     // Only run this block of code if
     if (availableWorker != -1 && ! pApp->loading       && // We require an available worker
         (update                                        ||
-        (selection.dir_watch.isSignaled ( ) && ! pApp->_status.updating) || // TODO: Investigate support for multiple launch configs? Right now only the "main" folder is being monitored
+        (selection.dir_watch.isSignaled ( ) && ! pApp->_status.updating) || // The install folder with its subfolders, which covers every launch config (they must reside within it)
         refreshAfterUpdate                             || // The store client finished downloading / updating the game
         (_registry.bLibrarySteam && SKIF_Steam_HasActiveProcessChanged (&_games.GetApps(), &_games.GetAppTickets ( ))) || // If Steam user signed in / out
         _inject.libCacheRefresh                       )) // If the global DLL files have been changed
