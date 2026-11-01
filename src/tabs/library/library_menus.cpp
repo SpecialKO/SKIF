@@ -1142,6 +1142,23 @@ DrawGameContextMenu_Developer (app_record_s* pApp)
       }
 
 
+      // The game's asset folder: SKIF's custom / downloaded covers and icons, and the grid view's thumbnail cache
+      std::wstring assetDir = pApp->GetAssetDirectory ( );
+
+      if (SKIF_ImGui_MenuItemEx2 (L_("Asset folder"), ICON_FA_FOLDER_OPEN, ImColor(255, 207, 72), 0, nullptr, ! assetDir.empty ( )))
+      {
+        std::error_code ec;
+        std::filesystem::create_directories (assetDir, ec); // A game without any artwork yet has none
+
+        SKIF_Util_ExplorePath (assetDir);
+      }
+
+      else if (! assetDir.empty ( ))
+      {
+        SKIF_ImGui_SetMouseCursorHand ( );
+        SKIF_ImGui_SetHoverText       (SK_WideCharToUTF8 (assetDir));
+      }
+
       // Store-specific developer actions (e.g. Xbox: Open Terminal)
       pApp->DrawDeveloperActions ( );
 
