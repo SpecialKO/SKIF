@@ -2133,7 +2133,8 @@ app_record_steam_s::LoadStoreDetails (void)
 {
   static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
 
-  if (! processed)
+  // The appinfo.vdf reader arrives with the first library (SwapInPopulatedGames): until then there is nothing to read
+  if (! processed && appinfo != nullptr)
     appinfo->getAppInfo ( id, &_games.GetApps() );
 }
 

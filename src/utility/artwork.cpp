@@ -835,6 +835,14 @@ SKIF_LibraryArtwork::StartThumbnailWorker (app_record_s* pApp, bool build)
     return;
   }
 
+  // A build needs what selecting the game would have loaded (Steam: appinfo.vdf, which says where the Steam client keeps
+  //   the game's cover; without it the cover can only be looked up online). Main thread, under the lock, as on selection.
+  if (build && pApp->HasPendingStoreDetails ( ))
+  {
+    std::scoped_lock app_lock (SKIF_GamingCollection::Get ( ).GetMutex ( ));
+    pApp->LoadStoreDetails ( );
+  }
+
   // As the cover worker: a PCGamingWiki cover is looked up once per record (decided here, on the main thread)
   if (build && pApp->WantsPCGWCover ( ) && ! pApp->tex_cover.queriedPCGW)
   {
