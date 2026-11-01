@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-01 10:25+0100\n"
+"POT-Creation-Date: 2026-11-01 10:32+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1385,7 +1385,7 @@ msgid "Unknown"
 msgstr ""
 
 #: src/tabs/library/library_grid.cpp:101
-#: src/tabs/library/library_list.cpp:279
+#: src/tabs/library/library_list.cpp:286
 msgid "Loading games..."
 msgstr ""
 
@@ -1397,26 +1397,26 @@ msgstr ""
 msgid "Could not launch game due to missing executable:"
 msgstr ""
 
-#: src/tabs/library/library_list.cpp:83
+#: src/tabs/library/library_list.cpp:90
 #: src/tabs/library/library_menus.cpp:703
 msgctxt "category"
 msgid "Favorites"
 msgstr ""
 
 #. TRANSLATORS: The default category of the library
-#: src/tabs/library/library_list.cpp:84
+#: src/tabs/library/library_list.cpp:91
 #: src/tabs/library/library_properties.cpp:237
 #: src/tabs/library/library_properties.cpp:239
 msgctxt "category"
 msgid "Games"
 msgstr ""
 
-#: src/tabs/library/library_list.cpp:113
+#: src/tabs/library/library_list.cpp:120
 #: src/tabs/library/library_menus.cpp:792
 msgid "Rename"
 msgstr ""
 
-#: src/tabs/library/library_list.cpp:121
+#: src/tabs/library/library_list.cpp:128
 #: src/tabs/library/library_menus.cpp:799
 #: src/tabs/library/library_menus.cpp:918
 #: src/tabs/library/library_properties.cpp:794
@@ -1425,15 +1425,15 @@ msgstr ""
 msgid "Remove"
 msgstr ""
 
-#: src/tabs/library/library_list.cpp:133
+#: src/tabs/library/library_list.cpp:140
 msgid "Expand all"
 msgstr ""
 
-#: src/tabs/library/library_list.cpp:141
+#: src/tabs/library/library_list.cpp:148
 msgid "Collapse all"
 msgstr ""
 
-#: src/tabs/library/library_list.cpp:149
+#: src/tabs/library/library_list.cpp:156
 msgid "Remember collapsible state"
 msgstr ""
 

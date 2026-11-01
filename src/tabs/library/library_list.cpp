@@ -61,15 +61,22 @@ DrawCategoryHeader (const std::string& tmpCategory, int categories, bool showCle
 
   auto it = std::find_if(_registry.vecCategories.begin(), _registry.vecCategories.end(), [&](const SKIF_RegistrySettings::category_s& category) { return category.name == tmpCategory; });
 
-  // Always expand a category if a filter is active or the selected game was changed
-  if ((sort_changed && selection.category == tmpCategory) || (it != _registry.vecCategories.end() && it->expanded))
-    ImGui::SetNextItemOpen (true);
+  // Always expand a category if the selected game was changed, or type-to-search found a game in it
+  bool forceOpen = ((sort_changed && selection.category == tmpCategory) || search_selection.category == tmpCategory);
 
-  if (search_selection.category == tmpCategory)
-    ImGui::SetNextItemOpen (true);
+  // The category's expanded state (vecCategories, which has every category) is what is shown: in the grid view the
+  //   grid and the list both draw the header, and each has its own open state in ImGui, so they follow this one.
+  //   A header the user toggles updates it below.
+  if (it != _registry.vecCategories.end())
+  {
+    if (forceOpen)
+      it->expanded = true;
 
-  if (s_applyHeaderState > 0 && ImGui::GetFrameCount ( ) > s_applyHeaderState && it != _registry.vecCategories.end())
     ImGui::SetNextItemOpen (it->expanded);
+  }
+
+  else if (forceOpen)
+    ImGui::SetNextItemOpen (true);
 
   if (! _registry._StyleLightMode)
   {
