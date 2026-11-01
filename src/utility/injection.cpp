@@ -850,19 +850,19 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
   // 32-bit/64-bit Services (shortened with an ellipsis if wider than the rest of the frame)
   if (pid32 && bAckInj)
-    SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), _("Waiting for game..."));
+    SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success), _("Waiting for game..."));
   else if (pid32)
-    SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), _("Running"));
+    SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Yellow),  _("Running"));
   else
-    SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), _("Stopped"));
+    SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), _("Stopped"));
 
 #ifdef _WIN64
   if (pid64 && bAckInj)
-    SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), _("Waiting for game..."));
+    SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success), _("Waiting for game..."));
   else if (pid64)
-    SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success), _("Running"));
+    SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Yellow),  _("Running"));
   else
-    SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Warning), _("Stopped"));
+    SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), _("Stopped"));
 #else
   ImGui::NewLine  ();
 #endif
@@ -913,25 +913,14 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   auto frame_id2 =
     ImGui::GetID ("###Global_Injection_Toggle_Frame");
 
-  /*
-  ImGui::PushStyleVar (
-    ImGuiStyleVar_FramePadding,
-      ImVec2 (((_registry.bUIBorders) ? 104.0f : 105.0f) * SKIF_ImGui_GlobalDPIScale,
-                40.0f * SKIF_ImGui_GlobalDPIScale )
-  );
-  */
-
   SKIF_ImGui_BeginChildFrame (
     frame_id2,
-      ImVec2 (  0.0f,
-                0.0f), //110.f *SKIF_ImGui_GlobalDPIScale ),
+      ImVec2 (0.0f, 0.0f),
         ImGuiChildFlags_NavFlattened,
         ImGuiWindowFlags_NoScrollbar       |
         ImGuiWindowFlags_NoScrollWithMouse |
         ImGuiWindowFlags_NoBackground
   );
-
-  //ImGui::PopStyleVar ();
 
   if ( ! bHasServlet )
     SKIF_ImGui_PushDisableState ( );
@@ -1052,7 +1041,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 
       ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
       SKIF_ImGui_SetHoverTip (_("This controls whether the configured auto-stop behavior (see Settings tab) should be used when the service is manually started.\n"
-                              "Note that having this unchecked does not disable the auto-stop behavior if a game is launched without the service already running."));
+                                "Note that having this unchecked does not disable the auto-stop behavior if a game is launched without the service already running."));
     }
 
     else {
@@ -1201,7 +1190,7 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
 
   ImGui::EndGroup    ();
 
-  if (bLogonTaskEnabled ||
+  if (bLogonTaskEnabled   ||
       bAutoStartServiceOnly)
   {
     SKIF_ImGui_PopDisableState  ( );
@@ -1210,12 +1199,8 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
                             "The difference is that this method autostarts SKIF, and not just the GI service."));
   }
 
-  // Legacy method, only appear if it is actually enabled or debug mode is enabled
-  //_registry.bEnableDebugMode;
-
-  if ( bLogonTaskEnabled     ||
-       bAutoStartServiceOnly/* ||
-       _registry.bEnableDebugMode*/ )
+  if (bLogonTaskEnabled   ||
+      bAutoStartServiceOnly)
   {
     // Legacy option that autostarts the injection service on logon.
     // SKIF will not start alongside the background service!
@@ -1308,10 +1293,10 @@ SKIF_InjectionContext::_StartAtLogonCtrl (void)
 
       if (bAutoStartSKIF)
         SKIF_ImGui_SetHoverTip (_("The regular autostart method needs to be disabled to migrate over to this method.\n"
-                                "The difference is that the current method autostarts SKIF, and not just the injection service."));
+                                  "The difference is that the current method autostarts SKIF, and not just the injection service."));
       else
         SKIF_ImGui_SetHoverTip (_("The old legacy method needs to be disabled to migrate over to this new method.\n"
-                                "The difference is that this method does not require elevated privileges."));
+                                  "The difference is that this method does not require elevated privileges."));
     }
 
     ImGui::EndGroup      ();
@@ -1374,14 +1359,18 @@ void SKIF_InjectionContext::_RefreshUIQuickToggle (bool active)
                       (active)  ?
                       (bAckInj) ? NL_("Waiting for game...##ui_game_summary")
                                 : NL_(            "Running##ui_game_summary")
-                                : "                               ##ui_game_summary";
+                                : "                       ##ui_game_summary";
 
     ui_game_summary.color       =
-                      (active)  ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success)  // HSV (0.3F,  0.99F, 1.F)
-                                : ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info);    // HSV (0.08F, 0.99F, 1.F);
+                      (active)  ?
+                      (bAckInj) ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success) // HSV (0.3F,  0.99F, 1.F)
+                                : ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Yellow)
+                                : ImColor (0, 0, 0, 0);
     ui_game_summary.color_hover =
-                      (active)  ? ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Success) * ImVec4(0.8f, 0.8f, 0.8f, 1.0f)
-                                : ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info)    * ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
+                      (active)  ? 
+                      (bAckInj) ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success) * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f)
+                                : ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Yellow)  * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f)
+                                : ImColor (0, 0 ,0, 0);
     ui_game_summary.hover_tip   =
                       (active)  ? N_("Click to stop the service")
                                 : N_("Click to start the service");

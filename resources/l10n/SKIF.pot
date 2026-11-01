@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-01 01:12+0100\n"
+"POT-Creation-Date: 2026-11-01 07:39+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -105,43 +105,43 @@ msgctxt "tab"
 msgid "About"
 msgstr ""
 
-#: src/SKIF.cpp:3546
-#: src/utility/injection.cpp:944
+#: src/SKIF.cpp:3545
+#: src/utility/injection.cpp:933
 msgid "Starting..."
 msgstr ""
 
-#: src/SKIF.cpp:3547
-#: src/utility/injection.cpp:943
+#: src/SKIF.cpp:3546
+#: src/utility/injection.cpp:932
 msgid "Stopping..."
 msgstr ""
 
-#: src/SKIF.cpp:3548
+#: src/SKIF.cpp:3547
 #: src/utility/injection.cpp:853
 #: src/utility/injection.cpp:861
-#: src/utility/injection.cpp:1375
+#: src/utility/injection.cpp:1360
 msgid "Waiting for game..."
 msgstr ""
 
-#: src/SKIF.cpp:3549
+#: src/SKIF.cpp:3548
 #: src/utility/injection.cpp:855
 #: src/utility/injection.cpp:863
-#: src/utility/injection.cpp:1376
+#: src/utility/injection.cpp:1361
 msgid "Running"
 msgstr ""
 
-#: src/SKIF.cpp:3550
+#: src/SKIF.cpp:3549
 #: src/utility/injection.cpp:857
 #: src/utility/injection.cpp:865
 msgid "Stopped"
 msgstr ""
 
-#: src/SKIF.cpp:3552
-#: src/utility/injection.cpp:1386
+#: src/SKIF.cpp:3551
+#: src/utility/injection.cpp:1375
 msgid "Click to stop the service"
 msgstr ""
 
-#: src/SKIF.cpp:3553
-#: src/utility/injection.cpp:1387
+#: src/SKIF.cpp:3552
+#: src/utility/injection.cpp:1376
 msgid "Click to start the service"
 msgstr ""
 
@@ -169,7 +169,7 @@ msgid "This app will close to the notification area."
 msgstr ""
 
 #: src/SKIF.cpp:3770
-#: src/utility/injection.cpp:992
+#: src/utility/injection.cpp:981
 msgid "Service continues running after this app is closed."
 msgstr ""
 
@@ -1315,12 +1315,12 @@ msgstr ""
 
 #: src/tabs/library/library_details.cpp:866
 #: src/tabs/library/library_properties.cpp:1122
-#: src/utility/injection.cpp:1068
+#: src/utility/injection.cpp:1057
 msgid "Special K is unavailable due to missing files."
 msgstr ""
 
 #: src/tabs/library/library_details.cpp:868
-#: src/utility/injection.cpp:1070
+#: src/utility/injection.cpp:1059
 msgid "Please reinstall Special K using the latest available installer."
 msgstr ""
 
@@ -2501,12 +2501,12 @@ msgid "Force stop"
 msgstr ""
 
 #: src/tabs/monitor.cpp:874
-#: src/utility/injection.cpp:1048
+#: src/utility/injection.cpp:1037
 msgid "Stop automatically"
 msgstr ""
 
 #: src/tabs/monitor.cpp:880
-#: src/utility/injection.cpp:1054
+#: src/utility/injection.cpp:1043
 msgid ""
 "This controls whether the configured auto-stop behavior (see Settings tab) should be used when the service is manually started.\n"
 "Note that having this unchecked does not disable the auto-stop behavior if a game is launched without the service already running."
@@ -3622,54 +3622,54 @@ msgstr ""
 msgid "Missing"
 msgstr ""
 
-#: src/utility/injection.cpp:945
-#: src/utility/injection.cpp:946
+#: src/utility/injection.cpp:934
+#: src/utility/injection.cpp:935
 msgid "Service"
 msgstr ""
 
-#: src/utility/injection.cpp:1059
+#: src/utility/injection.cpp:1048
 msgid "Auto-stop is currently unavailable."
 msgstr ""
 
-#: src/utility/injection.cpp:1060
+#: src/utility/injection.cpp:1049
 msgid "The feature requires Special K v21.08.12 or newer."
 msgstr ""
 
-#: src/utility/injection.cpp:1151
+#: src/utility/injection.cpp:1140
 msgid "Start with Windows"
 msgstr ""
 
-#: src/utility/injection.cpp:1159
+#: src/utility/injection.cpp:1148
 msgid "Start minimized in the notification area"
 msgstr ""
 
-#: src/utility/injection.cpp:1160
+#: src/utility/injection.cpp:1149
 msgid "Start minimized"
 msgstr ""
 
-#: src/utility/injection.cpp:1163
+#: src/utility/injection.cpp:1152
 msgid "Start the injection service as well"
 msgstr ""
 
-#: src/utility/injection.cpp:1209
+#: src/utility/injection.cpp:1198
 msgid ""
 "The current autostart method needs to be disabled to migrate over to this method.\n"
 "The difference is that this method autostarts SKIF, and not just the GI service."
 msgstr ""
 
-#: src/utility/injection.cpp:1226
+#: src/utility/injection.cpp:1211
 msgid "Start Injection Service At Logon (obsolete)"
 msgstr ""
 
-#: src/utility/injection.cpp:1243
+#: src/utility/injection.cpp:1228
 msgid "This method is obsolete, and can only be disabled."
 msgstr ""
 
-#: src/utility/injection.cpp:1255
+#: src/utility/injection.cpp:1240
 msgid "Start the injection service with Windows"
 msgstr ""
 
-#: src/utility/injection.cpp:1259
+#: src/utility/injection.cpp:1244
 msgid ""
 "This will start the injection service hidden in the background with Windows.\n"
 "\n"
@@ -3678,27 +3678,27 @@ msgid ""
 "Are you sure you want to proceed?"
 msgstr ""
 
-#: src/utility/injection.cpp:1264
+#: src/utility/injection.cpp:1249
 msgid "Confirm autostart"
 msgstr ""
 
-#: src/utility/injection.cpp:1302
+#: src/utility/injection.cpp:1287
 msgid "Note that this frontend app will not start with Windows."
 msgstr ""
 
-#: src/utility/injection.cpp:1310
+#: src/utility/injection.cpp:1295
 msgid ""
 "The regular autostart method needs to be disabled to migrate over to this method.\n"
 "The difference is that the current method autostarts SKIF, and not just the injection service."
 msgstr ""
 
-#: src/utility/injection.cpp:1313
+#: src/utility/injection.cpp:1298
 msgid ""
 "The old legacy method needs to be disabled to migrate over to this new method.\n"
 "The difference is that this method does not require elevated privileges."
 msgstr ""
 
-#: src/utility/injection.cpp:1353
+#: src/utility/injection.cpp:1338
 msgid "Injection service is running."
 msgstr ""
 

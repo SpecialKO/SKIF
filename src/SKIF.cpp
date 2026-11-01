@@ -3482,7 +3482,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImGui::SetCursorPosY (ImGui::GetCursorPosY ( ) - 2.0f * SKIF_ImGui_GlobalDPIScale);
         ImGui::PushStyleVar (ImGuiStyleVar_FrameBorderSize, 0.0f);
 
-        // Begin Add Game
         ImVec2 tmpPos = ImGui::GetCursorPos ( );
 
         // Prevents selecting the Add Game or Filter button with a keyboard or gamepad (fixes awkward and annoying nav selection)
@@ -3559,6 +3558,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
         // End Service Status
 
+        // Begin Add Game
         static bool btnHoveredAddGame      = false,
                     btnHoveredLocalManager = false;
         ImGui::PushStyleColor (ImGuiCol_Button,        ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg));
