@@ -345,6 +345,23 @@ namespace
 
     return fingerprint;
   }
+
+  // The stamp and fingerprint of the installs the last library scan listed (SKIF_itch_GetInstalledAppIDs, on a library
+  //   worker thread), which SKIF_itch_hasInstalledGamesChanged (main thread) compares against. Not taken by the check
+  //     itself, so that its first call (the first frame) does not query the databases on the main thread.
+  struct itch_baseline_s {
+    std::mutex   mutex;
+    std::wstring stamp;
+    std::string  fingerprint;
+    bool         set = false;
+  };
+
+  itch_baseline_s&
+  SKIF_itch_GetBaseline (void)
+  {
+    static itch_baseline_s baseline;
+    return baseline;
+  }
 }
 
 #pragma endregion
@@ -554,6 +571,20 @@ SKIF_itch_GetInstalledAppIDs (app_list_t *apps)
   std::set <std::string> keys; // Persistent keys already added
   std::set <uint32_t>    ids;  // Internal IDs already added
 
+  // What SKIF_itch_hasInstalledGamesChanged compares against from now on. The stamp is taken first, so a change made
+  //   while the databases are read shows up as a newer stamp later.
+  std::wstring stamp       = SKIF_itch_GetDatabaseStamp ( );
+  std::string  fingerprint = SKIF_itch_GetFingerprint   ( );
+
+  {
+    itch_baseline_s& baseline = SKIF_itch_GetBaseline ( );
+    std::scoped_lock lock (baseline.mutex);
+
+    baseline.stamp       = std::move (stamp);
+    baseline.fingerprint = std::move (fingerprint);
+    baseline.set         = true;
+  }
+
   for (const char* app : ITCH_APPS)
     SKIF_itch_ScanDatabase (app, apps, keys, ids);
 }
@@ -562,25 +593,40 @@ bool
 SKIF_itch_hasInstalledGamesChanged (void)
 {
   static DWORD        dwLastSignalCheck = 0;
-  static std::wstring stamp             = SKIF_itch_GetDatabaseStamp ( );
-  static std::string  fingerprint       = SKIF_itch_GetFingerprint   ( );
 
   bool signal = false;
   if (SKIF_Util_timeGetTime ( ) > dwLastSignalCheck + 5000)
   {
-    std::wstring currentStamp = SKIF_itch_GetDatabaseStamp ( );
+    itch_baseline_s& baseline = SKIF_itch_GetBaseline ( );
+    bool             hasBaseline;
+    std::wstring     stamp;
+    std::string      fingerprint;
 
-    // The database files changed: only repopulate when the installs changed
-    if (currentStamp != stamp)
     {
-      stamp = std::move (currentStamp);
+      std::scoped_lock lock (baseline.mutex);
+      hasBaseline = baseline.set;
+      stamp       = baseline.stamp;
+      fingerprint = baseline.fingerprint;
+    }
 
-      std::string current = SKIF_itch_GetFingerprint ( );
+    // Until the first library scan has taken a fingerprint there is nothing to compare against (that scan is underway)
+    if (hasBaseline)
+    {
+      std::wstring currentStamp = SKIF_itch_GetDatabaseStamp ( );
 
-      if (current != fingerprint)
+      // The database files changed: only repopulate when the installs changed
+      if (currentStamp != stamp)
       {
-        fingerprint = std::move (current);
-        signal      = true;
+        std::string current = SKIF_itch_GetFingerprint ( );
+
+        std::scoped_lock lock (baseline.mutex);
+        baseline.stamp = std::move (currentStamp);
+
+        if (current != fingerprint)
+        {
+          baseline.fingerprint = std::move (current);
+          signal               = true;
+        }
       }
     }
 

@@ -284,16 +284,38 @@ namespace
     return entries;
   }
 
-  // Identifies the current set of EA uninstall entries, to tell EA installs apart from other software changing the Uninstall key
+  // Identifies a set of EA uninstall entries, to tell EA installs apart from other software changing the Uninstall key
   std::wstring
-  SKIF_EA_GetFingerprint (void)
+  SKIF_EA_GetFingerprint (const std::vector <ea_uninstall_entry_s>& entries)
   {
     std::wstring fingerprint;
 
-    for (auto& entry : SKIF_EA_GetUninstallEntries ( ))
+    for (auto& entry : entries)
       fingerprint += entry.key + L"|" + entry.install_dir + L"\n";
 
     return fingerprint;
+  }
+
+  std::wstring
+  SKIF_EA_GetFingerprint (void)
+  {
+    return SKIF_EA_GetFingerprint (SKIF_EA_GetUninstallEntries ( ));
+  }
+
+  // The fingerprint of the installs the last library scan listed (SKIF_EA_GetInstalledAppIDs, on a library worker thread),
+  //   which SKIF_EA_hasInstalledGamesChanged (main thread) compares against. Not taken by the check itself, so that its
+  //     first call (the first frame) does not read the whole Uninstall key on the main thread.
+  struct ea_baseline_s {
+    std::mutex   mutex;
+    std::wstring fingerprint;
+    bool         set = false;
+  };
+
+  ea_baseline_s&
+  SKIF_EA_GetBaseline (void)
+  {
+    static ea_baseline_s baseline;
+    return baseline;
   }
 
   // A shortcut (.lnk) to an executable, from the desktops
@@ -684,7 +706,18 @@ SKIF_EA_GetInstalledAppIDs (app_list_t *apps)
   std::vector <ea_shortcut_s> shortcuts;     // Read when a game first needs them (see below)
   bool                        shortcutsRead = false;
 
-  for (auto& entry : SKIF_EA_GetUninstallEntries ( ))
+  const std::vector <ea_uninstall_entry_s> entries = SKIF_EA_GetUninstallEntries ( );
+
+  // What SKIF_EA_hasInstalledGamesChanged compares against from now on
+  {
+    ea_baseline_s&   baseline = SKIF_EA_GetBaseline ( );
+    std::scoped_lock lock (baseline.mutex);
+
+    baseline.fingerprint = SKIF_EA_GetFingerprint (entries);
+    baseline.set         = true;
+  }
+
+  for (auto& entry : entries)
   {
     // EA games installed through Steam are listed by the Steam scan
     if (StrStrIW (entry.install_dir.c_str ( ), LR"(\steamapps\)") != nullptr)
@@ -873,7 +906,6 @@ bool
 SKIF_EA_hasInstalledGamesChanged (void)
 {
   static DWORD        dwLastSignalCheck = 0;
-  static std::wstring fingerprint       = SKIF_EA_GetFingerprint ( );
 
   bool signal = false;
   if (SKIF_Util_timeGetTime ( ) > dwLastSignalCheck + 5000)
@@ -889,15 +921,30 @@ SKIF_EA_hasInstalledGamesChanged (void)
     bool changed32 = appWatch32.isSignaled ( );
     bool changed64 = appWatch64.isSignaled ( );
 
-    // The Uninstall key changes whenever any software is installed or updated: only repopulate when the EA games changed
+    // The Uninstall key changes whenever any software is installed or updated: only repopulate when the EA games changed.
+    //   Until the first library scan has taken a fingerprint there is nothing to compare against (that scan is underway).
     if (changed32 || changed64)
     {
-      std::wstring current = SKIF_EA_GetFingerprint ( );
+      ea_baseline_s& baseline = SKIF_EA_GetBaseline ( );
+      bool           hasBaseline;
+      std::wstring   previous;
 
-      if (current != fingerprint)
       {
-        fingerprint = std::move (current);
-        signal      = true;
+        std::scoped_lock lock (baseline.mutex);
+        hasBaseline = baseline.set;
+        previous    = baseline.fingerprint;
+      }
+
+      if (hasBaseline)
+      {
+        std::wstring current = SKIF_EA_GetFingerprint ( );
+
+        if (current != previous)
+        {
+          std::scoped_lock lock (baseline.mutex);
+          baseline.fingerprint = std::move (current);
+          signal               = true;
+        }
       }
     }
 

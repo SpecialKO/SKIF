@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-02 23:19+0100\n"
+"POT-Creation-Date: 2026-11-02 23:32+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -222,7 +222,7 @@ msgstr ""
 msgid "Update failed :("
 msgstr ""
 
-#: src/stores/itch/itch_library.cpp:658
+#: src/stores/itch/itch_library.cpp:704
 msgid ""
 "The itch app runs this game in its sandbox, as a separate Windows user,\n"
 "which may affect which saves are accessible from within the game.\n"
@@ -367,7 +367,7 @@ msgstr ""
 msgid "Game properties"
 msgstr ""
 
-#: src/stores/Ubisoft/ubisoft_library.cpp:1701
+#: src/stores/Ubisoft/ubisoft_library.cpp:1748
 msgid ""
 "Ubisoft Connect is still installing this game.\n"
 "It can be played already if Ubisoft Connect allows it (a progressive install), but\n"

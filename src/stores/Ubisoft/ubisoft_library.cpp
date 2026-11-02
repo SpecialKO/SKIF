@@ -1167,7 +1167,8 @@ namespace
 
   // The current values of the registry references a product's executables are read from (path: register:,
   //   arguments_register:), which the client writes on the game's first launch (Far Cry 3 Blood Dragon).
-  //   Main thread only: the references are kept per product until its configuration changes.
+  //   Any thread (the fingerprint is taken by the library worker and by the change check): the references are kept per
+  //     product until its configuration changes.
   std::string
   SKIF_Ubisoft_GetRegisterValues (uint32_t productID, const std::string& yaml)
   {
@@ -1177,6 +1178,9 @@ namespace
     };
 
     static std::map <uint32_t, references_s> cache;
+    static std::mutex                        cacheMutex;
+
+    std::scoped_lock lock (cacheMutex);
 
     std::hash <std::string> hasher;
     size_t                  hash = hasher (yaml);
@@ -1243,6 +1247,22 @@ namespace
     return fingerprint;
   }
 
+  // The fingerprint of the installs the last library scan listed (SKIF_Ubisoft_GetInstalledAppIDs, on a library worker
+  //   thread), which SKIF_Ubisoft_hasInstalledGamesChanged (main thread) compares against. Not taken by the check itself,
+  //     so that its first call (the first frame) does not read every game's configuration on the main thread.
+  struct ubisoft_baseline_s {
+    std::mutex  mutex;
+    std::string fingerprint;
+    bool        set = false;
+  };
+
+  ubisoft_baseline_s&
+  SKIF_Ubisoft_GetBaseline (void)
+  {
+    static ubisoft_baseline_s baseline;
+    return baseline;
+  }
+
   // Letters and digits only, lower-cased: "RAYMAN® LEGENDS" -> "raymanlegends"
   std::string
   SKIF_Ubisoft_Simplify (const std::string& str)
@@ -1272,6 +1292,19 @@ SKIF_Ubisoft_GetInstalledAppIDs (app_list_t *apps)
 {
   if (apps == nullptr)
     return;
+
+  // What SKIF_Ubisoft_hasInstalledGamesChanged compares against from now on. Taken first, so a change made while the
+  //   games are read shows up as a different fingerprint later. It reads the configurations, which the scan below then
+  //     finds cached.
+  {
+    std::string fingerprint = SKIF_Ubisoft_GetFingerprint ( );
+
+    ubisoft_baseline_s& baseline = SKIF_Ubisoft_GetBaseline ( );
+    std::scoped_lock    lock (baseline.mutex);
+
+    baseline.fingerprint = std::move (fingerprint);
+    baseline.set         = true;
+  }
 
   std::wstring clientFolder = SKIF_Ubisoft_GetClientFolder ( );
 
@@ -1553,18 +1586,32 @@ bool
 SKIF_Ubisoft_hasInstalledGamesChanged (void)
 {
   static DWORD       dwLastSignalCheck = 0;
-  static std::string fingerprint       = SKIF_Ubisoft_GetFingerprint ( );
 
   bool signal = false;
   if (SKIF_Util_timeGetTime ( ) > dwLastSignalCheck + 5000)
   {
-    // A few registry reads; the configurations file is only re-read when it changed
-    std::string current = SKIF_Ubisoft_GetFingerprint ( );
+    ubisoft_baseline_s& baseline = SKIF_Ubisoft_GetBaseline ( );
+    bool                hasBaseline;
+    std::string         previous;
 
-    if (current != fingerprint)
     {
-      fingerprint = std::move (current);
-      signal      = true;
+      std::scoped_lock lock (baseline.mutex);
+      hasBaseline = baseline.set;
+      previous    = baseline.fingerprint;
+    }
+
+    // Until the first library scan has taken a fingerprint there is nothing to compare against (that scan is underway).
+    //   After that: a few registry reads; the configurations file is only re-read when it changed.
+    if (hasBaseline)
+    {
+      std::string current = SKIF_Ubisoft_GetFingerprint ( );
+
+      if (current != previous)
+      {
+        std::scoped_lock lock (baseline.mutex);
+        baseline.fingerprint = std::move (current);
+        signal               = true;
+      }
     }
 
     dwLastSignalCheck = SKIF_Util_timeGetTime ( );
