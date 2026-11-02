@@ -828,11 +828,43 @@ DrawGameDetails_LaunchBar (app_record_s* pApp)
     return clicked;
   };
 
-  // Left corner: Properties (as Manage > Properties); grey, so it doesn't draw the eye
+  // Left corner: Properties (as Manage > Properties), Browse (the game menu's Browse submenu) and Configuration (as
+  //   Manage > Configuration); grey, so they don't draw the eye
   if (_IconButton (ICON_FA_GEAR "###SKIFPropertiesShortcut", ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled)))
     ModifyGamePopup = PopupState_Open;
 
   SKIF_ImGui_SetHoverTip (_("Properties"));
+
+  ImGui::SameLine ( );
+
+  if (_IconButton (ICON_FA_FOLDER "###SKIFBrowseShortcut", ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled)))
+    ImGui::OpenPopup ("###LaunchBarBrowseMenu");
+
+  SKIF_ImGui_SetHoverTip (_("Browse"));
+
+  if (ImGui::BeginPopup ("###LaunchBarBrowseMenu", ImGuiWindowFlags_NoMove))
+  {
+    // As the game menu: no navigation highlight (white border around items)
+    ImGui::PushStyleColor (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
+
+    DrawGameBrowseMenuItems (pApp);
+
+    ImGui::PopStyleColor  ( );
+    ImGui::EndPopup       ( );
+  }
+
+  ImGui::SameLine ( );
+
+  if (_IconButton (ICON_FA_FILE_LINES "###SKIFConfigShortcut", ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled)))
+    SKIF_Lib_OpenGameConfig (pApp);
+
+  if (ImGui::IsItemHovered ( ))
+    SKIF_ImGui_SetHoverText (pApp->specialk.injection.config.full_path_utf8.c_str ( ));
+
+  SKIF_ImGui_SetHoverTip (_("Configuration"));
+
+  // Right-click: troubleshooting (as Manage > Configuration)
+  DrawGameConfigMenu (pApp);
 
   // Right corner: how Play launches the default launch config, as icons placed from the right corner leftwards
   //   (only shown when it is not the usual: Special K disabled, an elevated service, Instant play)

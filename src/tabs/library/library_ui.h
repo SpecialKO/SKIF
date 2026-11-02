@@ -218,6 +218,8 @@ bool SaveGameCover           (app_record_s* pApp, std::wstring_view path); // Co
 void DrawCoverMenuChangeReset (app_record_s* pApp, bool isCustom, bool isManaged); // Change / Reset of the cover (cover menu, grid view's game menu)
 std::string SKIF_Lib_GetClientFavoriteTip (const std::string& client); // Tooltip of a game favorited in its store client (Steam)
 void DrawGameConfigMenu      (app_record_s* pApp);
+void DrawGameBrowseMenuItems (app_record_s* pApp); // The items of the Browse menu (game menu, launch bar of the game details)
+void SKIF_Lib_OpenGameConfig (app_record_s* pApp); // Opens the game's Special K config file in the INI editor (created if missing)
 void DrawGameContextMenu     (app_record_s* pApp);
 // The command line a launch config runs: the executable and its arguments, with the launch options set in the store
 //   client (Steam) where they apply. Shown in the status bar when hovering Play / Instant play (library_menus.cpp)

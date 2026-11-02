@@ -521,11 +521,42 @@ DrawGameContextMenu_Running (app_record_s* pApp)
 }
 
 
-// Game context menu: "Browse" submenu (moved verbatim from DrawGameContextMenu)
-static void
-DrawGameContextMenu_Browse (app_record_s* pApp)
+// Opens the game's Special K config file in SKIF's INI editor, creating it (and its folders) first if it does not exist:
+//   Manage > Configuration in the game menu, and the Configuration button in the launch bar of the game details
+void
+SKIF_Lib_OpenGameConfig (app_record_s* pApp)
 {
-  if (SKIF_ImGui_BeginMenuEx2 (L_("Browse"), ICON_FA_FOLDER, ImColor(255, 207, 72)))
+  if (pApp == nullptr)
+    return;
+
+  // If the file does not exist, create it
+  if (! PathFileExists (pApp->specialk.injection.config.full_path.c_str()))
+  {
+    std::error_code ec;
+    // Create any missing directories
+    if (! std::filesystem::exists             (pApp->specialk.injection.config.root_dir, ec))
+          std::filesystem::create_directories (pApp->specialk.injection.config.root_dir, ec);
+
+    std::wofstream config_file (pApp->specialk.injection.config.full_path.c_str(), std::wofstream::out | std::wofstream::trunc);
+
+    if (config_file.is_open())
+    {
+      config_file << utf8_bom;
+      config_file.close ( );
+    }
+  }
+
+  // Internal editor
+  SKIF_UI_IniEditor_OpenFile (nullptr, IniType_DLL, pApp->specialk.injection.config.full_path, pApp->names.normal);
+
+  // External editor
+  //SKIF_Util_OpenURI (pApp->specialk.injection.config.full_path.c_str(), SW_SHOWNORMAL, NULL);
+}
+
+// The items of the "Browse" menu: the game menu's Browse submenu, and the Browse button in the launch bar of the game details
+void
+DrawGameBrowseMenuItems (app_record_s* pApp)
+{
   {
     if (SKIF_ImGui_MenuItemEx2 (L_("Game folder"), ICON_FA_FOLDER_OPEN, ImColor(255, 207, 72)))
       SKIF_Util_ExplorePath         (pApp->install_dir);
@@ -557,42 +588,6 @@ DrawGameContextMenu_Browse (app_record_s* pApp)
       SKIF_ImGui_SetHoverText       (SK_WideCharToUTF8 (pApp->ui.wsScreenshotDir.data()).c_str());
     }
 
-    ImGui::Separator    ( );
-
-    // --------------------------------------------
-
-    // Config File
-    if (SKIF_ImGui_MenuItemEx2 (L_("Configuration"), ICON_FA_FILE_LINES)) // pApp->specialk.injection.config.shorthand_utf8.c_str ()
-    {
-      // If the file does not exist, create it
-      if (! PathFileExists (pApp->specialk.injection.config.full_path.c_str()))
-      {
-        std::error_code ec;
-        // Create any missing directories
-        if (! std::filesystem::exists             (pApp->specialk.injection.config.root_dir, ec))
-              std::filesystem::create_directories (pApp->specialk.injection.config.root_dir, ec);
-
-        std::wofstream config_file (pApp->specialk.injection.config.full_path.c_str(), std::wofstream::out | std::wofstream::trunc);
-
-        if (config_file.is_open())
-        {
-          config_file << utf8_bom;
-          config_file.close ( );
-        }
-      }
-
-      // Internal editor
-      SKIF_UI_IniEditor_OpenFile (nullptr, IniType_DLL, pApp->specialk.injection.config.full_path, pApp->names.normal);
-
-      // External editor
-      //SKIF_Util_OpenURI (pApp->specialk.injection.config.full_path.c_str(), SW_SHOWNORMAL, NULL);
-    }
-
-    SKIF_ImGui_SetMouseCursorHand ();
-    SKIF_ImGui_SetHoverText       (pApp->specialk.injection.config.full_path_utf8.c_str ());
-
-    DrawGameConfigMenu (pApp);
-
     // --------------------------------------------
 
     if (! pApp->ui.cloud_paths.empty())
@@ -622,6 +617,16 @@ DrawGameContextMenu_Browse (app_record_s* pApp)
         ImGui::EndMenu ();
       }
     }
+  }
+}
+
+// Game context menu: "Browse" submenu
+static void
+DrawGameContextMenu_Browse (app_record_s* pApp)
+{
+  if (SKIF_ImGui_BeginMenuEx2 (L_("Browse"), ICON_FA_FOLDER, ImColor(255, 207, 72)))
+  {
+    DrawGameBrowseMenuItems (pApp);
 
     ImGui::EndMenu ();
   }
@@ -652,6 +657,15 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
 
     if (SKIF_ImGui_MenuItemEx2 (L_("Properties"), ICON_FA_GEAR, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info)))
       ModifyGamePopup = PopupState_Open;
+
+    // Config File (right-click: troubleshooting)
+    if (SKIF_ImGui_MenuItemEx2 (L_("Configuration"), ICON_FA_FILE_LINES)) // pApp->specialk.injection.config.shorthand_utf8.c_str ()
+      SKIF_Lib_OpenGameConfig (pApp);
+
+    SKIF_ImGui_SetMouseCursorHand ();
+    SKIF_ImGui_SetHoverText       (pApp->specialk.injection.config.full_path_utf8.c_str ());
+
+    DrawGameConfigMenu (pApp);
 
     constexpr char* labelPin   =   NL_("Favorite###Manage-Favorite");
     constexpr char* labelUnpin = NL_("Unfavorite###Manage-Favorite");
