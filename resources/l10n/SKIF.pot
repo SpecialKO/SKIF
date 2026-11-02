@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-02 19:22+0100\n"
+"POT-Creation-Date: 2026-11-02 19:48+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1382,49 +1382,51 @@ msgstr ""
 msgid "Please reinstall Special K using the latest available installer."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:921
+#: src/tabs/library/library_details.cpp:928
 msgid "The injection service is started all the same (Ignore blacklist)."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:925
+#: src/tabs/library/library_details.cpp:932
+msgid "Special K will be used as the blacklist is ignored."
+msgstr ""
+
+#: src/tabs/library/library_details.cpp:934
 #: src/tabs/library/library_properties.cpp:1156
 msgid "Special K is disabled through a blacklist pattern in the Settings tab."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:927
-msgid ""
-"Special K is disabled for the default launch option.\n"
-"Click to change it in Properties."
+#: src/tabs/library/library_details.cpp:936
+msgid "Special K is disabled for the default launch option."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:940
+#: src/tabs/library/library_details.cpp:948
 msgid ""
 "The injection service is started elevated for the default launch option.\n"
 "Click to change it in Properties."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:956
+#: src/tabs/library/library_details.cpp:964
 #: src/tabs/library/library_menus.cpp:166
 msgid "Starts the game directly (Instant play)."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:958
+#: src/tabs/library/library_details.cpp:966
 msgid ""
 "Skips the regular platform launch process for the game,\n"
 "including steps such as cloud saves synchronization."
 msgstr ""
 
 #. TRANSLATORS: Where the configuration of Special K is kept (one folder for all games)
-#: src/tabs/library/library_details.cpp:1522
+#: src/tabs/library/library_details.cpp:1530
 #: src/utility/injection.cpp:840
 msgid "Centralized"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:1524
+#: src/tabs/library/library_details.cpp:1532
 msgid "Localized"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:1526
+#: src/tabs/library/library_details.cpp:1534
 msgid "Unknown"
 msgstr ""
 

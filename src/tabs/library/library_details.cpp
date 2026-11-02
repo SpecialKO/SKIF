@@ -910,7 +910,14 @@ DrawGameDetails_LaunchBar (app_record_s* pApp)
 
       if (blacklisted || blacklistedPattern)
       {
-        if (_RightIconButton (ICON_FA_LOCK "###SKDisabledIndicator", ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning)))
+        // An open lock when the service is started all the same (Ignore blacklist): Special K remains disabled for the
+        //   executable itself, but the game it starts (e.g. through a launcher) gets Special K
+        const char*  lockIcon  = (defaultLaunchConfig->isIgnoringBlacklist ( )) ? ICON_FA_LOCK_OPEN "###SKDisabledIndicator"
+                                                                                : ICON_FA_LOCK      "###SKDisabledIndicator";
+        const ImVec4 lockColor = (defaultLaunchConfig->isIgnoringBlacklist ( )) ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning)
+                                                                                : ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info);
+
+        if (_RightIconButton (lockIcon, lockColor))
           _OpenProperties (PropertiesPage::Launch);
 
         if (ImGui::IsItemHovered ( ))
@@ -921,11 +928,12 @@ DrawGameDetails_LaunchBar (app_record_s* pApp)
                                      ? std::string ("\n\n") + _("The injection service is started all the same (Ignore blacklist).")
                                      : std::string ( );
 
-        if (blacklistedPattern)
-          SKIF_ImGui_SetHoverTip (_("Special K is disabled through a blacklist pattern in the Settings tab.") + ignoredTip);
-        else
-          SKIF_ImGui_SetHoverTip (_("Special K is disabled for the default launch option.\n"
-                                    "Click to change it in Properties.") + ignoredTip);
+        if (defaultLaunchConfig->isIgnoringBlacklist ( ))
+          SKIF_ImGui_SetHoverTip (_("Special K will be used as the blacklist is ignored."));
+        else if (blacklistedPattern)
+          SKIF_ImGui_SetHoverTip (_("Special K is disabled through a blacklist pattern in the Settings tab."));
+        else  // blacklisted
+          SKIF_ImGui_SetHoverTip (_("Special K is disabled for the default launch option."));
       }
 
       // Only when the service is used: not blocked, or used all the same (Ignore blacklist)
