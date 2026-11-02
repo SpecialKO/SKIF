@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-02 18:39+0100\n"
+"POT-Creation-Date: 2026-11-02 18:46+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1424,7 +1424,7 @@ msgstr ""
 msgid "Unknown"
 msgstr ""
 
-#: src/tabs/library/library_grid.cpp:127
+#: src/tabs/library/library_grid.cpp:136
 #: src/tabs/library/library_list.cpp:289
 msgid "Loading games..."
 msgstr ""

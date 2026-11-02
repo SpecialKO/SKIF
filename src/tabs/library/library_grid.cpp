@@ -110,9 +110,18 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
 
   ImGui::PushStyleColor      (ImGuiCol_ScrollbarBg, ImVec4(0,0,0,0));
 
+  // The vertical scrollbar's width is kept free on the right whether the scrollbar is shown or not, so the tiles and the
+  //   category headers do not move when it appears or disappears: the content width is fixed to what is left of the grid
+  //     with the scrollbar shown. The same width is left free on the left as well (Indent below), to keep the grid centered.
+  const float scrollbarWidth = ImGui::GetStyle ( ).ScrollbarSize;
+
+  ImGui::SetNextWindowContentSize (ImVec2 (std::max (1.0f, ImFloor (size).x - ImGui::GetStyle ( ).WindowPadding.x * 2.0f - scrollbarWidth), 0.0f)); // 0: the height is not fixed
+
   ImGui::BeginChild          ( "###GameGrid", ImFloor (size),
                                   ImGuiChildFlags_AlwaysUseWindowPadding | ((! _registry._LibHorizonMode) ? ImGuiChildFlags_NavFlattened : ImGuiChildFlags_None), // As the list
                                   ImGuiWindowFlags_NoBackground ); // As the cover
+
+  ImGui::Indent              (scrollbarWidth);
 
   // As many columns as fit, with the spare width spread between them
   const float avail   = ImGui::GetContentRegionAvail ( ).x;
@@ -533,6 +542,8 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
 
   // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
   SKIF_ImGui_AutoScroll  (false, SKIF_ImGuiAxis_Y, "##AutoScrollLibraryGrid");
+
+  ImGui::Unindent        (scrollbarWidth);
 
   ImGui::EndChild        ( );
   ImGui::PopStyleColor   ( );
