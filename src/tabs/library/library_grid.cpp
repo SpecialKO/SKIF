@@ -57,6 +57,11 @@ GetPlatformBadge (app_record_s::Store store)
 //   re-sort (it is drawn after the grid). The covers are thumbnails (SKIF_LibraryArtwork::RequestThumbnail), requested
 //   as their tiles are drawn. Each section (each expanded category, Favorites first) is drawn through
 //   ImGuiListClipper by rows of tiles, like the list's rows.
+// What is dragged over SKIF (library.cpp, set by droptarget.hpp): the tile it is over is highlighted if it may be an image
+extern bool  dragOverActive;
+extern bool  dragOverImage;
+extern POINT dragOverPoint;
+
 // Where the tiles were drawn in the grid's latest frame (the part of each that is visible): images dropped on a tile change
 //   that game's cover (GetGridTileAt)
 struct grid_tile_rect_s {
@@ -230,7 +235,10 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
 
     const ImVec2 posTile = ImGui::GetCursorScreenPos ( );
 
-    // Where it is visible (within the grid, which scrolls), for images dropped on it (GetGridTileAt)
+    // Where it is visible (within the grid, which scrolls), for images dropped on it (GetGridTileAt), and whether an image
+    //   is dragged over it (highlighted below)
+    bool dropHovered = false;
+
     {
       const ImVec2 clipMin = draw_list->GetClipRectMin ( ),
                    clipMax = draw_list->GetClipRectMax ( );
@@ -238,7 +246,15 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
                    visMax  = ImVec2 (std::min (posTile.x + sizeTile.x, clipMax.x), std::min (posTile.y + sizeTile.y, clipMax.y));
 
       if (visMin.x < visMax.x && visMin.y < visMax.y)
+      {
         s_tileRects.push_back ({ visMin, visMax, key });
+
+        const ImVec2 drag = ImVec2 (static_cast <float> (dragOverPoint.x), static_cast <float> (dragOverPoint.y));
+
+        dropHovered = (dragOverActive && dragOverImage &&
+                       drag.x >= visMin.x && drag.x < visMax.x &&
+                       drag.y >= visMin.y && drag.y < visMax.y);
+      }
     }
 
     if (_registry.bFadeCovers)
@@ -435,6 +451,17 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
     else if (hovered)
       draw_list->AddRect (minCover + ImVec2 (0.5f, 0.5f), maxCover - ImVec2 (0.5f, 0.5f),
                           IM_COL32 (255, 255, 255, 60), rounding, 1.0f, ImDrawFlags_None);
+
+    // An image is dragged over it (dropped, it becomes the game's cover): the cover lightened, in a thick accent border
+    if (dropHovered)
+    {
+      const float  border = std::max (3.0f, ImFloor (3.0f * dpi));
+      const ImVec2 out    = ImVec2 (border * 0.5f + 1.0f, border * 0.5f + 1.0f);
+
+      draw_list->AddRectFilled (minCover, maxCover, IM_COL32 (255, 255, 255, 50), rounding);
+      draw_list->AddRect       (minCover - out, maxCover + out, ImGui::GetColorU32 (ImGuiCol_SKIF_Info),
+                                rounding + out.x, border, ImDrawFlags_None);
+    }
 
     // Badges: running or updating (top right). Favorites need none: they have a section of their own
     const float badgeInset = ImFloor (4.0f * dpi);

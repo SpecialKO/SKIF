@@ -5570,6 +5570,11 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       addAdditionalFrames += 3;
       break;
 
+    case WM_SKIF_DRAGOVER:
+      // Something is dragged over SKIF (or no longer is): the next frames show the grid view's drop highlight (or hide it)
+      addAdditionalFrames += 3;
+      break;
+
     case WM_SKIF_REFRESHCOVER:
       addAdditionalFrames += 3;
 

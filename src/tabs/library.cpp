@@ -167,6 +167,9 @@ change_category_s static_category; // library_ui.h
 
 std::wstring dragDroppedFilePath = L"";
 POINT        dragDroppedPoint    = { }; // Where it was dropped (screen coordinates; droptarget.hpp)
+bool         dragOverActive      = false; // Something is dragged over SKIF (droptarget.hpp) ...
+bool         dragOverImage       = false; //   ... that may be an image (not e.g. a game to add) ...
+POINT        dragOverPoint       = { };   //   ... here (screen coordinates): the grid view highlights the tile it is over
 std::wstring dragDroppedFilePathGame = L"";
 
 extern ImVec2          SKIF_vecServiceMode;
@@ -1687,19 +1690,19 @@ SKIF_UI_Tab_DrawLibrary (void)
     _inject._RefreshUIQuickToggle (bWasRunning);
   };
 
-  // The game whose cover a dropped image changes: in the grid view, the game whose tile it was dropped on
+  // The game whose cover a dropped image changes: in the grid view, the game whose tile it was dropped on (none if it was
+  //   dropped outside the tiles); otherwise the selected game
   auto _GetCoverDropTarget = [&](void) -> app_record_s*
   {
+    if (! IsLibraryGridView ( ))
+      return pApp;
+
     app_key_s tile;
 
-    if (IsLibraryGridView ( ) &&
-        GetGridTileAt (ImVec2 (static_cast <float> (dragDroppedPoint.x), static_cast <float> (dragDroppedPoint.y)), tile))
-    {
-      if (app_record_s* pTile = _games.Find (tile); pTile != nullptr)
-        return pTile;
-    }
+    if (GetGridTileAt (ImVec2 (static_cast <float> (dragDroppedPoint.x), static_cast <float> (dragDroppedPoint.y)), tile))
+      return _games.Find (tile);
 
-    return pApp;
+    return nullptr;
   };
 
   if (! dragDroppedFilePath.empty())
@@ -1957,6 +1960,12 @@ SKIF_UI_Tab_DrawLibrary (void)
         SKIF_ImGui_InfoMessage (_("Unsupported Feature"),
        F_("SKIF cannot perform a drag-n-drop update because Special K {0} or newer is required.", "25.3.11"));
       }
+    }
+
+    // Images + URLs in the grid view, dropped outside the tiles: no game's cover to change
+    else if (IsLibraryGridView ( ) && _GetCoverDropTarget ( ) == nullptr)
+    {
+      PLOG_INFO << "The drop was not on a game's tile in the grid view; nothing was changed.";
     }
 
     // Images + URLs: the cover of the game whose tile they were dropped on in the grid view (selected or not), else of
