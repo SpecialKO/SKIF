@@ -10,6 +10,8 @@
 #include <filesystem>
 #include <cmath>
 #include <utility/sk_utility.h>
+#include <utility/fsutil.h>
+#include <unordered_set>
 
 extern concurrency::concurrent_queue <IUnknown *> SKIF_ResourcesToFree;
 
@@ -2037,6 +2039,168 @@ SKIF_LibraryArtwork::UpdateAnimatedThumbnails (DWORD now)
       _Start (*thumb, false);
 
   return wakeIn;
+}
+
+#pragma endregion
+
+#pragma region Cover Caches
+
+// A folder's path as compared: normalized, lowercase, backslashes, without a trailing one
+static std::wstring
+_NormalizeAssetFolder (const std::filesystem::path& folder)
+{
+  std::wstring path = SKIF_Util_ToLowerW (folder.lexically_normal ( ).wstring ( ));
+
+  std::replace (path.begin ( ), path.end ( ), L'/', L'\\');
+
+  while (! path.empty ( ) && path.back ( ) == L'\\')
+    path.pop_back ( );
+
+  return path;
+}
+
+// The asset folders: Special K's (<Special K>\Assets\ itself) and each game's (Assets\<store>\<game>\). Worker threads.
+static std::vector <std::filesystem::path>
+_GetAssetFolders (void)
+{
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
+  std::vector <std::filesystem::path> folders;
+  std::error_code                     ec;
+
+  const std::filesystem::path root = std::filesystem::path (_path_cache.specialk_userdata) / L"Assets";
+
+  if (! std::filesystem::is_directory (root, ec))
+    return folders;
+
+  folders.push_back (root);
+
+  for (auto& store : std::filesystem::directory_iterator (root, ec))
+  {
+    std::error_code ec2;
+
+    if (! store.is_directory (ec2))
+      continue;
+
+    for (auto& game : std::filesystem::directory_iterator (store.path ( ), ec2))
+    {
+      std::error_code ec3;
+
+      if (game.is_directory (ec3))
+        folders.push_back (game.path ( ));
+    }
+  }
+
+  return folders;
+}
+
+// Deletes the cover cache files of a folder (cover-thumb-*). Returns how many it deleted (one in use stays).
+static int
+_DeleteCoverCacheFiles (const std::filesystem::path& folder)
+{
+  int             deleted = 0;
+  std::error_code ec;
+  std::vector <std::filesystem::path> files;
+
+  for (auto& entry : std::filesystem::directory_iterator (folder, ec))
+  {
+    std::error_code ec2;
+
+    if (entry.is_regular_file (ec2) && SKIF_Util_ToLowerW (entry.path ( ).filename ( ).wstring ( )).rfind (L"cover-thumb", 0) == 0)
+      files.push_back (entry.path ( ));
+  }
+
+  for (auto& file : files)
+  {
+    std::error_code ec2;
+
+    if (std::filesystem::remove (file, ec2))
+      deleted++;
+  }
+
+  return deleted;
+}
+
+void
+SKIF_LibraryArtwork::CleanUpOrphanedCoverCaches (const std::vector <std::wstring>& assetDirs)
+{
+  // One at a time (it runs once a session)
+  if (m_coverCacheBusy.exchange (true))
+    return;
+
+  std::vector <std::wstring>* keep = new std::vector <std::wstring> ( );
+  keep->reserve (assetDirs.size ( ));
+
+  for (auto& dir : assetDirs)
+    if (! dir.empty ( ))
+      keep->push_back (dir); // Compared normalized (_NormalizeAssetFolder)
+
+  HANDLE hWorkerThread = (HANDLE)
+  _beginthreadex (nullptr, 0x0, [](void* var) -> unsigned
+  {
+    SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibCoverCacheWorker");
+    SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // EcoQoS
+    SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
+
+    std::vector <std::wstring>* _keep = static_cast <std::vector <std::wstring>*> (var);
+
+    std::unordered_set <std::wstring> keep;
+
+    for (auto& dir : *_keep)
+      keep.insert (_NormalizeAssetFolder (dir));
+
+    delete _keep;
+
+    // The games' folders (the first is Special K's own, the Assets folder itself: never cleaned up). If no game's folder is
+    //   found at all, the paths are not comparable (spelled differently): nothing is deleted.
+    const std::vector <std::filesystem::path> folders = _GetAssetFolders ( );
+    std::vector <size_t>                      orphaned;
+    size_t                                    found = 0;
+
+    for (size_t i = 1; i < folders.size ( ); i++)
+    {
+      if (keep.count (_NormalizeAssetFolder (folders [i])) == 0)
+        orphaned.push_back (i);
+      else
+        found++;
+    }
+
+    if (found == 0 && ! keep.empty ( ))
+    {
+      PLOG_WARNING << "No asset folder of a game in the library was found; the cover caches are not cleaned up.";
+      orphaned.clear ( );
+    }
+
+    int files   = 0,
+        cleaned = 0;
+
+    for (size_t i : orphaned)
+    {
+      if (const int deleted = _DeleteCoverCacheFiles (folders [i]); deleted > 0)
+      {
+        files += deleted;
+        cleaned++;
+      }
+    }
+
+    PLOG_INFO << "Deleted " << files << " cover cache files in " << cleaned << " asset folders of games no longer in the library.";
+
+    SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
+
+    SKIF_LibraryArtwork::Get ( ).m_coverCacheBusy.store (false);
+
+    return 0;
+  }, keep, 0x0, nullptr);
+
+  if (hWorkerThread != NULL)
+    CloseHandle (hWorkerThread);
+
+  else
+  {
+    PLOG_ERROR << "Failed to start the cover cache worker thread!";
+    delete keep;
+    m_coverCacheBusy.store (false);
+  }
 }
 
 #pragma endregion

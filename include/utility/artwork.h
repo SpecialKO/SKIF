@@ -129,6 +129,13 @@ public:
   void ReleaseThumbnails      (void);                // Unloads all of them (cover sources changed in Settings, size changed)
   bool IsThumbnailWorkActive  (void) const { return (m_activeThumbLoads + m_activeThumbBuilds) > 0; }
 
+  // Cover caches: the thumbnails of the grid view and their animations (<asset folder>cover-thumb-*: .dds, .anim, and
+  //   .tmp left behind), in the asset folders (Assets\<store>\<game>\). Those of games no longer in the library are
+  //     deleted once a session, in the background (SKIF_LibCoverCacheWorker). Custom covers, previous covers and downloaded
+  //       covers are never touched, nor anything of Special K's own (the Assets folder itself).
+  void CleanUpOrphanedCoverCaches (const std::vector <std::wstring>& assetDirs); // Once the library is loaded (assetDirs: the asset
+                                                     //   folders of the games in it, in full)
+
   // Textures
   void ReleaseCurrentCover    (void);                // Pushes the current cover to SKIF_ResourcesToFree
   void ReleaseTextures        (void);                // Covers and all game icons (device reset); results still in flight are dropped, and the icons load again as they are drawn
@@ -260,6 +267,9 @@ private:
   bool          MakeAnimatedThumbnailRoom    (size_t bytes, const anim_thumb_s* keep, bool hovered); // Unloads others until bytes fit
   void          StartAnimatedThumbnailWorker (anim_thumb_s& thumb, bool build);
   DWORD         UpdateAnimatedThumbnails     (DWORD now);                   // UpdateAnimatedCover: play / pause, start workers; ms until a frame is due (0: none)
+
+  // Cover caches (CleanUpOrphanedCoverCaches): its worker is running
+  std::atomic<bool>         m_coverCacheBusy    { false };
 
   // Saves to notify of (OnCoverSaved → PopCoverSavedNotice): the game, and whether it succeeded
   std::vector <std::pair <app_key_s, bool>>

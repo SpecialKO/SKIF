@@ -1313,7 +1313,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::Spacing         ( );
 
-    // Animated covers (APNG, GIF) in the grid view: how much video memory their tile-size frames may be kept loaded in
+    // Animated covers (APNG, GIF, WebP) in the grid view: how much video memory their tile-size frames may be kept loaded in
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
     SKIF_ImGui_SetHoverTip (_("Animated covers in the grid view play as soon as they are hovered, and pause when the mouse moves on.\n"
                               "Each one takes about 5-15 MB of video memory; once the limit is reached, those out of view are unloaded first.\n"
@@ -1338,6 +1338,7 @@ SKIF_UI_Tab_DrawSettings (void)
       }
     }
     ImGui::TreePop         ( );
+
 
     ImGui::Spacing         ( );
 

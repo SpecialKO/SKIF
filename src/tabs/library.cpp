@@ -912,6 +912,25 @@ SKIF_UI_Tab_DrawLibrary (void)
       sort_changed = true;
 
     PLOG_VERBOSE << "Swapped in the new library data!";
+
+    // Once per session, with the whole library known: the cover caches (thumbnails, animations) of the asset folders of
+    //   games no longer in it are deleted (in the background). Not with an empty library (nothing could be told apart).
+    static bool cleanedUpCoverCaches = false;
+
+    if (! cleanedUpCoverCaches && ! _games.IsPopulating ( ))
+    {
+      std::vector <std::wstring> assetDirs;
+
+      for (auto& app : _games.GetApps ( ))
+        if (app.second != nullptr && app.second->id != 0)
+          assetDirs.push_back (app.second->GetAssetDirectory ( ));
+
+      if (! assetDirs.empty ( ))
+      {
+        cleanedUpCoverCaches = true;
+        _art.CleanUpOrphanedCoverCaches (assetDirs);
+      }
+    }
   }
 
   // Swap in the covers / icons the background workers finished
