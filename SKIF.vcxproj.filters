@@ -222,6 +222,9 @@
     <ClInclude Include="include\stores\generic_library2.h">
       <Filter>Header Files\Stores</Filter>
     </ClInclude>
+    <ClInclude Include="src\stores\animated_images.inl">
+      <Filter>Source Files\Stores</Filter>
+    </ClInclude>
     <ClInclude Include="include\utility\updater.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>

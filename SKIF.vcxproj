@@ -435,6 +435,7 @@
     <ClInclude Include="include\utility\sk_utility.h" />
     <ClInclude Include="include\stores\generic_library.h" />
     <ClInclude Include="include\stores\generic_library2.h" />
+    <ClInclude Include="src\stores\animated_images.inl" />
     <ClInclude Include="include\stores\GOG\gog_library.h" />
     <ClInclude Include="include\stores\SKIF\custom_library.h" />
     <ClInclude Include="include\stores\Steam\apps_ignore.h" />

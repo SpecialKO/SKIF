@@ -1,0 +1,80 @@
+apng_basic.png 6 60 90
+  50
+  100
+  100
+  100
+  200
+  70
+apng_blend.png 6 60 90
+  80
+  80
+  80
+  80
+  80
+  80
+apng_default.png 5 60 90
+  80
+  80
+  80
+  80
+  80
+apng_dispose.png 6 60 90
+  80
+  80
+  80
+  80
+  80
+  80
+apng_palette.png 6 60 90
+  80
+  80
+  80
+  80
+  80
+  80
+gif_basic.gif 6 60 90
+  50
+  100
+  100
+  20
+  200
+  70
+gif_dispose1.gif 6 60 90
+  60
+  60
+  60
+  60
+  60
+  60
+gif_dispose2.gif 6 60 90
+  60
+  60
+  60
+  60
+  60
+  60
+gif_mixed.gif 8 60 90
+  60
+  60
+  60
+  60
+  60
+  60
+  60
+  60
+webp_alpha.webp 6 60 90
+  60
+  60
+  60
+  60
+  60
+  60
+webp_lossy.webp 8 60 90
+  50
+  100
+  100
+  100
+  200
+  70
+  30
+  40
