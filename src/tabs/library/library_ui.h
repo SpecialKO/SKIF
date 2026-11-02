@@ -238,6 +238,7 @@ void EndCategoryHeaders      (void);                 //   and after the last one
 
 // library/library_grid.cpp
 void DrawGamesGrid           (DWORD current_time, ImVec2 size, bool showClearBtn); // In place of the cover in the grid view (DrawGameCover)
+bool GetGridTileAt           (ImVec2 pos, app_key_s& game); // The game whose tile is at pos (screen coordinates) in the grid's latest frame (where it is visible)
 
 // library/library_popups.cpp
 void DrawLibraryPopups       (void);

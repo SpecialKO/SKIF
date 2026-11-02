@@ -57,6 +57,37 @@ GetPlatformBadge (app_record_s::Store store)
 //   re-sort (it is drawn after the grid). The covers are thumbnails (SKIF_LibraryArtwork::RequestThumbnail), requested
 //   as their tiles are drawn. Each section (each expanded category, Favorites first) is drawn through
 //   ImGuiListClipper by rows of tiles, like the list's rows.
+// Where the tiles were drawn in the grid's latest frame (the part of each that is visible): images dropped on a tile change
+//   that game's cover (GetGridTileAt)
+struct grid_tile_rect_s {
+  ImVec2    min;
+  ImVec2    max;
+  app_key_s game;
+};
+
+static std::vector <grid_tile_rect_s> s_tileRects;
+static int                            s_tileRectsFrame = -1;
+
+bool
+GetGridTileAt (ImVec2 pos, app_key_s& game)
+{
+  // Only from the grid's latest frame (it is not drawn in the list view)
+  if (s_tileRectsFrame < ImGui::GetFrameCount ( ) - 1)
+    return false;
+
+  for (auto& tile : s_tileRects)
+  {
+    if (pos.x >= tile.min.x && pos.x < tile.max.x &&
+        pos.y >= tile.min.y && pos.y < tile.max.y)
+    {
+      game = tile.game;
+      return true;
+    }
+  }
+
+  return false;
+}
+
 void
 DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
 {
@@ -139,6 +170,9 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
 
   ImDrawList* draw_list = ImGui::GetWindowDrawList ( );
 
+  s_tileRects.clear ( );
+  s_tileRectsFrame = ImGui::GetFrameCount ( );
+
   // The cover of a tile, in rect (min, max): cropped to fill it, as the thumbnails keep their aspect ratio
   auto _DrawCover = [&](ID3D11ShaderResourceView* srv, ImVec2 res, ImVec2 min, ImVec2 max, float alpha)
   {
@@ -195,6 +229,17 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
     ImGui::PushID          (rec->ImGuiPushID.c_str());
 
     const ImVec2 posTile = ImGui::GetCursorScreenPos ( );
+
+    // Where it is visible (within the grid, which scrolls), for images dropped on it (GetGridTileAt)
+    {
+      const ImVec2 clipMin = draw_list->GetClipRectMin ( ),
+                   clipMax = draw_list->GetClipRectMax ( );
+      const ImVec2 visMin  = ImVec2 (std::max (posTile.x, clipMin.x),              std::max (posTile.y, clipMin.y)),
+                   visMax  = ImVec2 (std::min (posTile.x + sizeTile.x, clipMax.x), std::min (posTile.y + sizeTile.y, clipMax.y));
+
+      if (visMin.x < visMax.x && visMin.y < visMax.y)
+        s_tileRects.push_back ({ visMin, visMax, key });
+    }
 
     if (_registry.bFadeCovers)
       ImGui::PushStyleVar (ImGuiStyleVar_Alpha, fAlphaList);

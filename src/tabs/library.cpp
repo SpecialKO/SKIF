@@ -166,6 +166,7 @@ PopupState KeyboardHint        = PopupState_Closed;
 change_category_s static_category; // library_ui.h
 
 std::wstring dragDroppedFilePath = L"";
+POINT        dragDroppedPoint    = { }; // Where it was dropped (screen coordinates; droptarget.hpp)
 std::wstring dragDroppedFilePathGame = L"";
 
 extern ImVec2          SKIF_vecServiceMode;
@@ -1686,6 +1687,21 @@ SKIF_UI_Tab_DrawLibrary (void)
     _inject._RefreshUIQuickToggle (bWasRunning);
   };
 
+  // The game whose cover a dropped image changes: in the grid view, the game whose tile it was dropped on
+  auto _GetCoverDropTarget = [&](void) -> app_record_s*
+  {
+    app_key_s tile;
+
+    if (IsLibraryGridView ( ) &&
+        GetGridTileAt (ImVec2 (static_cast <float> (dragDroppedPoint.x), static_cast <float> (dragDroppedPoint.y)), tile))
+    {
+      if (app_record_s* pTile = _games.Find (tile); pTile != nullptr)
+        return pTile;
+    }
+
+    return pApp;
+  };
+
   if (! dragDroppedFilePath.empty())
   {
     PLOG_VERBOSE << "New drop was given: " << dragDroppedFilePath;
@@ -1943,11 +1959,14 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
     }
 
-    // Images + URLs
-    else if (SaveGameCover (pApp, dragDroppedFilePath))
+    // Images + URLs: the cover of the game whose tile they were dropped on in the grid view (selected or not), else of
+    //   the selected game
+    else if (app_record_s* pTarget = _GetCoverDropTarget ( ); pTarget != nullptr && SaveGameCover (pTarget, dragDroppedFilePath))
     {
-      // Shows the "..." loading dots, and sets up the current cover to be released
-      _art.BeginSavingCover (pApp);
+      // The shown cover: shows the "..." loading dots, and sets up the current cover to be released. Another game's
+      //   tile keeps its thumbnail until the new cover is saved (OnCoverSaved reloads it).
+      if (pTarget == pApp)
+        _art.BeginSavingCover (pApp);
 
       // A child thread will post WM_SKIF_REFRESHCOVER once done
     }

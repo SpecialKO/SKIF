@@ -180,6 +180,8 @@ public:
         m_pDropTargetHelper->Drop (pDataObj, reinterpret_cast<LPPOINT>(&pt), *pdwEffect);
 
       extern std::wstring dragDroppedFilePath;
+      extern POINT        dragDroppedPoint; // Where it was dropped (screen coordinates): the grid view drops images on that tile's game
+      dragDroppedPoint = { pt.x, pt.y };
       STGMEDIUM medium;
 
       auto ReturnAndCleanUp = [&](void)
