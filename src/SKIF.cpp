@@ -535,8 +535,12 @@ SKIF_EfficiencyModeTimerProc (HWND hWnd, UINT Msg, UINT wParamIDEvent, DWORD dwT
       addAdditionalFrames += 3;
     }
 
-    // Likewise the frames of an animated cover (they load again once it is hovered)
-    if (SKIF_LibraryArtwork::Get ( ).ReleaseAnimatedCover ( ))
+    // Likewise the frames of an animated cover (they load again once it is hovered), and those kept loaded for the grid
+    //   view (they load again from their cache once their tiles are shown)
+    const bool releasedCover  = SKIF_LibraryArtwork::Get ( ).ReleaseAnimatedCover      ( );
+    const bool releasedThumbs = SKIF_LibraryArtwork::Get ( ).ReleaseAnimatedThumbnails ( );
+
+    if (releasedCover || releasedThumbs)
     {
       msgDontRedraw        = false;
       addAdditionalFrames += 3;

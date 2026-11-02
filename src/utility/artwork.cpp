@@ -13,6 +13,8 @@
 
 extern concurrency::concurrent_queue <IUnknown *> SKIF_ResourcesToFree;
 
+static bool _IsThumbnailCacheCurrent (const std::wstring& cachePath); // Thumbnails
+
 SKIF_LibraryArtwork::SKIF_LibraryArtwork (void)
 {
   ResetCoverAlpha ( );
@@ -371,6 +373,70 @@ SKIF_LibraryArtwork::ApplyWorkerResults (void)
       continue;
     }
 
+    // Animated thumbnails (the grid view): only the latest request of the game, made on the current device
+    else if (result.type == LibraryTexture::AnimatedThumbnail)
+    {
+      if (result.build)
+        m_animThumbBuilds--;
+      else
+        m_animThumbLoads--;
+
+      anim_thumb_s* thumb = FindAnimatedThumbnail (result.game);
+
+      const bool live = (thumb != nullptr                         &&
+                         thumb->request    == result.queuePos     &&
+                         thumb->state      == anim_thumb_s::State::Working &&
+                         result.generation == m_generation.load ( ));
+
+      if (live)
+      {
+        thumb->building = false;
+        thumb->cached   = _IsThumbnailCacheCurrent (thumb->cachePath); // A build saved it (unless that failed)
+
+        if (result.ok && result.frames.size ( ) >= 2 && result.frames.size ( ) == result.delays.size ( ))
+        {
+          thumb->bytes = result.bytes;
+
+          // Room for them: unloads those out of view, or (hovered) those hovered least recently
+          if (MakeAnimatedThumbnailRoom (thumb->bytes, thumb, thumb->hoveredFrame >= ImGui::GetFrameCount ( ) - 1))
+          {
+            DWORD end = 0;
+
+            for (size_t i = 0; i < result.frames.size ( ); i++)
+            {
+              thumb->frames.emplace_back ( );
+              thumb->frames.back ( ).Attach (result.frames [i].srv.Detach ( ));
+
+              end += result.delays [i];
+              thumb->frameEnds.push_back (end);
+            }
+
+            thumb->duration     = end;
+            thumb->resolution   = result.frames [0].resolution;
+            thumb->position     = 0;
+            thumb->playingSince = 0;
+            thumb->state        = anim_thumb_s::State::Loaded;
+            m_animThumbBytes   += thumb->bytes;
+          }
+
+          // No room: loaded again once there is (or it is hovered). Without a cache it would be built again: not usable.
+          else
+            thumb->state = (thumb->cached) ? anim_thumb_s::State::Cached : anim_thumb_s::State::Failed;
+        }
+
+        // Too large for the limit, or not decodable: plays as the cover panel does (full size, when hovered)
+        else
+          thumb->state = anim_thumb_s::State::Failed;
+      }
+
+      for (auto& frame : result.frames)
+        _Release (frame.srv);
+
+      result.frames.clear ( );
+      result.delays.clear ( );
+      continue;
+    }
+
     // Made on the device from before a device reset
     if (result.generation != m_generation.load ( ))
     {
@@ -666,6 +732,10 @@ SKIF_LibraryArtwork::UpdateAnimatedCover (void)
     if (m_animState == AnimatedCoverState::Ready && now - m_animLastHovered > s_animIdleRelease)
       ReleaseAnimatedCover ( );
   }
+
+  // The grid view's animated covers (their hovered tile plays)
+  if (const DWORD wakeGrid = UpdateAnimatedThumbnails (now); wakeGrid > 0 && (wakeIn == 0 || wakeGrid < wakeIn))
+    wakeIn = wakeGrid;
 
   // Wake SKIF when the next frame is due (re-armed only when that changes). Once it fires, the frames it gives re-arm it.
   if (wakeIn > 0)
@@ -988,8 +1058,10 @@ SKIF_LibraryArtwork::ReleaseTextures (void)
   // Results still in flight were made on the old device
   m_generation++;
 
-  // The animated cover's frames load again once it is hovered (the cover itself is loaded again, ReloadCover)
-  ReleaseAnimatedCover ( );
+  // The animated cover's frames load again once it is hovered (the cover itself is loaded again, ReloadCover), and those
+  //   of the grid view once their tiles are shown
+  ReleaseAnimatedCover    ( );
+  ResetAnimatedThumbnails ( );
 
   if (m_pTexSRV.p != nullptr)
   {
@@ -1105,7 +1177,9 @@ _DeleteThumbnails (const std::wstring& cachePath, bool all)
       std::error_code ec2;
       auto time = entry.last_write_time (ec2);
 
-      outdated = (entry.path ( ).extension ( ) != L".dds" || ec2 || (hasCover && time < newest));
+      const auto ext = entry.path ( ).extension ( );
+
+      outdated = ((ext != L".dds" && ext != L".anim") || ec2 || (hasCover && time < newest)); // .anim: animated covers (grid view)
     }
 
     if (outdated)
@@ -1384,6 +1458,9 @@ SKIF_LibraryArtwork::ReleaseThumbnails (void)
       ReleaseThumbnail (app.second.get ( ));
 
   m_thumbsLoaded = 0;
+
+  // Their animated covers too (made at the same size, from the same sources)
+  ResetAnimatedThumbnails ( );
 }
 
 void
@@ -1392,7 +1469,8 @@ SKIF_LibraryArtwork::InvalidateThumbnail (app_record_s* pApp)
   ReleaseThumbnail (pApp);
 
   // Its cover changed (also when it plays from the same file name, e.g. a new custom cover.png)
-  ResetAnimatedCover (pApp->GetKey ( ));
+  ResetAnimatedCover     (pApp->GetKey ( ));
+  ResetAnimatedThumbnail (pApp->GetKey ( ));
 
   // Deleted here, so a load started before the cover changed can't pick it up again
   std::wstring cachePath = GetThumbnailCachePath (pApp);
@@ -1528,6 +1606,419 @@ bool
 SKIF_LibraryArtwork::OnThumbnailTimer (void)
 {
   return (UnloadThumbnailsOutOfView ( ) > 0); // Stops the timer once none are out of view
+}
+
+#pragma endregion
+
+#pragma region Animated Thumbnails
+
+size_t
+SKIF_LibraryArtwork::GetAnimatedThumbnailBudget (void) const
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  return static_cast <size_t> (std::clamp (_registry.iLibraryGridAnimMemory, 0, 1024)) * 1024 * 1024;
+}
+
+SKIF_LibraryArtwork::anim_thumb_s*
+SKIF_LibraryArtwork::FindAnimatedThumbnail (app_key_s game) const
+{
+  for (auto& thumb : m_animThumbs)
+    if (thumb->game == game)
+      return thumb.get ( );
+
+  return nullptr;
+}
+
+void
+SKIF_LibraryArtwork::ReleaseAnimatedThumbnail (anim_thumb_s& thumb)
+{
+  if (thumb.state != anim_thumb_s::State::Loaded)
+    return;
+
+  for (auto& frame : thumb.frames)
+  {
+    if (frame.p != nullptr)
+    {
+      SKIF_ResourcesToFree.push (frame.p);
+      frame.p = nullptr;
+    }
+  }
+
+  thumb.frames   .clear ( );
+  thumb.frameEnds.clear ( );
+  thumb.duration     = 0;
+  thumb.position     = 0; // Back to the still thumbnail
+  thumb.playingSince = 0;
+  thumb.state        = (thumb.cached) ? anim_thumb_s::State::Cached : anim_thumb_s::State::Unknown;
+
+  m_animThumbBytes  -= std::min (m_animThumbBytes, thumb.bytes);
+}
+
+void
+SKIF_LibraryArtwork::ResetAnimatedThumbnail (app_key_s game)
+{
+  for (auto it = m_animThumbs.begin ( ); it != m_animThumbs.end ( ); ++it)
+  {
+    if ((*it)->game == game)
+    {
+      // A worker still running has its result dropped (the game is not found, or has a newer request)
+      ReleaseAnimatedThumbnail (**it);
+      m_animThumbs.erase (it);
+      return;
+    }
+  }
+}
+
+void
+SKIF_LibraryArtwork::ResetAnimatedThumbnails (void)
+{
+  for (auto& thumb : m_animThumbs)
+    ReleaseAnimatedThumbnail (*thumb);
+
+  m_animThumbs.clear ( );
+  m_animThumbBytes = 0;
+}
+
+bool
+SKIF_LibraryArtwork::ReleaseAnimatedThumbnails (void)
+{
+  bool released = false;
+
+  for (auto& thumb : m_animThumbs)
+  {
+    if (thumb->state == anim_thumb_s::State::Loaded)
+    {
+      ReleaseAnimatedThumbnail (*thumb);
+      released = true;
+    }
+  }
+
+  return released;
+}
+
+void
+SKIF_LibraryArtwork::OnAnimatedThumbnailMemoryChanged (void)
+{
+  // Off: as before (they play when hovered, see HoverAnimatedThumbnail)
+  if (GetAnimatedThumbnailBudget ( ) == 0)
+  {
+    ResetAnimatedThumbnails ( );
+    return;
+  }
+
+  // Lowered: unload the least recently used ones until the rest fit
+  MakeAnimatedThumbnailRoom (0, nullptr, true);
+
+  // Raised: those too large before may fit now
+  for (auto& thumb : m_animThumbs)
+    if (thumb->state == anim_thumb_s::State::Failed)
+      thumb->state = (thumb->cached) ? anim_thumb_s::State::Cached : anim_thumb_s::State::Unknown;
+}
+
+bool
+SKIF_LibraryArtwork::MakeAnimatedThumbnailRoom (size_t bytes, const anim_thumb_s* keep, bool hovered)
+{
+  const size_t budget = GetAnimatedThumbnailBudget ( );
+  const int    frame  = ImGui::GetFrameCount ( );
+
+  if (bytes > budget)
+    return false;
+
+  while (m_animThumbBytes + bytes > budget)
+  {
+    anim_thumb_s* victim = nullptr;
+
+    // Out of view: the least recently shown
+    for (auto& thumb : m_animThumbs)
+    {
+      if (thumb.get ( ) == keep || thumb->state != anim_thumb_s::State::Loaded || thumb->lastFrame >= frame - 1)
+        continue;
+
+      if (victim == nullptr || thumb->lastUsed < victim->lastUsed)
+        victim = thumb.get ( );
+    }
+
+    // In view, only for a hovered tile: the least recently hovered (never hovered first)
+    if (victim == nullptr && hovered)
+    {
+      for (auto& thumb : m_animThumbs)
+      {
+        if (thumb.get ( ) == keep || thumb->state != anim_thumb_s::State::Loaded || thumb->hoveredFrame >= frame - 1)
+          continue;
+
+        if (victim == nullptr || thumb->lastHovered < victim->lastHovered)
+          victim = thumb.get ( );
+      }
+    }
+
+    if (victim == nullptr)
+      return false;
+
+    ReleaseAnimatedThumbnail (*victim);
+  }
+
+  return true;
+}
+
+void
+SKIF_LibraryArtwork::RequestAnimatedThumbnail (app_record_s* pApp, bool hovered)
+{
+  // Only a thumbnail that is shown, of an animated cover
+  if (pApp == nullptr || pApp->tex_thumb.texture.p == nullptr || pApp->tex_thumb.animatedSource.empty ( ))
+    return;
+
+  // Off (Settings): it plays when hovered, as the cover panel does
+  if (GetAnimatedThumbnailBudget ( ) == 0)
+  {
+    if (hovered)
+      HoverAnimatedThumbnail (pApp);
+
+    return;
+  }
+
+  const app_key_s game  = pApp->GetKey ( );
+  anim_thumb_s*   thumb = FindAnimatedThumbnail (game);
+
+  // Its cover is another file now
+  if (thumb != nullptr && thumb->source != pApp->tex_thumb.animatedSource)
+  {
+    ResetAnimatedThumbnail (game);
+    thumb = nullptr;
+  }
+
+  if (thumb == nullptr)
+  {
+    const std::wstring cachePath = GetThumbnailCachePath (pApp);
+
+    // No asset folder: nowhere to cache it
+    if (cachePath.empty ( ))
+    {
+      if (hovered)
+        HoverAnimatedThumbnail (pApp);
+
+      return;
+    }
+
+    auto created = std::make_unique <anim_thumb_s> ( );
+    created->game      = game;
+    created->source    = pApp->tex_thumb.animatedSource;
+    created->cachePath = std::filesystem::path (cachePath).replace_extension (L".anim").wstring ( );
+    created->cached    = _IsThumbnailCacheCurrent (created->cachePath);
+
+    thumb = created.get ( );
+    m_animThumbs.push_back (std::move (created));
+  }
+
+  const int   frame = ImGui::GetFrameCount   ( );
+  const DWORD now   = SKIF_Util_timeGetTime ( );
+
+  thumb->lastFrame = frame;
+  thumb->lastUsed  = now;
+
+  if (hovered)
+  {
+    thumb->hoveredFrame = frame;
+    thumb->lastHovered  = now;
+
+    // Until its frames are built (which takes a while), or if they cannot be used: as the cover panel does
+    if (thumb->state == anim_thumb_s::State::Failed || (! thumb->cached && thumb->state != anim_thumb_s::State::Loaded))
+      HoverAnimatedThumbnail (pApp);
+  }
+}
+
+ID3D11ShaderResourceView*
+SKIF_LibraryArtwork::GetAnimatedThumbnailFrame (app_key_s game, ImVec2* resolution) const
+{
+  const anim_thumb_s* thumb = FindAnimatedThumbnail (game);
+
+  if (thumb == nullptr || thumb->state != anim_thumb_s::State::Loaded || thumb->duration == 0)
+    return nullptr;
+
+  // Never played: the thumbnail itself (the first frame, or an APNG's default image)
+  if (thumb->playingSince == 0 && thumb->position == 0)
+    return nullptr;
+
+  const DWORD position = (thumb->playingSince != 0) ? (thumb->position + (SKIF_Util_timeGetTime ( ) - thumb->playingSince)) % thumb->duration
+                                                    :  thumb->position;
+  const auto  frameEnd = std::upper_bound (thumb->frameEnds.begin ( ), thumb->frameEnds.end ( ), position);
+  const auto  index    = static_cast <size_t> (std::distance (thumb->frameEnds.begin ( ), frameEnd));
+
+  if (index >= thumb->frames.size ( ))
+    return nullptr;
+
+  if (resolution != nullptr)
+    *resolution = thumb->resolution;
+
+  return thumb->frames [index].p;
+}
+
+void
+SKIF_LibraryArtwork::StartAnimatedThumbnailWorker (anim_thumb_s& thumb, bool build)
+{
+  struct thread_s {
+    std::wstring        source;
+    library_thumbnail_s thumb;
+    app_key_s           game;
+    int                 request    = 0;
+    unsigned int        generation = 0;
+    bool                build      = false;
+    size_t              maxBytes   = 0;
+  };
+
+  thumb.request  = ++m_animThumbRequests;
+  thumb.state    = anim_thumb_s::State::Working;
+  thumb.building = build;
+
+  thread_s* data   = new thread_s;
+  data->source     = thumb.source;
+  data->thumb      = { m_thumbSize.x, m_thumbSize.y, thumb.cachePath };
+  data->game       = thumb.game;
+  data->request    = thumb.request;
+  data->generation = m_generation.load ( );
+  data->build      = build;
+  data->maxBytes   = GetAnimatedThumbnailBudget ( );
+
+  if (build)
+    m_animThumbBuilds++;
+  else
+    m_animThumbLoads++;
+
+  HANDLE hWorkerThread = (HANDLE)
+  _beginthreadex (nullptr, 0x0, [](void* var) -> unsigned
+  {
+    thread_s* _data = static_cast <thread_s*> (var);
+
+    SKIF_Util_SetThreadDescription (GetCurrentThread (), (_data->build) ? L"SKIF_LibAnimThumbnailBuilder"
+                                                                        : L"SKIF_LibAnimThumbnailWorker");
+
+    // A build decodes and compresses every frame: in the background
+    if (_data->build)
+    {
+      SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // EcoQoS
+      SetThreadPriority                  (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
+    }
+
+    CoInitializeEx (nullptr, 0x0); // WIC: scaling the frames
+
+    SKIF_LibraryArtwork& self = SKIF_LibraryArtwork::Get ( );
+
+    worker_result_s result;
+    result.type       = LibraryTexture::AnimatedThumbnail;
+    result.game       = _data->game;
+    result.queuePos   = _data->request;
+    result.generation = _data->generation;
+    result.build      = _data->build;
+
+    // From the cache, else built (and saved to the cache). A load whose cache turns out unusable builds it too.
+    result.ok = LoadAnimatedLibraryThumbnail (_data->source, _data->thumb, ! _data->build, _data->maxBytes, true,
+                                              result.frames, result.delays, result.bytes, result.tooLarge);
+
+    if (_data->build)
+      SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
+
+    delete _data;
+
+    // The main thread swaps them in if this is still the game's latest request (ApplyWorkerResults)
+    self.m_results.push (std::move (result));
+
+    // Force a frame, so the result is applied
+    PostMessage (SKIF_Notify_hWnd, WM_SKIF_COVER, 0x0, 0x0);
+
+    return 0;
+  }, data, 0x0, nullptr);
+
+  if (hWorkerThread != NULL)
+    CloseHandle (hWorkerThread);
+
+  else
+  {
+    PLOG_ERROR << "Failed to start the animated thumbnail worker thread!";
+    delete data;
+
+    if (build)
+      m_animThumbBuilds--;
+    else
+      m_animThumbLoads--;
+
+    thumb.building = false;
+    thumb.state    = anim_thumb_s::State::Failed;
+  }
+}
+
+DWORD
+SKIF_LibraryArtwork::UpdateAnimatedThumbnails (DWORD now)
+{
+  constexpr int maxBuilds = 1; // Decoding and compressing every frame: CPU heavy
+  constexpr int maxLoads  = 2; // From the cache: quick
+
+  const size_t budget = GetAnimatedThumbnailBudget ( );
+  const int    frame  = ImGui::GetFrameCount ( );
+  DWORD        wakeIn = 0;
+
+  if (budget == 0)
+    return 0;
+
+  anim_thumb_s* hoveredThumb = nullptr;
+
+  // Play while hovered; pause on the current frame once not
+  for (auto& thumb : m_animThumbs)
+  {
+    const bool hovered = (thumb->hoveredFrame == frame);
+
+    if (hovered)
+      hoveredThumb = thumb.get ( );
+
+    if (thumb->state != anim_thumb_s::State::Loaded || thumb->duration == 0)
+      continue;
+
+    if (hovered)
+    {
+      if (thumb->playingSince == 0)
+        thumb->playingSince = now;
+
+      const DWORD position = (thumb->position + (now - thumb->playingSince)) % thumb->duration;
+      const auto  frameEnd = std::upper_bound (thumb->frameEnds.begin ( ), thumb->frameEnds.end ( ), position);
+
+      wakeIn = (frameEnd != thumb->frameEnds.end ( )) ? (*frameEnd - position) : 1;
+    }
+
+    else if (thumb->playingSince != 0)
+    {
+      thumb->position     = (thumb->position + (now - thumb->playingSince)) % thumb->duration;
+      thumb->playingSince = 0;
+    }
+  }
+
+  // Load (or build) those of tiles in view: the hovered one first. One already built loads when there is room for it,
+  //   or when hovered (it then makes room); one not known yet is loaded to find out what it takes.
+  auto _Start = [&](anim_thumb_s& thumb, bool hovered)
+  {
+    if (thumb.state == anim_thumb_s::State::Unknown)
+    {
+      if (! thumb.cached)
+      {
+        if (m_animThumbBuilds < maxBuilds)
+          StartAnimatedThumbnailWorker (thumb, true);
+      }
+
+      else if (m_animThumbLoads < maxLoads)
+        StartAnimatedThumbnailWorker (thumb, false);
+    }
+
+    else if (thumb.state == anim_thumb_s::State::Cached && m_animThumbLoads < maxLoads &&
+             (hovered || m_animThumbBytes + thumb.bytes <= budget))
+      StartAnimatedThumbnailWorker (thumb, false);
+  };
+
+  if (hoveredThumb != nullptr)
+    _Start (*hoveredThumb, true);
+
+  for (auto& thumb : m_animThumbs)
+    if (thumb->lastFrame == frame && thumb.get ( ) != hoveredThumb)
+      _Start (*thumb, false);
+
+  return wakeIn;
 }
 
 #pragma endregion

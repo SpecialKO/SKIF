@@ -340,6 +340,8 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
     bLibraryGridPlatform   =   regKVLibraryGridPlatform    .getData (&hKey);
   if (regKVLibraryGridSize.hasData(&hKey))
     iLibraryGridSize       =   std::clamp (regKVLibraryGridSize.getData (&hKey), 80, 240);
+  if (regKVLibraryGridAnimationMemory.hasData(&hKey))
+    iLibraryGridAnimMemory =   std::clamp (regKVLibraryGridAnimationMemory.getData (&hKey), 0, 1024);
   if (regKVTouchInput.hasData(&hKey))
     bTouchInput            =   regKVTouchInput             .getData (&hKey);
 

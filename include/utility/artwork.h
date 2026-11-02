@@ -92,6 +92,20 @@ public:
   bool ReleaseAnimatedCover   (void);                // Pushes its frames for release (true if there were any); they load again once hovered
   void OnAnimatedCoverTimer   (void);                // WM_TIMER cIDT_TIMER_COVERANIM (SKIF.cpp): stops the timer (the frames re-arm it)
 
+  // Animated covers in the grid view, kept loaded (Settings: iLibraryGridAnimMemory MB; 0: off, they play as above when
+  //   hovered). Once a tile of an animated cover is shown, a background worker makes its frames tile-size (as thumbnails:
+  //     3 mips, BC1 / BC3; SKIF_LibAnimThumbnailBuilder, one at a time), caches them next to the thumbnail (<asset folder>
+  //       cover-thumb-<size>-<sources>.anim) and loads them (SKIF_LibAnimThumbnailWorker, two at a time). They stay loaded
+  //         up to the limit: those of tiles out of view are unloaded first (the least recently shown), and a hovered tile
+  //           may unload those of other tiles in view (the least recently hovered). A tile plays while hovered, and pauses
+  //             on its current frame once the mouse moves on. Until its frames are built, or if they are too large for the
+  //               limit, a hovered tile plays as above (HoverAnimatedThumbnail).
+  void RequestAnimatedThumbnail (app_record_s* pApp, bool hovered); // Its tile is drawn this frame (with its thumbnail)
+  ID3D11ShaderResourceView*
+       GetAnimatedThumbnailFrame (app_key_s game, ImVec2* resolution) const; // Its frame to draw (playing, or paused), else nullptr
+  void OnAnimatedThumbnailMemoryChanged (void);      // Settings changed the limit
+  bool ReleaseAnimatedThumbnails (void);             // Unloads all of them (SKIF goes idle); true if any were. They load again once shown.
+
   // Icons (one background worker per game, up to 8 at once). tex_icon.iWorker: 0 → 1 (StartIconWorker) → 2 once its
   //   result has been applied (ApplyWorkerResults), to whichever record the game has by then
   int  GetActiveIconWorkers   (void) const { return m_activeIconWorkers; }
@@ -201,6 +215,50 @@ private:
   DWORD                     m_animTimerDue      = 0;     // When the timer fires, while it runs
   bool                      m_animTimer         = false; // cIDT_TIMER_COVERANIM is running
 
+  // Animated covers in the grid view (RequestAnimatedThumbnail), by game. Owned here, so the pointers stay valid.
+  struct anim_thumb_s {
+    enum class State {
+      Unknown,  // Not loaded; its cache is to be checked or built
+      Working,  // Its worker is running (building: a build)
+      Loaded,   // Its frames are loaded
+      Cached,   // Built, but not loaded (no room)
+      Failed    // Cannot be used (too large for the limit, not decodable): plays as the cover panel does
+    };
+    app_key_s               game;
+    std::wstring            source;              // The animated cover (tex_thumb.animatedSource)
+    std::wstring            cachePath;           // <thumbnail cache path>.anim
+    State                   state        = State::Unknown;
+    bool                    cached       = false; // Its cache is current
+    bool                    building     = false;
+    int                     request      = 0;     // Its worker's (results of an older one are dropped)
+    std::vector <CComPtr <ID3D11ShaderResourceView>>
+                            frames;
+    std::vector <DWORD>     frameEnds;           // When each frame ends (ms into the animation)
+    DWORD                   duration     = 0;     // ms
+    ImVec2                  resolution   = ImVec2 (0, 0);
+    size_t                  bytes        = 0;     // What its frames take (known once loaded or built)
+    DWORD                   position     = 0;     // ms into the animation where it paused
+    DWORD                   playingSince = 0;     // 0: paused
+    DWORD                   lastUsed     = 0;     // When its tile was last drawn
+    DWORD                   lastHovered  = 0;     // When its tile was last hovered (0: never)
+    int                     lastFrame    = -1;    // The frame its tile was last drawn in
+    int                     hoveredFrame = -1;    // The frame its tile was last hovered in
+  };
+  std::vector <std::unique_ptr <anim_thumb_s>>
+                            m_animThumbs;
+  size_t                    m_animThumbBytes    = 0;     // What the loaded ones take
+  int                       m_animThumbRequests = 0;
+  int                       m_animThumbBuilds   = 0;     // Workers running
+  int                       m_animThumbLoads    = 0;
+  size_t        GetAnimatedThumbnailBudget   (void) const;                  // Bytes (Settings)
+  anim_thumb_s* FindAnimatedThumbnail        (app_key_s game) const;        // nullptr if none
+  void          ReleaseAnimatedThumbnail     (anim_thumb_s& thumb);         // Unloads its frames (Loaded → Cached)
+  void          ResetAnimatedThumbnail       (app_key_s game);              // Forgets it (its cover changed)
+  void          ResetAnimatedThumbnails      (void);                        // Forgets all of them (device reset, thumbnails reloaded)
+  bool          MakeAnimatedThumbnailRoom    (size_t bytes, const anim_thumb_s* keep, bool hovered); // Unloads others until bytes fit
+  void          StartAnimatedThumbnailWorker (anim_thumb_s& thumb, bool build);
+  DWORD         UpdateAnimatedThumbnails     (DWORD now);                   // UpdateAnimatedCover: play / pause, start workers; ms until a frame is due (0: none)
+
   // Custom cover being saved, and the refresh it triggers
   bool                      m_savingCover       = false;
   bool                      m_refreshPending    = false;
@@ -221,6 +279,9 @@ private:
     std::vector <library_texture_s>
                             frames;          // Animated covers: the frames (queuePos: the request)
     std::vector <DWORD>     delays;          // Animated covers: how long each frame is shown (ms)
+    size_t                  bytes      = 0;     // Animated thumbnails: what the frames take
+    bool                    tooLarge   = false; // Animated thumbnails: too large for the limit
+    bool                    ok         = false; // Animated thumbnails: loaded (or built)
     std::shared_ptr <app_record_s>
                             record;          // The record the worker used, kept alive until here (released on the main thread)
   };

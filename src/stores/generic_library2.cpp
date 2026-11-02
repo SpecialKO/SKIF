@@ -997,6 +997,71 @@ IsAnimatedImageFile (const std::wstring& path)
   return false;
 }
 
+// An animated image (APNG, GIF), read and parsed: its canvas, and how many frames it has. Decode ( ) hands over its frames.
+struct animated_image_s
+{
+  std::vector <uint8_t> file;
+  apng_s                apng;    // APNG: the parsed frames
+  bool                  isGIF  = false;
+  uint32_t              width  = 0,
+                        height = 0,
+                        count  = 0;
+
+  int Decode (const std::function <bool (const uint8_t*, uint32_t)>& onFrame) const
+  {
+    return (isGIF) ? _DecodeGIF  (file.data ( ), file.size ( ), onFrame)
+                   : _DecodeAPNG (apng, onFrame);
+  }
+};
+
+// Reads and parses an animated image. False if it is not one (fewer than two frames), is malformed, or has more than
+//   maxFrames frames.
+static bool
+_OpenAnimatedImage (const std::wstring& path, animated_image_s& image, uint32_t maxFrames)
+{
+  // The whole file (APNG frames are parsed from it, GIF frames decoded from it)
+  std::error_code ec;
+  const auto fileSize = std::filesystem::file_size (std::filesystem::path (path), ec);
+
+  if (ec || fileSize < 16 || fileSize > 256 * 1024 * 1024)
+    return false;
+
+  image.file.resize (static_cast <size_t> (fileSize));
+  {
+    std::ifstream stream (std::filesystem::path (path), std::ios::binary);
+
+    if (! stream.read (reinterpret_cast <char*> (image.file.data ( )), image.file.size ( )))
+      return false;
+  }
+
+  // The canvas and the number of frames
+  image.isGIF = (memcmp (image.file.data ( ), "GIF8", 4) == 0);
+
+  if (image.isGIF)
+  {
+    if (! _ScanGIF (image.file.data ( ), image.file.size ( ), image.width, image.height, image.count))
+      return false;
+  }
+
+  else
+  {
+    if (! _ParseAPNG (image.file.data ( ), image.file.size ( ), image.apng))
+      return false;
+
+    image.width  = image.apng.width;
+    image.height = image.apng.height;
+    image.count  = static_cast <uint32_t> (image.apng.frames.size ( ));
+  }
+
+  if (image.count < 2 || image.count > maxFrames || image.width == 0 || image.height == 0 || image.width > 16384 || image.height > 16384)
+  {
+    PLOG_WARNING_IF (image.count > maxFrames) << "Animated cover has too many frames (" << image.count << "): " << path;
+    return false;
+  }
+
+  return true;
+}
+
 bool
 LoadAnimatedLibraryTexture (const std::wstring&                path,
                             std::vector <library_texture_s>&   frames,
@@ -1016,47 +1081,14 @@ LoadAnimatedLibraryTexture (const std::wstring&                path,
 
   DWORD pre = SKIF_Util_timeGetTime1 ( );
 
-  // The whole file (APNG frames are parsed from it, GIF frames decoded from it)
-  std::error_code ec;
-  const auto fileSize = std::filesystem::file_size (std::filesystem::path (path), ec);
+  animated_image_s image;
 
-  if (ec || fileSize < 16 || fileSize > 256 * 1024 * 1024)
+  if (! _OpenAnimatedImage (path, image, maxFrames))
     return false;
 
-  std::vector <uint8_t> file (static_cast <size_t> (fileSize));
-  {
-    std::ifstream stream (std::filesystem::path (path), std::ios::binary);
-
-    if (! stream.read (reinterpret_cast <char*> (file.data ( )), file.size ( )))
-      return false;
-  }
-
-  // The canvas and the number of frames
-  apng_s   apng;
-  const bool isGIF = (memcmp (file.data ( ), "GIF8", 4) == 0);
-  uint32_t width = 0, height = 0, count = 0;
-
-  if (isGIF)
-  {
-    if (! _ScanGIF (file.data ( ), file.size ( ), width, height, count))
-      return false;
-  }
-
-  else
-  {
-    if (! _ParseAPNG (file.data ( ), file.size ( ), apng))
-      return false;
-
-    width  = apng.width;
-    height = apng.height;
-    count  = static_cast <uint32_t> (apng.frames.size ( ));
-  }
-
-  if (count < 2 || count > maxFrames || width == 0 || height == 0 || width > 16384 || height > 16384)
-  {
-    PLOG_WARNING_IF (count > maxFrames) << "Animated cover has too many frames (" << count << "): " << path;
-    return false;
-  }
+  const uint32_t width  = image.width,
+                 height = image.height,
+                 count  = image.count;
 
   // The size of the frames: as the cover is shown (low-res covers: 220x330, filled as _ScaleLibraryImageToFill does),
   //   then smaller if all of them would take more than the budget
@@ -1154,8 +1186,7 @@ LoadAnimatedLibraryTexture (const std::wstring&                path,
     return true;
   };
 
-  const int decoded = (isGIF) ? _DecodeGIF  (file.data ( ), file.size ( ), _OnFrame)
-                              : _DecodeAPNG (apng, _OnFrame);
+  const int decoded = image.Decode (_OnFrame);
 
   if (failed || decoded < 2 || frames.size ( ) < 2)
   {
@@ -1168,6 +1199,346 @@ LoadAnimatedLibraryTexture (const std::wstring&                path,
   DWORD post = SKIF_Util_timeGetTime1 ( );
   PLOG_DEBUG << "[Image Processing] Loaded " << frames.size ( ) << " frames (" << outWidth << "x" << outHeight
              << ") of an animated cover in " << (post - pre) << " ms.";
+
+  return true;
+}
+
+// The animation cache of the grid view (LoadAnimatedLibraryThumbnail): a small header, each frame's delay (ms), then the
+//   frames as a DDS texture array (each frame a thumbnail: BC7, 3 mips; see _MakeThumbnailImage)
+struct anim_cache_header_s
+{
+  char     magic [4] = { 'S', 'K', 'A', 'N' };
+  uint32_t version   = 1;
+  uint32_t frames    = 0;
+  uint32_t reserved  = 0;
+};
+
+static bool
+_LoadAnimationCache (const std::wstring& path, DirectX::ScratchImage& array, std::vector <DWORD>& delays)
+{
+  std::error_code ec;
+  const auto size = std::filesystem::file_size (std::filesystem::path (path), ec);
+
+  if (ec || size < sizeof (anim_cache_header_s) || size > 1024ull * 1024 * 1024)
+    return false;
+
+  std::vector <uint8_t> data (static_cast <size_t> (size));
+  {
+    std::ifstream stream (std::filesystem::path (path), std::ios::binary);
+
+    if (! stream.read (reinterpret_cast <char*> (data.data ( )), data.size ( )))
+      return false;
+  }
+
+  anim_cache_header_s header;
+  const anim_cache_header_s expected;
+  memcpy (&header, data.data ( ), sizeof (header));
+
+  if (memcmp (header.magic, expected.magic, 4) != 0 || header.version != expected.version || header.frames < 2 ||
+      data.size ( ) < sizeof (header) + static_cast <size_t> (header.frames) * sizeof (uint32_t))
+    return false;
+
+  delays.resize (header.frames);
+
+  for (uint32_t i = 0; i < header.frames; i++)
+  {
+    uint32_t delay = 0;
+    memcpy (&delay, data.data ( ) + sizeof (header) + i * sizeof (uint32_t), sizeof (uint32_t));
+    delays [i] = delay;
+  }
+
+  const size_t offset = sizeof (header) + static_cast <size_t> (header.frames) * sizeof (uint32_t);
+
+  DirectX::TexMetadata meta = { };
+
+  if (FAILED (DirectX::LoadFromDDSMemory (data.data ( ) + offset, data.size ( ) - offset, DirectX::DDS_FLAGS_NONE, &meta, array)))
+    return false;
+
+  return (meta.arraySize == header.frames && meta.dimension == DirectX::TEX_DIMENSION_TEXTURE2D);
+}
+
+static bool
+_SaveAnimationCache (const std::wstring& path, const DirectX::ScratchImage& array, const std::vector <DWORD>& delays)
+{
+  DirectX::Blob blob;
+
+  if (FAILED (DirectX::SaveToDDSMemory (array.GetImages ( ), array.GetImageCount ( ), array.GetMetadata ( ), DirectX::DDS_FLAGS_NONE, blob)))
+    return false;
+
+  anim_cache_header_s header;
+  header.frames = static_cast <uint32_t> (delays.size ( ));
+
+  // Written to a temporary file first, so one being read (another worker) is never a partial file
+  const std::wstring tmp = path + L".tmp";
+  {
+    std::ofstream stream (std::filesystem::path (tmp), std::ios::binary | std::ios::trunc);
+
+    if (! stream)
+      return false;
+
+    stream.write (reinterpret_cast <const char*> (&header), sizeof (header));
+
+    for (DWORD delay : delays)
+    {
+      const uint32_t value = static_cast <uint32_t> (delay);
+      stream.write (reinterpret_cast <const char*> (&value), sizeof (value));
+    }
+
+    stream.write (reinterpret_cast <const char*> (blob.GetBufferPointer ( )), static_cast <std::streamsize> (blob.GetBufferSize ( )));
+
+    if (! stream)
+    {
+      stream.close ( );
+      DeleteFileW (tmp.c_str ( ));
+      return false;
+    }
+  }
+
+  if (! MoveFileExW (tmp.c_str ( ), path.c_str ( ), MOVEFILE_REPLACE_EXISTING))
+  {
+    DeleteFileW (tmp.c_str ( ));
+    return false;
+  }
+
+  return true;
+}
+
+// A frame of an animated thumbnail: 3 mip levels (as a thumbnail), compressed to BC1, or BC3 if the cover has transparency
+//   (alpha). Not BC7 as still thumbnails are: the CPU encoder takes several hundred milliseconds a frame, BC1 / BC3 a few,
+//     and BC1 takes half the memory. On success, pImg points to target and meta is its metadata. Worker threads: CPU only.
+static bool
+_MakeAnimatedThumbnailFrame (DirectX::TexMetadata& meta, DirectX::ScratchImage*& pImg, DirectX::ScratchImage& target, bool alpha)
+{
+  DirectX::ScratchImage mipmapped;
+
+  if (FAILED (DirectX::GenerateMipMaps (pImg->GetImages ( ), pImg->GetImageCount ( ), pImg->GetMetadata ( ),
+                                        DirectX::TEX_FILTER_FORCE_NON_WIC, 3, mipmapped)))
+    return false;
+
+  if (FAILED (DirectX::Compress (mipmapped.GetImages ( ), mipmapped.GetImageCount ( ), mipmapped.GetMetadata ( ),
+                                 (alpha) ? DXGI_FORMAT_BC3_UNORM : DXGI_FORMAT_BC1_UNORM,
+                                 DirectX::TEX_COMPRESS_DEFAULT, DirectX::TEX_THRESHOLD_DEFAULT, target)))
+    return false;
+
+  meta =  target.GetMetadata ( );
+  pImg = &target;
+
+  return true;
+}
+
+// The frames of an animated cover as thumbnails, in a texture array: each scaled to fill width x height (as a thumbnail)
+//   and made a frame (_MakeAnimatedThumbnailFrame; BC1 / BC3 by the first frame's alpha). tooLarge: they would take more
+//     than maxBytes (stopped once the first frame says so).
+static bool
+_BuildAnimatedThumbnail (const std::wstring& source, float width, float height, size_t maxBytes,
+                         DirectX::ScratchImage& array, std::vector <DWORD>& delays, bool& tooLarge,
+                         const std::function <bool (void)>& wanted)
+{
+  constexpr uint32_t maxFrames = 1000;
+
+  animated_image_s image;
+
+  if (! _OpenAnimatedImage (source, image, maxFrames))
+    return false;
+
+  std::vector <DirectX::ScratchImage> made;
+  made.reserve (image.count);
+  delays.clear ( );
+
+  bool failed = false;
+  bool alpha  = false; // The first frame has transparency: BC3 for all of them
+
+  auto _OnFrame = [&](const uint8_t* canvas, uint32_t delay) -> bool
+  {
+    if (wanted && ! wanted ( ))
+    {
+      failed = true;
+      return false;
+    }
+
+    DirectX::ScratchImage  img;
+    DirectX::ScratchImage  scaled;
+    DirectX::ScratchImage  thumb;
+    DirectX::ScratchImage* pImg = &img;
+
+    if (FAILED (img.Initialize2D (DXGI_FORMAT_R8G8B8A8_UNORM, image.width, image.height, 1, 1)))
+    {
+      failed = true;
+      return false;
+    }
+
+    memcpy (img.GetImage (0, 0, 0)->pixels, canvas, static_cast <size_t> (image.width) * image.height * 4);
+
+    if (made.empty ( ))
+      alpha = ! img.IsAlphaAllOpaque ( );
+
+    DirectX::TexMetadata meta = img.GetMetadata ( );
+
+    if (! _ScaleLibraryImageToFill    (meta, pImg, scaled, width, height, true) ||
+        ! _MakeAnimatedThumbnailFrame (meta, pImg, thumb, alpha))
+    {
+      failed = true;
+      return false;
+    }
+
+    // All of them would take more than the budget (each frame takes as much as the first)
+    if (made.empty ( ) && thumb.GetPixelsSize ( ) * image.count > maxBytes)
+    {
+      tooLarge = true;
+      failed   = true;
+      return false;
+    }
+
+    // Each frame must be like the first
+    if (! made.empty ( ) && (thumb.GetMetadata ( ).format    != made [0].GetMetadata ( ).format ||
+                             thumb.GetMetadata ( ).width     != made [0].GetMetadata ( ).width  ||
+                             thumb.GetMetadata ( ).mipLevels != made [0].GetMetadata ( ).mipLevels))
+    {
+      failed = true;
+      return false;
+    }
+
+    made.push_back   (std::move (thumb));
+    delays.push_back (delay);
+
+    return true;
+  };
+
+  if (image.Decode (_OnFrame) < 2 || failed || made.size ( ) < 2)
+    return false;
+
+  // Into one texture array
+  const DirectX::TexMetadata& first = made [0].GetMetadata ( );
+
+  if (FAILED (array.Initialize2D (first.format, first.width, first.height, made.size ( ), first.mipLevels)))
+    return false;
+
+  for (size_t item = 0; item < made.size ( ); item++)
+  {
+    for (size_t mip = 0; mip < first.mipLevels; mip++)
+    {
+      const DirectX::Image* src = made [item].GetImage (mip, 0, 0);
+      const DirectX::Image* dst = array.GetImage       (mip, item, 0);
+
+      if (src == nullptr || dst == nullptr || src->slicePitch != dst->slicePitch)
+        return false;
+
+      memcpy (dst->pixels, src->pixels, src->slicePitch);
+    }
+  }
+
+  return true;
+}
+
+// A texture (and its view) from images already made: a frame of a texture array, with its mips
+static bool
+_CreateLibraryTextureFromImages (const DirectX::TexMetadata& meta, const DirectX::Image* images, size_t count, library_texture_s& out)
+{
+  auto pDevice =
+    SKIF_D3D11_GetDevice ();
+
+  if (! pDevice)
+    return false;
+
+  CComPtr <ID3D11Texture2D> pTex2D;
+
+  if (FAILED (DirectX::CreateTexture (pDevice, images, count, meta, (ID3D11Resource **)&pTex2D.p)) || pTex2D.p == nullptr)
+    return false;
+
+  D3D11_SHADER_RESOURCE_VIEW_DESC
+    srv_desc                           = { };
+    srv_desc.Format                    = DXGI_FORMAT_UNKNOWN;
+    srv_desc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
+    srv_desc.Texture2D.MipLevels       = UINT_MAX;
+    srv_desc.Texture2D.MostDetailedMip =  0;
+
+  if (FAILED (pDevice->CreateShaderResourceView (pTex2D.p, &srv_desc, &out.srv.p)))
+    return false;
+
+  out.resolution = ImVec2 (static_cast <float> (meta.width), static_cast <float> (meta.height));
+
+  return (out.srv.p != nullptr);
+}
+
+bool
+LoadAnimatedLibraryThumbnail (const std::wstring&                source,
+                              const library_thumbnail_s&         thumb,
+                              bool                               useCache,
+                              size_t                             maxBytes,
+                              bool                               createTextures,
+                              std::vector <library_texture_s>&   frames,
+                              std::vector <DWORD>&               delays,
+                              size_t&                            bytes,
+                              bool&                              tooLarge)
+{
+  frames.clear ( );
+  delays.clear ( );
+  bytes    = 0;
+  tooLarge = false;
+
+  DWORD pre = SKIF_Util_timeGetTime1 ( );
+
+  DirectX::ScratchImage array;
+  bool                  built = false;
+
+  // The cache, else a build (saved to the cache)
+  if (! useCache || thumb.cachePath.empty ( ) || ! _LoadAnimationCache (thumb.cachePath, array, delays))
+  {
+    if (! _BuildAnimatedThumbnail (source, thumb.width, thumb.height, maxBytes, array, delays, tooLarge, thumb.wanted))
+    {
+      PLOG_WARNING_IF (tooLarge) << "Animated cover is too large for the memory set aside for animated covers in the grid view: " << source;
+      return false;
+    }
+
+    built = true;
+
+    if (! thumb.cachePath.empty ( ) && ! _SaveAnimationCache (thumb.cachePath, array, delays))
+      PLOG_WARNING << "Could not save the animated thumbnail: " << thumb.cachePath;
+  }
+
+  const DirectX::TexMetadata& meta = array.GetMetadata ( );
+
+  bytes = array.GetPixelsSize ( );
+
+  // Made for a larger budget (Settings)
+  if (bytes > maxBytes || delays.size ( ) != meta.arraySize)
+  {
+    tooLarge = (bytes > maxBytes);
+    return false;
+  }
+
+  if (createTextures)
+  {
+    DirectX::TexMetadata frameMeta = meta;
+    frameMeta.arraySize = 1;
+
+    frames.reserve (meta.arraySize);
+
+    for (size_t item = 0; item < meta.arraySize; item++)
+    {
+      // No longer needed
+      if (thumb.wanted && ! thumb.wanted ( ))
+      {
+        frames.clear ( );
+        return false;
+      }
+
+      library_texture_s texture;
+
+      // A frame's images (its mips) follow each other in the array (DirectXTex: by item, then by mip)
+      if (! _CreateLibraryTextureFromImages (frameMeta, array.GetImage (0, item, 0), meta.mipLevels, texture))
+      {
+        frames.clear ( );
+        return false;
+      }
+
+      frames.push_back (std::move (texture));
+    }
+  }
+
+  DWORD post = SKIF_Util_timeGetTime1 ( );
+  PLOG_DEBUG << "[Image Processing] " << ((built) ? "Built" : "Loaded") << " an animated thumbnail (" << delays.size ( ) << " frames, "
+             << meta.width << "x" << meta.height << ", " << (bytes / 1024) << " KB) in " << (post - pre) << " ms.";
 
   return true;
 }

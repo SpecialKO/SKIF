@@ -23,7 +23,8 @@ enum class LibraryTexture
   Patreon,
   Logo,
   Thumbnail, // A cover scaled down for the grid view (loaded as a Cover, see library_thumbnail_s)
-  AnimatedCover // The frames of an animated cover (APNG, GIF), played while the cover is hovered (LoadAnimatedLibraryTexture)
+  AnimatedCover, // The frames of an animated cover (APNG, GIF), played while the cover is hovered (LoadAnimatedLibraryTexture)
+  AnimatedThumbnail // The frames of an animated cover as thumbnails, for the grid view (LoadAnimatedLibraryThumbnail)
 };
 
 enum ImageDecoder {
@@ -83,6 +84,23 @@ LoadAnimatedLibraryTexture (const std::wstring&                path,
                             std::vector <library_texture_s>&   frames,
                             std::vector <DWORD>&               delays,
                             const std::function <bool (void)>& wanted = nullptr);
+
+// The frames of an animated cover (APNG, GIF) as thumbnails, for the grid view: each scaled to fill thumb.width x thumb.height,
+//   with 3 mips, compressed to BC1 (BC3 with transparency), and how long each one is shown (ms). They are cached in
+//     thumb.cachePath (header, delays, then a DDS texture array): loaded from there if useCache (the caller knows it is
+//       current), else built from source (decoded, which takes a while) and saved there. bytes: what they take (also
+//         without createTextures, which only builds / checks the cache). tooLarge: they would take more than maxBytes.
+//           thumb.wanted (if set) stops it between frames. Thread-safe like LoadLibraryTextureEx; call CoInitializeEx first.
+bool
+LoadAnimatedLibraryThumbnail (const std::wstring&                source,
+                              const library_thumbnail_s&         thumb,
+                              bool                               useCache,
+                              size_t                             maxBytes,
+                              bool                               createTextures,
+                              std::vector <library_texture_s>&   frames,
+                              std::vector <DWORD>&               delays,
+                              size_t&                            bytes,
+                              bool&                              tooLarge);
 
 // A thumbnail saved by LoadLibraryTextureEx (thumb->cachePath). Thread-safe like LoadLibraryTextureEx.
 bool

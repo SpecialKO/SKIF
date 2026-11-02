@@ -318,16 +318,22 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
       srv = rec->tex_thumb.texture.p;
       res = ImVec2 (rec->tex_thumb.width, rec->tex_thumb.height);
 
-      // An animated cover (APNG, GIF) plays while its tile is hovered: its current frame, cropped by its own size
-      //   (SKIF_LibraryArtwork::UpdateAnimatedCover; the frames are the cover's, shared with the cover panel)
-      if (hovered)
-        _art.HoverAnimatedThumbnail (rec);
+      // An animated cover (APNG, GIF) plays while its tile is hovered, and pauses once not: its current frame, cropped by
+      //   its own size. Its tile-size frames, kept loaded (SKIF_LibraryArtwork::RequestAnimatedThumbnail), else (not built
+      //     yet, too large, or turned off in Settings) the cover's, shared with the cover panel (UpdateAnimatedCover)
+      _art.RequestAnimatedThumbnail (rec, hovered);
 
       ImVec2 resFrame;
 
-      if (ID3D11ShaderResourceView* frame = _art.GetAnimatedCoverFrame (key, &resFrame); frame != nullptr)
+      if (ID3D11ShaderResourceView* frame = _art.GetAnimatedThumbnailFrame (key, &resFrame); frame != nullptr)
       {
         srv = frame;
+        res = resFrame;
+      }
+
+      else if (ID3D11ShaderResourceView* frameCover = _art.GetAnimatedCoverFrame (key, &resFrame); frameCover != nullptr)
+      {
+        srv = frameCover;
         res = resFrame;
       }
 

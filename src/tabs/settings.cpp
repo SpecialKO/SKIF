@@ -1313,6 +1313,34 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::Spacing         ( );
 
+    // Animated covers (APNG, GIF) in the grid view: how much video memory their tile-size frames may be kept loaded in
+    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
+    SKIF_ImGui_SetHoverTip (_("Animated covers in the grid view play as soon as they are hovered, and pause when the mouse moves on.\n"
+                              "Each one takes about 5-15 MB of video memory; once the limit is reached, those out of view are unloaded first.\n"
+                              "Off: they load when hovered, one at a time."));
+    ImGui::SameLine        ( );
+    SKIF_ImGui_TextColoredWrapped (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+        _("Keep animated covers of the grid view loaded:"));
+    ImGui::TreePush        ("GridAnimMemory");
+    {
+      // TRANSLATORS: {0} is an amount of video memory in megabytes
+      const std::string memoryFormat = (_registry.iLibraryGridAnimMemory <= 0) ? SKIF_L10n_PrintfFormat (_("Off"), "")
+                                                                               : SKIF_L10n_PrintfFormat (_("Up to {0} MB"), "%d");
+
+      if (SKIF_ImGui_SliderInt (L_("Video memory"), &_registry.iLibraryGridAnimMemory, 0, 1024, memoryFormat.c_str ( )))
+      {
+        // In steps of 32 MB
+        _registry.iLibraryGridAnimMemory = std::clamp ((_registry.iLibraryGridAnimMemory + 16) / 32 * 32, 0, 1024);
+        _registry.regKVLibraryGridAnimationMemory.putData (_registry.iLibraryGridAnimMemory);
+
+        SKIF_LibraryArtwork::Get ( ).OnAnimatedThumbnailMemoryChanged ( );
+      }
+    }
+    ImGui::TreePop         ( );
+
+    ImGui::Spacing         ( );
+
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
     SKIF_ImGui_SetHoverTip (_("Every time the UI renders a frame, Shelly the Ghost moves a little bit."));
     ImGui::SameLine        ( );
