@@ -915,15 +915,12 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     // Once per session, with the whole library known: the cover caches (thumbnails, animations) of the asset folders of
     //   games no longer in it are deleted (in the background). Not with an empty library (nothing could be told apart).
+    //     Every game the stores reported counts, also those not shown (hidden games, or the others in the hidden view).
     static bool cleanedUpCoverCaches = false;
 
     if (! cleanedUpCoverCaches && ! _games.IsPopulating ( ))
     {
-      std::vector <std::wstring> assetDirs;
-
-      for (auto& app : _games.GetApps ( ))
-        if (app.second != nullptr && app.second->id != 0)
-          assetDirs.push_back (app.second->GetAssetDirectory ( ));
+      const std::vector <std::wstring>& assetDirs = _games.GetKnownAssetDirectories ( );
 
       if (! assetDirs.empty ( ))
       {

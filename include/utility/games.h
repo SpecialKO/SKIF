@@ -130,6 +130,10 @@ struct SKIF_GamingCollection {
   std::set <std::string>& GetAppTickets (void) { return m_apptickets; }
   Trie&                   GetLabels     (void) { return m_tLabels;    }
 
+        // The asset folders of every game the stores reported in the last population, also those not shown (hidden
+        //   games, games without a name or install folder): what CleanUpOrphanedCoverCaches keeps. Main thread.
+  const std::vector <std::wstring>& GetKnownAssetDirectories (void) const { return m_assetDirs; }
+
         // Library-wide textures loaded by the library worker
   ID3D11ShaderResourceView* GetPatreonTexture (void)       { AdoptEmbeddedTextures ( ); return m_pPatTexSRV.p; }
   ID3D11ShaderResourceView* GetSKLogoTexture  (bool bSmall) { AdoptEmbeddedTextures ( ); return (bSmall) ? m_pSKLogoTexSRV_small.p : m_pSKLogoTexSRV.p; }
@@ -155,6 +159,7 @@ private:
   worker_s*                 m_worker = nullptr;
   Trie                      m_tLabels;
   std::set <std::string>    m_apptickets;
+  std::vector <std::wstring> m_assetDirs;   // See GetKnownAssetDirectories ( )
   nlohmann::json            m_jsonMetaDB;
   std::recursive_mutex      m_jsonMetaDB_mutex;
   std::wstring              m_metadataPath;

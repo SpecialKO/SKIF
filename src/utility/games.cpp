@@ -605,6 +605,8 @@ struct SKIF_GamingCollection::worker_s {
   bool                    pcores     = false; // First refresh of the session (launch): its threads run on the P-cores
   std::unique_ptr <skValveDataFile>
                           appinfo    = nullptr; // Steam's appinfo.vdf, read by the worker (see SwapInPopulatedGames)
+  std::vector <std::wstring>
+                          assetDirs  = { };     // See GetKnownAssetDirectories ( )
 };
 
 bool
@@ -829,6 +831,7 @@ SKIF_GamingCollection::SwapInPopulatedGames (bool* pChanged)
   m_apps       = std::move (apps);
   m_apptickets = std::move (m_worker->apptickets); // The worker is discarded after the swap
   m_tLabels    = std::move (m_worker->labels); // Trie is move-only (it owns its nodes)
+  m_assetDirs  = std::move (m_worker->assetDirs);
 
   m_populatedOnce.store (true);
   m_swapCount++;
@@ -1582,6 +1585,15 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
   };
 
   DWORD dwPhase = SKIF_Util_timeGetTime1 ( );
+
+  // The asset folders of every game the stores reported, taken before the processing below skips any (hidden games,
+  //   and in the hidden games view the others; games without a name; games whose install folder is missing, e.g. on a
+  //     drive that is not connected): none of those are gone, so their cover caches stay (CleanUpOrphanedCoverCaches)
+  _data->assetDirs.reserve (_data->apps.size ( ));
+
+  for (auto& app : _data->apps)
+    if (app.second != nullptr && app.second->id != 0 && ! app.second->IsSpecialK ( ))
+      _data->assetDirs.push_back (app.second->GetAssetDirectory ( ));
 
   std::vector <game_job_s> jobs (_data->apps.size ( ));
   bool                     metaAvailable = false;
