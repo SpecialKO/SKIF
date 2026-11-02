@@ -33,7 +33,13 @@
 
 #include <stb_image.h>
 
+// WebP covers, still and animated (packages_misc/libwebp: its decoder and demux)
+#include <libwebp/src/webp/decode.h>
+#include <libwebp/src/webp/demux.h>
+
 extern CComPtr <ID3D11Device> SKIF_D3D11_GetDevice (bool bWait = true);
+
+static bool _LoadWebPImage (const std::wstring& path, DirectX::TexMetadata& meta, DirectX::ScratchImage& img); // Animated Covers
 
 bool
 FastTextureLoading (const std::wstring& path, DirectX::TexMetadata& meta, DirectX::ScratchImage& img)
@@ -43,6 +49,11 @@ FastTextureLoading (const std::wstring& path, DirectX::TexMetadata& meta, Direct
   const std::filesystem::path imagePath (path.data());
   std::wstring   ext = SKIF_Util_ToLowerW(imagePath.extension().wstring());
   std::string szPath = SK_WideCharToUTF8(path);
+
+  // WebP (libwebp): stb_image has no WebP decoder, and WIC only one if the WebP Image Extension is installed. An animated
+  //   WebP gives its first frame. If libwebp cannot decode it, WIC is tried below.
+  if (_LoadWebPImage (path, meta, img))
+    return true;
 
   ImageDecoder decoder = ImageDecoder_stbi; // Always try to use stbi first
 
@@ -496,7 +507,7 @@ LoadLibraryThumbnailFromCache (const std::wstring& path, library_texture_s& out,
 
 #pragma region Animated Covers
 
-// Animated covers (APNG, GIF), decoded frame by frame. Neither decoder SKIF uses gives the frames of an APNG (stb_image
+// Animated covers (APNG, GIF, WebP), decoded frame by frame. Neither decoder SKIF uses gives the frames of an APNG (stb_image
 //   and WIC both read only its default image), and stb_image's own GIF frame loader (stbi_load_gif_from_memory) keeps
 //     every frame in memory at once, reads outside its buffer for frames that restore the previous one (v2.29), and
 //       disposes of frames differently from browsers (see _DecodeGIF).
@@ -504,6 +515,7 @@ LoadLibraryThumbnailFromCache (const std::wstring& path, library_texture_s& out,
 //   APNG: each frame becomes a PNG of its own (the frame's size, the chunks shared by all frames, its data as IDAT),
 //         which stb_image decodes; it is then drawn onto the canvas as the frame says (blend op, dispose op)
 //   GIF:  stb_image's frame decoder (stbi__gif_load_next, internal but in this file), which draws onto the canvas itself
+//   WebP: libwebp's animation decoder (WebPAnimDecoder), which draws onto the canvas itself
 
 // [animated-core-begin] (no Windows or DirectX types in here)
 
@@ -942,7 +954,162 @@ _DecodeGIF (const uint8_t* file, size_t size, const std::function <bool (const u
   return (count > 0) ? count : -1;
 }
 
+// WebP: "RIFF", the size, "WEBP"
+static bool
+_IsWebP (const uint8_t* file, size_t size)
+{
+  return (size >= 12 && memcmp (file, "RIFF", 4) == 0 && memcmp (file + 8, "WEBP", 4) == 0);
+}
+
+// The canvas of an animated WebP and how many frames it has. False if it is not animated, or is malformed.
+static bool
+_ScanWebP (const uint8_t* file, size_t size, uint32_t& width, uint32_t& height, uint32_t& frames)
+{
+  const WebPData data  = { file, size };
+  WebPDemuxer*   demux = WebPDemux (&data);
+
+  if (demux == nullptr)
+    return false;
+
+  width  = WebPDemuxGetI (demux, WEBP_FF_CANVAS_WIDTH);
+  height = WebPDemuxGetI (demux, WEBP_FF_CANVAS_HEIGHT);
+  frames = WebPDemuxGetI (demux, WEBP_FF_FRAME_COUNT);
+
+  const uint32_t flags = WebPDemuxGetI (demux, WEBP_FF_FORMAT_FLAGS);
+
+  WebPDemuxDelete (demux);
+
+  return ((flags & ANIMATION_FLAG) != 0 && width > 0 && height > 0);
+}
+
+// Decodes the frames of an animated WebP (libwebp draws each onto its canvas, RGBA, width x height) and hands each one to
+//   onFrame (canvas, delay in ms), which returns false to stop. Returns the number of frames handed over, or -1 on an error
+//     before the first one.
+static int
+_DecodeWebP (const uint8_t* file, size_t size, const std::function <bool (const uint8_t*, uint32_t)>& onFrame)
+{
+  WebPAnimDecoderOptions options;
+
+  if (! WebPAnimDecoderOptionsInit (&options))
+    return -1;
+
+  options.color_mode  = MODE_RGBA; // Straight alpha, as the other decoders give
+  options.use_threads = 0;
+
+  const WebPData   data    = { file, size };
+  WebPAnimDecoder* decoder = WebPAnimDecoderNew (&data, &options);
+
+  if (decoder == nullptr)
+    return -1;
+
+  int count    = 0,
+      previous = 0; // When the previous frame ended (ms)
+
+  while (WebPAnimDecoderHasMoreFrames (decoder))
+  {
+    uint8_t* canvas    = nullptr;
+    int      timestamp = 0; // When this frame ends (ms)
+
+    if (! WebPAnimDecoderGetNext (decoder, &canvas, &timestamp) || canvas == nullptr)
+      break;
+
+    count++;
+
+    const int delay = std::max (timestamp - previous, 0);
+    previous        = timestamp;
+
+    if (! onFrame (canvas, _AnimatedFrameDelay (static_cast <uint32_t> (delay))))
+      break;
+  }
+
+  WebPAnimDecoderDelete (decoder);
+
+  return (count > 0) ? count : -1;
+}
+
+// A WebP as a still image (RGBA, width x height): an animated one's first frame. False if it is not a WebP, or cannot be decoded.
+static bool
+_DecodeWebPStill (const uint8_t* file, size_t size, uint32_t& width, uint32_t& height, std::vector <uint8_t>& rgba)
+{
+  WebPBitstreamFeatures features;
+
+  if (! _IsWebP (file, size) || WebPGetFeatures (file, size, &features) != VP8_STATUS_OK)
+    return false;
+
+  if (features.has_animation)
+  {
+    uint32_t frames = 0;
+
+    if (! _ScanWebP (file, size, width, height, frames))
+      return false;
+
+    _DecodeWebP (file, size, [&](const uint8_t* canvas, uint32_t) -> bool
+    {
+      rgba.assign (canvas, canvas + static_cast <size_t> (width) * height * 4);
+      return false; // The first frame only
+    });
+
+    return (! rgba.empty ( ));
+  }
+
+  int      w      = 0,
+           h      = 0;
+  uint8_t* pixels = WebPDecodeRGBA (file, size, &w, &h);
+
+  if (pixels == nullptr)
+    return false;
+
+  width  = static_cast <uint32_t> (w);
+  height = static_cast <uint32_t> (h);
+  rgba.assign (pixels, pixels + static_cast <size_t> (width) * height * 4);
+
+  WebPFree (pixels);
+
+  return true;
+}
+
 // [animated-core-end]
+
+// A WebP file as a still image, for FastTextureLoading. False if it is not a WebP, or cannot be decoded.
+static bool
+_LoadWebPImage (const std::wstring& path, DirectX::TexMetadata& meta, DirectX::ScratchImage& img)
+{
+  std::ifstream stream (std::filesystem::path (path), std::ios::binary);
+
+  uint8_t header [12] = { };
+
+  if (! stream.read (reinterpret_cast <char*> (header), sizeof (header)) || ! _IsWebP (header, sizeof (header)))
+    return false;
+
+  std::error_code ec;
+  const auto fileSize = std::filesystem::file_size (std::filesystem::path (path), ec);
+
+  if (ec || fileSize > 256 * 1024 * 1024)
+    return false;
+
+  std::vector <uint8_t> file (static_cast <size_t> (fileSize));
+  stream.seekg (0);
+
+  if (! stream.read (reinterpret_cast <char*> (file.data ( )), file.size ( )))
+    return false;
+
+  PLOG_VERBOSE << "Using libwebp decoder...";
+
+  uint32_t              width  = 0,
+                        height = 0;
+  std::vector <uint8_t> rgba;
+
+  if (! _DecodeWebPStill (file.data ( ), file.size ( ), width, height, rgba))
+    return false;
+
+  if (FAILED (img.Initialize2D (DXGI_FORMAT_R8G8B8A8_UNORM, width, height, 1, 1)))
+    return false;
+
+  memcpy (img.GetImage (0, 0, 0)->pixels, rgba.data ( ), rgba.size ( ));
+  meta = img.GetMetadata ( );
+
+  return true;
+}
 
 bool
 IsAnimatedImageFile (const std::wstring& path)
@@ -975,6 +1142,17 @@ IsAnimatedImageFile (const std::wstring& path)
     return false;
   }
 
+  // WebP: an extended file (VP8X) with its animation flag set
+  if (memcmp (header, "RIFF", 4) == 0)
+  {
+    uint8_t extended [13] = { }; // "WEBP", "VP8X", its size, its flags
+
+    if (! file.read (reinterpret_cast <char*> (extended), sizeof (extended)))
+      return false;
+
+    return (memcmp (extended, "WEBP", 4) == 0 && memcmp (extended + 4, "VP8X", 4) == 0 && (extended [12] & ANIMATION_FLAG) != 0);
+  }
+
   // GIF: more than one frame (GIF covers are small enough to read whole)
   if (memcmp (header, "GIF8", 4) == 0)
   {
@@ -1003,14 +1181,16 @@ struct animated_image_s
   std::vector <uint8_t> file;
   apng_s                apng;    // APNG: the parsed frames
   bool                  isGIF  = false;
+  bool                  isWebP = false;
   uint32_t              width  = 0,
                         height = 0,
                         count  = 0;
 
   int Decode (const std::function <bool (const uint8_t*, uint32_t)>& onFrame) const
   {
-    return (isGIF) ? _DecodeGIF  (file.data ( ), file.size ( ), onFrame)
-                   : _DecodeAPNG (apng, onFrame);
+    return (isWebP) ? _DecodeWebP (file.data ( ), file.size ( ), onFrame) :
+           (isGIF)  ? _DecodeGIF  (file.data ( ), file.size ( ), onFrame)
+                    : _DecodeAPNG (apng, onFrame);
   }
 };
 
@@ -1035,9 +1215,16 @@ _OpenAnimatedImage (const std::wstring& path, animated_image_s& image, uint32_t 
   }
 
   // The canvas and the number of frames
-  image.isGIF = (memcmp (image.file.data ( ), "GIF8", 4) == 0);
+  image.isWebP = _IsWebP (image.file.data ( ), image.file.size ( ));
+  image.isGIF  = (memcmp (image.file.data ( ), "GIF8", 4) == 0);
 
-  if (image.isGIF)
+  if (image.isWebP)
+  {
+    if (! _ScanWebP (image.file.data ( ), image.file.size ( ), image.width, image.height, image.count))
+      return false;
+  }
+
+  else if (image.isGIF)
   {
     if (! _ScanGIF (image.file.data ( ), image.file.size ( ), image.width, image.height, image.count))
       return false;

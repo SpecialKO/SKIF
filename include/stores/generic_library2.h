@@ -23,7 +23,7 @@ enum class LibraryTexture
   Patreon,
   Logo,
   Thumbnail, // A cover scaled down for the grid view (loaded as a Cover, see library_thumbnail_s)
-  AnimatedCover, // The frames of an animated cover (APNG, GIF), played while the cover is hovered (LoadAnimatedLibraryTexture)
+  AnimatedCover, // The frames of an animated cover (APNG, GIF, WebP), played while the cover is hovered (LoadAnimatedLibraryTexture)
   AnimatedThumbnail // The frames of an animated cover as thumbnails, for the grid view (LoadAnimatedLibraryThumbnail)
 };
 
@@ -41,7 +41,7 @@ struct library_texture_s {
   ImVec2                             resolution = ImVec2 (0, 0);
   bool                               isCustom   = false; // The user's custom artwork (games only)
   bool                               isManaged  = false; // A file SKIF manages, so the menus can refresh / reset it (games only)
-  std::wstring                       animatedSource;     // Covers, thumbnails: the file it was loaded from, if that is animated (APNG, GIF);
+  std::wstring                       animatedSource;     // Covers, thumbnails: the file it was loaded from, if that is animated (APNG, GIF, WebP);
                                                          //   it shows its first frame, and LoadAnimatedLibraryTexture loads the rest
 };
 
@@ -69,12 +69,13 @@ LoadLibraryTextureEx (
         library_texture_s&                  out,
         const library_thumbnail_s*          thumb = nullptr); // Covers only: load as a thumbnail
 
-// Whether the image file is animated: an APNG (acTL chunk before its image data) or a GIF with more than one frame.
+// Whether the image file is animated: an APNG (acTL chunk before its image data), a GIF with more than one frame, or a WebP
+//   with its animation flag set.
 //   Only reads what it needs to tell. Thread-safe.
 bool
 IsAnimatedImageFile (const std::wstring& path);
 
-// The frames of an animated cover (APNG, GIF), each as a texture of its own (the full canvas, as it is shown at that point),
+// The frames of an animated cover (APNG, GIF, WebP), each as a texture of its own (the full canvas, as it is shown at that point),
 //   and how long each one is shown (ms). Scaled like the cover (low-res covers), and further down if all the frames would
 //     take more than about 192 MB of video memory. wanted (if set) is asked between frames, and stops the load once it
 //       returns false. Returns false if it is not animated (fewer than two frames), cannot be decoded, or was stopped.
@@ -85,7 +86,7 @@ LoadAnimatedLibraryTexture (const std::wstring&                path,
                             std::vector <DWORD>&               delays,
                             const std::function <bool (void)>& wanted = nullptr);
 
-// The frames of an animated cover (APNG, GIF) as thumbnails, for the grid view: each scaled to fill thumb.width x thumb.height,
+// The frames of an animated cover (APNG, GIF, WebP) as thumbnails, for the grid view: each scaled to fill thumb.width x thumb.height,
 //   with 3 mips, compressed to BC1 (BC3 with transparency), and how long each one is shown (ms). They are cached in
 //     thumb.cachePath (header, delays, then a DDS texture array): loaded from there if useCache (the caller knows it is
 //       current), else built from source (decoded, which takes a while) and saved there. bytes: what they take (also

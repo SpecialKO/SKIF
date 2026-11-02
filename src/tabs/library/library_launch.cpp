@@ -172,6 +172,9 @@ SKIF_Lib_GetCoverExtension (const std::wstring& path)
   if (memcmp (sig, "GIF8", 4) == 0)
     return L".gif"; // Kept as it is, as it may be animated
 
+  if (memcmp (sig, "RIFF", 4) == 0 && IsAnimatedImageFile (path))
+    return L".webp"; // An animated WebP is kept as it is (a still one is converted to PNG)
+
   return L"";
 }
 
@@ -313,8 +316,8 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
 
     else
     {
-      // Backup any existing copies (all of them: SKIF prefers .png over .jpg over .gif, so none may be left behind)
-      for (const wchar_t* ext_old : { L".jpg", L".png", L".gif" })
+      // Backup any existing copies (all of them: SKIF prefers .png over .jpg over .gif over .webp, so none may be left behind)
+      for (const wchar_t* ext_old : { L".jpg", L".png", L".gif", L".webp" })
         if (MoveFileEx((_data->destination + ext_old).c_str(), (_data->destination + ext_old + L".old").c_str(), MOVEFILE_REPLACE_EXISTING))
           backup = true;
 
@@ -354,9 +357,9 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
     // Swap it in
     if (success)
     {
-      // SKIF only looks for cover.png, cover.jpg and cover.gif, so JPEG, PNG (APNG too) and GIF images are kept as
-      //   they are, while anything else (WebP, BMP, PSD, ...) is converted to PNG. This goes by the file's
-      //     signature, so it also covers URLs and files with a misleading file extension.
+      // SKIF only looks for cover.png, cover.jpg, cover.gif and cover.webp, so JPEG, PNG (APNG too), GIF and animated WebP
+      //   images are kept as they are, while anything else (still WebP, BMP, PSD, ...) is converted to PNG. This goes by
+      //     the file's signature, so it also covers URLs and files with a misleading file extension.
       const std::wstring ext_saved =
         SKIF_Lib_GetCoverExtension (tmpPath);
 
@@ -389,6 +392,7 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
       DeleteFile((_data->destination + L".jpg.old").c_str());
       DeleteFile((_data->destination + L".png.old").c_str());
       DeleteFile((_data->destination + L".gif.old").c_str());
+      DeleteFile((_data->destination + L".webp.old").c_str());
     }
 
     // If something failed, restore the backups
@@ -398,6 +402,7 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
       MoveFile((_data->destination + L".jpg.old").c_str(), (_data->destination + L".jpg").c_str());
       MoveFile((_data->destination + L".png.old").c_str(), (_data->destination + L".png").c_str());
       MoveFile((_data->destination + L".gif.old").c_str(), (_data->destination + L".gif").c_str());
+      MoveFile((_data->destination + L".webp.old").c_str(), (_data->destination + L".webp").c_str());
     }
 
     // Delete the temporary file after we are done with it

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-02 21:42+0100\n"
+"POT-Creation-Date: 2026-11-02 21:57+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -913,8 +913,8 @@ msgstr ""
 
 #: src/tabs/hardware.cpp:1259
 #: src/tabs/library/library_menus.cpp:1453
-#: src/tabs/library/library_menus.cpp:1745
-#: src/tabs/library/library_menus.cpp:1998
+#: src/tabs/library/library_menus.cpp:1748
+#: src/tabs/library/library_menus.cpp:2001
 #: src/tabs/local.cpp:750
 msgid "Refresh"
 msgstr ""
@@ -1181,88 +1181,88 @@ msgstr ""
 msgid "Do you want to save changes to {0}?"
 msgstr ""
 
-#: src/tabs/library.cpp:330
+#: src/tabs/library.cpp:371
 #: src/tabs/settings.cpp:1415
 #: src/tabs/settings.cpp:1432
 msgid "Large icons"
 msgstr ""
 
-#: src/tabs/library.cpp:336
+#: src/tabs/library.cpp:377
 #: src/tabs/settings.cpp:1438
 msgid "Currently enforced by touch input mode."
 msgstr ""
 
-#: src/tabs/library.cpp:357
+#: src/tabs/library.cpp:398
 msgid "Grid view"
 msgstr ""
 
-#: src/tabs/library.cpp:365
+#: src/tabs/library.cpp:406
 msgid "Show titles"
 msgstr ""
 
-#: src/tabs/library.cpp:369
+#: src/tabs/library.cpp:410
 msgid "Show platform"
 msgstr ""
 
 #. TRANSLATORS: {0} is the width of the covers in the library's grid view (in pixels at 100% scale)
-#: src/tabs/library.cpp:374
+#: src/tabs/library.cpp:415
 msgid "Cover size: {0}"
 msgstr ""
 
-#: src/tabs/library.cpp:384
+#: src/tabs/library.cpp:425
 msgid "Show icons"
 msgstr ""
 
-#: src/tabs/library.cpp:1558
+#: src/tabs/library.cpp:1599
 #: src/tabs/library/library_details.cpp:498
 msgid "Loading..."
 msgstr ""
 
-#: src/tabs/library.cpp:1572
+#: src/tabs/library.cpp:1613
 msgid "Cover"
 msgstr ""
 
-#: src/tabs/library.cpp:1585
-#: src/tabs/library/library_menus.cpp:1645
-#: src/tabs/library/library_menus.cpp:1803
+#: src/tabs/library.cpp:1626
+#: src/tabs/library/library_menus.cpp:1648
+#: src/tabs/library/library_menus.cpp:1806
 msgid "Open SteamGridDB"
 msgstr ""
 
-#: src/tabs/library.cpp:1749
+#: src/tabs/library.cpp:1790
 msgid "New 32-bit DLL Installed"
 msgstr ""
 
-#: src/tabs/library.cpp:1750
+#: src/tabs/library.cpp:1791
 msgid "New 64-bit DLL Installed"
 msgstr ""
 
-#: src/tabs/library.cpp:1881
-#: src/tabs/library.cpp:1989
+#: src/tabs/library.cpp:1922
+#: src/tabs/library.cpp:2030
 msgid "Missing Files"
 msgstr ""
 
-#: src/tabs/library.cpp:1882
-#: src/tabs/library.cpp:1990
+#: src/tabs/library.cpp:1923
+#: src/tabs/library.cpp:2031
 msgid "Unable to extract Special K DLL files from the provided {0} file."
 msgstr ""
 
-#: src/tabs/library.cpp:2028
+#: src/tabs/library.cpp:2069
 msgid "Unsupported Feature"
 msgstr ""
 
-#: src/tabs/library.cpp:2029
+#: src/tabs/library.cpp:2070
 msgid "SKIF cannot perform a drag-n-drop update because Special K {0} or newer is required."
 msgstr ""
 
-#: src/tabs/library.cpp:2052
+#: src/tabs/library.cpp:2093
 msgid "Unsupported file format"
 msgstr ""
 
-#: src/tabs/library.cpp:2054
+#: src/tabs/library.cpp:2095
 msgid "Add a game to the library:"
 msgstr ""
 
-#: src/tabs/library.cpp:2060
+#: src/tabs/library.cpp:2101
 msgid "Update the cover for the current selected game:"
 msgstr ""
 
@@ -1651,7 +1651,7 @@ msgid "Profile folders"
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:1424
-#: src/tabs/library/library_menus.cpp:1691
+#: src/tabs/library/library_menus.cpp:1694
 msgid "Change"
 msgstr ""
 
@@ -1665,7 +1665,7 @@ msgid "Clear"
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:1452
-#: src/tabs/library/library_menus.cpp:1744
+#: src/tabs/library/library_menus.cpp:1747
 #: src/tabs/monitor.cpp:1566
 #: src/tabs/settings.cpp:2519
 #: src/utility/ini_presets.cpp:302
@@ -1673,81 +1673,81 @@ msgid "Reset"
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:1476
-#: src/tabs/library/library_menus.cpp:1768
+#: src/tabs/library/library_menus.cpp:1771
 msgid "Managed by the platform client."
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1555
+#: src/tabs/library/library_menus.cpp:1558
 msgid "Scaling"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1563
+#: src/tabs/library/library_menus.cpp:1566
 msgctxt "cover scaling"
 msgid "Default"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1576
+#: src/tabs/library/library_menus.cpp:1579
 msgid "Scales the cover to a maximum height of 600px"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1578
+#: src/tabs/library/library_menus.cpp:1581
 msgctxt "cover scaling"
 msgid "Fill"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1591
+#: src/tabs/library/library_menus.cpp:1594
 msgctxt "cover scaling"
 msgid "Fit"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1604
+#: src/tabs/library/library_menus.cpp:1607
 msgctxt "cover scaling"
 msgid "None"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1695
+#: src/tabs/library/library_menus.cpp:1698
 msgid "Icons"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1844
+#: src/tabs/library/library_menus.cpp:1847
 msgid "Clear filter"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1850
+#: src/tabs/library/library_menus.cpp:1853
 msgid "Add game"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1857
+#: src/tabs/library/library_menus.cpp:1860
 msgid "Sort by"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1863
+#: src/tabs/library/library_menus.cpp:1866
 msgid "Alphabetical"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1875
+#: src/tabs/library/library_menus.cpp:1878
 msgid "Most played"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1887
+#: src/tabs/library/library_menus.cpp:1890
 msgid "Sort by the number of launches of the game through this app."
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1889
+#: src/tabs/library/library_menus.cpp:1892
 msgid "Last played"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1910
+#: src/tabs/library/library_menus.cpp:1913
 msgid "Platforms"
 msgstr ""
 
 #. TRANSLATORS: Games added by the user (shown among the platforms: Steam, GOG, ...)
-#: src/tabs/library/library_menus.cpp:1968
+#: src/tabs/library/library_menus.cpp:1971
 msgctxt "platform"
 msgid "Custom"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1974
+#: src/tabs/library/library_menus.cpp:1977
 msgid "Hidden games"
 msgstr ""
 

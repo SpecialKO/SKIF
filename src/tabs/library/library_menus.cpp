@@ -1493,8 +1493,11 @@ DrawCoverMenuChangeReset (app_record_s* pApp, bool isCustom, bool isManaged)
              d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
              d3 = false;
 
-        // Custom covers can also be GIFs (SaveGameCover)
+        // Custom covers can also be GIFs and animated WebPs (SaveGameCover)
         if (isCustom && DeleteFile ((targetPath + fileName + L".gif").c_str()))
+          d2 = true;
+
+        if (isCustom && DeleteFile ((targetPath + fileName + L".webp").c_str()))
           d2 = true;
 
         // Store-managed fallback covers (PCGamingWiki covers for GOG and Steam, Xbox fallback cover)
