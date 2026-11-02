@@ -48,6 +48,7 @@ const     UINT_PTR        IDT_REFRESH_DIR_ROOT  =             1344; // Used by t
 const     UINT_PTR       cIDT_TIMER_EFFICIENCY  =             1345; // Engages Efficiency Mode (Win11) and compacts the working set
 const     UINT_PTR       cIDT_TIMER_STARTUP     =             1346; // Fallback for finishing startup (E-cores, notification icon) if nothing has been presented
 const     UINT_PTR       cIDT_TIMER_THUMBNAILS  =             1347; // Wakes SKIF to unload the grid view's thumbnails that went out of view (SKIF_LibraryArtwork::UpdateThumbnails)
+const     UINT_PTR       cIDT_TIMER_COVERANIM   =             1348; // Wakes SKIF for the next frame of a hovered animated cover (SKIF_LibraryArtwork::UpdateAnimatedCover)
 //const   UINT_PTR        IDT_REFRESH_STEAM_LIB =        1983-1999; // Used by the directory watch for Steam libraries
 
 // Desktop notification types

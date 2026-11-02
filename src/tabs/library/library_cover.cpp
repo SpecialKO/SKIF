@@ -291,11 +291,17 @@ DrawGameCover (bool sameLine, bool& isCoverHovered, ImVec2& vecPosCover)
         ImGui::SetCursorPos (vecPosCoverInner);
       }
 
-      // Display game cover image
+      // Display game cover image: while an animated cover (APNG, GIF) plays, its current frame instead. Both are sized by the
+      //   cover's resolution, as the frames may have been made smaller (SKIF_LibraryArtwork::UpdateAnimatedCover)
+      ID3D11ShaderResourceView* pCoverSRV = _art.GetAnimatedCoverFrame ( );
+
+      if (pCoverSRV == nullptr)
+        pCoverSRV = _art.GetCoverTexture ( );
+
       CalculateImageSizing (cover, vecContentRegionAvail, _art.GetCoverResolution ( ));
 
       ImGui::SetCursorPos  (cover.position); //vecPosImage
-      SKIF_ImGui_OptImage  (_art.GetCoverTexture ( ),
+      SKIF_ImGui_OptImage  (pCoverSRV,
                                                         cover.size,     //sizeCoverFloored,
                                                         ImVec2 (0, 0),  // Top Left coordinates
                                                         ImVec2 (1, 1),  // Bottom Right coordinates

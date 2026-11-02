@@ -534,6 +534,13 @@ SKIF_EfficiencyModeTimerProc (HWND hWnd, UINT Msg, UINT wParamIDEvent, DWORD dwT
       msgDontRedraw        = false;
       addAdditionalFrames += 3;
     }
+
+    // Likewise the frames of an animated cover (they load again once it is hovered)
+    if (SKIF_LibraryArtwork::Get ( ).ReleaseAnimatedCover ( ))
+    {
+      msgDontRedraw        = false;
+      addAdditionalFrames += 3;
+    }
   }
 }
 
@@ -5716,6 +5723,10 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             msgDontRedraw = true;
             addAdditionalFrames -= 3; // Undo the 3 frames we added just above
           }
+          break;
+        // The next frame of the hovered animated cover is due: the frames this gives draw it (and re-arm the timer)
+        case cIDT_TIMER_COVERANIM:
+          SKIF_LibraryArtwork::Get ( ).OnAnimatedCoverTimer ( );
           break;
       }
       break;

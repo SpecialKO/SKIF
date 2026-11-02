@@ -41,6 +41,9 @@ SKIF_LibraryArtwork::SelectCover (app_record_s* pApp)
   m_loadCover  = true;
   m_cover      = pApp->GetKey ( );
 
+  // Its animation (if any) stops; the new cover's comes with it
+  SetAnimatedCoverSource (L"");
+
   // Hide the current cover and set it up to be unloaded
   if (m_pTexSRV.p != nullptr)
     RetireCover ( );
@@ -57,6 +60,9 @@ void
 SKIF_LibraryArtwork::RetireCover (void)
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  // Its animation (if any) stops; the old cover fades out as a still cover
+  SetAnimatedCoverSource (L"");
 
   // If there already is an old cover, we need to push it for release
   if (m_pTexSRV_old.p != nullptr)
@@ -324,6 +330,45 @@ SKIF_LibraryArtwork::ApplyWorkerResults (void)
       continue;
     }
 
+    // Animated covers: only the latest request, for the cover still shown, made on the current device
+    else if (result.type == LibraryTexture::AnimatedCover)
+    {
+      m_animWorkerBusy = false;
+
+      const bool live = (result.queuePos   == m_animRequest.load ( ) &&
+                         result.generation == m_generation.load  ( ) &&
+                         result.game       == m_cover                &&
+                         m_animState       == AnimatedCoverState::Loading);
+
+      if (live && result.frames.size ( ) >= 2 && result.frames.size ( ) == result.delays.size ( ))
+      {
+        DWORD end = 0;
+
+        for (size_t i = 0; i < result.frames.size ( ); i++)
+        {
+          m_animFrames.emplace_back ( );
+          m_animFrames.back ( ).Attach (result.frames [i].srv.Detach ( ));
+
+          end += result.delays [i];
+          m_animFrameEnds.push_back (end);
+        }
+
+        m_animDuration = end;
+        m_animState    = AnimatedCoverState::Ready;
+      }
+
+      // Not animated after all, too large, or not decodable: it stays a still cover
+      else if (live)
+        m_animState    = AnimatedCoverState::Failed;
+
+      for (auto& frame : result.frames)
+        _Release (frame.srv);
+
+      result.frames.clear ( );
+      result.delays.clear ( );
+      continue;
+    }
+
     // Made on the device from before a device reset
     if (result.generation != m_generation.load ( ))
     {
@@ -352,6 +397,9 @@ SKIF_LibraryArtwork::ApplyWorkerResults (void)
       _Release (m_pTexSRV);
       m_vecCoverRes = result.texture.resolution;
       m_pTexSRV     = result.texture.srv;
+
+      // An animated cover (APNG, GIF): its frames load once it is hovered (UpdateAnimatedCover)
+      SetAnimatedCoverSource ((m_pTexSRV.p != nullptr) ? result.texture.animatedSource : L"");
 
       if (pApp != nullptr)
       {
@@ -417,6 +465,215 @@ bool
 SKIF_LibraryArtwork::IsCoverMissing (void) const
 {
   return (m_queueLength.load() == m_queuePosCover && m_pTexSRV.p == nullptr);
+}
+
+#pragma endregion
+
+#pragma region Animated Covers
+
+// How long the cover is hovered before its frames load (so moving the mouse across it loads nothing), and how long they
+//   are kept once it is no longer hovered
+static constexpr DWORD s_animHoverDelay  =   250; // ms
+static constexpr DWORD s_animIdleRelease = 30000; // ms
+
+void
+SKIF_LibraryArtwork::SetAnimatedCoverSource (const std::wstring& source)
+{
+  ReleaseAnimatedCover ( );
+
+  m_animSource = source;
+  m_animState  = AnimatedCoverState::None;
+}
+
+bool
+SKIF_LibraryArtwork::ReleaseAnimatedCover (void)
+{
+  const bool released = (! m_animFrames.empty ( ));
+
+  for (auto& frame : m_animFrames)
+  {
+    if (frame.p != nullptr)
+    {
+      SKIF_ResourcesToFree.push (frame.p);
+      frame.p = nullptr;
+    }
+  }
+
+  m_animFrames   .clear ( );
+  m_animFrameEnds.clear ( );
+  m_animDuration     = 0;
+  m_animPlayingSince = 0;
+
+  // A load still running is no longer wanted (it stops, and its result is dropped)
+  m_animRequest++;
+
+  // Not loaded (a cover that could not be loaded is not tried again)
+  if (m_animState != AnimatedCoverState::Failed)
+    m_animState = AnimatedCoverState::None;
+
+  StopAnimatedCoverTimer ( );
+
+  return released;
+}
+
+void
+SKIF_LibraryArtwork::StartAnimatedCoverWorker (void)
+{
+  struct thread_s {
+    std::wstring path;
+    app_key_s    game;
+    int          request    = 0;
+    unsigned int generation = 0;
+  };
+
+  thread_s* data = new thread_s { m_animSource, m_cover, ++m_animRequest, m_generation.load ( ) };
+
+  m_animState      = AnimatedCoverState::Loading;
+  m_animWorkerBusy = true;
+
+  HANDLE hWorkerThread = (HANDLE)
+  _beginthreadex (nullptr, 0x0, [](void* var) -> unsigned
+  {
+    SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_LibAnimCoverWorker");
+
+    CoInitializeEx (nullptr, 0x0); // WIC: scaling the frames
+
+    PLOG_VERBOSE << "SKIF_LibAnimCoverWorker thread started!";
+
+    thread_s*            _data = static_cast <thread_s*> (var);
+    SKIF_LibraryArtwork& self  = SKIF_LibraryArtwork::Get ( );
+
+    worker_result_s result;
+    result.type       = LibraryTexture::AnimatedCover;
+    result.game       = _data->game;
+    result.queuePos   = _data->request;
+    result.generation = _data->generation;
+
+    const int          request = _data->request;
+    const std::wstring path    = _data->path;
+
+    delete _data;
+
+    // Stops between frames once a newer request or a release made this one stale
+    LoadAnimatedLibraryTexture (path, result.frames, result.delays,
+      [&self, request](void) -> bool { return self.m_animRequest.load ( ) == request; });
+
+    // The main thread swaps them in if this is still the latest request (ApplyWorkerResults)
+    self.m_results.push (std::move (result));
+
+    PLOG_VERBOSE << "SKIF_LibAnimCoverWorker thread stopped!";
+
+    // Force a frame, so the result is swapped in
+    PostMessage (SKIF_Notify_hWnd, WM_SKIF_COVER, 0x0, 0x0);
+
+    return 0;
+  }, data, 0x0, nullptr);
+
+  if (hWorkerThread != NULL)
+    CloseHandle (hWorkerThread);
+
+  else
+  {
+    PLOG_ERROR << "Failed to start the animated cover worker thread!";
+    delete data;
+    m_animState      = AnimatedCoverState::Failed;
+    m_animWorkerBusy = false;
+  }
+}
+
+void
+SKIF_LibraryArtwork::UpdateAnimatedCover (bool hovered)
+{
+  const DWORD now    = SKIF_Util_timeGetTime ( );
+  DWORD       wakeIn = 0; // When the next frame is due (ms), 0 if none
+
+  // Only a cover that is animated, shown, and not about to be replaced
+  hovered = (hovered && ! m_animSource.empty ( ) && m_pTexSRV.p != nullptr && ! m_loadCover);
+
+  if (hovered)
+  {
+    m_animLastHovered = now;
+
+    if (m_animHoveredSince == 0)
+      m_animHoveredSince = now;
+
+    // Load the frames once it has been hovered for a moment (one worker at a time: a stale one still has to finish)
+    if (m_animState == AnimatedCoverState::None && ! m_animWorkerBusy)
+    {
+      const DWORD hoveredFor = now - m_animHoveredSince;
+
+      if (hoveredFor >= s_animHoverDelay)
+        StartAnimatedCoverWorker ( );
+      else
+        wakeIn = s_animHoverDelay - hoveredFor;
+    }
+
+    // Play: from the first frame, every time the cover is hovered again
+    if (m_animState == AnimatedCoverState::Ready && m_animDuration > 0)
+    {
+      if (m_animPlayingSince == 0)
+        m_animPlayingSince = now;
+
+      const DWORD position = (now - m_animPlayingSince) % m_animDuration;
+      const auto  frameEnd = std::upper_bound (m_animFrameEnds.begin ( ), m_animFrameEnds.end ( ), position);
+
+      wakeIn = (frameEnd != m_animFrameEnds.end ( )) ? (*frameEnd - position) : 1;
+    }
+  }
+
+  else
+  {
+    m_animHoveredSince = 0;
+    m_animPlayingSince = 0; // Back to the still cover
+
+    if (m_animState == AnimatedCoverState::Ready && now - m_animLastHovered > s_animIdleRelease)
+      ReleaseAnimatedCover ( );
+  }
+
+  // Wake SKIF when the next frame is due (re-armed only when that changes). Once it fires, the frames it gives re-arm it.
+  if (wakeIn > 0)
+  {
+    const DWORD due = now + wakeIn;
+
+    if (! m_animTimer || due != m_animTimerDue)
+    {
+      m_animTimer    = (SetTimer (SKIF_Notify_hWnd, cIDT_TIMER_COVERANIM, std::max (wakeIn, static_cast <DWORD> (USER_TIMER_MINIMUM)), NULL) != 0);
+      m_animTimerDue = due;
+    }
+  }
+
+  else
+    StopAnimatedCoverTimer ( );
+}
+
+ID3D11ShaderResourceView*
+SKIF_LibraryArtwork::GetAnimatedCoverFrame (void) const
+{
+  if (m_animState != AnimatedCoverState::Ready || m_animPlayingSince == 0 || m_animDuration == 0)
+    return nullptr;
+
+  const DWORD position = (SKIF_Util_timeGetTime ( ) - m_animPlayingSince) % m_animDuration;
+  const auto  frameEnd = std::upper_bound (m_animFrameEnds.begin ( ), m_animFrameEnds.end ( ), position);
+  const auto  frame    = static_cast <size_t> (std::distance (m_animFrameEnds.begin ( ), frameEnd));
+
+  return (frame < m_animFrames.size ( )) ? m_animFrames [frame].p : nullptr;
+}
+
+void
+SKIF_LibraryArtwork::StopAnimatedCoverTimer (void)
+{
+  if (m_animTimer)
+  {
+    KillTimer (SKIF_Notify_hWnd, cIDT_TIMER_COVERANIM);
+    m_animTimer = false;
+  }
+}
+
+void
+SKIF_LibraryArtwork::OnAnimatedCoverTimer (void)
+{
+  // A one-shot: the frames it wakes SKIF for re-arm it (UpdateAnimatedCover), if the cover still plays
+  StopAnimatedCoverTimer ( );
 }
 
 #pragma endregion
@@ -667,6 +924,8 @@ SKIF_LibraryArtwork::ReloadIcon (app_record_s* pApp)
 void
 SKIF_LibraryArtwork::ReleaseCurrentCover (void)
 {
+  SetAnimatedCoverSource (L"");
+
   if (m_pTexSRV.p != nullptr)
   {
     PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << m_pTexSRV.p << " to be released";;
@@ -682,6 +941,9 @@ SKIF_LibraryArtwork::ReleaseTextures (void)
 
   // Results still in flight were made on the old device
   m_generation++;
+
+  // The animated cover's frames load again once it is hovered (the cover itself is loaded again, ReloadCover)
+  ReleaseAnimatedCover ( );
 
   if (m_pTexSRV.p != nullptr)
   {

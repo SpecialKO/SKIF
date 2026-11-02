@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-02 19:48+0100\n"
+"POT-Creation-Date: 2026-11-02 20:18+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,58 +16,58 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
-#: src/SKIF.cpp:1313
-#: src/SKIF.cpp:1467
+#: src/SKIF.cpp:1320
+#: src/SKIF.cpp:1474
 #: src/tabs/settings.cpp:42
 msgid "Start Service"
 msgstr ""
 
-#: src/SKIF.cpp:1314
-#: src/SKIF.cpp:1486
+#: src/SKIF.cpp:1321
+#: src/SKIF.cpp:1493
 msgid "Start Service (manual stop)"
 msgstr ""
 
-#: src/SKIF.cpp:1315
-#: src/SKIF.cpp:1504
+#: src/SKIF.cpp:1322
+#: src/SKIF.cpp:1511
 msgid "Stop Service"
 msgstr ""
 
-#: src/SKIF.cpp:1317
+#: src/SKIF.cpp:1324
 #: src/tabs/settings.cpp:794
 msgid "Check for updates"
 msgstr ""
 
-#: src/SKIF.cpp:1322
-#: src/SKIF.cpp:1570
+#: src/SKIF.cpp:1329
+#: src/SKIF.cpp:1577
 msgid "Exit"
 msgstr ""
 
-#: src/SKIF.cpp:1465
+#: src/SKIF.cpp:1472
 msgid ""
 "Starts the injection service and\n"
 "stops it after injection."
 msgstr ""
 
-#: src/SKIF.cpp:1484
+#: src/SKIF.cpp:1491
 msgid ""
 "Starts the injection service but\n"
 "does not stop it after injection."
 msgstr ""
 
-#: src/SKIF.cpp:1503
+#: src/SKIF.cpp:1510
 msgid "Stops the injection service"
 msgstr ""
 
-#: src/SKIF.cpp:1535
+#: src/SKIF.cpp:1542
 msgid "Checks for any available updates"
 msgstr ""
 
-#: src/SKIF.cpp:1536
+#: src/SKIF.cpp:1543
 msgid "Check for Updates"
 msgstr ""
 
 #. TRANSLATORS: Controlled Folder Access is a feature of Windows (use the name Windows uses in your language)
-#: src/SKIF.cpp:2179
+#: src/SKIF.cpp:2186
 msgid ""
 "Controlled Folder Access is enabled in Windows and may prevent Special K and even some games from working properly. It is recommended to either disable the feature or add exclusions for games where Special K is used as well as SKIF (this application).\n"
 "\n"
@@ -76,118 +76,118 @@ msgid ""
 "Microsoft's support page with more information will open when you select any of the options below."
 msgstr ""
 
-#: src/SKIF.cpp:2185
+#: src/SKIF.cpp:2192
 msgid "Warning about Controlled Folder Access"
 msgstr ""
 
-#: src/SKIF.cpp:3366
+#: src/SKIF.cpp:3373
 msgctxt "tab"
 msgid "Library"
 msgstr ""
 
-#: src/SKIF.cpp:3367
+#: src/SKIF.cpp:3374
 msgctxt "tab"
 msgid "Monitor"
 msgstr ""
 
-#: src/SKIF.cpp:3368
+#: src/SKIF.cpp:3375
 msgctxt "tab"
 msgid "Hardware"
 msgstr ""
 
-#: src/SKIF.cpp:3369
+#: src/SKIF.cpp:3376
 msgctxt "tab"
 msgid "Settings"
 msgstr ""
 
-#: src/SKIF.cpp:3370
+#: src/SKIF.cpp:3377
 msgctxt "tab"
 msgid "About"
 msgstr ""
 
-#: src/SKIF.cpp:3623
+#: src/SKIF.cpp:3630
 #: src/utility/injection.cpp:933
 msgid "Starting..."
 msgstr ""
 
-#: src/SKIF.cpp:3624
+#: src/SKIF.cpp:3631
 #: src/utility/injection.cpp:932
 msgid "Stopping..."
 msgstr ""
 
-#: src/SKIF.cpp:3625
+#: src/SKIF.cpp:3632
 #: src/utility/injection.cpp:853
 #: src/utility/injection.cpp:861
 #: src/utility/injection.cpp:1360
 msgid "Waiting for game..."
 msgstr ""
 
-#: src/SKIF.cpp:3626
+#: src/SKIF.cpp:3633
 #: src/utility/injection.cpp:855
 #: src/utility/injection.cpp:863
 #: src/utility/injection.cpp:1361
 msgid "Running"
 msgstr ""
 
-#: src/SKIF.cpp:3627
+#: src/SKIF.cpp:3634
 #: src/utility/injection.cpp:857
 #: src/utility/injection.cpp:865
 msgid "Stopped"
 msgstr ""
 
-#: src/SKIF.cpp:3629
+#: src/SKIF.cpp:3636
 #: src/utility/injection.cpp:1375
 msgid "Click to stop the service"
 msgstr ""
 
-#: src/SKIF.cpp:3630
+#: src/SKIF.cpp:3637
 #: src/utility/injection.cpp:1376
 msgid "Click to start the service"
 msgstr ""
 
-#: src/SKIF.cpp:3647
+#: src/SKIF.cpp:3654
 #: src/stores/SKIF/custom_library.cpp:309
 #: src/stores/SKIF/custom_library.cpp:378
 #: src/stores/SKIF/custom_library.cpp:516
 msgid "Add Game"
 msgstr ""
 
-#: src/SKIF.cpp:3660
+#: src/SKIF.cpp:3667
 msgid "Local Manager"
 msgstr ""
 
-#: src/SKIF.cpp:3806
-#: src/SKIF.cpp:3936
+#: src/SKIF.cpp:3813
+#: src/SKIF.cpp:3943
 msgid "Toggle horizontal mode"
 msgstr ""
 
-#: src/SKIF.cpp:3814
-#: src/SKIF.cpp:3944
+#: src/SKIF.cpp:3821
+#: src/SKIF.cpp:3951
 msgid "Toggle mini mode"
 msgstr ""
 
-#: src/SKIF.cpp:3856
+#: src/SKIF.cpp:3863
 msgid "This app will close to the notification area."
 msgstr ""
 
-#: src/SKIF.cpp:3858
+#: src/SKIF.cpp:3865
 #: src/utility/injection.cpp:981
 msgid "Service continues running after this app is closed."
 msgstr ""
 
-#: src/SKIF.cpp:3923
+#: src/SKIF.cpp:3930
 msgid "Restore"
 msgstr ""
 
-#: src/SKIF.cpp:3927
+#: src/SKIF.cpp:3934
 msgid "Maximize"
 msgstr ""
 
-#: src/SKIF.cpp:3931
+#: src/SKIF.cpp:3938
 msgid "Minimize"
 msgstr ""
 
-#: src/SKIF.cpp:3949
+#: src/SKIF.cpp:3956
 #: src/tabs/ini_editor.cpp:534
 #: src/tabs/local.cpp:855
 #: src/utility/updater.cpp:1405
@@ -195,30 +195,30 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-#: src/SKIF.cpp:5597
+#: src/SKIF.cpp:5604
 msgid "Blink and you'll miss it ;)"
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/SKIF.cpp:5599
+#: src/SKIF.cpp:5606
 msgid "An update is being installed..."
 msgstr ""
 
-#: src/SKIF.cpp:5625
+#: src/SKIF.cpp:5632
 msgid "Open the app to continue."
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/SKIF.cpp:5627
+#: src/SKIF.cpp:5634
 msgid "An update to Special K is available!"
 msgstr ""
 
-#: src/SKIF.cpp:5639
+#: src/SKIF.cpp:5646
 msgid "The update will be retried later."
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/SKIF.cpp:5641
+#: src/SKIF.cpp:5648
 msgid "Update failed :("
 msgstr ""
 
@@ -913,8 +913,8 @@ msgstr ""
 
 #: src/tabs/hardware.cpp:1259
 #: src/tabs/library/library_menus.cpp:1453
-#: src/tabs/library/library_menus.cpp:1741
-#: src/tabs/library/library_menus.cpp:1994
+#: src/tabs/library/library_menus.cpp:1745
+#: src/tabs/library/library_menus.cpp:1998
 #: src/tabs/local.cpp:750
 msgid "Refresh"
 msgstr ""
@@ -1213,61 +1213,57 @@ msgstr ""
 msgid "Show icons"
 msgstr ""
 
-#: src/tabs/library.cpp:1480
+#: src/tabs/library.cpp:1483
 #: src/tabs/library/library_details.cpp:498
 msgid "Loading..."
 msgstr ""
 
-#: src/tabs/library.cpp:1494
+#: src/tabs/library.cpp:1497
 msgid "Cover"
 msgstr ""
 
-#: src/tabs/library.cpp:1507
-#: src/tabs/library/library_menus.cpp:1641
-#: src/tabs/library/library_menus.cpp:1799
+#: src/tabs/library.cpp:1510
+#: src/tabs/library/library_menus.cpp:1645
+#: src/tabs/library/library_menus.cpp:1803
 msgid "Open SteamGridDB"
 msgstr ""
 
-#: src/tabs/library.cpp:1671
+#: src/tabs/library.cpp:1674
 msgid "New 32-bit DLL Installed"
 msgstr ""
 
-#: src/tabs/library.cpp:1672
+#: src/tabs/library.cpp:1675
 msgid "New 64-bit DLL Installed"
 msgstr ""
 
-#: src/tabs/library.cpp:1791
-#: src/tabs/library.cpp:1899
+#: src/tabs/library.cpp:1794
+#: src/tabs/library.cpp:1902
 msgid "Missing Files"
 msgstr ""
 
-#: src/tabs/library.cpp:1792
-#: src/tabs/library.cpp:1900
+#: src/tabs/library.cpp:1795
+#: src/tabs/library.cpp:1903
 msgid "Unable to extract Special K DLL files from the provided {0} file."
 msgstr ""
 
-#: src/tabs/library.cpp:1938
+#: src/tabs/library.cpp:1941
 msgid "Unsupported Feature"
 msgstr ""
 
-#: src/tabs/library.cpp:1939
+#: src/tabs/library.cpp:1942
 msgid "SKIF cannot perform a drag-n-drop update because Special K {0} or newer is required."
 msgstr ""
 
-#: src/tabs/library.cpp:1954
+#: src/tabs/library.cpp:1957
 msgid "Unsupported file format"
 msgstr ""
 
-#: src/tabs/library.cpp:1956
+#: src/tabs/library.cpp:1959
 msgid "Add a game to the library:"
 msgstr ""
 
-#: src/tabs/library.cpp:1962
+#: src/tabs/library.cpp:1965
 msgid "Update the cover for the current selected game:"
-msgstr ""
-
-#: src/tabs/library.cpp:1973
-msgid "Note that the app has no support for animated images."
 msgstr ""
 
 #: src/tabs/library/library_cover.cpp:166
@@ -1284,7 +1280,7 @@ msgid ""
 "allow the cover to be populated :)"
 msgstr ""
 
-#: src/tabs/library/library_cover.cpp:428
+#: src/tabs/library/library_cover.cpp:434
 msgid "Special Kudos to our Patrons:"
 msgstr ""
 
@@ -1655,7 +1651,7 @@ msgid "Profile folders"
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:1424
-#: src/tabs/library/library_menus.cpp:1687
+#: src/tabs/library/library_menus.cpp:1691
 msgid "Change"
 msgstr ""
 
@@ -1669,7 +1665,7 @@ msgid "Clear"
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:1452
-#: src/tabs/library/library_menus.cpp:1740
+#: src/tabs/library/library_menus.cpp:1744
 #: src/tabs/monitor.cpp:1566
 #: src/tabs/settings.cpp:2491
 #: src/utility/ini_presets.cpp:302
@@ -1677,81 +1673,81 @@ msgid "Reset"
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:1476
-#: src/tabs/library/library_menus.cpp:1764
+#: src/tabs/library/library_menus.cpp:1768
 msgid "Managed by the platform client."
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1551
+#: src/tabs/library/library_menus.cpp:1555
 msgid "Scaling"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1559
+#: src/tabs/library/library_menus.cpp:1563
 msgctxt "cover scaling"
 msgid "Default"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1572
+#: src/tabs/library/library_menus.cpp:1576
 msgid "Scales the cover to a maximum height of 600px"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1574
+#: src/tabs/library/library_menus.cpp:1578
 msgctxt "cover scaling"
 msgid "Fill"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1587
+#: src/tabs/library/library_menus.cpp:1591
 msgctxt "cover scaling"
 msgid "Fit"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1600
+#: src/tabs/library/library_menus.cpp:1604
 msgctxt "cover scaling"
 msgid "None"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1691
+#: src/tabs/library/library_menus.cpp:1695
 msgid "Icons"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1840
+#: src/tabs/library/library_menus.cpp:1844
 msgid "Clear filter"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1846
+#: src/tabs/library/library_menus.cpp:1850
 msgid "Add game"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1853
+#: src/tabs/library/library_menus.cpp:1857
 msgid "Sort by"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1859
+#: src/tabs/library/library_menus.cpp:1863
 msgid "Alphabetical"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1871
+#: src/tabs/library/library_menus.cpp:1875
 msgid "Most played"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1883
+#: src/tabs/library/library_menus.cpp:1887
 msgid "Sort by the number of launches of the game through this app."
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1885
+#: src/tabs/library/library_menus.cpp:1889
 msgid "Last played"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1906
+#: src/tabs/library/library_menus.cpp:1910
 msgid "Platforms"
 msgstr ""
 
 #. TRANSLATORS: Games added by the user (shown among the platforms: Steam, GOG, ...)
-#: src/tabs/library/library_menus.cpp:1964
+#: src/tabs/library/library_menus.cpp:1968
 msgctxt "platform"
 msgid "Custom"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1970
+#: src/tabs/library/library_menus.cpp:1974
 msgid "Hidden games"
 msgstr ""
 

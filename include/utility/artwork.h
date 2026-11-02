@@ -21,6 +21,7 @@
 //   Cover flow: SelectCover (pApp) when the selection changes → IsCoverRequested ( ) → StartCoverWorker (pApp)
 //   → ApplyWorkerResults ( ) (main thread) swaps it in. A custom cover being saved (SaveGameCover in library.cpp)
 //   uses BeginSavingCover (pApp) → WM_SKIF_REFRESHCOVER → OnCoverSaved ( ) → ProcessCoverRefresh ( ).
+//   An animated cover (APNG, GIF) shows its first frame; hovered, UpdateAnimatedCover ( ) loads and plays the rest.
 // Thumbnails (the grid view): app_record_s::tex_thumb.iWorker
 enum SKIF_ThumbnailState {
   SKIF_Thumbnail_None     = 0, // Not loaded
@@ -72,6 +73,16 @@ public:
   void OnCoverSaved           (app_key_s game);      // WM_SKIF_REFRESHCOVER
   void RefreshShownCover      (void);                // Reloads the shown cover (cover settings changed)
   bool ProcessCoverRefresh    (void);                // Once per frame; true if the shown cover must be reloaded (caller sets update)
+
+  // Animated covers (APNG, GIF): the shown cover shows its first frame, and plays while it is hovered. Its frames are loaded
+  //   by a background worker (SKIF_LibAnimCoverWorker) once it has been hovered for a moment, are kept while it is shown, and
+  //     are released with it, on a device reset, when SKIF goes idle, or once it has not been hovered for a while.
+  //       A timer (cIDT_TIMER_COVERANIM) wakes SKIF for each new frame, so it does not draw more frames than that.
+  void UpdateAnimatedCover    (bool hovered);        // Once per frame of the library tab, after the cover is drawn (hovered: the cover is)
+  ID3D11ShaderResourceView*
+       GetAnimatedCoverFrame  (void) const;          // The frame to draw in place of the cover while it plays, else nullptr
+  bool ReleaseAnimatedCover   (void);                // Pushes its frames for release (true if there were any); they load again once hovered
+  void OnAnimatedCoverTimer   (void);                // WM_TIMER cIDT_TIMER_COVERANIM (SKIF.cpp): stops the timer (the frames re-arm it)
 
   // Icons (one background worker per game, up to 8 at once). tex_icon.iWorker: 0 → 1 (StartIconWorker) → 2 once its
   //   result has been applied (ApplyWorkerResults), to whichever record the game has by then
@@ -151,6 +162,31 @@ private:
   std::atomic<int>          m_queueLength       { 1 };
   int                       m_queuePosCover     = 0;
 
+  // Animated cover (UpdateAnimatedCover). Its frames are for m_cover; a load serves m_animRequest (a newer request or a
+  //   release makes it stale, so its result is dropped)
+  enum class AnimatedCoverState {
+    None,     // Not loaded (or not animated: m_animSource is empty)
+    Loading,  // Its worker is running
+    Ready,    // Loaded: plays while hovered
+    Failed    // Could not be loaded (too large, not decodable): stays a still cover
+  };
+  void SetAnimatedCoverSource   (const std::wstring& source); // The shown cover changed: releases the frames of the previous one
+  void StartAnimatedCoverWorker (void);
+  void StopAnimatedCoverTimer   (void);
+  std::wstring              m_animSource;                // The shown cover's file, if it is animated (from the cover worker)
+  AnimatedCoverState        m_animState         = AnimatedCoverState::None;
+  std::atomic<int>          m_animRequest       { 0 };   // Read by the worker (whether it is still wanted)
+  bool                      m_animWorkerBusy    = false; // One worker at a time
+  std::vector <CComPtr <ID3D11ShaderResourceView>>
+                            m_animFrames;
+  std::vector <DWORD>       m_animFrameEnds;             // When each frame ends (ms into the animation)
+  DWORD                     m_animDuration      = 0;     // ms
+  DWORD                     m_animHoveredSince  = 0;     // 0: not hovered
+  DWORD                     m_animPlayingSince  = 0;     // 0: not playing
+  DWORD                     m_animLastHovered   = 0;
+  DWORD                     m_animTimerDue      = 0;     // When the timer fires, while it runs
+  bool                      m_animTimer         = false; // cIDT_TIMER_COVERANIM is running
+
   // Custom cover being saved, and the refresh it triggers
   bool                      m_savingCover       = false;
   bool                      m_refreshPending    = false;
@@ -168,6 +204,9 @@ private:
     bool                    dropped    = false; // Thumbnails: its tile went out of view while it loaded, so it made no texture
     unsigned int            generation = 0;  // m_generation when the worker started
     library_texture_s       texture;
+    std::vector <library_texture_s>
+                            frames;          // Animated covers: the frames (queuePos: the request)
+    std::vector <DWORD>     delays;          // Animated covers: how long each frame is shown (ms)
     std::shared_ptr <app_record_s>
                             record;          // The record the worker used, kept alive until here (released on the main thread)
   };

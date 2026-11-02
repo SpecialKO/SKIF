@@ -1176,6 +1176,9 @@ SKIF_UI_Tab_DrawLibrary (void)
   else
     DrawGameCover (true, isCoverHovered, vecPosCover);
 
+  // An animated cover (APNG, GIF) plays while hovered (never in the grid view, where it is not drawn)
+  _art.UpdateAnimatedCover (isCoverHovered);
+
 #pragma endregion
 
   //float fZ =
@@ -1967,10 +1970,9 @@ SKIF_UI_Tab_DrawLibrary (void)
       //"   *.tga\n"
         "   *.bmp\n"
         "   *.psd\n"
-      //"   *.gif\n"
+        "   *.gif\n"
       //"   *.tif\n"
-        "\n"
-        + _("Note that the app has no support for animated images.");
+        ;
 
       SKIF_ImGui_InfoMessage (error_title, error_label);
     }

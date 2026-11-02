@@ -1147,7 +1147,7 @@ app_record_s::MatchProcess (const wchar_t* wszExeFile, const wchar_t* wszExePath
 
 #pragma region Artwork
 
-// The user's custom cover / icon: <asset dir>cover|icon .png, .jpg (and .ico for icons)
+// The user's custom cover / icon: <asset dir>cover|icon .png, .jpg (and .gif for covers, .ico for icons)
 std::wstring
 app_record_s::FindCustomArtwork (LibraryTexture type) const
 {
@@ -1157,6 +1157,9 @@ app_record_s::FindCustomArtwork (LibraryTexture type) const
     return                   SKIFCustomPath + L".png";
   else if (PathFileExistsW ((SKIFCustomPath + L".jpg").c_str()))
     return                   SKIFCustomPath + L".jpg";
+  else if (type == LibraryTexture::Cover && // Animated covers (SaveGameCover keeps GIFs as they are)
+           PathFileExistsW ((SKIFCustomPath + L".gif").c_str()))
+    return                   SKIFCustomPath + L".gif";
   else if (type == LibraryTexture::Icon &&
            PathFileExistsW ((SKIFCustomPath + L".ico").c_str()))
     return                   SKIFCustomPath + L".ico";

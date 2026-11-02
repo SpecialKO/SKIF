@@ -1425,7 +1425,7 @@ DrawCoverMenuChangeReset (app_record_s* pApp, bool isCustom, bool isManaged)
   {
     LPWSTR pwszFilePath = NULL;
     HRESULT hr          =
-      SKIF_Util_FileExplorer_BrowseForFile (&pwszFilePath, SKIF_ImGui_hWnd, { { W_("Images"), L"*.png;*.jpg;*.jpeg;*.webp;*.psd;*.bmp" } }, FOS_FILEMUSTEXIST, FOLDERID_Pictures);
+      SKIF_Util_FileExplorer_BrowseForFile (&pwszFilePath, SKIF_ImGui_hWnd, { { W_("Images"), L"*.png;*.apng;*.gif;*.jpg;*.jpeg;*.webp;*.psd;*.bmp" } }, FOS_FILEMUSTEXIST, FOLDERID_Pictures);
 
     if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED))
     {
@@ -1492,6 +1492,10 @@ DrawCoverMenuChangeReset (app_record_s* pApp, bool isCustom, bool isManaged)
         bool d1 = DeleteFile ((targetPath + fileName + L".png").c_str()),
              d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
              d3 = false;
+
+        // Custom covers can also be GIFs (SaveGameCover)
+        if (isCustom && DeleteFile ((targetPath + fileName + L".gif").c_str()))
+          d2 = true;
 
         // Store-managed fallback covers (PCGamingWiki covers for GOG and Steam, Xbox fallback cover)
         if (! isCustom)

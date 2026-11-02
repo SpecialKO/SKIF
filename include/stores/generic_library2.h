@@ -22,7 +22,8 @@ enum class LibraryTexture
   Cover,
   Patreon,
   Logo,
-  Thumbnail  // A cover scaled down for the grid view (loaded as a Cover, see library_thumbnail_s)
+  Thumbnail, // A cover scaled down for the grid view (loaded as a Cover, see library_thumbnail_s)
+  AnimatedCover // The frames of an animated cover (APNG, GIF), played while the cover is hovered (LoadAnimatedLibraryTexture)
 };
 
 enum ImageDecoder {
@@ -39,6 +40,8 @@ struct library_texture_s {
   ImVec2                             resolution = ImVec2 (0, 0);
   bool                               isCustom   = false; // The user's custom artwork (games only)
   bool                               isManaged  = false; // A file SKIF manages, so the menus can refresh / reset it (games only)
+  std::wstring                       animatedSource;     // Covers: the file it was loaded from, if that is animated (APNG, GIF);
+                                                         //   it shows its first frame, and LoadAnimatedLibraryTexture loads the rest
 };
 
 // A cover loaded as a thumbnail (the grid view): scaled to fill width x height (rounded up to multiples of 4), with 3 mip
@@ -64,6 +67,22 @@ LoadLibraryTextureEx (
         app_record_s*                       pApp,
         library_texture_s&                  out,
         const library_thumbnail_s*          thumb = nullptr); // Covers only: load as a thumbnail
+
+// Whether the image file is animated: an APNG (acTL chunk before its image data) or a GIF with more than one frame.
+//   Only reads what it needs to tell. Thread-safe.
+bool
+IsAnimatedImageFile (const std::wstring& path);
+
+// The frames of an animated cover (APNG, GIF), each as a texture of its own (the full canvas, as it is shown at that point),
+//   and how long each one is shown (ms). Scaled like the cover (low-res covers), and further down if all the frames would
+//     take more than about 192 MB of video memory. wanted (if set) is asked between frames, and stops the load once it
+//       returns false. Returns false if it is not animated (fewer than two frames), cannot be decoded, or was stopped.
+//         Thread-safe like LoadLibraryTextureEx; call CoInitializeEx on the thread first (scaling uses WIC).
+bool
+LoadAnimatedLibraryTexture (const std::wstring&                path,
+                            std::vector <library_texture_s>&   frames,
+                            std::vector <DWORD>&               delays,
+                            const std::function <bool (void)>& wanted = nullptr);
 
 // A thumbnail saved by LoadLibraryTextureEx (thumb->cachePath). Thread-safe like LoadLibraryTextureEx.
 bool

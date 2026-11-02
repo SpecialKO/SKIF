@@ -167,7 +167,10 @@ SKIF_Lib_GetCoverExtension (const std::wstring& path)
     return L".jpg";
 
   if (memcmp (sig, sigPNG, sizeof (sigPNG)) == 0)
-    return L".png";
+    return L".png"; // Also animated PNGs (APNG), which play while hovered
+
+  if (memcmp (sig, "GIF8", 4) == 0)
+    return L".gif"; // Kept as it is, as it may be animated
 
   return L"";
 }
@@ -201,6 +204,7 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
       FileSignature { L"image/png",                 L".png",  { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A } },
       FileSignature { L"image/webp",                L".webp", { 0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50 },     // 52 49 46 46 ?? ?? ?? ?? 57 45 42 50
                                                               { 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF } }, // mask
+      FileSignature { L"image/gif",                 L".gif",  { 0x47, 0x49, 0x46, 0x38 } }, // GIF8 (GIF87a, GIF89a)
       FileSignature { L"image/bmp",                 L".bmp",  { 0x42, 0x4D } },
       FileSignature { L"image/vnd.adobe.photoshop", L".psd",  { 0x38, 0x42, 0x50, 0x53 } }
     };
@@ -309,9 +313,10 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
 
     else
     {
-      // Backup any existing copies
-      backup =  MoveFileEx((_data->destination + L".jpg").c_str(), (_data->destination + L".jpg.old").c_str(), MOVEFILE_REPLACE_EXISTING)
-             || MoveFileEx((_data->destination + L".png").c_str(), (_data->destination + L".png.old").c_str(), MOVEFILE_REPLACE_EXISTING);
+      // Backup any existing copies (all of them: SKIF prefers .png over .jpg over .gif, so none may be left behind)
+      for (const wchar_t* ext_old : { L".jpg", L".png", L".gif" })
+        if (MoveFileEx((_data->destination + ext_old).c_str(), (_data->destination + ext_old + L".old").c_str(), MOVEFILE_REPLACE_EXISTING))
+          backup = true;
 
       // This both downloads a new image from the internet as well as copies a local file to the destination
       // BMP files are downloaded to .tmp, while all others are downloaded to their intended path
@@ -349,8 +354,8 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
     // Swap it in
     if (success)
     {
-      // SKIF only looks for cover.jpg and cover.png, so JPEG and PNG images are kept as they are,
-      //   while anything else (WebP, BMP, PSD, ...) is converted to PNG. This goes by the file's
+      // SKIF only looks for cover.png, cover.jpg and cover.gif, so JPEG, PNG (APNG too) and GIF images are kept as
+      //   they are, while anything else (WebP, BMP, PSD, ...) is converted to PNG. This goes by the file's
       //     signature, so it also covers URLs and files with a misleading file extension.
       const std::wstring ext_saved =
         SKIF_Lib_GetCoverExtension (tmpPath);
@@ -383,6 +388,7 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
     {
       DeleteFile((_data->destination + L".jpg.old").c_str());
       DeleteFile((_data->destination + L".png.old").c_str());
+      DeleteFile((_data->destination + L".gif.old").c_str());
     }
 
     // If something failed, restore the backups
@@ -391,6 +397,7 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
       PLOG_INFO << "Restoring the original cover...";
       MoveFile((_data->destination + L".jpg.old").c_str(), (_data->destination + L".jpg").c_str());
       MoveFile((_data->destination + L".png.old").c_str(), (_data->destination + L".png").c_str());
+      MoveFile((_data->destination + L".gif.old").c_str(), (_data->destination + L".gif").c_str());
     }
 
     // Delete the temporary file after we are done with it
