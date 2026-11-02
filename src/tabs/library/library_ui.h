@@ -216,6 +216,8 @@ bool RegisterCoverDropTarget (ImVec2 min, ImVec2 max, app_key_s game); // Each f
                                                                        //   the current window is kept). True if an image is dragged over it.
 bool GetCoverDropTargetAt    (ImVec2 pos, app_key_s& game);            // The game drawn at pos (screen coordinates) in the latest frame
 void DrawCoverDropHighlight  (ImDrawList* draw_list, ImVec2 min, ImVec2 max, float rounding); // An image is dragged over it
+void ScrollForCoverDrag      (void);                 // In a scrolling window of drop targets (the grid, the list), each frame: scrolls it
+                                                     //   while an image is dragged near its top or bottom edge
 
 // library/library_launch.cpp
 void LaunchGame              (app_record_s* pApp);

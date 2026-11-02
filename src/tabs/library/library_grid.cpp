@@ -565,6 +565,9 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
   // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
   SKIF_ImGui_AutoScroll  (false, SKIF_ImGuiAxis_Y, "##AutoScrollLibraryGrid");
 
+  // Scrolls while an image is dragged near the top or bottom edge, to reach the games out of view
+  ScrollForCoverDrag     ( );
+
   ImGui::Unindent        (scrollbarWidth);
 
   ImGui::EndChild        ( );

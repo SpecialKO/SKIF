@@ -582,6 +582,9 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
   // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
   SKIF_ImGui_AutoScroll  (false, SKIF_ImGuiAxis_Y, "##AutoScrollLibraryList");
 
+  // Scrolls while an image is dragged near the top or bottom edge, to reach the games out of view
+  ScrollForCoverDrag     ( );
+
   ImGui::EndChild        ( );
   ImGui::EndGroup        ( ); // End GamesList
   ImGui::PopStyleColor   ( );

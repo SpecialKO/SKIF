@@ -231,6 +231,47 @@ GetCoverDropTargetAt (ImVec2 pos, app_key_s& game)
   return false;
 }
 
+// While an image is dragged near the top or bottom edge of the current window, it scrolls toward that edge: faster the closer
+//   the image is to it. ImGui gets no mouse input during a drag, so this goes by where the drop target says it is.
+void
+ScrollForCoverDrag (void)
+{
+  extern bool coverFadeActive; // Keeps the frames coming (SKIF.cpp)
+
+  if (! dragOverActive || ! dragOverImage)
+    return;
+
+  const ImRect rect = ImGui::GetCurrentWindowRead ( )->InnerRect;
+  const ImVec2 drag = ImVec2 (static_cast <float> (dragOverPoint.x), static_cast <float> (dragOverPoint.y));
+
+  if (! rect.Contains (drag))
+    return;
+
+  // The edge zones: up to a quarter of the window each
+  const float zone      = std::min (ImFloor (48.0f * SKIF_ImGui_GlobalDPIScale), rect.GetHeight ( ) * 0.25f);
+  const float maxSpeed  = 1200.0f * SKIF_ImGui_GlobalDPIScale; // Pixels a second, at the edge
+  float       direction = 0.0f;
+
+  if      (drag.y < rect.Min.y + zone)
+    direction = -(1.0f - (drag.y - rect.Min.y) / zone);
+  else if (drag.y > rect.Max.y - zone)
+    direction =  (1.0f - (rect.Max.y - drag.y) / zone);
+
+  if (direction == 0.0f || zone <= 0.0f)
+    return;
+
+  // At least a fifth of the speed as soon as it is in a zone
+  const float speed  = maxSpeed * std::max (0.2f, std::abs (direction));
+  const float dt     = std::clamp (ImGui::GetIO ( ).DeltaTime, 0.0f, 0.05f); // Not a jump after SKIF slept
+  const float scroll = std::clamp (ImGui::GetScrollY ( ) + ((direction < 0.0f) ? -speed : speed) * dt, 0.0f, ImGui::GetScrollMaxY ( ));
+
+  if (scroll != ImGui::GetScrollY ( ))
+  {
+    ImGui::SetScrollY (scroll);
+    coverFadeActive = true; // The drop target only wakes SKIF when the image moves
+  }
+}
+
 // Lightened, in a thick accent border just inside its edge
 void
 DrawCoverDropHighlight (ImDrawList* draw_list, ImVec2 min, ImVec2 max, float rounding)
