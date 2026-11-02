@@ -902,7 +902,7 @@ DrawGameDetails_LaunchBar (app_record_s* pApp)
 
   else if (defaultLaunchConfig != nullptr)
   {
-    // Special K disabled, or an elevated service (a blocked executable does not use the service, so never both)
+    // Special K disabled, and/or an elevated service (both when the service is used all the same: Ignore blacklist)
     if (! defaultLocal)
     {
       const bool blacklisted        = defaultLaunchConfig->isBlacklisted ( );             // Cached by the launch config
@@ -916,14 +916,20 @@ DrawGameDetails_LaunchBar (app_record_s* pApp)
         if (ImGui::IsItemHovered ( ))
           SKIF_ImGui_SetHoverText (defaultLaunchConfig->getExecutableFullPathUTF8 ( ).c_str ( ));
 
+        // The launch behaviors (Properties) can have the service started all the same (e.g. for a blocked launcher)
+        const std::string ignoredTip = (defaultLaunchConfig->isIgnoringBlacklist ( ))
+                                     ? std::string ("\n\n") + _("The injection service is started all the same (Ignore blacklist).")
+                                     : std::string ( );
+
         if (blacklistedPattern)
-          SKIF_ImGui_SetHoverTip (_("Special K is disabled through a blacklist pattern in the Settings tab."));
+          SKIF_ImGui_SetHoverTip (_("Special K is disabled through a blacklist pattern in the Settings tab.") + ignoredTip);
         else
           SKIF_ImGui_SetHoverTip (_("Special K is disabled for the default launch option.\n"
-                                    "Click to change it in Properties."));
+                                    "Click to change it in Properties.") + ignoredTip);
       }
 
-      else if (defaultLaunchConfig->isElevated ( ))
+      // Only when the service is used: not blocked, or used all the same (Ignore blacklist)
+      if ((! (blacklisted || blacklistedPattern) || defaultLaunchConfig->isIgnoringBlacklist ( )) && defaultLaunchConfig->isElevated ( ))
       {
         if (_RightIconButton (ICON_FA_USER_SHIELD "###SKElevatedIndicator", ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled)))
           _OpenProperties (PropertiesPage::Launch);

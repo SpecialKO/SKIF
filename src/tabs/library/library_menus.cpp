@@ -198,7 +198,8 @@ SKIF_Lib_GetWithoutSKState (app_record_s* pApp, app_record_s::launch_config_s* l
                                          : (pApp->specialk.injection.injection.type == InjectionType::Local))
     return SKIF_Lib_WithoutSK::LocalInjection;
 
-  if (lc->isBlacklisted ( ) || _inject._TestUserList (lc->getExecutableFullPathUTF8 ( ).c_str ( ), false))
+  // The launch behaviors (Properties) can have the service used all the same for an executable Special K is disabled for
+  if ((lc->isBlacklisted ( ) || _inject._TestUserList (lc->getExecutableFullPathUTF8 ( ).c_str ( ), false)) && ! lc->isIgnoringBlacklist ( ))
     return SKIF_Lib_WithoutSK::Blacklisted;
 
   return SKIF_Lib_WithoutSK::Available;

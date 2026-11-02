@@ -68,16 +68,19 @@ LaunchGame (app_record_s* pApp)
     if (! usingSK)
     {
       bool isLocalBlacklisted  = launchConfig->isBlacklisted ( ),
-           isGlobalBlacklisted = _inject._TestUserList (launchConfig->getExecutableFullPathUTF8 ( ).c_str (), false);
+           isGlobalBlacklisted = _inject._TestUserList (launchConfig->getExecutableFullPathUTF8 ( ).c_str (), false),
+           isBlacklisted       = (isLocalBlacklisted || isGlobalBlacklisted);
 
+      // The launch behaviors (Properties) can have the service used all the same, e.g. for a blocked launcher so the game
+      //   it starts gets Special K. Special K stays disabled for the executable itself, so it is then not whitelisted.
       usingSK = ! launchWithoutSK       &&
-                ! isLocalBlacklisted    &&
-                ! isGlobalBlacklisted;
+              (! isBlacklisted || launchConfig->isIgnoringBlacklist ( ));
 
       if (usingSK)
       {
         // Whitelist the game if it hasn't been already (store-specific; Steam needs none)
-        pApp->WhitelistForInjection (launchConfig);
+        if (! isBlacklisted)
+          pApp->WhitelistForInjection (launchConfig);
 
         // Disable the first service notification
         if (_registry.bMinimizeOnGameLaunch)

@@ -910,13 +910,15 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
 
     using Service       = SKIF_LaunchBehaviors::Service;
     using SteamAppIDtxt = SKIF_LaunchBehaviors::SteamAppIDtxt;
+    using Blacklist     = SKIF_LaunchBehaviors::Blacklist;
+    using Elevation     = SKIF_LaunchBehaviors::Elevation;
 
     // Per-executable and per-folder launch behaviors (registry; see utility/launch_behaviors.h)
     SKIF_LaunchBehaviors::Resolved behaviors =
       SKIF_LaunchBehaviors::Resolve (path);
 
-    // Legacy fallback: SpecialK.deny.<exe> / SpecialK.admin.<exe> next to the executable,
-    //   only consulted when the registry has no service setting for the executable or its folders.
+    // Legacy fallback: SpecialK.deny.<exe> / SpecialK.admin.<exe> next to the executable, each only consulted when the
+    //   registry has no setting of its own (service, elevation) for the executable or its folders.
     //     The library migrates these files to the registry when it reads them.
     if (behaviors.service == Service::Inherit)
     {
@@ -925,33 +927,47 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
                                                       std::filesystem::path(path).filename().replace_extension().wstring().c_str() // filename without extension
       );
 
+      if (PathFileExistsW (blacklistFile.c_str()))
+        behaviors.service = Service::Blocked;
+    }
+
+    if (behaviors.elevation == Elevation::Inherit)
+    {
       std::wstring elevationFile = SK_FormatStringW (L"%s\\SpecialK.admin.%ws",
                                                       std::filesystem::path(path).parent_path().wstring().c_str(),                 // full path to parent folder
                                                       std::filesystem::path(path).filename().replace_extension().wstring().c_str() // filename without extension
       );
 
-      if      (PathFileExistsW (blacklistFile.c_str()))
-        behaviors.service = Service::Blocked;
-      else if (PathFileExistsW (elevationFile.c_str()))
-        behaviors.service = Service::Elevated;
+      if (PathFileExistsW (elevationFile.c_str()))
+        behaviors.elevation = Elevation::Elevated;
     }
 
     PLOG_INFO << "Launch behaviors:  auto-stop " << static_cast <int> (behaviors.autoStop)
               << ", service "                    << static_cast <int> (behaviors.service)
-              << ", steam_appid.txt "            << static_cast <int> (behaviors.steamAppIDtxt);
+              << ", elevation "                  << static_cast <int> (behaviors.elevation)
+              << ", steam_appid.txt "            << static_cast <int> (behaviors.steamAppIDtxt)
+              << ", blacklist "                  << static_cast <int> (behaviors.blacklist);
 
     // Check if the executable is blacklisted
     isLocalBlacklisted  = (behaviors.service == Service::Blocked);
     isGlobalBlacklisted = _inject._TestUserList (SK_WideCharToUTF8(path).c_str(), false);
 
-    _Signal._DoNotUseService = (isLocalBlacklisted || isGlobalBlacklisted);
+    // The launch behaviors can have the service used all the same (e.g. for a blocked launcher, so the game it starts
+    //   gets Special K). Special K stays disabled for the executable itself, so it is then not whitelisted either.
+    const bool isBlacklisted   = (isLocalBlacklisted || isGlobalBlacklisted);
+    const bool ignoreBlacklist = (isBlacklisted && behaviors.blacklist == Blacklist::Ignore);
+
+    PLOG_INFO_IF (ignoreBlacklist) << "Special K is disabled for the executable, but its launch behaviors ignore it: the service is used all the same.";
+
+    _Signal._DoNotUseService = (isBlacklisted && ! ignoreBlacklist);
 
     if (! _Signal._DoNotUseService)
     {
       // Whitelist the path if it haven't been already
-      _inject.WhitelistPath (SK_WideCharToUTF8(path));
+      if (! isBlacklisted)
+        _inject.WhitelistPath (SK_WideCharToUTF8(path));
 
-      _Signal._ElevatedService = (behaviors.service == Service::Elevated);
+      _Signal._ElevatedService = (behaviors.elevation == Elevation::Elevated);
     }
 
     _Signal._AutoStopBehavior = static_cast <int> (behaviors.autoStop);
@@ -1042,7 +1058,8 @@ SKIF_Startup_LaunchURIPreparation (LPWSTR lpCmdLine)
       // Per-executable and per-folder launch behaviors (registry; see utility/launch_behaviors.h)
       if (PathFileExistsW (argSKIF_URI_found.c_str()))
       {
-        using Service = SKIF_LaunchBehaviors::Service;
+        using Service   = SKIF_LaunchBehaviors::Service;
+        using Elevation = SKIF_LaunchBehaviors::Elevation;
 
         SKIF_LaunchBehaviors::Resolved behaviors =
           SKIF_LaunchBehaviors::Resolve (argSKIF_URI_found);
@@ -1050,7 +1067,7 @@ SKIF_Startup_LaunchURIPreparation (LPWSTR lpCmdLine)
         if (behaviors.service == Service::Blocked)
           _Signal._DoNotUseService = true;
 
-        _Signal._ElevatedService  = (behaviors.service == Service::Elevated);
+        _Signal._ElevatedService  = (behaviors.elevation == Elevation::Elevated);
         _Signal._AutoStopBehavior = static_cast <int> (behaviors.autoStop);
       }
     }

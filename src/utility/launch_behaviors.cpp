@@ -119,6 +119,8 @@ namespace SKIF_LaunchBehaviors
     ret.autoStop      = static_cast <AutoStop>      ((raw & MaskAutoStop)      >> ShiftAutoStop);
     ret.service       = static_cast <Service>       ((raw & MaskService)       >> ShiftService);
     ret.steamAppIDtxt = static_cast <SteamAppIDtxt> ((raw & MaskSteamAppIDtxt) >> ShiftSteamAppIDtxt);
+    ret.blacklist     = static_cast <Blacklist>     ((raw & MaskBlacklist)     >> ShiftBlacklist);
+    ret.elevation     = static_cast <Elevation>     ((raw & MaskElevation)     >> ShiftElevation);
 
     return ret;
   }
@@ -147,7 +149,7 @@ namespace SKIF_LaunchBehaviors
         current.resize (pos);
     }
 
-    static constexpr DWORD fieldMasks [] = { MaskAutoStop, MaskService, MaskSteamAppIDtxt };
+    static constexpr DWORD fieldMasks [] = { MaskAutoStop, MaskService, MaskSteamAppIDtxt, MaskBlacklist, MaskElevation };
 
     // The executable itself first, then each parent folder; the most specific non-zero value of each field wins
     while (! current.empty ( ) && filled != MaskKnownFields)
@@ -233,5 +235,17 @@ namespace SKIF_LaunchBehaviors
   SetSteamAppIDtxt (const std::wstring& path, SteamAppIDtxt value)
   {
     return _SetField (path, MaskSteamAppIDtxt, ShiftSteamAppIDtxt, static_cast <DWORD> (value));
+  }
+
+  bool
+  SetBlacklist (const std::wstring& path, Blacklist value)
+  {
+    return _SetField (path, MaskBlacklist,     ShiftBlacklist,     static_cast <DWORD> (value));
+  }
+
+  bool
+  SetElevation (const std::wstring& path, Elevation value)
+  {
+    return _SetField (path, MaskElevation,     ShiftElevation,     static_cast <DWORD> (value));
   }
 };

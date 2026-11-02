@@ -269,6 +269,11 @@ struct app_record_s {
     bool         setElevated                (bool elevated);
     bool          isElevated                (bool refresh = false);
 
+    // Use the service even if Special K is disabled for the executable (setBlacklisted, or a blacklist pattern of the
+    //   Settings tab), e.g. for a launcher: Special K stays disabled for the executable itself (launch behaviors)
+    bool         setIgnoreBlacklist         (bool ignore);
+    bool          isIgnoringBlacklist       (bool refresh = false);
+
     std::wstring getExecutableFileName      (void);
     std:: string getExecutableFileNameUTF8  (void);
     bool          isExecutableFileNameValid (void);
@@ -329,6 +334,7 @@ struct app_record_s {
     int          owns_dlc           = -1;    // Does the user own the required DLC ?
     int          blacklisted        = -1;
     int          elevated           = -1;
+    int          ignore_blacklist   = -1;
   };
 
   // Where a launch config comes from: the store itself, lc.json (SKIF), or lc_user.json (the user)
