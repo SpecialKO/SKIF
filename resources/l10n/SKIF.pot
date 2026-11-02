@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-02 20:18+0100\n"
+"POT-Creation-Date: 2026-11-02 20:31+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1280,7 +1280,7 @@ msgid ""
 "allow the cover to be populated :)"
 msgstr ""
 
-#: src/tabs/library/library_cover.cpp:434
+#: src/tabs/library/library_cover.cpp:438
 msgid "Special Kudos to our Patrons:"
 msgstr ""
 

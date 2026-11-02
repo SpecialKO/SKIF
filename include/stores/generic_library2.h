@@ -40,7 +40,7 @@ struct library_texture_s {
   ImVec2                             resolution = ImVec2 (0, 0);
   bool                               isCustom   = false; // The user's custom artwork (games only)
   bool                               isManaged  = false; // A file SKIF manages, so the menus can refresh / reset it (games only)
-  std::wstring                       animatedSource;     // Covers: the file it was loaded from, if that is animated (APNG, GIF);
+  std::wstring                       animatedSource;     // Covers, thumbnails: the file it was loaded from, if that is animated (APNG, GIF);
                                                          //   it shows its first frame, and LoadAnimatedLibraryTexture loads the rest
 };
 

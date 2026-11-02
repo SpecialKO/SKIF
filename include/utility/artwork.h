@@ -21,7 +21,8 @@
 //   Cover flow: SelectCover (pApp) when the selection changes → IsCoverRequested ( ) → StartCoverWorker (pApp)
 //   → ApplyWorkerResults ( ) (main thread) swaps it in. A custom cover being saved (SaveGameCover in library.cpp)
 //   uses BeginSavingCover (pApp) → WM_SKIF_REFRESHCOVER → OnCoverSaved ( ) → ProcessCoverRefresh ( ).
-//   An animated cover (APNG, GIF) shows its first frame; hovered, UpdateAnimatedCover ( ) loads and plays the rest.
+//   An animated cover (APNG, GIF) shows its first frame; hovered (the cover panel, or its tile in the grid view),
+//     UpdateAnimatedCover ( ) loads and plays the rest.
 // Thumbnails (the grid view): app_record_s::tex_thumb.iWorker
 enum SKIF_ThumbnailState {
   SKIF_Thumbnail_None     = 0, // Not loaded
@@ -74,13 +75,20 @@ public:
   void RefreshShownCover      (void);                // Reloads the shown cover (cover settings changed)
   bool ProcessCoverRefresh    (void);                // Once per frame; true if the shown cover must be reloaded (caller sets update)
 
-  // Animated covers (APNG, GIF): the shown cover shows its first frame, and plays while it is hovered. Its frames are loaded
-  //   by a background worker (SKIF_LibAnimCoverWorker) once it has been hovered for a moment, are kept while it is shown, and
-  //     are released with it, on a device reset, when SKIF goes idle, or once it has not been hovered for a while.
-  //       A timer (cIDT_TIMER_COVERANIM) wakes SKIF for each new frame, so it does not draw more frames than that.
-  void UpdateAnimatedCover    (bool hovered);        // Once per frame of the library tab, after the cover is drawn (hovered: the cover is)
+  // Animated covers (APNG, GIF): a cover shows its first frame, and plays while it is hovered: the shown cover (the cover
+  //   panel), or a game's thumbnail (its tile in the grid view). One cover plays at a time: the one hovered. Its frames are
+  //     loaded by a background worker (SKIF_LibAnimCoverWorker) once it has been hovered for a moment, are shared by the
+  //       cover panel and the game's tile, and are released once another cover is hovered, on a device reset, when SKIF
+  //         goes idle, when the game's cover changes, or once it has not been hovered for a while. A timer
+  //           (cIDT_TIMER_COVERANIM) wakes SKIF for each new frame, so it does not draw more frames than that.
+  void HoverAnimatedCover     (void);                // The cover panel is hovered this frame (plays the shown cover, if animated)
+  void HoverAnimatedThumbnail (app_record_s* pApp);  // A grid tile is hovered this frame (plays its thumbnail's cover, if animated)
+  void UpdateAnimatedCover    (void);                // Once per frame of the library tab, after the cover / grid is drawn
   ID3D11ShaderResourceView*
-       GetAnimatedCoverFrame  (void) const;          // The frame to draw in place of the cover while it plays, else nullptr
+       GetAnimatedCoverFrame  (app_key_s game, ImVec2* resolution = nullptr) const; // The frame to draw in place of the game's cover or
+                                                     //   thumbnail while it plays (and its size), else nullptr
+  ID3D11ShaderResourceView*
+       GetAnimatedCoverFrame  (void) const { return GetAnimatedCoverFrame (m_cover); } // The shown cover's
   bool ReleaseAnimatedCover   (void);                // Pushes its frames for release (true if there were any); they load again once hovered
   void OnAnimatedCoverTimer   (void);                // WM_TIMER cIDT_TIMER_COVERANIM (SKIF.cpp): stops the timer (the frames re-arm it)
 
@@ -162,24 +170,31 @@ private:
   std::atomic<int>          m_queueLength       { 1 };
   int                       m_queuePosCover     = 0;
 
-  // Animated cover (UpdateAnimatedCover). Its frames are for m_cover; a load serves m_animRequest (a newer request or a
-  //   release makes it stale, so its result is dropped)
+  // Animated cover (UpdateAnimatedCover). Its frames are for m_animGame's cover m_animSource (the cover hovered last); a load
+  //   serves m_animRequest (a newer request or a release makes it stale, so its result is dropped)
   enum class AnimatedCoverState {
-    None,     // Not loaded (or not animated: m_animSource is empty)
+    None,     // Not loaded
     Loading,  // Its worker is running
     Ready,    // Loaded: plays while hovered
     Failed    // Could not be loaded (too large, not decodable): stays a still cover
   };
-  void SetAnimatedCoverSource   (const std::wstring& source); // The shown cover changed: releases the frames of the previous one
+  void ResetAnimatedCover       (void);                       // Releases the frames, and forgets which cover they were for
+  void ResetAnimatedCover       (app_key_s game);             // ... if they are for this game (its cover changed)
   void StartAnimatedCoverWorker (void);
   void StopAnimatedCoverTimer   (void);
-  std::wstring              m_animSource;                // The shown cover's file, if it is animated (from the cover worker)
+  std::wstring              m_coverAnimSource;           // The shown cover's file, if it is animated (from the cover worker)
+  bool                      m_hoverSet          = false; // Hovered this frame (HoverAnimated*): what
+  app_key_s                 m_hoverGame;
+  std::wstring              m_hoverSource;
+  app_key_s                 m_animGame;                  // The cover the frames are for (the one hovered last)
+  std::wstring              m_animSource;
   AnimatedCoverState        m_animState         = AnimatedCoverState::None;
   std::atomic<int>          m_animRequest       { 0 };   // Read by the worker (whether it is still wanted)
   bool                      m_animWorkerBusy    = false; // One worker at a time
   std::vector <CComPtr <ID3D11ShaderResourceView>>
                             m_animFrames;
   std::vector <DWORD>       m_animFrameEnds;             // When each frame ends (ms into the animation)
+  ImVec2                    m_animResolution    = ImVec2 (0, 0); // The frames' size (may be smaller than the cover)
   DWORD                     m_animDuration      = 0;     // ms
   DWORD                     m_animHoveredSince  = 0;     // 0: not hovered
   DWORD                     m_animPlayingSince  = 0;     // 0: not playing

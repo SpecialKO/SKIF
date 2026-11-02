@@ -334,6 +334,10 @@ DrawGameCover (bool sameLine, bool& isCoverHovered, ImVec2& vecPosCover)
 
     isCoverHovered = ImGui::IsItemHovered();
 
+    // An animated cover (APNG, GIF) plays while hovered (SKIF_LibraryArtwork::UpdateAnimatedCover)
+    if (isCoverHovered)
+      _art.HoverAnimatedCover ( );
+
     if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
       CoverMenu = PopupState_Open;
 

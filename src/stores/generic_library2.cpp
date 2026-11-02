@@ -470,8 +470,8 @@ LoadLibraryTextureEx (
   out.isCustom  = customAsset;
   out.isManaged = managedAsset;
 
-  // An animated cover (APNG, GIF) shows its first frame; the rest are loaded once it is hovered (SKIF_LibraryArtwork)
-  if (libTexToLoad == LibraryTexture::Cover && thumb == nullptr && pApp != nullptr && IsAnimatedImageFile (load_str))
+  // An animated cover (APNG, GIF) shows its first frame (thumbnails too); the rest are loaded once it is hovered (SKIF_LibraryArtwork)
+  if (libTexToLoad == LibraryTexture::Cover && pApp != nullptr && IsAnimatedImageFile (load_str))
     out.animatedSource = load_str;
 
   return true;

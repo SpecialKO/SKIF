@@ -41,8 +41,8 @@ SKIF_LibraryArtwork::SelectCover (app_record_s* pApp)
   m_loadCover  = true;
   m_cover      = pApp->GetKey ( );
 
-  // Its animation (if any) stops; the new cover's comes with it
-  SetAnimatedCoverSource (L"");
+  // Not known to be animated until the new cover has loaded
+  m_coverAnimSource.clear ( );
 
   // Hide the current cover and set it up to be unloaded
   if (m_pTexSRV.p != nullptr)
@@ -61,8 +61,8 @@ SKIF_LibraryArtwork::RetireCover (void)
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
-  // Its animation (if any) stops; the old cover fades out as a still cover
-  SetAnimatedCoverSource (L"");
+  // The old cover fades out as a still cover (its frames stay loaded, for its tile in the grid view)
+  m_coverAnimSource.clear ( );
 
   // If there already is an old cover, we need to push it for release
   if (m_pTexSRV_old.p != nullptr)
@@ -302,6 +302,7 @@ SKIF_LibraryArtwork::ApplyWorkerResults (void)
         thumb.loadedAt  = SKIF_Util_timeGetTime ( );
         thumb.isCustom  = result.texture.isCustom;
         thumb.isManaged = result.texture.isManaged;
+        thumb.animatedSource = result.texture.animatedSource; // Plays while its tile is hovered (UpdateAnimatedCover)
 
         if (thumb.texture.p != nullptr) // Not expected: a thumbnail is released before it loads again
         {
@@ -337,7 +338,7 @@ SKIF_LibraryArtwork::ApplyWorkerResults (void)
 
       const bool live = (result.queuePos   == m_animRequest.load ( ) &&
                          result.generation == m_generation.load  ( ) &&
-                         result.game       == m_cover                &&
+                         result.game       == m_animGame             &&
                          m_animState       == AnimatedCoverState::Loading);
 
       if (live && result.frames.size ( ) >= 2 && result.frames.size ( ) == result.delays.size ( ))
@@ -353,8 +354,9 @@ SKIF_LibraryArtwork::ApplyWorkerResults (void)
           m_animFrameEnds.push_back (end);
         }
 
-        m_animDuration = end;
-        m_animState    = AnimatedCoverState::Ready;
+        m_animDuration   = end;
+        m_animResolution = result.frames [0].resolution;
+        m_animState      = AnimatedCoverState::Ready;
       }
 
       // Not animated after all, too large, or not decodable: it stays a still cover
@@ -399,7 +401,7 @@ SKIF_LibraryArtwork::ApplyWorkerResults (void)
       m_pTexSRV     = result.texture.srv;
 
       // An animated cover (APNG, GIF): its frames load once it is hovered (UpdateAnimatedCover)
-      SetAnimatedCoverSource ((m_pTexSRV.p != nullptr) ? result.texture.animatedSource : L"");
+      m_coverAnimSource = (m_pTexSRV.p != nullptr) ? result.texture.animatedSource : L"";
 
       if (pApp != nullptr)
       {
@@ -471,18 +473,26 @@ SKIF_LibraryArtwork::IsCoverMissing (void) const
 
 #pragma region Animated Covers
 
-// How long the cover is hovered before its frames load (so moving the mouse across it loads nothing), and how long they
+// How long a cover is hovered before its frames load (so moving the mouse across covers loads nothing), and how long they
 //   are kept once it is no longer hovered
 static constexpr DWORD s_animHoverDelay  =   250; // ms
 static constexpr DWORD s_animIdleRelease = 30000; // ms
 
 void
-SKIF_LibraryArtwork::SetAnimatedCoverSource (const std::wstring& source)
+SKIF_LibraryArtwork::ResetAnimatedCover (void)
 {
   ReleaseAnimatedCover ( );
 
-  m_animSource = source;
+  m_animGame   = { };
+  m_animSource.clear ( );
   m_animState  = AnimatedCoverState::None;
+}
+
+void
+SKIF_LibraryArtwork::ResetAnimatedCover (app_key_s game)
+{
+  if (m_animGame == game)
+    ResetAnimatedCover ( );
 }
 
 bool
@@ -502,18 +512,47 @@ SKIF_LibraryArtwork::ReleaseAnimatedCover (void)
   m_animFrames   .clear ( );
   m_animFrameEnds.clear ( );
   m_animDuration     = 0;
+  m_animResolution   = ImVec2 (0, 0);
   m_animPlayingSince = 0;
 
   // A load still running is no longer wanted (it stops, and its result is dropped)
   m_animRequest++;
 
-  // Not loaded (a cover that could not be loaded is not tried again)
+  // Not loaded (a cover that could not be loaded is not tried again, until another cover has been hovered)
   if (m_animState != AnimatedCoverState::Failed)
     m_animState = AnimatedCoverState::None;
 
   StopAnimatedCoverTimer ( );
 
   return released;
+}
+
+void
+SKIF_LibraryArtwork::HoverAnimatedCover (void)
+{
+  // Only a cover that is animated, shown, and not about to be replaced
+  if (m_coverAnimSource.empty ( ) || m_pTexSRV.p == nullptr || m_loadCover)
+    return;
+
+  m_hoverSet  = true;
+  m_hoverGame = m_cover;
+
+  if (m_hoverSource != m_coverAnimSource)
+    m_hoverSource = m_coverAnimSource;
+}
+
+void
+SKIF_LibraryArtwork::HoverAnimatedThumbnail (app_record_s* pApp)
+{
+  // Only a thumbnail that is shown, of an animated cover
+  if (pApp == nullptr || pApp->tex_thumb.texture.p == nullptr || pApp->tex_thumb.animatedSource.empty ( ))
+    return;
+
+  m_hoverSet  = true;
+  m_hoverGame = pApp->GetKey ( );
+
+  if (m_hoverSource != pApp->tex_thumb.animatedSource)
+    m_hoverSource = pApp->tex_thumb.animatedSource;
 }
 
 void
@@ -526,7 +565,7 @@ SKIF_LibraryArtwork::StartAnimatedCoverWorker (void)
     unsigned int generation = 0;
   };
 
-  thread_s* data = new thread_s { m_animSource, m_cover, ++m_animRequest, m_generation.load ( ) };
+  thread_s* data = new thread_s { m_animSource, m_animGame, ++m_animRequest, m_generation.load ( ) };
 
   m_animState      = AnimatedCoverState::Loading;
   m_animWorkerBusy = true;
@@ -582,13 +621,24 @@ SKIF_LibraryArtwork::StartAnimatedCoverWorker (void)
 }
 
 void
-SKIF_LibraryArtwork::UpdateAnimatedCover (bool hovered)
+SKIF_LibraryArtwork::UpdateAnimatedCover (void)
 {
   const DWORD now    = SKIF_Util_timeGetTime ( );
   DWORD       wakeIn = 0; // When the next frame is due (ms), 0 if none
 
-  // Only a cover that is animated, shown, and not about to be replaced
-  hovered = (hovered && ! m_animSource.empty ( ) && m_pTexSRV.p != nullptr && ! m_loadCover);
+  // What was hovered this frame (HoverAnimatedCover / HoverAnimatedThumbnail)
+  const bool hovered = m_hoverSet;
+  m_hoverSet         = false;
+
+  // Another cover: its frames replace those of the one hovered before, and its hover starts now
+  if (hovered && (m_hoverGame != m_animGame || m_hoverSource != m_animSource))
+  {
+    ResetAnimatedCover ( );
+
+    m_animGame         = m_hoverGame;
+    m_animSource       = m_hoverSource;
+    m_animHoveredSince = 0;
+  }
 
   if (hovered)
   {
@@ -647,16 +697,22 @@ SKIF_LibraryArtwork::UpdateAnimatedCover (bool hovered)
 }
 
 ID3D11ShaderResourceView*
-SKIF_LibraryArtwork::GetAnimatedCoverFrame (void) const
+SKIF_LibraryArtwork::GetAnimatedCoverFrame (app_key_s game, ImVec2* resolution) const
 {
-  if (m_animState != AnimatedCoverState::Ready || m_animPlayingSince == 0 || m_animDuration == 0)
+  if (game != m_animGame || m_animState != AnimatedCoverState::Ready || m_animPlayingSince == 0 || m_animDuration == 0)
     return nullptr;
 
   const DWORD position = (SKIF_Util_timeGetTime ( ) - m_animPlayingSince) % m_animDuration;
   const auto  frameEnd = std::upper_bound (m_animFrameEnds.begin ( ), m_animFrameEnds.end ( ), position);
   const auto  frame    = static_cast <size_t> (std::distance (m_animFrameEnds.begin ( ), frameEnd));
 
-  return (frame < m_animFrames.size ( )) ? m_animFrames [frame].p : nullptr;
+  if (frame >= m_animFrames.size ( ))
+    return nullptr;
+
+  if (resolution != nullptr)
+    *resolution = m_animResolution;
+
+  return m_animFrames [frame].p;
 }
 
 void
@@ -790,6 +846,9 @@ SKIF_LibraryArtwork::RefreshShownCover (void)
   // The cover sources changed (Settings): every thumbnail may come from another source now. Their cache files are
   //   named after the sources (GetThumbnailCachePath), so they are only unloaded here.
   ReleaseThumbnails ( );
+
+  // The cover that played (if any) may not be the one shown any longer either
+  ResetAnimatedCover ( );
 }
 
 bool
@@ -924,7 +983,7 @@ SKIF_LibraryArtwork::ReloadIcon (app_record_s* pApp)
 void
 SKIF_LibraryArtwork::ReleaseCurrentCover (void)
 {
-  SetAnimatedCoverSource (L"");
+  m_coverAnimSource.clear ( );
 
   if (m_pTexSRV.p != nullptr)
   {
@@ -1237,6 +1296,12 @@ SKIF_LibraryArtwork::StartThumbnailWorker (app_record_s* pApp, bool build)
         else
           result.dropped = true;
       }
+
+      // An animated custom cover plays while its tile is hovered. The cache does not say which file it was made from, but
+      //   a custom cover always comes first. (A build knows the file, see LoadLibraryTextureEx; the covers stores offer
+      //     are not animated in practice, so only custom covers are checked here.)
+      else if (std::wstring custom = _data->app->FindCustomArtwork (LibraryTexture::Cover); ! custom.empty ( ) && IsAnimatedImageFile (custom))
+        result.texture.animatedSource = std::move (custom);
     }
 
     // The cover pipeline (may download the cover), scaled down and saved to the cache (LoadLibraryTextureEx; the cache
@@ -1319,6 +1384,7 @@ SKIF_LibraryArtwork::ReleaseThumbnail (app_record_s* pApp)
   thumb.loadedAt = 0;
   thumb.retryAt  = 0;
   thumb.retried  = false;
+  thumb.animatedSource.clear ( );
 }
 
 void
@@ -1337,6 +1403,9 @@ void
 SKIF_LibraryArtwork::InvalidateThumbnail (app_record_s* pApp)
 {
   ReleaseThumbnail (pApp);
+
+  // Its cover changed (also when it plays from the same file name, e.g. a new custom cover.png)
+  ResetAnimatedCover (pApp->GetKey ( ));
 
   // Deleted here, so a load started before the cover changed can't pick it up again
   std::wstring cachePath = GetThumbnailCachePath (pApp);

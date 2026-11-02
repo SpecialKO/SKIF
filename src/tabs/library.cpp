@@ -1176,8 +1176,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   else
     DrawGameCover (true, isCoverHovered, vecPosCover);
 
-  // An animated cover (APNG, GIF) plays while hovered (never in the grid view, where it is not drawn)
-  _art.UpdateAnimatedCover (isCoverHovered);
+  // An animated cover (APNG, GIF) plays while hovered: the cover, or its tile in the grid view (whichever was hovered above)
+  _art.UpdateAnimatedCover ( );
 
 #pragma endregion
 
