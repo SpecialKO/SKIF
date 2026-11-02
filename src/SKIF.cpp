@@ -127,6 +127,7 @@ DWORD dwDwmPeriod               = 62500; // Assume 60 Hz (16 ms) by default
 bool  SteamOverlayDisabled      = false;
 bool  SKIF_MouseDragMoveAllowed = true;
 ImRect SKIF_ImGui_CaptionArea; // Screen coordinates of the empty space between the tabs and the window buttons (double-click to maximize/restore)
+bool  SKIF_ImGui_CaptionDoubleClicked = false; // Set by the window procedure when the caption area is double-clicked through the OS (HTCAPTION)
 bool  SKIF_debuggerPresent      = false;
 DWORD SKIF_startupTime          = 0; // Used as a basis of how long the initialization took
 bool  SKIF_FirstPresentDone     = false; // Set by ImGui_ImplDX11_SwapBuffers ( ) on the first successful Present ( )
@@ -157,6 +158,8 @@ ImVec2 SKIF_vecHorizonModeAdjusted  = SKIF_vecHorizonModeDefault; // Adjusted fo
 ImVec2 SKIF_vecCurrentPosition      = ImVec2 (0.0f, 0.0f); // Gets updated after ImGui::EndFrame()
 ImVec2 SKIF_vecCurrentMode          = ImVec2 (0.0f, 0.0f); // Gets updated after ImGui::EndFrame()
 ImVec2 SKIF_vecCurrentModeNext      = ImVec2 (0.0f, 0.0f); // Holds the new expected size
+ImVec2 SKIF_vecRestoredPosition     = ImVec2 (-1.0f, -1.0f); // Position of the window when it was last neither maximized nor minimized
+ImVec2 SKIF_vecRestoredModeDPIUnaware = ImVec2 (0.0f, 0.0f); // DPI-unaware size of the window when it was last neither maximized nor minimized (regular/horizon mode)
 float  SKIF_fStatusBarHeight        = 31.0f; // Status bar enabled // 33 ?
 float  SKIF_fStatusBarDisabled      = 8.0f;  // Status bar disabled
 float  SKIF_fStatusBarHeightTips    = 18.0f; // Disabled tooltips (two-line status bar)
@@ -2281,6 +2284,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
     }
   }
 
+  // Restore the maximized state of the last session, unless we are starting in mini mode
+  //   or were asked to start minimized/hidden (or maximized, in which case it already is)
+  if (_registry.bUIMaximized && ! _registry.bMiniMode &&
+     (SKIF_nCmdShow == SW_SHOWNORMAL || SKIF_nCmdShow == SW_SHOWDEFAULT || SKIF_nCmdShow == SW_SHOW))
+  {
+    PLOG_INFO << "Restoring the maximized state of the last session...";
+    SKIF_nCmdShow = SW_SHOWMAXIMIZED; // Handled in ImGui_ImplWin32_ShowWindow ( )
+  }
+
   _StartupStep ("cmd line (4/4), window mode");
 
   {
@@ -2509,6 +2521,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
          hotkeyCtrlShiftD = s_hotkeysPressed.CtrlShiftD; // ImGui Debug + Demo
     s_hotkeysPressed = { };
     bool minimizeWindow = false; // Replaced old Ctrl+N boolean
+    bool toggleMaximize = false; // Maximize the window, or restore it if it is already maximized
 
     auto _TranslateAndDispatch = [&](void) -> bool
     {
@@ -3333,11 +3346,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
         };
 
         static constexpr tab_title_s tabTitleDefs [5] = {
-          { ICON_FA_GAMEPAD,    NC_("tab", "Library"),  "###SKIF_TAB_BAR-1", 435.0f },
-          { ICON_FA_MICROCHIP,  NC_("tab", "Monitor"),  "###SKIF_TAB_BAR-2", 490.0f },
-          { ICON_FA_DISPLAY,    NC_("tab", "Hardware"), "###SKIF_TAB_BAR-3", 555.0f },
-          { ICON_FA_LIST_CHECK, NC_("tab", "Settings"), "###SKIF_TAB_BAR-4", 610.0f },
-          { ICON_FA_COMMENT,    NC_("tab", "About"),    "###SKIF_TAB_BAR-5", 650.0f }
+          { ICON_FA_GAMEPAD,    NC_("tab", "Library"),  "###SKIF_TAB_BAR-1", 473.0f },
+          { ICON_FA_MICROCHIP,  NC_("tab", "Monitor"),  "###SKIF_TAB_BAR-2", 528.0f },
+          { ICON_FA_DISPLAY,    NC_("tab", "Hardware"), "###SKIF_TAB_BAR-3", 593.0f },
+          { ICON_FA_LIST_CHECK, NC_("tab", "Settings"), "###SKIF_TAB_BAR-4", 648.0f },
+          { ICON_FA_COMMENT,    NC_("tab", "About"),    "###SKIF_TAB_BAR-5", 688.0f }
         };
 
         static std::string tabTitles [5];
@@ -3718,21 +3731,23 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
 #pragma region WindowButtons
 
-      // 164px - regular mode
+      // 202px - regular mode
       // 116px - service mode
 
       ImVec2 window_btn_size = ImVec2 (
-        164.0f,
+        202.0f,
          24.0f
       );
 
       bool showBtnHorizon  = true;
+      bool showBtnMaximize = true;
 
       // If in service mode
       if (_registry.bMiniMode)
       {
-        showBtnHorizon = false;
-        window_btn_size.x -= 48.0f; // -48px due to one less button
+        showBtnHorizon  = false;
+        showBtnMaximize = false;
+        window_btn_size.x -= 86.0f; // -48px and -38px due to two less buttons
       }
 
       // Regular mode: One less button
@@ -3788,6 +3803,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         ImGui::SameLine ();
 
+        if (showBtnMaximize)
+        {
+          if (ImGui::Button ((IsZoomed (SKIF_ImGui_hWnd)) ? ICON_FA_WINDOW_RESTORE : ICON_FA_WINDOW_MAXIMIZE, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale, 0.0f )))
+            toggleMaximize = true;
+
+          ImGui::SameLine ();
+        }
+
         ImGui::PushStyleColor   (ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Failure));
         ImGui::PushStyleColor   (ImGuiCol_ButtonActive,  ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Failure) * ImVec4(1.2f, 1.2f, 1.2f, 1.0f));
 
@@ -3829,11 +3852,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
 #pragma region CaptionArea
 
       // The empty space between the last tab (About) and the first window button (the area Shelly moves around within)
-      //   acts as a title bar: double-clicking it maximizes the window, or restores it if it is already maximized.
-      //     Not in mini mode (maximizing would switch it to the regular mode) or while a popup is opened.
+      //   acts as a title bar. Not while a popup is opened.
+      //     - Double-click: maximizes the window, or restores it if it is already maximized (mini mode: switches to the regular mode)
+      //     - Right-click:  opens a menu with the window actions
       SKIF_ImGui_CaptionArea = ImRect ( );
 
-      if (! _registry.bMiniMode && ! SKIF_ImGui_IsAnyPopupOpen ( ))
+      if (! SKIF_ImGui_IsAnyPopupOpen ( ))
       {
         const ImVec2 vMainWindowPos = ImGui::GetWindowPos ( );
         const ImRect captionArea (
@@ -3846,14 +3870,71 @@ wWinMain ( _In_     HINSTANCE hInstance,
       }
 
       // When the OS handles drag-moving the window (SKIF_ImGui_CanMouseDragMove), the area is HTCAPTION and the double-click arrives
-      //   as WM_NCLBUTTONDBLCLK instead, which DefWindowProc ( ) acts on (see ImGui_ImplWin32_WndProcHandler_PlatformWindow).
-      //     Otherwise (e.g. touch input) ImGui sees the clicks, so act on them here the same way the OS does.
+      //   as WM_NCLBUTTONDBLCLK, which sets SKIF_ImGui_CaptionDoubleClicked (see ImGui_ImplWin32_WndProcHandler_PlatformWindow).
+      //     Otherwise (e.g. touch input) ImGui sees the clicks itself. Right-clicks always reach ImGui (WM_NCRBUTTONDOWN/UP).
+      bool captionDoubleClicked = SKIF_ImGui_CaptionDoubleClicked;
+      SKIF_ImGui_CaptionDoubleClicked = false;
+
       if (SKIF_ImGui_CaptionArea.GetWidth ( ) > 0.0f &&
-          ImGui::IsMouseDoubleClicked (ImGuiMouseButton_Left) &&
           ImGui::IsMouseHoveringRect  (SKIF_ImGui_CaptionArea.Min, SKIF_ImGui_CaptionArea.Max, false) &&
           ImGui::IsWindowHovered      ( ) &&
         ! ImGui::IsAnyItemHovered     ( ))
-        PostMessage (SKIF_ImGui_hWnd, WM_SYSCOMMAND, (IsZoomed (SKIF_ImGui_hWnd)) ? SC_RESTORE : SC_MAXIMIZE, 0);
+      {
+        if (ImGui::IsMouseDoubleClicked (ImGuiMouseButton_Left))
+          captionDoubleClicked = true;
+
+        if (ImGui::IsMouseReleased (ImGuiMouseButton_Right))
+          ImGui::OpenPopup ("###CaptionMenu");
+      }
+
+      if (captionDoubleClicked && SKIF_ImGui_CaptionArea.GetWidth ( ) > 0.0f)
+      {
+        if (_registry.bMiniMode)
+          hotkeyCtrlT    = true;
+        else
+          toggleMaximize = true;
+      }
+
+      if (ImGui::BeginPopup ("###CaptionMenu", ImGuiWindowFlags_NoMove))
+      {
+        ImGui::PushStyleColor (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
+
+        if (showBtnMaximize)
+        {
+          if (IsZoomed (SKIF_ImGui_hWnd))
+          {
+            if (ImGui::Selectable (LI_(ICON_FA_WINDOW_RESTORE,  "Restore###CaptionMenuMaximize")))
+              toggleMaximize = true;
+          }
+
+          else if (ImGui::Selectable (LI_(ICON_FA_WINDOW_MAXIMIZE, "Maximize###CaptionMenuMaximize")))
+            toggleMaximize = true;
+        }
+
+        if (ImGui::Selectable (LI_(ICON_FA_WINDOW_MINIMIZE, "Minimize###CaptionMenuMinimize")))
+          minimizeWindow = true;
+
+        ImGui::Separator ( );
+
+        if (showBtnHorizon && ImGui::Selectable (LI_((_registry.bHorizonMode ? ICON_FA_CHEVRON_DOWN : ICON_FA_CHEVRON_UP), "Toggle horizontal mode###CaptionMenuHorizon")))
+        {
+          newHorizonMode = ! _registry.bHorizonMode;
+
+          // Changes the app window to the proper size
+          SKIF_vecCurrentModeNext = (newHorizonMode) ? SKIF_vecHorizonMode : SKIF_vecRegularMode;
+        }
+
+        if (ImGui::Selectable (LI_(((_registry.bMiniMode) ? ICON_FA_EXPAND : ICON_FA_COMPRESS), "Toggle mini mode###CaptionMenuMiniMode")))
+          hotkeyCtrlT = true;
+
+        ImGui::Separator ( );
+
+        if (ImGui::Selectable (LI_(ICON_FA_XMARK, "Close###CaptionMenuClose")))
+          hotkeyCtrlQ = true;
+
+        ImGui::PopStyleColor ( );
+        ImGui::EndPopup ( );
+      }
 
 #pragma endregion
 
@@ -3919,6 +4000,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       if (minimizeWindow)
         ShowWindow (SKIF_ImGui_hWnd, SW_MINIMIZE);
+
+      // Same as a double-click on the title bar of a regular window (WM_NCLBUTTONDBLCLK on HTCAPTION)
+      if (toggleMaximize)
+        PostMessage (SKIF_ImGui_hWnd, WM_SYSCOMMAND, (IsZoomed (SKIF_ImGui_hWnd)) ? SC_RESTORE : SC_MAXIMIZE, 0);
 
       if (hotkeyCtrlQ || hotkeyCtrlW || bKeepWindowAlive == false)
       {
@@ -4036,6 +4121,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       SKIF_vecCurrentMode     = ImGui::GetWindowSize ( );
       SKIF_vecCurrentPosition = ImGui::GetWindowPos  ( );
+
+      // Remember the size and position of the window while it is neither maximized nor minimized, as that is
+      //   what is stored to the registry on exit (also when exiting while maximized, so restoring it works after a relaunch)
+      //     Not during the first few frames, as the remembered size and position have not been applied yet
+      if (SKIF_ImGui_hWnd != NULL && ImGui::GetFrameCount ( ) > 2 &&
+          ! IsZoomed (SKIF_ImGui_hWnd) && ! IsIconic (SKIF_ImGui_hWnd))
+      {
+        if (! _registry.bMiniMode)
+          SKIF_vecRestoredModeDPIUnaware = ImFloor (SKIF_vecCurrentMode / SKIF_ImGui_MainDPIScale);
+
+        SKIF_vecRestoredPosition = SKIF_vecCurrentPosition;
+      }
 
       // End the main ImGui window
       ImGui::End ( );
@@ -4614,21 +4711,29 @@ wWinMain ( _In_     HINSTANCE hInstance,
   _registry.regKVCategoriesState.putDataMultiSZ (_inBools);
   PLOG_INFO << "Wrote the collapsible category state to the registry.";
 
-  // Only store window size and position to the registry if we are not in a maximized state
-  ImVec2 vecCurrentModeDPIUnaware = ImFloor (SKIF_vecCurrentMode / SKIF_ImGui_MainDPIScale);
+  // Remember whether the window was maximized (also if it was minimized, or closed to the notification area, while maximized)
+  //   so it can be shown maximized on the next launch. Mini mode is never restored as maximized.
+  WINDOWPLACEMENT wndPlacement = { };
+  wndPlacement.length = sizeof (WINDOWPLACEMENT);
 
-  if (! IsZoomed (SKIF_ImGui_hWnd) ||
-     (vecCurrentModeDPIUnaware.x <= SKIF_vecRegularModeDefault.x * 1.5f &&
-      vecCurrentModeDPIUnaware.y <= SKIF_vecRegularModeDefault.y * 1.5f))
+  _registry.bUIMaximized = (! _registry.bMiniMode && SKIF_ImGui_hWnd != NULL &&
+                             (IsZoomed (SKIF_ImGui_hWnd) ||
+                             (IsIconic (SKIF_ImGui_hWnd) && GetWindowPlacement (SKIF_ImGui_hWnd, &wndPlacement) &&
+                                                            (wndPlacement.flags & WPF_RESTORETOMAXIMIZED))));
+  _registry.regKVUIMaximized.putData (_registry.bUIMaximized);
+
+  PLOG_INFO << "Wrote the maximized state to the registry: " << _registry.bUIMaximized;
+
+  // Store the size and position the window had when it was last neither maximized nor minimized
   {
     // Only store the window size if we are not in service mode
     if (! _registry.bMiniMode  &&
-        vecCurrentModeDPIUnaware.x > 0 &&
-        vecCurrentModeDPIUnaware.y > 0)
+        SKIF_vecRestoredModeDPIUnaware.x > 0 &&
+        SKIF_vecRestoredModeDPIUnaware.y > 0)
     {
       // Store a DPI-unaware size, so SKIF can automatically adjust it to the proper DPI on launch
-      _registry.iUIWidth  = static_cast<int> (vecCurrentModeDPIUnaware.x);
-      _registry.iUIHeight = static_cast<int> (vecCurrentModeDPIUnaware.y);
+      _registry.iUIWidth  = static_cast<int> (SKIF_vecRestoredModeDPIUnaware.x);
+      _registry.iUIHeight = static_cast<int> (SKIF_vecRestoredModeDPIUnaware.y);
 
       _registry.regKVUIWidth .putData (_registry.iUIWidth);
       _registry.regKVUIHeight.putData (_registry.iUIHeight);
@@ -4637,16 +4742,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
     }
 
     // Note that negative window positions are valid!
-    if (SKIF_vecCurrentPosition.x != -1.0f &&
-        SKIF_vecCurrentPosition.y != -1.0f)
+    if (SKIF_vecRestoredPosition.x != -1.0f &&
+        SKIF_vecRestoredPosition.y != -1.0f)
     {
       // Doesn't seem to be needed
       //RECT dwmBorder = { };
       //if (S_OK == DwmGetWindowAttribute (SKIF_ImGui_hWnd, DWMWA_EXTENDED_FRAME_BOUNDS, &dwmBorder, sizeof(dwmBorder)))
       //{ }
 
-      _registry.iUIPositionX = static_cast<int> (SKIF_vecCurrentPosition.x);
-      _registry.iUIPositionY = static_cast<int> (SKIF_vecCurrentPosition.y);
+      _registry.iUIPositionX = static_cast<int> (SKIF_vecRestoredPosition.x);
+      _registry.iUIPositionY = static_cast<int> (SKIF_vecRestoredPosition.y);
 
       _registry.regKVUIPositionX.putData (_registry.iUIPositionX);
       _registry.regKVUIPositionY.putData (_registry.iUIPositionY);

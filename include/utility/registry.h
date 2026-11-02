@@ -561,6 +561,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(UI Position Y)" );
 
+  KeyValue <bool> regKVUIMaximized =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(UI Maximized)" );
+
   KeyValue <int> regKVCoverScaling =
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Cover Scaling)" );
@@ -708,6 +712,7 @@ struct SKIF_RegistrySettings {
   bool bMiniMode                = false;
   bool bHorizonMode             = false; // 1038 x 325 -- covers are 186.67 x 280
 //bool bHorizonModeAuto         =  true;
+  bool bUIMaximized             = false; // Whether the app window was maximized when the app was last closed
 
   bool bFirstLaunch             = false;
   bool bAllowMultipleInstances  = false;

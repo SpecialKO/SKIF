@@ -292,6 +292,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   // Remembered app window size and position
   iUIWidth                 =   regKVUIWidth                .getData (&hKey);
   iUIHeight                =   regKVUIHeight               .getData (&hKey);
+  bUIMaximized             =   regKVUIMaximized            .getData (&hKey);
 
   iCoverScaling            =   regKVCoverScaling           .getData (&hKey);
 
