@@ -580,6 +580,7 @@ SKIF_LibraryArtwork::ReleaseAnimatedCover (void)
   m_animDuration     = 0;
   m_animResolution   = ImVec2 (0, 0);
   m_animPlayingSince = 0;
+  m_animPosition     = 0; // Starts from the first frame once loaded again
 
   // A load still running is no longer wanted (it stops, and its result is dropped)
   m_animRequest++;
@@ -593,11 +594,39 @@ SKIF_LibraryArtwork::ReleaseAnimatedCover (void)
   return released;
 }
 
+bool
+SKIF_LibraryArtwork::AreCoverAnimationsOn (void) const
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  if (_registry.iLibraryAnimatedCovers == 0)
+    return false;
+
+  if (_registry.iLibraryAnimatedCovers == 1)
+    return true;
+
+  // As Windows' "Animation effects" (Settings > Accessibility > Visual effects; on Windows 10: "Show animations in Windows").
+  //   Read once a second, so a change applies while SKIF runs.
+  const DWORD now = SKIF_Util_timeGetTime ( );
+
+  if (m_animsCheckedAt == 0 || now - m_animsCheckedAt > 1000)
+  {
+    BOOL animations = TRUE;
+
+    if (SystemParametersInfoW (SPI_GETCLIENTAREAANIMATION, 0, &animations, 0))
+      m_animsWindows = (animations != FALSE);
+
+    m_animsCheckedAt = now;
+  }
+
+  return m_animsWindows;
+}
+
 void
 SKIF_LibraryArtwork::HoverAnimatedCover (void)
 {
-  // Only a cover that is animated, shown, and not about to be replaced
-  if (m_coverAnimSource.empty ( ) || m_pTexSRV.p == nullptr || m_loadCover)
+  // Only a cover that is animated, shown, and not about to be replaced; and only while animations are on
+  if (m_coverAnimSource.empty ( ) || m_pTexSRV.p == nullptr || m_loadCover || ! AreCoverAnimationsOn ( ))
     return;
 
   m_hoverSet  = true;
@@ -610,8 +639,8 @@ SKIF_LibraryArtwork::HoverAnimatedCover (void)
 void
 SKIF_LibraryArtwork::HoverAnimatedThumbnail (app_record_s* pApp)
 {
-  // Only a thumbnail that is shown, of an animated cover
-  if (pApp == nullptr || pApp->tex_thumb.texture.p == nullptr || pApp->tex_thumb.animatedSource.empty ( ))
+  // Only a thumbnail that is shown, of an animated cover; and only while animations are on
+  if (pApp == nullptr || pApp->tex_thumb.texture.p == nullptr || pApp->tex_thumb.animatedSource.empty ( ) || ! AreCoverAnimationsOn ( ))
     return;
 
   m_hoverSet  = true;
@@ -696,6 +725,19 @@ SKIF_LibraryArtwork::UpdateAnimatedCover (void)
   const bool hovered = m_hoverSet;
   m_hoverSet         = false;
 
+  // Animations off (Settings, or Windows' "Animation effects"): every cover shows still, and the frames loaded go
+  if (! AreCoverAnimationsOn ( ))
+  {
+    if (m_animGame != app_key_s { } || ! m_animSource.empty ( ))
+      ResetAnimatedCover ( );
+
+    if (! m_animThumbs.empty ( ))
+      ResetAnimatedThumbnails ( );
+
+    StopAnimatedCoverTimer ( );
+    return;
+  }
+
   // Another cover: its frames replace those of the one hovered before, and its hover starts now
   if (hovered && (m_hoverGame != m_animGame || m_hoverSource != m_animSource))
   {
@@ -714,13 +756,13 @@ SKIF_LibraryArtwork::UpdateAnimatedCover (void)
     if (m_animState == AnimatedCoverState::None && ! m_animWorkerBusy)
       StartAnimatedCoverWorker ( );
 
-    // Play: from the first frame, every time the cover is hovered again
+    // Play: from where it paused (the first frame the first time), as grid tiles do
     if (m_animState == AnimatedCoverState::Ready && m_animDuration > 0)
     {
       if (m_animPlayingSince == 0)
         m_animPlayingSince = now;
 
-      const DWORD position = (now - m_animPlayingSince) % m_animDuration;
+      const DWORD position = (m_animPosition + (now - m_animPlayingSince)) % m_animDuration;
       const auto  frameEnd = std::upper_bound (m_animFrameEnds.begin ( ), m_animFrameEnds.end ( ), position);
 
       wakeIn = (frameEnd != m_animFrameEnds.end ( )) ? (*frameEnd - position) : 1;
@@ -729,7 +771,12 @@ SKIF_LibraryArtwork::UpdateAnimatedCover (void)
 
   else
   {
-    m_animPlayingSince = 0; // Back to the still cover
+    // Pause on the current frame (it stays shown, and the animation resumes from there)
+    if (m_animPlayingSince != 0 && m_animDuration > 0)
+    {
+      m_animPosition     = (m_animPosition + (now - m_animPlayingSince)) % m_animDuration;
+      m_animPlayingSince = 0;
+    }
 
     if (m_animState == AnimatedCoverState::Ready && now - m_animLastHovered > s_animIdleRelease)
       ReleaseAnimatedCover ( );
@@ -758,10 +805,16 @@ SKIF_LibraryArtwork::UpdateAnimatedCover (void)
 ID3D11ShaderResourceView*
 SKIF_LibraryArtwork::GetAnimatedCoverFrame (app_key_s game, ImVec2* resolution) const
 {
-  if (game != m_animGame || m_animState != AnimatedCoverState::Ready || m_animPlayingSince == 0 || m_animDuration == 0)
+  if (game != m_animGame || m_animState != AnimatedCoverState::Ready || m_animDuration == 0)
     return nullptr;
 
-  const DWORD position = (SKIF_Util_timeGetTime ( ) - m_animPlayingSince) % m_animDuration;
+  // Never played: the cover itself (its first frame, or an APNG's default image)
+  if (m_animPlayingSince == 0 && m_animPosition == 0)
+    return nullptr;
+
+  // Playing, or paused
+  const DWORD position = (m_animPlayingSince != 0) ? (m_animPosition + (SKIF_Util_timeGetTime ( ) - m_animPlayingSince)) % m_animDuration
+                                                   :  m_animPosition;
   const auto  frameEnd = std::upper_bound (m_animFrameEnds.begin ( ), m_animFrameEnds.end ( ), position);
   const auto  frame    = static_cast <size_t> (std::distance (m_animFrameEnds.begin ( ), frameEnd));
 
@@ -1784,8 +1837,8 @@ SKIF_LibraryArtwork::MakeAnimatedThumbnailRoom (size_t bytes, const anim_thumb_s
 void
 SKIF_LibraryArtwork::RequestAnimatedThumbnail (app_record_s* pApp, bool hovered)
 {
-  // Only a thumbnail that is shown, of an animated cover
-  if (pApp == nullptr || pApp->tex_thumb.texture.p == nullptr || pApp->tex_thumb.animatedSource.empty ( ))
+  // Only a thumbnail that is shown, of an animated cover; and only while animations are on
+  if (pApp == nullptr || pApp->tex_thumb.texture.p == nullptr || pApp->tex_thumb.animatedSource.empty ( ) || ! AreCoverAnimationsOn ( ))
     return;
 
   // Off (Settings): it plays when hovered, as the cover panel does

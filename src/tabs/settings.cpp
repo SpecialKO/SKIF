@@ -1313,6 +1313,28 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::Spacing         ( );
 
+    // Animated covers (APNG, GIF, WebP): whether they play when hovered (SKIF_LibraryArtwork::AreCoverAnimationsOn)
+    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
+    SKIF_ImGui_SetHoverTip (_("Animated covers (APNG, GIF, WebP) play while hovered, and pause when the mouse moves on.\n"
+                              "Follow Windows: only while \"Animation effects\" is turned on in Windows' accessibility settings.\n"
+                              "Never: they show as still covers."));
+    ImGui::SameLine        ( );
+    SKIF_ImGui_TextColoredWrapped (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+        _("Play animated covers:"));
+    ImGui::TreePush        ("AnimatedCovers");
+    if (SKIF_ImGui_RadioButton (L_("Follow Windows"),    &_registry.iLibraryAnimatedCovers, 2))
+      _registry.regKVLibraryAnimatedCovers.putData (       _registry.iLibraryAnimatedCovers);
+    SKIF_ImGui_SameLineIfFits (SKIF_ImGui_CheckboxWidth (L_("Play when hovered")));
+    if (SKIF_ImGui_RadioButton (L_("Play when hovered"), &_registry.iLibraryAnimatedCovers, 1))
+      _registry.regKVLibraryAnimatedCovers.putData (       _registry.iLibraryAnimatedCovers);
+    SKIF_ImGui_SameLineIfFits (SKIF_ImGui_CheckboxWidth (L_("Never")));
+    if (SKIF_ImGui_RadioButton (L_("Never"),             &_registry.iLibraryAnimatedCovers, 0))
+      _registry.regKVLibraryAnimatedCovers.putData (       _registry.iLibraryAnimatedCovers);
+    ImGui::TreePop         ( );
+
+    ImGui::Spacing         ( );
+
     // Animated covers (APNG, GIF, WebP) in the grid view: how much video memory their tile-size frames may be kept loaded in
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
     SKIF_ImGui_SetHoverTip (_("Animated covers in the grid view play as soon as they are hovered, and pause when the mouse moves on.\n"
@@ -1324,6 +1346,12 @@ SKIF_UI_Tab_DrawSettings (void)
         _("Keep animated covers of the grid view loaded:"));
     ImGui::TreePush        ("GridAnimMemory");
     {
+      // Of no use while animated covers do not play
+      const bool animationsOff = ! SKIF_LibraryArtwork::Get ( ).AreCoverAnimationsOn ( );
+
+      if (animationsOff)
+        SKIF_ImGui_PushDisableState ( );
+
       // TRANSLATORS: {0} is an amount of video memory in megabytes
       const std::string memoryFormat = (_registry.iLibraryGridAnimMemory <= 0) ? SKIF_L10n_PrintfFormat (_("Off"), "")
                                                                                : SKIF_L10n_PrintfFormat (_("Up to {0} MB"), "%d");
@@ -1336,9 +1364,11 @@ SKIF_UI_Tab_DrawSettings (void)
 
         SKIF_LibraryArtwork::Get ( ).OnAnimatedThumbnailMemoryChanged ( );
       }
+
+      if (animationsOff)
+        SKIF_ImGui_PopDisableState ( );
     }
     ImGui::TreePop         ( );
-
 
     ImGui::Spacing         ( );
 

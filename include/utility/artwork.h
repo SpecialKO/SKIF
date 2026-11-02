@@ -83,6 +83,8 @@ public:
   //       cover panel and the game's tile, and are released once another cover is hovered, on a device reset, when SKIF
   //         goes idle, when the game's cover changes, or once it has not been hovered for a while. A timer
   //           (cIDT_TIMER_COVERANIM) wakes SKIF for each new frame, so it does not draw more frames than that.
+  bool AreCoverAnimationsOn   (void) const;          // Settings (iLibraryAnimatedCovers): always, never, or while Windows' "Animation effects" is on.
+                                                     //   While off, no cover plays (and the frames loaded are released): they show still.
   void HoverAnimatedCover     (void);                // The cover panel is hovered this frame (plays the shown cover, if animated)
   void HoverAnimatedThumbnail (app_record_s* pApp);  // A grid tile is hovered this frame (plays its thumbnail's cover, if animated)
   void UpdateAnimatedCover    (void);                // Once per frame of the library tab, after the cover / grid is drawn
@@ -219,7 +221,10 @@ private:
   std::vector <DWORD>       m_animFrameEnds;             // When each frame ends (ms into the animation)
   ImVec2                    m_animResolution    = ImVec2 (0, 0); // The frames' size (may be smaller than the cover)
   DWORD                     m_animDuration      = 0;     // ms
-  DWORD                     m_animPlayingSince  = 0;     // 0: not playing
+  DWORD                     m_animPlayingSince  = 0;     // 0: not playing (paused, or not started)
+  DWORD                     m_animPosition      = 0;     // ms into the animation where it paused (it resumes from there)
+  mutable DWORD             m_animsCheckedAt    = 0;     // AreCoverAnimationsOn: when Windows' setting was last read (once a second) ...
+  mutable bool              m_animsWindows      = true;  //   ... and what it said
   DWORD                     m_animLastHovered   = 0;
   DWORD                     m_animTimerDue      = 0;     // When the timer fires, while it runs
   bool                      m_animTimer         = false; // cIDT_TIMER_COVERANIM is running
