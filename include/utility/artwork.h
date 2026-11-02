@@ -133,8 +133,10 @@ public:
 
   // Cover caches: the thumbnails of the grid view and their animations (<asset folder>cover-thumb-*: .dds, .anim, and
   //   .tmp left behind), in the asset folders (Assets\<store>\<game>\). Those of games no longer in the library are
-  //     deleted once a session, in the background (SKIF_LibCoverCacheWorker). Custom covers, previous covers and downloaded
-  //       covers are never touched, nor anything of Special K's own (the Assets folder itself).
+  //     deleted once a session, in the background (SKIF_LibCoverCacheWorker). Only the stores enabled in Settings are
+  //       looked at, and only those with at least one game in the library (a disabled store's games, or those of a store
+  //         that failed to load, are not in it, but are not gone). Custom covers, previous covers and downloaded covers
+  //           are never touched, nor anything of Special K's own (the Assets folder itself) or of unknown folders.
   void CleanUpOrphanedCoverCaches (const std::vector <std::wstring>& assetDirs); // Once the library is loaded (assetDirs: the asset
                                                      //   folders of the games in it, in full)
 

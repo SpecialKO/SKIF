@@ -12,6 +12,7 @@
 #include <utility/sk_utility.h>
 #include <utility/fsutil.h>
 #include <unordered_set>
+#include <map>
 
 extern concurrency::concurrent_queue <IUnknown *> SKIF_ResourcesToFree;
 
@@ -2177,16 +2178,40 @@ _DeleteCoverCacheFiles (const std::filesystem::path& folder)
 void
 SKIF_LibraryArtwork::CleanUpOrphanedCoverCaches (const std::vector <std::wstring>& assetDirs)
 {
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
   // One at a time (it runs once a session)
   if (m_coverCacheBusy.exchange (true))
     return;
 
-  std::vector <std::wstring>* keep = new std::vector <std::wstring> ( );
-  keep->reserve (assetDirs.size ( ));
+  struct cleanup_s {
+    std::vector <std::wstring>        keep;   // The asset folders of the games in the library
+    std::unordered_set <std::wstring> stores; // The store folders (Assets\<store>\, lowercase) of the stores enabled in Settings
+  };
+
+  cleanup_s* cleanup = new cleanup_s ( );
+  cleanup->keep.reserve (assetDirs.size ( ));
 
   for (auto& dir : assetDirs)
     if (! dir.empty ( ))
-      keep->push_back (dir); // Compared normalized (_NormalizeAssetFolder)
+      cleanup->keep.push_back (dir); // Compared normalized (_NormalizeAssetFolder)
+
+  // As named by each store's GetStoreAssetDirectory ( ). A disabled store's games are not in the library, but are not
+  //   gone either, so its folders are left alone (as are folders of no store known here).
+  const std::pair <bool, const wchar_t*> stores [] = {
+    { _registry.bLibrarySteam,   L"steam"   },
+    { _registry.bLibraryEA,      L"ea"      },
+    { _registry.bLibraryEpic,    L"epic"    },
+    { _registry.bLibraryitch,    L"itch"    },
+    { _registry.bLibraryGOG,     L"gog"     },
+    { _registry.bLibraryUbisoft, L"ubisoft" },
+    { _registry.bLibraryXbox,    L"xbox"    },
+    { _registry.bLibraryCustom,  L"custom"  },
+  };
+
+  for (auto& store : stores)
+    if (store.first)
+      cleanup->stores.insert (store.second);
 
   HANDLE hWorkerThread = (HANDLE)
   _beginthreadex (nullptr, 0x0, [](void* var) -> unsigned
@@ -2195,44 +2220,56 @@ SKIF_LibraryArtwork::CleanUpOrphanedCoverCaches (const std::vector <std::wstring
     SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // EcoQoS
     SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
 
-    std::vector <std::wstring>* _keep = static_cast <std::vector <std::wstring>*> (var);
+    cleanup_s* _cleanup = static_cast <cleanup_s*> (var);
 
     std::unordered_set <std::wstring> keep;
 
-    for (auto& dir : *_keep)
+    for (auto& dir : _cleanup->keep)
       keep.insert (_NormalizeAssetFolder (dir));
 
-    delete _keep;
+    const std::unordered_set <std::wstring> enabled = std::move (_cleanup->stores);
 
-    // The games' folders (the first is Special K's own, the Assets folder itself: never cleaned up). If no game's folder is
-    //   found at all, the paths are not comparable (spelled differently): nothing is deleted.
-    const std::vector <std::filesystem::path> folders = _GetAssetFolders ( );
-    std::vector <size_t>                      orphaned;
-    size_t                                    found = 0;
+    delete _cleanup;
+
+    // The games' folders (the first is Special K's own, the Assets folder itself: never cleaned up), of the enabled stores
+    //   only. A store none of whose folders is a game in the library is skipped: it failed to load (or was enabled while
+    //     the library was loading), or the paths are not comparable (spelled differently). Either way nothing there is
+    //       known to be gone.
+    const std::vector <std::filesystem::path>          folders = _GetAssetFolders ( );
+    std::map <std::wstring, std::vector <size_t>>      orphaned; // Per store
+    std::unordered_set <std::wstring>                  found;    // Stores with at least one game in the library
 
     for (size_t i = 1; i < folders.size ( ); i++)
     {
-      if (keep.count (_NormalizeAssetFolder (folders [i])) == 0)
-        orphaned.push_back (i);
-      else
-        found++;
-    }
+      const std::wstring store = SKIF_Util_ToLowerW (folders [i].parent_path ( ).filename ( ).wstring ( ));
 
-    if (found == 0 && ! keep.empty ( ))
-    {
-      PLOG_WARNING << "No asset folder of a game in the library was found; the cover caches are not cleaned up.";
-      orphaned.clear ( );
+      if (enabled.count (store) == 0)
+        continue;
+
+      if (keep.count (_NormalizeAssetFolder (folders [i])) == 0)
+        orphaned [store].push_back (i);
+      else
+        found.insert (store);
     }
 
     int files   = 0,
         cleaned = 0;
 
-    for (size_t i : orphaned)
+    for (auto& [store, indexes] : orphaned)
     {
-      if (const int deleted = _DeleteCoverCacheFiles (folders [i]); deleted > 0)
+      if (found.count (store) == 0)
       {
-        files += deleted;
-        cleaned++;
+        PLOG_WARNING << "No asset folder of a game in the library was found for " << store << "; its cover caches are not cleaned up.";
+        continue;
+      }
+
+      for (size_t i : indexes)
+      {
+        if (const int deleted = _DeleteCoverCacheFiles (folders [i]); deleted > 0)
+        {
+          files += deleted;
+          cleaned++;
+        }
       }
     }
 
@@ -2243,7 +2280,7 @@ SKIF_LibraryArtwork::CleanUpOrphanedCoverCaches (const std::vector <std::wstring
     SKIF_LibraryArtwork::Get ( ).m_coverCacheBusy.store (false);
 
     return 0;
-  }, keep, 0x0, nullptr);
+  }, cleanup, 0x0, nullptr);
 
   if (hWorkerThread != NULL)
     CloseHandle (hWorkerThread);
@@ -2251,7 +2288,7 @@ SKIF_LibraryArtwork::CleanUpOrphanedCoverCaches (const std::vector <std::wstring
   else
   {
     PLOG_ERROR << "Failed to start the cover cache worker thread!";
-    delete keep;
+    delete cleanup;
     m_coverCacheBusy.store (false);
   }
 }
