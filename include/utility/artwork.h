@@ -77,7 +77,7 @@ public:
 
   // Animated covers (APNG, GIF): a cover shows its first frame, and plays while it is hovered: the shown cover (the cover
   //   panel), or a game's thumbnail (its tile in the grid view). One cover plays at a time: the one hovered. Its frames are
-  //     loaded by a background worker (SKIF_LibAnimCoverWorker) once it has been hovered for a moment, are shared by the
+  //     loaded by a background worker (SKIF_LibAnimCoverWorker) as soon as it is hovered, are shared by the
   //       cover panel and the game's tile, and are released once another cover is hovered, on a device reset, when SKIF
   //         goes idle, when the game's cover changes, or once it has not been hovered for a while. A timer
   //           (cIDT_TIMER_COVERANIM) wakes SKIF for each new frame, so it does not draw more frames than that.
@@ -196,7 +196,6 @@ private:
   std::vector <DWORD>       m_animFrameEnds;             // When each frame ends (ms into the animation)
   ImVec2                    m_animResolution    = ImVec2 (0, 0); // The frames' size (may be smaller than the cover)
   DWORD                     m_animDuration      = 0;     // ms
-  DWORD                     m_animHoveredSince  = 0;     // 0: not hovered
   DWORD                     m_animPlayingSince  = 0;     // 0: not playing
   DWORD                     m_animLastHovered   = 0;
   DWORD                     m_animTimerDue      = 0;     // When the timer fires, while it runs

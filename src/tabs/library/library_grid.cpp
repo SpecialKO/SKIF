@@ -414,8 +414,6 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
     }
 
     // The title beneath the cover, shortened with an ellipsis (as the list colors it: updating, running)
-    bool titleCut = false;
-
     if (_registry.bLibraryGridTitles)
     {
       const char*  text   = rec->names.normal.c_str ( );
@@ -423,7 +421,7 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
       const ImVec2 minT   = ImVec2 (minCover.x, maxCover.y + inset * 0.5f);
       const ImVec2 maxT   = ImVec2 (maxCover.x, minT.y + ImGui::GetTextLineHeight ( ));
 
-      titleCut = (size.x > sizeCover.x);
+      const bool titleCut = (size.x > sizeCover.x);
 
       ImGui::PushStyleColor (ImGuiCol_Text,
         ( rec->_status.updating != 0x0 ) ? ImVec4 (ImColor::HSV (0.6f, .6f, 1.f)) :
@@ -437,12 +435,10 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
       ImGui::PopStyleColor ( );
     }
 
-    // The platform's name over its badge, else the full title in a tooltip, when it is not shown in full
+    // The platform's name over its badge. (No tooltip with the title over the cover: it would cover the cover, e.g. an
+    //   animated one playing while hovered.)
     if (platformHovered && ! rec->store_utf8.empty ( ))
       SKIF_ImGui_SetHoverTip (rec->store_utf8);
-
-    else if (hovered && (! _registry.bLibraryGridTitles || titleCut))
-      SKIF_ImGui_SetHoverTip (rec->names.normal);
 
     if (_registry.bFadeCovers)
       ImGui::PopStyleVar ( ); // -ImGuiStyleVar_Alpha

@@ -473,9 +473,7 @@ SKIF_LibraryArtwork::IsCoverMissing (void) const
 
 #pragma region Animated Covers
 
-// How long a cover is hovered before its frames load (so moving the mouse across covers loads nothing), and how long they
-//   are kept once it is no longer hovered
-static constexpr DWORD s_animHoverDelay  =   250; // ms
+// How long the frames are kept once the cover is no longer hovered
 static constexpr DWORD s_animIdleRelease = 30000; // ms
 
 void
@@ -637,26 +635,16 @@ SKIF_LibraryArtwork::UpdateAnimatedCover (void)
 
     m_animGame         = m_hoverGame;
     m_animSource       = m_hoverSource;
-    m_animHoveredSince = 0;
   }
 
   if (hovered)
   {
     m_animLastHovered = now;
 
-    if (m_animHoveredSince == 0)
-      m_animHoveredSince = now;
-
-    // Load the frames once it has been hovered for a moment (one worker at a time: a stale one still has to finish)
+    // Load the frames right away. One worker at a time: a stale one (the mouse moved on to another cover) stops at its next
+    //   frame, and once its result is back the cover hovered by then loads (its result wakes SKIF, WM_SKIF_COVER)
     if (m_animState == AnimatedCoverState::None && ! m_animWorkerBusy)
-    {
-      const DWORD hoveredFor = now - m_animHoveredSince;
-
-      if (hoveredFor >= s_animHoverDelay)
-        StartAnimatedCoverWorker ( );
-      else
-        wakeIn = s_animHoverDelay - hoveredFor;
-    }
+      StartAnimatedCoverWorker ( );
 
     // Play: from the first frame, every time the cover is hovered again
     if (m_animState == AnimatedCoverState::Ready && m_animDuration > 0)
@@ -673,7 +661,6 @@ SKIF_LibraryArtwork::UpdateAnimatedCover (void)
 
   else
   {
-    m_animHoveredSince = 0;
     m_animPlayingSince = 0; // Back to the still cover
 
     if (m_animState == AnimatedCoverState::Ready && now - m_animLastHovered > s_animIdleRelease)
