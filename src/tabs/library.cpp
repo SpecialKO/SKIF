@@ -169,7 +169,78 @@ std::wstring dragDroppedFilePath = L"";
 POINT        dragDroppedPoint    = { }; // Where it was dropped (screen coordinates; droptarget.hpp)
 bool         dragOverActive      = false; // Something is dragged over SKIF (droptarget.hpp) ...
 bool         dragOverImage       = false; //   ... that may be an image (not e.g. a game to add) ...
-POINT        dragOverPoint       = { };   //   ... here (screen coordinates): the grid view highlights the tile it is over
+POINT        dragOverPoint       = { };   //   ... here (screen coordinates): the game it would change the cover of is highlighted
+
+// Where the drop targets for images were drawn in the latest frame (the visible part of each): the grid's tiles, the list's
+//   rows, the cover panel (RegisterCoverDropTarget). Drawn before drops are handled (SKIF_UI_Tab_DrawLibrary).
+struct cover_drop_target_s {
+  ImVec2    min;
+  ImVec2    max;
+  app_key_s game;
+};
+
+static std::vector <cover_drop_target_s> s_dropTargets;
+static int                               s_dropTargetsFrame = -1;
+
+bool
+RegisterCoverDropTarget (ImVec2 min, ImVec2 max, app_key_s game)
+{
+  // A new frame: those of the previous one are gone
+  if (const int frame = ImGui::GetFrameCount ( ); s_dropTargetsFrame != frame)
+  {
+    s_dropTargets.clear ( );
+    s_dropTargetsFrame = frame;
+  }
+
+  // Only its visible part: within the window it is drawn in (which may scroll, e.g. the list)
+  ImDrawList*  draw_list = ImGui::GetWindowDrawList ( );
+  const ImVec2 clipMin   = draw_list->GetClipRectMin ( ),
+               clipMax   = draw_list->GetClipRectMax ( );
+
+  min = ImVec2 (std::max (min.x, clipMin.x), std::max (min.y, clipMin.y));
+  max = ImVec2 (std::min (max.x, clipMax.x), std::min (max.y, clipMax.y));
+
+  if (min.x >= max.x || min.y >= max.y)
+    return false;
+
+  s_dropTargets.push_back ({ min, max, game });
+
+  const ImVec2 drag = ImVec2 (static_cast <float> (dragOverPoint.x), static_cast <float> (dragOverPoint.y));
+
+  return (dragOverActive && dragOverImage &&
+          drag.x >= min.x && drag.x < max.x &&
+          drag.y >= min.y && drag.y < max.y);
+}
+
+bool
+GetCoverDropTargetAt (ImVec2 pos, app_key_s& game)
+{
+  if (s_dropTargetsFrame < ImGui::GetFrameCount ( ) - 1)
+    return false;
+
+  for (auto& target : s_dropTargets)
+  {
+    if (pos.x >= target.min.x && pos.x < target.max.x &&
+        pos.y >= target.min.y && pos.y < target.max.y)
+    {
+      game = target.game;
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// Lightened, in a thick accent border just inside its edge
+void
+DrawCoverDropHighlight (ImDrawList* draw_list, ImVec2 min, ImVec2 max, float rounding)
+{
+  const float  border = std::max (3.0f, ImFloor (3.0f * SKIF_ImGui_GlobalDPIScale));
+  const ImVec2 half   = ImVec2 (border * 0.5f, border * 0.5f);
+
+  draw_list->AddRectFilled (min, max, IM_COL32 (255, 255, 255, 50), rounding);
+  draw_list->AddRect       (min + half, max - half, ImGui::GetColorU32 (ImGuiCol_SKIF_Info), rounding, border, ImDrawFlags_None);
+}
 std::wstring dragDroppedFilePathGame = L"";
 
 extern ImVec2          SKIF_vecServiceMode;
@@ -1690,17 +1761,14 @@ SKIF_UI_Tab_DrawLibrary (void)
     _inject._RefreshUIQuickToggle (bWasRunning);
   };
 
-  // The game whose cover a dropped image changes: in the grid view, the game whose tile it was dropped on (none if it was
-  //   dropped outside the tiles); otherwise the selected game
+  // The game whose cover a dropped image changes: the game it was dropped on (its tile in the grid view, its row in the
+  //   list, or the cover of the selected game); none if it was dropped anywhere else
   auto _GetCoverDropTarget = [&](void) -> app_record_s*
   {
-    if (! IsLibraryGridView ( ))
-      return pApp;
+    app_key_s game;
 
-    app_key_s tile;
-
-    if (GetGridTileAt (ImVec2 (static_cast <float> (dragDroppedPoint.x), static_cast <float> (dragDroppedPoint.y)), tile))
-      return _games.Find (tile);
+    if (GetCoverDropTargetAt (ImVec2 (static_cast <float> (dragDroppedPoint.x), static_cast <float> (dragDroppedPoint.y)), game))
+      return _games.Find (game);
 
     return nullptr;
   };
@@ -1962,14 +2030,13 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
     }
 
-    // Images + URLs in the grid view, dropped outside the tiles: no game's cover to change
-    else if (IsLibraryGridView ( ) && _GetCoverDropTarget ( ) == nullptr)
+    // Images + URLs dropped anywhere but on a game: no game's cover to change
+    else if (_GetCoverDropTarget ( ) == nullptr)
     {
-      PLOG_INFO << "The drop was not on a game's tile in the grid view; nothing was changed.";
+      PLOG_INFO << "The drop was not on a game (its tile, its row, or the cover); nothing was changed.";
     }
 
-    // Images + URLs: the cover of the game whose tile they were dropped on in the grid view (selected or not), else of
-    //   the selected game
+    // Images + URLs: the cover of the game they were dropped on (its tile, its row, or the cover), selected or not
     else if (app_record_s* pTarget = _GetCoverDropTarget ( ); pTarget != nullptr && SaveGameCover (pTarget, dragDroppedFilePath))
     {
       // The shown cover: shows the "..." loading dots, and sets up the current cover to be released. Another game's

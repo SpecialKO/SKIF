@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-02 21:29+0100\n"
+"POT-Creation-Date: 2026-11-02 21:35+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1181,88 +1181,88 @@ msgstr ""
 msgid "Do you want to save changes to {0}?"
 msgstr ""
 
-#: src/tabs/library.cpp:259
+#: src/tabs/library.cpp:330
 #: src/tabs/settings.cpp:1415
 #: src/tabs/settings.cpp:1432
 msgid "Large icons"
 msgstr ""
 
-#: src/tabs/library.cpp:265
+#: src/tabs/library.cpp:336
 #: src/tabs/settings.cpp:1438
 msgid "Currently enforced by touch input mode."
 msgstr ""
 
-#: src/tabs/library.cpp:286
+#: src/tabs/library.cpp:357
 msgid "Grid view"
 msgstr ""
 
-#: src/tabs/library.cpp:294
+#: src/tabs/library.cpp:365
 msgid "Show titles"
 msgstr ""
 
-#: src/tabs/library.cpp:298
+#: src/tabs/library.cpp:369
 msgid "Show platform"
 msgstr ""
 
 #. TRANSLATORS: {0} is the width of the covers in the library's grid view (in pixels at 100% scale)
-#: src/tabs/library.cpp:303
+#: src/tabs/library.cpp:374
 msgid "Cover size: {0}"
 msgstr ""
 
-#: src/tabs/library.cpp:313
+#: src/tabs/library.cpp:384
 msgid "Show icons"
 msgstr ""
 
-#: src/tabs/library.cpp:1487
+#: src/tabs/library.cpp:1558
 #: src/tabs/library/library_details.cpp:498
 msgid "Loading..."
 msgstr ""
 
-#: src/tabs/library.cpp:1501
+#: src/tabs/library.cpp:1572
 msgid "Cover"
 msgstr ""
 
-#: src/tabs/library.cpp:1514
+#: src/tabs/library.cpp:1585
 #: src/tabs/library/library_menus.cpp:1645
 #: src/tabs/library/library_menus.cpp:1803
 msgid "Open SteamGridDB"
 msgstr ""
 
-#: src/tabs/library.cpp:1678
+#: src/tabs/library.cpp:1749
 msgid "New 32-bit DLL Installed"
 msgstr ""
 
-#: src/tabs/library.cpp:1679
+#: src/tabs/library.cpp:1750
 msgid "New 64-bit DLL Installed"
 msgstr ""
 
-#: src/tabs/library.cpp:1813
-#: src/tabs/library.cpp:1921
+#: src/tabs/library.cpp:1881
+#: src/tabs/library.cpp:1989
 msgid "Missing Files"
 msgstr ""
 
-#: src/tabs/library.cpp:1814
-#: src/tabs/library.cpp:1922
+#: src/tabs/library.cpp:1882
+#: src/tabs/library.cpp:1990
 msgid "Unable to extract Special K DLL files from the provided {0} file."
 msgstr ""
 
-#: src/tabs/library.cpp:1960
+#: src/tabs/library.cpp:2028
 msgid "Unsupported Feature"
 msgstr ""
 
-#: src/tabs/library.cpp:1961
+#: src/tabs/library.cpp:2029
 msgid "SKIF cannot perform a drag-n-drop update because Special K {0} or newer is required."
 msgstr ""
 
-#: src/tabs/library.cpp:1985
+#: src/tabs/library.cpp:2052
 msgid "Unsupported file format"
 msgstr ""
 
-#: src/tabs/library.cpp:1987
+#: src/tabs/library.cpp:2054
 msgid "Add a game to the library:"
 msgstr ""
 
-#: src/tabs/library.cpp:1993
+#: src/tabs/library.cpp:2060
 msgid "Update the cover for the current selected game:"
 msgstr ""
 
@@ -1280,7 +1280,7 @@ msgid ""
 "allow the cover to be populated :)"
 msgstr ""
 
-#: src/tabs/library/library_cover.cpp:438
+#: src/tabs/library/library_cover.cpp:442
 msgid "Special Kudos to our Patrons:"
 msgstr ""
 
@@ -1426,7 +1426,7 @@ msgstr ""
 msgid "Unknown"
 msgstr ""
 
-#: src/tabs/library/library_grid.cpp:172
+#: src/tabs/library/library_grid.cpp:136
 #: src/tabs/library/library_list.cpp:289
 msgid "Loading games..."
 msgstr ""

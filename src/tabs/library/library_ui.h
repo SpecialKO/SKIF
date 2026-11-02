@@ -210,6 +210,13 @@ void ShowLibraryViewToggles  (void);                 // The Filter menu's view o
 bool IsLibraryGridView       (void);                 // The grid view is chosen (Library View); the grid takes the cover's place
 void ClearCharFilter         (void);
 
+// library.cpp: images dropped on a game (its tile in the grid view, its row in the list, or the cover of the selected game)
+//   change its cover; dropped anywhere else they change nothing
+bool RegisterCoverDropTarget (ImVec2 min, ImVec2 max, app_key_s game); // Each frame it is drawn: where (screen coordinates; the part visible in
+                                                                       //   the current window is kept). True if an image is dragged over it.
+bool GetCoverDropTargetAt    (ImVec2 pos, app_key_s& game);            // The game drawn at pos (screen coordinates) in the latest frame
+void DrawCoverDropHighlight  (ImDrawList* draw_list, ImVec2 min, ImVec2 max, float rounding); // An image is dragged over it
+
 // library/library_launch.cpp
 void LaunchGame              (app_record_s* pApp);
 bool SaveGameCover           (app_record_s* pApp, std::wstring_view path); // Copies / downloads an image as the game's custom cover (background thread)
@@ -238,7 +245,6 @@ void EndCategoryHeaders      (void);                 //   and after the last one
 
 // library/library_grid.cpp
 void DrawGamesGrid           (DWORD current_time, ImVec2 size, bool showClearBtn); // In place of the cover in the grid view (DrawGameCover)
-bool GetGridTileAt           (ImVec2 pos, app_key_s& game); // The game whose tile is at pos (screen coordinates) in the grid's latest frame (where it is visible)
 
 // library/library_popups.cpp
 void DrawLibraryPopups       (void);

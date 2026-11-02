@@ -334,6 +334,10 @@ DrawGameCover (bool sameLine, bool& isCoverHovered, ImVec2& vecPosCover)
 
     isCoverHovered = ImGui::IsItemHovered();
 
+    // Images dropped on the cover change the selected game's cover, and it is highlighted while one is dragged over it
+    if (pApp != nullptr && RegisterCoverDropTarget (ImGui::GetItemRectMin ( ), ImGui::GetItemRectMax ( ), pApp->GetKey ( )))
+      DrawCoverDropHighlight (ImGui::GetWindowDrawList ( ), ImGui::GetItemRectMin ( ), ImGui::GetItemRectMax ( ), 0.0f);
+
     // An animated cover (APNG, GIF) plays while hovered (SKIF_LibraryArtwork::UpdateAnimatedCover)
     if (isCoverHovered)
       _art.HoverAnimatedCover ( );
