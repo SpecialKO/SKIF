@@ -464,6 +464,182 @@
     <ClCompile Include="src\MinHook\hde\hde64.c" />
     <ClCompile Include="src\MinHook\hook.c" />
     <ClCompile Include="src\MinHook\trampoline.c" />
+    <ClCompile Include="packages_misc\libwebp\src\dec\alpha_dec.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dec\buffer_dec.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dec\frame_dec.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dec\idec_dec.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dec\io_dec.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dec\quant_dec.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dec\tree_dec.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dec\vp8_dec.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dec\vp8l_dec.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dec\webp_dec.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\demux\anim_decode.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\demux\demux.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dsp\alpha_processing.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dsp\alpha_processing_sse2.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dsp\alpha_processing_sse41.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dsp\cpu.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dsp\dec.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dsp\dec_clip_tables.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dsp\dec_sse2.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dsp\dec_sse41.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dsp\filters.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dsp\filters_sse2.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dsp\lossless.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dsp\lossless_avx2.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dsp\lossless_sse2.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dsp\lossless_sse41.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dsp\rescaler.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dsp\rescaler_sse2.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dsp\upsampling.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dsp\upsampling_sse2.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dsp\upsampling_sse41.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dsp\yuv.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dsp\yuv_sse2.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\dsp\yuv_sse41.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\utils\bit_reader_utils.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\utils\color_cache_utils.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\utils\filters_utils.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\utils\huffman_utils.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\utils\palette.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\utils\quant_levels_dec_utils.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\utils\random_utils.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\utils\rescaler_utils.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\utils\thread_utils.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="packages_misc\libwebp\src\utils\utils.c">
+      <AdditionalIncludeDirectories>$(ProjectDir)packages_misc\libwebp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
     <ClCompile Include="src\stores\EA\ea_library.cpp" />
     <ClCompile Include="src\stores\Epic\epic_library.cpp" />
     <ClCompile Include="src\stores\itch\itch_library.cpp" />
