@@ -884,10 +884,14 @@ SKIF_LibraryArtwork::IsSavingCover (const app_record_s* pApp) const
 }
 
 void
-SKIF_LibraryArtwork::OnCoverSaved (app_key_s game)
+SKIF_LibraryArtwork::OnCoverSaved (app_key_s game, bool notify, bool success)
 {
   m_refreshPending = true;
   m_refresh        = game;
+
+  // How it went, if a notification was asked for (an image dropped on a game), and always if it failed
+  if (notify || ! success)
+    m_coverSavedNotices.push_back ({ game, success });
 
   // Its thumbnail shows the old cover (a custom cover was saved)
   if (app_record_s* pApp = SKIF_GamingCollection::Get ( ).Find (game); pApp != nullptr)
@@ -906,6 +910,20 @@ SKIF_LibraryArtwork::RefreshShownCover (void)
 
   // The cover that played (if any) may not be the one shown any longer either
   ResetAnimatedCover ( );
+}
+
+bool
+SKIF_LibraryArtwork::PopCoverSavedNotice (app_key_s& game, bool& success)
+{
+  if (m_coverSavedNotices.empty ( ))
+    return false;
+
+  game    = m_coverSavedNotices.front ( ).first;
+  success = m_coverSavedNotices.front ( ).second;
+
+  m_coverSavedNotices.erase (m_coverSavedNotices.begin ( ));
+
+  return true;
 }
 
 bool

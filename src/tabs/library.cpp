@@ -917,6 +917,24 @@ SKIF_UI_Tab_DrawLibrary (void)
   // Swap in the covers / icons the background workers finished
   _art.ApplyWorkerResults ( );
 
+  // Saved custom covers to notify of (WM_SKIF_REFRESHCOVER): an image dropped on a game, or a save that failed. Shown here,
+  //   as a notification needs a frame (and a window) to be made in.
+  for (app_key_s game; ; )
+  {
+    bool success = false;
+
+    if (! _art.PopCoverSavedNotice (game, success))
+      break;
+
+    const app_record_s* pGame = _games.Find (game);
+    const std::string   name  = (pGame != nullptr) ? pGame->names.normal : "";
+
+    if (success)
+      ImGui::InsertNotification ({ ImGuiToastType::Success, 4000, _("Cover changed"),              "%s", name.c_str ( ) });
+    else
+      ImGui::InsertNotification ({ ImGuiToastType::Error,   6000, _("Could not change the cover"), "%s", name.c_str ( ) });
+  }
+
   extern bool  coverFadeActive;
   static int   tmp_iDimCovers = _registry.iDimCovers;
 
@@ -2075,10 +2093,16 @@ SKIF_UI_Tab_DrawLibrary (void)
     else if (_GetCoverDropTarget ( ) == nullptr)
     {
       PLOG_INFO << "The drop was not on a game (its tile, its row, or the cover); nothing was changed.";
+
+      ImGui::InsertNotification ({
+        ImGuiToastType::Info, 5000,
+        _("Nothing was changed"),
+        "%s", _("Drop the image on a game to change its cover: on its cover, its tile, or its row in the list.")
+      });
     }
 
     // Images + URLs: the cover of the game they were dropped on (its tile, its row, or the cover), selected or not
-    else if (app_record_s* pTarget = _GetCoverDropTarget ( ); pTarget != nullptr && SaveGameCover (pTarget, dragDroppedFilePath))
+    else if (app_record_s* pTarget = _GetCoverDropTarget ( ); pTarget != nullptr && SaveGameCover (pTarget, dragDroppedFilePath, true))
     {
       // The shown cover: shows the "..." loading dots, and sets up the current cover to be released. Another game's
       //   tile keeps its thumbnail until the new cover is saved (OnCoverSaved reloads it).

@@ -71,7 +71,9 @@ public:
   // Custom covers (SaveGameCover in library.cpp)
   void BeginSavingCover       (app_record_s* pApp);  // Shows the "..." loading label for this game and retires the current cover
   bool IsSavingCover          (const app_record_s* pApp) const;
-  void OnCoverSaved           (app_key_s game);      // WM_SKIF_REFRESHCOVER
+  void OnCoverSaved           (app_key_s game, bool notify = false, bool success = true); // WM_SKIF_REFRESHCOVER (notify: one was asked for)
+  bool PopCoverSavedNotice    (app_key_s& game, bool& success); // A save to notify of (asked for, or failed): shown by the library tab,
+                                                     //   during a frame (a toast needs its window; not from the window procedure)
   void RefreshShownCover      (void);                // Reloads the shown cover (cover settings changed)
   bool ProcessCoverRefresh    (void);                // Once per frame; true if the shown cover must be reloaded (caller sets update)
 
@@ -258,6 +260,10 @@ private:
   bool          MakeAnimatedThumbnailRoom    (size_t bytes, const anim_thumb_s* keep, bool hovered); // Unloads others until bytes fit
   void          StartAnimatedThumbnailWorker (anim_thumb_s& thumb, bool build);
   DWORD         UpdateAnimatedThumbnails     (DWORD now);                   // UpdateAnimatedCover: play / pause, start workers; ms until a frame is due (0: none)
+
+  // Saves to notify of (OnCoverSaved → PopCoverSavedNotice): the game, and whether it succeeded
+  std::vector <std::pair <app_key_s, bool>>
+                            m_coverSavedNotices;
 
   // Custom cover being saved, and the refresh it triggers
   bool                      m_savingCover       = false;

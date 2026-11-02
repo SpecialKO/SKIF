@@ -72,6 +72,8 @@ constexpr UINT           WM_SKIF_COVER          = WM_USER + 0x2050; // Cover wor
 constexpr UINT           WM_SKIF_UPDATER        = WM_USER + 0x2051; // Updater worker completed
 constexpr UINT           WM_SKIF_ICON           = WM_USER + 0x2052; // Patreon/Cover/Icon textures workers completed...
 constexpr UINT           WM_SKIF_REFRESHCOVER   = WM_USER + 0x2053; // Refresh Cover -- Update Cover worker completed
+constexpr LPARAM         SKIF_RefreshCover_Notify  = 0x10000;         //   lParam flags (besides the store): a notification once it is saved,
+constexpr LPARAM         SKIF_RefreshCover_Success = 0x20000;         //     and whether it was (one is shown if it was not)
 constexpr UINT           WM_SKIF_REFRESHFOCUS   = WM_USER + 0x2054; // Trigger a new focus check from the main thread (used by child threads, e.g. gamepad input thread)
 constexpr UINT           WM_SKIF_DRAGOVER       = WM_USER + 0x2055; // Something is dragged over SKIF, or no longer is: frames for the grid view's drop highlight (droptarget.hpp)
 

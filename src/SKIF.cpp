@@ -5576,12 +5576,17 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_SKIF_REFRESHCOVER:
+    {
       addAdditionalFrames += 3;
 
-      // A custom cover has been saved: reload it if it is the one shown
-      SKIF_LibraryArtwork::Get ( ).OnCoverSaved ({ (app_record_s::Store)lParam, (uint32_t)wParam }); // SaveGameCover: wParam = app ID, lParam = store
+      // A custom cover has been saved: reload it if it is the one shown. SaveGameCover: wParam = app ID, lParam = store and flags
+      //   How it went is shown by the library tab (a notification needs an ImGui frame, which the window procedure is not in)
+      SKIF_LibraryArtwork::Get ( ).OnCoverSaved ({ (app_record_s::Store)(lParam & 0xFFFF), (uint32_t)wParam },
+                                                  (lParam & SKIF_RefreshCover_Notify)  != 0,
+                                                  (lParam & SKIF_RefreshCover_Success) != 0);
 
       break;
+    }
 
     case WM_SKIF_ICON:
       addAdditionalFrames += 3;

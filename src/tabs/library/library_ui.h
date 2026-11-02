@@ -221,7 +221,11 @@ void ScrollForCoverDrag      (void);                 // In a scrolling window of
 
 // library/library_launch.cpp
 void LaunchGame              (app_record_s* pApp);
-bool SaveGameCover           (app_record_s* pApp, std::wstring_view path); // Copies / downloads an image as the game's custom cover (background thread)
+bool SaveGameCover           (app_record_s* pApp, std::wstring_view path, bool notify = false); // Copies / downloads an image as the game's custom cover (background
+                                                     //   thread); notify: a notification once it is saved (one is always shown if it fails)
+std::wstring SKIF_Lib_FindPreviousCover    (app_record_s* pApp);          // The previous custom cover (the one replaced or reset last), or empty
+bool         SKIF_Lib_KeepPreviousCover    (const std::wstring& assetDir); // The custom cover becomes the previous one (Reset); true if there was one
+bool         SKIF_Lib_RestorePreviousCover (app_record_s* pApp);          // Swaps the custom cover and the previous one; true if it did
 
 // library/library_menus.cpp
 void DrawCoverMenuChangeReset (app_record_s* pApp, bool isCustom, bool isManaged); // Change / Reset of the cover (cover menu, grid view's game menu)

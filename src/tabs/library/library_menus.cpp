@@ -1488,17 +1488,20 @@ DrawCoverMenuChangeReset (app_record_s* pApp, bool isCustom, bool isManaged)
       {
         std::wstring fileName = (isCustom) ? L"cover" : L"cover-original";
 
-        // Will fail on read-only marked files
-        bool d1 = DeleteFile ((targetPath + fileName + L".png").c_str()),
-             d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
+        bool d1 = false,
+             d2 = false,
              d3 = false;
 
-        // Custom covers can also be GIFs and animated WebPs (SaveGameCover)
-        if (isCustom && DeleteFile ((targetPath + fileName + L".gif").c_str()))
-          d2 = true;
+        // A custom cover (.png, .jpg, .gif, .webp) is kept as the previous cover, so Restore previous cover undoes this
+        if (isCustom)
+          d1 = SKIF_Lib_KeepPreviousCover (targetPath);
 
-        if (isCustom && DeleteFile ((targetPath + fileName + L".webp").c_str()))
-          d2 = true;
+        // Will fail on read-only marked files
+        else
+        {
+          d1 = DeleteFile ((targetPath + fileName + L".png").c_str());
+          d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str());
+        }
 
         // Store-managed fallback covers (PCGamingWiki covers for GOG and Steam, Xbox fallback cover)
         if (! isCustom)
@@ -1515,6 +1518,29 @@ DrawCoverMenuChangeReset (app_record_s* pApp, bool isCustom, bool isManaged)
           _art.InvalidateThumbnail (pApp); // The grid view's thumbnail
         }
       }
+    }
+  }
+
+  // The custom cover a new one replaced (or that was reset) last: restoring swaps the two, so it is undone the same way.
+  //   Not while a cover is being saved for the game (that moves the same files).
+  if (! SKIF_Lib_FindPreviousCover (pApp).empty ( ))
+  {
+    const bool enabled = ! _art.IsSavingCover (pApp);
+
+    if (SKIF_ImGui_MenuItemEx2 (L_("Restore previous cover"), ICON_FA_CLOCK_ROTATE_LEFT, (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255), 0, nullptr, enabled))
+    {
+      if (SKIF_Lib_RestorePreviousCover (pApp))
+      {
+        update = true;
+        _art.ForgetCover ( );            // Needed as otherwise SKIF would not reload the cover
+        _art.InvalidateThumbnail (pApp); // The grid view's thumbnail (the restored cover is older than its cache)
+      }
+    }
+
+    if (enabled)
+    {
+      SKIF_ImGui_SetMouseCursorHand ( );
+      SKIF_ImGui_SetHoverTip (_("Brings back the cover this one replaced. Restoring again brings this one back."));
     }
   }
 
