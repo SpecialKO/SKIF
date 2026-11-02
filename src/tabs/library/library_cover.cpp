@@ -329,14 +329,37 @@ DrawGameCover (bool sameLine, bool& isCoverHovered, ImVec2& vecPosCover)
         );
       }
 
+      // Images dropped anywhere on the cover area change the selected game's cover. While one is dragged over it, the cover
+      //   image is highlighted (here, in the cover's own window, so it is drawn over the image): the image shown (the cover,
+      //     else Special K's logo), or the whole area if there is none (missing, loading)
+      if (pApp != nullptr)
+      {
+        const ImVec2 areaMin = ImGui::GetWindowPos ( ),
+                     areaMax = areaMin + ImGui::GetWindowSize ( );
+
+        if (RegisterCoverDropTarget (areaMin, areaMax, pApp->GetKey ( )))
+        {
+          const image_s* shown = (pCoverSRV != nullptr) ? &cover   :
+                                 (isSpecialK)           ? &coverSK : nullptr;
+
+          ImVec2 highlightMin = areaMin,
+                 highlightMax = areaMax;
+
+          // Within the area (a filled cover may be larger than it)
+          if (shown != nullptr && shown->size.x > 0.0f && shown->size.y > 0.0f)
+          {
+            highlightMin = ImMax (areaMin, areaMin + shown->position);
+            highlightMax = ImMin (areaMax, areaMin + shown->position + shown->size);
+          }
+
+          DrawCoverDropHighlight (ImGui::GetWindowDrawList ( ), highlightMin, highlightMax, 0.0f);
+        }
+      }
+
       ImGui::EndChild ( );
     }
 
     isCoverHovered = ImGui::IsItemHovered();
-
-    // Images dropped on the cover change the selected game's cover, and it is highlighted while one is dragged over it
-    if (pApp != nullptr && RegisterCoverDropTarget (ImGui::GetItemRectMin ( ), ImGui::GetItemRectMax ( ), pApp->GetKey ( )))
-      DrawCoverDropHighlight (ImGui::GetWindowDrawList ( ), ImGui::GetItemRectMin ( ), ImGui::GetItemRectMax ( ), 0.0f);
 
     // An animated cover (APNG, GIF) plays while hovered (SKIF_LibraryArtwork::UpdateAnimatedCover)
     if (isCoverHovered)
