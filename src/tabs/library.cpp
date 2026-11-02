@@ -2141,7 +2141,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         "   *.bat\n"
         "\n"
         "\n"
-        + _("Update the cover for the current selected game:") + "\n"
+        + _("Change the cover of a game (drop the image on it):") + "\n"
         "   *.jpg\n"
       //"   *.jxr\n"
         "   *.png\n"
