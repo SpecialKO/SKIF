@@ -126,6 +126,7 @@ std::atomic<bool> SKIF_D3D11_FlushPending = false;
 DWORD dwDwmPeriod               = 62500; // Assume 60 Hz (16 ms) by default
 bool  SteamOverlayDisabled      = false;
 bool  SKIF_MouseDragMoveAllowed = true;
+ImRect SKIF_ImGui_CaptionArea; // Screen coordinates of the empty space between the tabs and the window buttons (double-click to maximize/restore)
 bool  SKIF_debuggerPresent      = false;
 DWORD SKIF_startupTime          = 0; // Used as a basis of how long the initialization took
 bool  SKIF_FirstPresentDone     = false; // Set by ImGui_ImplDX11_SwapBuffers ( ) on the first successful Present ( )
@@ -3281,7 +3282,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       // Right edge of the last tab (About) in window-local coordinates, used to keep Shelly the Ghost out of the tab bar
       //   Mini mode has no tabs, so Shelly may then use all space up until the window buttons
-      float fTabBarRightEdge = ImGui::GetStyle ( ).WindowPadding.x;
+      float fTabBarRightEdge  = ImGui::GetStyle ( ).WindowPadding.x;
+      float fTabBarBottomEdge = 0.0f; // Bottom of the tabs in window-local coordinates, used for the caption area
 
       // Begin Mini Mode
 #pragma region UI: Mini Mode
@@ -3488,7 +3490,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::BeginTabItem (tabTitleAbout, nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_About) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None));
 
         // The tab itself is the last item at this point (regardless of whether it is selected or not)
-        fTabBarRightEdge = ImGui::GetItemRectMax ( ).x - ImGui::GetWindowPos ( ).x;
+        fTabBarRightEdge  = ImGui::GetItemRectMax ( ).x - ImGui::GetWindowPos ( ).x;
+        fTabBarBottomEdge = ImGui::GetItemRectMax ( ).y - ImGui::GetWindowPos ( ).y;
 
         if (bAboutTabOpen)
         {
@@ -3820,6 +3823,37 @@ wWinMain ( _In_     HINSTANCE hInstance,
       ImGui::SetCursorPos (prevCursorPos);
 
       ImGui::Dummy (ImVec2 (0, 0)); // Dummy required here to solve ImGui::ErrorCheckUsingSetCursorPosToExtendParentBoundaries()
+
+#pragma endregion
+
+#pragma region CaptionArea
+
+      // The empty space between the last tab (About) and the first window button (the area Shelly moves around within)
+      //   acts as a title bar: double-clicking it maximizes the window, or restores it if it is already maximized.
+      //     Not in mini mode (maximizing would switch it to the regular mode) or while a popup is opened.
+      SKIF_ImGui_CaptionArea = ImRect ( );
+
+      if (! _registry.bMiniMode && ! SKIF_ImGui_IsAnyPopupOpen ( ))
+      {
+        const ImVec2 vMainWindowPos = ImGui::GetWindowPos ( );
+        const ImRect captionArea (
+          vMainWindowPos + ImVec2 (fTabBarRightEdge, 0.0f),
+          vMainWindowPos + ImVec2 (window_btn_pos.x, ImMax (fTabBarBottomEdge, window_btn_pos.y + window_btn_size.y))
+        );
+
+        if (captionArea.GetWidth ( ) > 0.0f && captionArea.GetHeight ( ) > 0.0f)
+          SKIF_ImGui_CaptionArea = captionArea;
+      }
+
+      // When the OS handles drag-moving the window (SKIF_ImGui_CanMouseDragMove), the area is HTCAPTION and the double-click arrives
+      //   as WM_NCLBUTTONDBLCLK instead, which DefWindowProc ( ) acts on (see ImGui_ImplWin32_WndProcHandler_PlatformWindow).
+      //     Otherwise (e.g. touch input) ImGui sees the clicks, so act on them here the same way the OS does.
+      if (SKIF_ImGui_CaptionArea.GetWidth ( ) > 0.0f &&
+          ImGui::IsMouseDoubleClicked (ImGuiMouseButton_Left) &&
+          ImGui::IsMouseHoveringRect  (SKIF_ImGui_CaptionArea.Min, SKIF_ImGui_CaptionArea.Max, false) &&
+          ImGui::IsWindowHovered      ( ) &&
+        ! ImGui::IsAnyItemHovered     ( ))
+        PostMessage (SKIF_ImGui_hWnd, WM_SYSCOMMAND, (IsZoomed (SKIF_ImGui_hWnd)) ? SC_RESTORE : SC_MAXIMIZE, 0);
 
 #pragma endregion
 
