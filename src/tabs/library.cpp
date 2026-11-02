@@ -1478,13 +1478,15 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Show a loading label if the data is currently being processed
       if (pApp->loading)
         ImGui::TextDisabled ("%s", _("Loading..."));
-      else if (pApp->id == SKIF_STEAM_APPID)
-        DrawSpecialKContextMenu (pApp);
       else
       {
-        DrawGameContextMenu     (pApp);
+        if (pApp->id == SKIF_STEAM_APPID)
+          DrawSpecialKContextMenu (pApp);
+        else
+          DrawGameContextMenu     (pApp);
 
-        // The grid view has no cover panel (and its menu): its cover actions are here
+        // The grid view has no cover panel (and its menu): its cover actions are here. Also for Special K, whose
+        //   custom cover is shown behind its logo
         if (IsLibraryGridView ( ) && ! pApp->loading)
         {
           ImGui::Separator ( );

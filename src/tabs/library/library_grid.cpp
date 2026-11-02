@@ -291,45 +291,39 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
       }
     }
 
-    // The cover (Special K: its logo), or a placeholder with the title while there is none
+    // The cover, or a placeholder with the title while there is none. Special K: its logo, drawn over its custom cover
+    //   (if the user has set one) as in the cover panel
     const ImVec2 minCover = posTile + ImVec2 (inset, inset);
     const ImVec2 maxCover = minCover + sizeCover;
 
-    ID3D11ShaderResourceView* srv   = nullptr;
-    ImVec2                    res   = ImVec2 (0, 0);
-    float                     alpha = ImGui::GetStyle ( ).Alpha;
+    ID3D11ShaderResourceView* srv     = nullptr;
+    ImVec2                    res     = ImVec2 (0, 0);
+    float                     alpha   = ImGui::GetStyle ( ).Alpha;
+    ID3D11ShaderResourceView* srvLogo = (isSK) ? _games.GetSKLogoTexture (false) : nullptr;
 
-    if (isSK)
+    // Special K has no cover of its own, so its thumbnail is only ever its custom cover
+    _art.RequestThumbnail (rec);
+
+    if (rec->tex_thumb.texture.p != nullptr)
     {
-      srv = _games.GetSKLogoTexture (false);
-      res = ImVec2 (600.0f, 900.0f);
-    }
+      srv = rec->tex_thumb.texture.p;
+      res = ImVec2 (rec->tex_thumb.width, rec->tex_thumb.height);
 
-    else
-    {
-      _art.RequestThumbnail (rec);
-
-      if (rec->tex_thumb.texture.p != nullptr)
+      // Fade in once loaded (as the cover does)
+      if (_registry.bFadeCovers && rec->tex_thumb.loadedAt != 0)
       {
-        srv = rec->tex_thumb.texture.p;
-        res = ImVec2 (rec->tex_thumb.width, rec->tex_thumb.height);
+        float fade = static_cast <float> (now - rec->tex_thumb.loadedAt) / 250.0f;
 
-        // Fade in once loaded (as the cover does)
-        if (_registry.bFadeCovers && rec->tex_thumb.loadedAt != 0)
+        if (fade < 1.0f)
         {
-          float fade = static_cast <float> (now - rec->tex_thumb.loadedAt) / 250.0f;
-
-          if (fade < 1.0f)
-          {
-            alpha          *= fade;
-            coverFadeActive = true; // Keeps the frames coming
-          }
+          alpha          *= fade;
+          coverFadeActive = true; // Keeps the frames coming
         }
       }
     }
 
-    // The placeholder: also shown beneath a cover that fades in
-    if (srv == nullptr || alpha < ImGui::GetStyle ( ).Alpha)
+    // The placeholder: also shown beneath a cover that fades in. Not for Special K, which always has its logo
+    if (srvLogo == nullptr && (srv == nullptr || alpha < ImGui::GetStyle ( ).Alpha))
     {
       draw_list->AddRectFilled (minCover, maxCover, ImGui::GetColorU32 (ImGuiCol_FrameBg), rounding);
 
@@ -347,6 +341,10 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
 
     if (srv != nullptr)
       _DrawCover (srv, res, minCover, maxCover, alpha);
+
+    // Special K's logo, over its custom cover (not faded with it)
+    if (srvLogo != nullptr)
+      _DrawCover (srvLogo, ImVec2 (600.0f, 900.0f), minCover, maxCover, ImGui::GetStyle ( ).Alpha);
 
     // The selected game: an accent border around the cover, and a faint light line just inside its edge (a "glow")
     if (selected)

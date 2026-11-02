@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-02 16:53+0100\n"
+"POT-Creation-Date: 2026-11-02 17:06+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1218,55 +1218,55 @@ msgstr ""
 msgid "Loading..."
 msgstr ""
 
-#: src/tabs/library.cpp:1492
+#: src/tabs/library.cpp:1494
 msgid "Cover"
 msgstr ""
 
-#: src/tabs/library.cpp:1505
+#: src/tabs/library.cpp:1507
 #: src/tabs/library/library_menus.cpp:1626
 #: src/tabs/library/library_menus.cpp:1784
 msgid "Open SteamGridDB"
 msgstr ""
 
-#: src/tabs/library.cpp:1669
+#: src/tabs/library.cpp:1671
 msgid "New 32-bit DLL Installed"
 msgstr ""
 
-#: src/tabs/library.cpp:1670
+#: src/tabs/library.cpp:1672
 msgid "New 64-bit DLL Installed"
 msgstr ""
 
-#: src/tabs/library.cpp:1789
-#: src/tabs/library.cpp:1897
+#: src/tabs/library.cpp:1791
+#: src/tabs/library.cpp:1899
 msgid "Missing Files"
 msgstr ""
 
-#: src/tabs/library.cpp:1790
-#: src/tabs/library.cpp:1898
+#: src/tabs/library.cpp:1792
+#: src/tabs/library.cpp:1900
 msgid "Unable to extract Special K DLL files from the provided {0} file."
 msgstr ""
 
-#: src/tabs/library.cpp:1936
+#: src/tabs/library.cpp:1938
 msgid "Unsupported Feature"
 msgstr ""
 
-#: src/tabs/library.cpp:1937
+#: src/tabs/library.cpp:1939
 msgid "SKIF cannot perform a drag-n-drop update because Special K {0} or newer is required."
 msgstr ""
 
-#: src/tabs/library.cpp:1952
+#: src/tabs/library.cpp:1954
 msgid "Unsupported file format"
 msgstr ""
 
-#: src/tabs/library.cpp:1954
+#: src/tabs/library.cpp:1956
 msgid "Add a game to the library:"
 msgstr ""
 
-#: src/tabs/library.cpp:1960
+#: src/tabs/library.cpp:1962
 msgid "Update the cover for the current selected game:"
 msgstr ""
 
-#: src/tabs/library.cpp:1971
+#: src/tabs/library.cpp:1973
 msgid "Note that the app has no support for animated images."
 msgstr ""
 
