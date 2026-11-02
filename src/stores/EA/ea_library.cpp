@@ -225,12 +225,48 @@ namespace
 #endif
   }
 
+  // What SKIF_EA_GetUninstallEntries read from the Uninstall key, kept in memory and in Assets\Cache\ea-uninstall.json:
+  //   per registry view, every subkey's last write time, and for the EA ones what was read from them. A subkey whose last
+  //     write time is unchanged is not opened again (its values cannot have changed), so a scan only reads the subkeys that
+  //       are new or changed, instead of all of them (hundreds, to find a few EA games). The times come with the
+  //         enumeration itself (RegEnumKeyExW).
+  //   { "version": 1, "views": { "32": { "<subkey>": [ time ] or [ time, InstallLocation, DisplayName, DisplayIcon, installer ] },
+  //                              "64": { ... } } }
+  struct ea_uninstall_cache_s {
+    std::mutex     mutex;              // The library worker and the change check (main thread) both read the key
+    nlohmann::json views  = nullptr;   // As saved
+    bool           loaded = false;
+  };
+
+  constexpr int EA_UNINSTALL_CACHE_VERSION = 1;
+
   // All uninstall entries whose UninstallString runs a tool in Common Files\EAInstaller\, from both registry views
   std::vector <ea_uninstall_entry_s>
   SKIF_EA_GetUninstallEntries (void)
   {
+    static ea_uninstall_cache_s cache;
+
+    std::scoped_lock lock (cache.mutex);
+
+    DWORD dwStart = SKIF_Util_timeGetTime1 ( );
+
+    if (! cache.loaded)
+    {
+      nlohmann::json saved = SKIF_Library_ReadCache (L"ea-uninstall.json");
+
+      if (saved.is_object ( ) && saved.value ("version", 0) == EA_UNINSTALL_CACHE_VERSION && saved.contains ("views") && saved ["views"].is_object ( ))
+        cache.views = std::move (saved ["views"]);
+      else
+        cache.views = nlohmann::json::object ( );
+
+      cache.loaded = true;
+    }
+
     std::vector <ea_uninstall_entry_s> entries;
     std::set    <std::wstring>         seen; // Lower-cased install folders
+    nlohmann::json                     views = nlohmann::json::object ( );
+    int                                subkeys = 0,
+                                       read    = 0; // Subkeys opened (new or changed)
 
     for (REGSAM view : { KEY_WOW64_32KEY, KEY_WOW64_64KEY })
     {
@@ -239,12 +275,17 @@ namespace
       if (RegOpenKeyExW (HKEY_LOCAL_MACHINE, UNINSTALL_KEY, 0, KEY_READ | view, &hKey) != ERROR_SUCCESS)
         continue;
 
+      const char*           viewName = (view == KEY_WOW64_32KEY) ? "32" : "64";
+      const nlohmann::json* saved    = (cache.views.contains (viewName) && cache.views [viewName].is_object ( )) ? &cache.views [viewName] : nullptr;
+      nlohmann::json&       current  = views [viewName] = nlohmann::json::object ( );
+
       wchar_t szSubKey [256] = { };
 
       for (DWORD dwIndex = 0; ; dwIndex++)
       {
-        DWORD   dwSize = _countof (szSubKey);
-        LSTATUS ls     = RegEnumKeyExW (hKey, dwIndex, szSubKey, &dwSize, NULL, NULL, NULL, NULL);
+        DWORD    dwSize      = _countof (szSubKey);
+        FILETIME ftLastWrite = { };
+        LSTATUS  ls          = RegEnumKeyExW (hKey, dwIndex, szSubKey, &dwSize, NULL, NULL, NULL, &ftLastWrite);
 
         if (ls == ERROR_NO_MORE_ITEMS)
           break;
@@ -252,21 +293,70 @@ namespace
         if (ls != ERROR_SUCCESS)
           continue;
 
-        std::wstring uninstall = SKIF_EA_GetRegString (hKey, szSubKey, L"UninstallString");
-        const wchar_t* pos     = StrStrIW (uninstall.c_str ( ), EA_INSTALLER);
+        subkeys++;
 
-        if (pos == nullptr)
-          continue;
+        const uint64_t    time   = (static_cast <uint64_t> (ftLastWrite.dwHighDateTime) << 32) | ftLastWrite.dwLowDateTime;
+        const std::string name   = SK_WideCharToUTF8 (szSubKey);
+        bool              cached = false,
+                          isEA   = false;
 
         ea_uninstall_entry_s entry;
-        entry.key          = szSubKey;
-        entry.install_dir  = SKIF_EA_NormalizePath (SKIF_EA_GetRegString (hKey, szSubKey, L"InstallLocation"));
-        entry.display_name = SKIF_EA_GetRegString (hKey, szSubKey, L"DisplayName");
-        entry.display_icon = SKIF_EA_GetRegString (hKey, szSubKey, L"DisplayIcon");
+        entry.key = szSubKey;
 
-        // "...\EAInstaller\Reckoning\Cleanup.exe" -> Reckoning
-        std::wstring installer = pos + wcslen (EA_INSTALLER);
-        entry.installer        = installer.substr (0, installer.find (L'\\'));
+        // Unchanged since it was last read: what was read then
+        if (saved != nullptr)
+        {
+          auto it = saved->find (name);
+
+          if (it != saved->end ( ) && it->is_array ( ) && ! it->empty ( ) && (*it) [0].is_number_unsigned ( ) && (*it) [0].get <uint64_t> ( ) == time)
+          {
+            if (it->size ( ) == 1)
+              cached = true;
+
+            else if (it->size ( ) == 5 && (*it) [1].is_string ( ) && (*it) [2].is_string ( ) && (*it) [3].is_string ( ) && (*it) [4].is_string ( ))
+            {
+              entry.install_dir  = SK_UTF8ToWideChar ((*it) [1].get <std::string> ( ));
+              entry.display_name = SK_UTF8ToWideChar ((*it) [2].get <std::string> ( ));
+              entry.display_icon = SK_UTF8ToWideChar ((*it) [3].get <std::string> ( ));
+              entry.installer    = SK_UTF8ToWideChar ((*it) [4].get <std::string> ( ));
+              cached             = true;
+              isEA               = true;
+            }
+
+            if (cached)
+              current [name] = *it;
+          }
+        }
+
+        // New or changed: read it
+        if (! cached)
+        {
+          read++;
+
+          std::wstring uninstall = SKIF_EA_GetRegString (hKey, szSubKey, L"UninstallString");
+          const wchar_t* pos     = StrStrIW (uninstall.c_str ( ), EA_INSTALLER);
+
+          if (pos != nullptr)
+          {
+            isEA               = true;
+            entry.install_dir  = SKIF_EA_NormalizePath (SKIF_EA_GetRegString (hKey, szSubKey, L"InstallLocation"));
+            entry.display_name = SKIF_EA_GetRegString (hKey, szSubKey, L"DisplayName");
+            entry.display_icon = SKIF_EA_GetRegString (hKey, szSubKey, L"DisplayIcon");
+
+            // "...\EAInstaller\Reckoning\Cleanup.exe" -> Reckoning
+            std::wstring installer = pos + wcslen (EA_INSTALLER);
+            entry.installer        = installer.substr (0, installer.find (L'\\'));
+
+            current [name] = nlohmann::json::array ({ time, SK_WideCharToUTF8 (entry.install_dir), SK_WideCharToUTF8 (entry.display_name),
+                                                            SK_WideCharToUTF8 (entry.display_icon), SK_WideCharToUTF8 (entry.installer) });
+          }
+
+          else
+            current [name] = nlohmann::json::array ({ time });
+        }
+
+        if (! isEA)
+          continue;
 
         if (entry.install_dir.empty ( ))
         {
@@ -280,6 +370,20 @@ namespace
 
       RegCloseKey (hKey);
     }
+
+    // Saved when anything was added, changed or removed
+    if (views != cache.views)
+    {
+      cache.views = std::move (views);
+
+      SKIF_Library_WriteCache (L"ea-uninstall.json", {
+        { "version", EA_UNINSTALL_CACHE_VERSION },
+        { "views",   cache.views                }
+      });
+    }
+
+    PLOG_VERBOSE << "Read " << entries.size ( ) << " EA uninstall entries from " << subkeys << " Uninstall subkeys (" << read
+                 << " of them new or changed) in " << (SKIF_Util_timeGetTime1 ( ) - dwStart) << " ms.";
 
     return entries;
   }
