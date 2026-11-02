@@ -28,6 +28,29 @@
 // Last, as it defines short macros such as _ ( )
 #include <utility/l10n.h>
 
+// The platform badge of a store's games in the grid view: the store's logo where Font Awesome (Brands) has one, else its
+//   name. nullptr: none (SKIF custom games have no store)
+static const char*
+GetPlatformBadge (app_record_s::Store store)
+{
+  using Store = app_record_s::Store;
+
+  switch (store)
+  {
+    case Store::Steam:   return ICON_FA_STEAM;
+    case Store::Xbox:    return ICON_FA_XBOX;
+    case Store::itch:    return ICON_FA_ITCH_IO;
+
+    // No logo in Font Awesome
+    case Store::GOG:     return "GOG";
+    case Store::Epic:    return "Epic";
+    case Store::EA:      return "EA";
+    case Store::Ubisoft: return "Ubisoft";
+
+    default:             return nullptr;
+  }
+}
+
 // The grid view (IsLibraryGridView): the games as a grid of covers, by category like the games list.
 //   It takes the place of the selected game's cover (size: the cover's area); the filter row, the games list and the
 //   details stay beside it, and the list stays in charge of type-to-search and of keeping the selection in view after a
@@ -135,16 +158,21 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
                                 ImGui::ColorConvertFloat4ToU32 (ImVec4 (1.0f, 1.0f, 1.0f, alpha)), rounding); // alpha includes the style's
   };
 
-  // A small icon in a corner of the cover, on a dark background so it shows on any cover
+  // A small icon in a corner of the cover, on a dark background so it shows on any cover. Faded with the tile (the
+  //   style's alpha). Returns its size
   auto _DrawBadge = [&](const char* icon, ImVec2 pos, ImU32 color)
   {
-    ImVec2 size = ImGui::CalcTextSize (icon);
-    float  pad  = ImFloor (3.0f * dpi);
+    ImVec2 size  = ImGui::CalcTextSize (icon);
+    float  pad   = ImFloor (3.0f * dpi);
+    float  alpha = ImGui::GetStyle ( ).Alpha;
 
-    draw_list->AddRectFilled (pos, pos + size + ImVec2 (pad, pad) * 2.0f, IM_COL32 (0, 0, 0, 170), ImFloor (3.0f * dpi));
-    draw_list->AddText       (pos + ImVec2 (pad, pad), color, icon);
+    ImVec4 colText = ImGui::ColorConvertU32ToFloat4 (color);
+    colText.w *= alpha;
 
-    return size.x + pad * 2.0f;
+    draw_list->AddRectFilled (pos, pos + size + ImVec2 (pad, pad) * 2.0f, IM_COL32 (0, 0, 0, static_cast <int> (170 * alpha)), ImFloor (3.0f * dpi));
+    draw_list->AddText       (pos + ImVec2 (pad, pad), ImGui::ColorConvertFloat4ToU32 (colText), icon);
+
+    return size + ImVec2 (pad, pad) * 2.0f;
   };
 
   // One tile
@@ -350,6 +378,21 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
       _DrawBadge (icon, ImVec2 (maxCover.x - badgeInset - width, minCover.y + badgeInset), color);
     }
 
+    // The platform (top left): the store's logo, or its name where there is no logo. Not for Special K (its own logo is
+    //   the cover) or custom games (no store)
+    bool platformHovered = false;
+
+    if (_registry.bLibraryGridPlatform && ! isSK)
+    {
+      if (const char* badge = GetPlatformBadge (rec->store))
+      {
+        const ImVec2 posBadge  = ImVec2 (minCover.x + badgeInset, minCover.y + badgeInset);
+        const ImVec2 sizeBadge = _DrawBadge (badge, posBadge, IM_COL32 (255, 255, 255, 235));
+
+        platformHovered = (hovered && ImGui::IsMouseHoveringRect (posBadge, posBadge + sizeBadge));
+      }
+    }
+
     // The title beneath the cover, shortened with an ellipsis (as the list colors it: updating, running)
     bool titleCut = false;
 
@@ -374,8 +417,11 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
       ImGui::PopStyleColor ( );
     }
 
-    // The full title in a tooltip, when it is not shown in full
-    if (hovered && (! _registry.bLibraryGridTitles || titleCut))
+    // The platform's name over its badge, else the full title in a tooltip, when it is not shown in full
+    if (platformHovered && ! rec->store_utf8.empty ( ))
+      SKIF_ImGui_SetHoverTip (rec->store_utf8);
+
+    else if (hovered && (! _registry.bLibraryGridTitles || titleCut))
       SKIF_ImGui_SetHoverTip (rec->names.normal);
 
     if (_registry.bFadeCovers)

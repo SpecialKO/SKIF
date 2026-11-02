@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-01 22:33+0100\n"
+"POT-Creation-Date: 2026-11-02 15:54+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1185,69 +1185,73 @@ msgstr ""
 msgid "Show titles"
 msgstr ""
 
+#: src/tabs/library.cpp:294
+msgid "Show platform"
+msgstr ""
+
 #. TRANSLATORS: {0} is the width of the covers in the library's grid view (in pixels at 100% scale)
-#: src/tabs/library.cpp:295
+#: src/tabs/library.cpp:299
 msgid "Cover size: {0}"
 msgstr ""
 
-#: src/tabs/library.cpp:305
+#: src/tabs/library.cpp:309
 msgid "Show icons"
 msgstr ""
 
-#: src/tabs/library.cpp:1476
+#: src/tabs/library.cpp:1480
 #: src/tabs/library/library_details.cpp:498
 msgid "Loading..."
 msgstr ""
 
-#: src/tabs/library.cpp:1488
+#: src/tabs/library.cpp:1492
 msgid "Cover"
 msgstr ""
 
-#: src/tabs/library.cpp:1501
+#: src/tabs/library.cpp:1505
 #: src/tabs/library/library_menus.cpp:1626
 #: src/tabs/library/library_menus.cpp:1784
 msgid "Open SteamGridDB"
 msgstr ""
 
-#: src/tabs/library.cpp:1665
+#: src/tabs/library.cpp:1669
 msgid "New 32-bit DLL Installed"
 msgstr ""
 
-#: src/tabs/library.cpp:1666
+#: src/tabs/library.cpp:1670
 msgid "New 64-bit DLL Installed"
 msgstr ""
 
-#: src/tabs/library.cpp:1785
-#: src/tabs/library.cpp:1893
+#: src/tabs/library.cpp:1789
+#: src/tabs/library.cpp:1897
 msgid "Missing Files"
 msgstr ""
 
-#: src/tabs/library.cpp:1786
-#: src/tabs/library.cpp:1894
+#: src/tabs/library.cpp:1790
+#: src/tabs/library.cpp:1898
 msgid "Unable to extract Special K DLL files from the provided {0} file."
 msgstr ""
 
-#: src/tabs/library.cpp:1932
+#: src/tabs/library.cpp:1936
 msgid "Unsupported Feature"
 msgstr ""
 
-#: src/tabs/library.cpp:1933
+#: src/tabs/library.cpp:1937
 msgid "SKIF cannot perform a drag-n-drop update because Special K {0} or newer is required."
 msgstr ""
 
-#: src/tabs/library.cpp:1948
+#: src/tabs/library.cpp:1952
 msgid "Unsupported file format"
 msgstr ""
 
-#: src/tabs/library.cpp:1950
+#: src/tabs/library.cpp:1954
 msgid "Add a game to the library:"
 msgstr ""
 
-#: src/tabs/library.cpp:1956
+#: src/tabs/library.cpp:1960
 msgid "Update the cover for the current selected game:"
 msgstr ""
 
-#: src/tabs/library.cpp:1967
+#: src/tabs/library.cpp:1971
 msgid "Note that the app has no support for animated images."
 msgstr ""
 
@@ -1393,7 +1397,7 @@ msgstr ""
 msgid "Unknown"
 msgstr ""
 
-#: src/tabs/library/library_grid.cpp:104
+#: src/tabs/library/library_grid.cpp:127
 #: src/tabs/library/library_list.cpp:289
 msgid "Loading games..."
 msgstr ""

@@ -41,13 +41,13 @@ static bool           SKIF_ImGui_ExtFontWanted [SKIF_ImGui_ExtFont_COUNT] = { };
 
 // The Unicode blocks of the extended character sets (pairs of inclusive ranges): used both to pick the font to add for a
 //   missing character, and to keep each regional font to its own script (ImFontConfig::GlyphExcludeRanges)
-#define SKIF_IMGUI_GLYPHS_HANGUL                                                                          \
+#define SKIF_IMGUI_GLYPHS_HANGUL                                                                         \
   0x1100, 0x11FF, /* Hangul Jamo                                                                     */  \
   0x3130, 0x318F, /* Hangul Compatibility Jamo                                                       */  \
   0xA960, 0xA97F, /* Hangul Jamo Extended-A                                                          */  \
   0xAC00, 0xD7FF, /* Hangul Syllables, Hangul Jamo Extended-B                                        */  \
   0xFFA0, 0xFFDC  /* Halfwidth Hangul                                                                */
-#define SKIF_IMGUI_GLYPHS_CJK                                                                             \
+#define SKIF_IMGUI_GLYPHS_CJK                                                                            \
   0x2E80, 0x2FDF, /* CJK Radicals Supplement, Kangxi Radicals                                        */  \
   0x3000, 0x30FF, /* CJK Symbols and Punctuation, Hiragana, Katakana                                 */  \
   0x3190, 0x31FF, /* Kanbun, Bopomofo Extended, CJK Strokes, Katakana Phonetic Extensions            */  \

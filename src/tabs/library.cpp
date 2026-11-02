@@ -270,7 +270,7 @@ IsLibraryGridView (void)
   return (_registry.iLibraryView == 1);
 }
 
-// The view options of the Filter menu (the empty space menu): Grid view, Show titles and Cover size (grid view), then
+// The view options of the Filter menu (the empty space menu): Grid view, Show titles, Show platform and Cover size (grid view), then
 //   Show icons and Large icons (the list, shown in both views)
 void
 ShowLibraryViewToggles (void)
@@ -289,6 +289,10 @@ ShowLibraryViewToggles (void)
   {
     if (SKIF_ImGui_MenuItemEx2 (L_("Show titles"), ICON_FA_HEADING, ImColor(255, 207, 72), spaces, &_registry.bLibraryGridTitles))
       _registry.regKVLibraryGridTitles.putData (_registry.bLibraryGridTitles);
+
+    // The store's logo (or name) in a corner of each cover
+    if (SKIF_ImGui_MenuItemEx2 (L_("Show platform"), ICON_FA_STORE, ImColor(255, 207, 72), spaces, &_registry.bLibraryGridPlatform))
+      _registry.regKVLibraryGridPlatform.putData (_registry.bLibraryGridPlatform);
 
     // The size of the covers: the grid follows while dragging, and the registry is written once released
     // TRANSLATORS: {0} is the width of the covers in the library's grid view (in pixels at 100% scale)

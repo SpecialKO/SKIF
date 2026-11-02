@@ -283,6 +283,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Library Grid Titles)" );
 
+  KeyValue <bool> regKVLibraryGridPlatform =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Library Grid Platform)" );
+
   KeyValue <int> regKVLibraryGridSize =
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Library Grid Size)" );
@@ -682,6 +686,7 @@ struct SKIF_RegistrySettings {
   bool bUIStatusBar             =  true;
   bool bUILargeIcons            = false; // 32x32 icons instead of 24x24
   bool bLibraryGridTitles       =  true; // Titles beneath the covers in the library's grid view
+  bool bLibraryGridPlatform     =  true; // The platform (store) badge on the covers in the library's grid view
   bool bLibraryShowIcons        =  true; // The game icons in the library's games list
   bool bDPIScaling              =  true;
   bool bWin11Corners            =  true; // 2023-08-28: Enabled by default
