@@ -424,6 +424,8 @@ SKIF_LibraryArtwork::ApplyWorkerResults (void)
             {
               thumb->frames.emplace_back ( );
               thumb->frames.back ( ).Attach (result.frames [i].srv.Detach ( ));
+              thumb->frameUVs.push_back (ImVec4 (result.frames [i].uv0.x, result.frames [i].uv0.y,
+                                                 result.frames [i].uv1.x, result.frames [i].uv1.y));
 
               end += result.delays [i];
               thumb->frameEnds.push_back (end);
@@ -2039,6 +2041,7 @@ SKIF_LibraryArtwork::ReleaseAnimatedThumbnail (anim_thumb_s& thumb)
 
   thumb.frames   .clear ( );
   thumb.frameEnds.clear ( );
+  thumb.frameUVs .clear ( );
   thumb.duration     = 0;
   thumb.position     = 0; // Back to the still thumbnail
   thumb.playingSince = 0;
@@ -2239,7 +2242,7 @@ SKIF_LibraryArtwork::RequestAnimatedThumbnail (app_record_s* pApp, bool hovered)
 }
 
 ID3D11ShaderResourceView*
-SKIF_LibraryArtwork::GetAnimatedThumbnailFrame (app_key_s game, ImVec2* resolution) const
+SKIF_LibraryArtwork::GetAnimatedThumbnailFrame (app_key_s game, ImVec2* resolution, ImVec2* uv0, ImVec2* uv1) const
 {
   const anim_thumb_s* thumb = FindAnimatedThumbnail (game);
 
@@ -2260,6 +2263,14 @@ SKIF_LibraryArtwork::GetAnimatedThumbnailFrame (app_key_s game, ImVec2* resoluti
 
   if (resolution != nullptr)
     *resolution = thumb->resolution;
+
+  const ImVec4 uv = (index < thumb->frameUVs.size ( )) ? thumb->frameUVs [index] : ImVec4 (0.0f, 0.0f, 1.0f, 1.0f);
+
+  if (uv0 != nullptr)
+    *uv0 = ImVec2 (uv.x, uv.y);
+
+  if (uv1 != nullptr)
+    *uv1 = ImVec2 (uv.z, uv.w);
 
   return thumb->frames [index].p;
 }

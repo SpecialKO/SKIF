@@ -1246,7 +1246,104 @@ LoadAnimatedLibraryThumbnail (const std::wstring&                source,
     return false;
   }
 
-  if (createTextures)
+  // The grid view's: the frames side by side in a few textures (pages), at their full size only (they are drawn at the size
+  //   they were made for, and smaller mips would mix neighboring frames). A texture of its own each takes much more video
+  //     memory than its data: drivers place textures in pages of video memory (typically 64 KB), so a 240x360 BC1 frame
+  //       (about 57 KB with its mips) takes 128 KB. Each frame's texture is its page's (shared), uv0 / uv1 its cell.
+  const bool atlas = (! thumb.fullSize && DirectX::IsCompressed (meta.format) && meta.width % 4 == 0 && meta.height % 4 == 0 &&
+                      meta.width <= 4096 && meta.height <= 4096);
+
+  if (createTextures && atlas)
+  {
+    constexpr size_t maxSide = 4096;
+
+    const size_t width   = meta.width,
+                 height  = meta.height,
+                 count   = meta.arraySize,
+                 cols    = std::clamp (maxSide / width,  size_t (1), count),
+                 perPage = cols * std::max (maxSide / height, size_t (1));
+
+    size_t atlasBytes = 0;
+
+    frames.reserve (count);
+
+    for (size_t start = 0; start < count; start += perPage)
+    {
+      // No longer needed
+      if (thumb.wanted && ! thumb.wanted ( ))
+      {
+        frames.clear ( );
+        return false;
+      }
+
+      const size_t inPage    = std::min (perPage, count - start),
+                   pageCols  = std::min (cols, inPage),
+                   pageRows  = (inPage + pageCols - 1) / pageCols,
+                   pageWidth = pageCols * width,
+                   pageHeight= pageRows * height;
+
+      DirectX::ScratchImage page;
+
+      if (FAILED (page.Initialize2D (meta.format, pageWidth, pageHeight, 1, 1)))
+      {
+        frames.clear ( );
+        return false;
+      }
+
+      const DirectX::Image* dst = page.GetImage (0, 0, 0);
+      memset (dst->pixels, 0, dst->slicePitch); // The cells no frame uses (the last row)
+
+      // Each frame's blocks (4x4 pixels each) into its cell, a row of blocks at a time
+      for (size_t i = 0; i < inPage; i++)
+      {
+        const DirectX::Image* src = array.GetImage (0, start + i, 0);
+
+        if (src == nullptr)
+        {
+          frames.clear ( );
+          return false;
+        }
+
+        const size_t col = i % pageCols,
+                     row = i / pageCols;
+
+        for (size_t blockRow = 0; blockRow < height / 4; blockRow++)
+          memcpy (dst->pixels + (row * (height / 4) + blockRow) * dst->rowPitch + col * src->rowPitch,
+                  src->pixels +                        blockRow  * src->rowPitch, src->rowPitch);
+      }
+
+      DirectX::TexMetadata pageMeta = page.GetMetadata ( );
+      library_texture_s    texture;
+
+      if (! _CreateLibraryTextureFromImages (pageMeta, page.GetImages ( ), 1, texture))
+      {
+        frames.clear ( );
+        return false;
+      }
+
+      atlasBytes += page.GetPixelsSize ( );
+
+      // Each frame: the page (shared), and its cell. Inset by half a texel, so filtering never takes in a neighboring frame.
+      for (size_t i = 0; i < inPage; i++)
+      {
+        const float col = static_cast <float> (i % pageCols),
+                    row = static_cast <float> (i / pageCols);
+
+        library_texture_s frame;
+        frame.srv        = texture.srv; // Its own reference
+        frame.resolution = ImVec2 (static_cast <float> (width), static_cast <float> (height));
+        frame.uv0        = ImVec2 (( col         * width  + 0.5f) / pageWidth, ( row         * height + 0.5f) / pageHeight);
+        frame.uv1        = ImVec2 (((col + 1.0f) * width  - 0.5f) / pageWidth, ((row + 1.0f) * height - 0.5f) / pageHeight);
+
+        frames.push_back (std::move (frame));
+      }
+    }
+
+    // What they take: the pages
+    bytes = atlasBytes;
+  }
+
+  else if (createTextures)
   {
     DirectX::TexMetadata frameMeta = meta;
     frameMeta.arraySize = 1;
@@ -1276,7 +1373,7 @@ LoadAnimatedLibraryThumbnail (const std::wstring&                source,
   }
 
   DWORD post = SKIF_Util_timeGetTime1 ( );
-  PLOG_DEBUG << "[Image Processing] " << ((built) ? "Built" : "Loaded") << ((thumb.fullSize) ? " a compressed animated cover (" : " an animated thumbnail (") << delays.size ( ) << " frames, "
+  PLOG_DEBUG << "[Image Processing] " << ((built) ? "Built" : "Loaded") << ((thumb.fullSize) ? " a compressed animated cover (" : (createTextures && atlas) ? " an animated thumbnail, in shared textures (" : " an animated thumbnail (") << delays.size ( ) << " frames, "
              << meta.width << "x" << meta.height << ", " << (bytes / 1024) << " KB) in " << (post - pre) << " ms.";
 
   return true;

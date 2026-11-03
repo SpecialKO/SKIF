@@ -109,7 +109,8 @@ public:
   //               limit, a hovered tile plays as above (HoverAnimatedThumbnail).
   void RequestAnimatedThumbnail (app_record_s* pApp, bool hovered); // Its tile is drawn this frame (with its thumbnail)
   ID3D11ShaderResourceView*
-       GetAnimatedThumbnailFrame (app_key_s game, ImVec2* resolution) const; // Its frame to draw (playing, or paused), else nullptr
+       GetAnimatedThumbnailFrame (app_key_s game, ImVec2* resolution, ImVec2* uv0 = nullptr, ImVec2* uv1 = nullptr) const; // Its frame
+                                                     //   to draw (playing, or paused), else nullptr; uv0 / uv1: its part of the texture
   void OnAnimatedThumbnailMemoryChanged (void);      // Settings changed the limit
   bool AreCoverAnimationsAutomatic (void) const;     // Settings (iLibraryAnimatedCovers 1): custom animation behavior across SKIF
   bool AreCoverAnimationsAlways    (void) const;     // Settings (iLibraryAnimatedCovers 3): every animated cover in view plays, not only
@@ -278,6 +279,7 @@ private:
     std::vector <CComPtr <ID3D11ShaderResourceView>>
                             frames;
     std::vector <DWORD>     frameEnds;           // When each frame ends (ms into the animation)
+    std::vector <ImVec4>    frameUVs;            // Each frame's part of its texture (uv0, uv1): frames share a few textures
     DWORD                   duration     = 0;     // ms
     ImVec2                  resolution   = ImVec2 (0, 0);
     size_t                  bytes        = 0;     // What its frames take (known once loaded or built)

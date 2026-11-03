@@ -41,6 +41,9 @@ struct library_texture_s {
   ImVec2                             resolution = ImVec2 (0, 0);
   bool                               isCustom   = false; // The user's custom artwork (games only)
   bool                               isManaged  = false; // A file SKIF manages, so the menus can refresh / reset it (games only)
+  ImVec2                             uv0        = ImVec2 (0, 0); // The part of the texture that is the image: all of it, except for the
+  ImVec2                             uv1        = ImVec2 (1, 1); //   grid view's animated covers, whose frames share a few textures
+                                                         //   (LoadAnimatedLibraryThumbnail): then the frame's cell, inset by half a texel
   std::wstring                       animatedSource;     // Covers, thumbnails: the file it was loaded from, if that is animated (APNG, GIF, WebP);
                                                          //   it shows its first frame, and LoadAnimatedLibraryTexture loads the rest
 };

@@ -139,8 +139,10 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
 
   ImDrawList* draw_list = ImGui::GetWindowDrawList ( );
 
-  // The cover of a tile, in rect (min, max): cropped to fill it, as the thumbnails keep their aspect ratio
-  auto _DrawCover = [&](ID3D11ShaderResourceView* srv, ImVec2 res, ImVec2 min, ImVec2 max, float alpha)
+  // The cover of a tile, in rect (min, max): cropped to fill it, as the thumbnails keep their aspect ratio. region0 /
+  //   region1: the part of the texture that is the image (the frames of animated covers share a few textures)
+  auto _DrawCover = [&](ID3D11ShaderResourceView* srv, ImVec2 res, ImVec2 min, ImVec2 max, float alpha,
+                        ImVec2 region0 = ImVec2 (0.0f, 0.0f), ImVec2 region1 = ImVec2 (1.0f, 1.0f))
   {
     ImVec2 uv0 (0.0f, 0.0f),
            uv1 (1.0f, 1.0f);
@@ -162,6 +164,10 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
         uv0.y = crop; uv1.y = 1.0f - crop;
       }
     }
+
+    // Within the image's part of the texture
+    uv0 = region0 + uv0 * (region1 - region0);
+    uv1 = region0 + uv1 * (region1 - region0);
 
     draw_list->AddImageRounded ((ImTextureID)(intptr_t)srv, min, max, uv0, uv1,
                                 ImGui::ColorConvertFloat4ToU32 (ImVec4 (1.0f, 1.0f, 1.0f, alpha)), rounding); // alpha includes the style's
@@ -310,6 +316,8 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
 
     ID3D11ShaderResourceView* srv     = nullptr;
     ImVec2                    res     = ImVec2 (0, 0);
+    ImVec2                    region0 = ImVec2 (0, 0), // The part of srv that is the image (animated covers' frames share textures)
+                              region1 = ImVec2 (1, 1);
     float                     alpha   = ImGui::GetStyle ( ).Alpha;
     ID3D11ShaderResourceView* srvLogo = (isSK) ? _games.GetSKLogoTexture (false) : nullptr;
 
@@ -328,7 +336,7 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
 
       ImVec2 resFrame;
 
-      if (ID3D11ShaderResourceView* frame = _art.GetAnimatedThumbnailFrame (key, &resFrame); frame != nullptr)
+      if (ID3D11ShaderResourceView* frame = _art.GetAnimatedThumbnailFrame (key, &resFrame, &region0, &region1); frame != nullptr)
       {
         srv = frame;
         res = resFrame;
@@ -371,7 +379,7 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
     }
 
     if (srv != nullptr)
-      _DrawCover (srv, res, minCover, maxCover, alpha);
+      _DrawCover (srv, res, minCover, maxCover, alpha, region0, region1);
 
     // Special K's logo, over its custom cover (not faded with it)
     if (srvLogo != nullptr)
