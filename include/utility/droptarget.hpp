@@ -7,6 +7,65 @@
 #include <vector>
 #include <filesystem>
 #include <utility/sk_utility.h>
+#include <SKIF.h>
+#include <cwctype>
+#include <algorithm>
+
+// What is dragged over SKIF, for the UI (library.cpp): whether something is, where (screen coordinates), and whether it
+//   may be an image (the grid view highlights the tile whose cover it would change; library_grid.cpp)
+extern bool  dragOverActive;
+extern bool  dragOverImage;
+extern POINT dragOverPoint;
+
+// Sets where it is dragged (or that it no longer is), and wakes SKIF for a frame when that changed
+static void
+SKIF_DropTarget_SetDragOver (bool active, POINTL pt = { })
+{
+  const bool changed = (dragOverActive != active || (active && (dragOverPoint.x != pt.x || dragOverPoint.y != pt.y)));
+
+  dragOverActive = active;
+
+  if (active)
+    dragOverPoint = { pt.x, pt.y };
+
+  if (changed && SKIF_Notify_hWnd != NULL)
+    PostMessage (SKIF_Notify_hWnd, WM_SKIF_DRAGOVER, 0x0, 0x0);
+}
+
+// Whether what is dragged may be an image: not a file of another kind (a game to add, a Special K DLL or archive).
+//   Text is taken to be one (e.g. the URL of an image from a web browser).
+static bool
+SKIF_DropTarget_MayBeImage (IDataObject* pDataObj, FORMATETC* fmt)
+{
+  if (fmt->cfFormat != CF_HDROP)
+    return true;
+
+  STGMEDIUM medium = { };
+
+  if (FAILED (pDataObj->GetData (fmt, &medium)))
+    return true;
+
+  bool image = true;
+
+  if (HDROP hDrop = static_cast<HDROP> (GlobalLock (medium.hGlobal)); hDrop != nullptr)
+  {
+    wchar_t wszPath [MAX_PATH] = { };
+
+    if (DragQueryFileW (hDrop, 0, wszPath, MAX_PATH) > 0)
+    {
+      std::wstring ext = std::filesystem::path (wszPath).extension ( ).wstring ( );
+      std::transform (ext.begin ( ), ext.end ( ), ext.begin ( ), [](wchar_t c) { return static_cast<wchar_t> (std::towlower (c)); });
+
+      image = ! (ext == L".exe" || ext == L".lnk" || ext == L".bat" || ext == L".dll" || ext == L".zip");
+    }
+
+    GlobalUnlock (medium.hGlobal);
+  }
+
+  ReleaseStgMedium (&medium);
+
+  return image;
+}
 
 class DropTarget : public IDropTarget {
 public:
@@ -110,6 +169,9 @@ public:
               m_fmtDropping = &fmt;
               *pdwEffect    = DROPEFFECT_COPY;
 
+              dragOverImage = SKIF_DropTarget_MayBeImage (pDataObj, &fmt);
+              SKIF_DropTarget_SetDragOver (true, pt);
+
               if (m_pDropTargetHelper != nullptr)
                 m_pDropTargetHelper->DragEnter (m_hWnd, pDataObj, reinterpret_cast<LPPOINT>(&pt), *pdwEffect);
 
@@ -141,6 +203,8 @@ public:
     {
       *pdwEffect = DROPEFFECT_COPY;
 
+      SKIF_DropTarget_SetDragOver (true, pt);
+
       if (m_pDropTargetHelper != nullptr)
         m_pDropTargetHelper->DragOver (reinterpret_cast<LPPOINT>(&pt), *pdwEffect);
 
@@ -156,6 +220,8 @@ public:
     if (m_pDropTargetHelper != nullptr)
       m_pDropTargetHelper->DragLeave ( );
 
+    SKIF_DropTarget_SetDragOver (false);
+
     m_bAllowDrop  = false;
     m_fmtDropping = nullptr;
 
@@ -169,6 +235,9 @@ public:
     if (pdwEffect == NULL)
       return E_INVALIDARG;
 
+    // No longer dragged over
+    SKIF_DropTarget_SetDragOver (false);
+
     if (pDataObj == nullptr || m_fmtDropping == nullptr)
       return E_UNEXPECTED;
 
@@ -180,6 +249,8 @@ public:
         m_pDropTargetHelper->Drop (pDataObj, reinterpret_cast<LPPOINT>(&pt), *pdwEffect);
 
       extern std::wstring dragDroppedFilePath;
+      extern POINT        dragDroppedPoint; // Where it was dropped (screen coordinates): the grid view drops images on that tile's game
+      dragDroppedPoint = { pt.x, pt.y };
       STGMEDIUM medium;
 
       auto ReturnAndCleanUp = [&](void)

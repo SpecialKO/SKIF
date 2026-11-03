@@ -198,6 +198,8 @@ public:
     hint          = (! app.names.original.empty ( )) ? app.names.original : app.names.clean;
 
     favorite      = favoriteOrig = app.IsFavorite ( );
+    clientFavorite = (app.skif.pinned == -1 && app.GetClientFavorite ( ) == 1);
+    clientName     = app.store_utf8;
     hidden        = hiddenOrig   = app.IsHidden   ( );
     category      = categoryOrig = app.skif.category;
     newCategory [0] = '\0';
@@ -218,6 +220,10 @@ public:
     // Library
     SKIF_Properties_Label   (_("Library"));
     SKIF_ImGui_Checkbox         (L_("Favorited###PropsFavorite"), &favorite);
+
+    // A favorite only because the game is one in the store client (Steam), until it is changed here
+    if (clientFavorite)
+      SKIF_ImGui_SetHoverTip (SKIF_Lib_GetClientFavoriteTip (clientName));
     ImGui::SameLine         ( );
     ImGui::Spacing          ( );
     SKIF_ImGui_SameLineIfFits (SKIF_ImGui_CheckboxWidth (L_("Hidden###PropsHidden")));
@@ -315,10 +321,6 @@ public:
 
     if (favorite != favoriteOrig)
     {
-      // Pinned on top (51) counts against the limit of those
-      if (! favorite && app.skif.pinned > 50)
-        numPinnedOnTop--;
-
       app.skif.pinned = (favorite) ? 1 : 0;
       ret |= PropertiesApply_Resort | PropertiesApply_WriteMetaDB;
     }
@@ -342,6 +344,8 @@ private:
   std::string hint;
   bool        favorite     = false,
               favoriteOrig = false;
+  bool        clientFavorite = false; // Favorited in the store client, and not set in Special K
+  std::string clientName;             // The store client
   bool        hidden       = false,
               hiddenOrig   = false;
   std::string category,
@@ -671,6 +675,7 @@ public:
         svc.path           = lc.getExecutableFullPath ( );
         svc.blocked        = svc.blockedOrig  = lc.isBlacklisted ( );
         svc.elevated       = svc.elevatedOrig = lc.isElevated    ( );
+        svc.ignorePattern  = svc.ignorePatternOrig = lc.isIgnoringBlacklist ( );
         svc.blockedPattern = _inject._TestUserList (lc.getExecutableFullPathUTF8 ( ).c_str ( ), false);
 
         services.push_back (svc);
@@ -1028,7 +1033,11 @@ public:
       if (svc.blocked != svc.blockedOrig)
         lc.setBlacklisted (svc.blocked);
 
-      if (! svc.blocked && svc.elevated != svc.elevatedOrig)
+      if (svc.ignorePattern != svc.ignorePatternOrig)
+        lc.setIgnoreBlacklist (svc.ignorePattern);
+
+      // Its own setting (also for a blocked executable, should the service be used all the same)
+      if (svc.elevated != svc.elevatedOrig)
         lc.setElevated (svc.elevated);
     }
 
@@ -1082,6 +1091,8 @@ private:
     bool         elevated       = false,
                  elevatedOrig   = false;
     bool         blockedPattern = false; // Blocked through a blacklist pattern in the Settings tab
+    bool         ignorePattern  = false, // The service is used even if Special K is disabled for the executable (launch behaviors)
+                 ignorePatternOrig = false;
   };
 
   std::vector <service_s>            services;
@@ -1100,7 +1111,7 @@ private:
   bool _ServicesDirty (void) const
   {
     for (const auto& svc : services)
-      if (svc.blocked != svc.blockedOrig || (! svc.blocked && svc.elevated != svc.elevatedOrig))
+      if (svc.blocked != svc.blockedOrig || svc.ignorePattern != svc.ignorePatternOrig || svc.elevated != svc.elevatedOrig)
         return true;
 
     return false;
@@ -1148,10 +1159,26 @@ private:
     ImGui::Spacing  ( );
     ImGui::SameLine ( );
 
-    // A blocked executable does not use the service, so it cannot be elevated either
-    const bool elevateDisabled = (svc.blocked || svc.blockedPattern);
+    // Ignore blacklist: the service is used for the executable even if Special K is disabled for it (above, or through a
+    //   blacklist pattern of the Settings tab), also when SKIF is used as a launcher (SKIF %COMMAND%). Special K stays
+    //     disabled for the executable itself: meant for a launcher, so that the game it starts gets Special K.
+    SKIF_ImGui_PushDisableState (! blocked);
+    SKIF_ImGui_Checkbox   (L_("Ignore blacklist###PropsSvcIgnoreBlacklist"), &svc.ignorePattern);
+    SKIF_ImGui_PopDisableState  (! blocked);
 
-    bool elevated = (svc.elevated && ! elevateDisabled);
+    SKIF_ImGui_SetHoverTip (_("Starts the injection service even if Special K is disabled for this executable,\n"
+                              "here or through a blacklist pattern in the Settings tab.\n\n"
+                              "Special K remains disabled for the executable itself. This is meant for launchers:\n"
+                              "the game started by the launcher gets Special K.\n\n"
+                              "This also applies when SKIF is used as a launcher, e.g. SKIF %COMMAND%."), true, true);
+
+    ImGui::SameLine ( );
+    ImGui::Spacing  ( );
+    ImGui::SameLine ( );
+
+    const bool elevateDisabled = ((svc.blocked || svc.blockedPattern) && ! svc.ignorePattern);
+    // Shown as it is set (greyed out while it does not matter): blocking the executable keeps its elevation
+    bool elevated = svc.elevated;
 
     SKIF_ImGui_PushDisableState (elevateDisabled);
     if (SKIF_ImGui_Checkbox (L_("Elevated service###PropsSvcElevated"), &elevated) && ! elevateDisabled)

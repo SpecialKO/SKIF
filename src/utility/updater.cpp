@@ -1312,7 +1312,7 @@ DrawInputTextEx (SKIF_Updater::changelog_s* fmt, SKIF_Updater::WindowType type, 
                         (ImGuiInputTextFlags)ImGuiInputTextFlags_NoHorizontalScroll);
 
   // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
-  SKIF_ImGui_AutoScroll (true, SKIF_ImGuiAxis_Y);
+  SKIF_ImGui_AutoScroll (true, SKIF_ImGuiAxis_Y, "##AutoScrollChangelog");
 
   ImGui::EndChild       ( );
 }

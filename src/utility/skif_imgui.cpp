@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <fstream>
 #include <unordered_set>
+#include <unordered_map>
 #include <map>
 
 #include <utility/sk_utility.h>
@@ -23,7 +24,6 @@
 // Last, as it defines short macros such as _ ( )
 #include <utility/l10n.h>
 
-bool                  bAutoScrollActive;
 bool                  bScrollbarX;
 bool                  bScrollbarY;
 ImFont*               fontConsolas = nullptr;
@@ -41,13 +41,13 @@ static bool           SKIF_ImGui_ExtFontWanted [SKIF_ImGui_ExtFont_COUNT] = { };
 
 // The Unicode blocks of the extended character sets (pairs of inclusive ranges): used both to pick the font to add for a
 //   missing character, and to keep each regional font to its own script (ImFontConfig::GlyphExcludeRanges)
-#define SKIF_IMGUI_GLYPHS_HANGUL                                                                          \
+#define SKIF_IMGUI_GLYPHS_HANGUL                                                                         \
   0x1100, 0x11FF, /* Hangul Jamo                                                                     */  \
   0x3130, 0x318F, /* Hangul Compatibility Jamo                                                       */  \
   0xA960, 0xA97F, /* Hangul Jamo Extended-A                                                          */  \
   0xAC00, 0xD7FF, /* Hangul Syllables, Hangul Jamo Extended-B                                        */  \
   0xFFA0, 0xFFDC  /* Halfwidth Hangul                                                                */
-#define SKIF_IMGUI_GLYPHS_CJK                                                                             \
+#define SKIF_IMGUI_GLYPHS_CJK                                                                            \
   0x2E80, 0x2FDF, /* CJK Radicals Supplement, Kangxi Radicals                                        */  \
   0x3000, 0x30FF, /* CJK Symbols and Punctuation, Hiragana, Katakana                                 */  \
   0x3190, 0x31FF, /* Kanbun, Bopomofo Extended, CJK Strokes, Katakana Phonetic Extensions            */  \
@@ -561,7 +561,7 @@ SKIF_ImGui_IsAnyInputDown (void)
     if (ImGui::IsKeyDown(key))
       return true;
 
-  if (bAutoScrollActive)
+  if (SKIF_ImGui_IsAutoScrollActive ( ))
     return true;
 
   return false;
@@ -2777,20 +2777,53 @@ SKIF_ImGui_CanMouseDragMove (void)
            PopupCategoryModify == PopupState_Opened);  // ..except for the category prompt, which is as well
 }
 
+struct AutoScroll
+{
+  struct State
+  {
+    ImVec2 position;
+    int    last_frame = -1;
+    bool   held       = false;
+  };
+
+  std::unordered_map <ImGuiID, State> states;
+  ImGuiID                             active_instance = 0;
+
+} g_autoScroll;
+
+bool
+SKIF_ImGui_IsAutoScrollActive (void)
+{
+  return (g_autoScroll.active_instance != 0);
+}
+
 // Based on https://github.com/ocornut/imgui/issues/3379#issuecomment-1678718752
-void
-SKIF_ImGui_TouchScrollWhenDragging (bool only_on_void, SKIF_ImGuiAxis axis)
+static void
+SKIF_ImGui_TouchScrollWhenDragging (bool only_on_void, SKIF_ImGuiAxis axis, const char* unique_id)
 {
   ImGuiContext& g = *ImGui::GetCurrentContext();
   ImGuiWindow* window = g.CurrentWindow;
-  bool hovered = false;
-  ImGuiID id = window->GetID("##scrolldraggingoverlay");
-  ImGui::KeepAliveID(id);
-  if (! only_on_void || g.HoveredId == 0) // If nothing hovered so far in the frame (not same as IsAnyItemHovered()!)
-    ImGui::ButtonBehavior(window->Rect(), id, &hovered, &bAutoScrollActive, ImGuiMouseButton_Left);
+  ImGuiID id = window->GetID (unique_id);
+  ImGui::KeepAliveID (id);
 
-  if (bAutoScrollActive)
+  const ImGuiID instance = ImHashData (&id, sizeof (id), window->ID);
+  AutoScroll::State& state = g_autoScroll.states [instance];
+  state.last_frame = ImGui::GetFrameCount ( );
+
+  bool hovered = false;
+  if (! only_on_void || g.HoveredId == 0) // If nothing hovered so far in the frame (not same as IsAnyItemHovered()!)
+    ImGui::ButtonBehavior (window->Rect(), id, &hovered, &state.held, ImGuiMouseButton_Left);
+
+  if (g_autoScroll.active_instance == instance && ! state.held)
   {
+    state.held = false;
+    g_autoScroll.active_instance = 0;
+  }
+
+  else if (state.held)
+  {
+    g_autoScroll.active_instance = instance;
+
     ImVec2 delta = ImGui::GetIO().MouseDelta;
 
     if ((axis & SKIF_ImGuiAxis_X) && delta.x != 0.0f) // Horizontal
@@ -2801,52 +2834,58 @@ SKIF_ImGui_TouchScrollWhenDragging (bool only_on_void, SKIF_ImGuiAxis axis)
   }
 }
 
-void
-SKIF_ImGui_MouseWheelScroll (SKIF_ImGuiAxis axis)
+static void
+SKIF_ImGui_MouseWheelScroll (SKIF_ImGuiAxis axis, const char* unique_id)
 {
-  ImGuiContext& g = *ImGui::GetCurrentContext();
+  ImGuiContext& g = *ImGui::GetCurrentContext ( );
   ImGuiWindow* window = g.CurrentWindow;
-  ImGuiID id = window->GetID("##scrollwheeloverlay");
-  ImGui::KeepAliveID(id);
+  ImGuiID id = window->GetID (unique_id);
+  ImGui::KeepAliveID (id);
 
-  static ImVec2 position;
-  static bool held = false;
-  static ImGuiID activeID = NULL;
+  const ImGuiID instance = ImHashData (&id, sizeof (id), window->ID);
+  AutoScroll::State& state = g_autoScroll.states [instance];
+  state.last_frame = ImGui::GetFrameCount ( );
 
-  if (activeID == id && bAutoScrollActive && ! SKIF_ImGui_IsViewportFocused (g.CurrentViewport))
+  if (g_autoScroll.active_instance == instance && ! SKIF_ImGui_IsViewportFocused (g.CurrentViewport))
   {
-    bAutoScrollActive = held = false;
-    activeID = NULL;
+    state.held = false;
+    g_autoScroll.active_instance = 0;
   }
 
   else if (SKIF_ImGui_IsViewportFocused (g.CurrentViewport))
   {
-    if (bAutoScrollActive &&
+    if (g_autoScroll.active_instance == instance &&
        (ImGui::GetKeyData (ImGuiKey_MouseLeft  )->DownDuration == 0.0f ||
         ImGui::GetKeyData (ImGuiKey_MouseMiddle)->DownDuration == 0.0f ||
         ImGui::GetKeyData (ImGuiKey_MouseRight )->DownDuration == 0.0f))
-      bAutoScrollActive = held = false;
+    {
+      state.held = false;
+      g_autoScroll.active_instance = 0;
+    }
 
-    else if (bAutoScrollActive && held &&
+    else if (g_autoScroll.active_instance == instance && state.held &&
         ImGui::GetKeyData (ImGuiKey_MouseMiddle)->DownDuration < 0.0f)
-      bAutoScrollActive = held = false;
+    {
+      state.held = false;
+      g_autoScroll.active_instance = 0;
+    }
 
-    else if (bAutoScrollActive &&
+    else if (g_autoScroll.active_instance == instance &&
         ImGui::GetKeyData (ImGuiKey_MouseMiddle)->DownDuration > 0.15f) // Special handling if mouse wheel is held down for longer than 150 ms
-      held = true;
+      state.held = true;
 
   //else if (! onVoid || g.HoveredId == 0) // If nothing hovered so far in the frame (not same as IsAnyItemHovered()!)
   //else if (ImGui::IsMousePosValid ( ) && ImGui::ButtonBehavior  (window->Rect(), id, &hovered, &held, ImGuiButtonFlags_AllowOverlap | ImGuiButtonFlags_MouseButtonMiddle | static_cast<ImGuiButtonFlags_> (ImGuiButtonFlags_PressedOnClick)))
-    else if (ImGui::IsMousePosValid ( ) && ImGui::GetKeyData (ImGuiKey_MouseMiddle)->DownDuration == 0.0f && ImGui::IsMouseHoveringRect (window->Rect().Min, window->Rect().Max) )
+    else if (g_autoScroll.active_instance == 0 && ImGui::IsMousePosValid ( ) && ImGui::GetKeyData (ImGuiKey_MouseMiddle)->DownDuration == 0.0f && ImGui::IsMouseHoveringRect (window->Rect().Min, window->Rect().Max) )
     {
-      bAutoScrollActive = true;
-      position = ImGui::GetMousePos ( );
-      activeID = id;
+      state.position = ImGui::GetMousePos ( );
+      state.held = false;
+      g_autoScroll.active_instance = instance;
     }
 
-    if (bAutoScrollActive && activeID == id && ImGui::IsMousePosValid ( ))
+    if (g_autoScroll.active_instance == instance && ImGui::IsMousePosValid ( ))
     {
-      ImVec2 delta = position - ImGui::GetMousePos ( );
+      ImVec2 delta = state.position - ImGui::GetMousePos ( );
 
       switch (axis)
       {
@@ -2878,21 +2917,47 @@ SKIF_ImGui_MouseWheelScroll (SKIF_ImGuiAxis axis)
 }
 
 void
-SKIF_ImGui_AutoScroll (bool touch_only_on_void, SKIF_ImGuiAxis axis)
+SKIF_ImGui_AutoScroll (bool touch_only_on_void, SKIF_ImGuiAxis axis, const char* unique_id)
 {
   if (axis == SKIF_ImGuiAxis_None)
     return;
+
+  // A scrollable window can disappear while another window is still being drawn. Do not leave its
+  // instance blocking a new auto-scroll drag indefinitely.
+  const int frame = ImGui::GetFrameCount ( );
+  static int
+      last_frame  = -1;
+  if (last_frame != frame)
+  {   last_frame  = frame;
+
+    if (g_autoScroll.active_instance != 0)
+    {
+      auto active = g_autoScroll.states.find (g_autoScroll.active_instance);
+      if (active == g_autoScroll.states.end ( ) || active->second.last_frame < frame - 1)
+      {
+        g_autoScroll.active_instance = 0;
+      }
+    }
+
+    for (auto it = g_autoScroll.states.begin ( ); it != g_autoScroll.states.end ( ); )
+    {
+      if (it->second.last_frame < frame - 1 && it->first != g_autoScroll.active_instance)
+        it = g_autoScroll.states.erase (it);
+      else
+        ++it;
+    }
+  }
 
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
 
   // This disables drag-move on the list of games and should only be enabled on touch devices
   // Allows drag-scrolling using the left mouse button
   if (_registry._TouchDevice)
-    SKIF_ImGui_TouchScrollWhenDragging (touch_only_on_void, axis);
+    SKIF_ImGui_TouchScrollWhenDragging (touch_only_on_void, axis, unique_id);
 
   // This allows mouse wheel scroll (aka autoscroll) in non-touch mode
   else
-    SKIF_ImGui_MouseWheelScroll (axis);
+    SKIF_ImGui_MouseWheelScroll (axis, unique_id);
 }
 
 #pragma region Centered Column
@@ -3256,7 +3321,7 @@ SKIF_ImGui_AprilFools_Process (void)
   DWORD now = SKIF_Util_timeGetTime ( );
 
   if (! SKIF_ImGui_IsFocused ( ))
-    dwStart += (now - dwLast);
+    dwStart += (now - dwLast) / 2; // Slow down the timer when the window is not focused
   dwLast = now;
 
   DWORD elapsed = now - dwStart;

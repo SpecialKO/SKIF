@@ -21,6 +21,7 @@ struct app_record_xbox_s : app_record_store_s <app_record_xbox_s, app_record_s::
     std::string  store_id                =  ""; // StoreId
     std::wstring directory_app           = L""; // AppDirectory; Holds the x:\WindowsApps\<package-full-name> path
     std::wstring directory_program_files = L""; // Program Files directory; Holds the C:\Program Files\WindowsApps\<package-full-name> path
+    std::wstring icon_source             = L""; // The package's own icon (Square44x44Logo), which SKIF copies to icon-original.png
   } xbox;
 
   // Library refresh (app_record.h)
@@ -71,6 +72,7 @@ struct app_record_xbox_s : app_record_store_s <app_record_xbox_s, app_record_s::
 
   // Artwork (xbox_library.cpp)
   std::wstring ResolveArtwork          (LibraryTexture type, const std::wstring& source, bool& isCustom, bool& isManaged) override;
+  void         PrepareIconSource       (void) override;
   std::wstring PrepareCoverSource      (bool queryPCGW) override;
   bool         DeleteStoreCoverFiles   (const std::wstring& assetDir) override;
   bool         WantsIGDBCover          (void) const override;

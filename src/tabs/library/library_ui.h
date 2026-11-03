@@ -161,7 +161,6 @@ extern std::atomic<bool>      modDownloading;
 extern std::atomic<bool>      modInstalling;
 extern std::atomic<uint32_t>  modAppId;
 extern bool                   bCategoryMgnt;
-extern int                    numRegular;
 extern float                  fAlphaList;
 
 // Fade-in of a label shown while something loads (the list's "Loading games...", the cover's "..."). It starts over
@@ -188,7 +187,6 @@ extern bool                   launchGame;        // Respects Instant Play prefer
 extern bool                   launchViaPlatform; // Explicitly through the platform client (Play with > platform): ignores the Instant Play setting
 extern bool                   launchInstant;
 extern bool                   launchWithoutSK;
-extern int                    numPinnedOnTop;
 extern PopupState             GameMenu;
 extern PopupState             EmptySpaceMenu;
 extern PopupState             ServiceMenu;
@@ -208,14 +206,33 @@ std::string GetEffectiveCategory (const app_record_s* app);
 bool SKIF_Lib_CategoryExists (const std::string& name);
 bool SKIF_Lib_AddCategory    (const std::string& name);  // Adds the category (sorted) and saves the list in the registry; false if empty or it already exists
 void ShowLargeIconToggle     (void);                 // Shared between the Icon menu and the Filter menu
+void ShowLibraryViewToggles  (void);                 // The Filter menu's view options: Grid view, then Show titles (grid) or Large icons (list)
+bool IsLibraryGridView       (void);                 // The grid view is chosen (Library View); the grid takes the cover's place
 void ClearCharFilter         (void);
+
+// library.cpp: images dropped on a game (its tile in the grid view, its row in the list, or the cover of the selected game)
+//   change its cover; dropped anywhere else they change nothing
+bool RegisterCoverDropTarget (ImVec2 min, ImVec2 max, app_key_s game); // Each frame it is drawn: where (screen coordinates; the part visible in
+                                                                       //   the current window is kept). True if an image is dragged over it.
+bool GetCoverDropTargetAt    (ImVec2 pos, app_key_s& game);            // The game drawn at pos (screen coordinates) in the latest frame
+void DrawCoverDropHighlight  (ImDrawList* draw_list, ImVec2 min, ImVec2 max, float rounding); // An image is dragged over it
+void ScrollForCoverDrag      (void);                 // In a scrolling window of drop targets (the grid, the list), each frame: scrolls it
+                                                     //   while an image is dragged near its top or bottom edge
 
 // library/library_launch.cpp
 void LaunchGame              (app_record_s* pApp);
-bool SaveGameCover           (app_record_s* pApp, std::wstring_view path); // Copies / downloads an image as the game's custom cover (background thread)
+bool SaveGameCover           (app_record_s* pApp, std::wstring_view path, bool notify = false); // Copies / downloads an image as the game's custom cover (background
+                                                     //   thread); notify: a notification once it is saved (one is always shown if it fails)
+std::wstring SKIF_Lib_FindPreviousCover    (app_record_s* pApp);          // The previous custom cover (the one replaced or reset last), or empty
+bool         SKIF_Lib_KeepPreviousCover    (const std::wstring& assetDir); // The custom cover becomes the previous one (Reset); true if there was one
+bool         SKIF_Lib_RestorePreviousCover (app_record_s* pApp);          // Swaps the custom cover and the previous one; true if it did
 
 // library/library_menus.cpp
+void DrawCoverMenuChangeReset (app_record_s* pApp, bool isCustom, bool isManaged); // Change / Reset of the cover (cover menu, grid view's game menu)
+std::string SKIF_Lib_GetClientFavoriteTip (const std::string& client); // Tooltip of a game favorited in its store client (Steam)
 void DrawGameConfigMenu      (app_record_s* pApp);
+void DrawGameBrowseMenuItems (app_record_s* pApp); // The items of the Browse menu (game menu, launch bar of the game details)
+void SKIF_Lib_OpenGameConfig (app_record_s* pApp); // Opens the game's Special K config file in the INI editor (created if missing)
 void DrawGameContextMenu     (app_record_s* pApp);
 // The command line a launch config runs: the executable and its arguments, with the launch options set in the store
 //   client (Steam) where they apply. Shown in the status bar when hovering Play / Instant play (library_menus.cpp)
@@ -228,6 +245,12 @@ void DrawEmptySpaceMenu      (bool showClearBtn);
 
 // library/library_list.cpp
 void DrawGamesList           (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop3, ImVec2& fTop3ScreenPos);
+void BeginCategoryHeaders    (void);                 // Category headers (the list and the grid): before the first one of a frame (once per frame),
+bool DrawCategoryHeader      (const std::string& category, int categories, bool showClearBtn); //   each one (returns whether it is expanded),
+void EndCategoryHeaders      (void);                 //   and after the last one (Expand all / Collapse all, the category menu); by the list only
+
+// library/library_grid.cpp
+void DrawGamesGrid           (DWORD current_time, ImVec2 size, bool showClearBtn); // In place of the cover in the grid view (DrawGameCover)
 
 // library/library_popups.cpp
 void DrawLibraryPopups       (void);

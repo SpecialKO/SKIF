@@ -118,9 +118,16 @@ int   SKIF_ExitCode             = 0;
 int   SKIF_nCmdShow             = -1;
 std::atomic<int>  SKIF_FrameCount = 0;
 int   addAdditionalFrames       = 0;
+
+// D3D11 destroys released resources lazily, once the immediate context is flushed (otherwise the next Present). Anything
+//   that releases one (the release queue, a thumbnail worker dropping its texture) sets this, and the main loop flushes
+//     once before it goes to sleep, so the memory isn't kept until SKIF wakes up.
+std::atomic<bool> SKIF_D3D11_FlushPending = false;
 DWORD dwDwmPeriod               = 62500; // Assume 60 Hz (16 ms) by default
 bool  SteamOverlayDisabled      = false;
 bool  SKIF_MouseDragMoveAllowed = true;
+ImRect SKIF_ImGui_CaptionArea; // Screen coordinates of the empty space between the tabs and the window buttons (double-click to maximize/restore)
+bool  SKIF_ImGui_CaptionDoubleClicked = false; // Set by the window procedure when the caption area is double-clicked through the OS (HTCAPTION)
 bool  SKIF_debuggerPresent      = false;
 DWORD SKIF_startupTime          = 0; // Used as a basis of how long the initialization took
 bool  SKIF_FirstPresentDone     = false; // Set by ImGui_ImplDX11_SwapBuffers ( ) on the first successful Present ( )
@@ -151,6 +158,8 @@ ImVec2 SKIF_vecHorizonModeAdjusted  = SKIF_vecHorizonModeDefault; // Adjusted fo
 ImVec2 SKIF_vecCurrentPosition      = ImVec2 (0.0f, 0.0f); // Gets updated after ImGui::EndFrame()
 ImVec2 SKIF_vecCurrentMode          = ImVec2 (0.0f, 0.0f); // Gets updated after ImGui::EndFrame()
 ImVec2 SKIF_vecCurrentModeNext      = ImVec2 (0.0f, 0.0f); // Holds the new expected size
+ImVec2 SKIF_vecRestoredPosition     = ImVec2 (-1.0f, -1.0f); // Position of the window when it was last neither maximized nor minimized
+ImVec2 SKIF_vecRestoredModeDPIUnaware = ImVec2 (0.0f, 0.0f); // DPI-unaware size of the window when it was last neither maximized nor minimized (regular/horizon mode)
 float  SKIF_fStatusBarHeight        = 31.0f; // Status bar enabled // 33 ?
 float  SKIF_fStatusBarDisabled      = 8.0f;  // Status bar disabled
 float  SKIF_fStatusBarHeightTips    = 18.0f; // Disabled tooltips (two-line status bar)
@@ -517,6 +526,56 @@ SKIF_EfficiencyModeTimerProc (HWND hWnd, UINT Msg, UINT wParamIDEvent, DWORD dwT
     // Enable Efficiency Mode in Windows 11 (requires idle (low) priority + EcoQoS)
     SKIF_Util_SetProcessPowerThrottling (SKIF_Util_GetCurrentProcess(), 1);
     SetPriorityClass (SKIF_Util_GetCurrentProcess(), IDLE_PRIORITY_CLASS );
+
+    // SKIF is idle and in the background: unload the grid view's thumbnails out of view now, rather than once their time
+    //   is up (timers are slow in efficiency mode). Their textures are released after the next frames.
+    if (SKIF_LibraryArtwork::Get ( ).UnloadThumbnailsOutOfView (true) > 0)
+    {
+      msgDontRedraw        = false;
+      addAdditionalFrames += 3;
+    }
+
+    // Likewise the frames of an animated cover (they load again once it is hovered), and those kept loaded for the grid
+    //   view (they load again from their cache once their tiles are shown)
+    const bool releasedCover  = SKIF_LibraryArtwork::Get ( ).ReleaseAnimatedCover      ( );
+    const bool releasedThumbs = SKIF_LibraryArtwork::Get ( ).ReleaseAnimatedThumbnails ( );
+
+    if (releasedCover || releasedThumbs)
+    {
+      msgDontRedraw        = false;
+      addAdditionalFrames += 3;
+    }
+  }
+}
+
+// Flushes the immediate context if resources were released since the last flush (SKIF_D3D11_FlushPending), so the
+//   memory of released resources is reclaimed while SKIF sleeps. In efficiency mode (idle in the background) it also gives
+//     back the memory the driver keeps for reuse, as Microsoft recommends for apps going idle (IDXGIDevice3::Trim, Windows
+//       8.1+; ClearState first, as documented). The next frame sets up its render state again.
+static void
+_FlushReleasedResources (void)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  if (SKIF_pd3dDeviceContext == nullptr || ! SKIF_D3D11_FlushPending.exchange (false))
+    return;
+
+  SKIF_pd3dDeviceContext->Flush ( );
+
+  if (_registry._EfficiencyMode)
+  {
+    CComPtr   <ID3D11Device> pDevice;
+    SKIF_pd3dDeviceContext->GetDevice (&pDevice.p);
+
+    CComQIPtr <IDXGIDevice3> pDXGIDevice3 (pDevice);
+
+    if (pDXGIDevice3 != nullptr)
+    {
+      SKIF_pd3dDeviceContext->ClearState ( );
+      pDXGIDevice3->Trim ( );
+
+      PLOG_VERBOSE << "Trimmed the graphics memory of the device (efficiency mode)";
+    }
   }
 }
 
@@ -862,13 +921,15 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
 
     using Service       = SKIF_LaunchBehaviors::Service;
     using SteamAppIDtxt = SKIF_LaunchBehaviors::SteamAppIDtxt;
+    using Blacklist     = SKIF_LaunchBehaviors::Blacklist;
+    using Elevation     = SKIF_LaunchBehaviors::Elevation;
 
     // Per-executable and per-folder launch behaviors (registry; see utility/launch_behaviors.h)
     SKIF_LaunchBehaviors::Resolved behaviors =
       SKIF_LaunchBehaviors::Resolve (path);
 
-    // Legacy fallback: SpecialK.deny.<exe> / SpecialK.admin.<exe> next to the executable,
-    //   only consulted when the registry has no service setting for the executable or its folders.
+    // Legacy fallback: SpecialK.deny.<exe> / SpecialK.admin.<exe> next to the executable, each only consulted when the
+    //   registry has no setting of its own (service, elevation) for the executable or its folders.
     //     The library migrates these files to the registry when it reads them.
     if (behaviors.service == Service::Inherit)
     {
@@ -877,33 +938,47 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
                                                       std::filesystem::path(path).filename().replace_extension().wstring().c_str() // filename without extension
       );
 
+      if (PathFileExistsW (blacklistFile.c_str()))
+        behaviors.service = Service::Blocked;
+    }
+
+    if (behaviors.elevation == Elevation::Inherit)
+    {
       std::wstring elevationFile = SK_FormatStringW (L"%s\\SpecialK.admin.%ws",
                                                       std::filesystem::path(path).parent_path().wstring().c_str(),                 // full path to parent folder
                                                       std::filesystem::path(path).filename().replace_extension().wstring().c_str() // filename without extension
       );
 
-      if      (PathFileExistsW (blacklistFile.c_str()))
-        behaviors.service = Service::Blocked;
-      else if (PathFileExistsW (elevationFile.c_str()))
-        behaviors.service = Service::Elevated;
+      if (PathFileExistsW (elevationFile.c_str()))
+        behaviors.elevation = Elevation::Elevated;
     }
 
     PLOG_INFO << "Launch behaviors:  auto-stop " << static_cast <int> (behaviors.autoStop)
               << ", service "                    << static_cast <int> (behaviors.service)
-              << ", steam_appid.txt "            << static_cast <int> (behaviors.steamAppIDtxt);
+              << ", elevation "                  << static_cast <int> (behaviors.elevation)
+              << ", steam_appid.txt "            << static_cast <int> (behaviors.steamAppIDtxt)
+              << ", blacklist "                  << static_cast <int> (behaviors.blacklist);
 
     // Check if the executable is blacklisted
     isLocalBlacklisted  = (behaviors.service == Service::Blocked);
     isGlobalBlacklisted = _inject._TestUserList (SK_WideCharToUTF8(path).c_str(), false);
 
-    _Signal._DoNotUseService = (isLocalBlacklisted || isGlobalBlacklisted);
+    // The launch behaviors can have the service used all the same (e.g. for a blocked launcher, so the game it starts
+    //   gets Special K). Special K stays disabled for the executable itself, so it is then not whitelisted either.
+    const bool isBlacklisted   = (isLocalBlacklisted || isGlobalBlacklisted);
+    const bool ignoreBlacklist = (isBlacklisted && behaviors.blacklist == Blacklist::Ignore);
+
+    PLOG_INFO_IF (ignoreBlacklist) << "Special K is disabled for the executable, but its launch behaviors ignore it: the service is used all the same.";
+
+    _Signal._DoNotUseService = (isBlacklisted && ! ignoreBlacklist);
 
     if (! _Signal._DoNotUseService)
     {
       // Whitelist the path if it haven't been already
-      _inject.WhitelistPath (SK_WideCharToUTF8(path));
+      if (! isBlacklisted)
+        _inject.WhitelistPath (SK_WideCharToUTF8(path));
 
-      _Signal._ElevatedService = (behaviors.service == Service::Elevated);
+      _Signal._ElevatedService = (behaviors.elevation == Elevation::Elevated);
     }
 
     _Signal._AutoStopBehavior = static_cast <int> (behaviors.autoStop);
@@ -994,7 +1069,8 @@ SKIF_Startup_LaunchURIPreparation (LPWSTR lpCmdLine)
       // Per-executable and per-folder launch behaviors (registry; see utility/launch_behaviors.h)
       if (PathFileExistsW (argSKIF_URI_found.c_str()))
       {
-        using Service = SKIF_LaunchBehaviors::Service;
+        using Service   = SKIF_LaunchBehaviors::Service;
+        using Elevation = SKIF_LaunchBehaviors::Elevation;
 
         SKIF_LaunchBehaviors::Resolved behaviors =
           SKIF_LaunchBehaviors::Resolve (argSKIF_URI_found);
@@ -1002,7 +1078,7 @@ SKIF_Startup_LaunchURIPreparation (LPWSTR lpCmdLine)
         if (behaviors.service == Service::Blocked)
           _Signal._DoNotUseService = true;
 
-        _Signal._ElevatedService  = (behaviors.service == Service::Elevated);
+        _Signal._ElevatedService  = (behaviors.elevation == Elevation::Elevated);
         _Signal._AutoStopBehavior = static_cast <int> (behaviors.autoStop);
       }
     }
@@ -2236,6 +2312,15 @@ wWinMain ( _In_     HINSTANCE hInstance,
     }
   }
 
+  // Restore the maximized state of the last session, unless we are starting in mini mode
+  //   or were asked to start minimized/hidden (or maximized, in which case it already is)
+  if (_registry.bUIMaximized && ! _registry.bMiniMode &&
+     (SKIF_nCmdShow == SW_SHOWNORMAL || SKIF_nCmdShow == SW_SHOWDEFAULT || SKIF_nCmdShow == SW_SHOW))
+  {
+    PLOG_INFO << "Restoring the maximized state of the last session...";
+    SKIF_nCmdShow = SW_SHOWMAXIMIZED; // Handled in ImGui_ImplWin32_ShowWindow ( )
+  }
+
   _StartupStep ("cmd line (4/4), window mode");
 
   {
@@ -2464,6 +2549,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
          hotkeyCtrlShiftD = s_hotkeysPressed.CtrlShiftD; // ImGui Debug + Demo
     s_hotkeysPressed = { };
     bool minimizeWindow = false; // Replaced old Ctrl+N boolean
+    bool toggleMaximize = false; // Maximize the window, or restore it if it is already maximized
 
     auto _TranslateAndDispatch = [&](void) -> bool
     {
@@ -3237,7 +3323,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       // Right edge of the last tab (About) in window-local coordinates, used to keep Shelly the Ghost out of the tab bar
       //   Mini mode has no tabs, so Shelly may then use all space up until the window buttons
-      float fTabBarRightEdge = ImGui::GetStyle ( ).WindowPadding.x;
+      float fTabBarRightEdge  = ImGui::GetStyle ( ).WindowPadding.x;
+      float fTabBarBottomEdge = 0.0f; // Bottom of the tabs in window-local coordinates, used for the caption area
 
       // Begin Mini Mode
 #pragma region UI: Mini Mode
@@ -3287,11 +3374,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
         };
 
         static constexpr tab_title_s tabTitleDefs [5] = {
-          { ICON_FA_GAMEPAD,    NC_("tab", "Library"),  "###SKIF_TAB_BAR-1", 435.0f },
-          { ICON_FA_MICROCHIP,  NC_("tab", "Monitor"),  "###SKIF_TAB_BAR-2", 490.0f },
-          { ICON_FA_DISPLAY,    NC_("tab", "Hardware"), "###SKIF_TAB_BAR-3", 555.0f },
-          { ICON_FA_LIST_CHECK, NC_("tab", "Settings"), "###SKIF_TAB_BAR-4", 610.0f },
-          { ICON_FA_COMMENT,    NC_("tab", "About"),    "###SKIF_TAB_BAR-5", 650.0f }
+          { ICON_FA_GAMEPAD,    NC_("tab", "Library"),  "###SKIF_TAB_BAR-1", 473.0f },
+          { ICON_FA_MICROCHIP,  NC_("tab", "Monitor"),  "###SKIF_TAB_BAR-2", 528.0f },
+          { ICON_FA_DISPLAY,    NC_("tab", "Hardware"), "###SKIF_TAB_BAR-3", 593.0f },
+          { ICON_FA_LIST_CHECK, NC_("tab", "Settings"), "###SKIF_TAB_BAR-4", 648.0f },
+          { ICON_FA_COMMENT,    NC_("tab", "About"),    "###SKIF_TAB_BAR-5", 688.0f }
         };
 
         static std::string tabTitles [5];
@@ -3400,10 +3487,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SKIF_UI_Tab_DrawMonitor ( );
           SKIF_ImGui_EndCenteredColumn   ( );
 
-          // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
-          // Currently not possible since the Monitor tab includes another scrollable child window (the process list)
-          //SKIF_ImGui_AutoScroll  (true, SKIF_ImGuiAxis_Y);
-
           ImGui::EndChild         ( );
           ImGui::EndTabItem       ( );
         }
@@ -3420,7 +3503,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SKIF_ImGui_EndCenteredColumn   (true);
 
           // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
-          SKIF_ImGui_AutoScroll  (true, SKIF_ImGuiAxis_Y);
+          SKIF_ImGui_AutoScroll  (true, SKIF_ImGuiAxis_Y, "##AutoScrollHardwareColumn");
 
           ImGui::EndChild         ( );
           ImGui::EndTabItem       ( );
@@ -3438,7 +3521,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SKIF_ImGui_EndCenteredColumn   (true);
 
           // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
-          SKIF_ImGui_AutoScroll  (true, SKIF_ImGuiAxis_Y);
+          SKIF_ImGui_AutoScroll  (true, SKIF_ImGuiAxis_Y, "##AutoScrollSettingsColumn");
 
           ImGui::EndChild         ( );
           ImGui::EndTabItem       ( );
@@ -3448,7 +3531,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
           ImGui::BeginTabItem (tabTitleAbout, nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_About) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None));
 
         // The tab itself is the last item at this point (regardless of whether it is selected or not)
-        fTabBarRightEdge = ImGui::GetItemRectMax ( ).x - ImGui::GetWindowPos ( ).x;
+        fTabBarRightEdge  = ImGui::GetItemRectMax ( ).x - ImGui::GetWindowPos ( ).x;
+        fTabBarBottomEdge = ImGui::GetItemRectMax ( ).y - ImGui::GetWindowPos ( ).y;
 
         if (bAboutTabOpen)
         {
@@ -3467,7 +3551,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
           SKIF_ImGui_EndCenteredColumn   (true);
 
           // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
-          SKIF_ImGui_AutoScroll  (true, SKIF_ImGuiAxis_Y);
+          SKIF_ImGui_AutoScroll  (true, SKIF_ImGuiAxis_Y, "##AutoScrollAboutColumn");
 
           ImGui::EndChild         ( );
           ImGui::EndTabItem       ( );
@@ -3675,21 +3759,23 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
 #pragma region WindowButtons
 
-      // 164px - regular mode
+      // 202px - regular mode
       // 116px - service mode
 
       ImVec2 window_btn_size = ImVec2 (
-        164.0f,
+        202.0f,
          24.0f
       );
 
       bool showBtnHorizon  = true;
+      bool showBtnMaximize = true;
 
       // If in service mode
       if (_registry.bMiniMode)
       {
-        showBtnHorizon = false;
-        window_btn_size.x -= 48.0f; // -48px due to one less button
+        showBtnHorizon  = false;
+        showBtnMaximize = false;
+        window_btn_size.x -= 86.0f; // -48px and -38px due to two less buttons
       }
 
       // Regular mode: One less button
@@ -3745,6 +3831,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         ImGui::SameLine ();
 
+        if (showBtnMaximize)
+        {
+          if (ImGui::Button ((IsZoomed (SKIF_ImGui_hWnd)) ? ICON_FA_WINDOW_RESTORE : ICON_FA_WINDOW_MAXIMIZE, ImVec2 ( 30.0f * SKIF_ImGui_GlobalDPIScale, 0.0f )))
+            toggleMaximize = true;
+
+          ImGui::SameLine ();
+        }
+
         ImGui::PushStyleColor   (ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Failure));
         ImGui::PushStyleColor   (ImGuiCol_ButtonActive,  ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Failure) * ImVec4(1.2f, 1.2f, 1.2f, 1.0f));
 
@@ -3780,6 +3874,95 @@ wWinMain ( _In_     HINSTANCE hInstance,
       ImGui::SetCursorPos (prevCursorPos);
 
       ImGui::Dummy (ImVec2 (0, 0)); // Dummy required here to solve ImGui::ErrorCheckUsingSetCursorPosToExtendParentBoundaries()
+
+#pragma endregion
+
+#pragma region CaptionArea
+
+      // The empty space between the last tab (About) and the first window button (the area Shelly moves around within)
+      //   acts as a title bar. Not while a popup is opened.
+      //     - Double-click: maximizes the window, or restores it if it is already maximized (mini mode: switches to the regular mode)
+      //     - Right-click:  opens a menu with the window actions
+      SKIF_ImGui_CaptionArea = ImRect ( );
+
+      if (! SKIF_ImGui_IsAnyPopupOpen ( ))
+      {
+        const ImVec2 vMainWindowPos = ImGui::GetWindowPos ( );
+        const ImRect captionArea (
+          vMainWindowPos + ImVec2 (fTabBarRightEdge, 0.0f),
+          vMainWindowPos + ImVec2 (window_btn_pos.x, ImMax (fTabBarBottomEdge, window_btn_pos.y + window_btn_size.y))
+        );
+
+        if (captionArea.GetWidth ( ) > 0.0f && captionArea.GetHeight ( ) > 0.0f)
+          SKIF_ImGui_CaptionArea = captionArea;
+      }
+
+      // When the OS handles drag-moving the window (SKIF_ImGui_CanMouseDragMove), the area is HTCAPTION and the double-click arrives
+      //   as WM_NCLBUTTONDBLCLK, which sets SKIF_ImGui_CaptionDoubleClicked (see ImGui_ImplWin32_WndProcHandler_PlatformWindow).
+      //     Otherwise (e.g. touch input) ImGui sees the clicks itself. Right-clicks always reach ImGui (WM_NCRBUTTONDOWN/UP).
+      bool captionDoubleClicked = SKIF_ImGui_CaptionDoubleClicked;
+      SKIF_ImGui_CaptionDoubleClicked = false;
+
+      if (SKIF_ImGui_CaptionArea.GetWidth ( ) > 0.0f &&
+          ImGui::IsMouseHoveringRect  (SKIF_ImGui_CaptionArea.Min, SKIF_ImGui_CaptionArea.Max, false) &&
+          ImGui::IsWindowHovered      ( ) &&
+        ! ImGui::IsAnyItemHovered     ( ))
+      {
+        if (ImGui::IsMouseDoubleClicked (ImGuiMouseButton_Left))
+          captionDoubleClicked = true;
+
+        if (ImGui::IsMouseReleased (ImGuiMouseButton_Right))
+          ImGui::OpenPopup ("###CaptionMenu");
+      }
+
+      if (captionDoubleClicked && SKIF_ImGui_CaptionArea.GetWidth ( ) > 0.0f)
+      {
+        if (_registry.bMiniMode)
+          hotkeyCtrlT    = true;
+        else
+          toggleMaximize = true;
+      }
+
+      if (ImGui::BeginPopup ("###CaptionMenu", ImGuiWindowFlags_NoMove))
+      {
+        ImGui::PushStyleColor (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
+
+        if (showBtnMaximize)
+        {
+          if (IsZoomed (SKIF_ImGui_hWnd))
+          {
+            if (ImGui::Selectable (LI_(ICON_FA_WINDOW_RESTORE,  "Restore###CaptionMenuMaximize")))
+              toggleMaximize = true;
+          }
+
+          else if (ImGui::Selectable (LI_(ICON_FA_WINDOW_MAXIMIZE, "Maximize###CaptionMenuMaximize")))
+            toggleMaximize = true;
+        }
+
+        if (ImGui::Selectable (LI_(ICON_FA_WINDOW_MINIMIZE, "Minimize###CaptionMenuMinimize")))
+          minimizeWindow = true;
+
+        ImGui::Separator ( );
+
+        if (showBtnHorizon && ImGui::Selectable (LI_((_registry.bHorizonMode ? ICON_FA_CHEVRON_DOWN : ICON_FA_CHEVRON_UP), "Toggle horizontal mode###CaptionMenuHorizon")))
+        {
+          newHorizonMode = ! _registry.bHorizonMode;
+
+          // Changes the app window to the proper size
+          SKIF_vecCurrentModeNext = (newHorizonMode) ? SKIF_vecHorizonMode : SKIF_vecRegularMode;
+        }
+
+        if (ImGui::Selectable (LI_(((_registry.bMiniMode) ? ICON_FA_EXPAND : ICON_FA_COMPRESS), "Toggle mini mode###CaptionMenuMiniMode")))
+          hotkeyCtrlT = true;
+
+        ImGui::Separator ( );
+
+        if (ImGui::Selectable (LI_(ICON_FA_XMARK, "Close###CaptionMenuClose")))
+          hotkeyCtrlQ = true;
+
+        ImGui::PopStyleColor ( );
+        ImGui::EndPopup ( );
+      }
 
 #pragma endregion
 
@@ -3845,6 +4028,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
       if (minimizeWindow)
         ShowWindow (SKIF_ImGui_hWnd, SW_MINIMIZE);
+
+      // Same as a double-click on the title bar of a regular window (WM_NCLBUTTONDBLCLK on HTCAPTION)
+      if (toggleMaximize)
+        PostMessage (SKIF_ImGui_hWnd, WM_SYSCOMMAND, (IsZoomed (SKIF_ImGui_hWnd)) ? SC_RESTORE : SC_MAXIMIZE, 0);
 
       if (hotkeyCtrlQ || hotkeyCtrlW || bKeepWindowAlive == false)
       {
@@ -3963,6 +4150,18 @@ wWinMain ( _In_     HINSTANCE hInstance,
       SKIF_vecCurrentMode     = ImGui::GetWindowSize ( );
       SKIF_vecCurrentPosition = ImGui::GetWindowPos  ( );
 
+      // Remember the size and position of the window while it is neither maximized nor minimized, as that is
+      //   what is stored to the registry on exit (also when exiting while maximized, so restoring it works after a relaunch)
+      //     Not during the first few frames, as the remembered size and position have not been applied yet
+      if (SKIF_ImGui_hWnd != NULL && ImGui::GetFrameCount ( ) > 2 &&
+          ! IsZoomed (SKIF_ImGui_hWnd) && ! IsIconic (SKIF_ImGui_hWnd))
+      {
+        if (! _registry.bMiniMode)
+          SKIF_vecRestoredModeDPIUnaware = ImFloor (SKIF_vecCurrentMode / SKIF_ImGui_MainDPIScale);
+
+        SKIF_vecRestoredPosition = SKIF_vecCurrentPosition;
+      }
+
       // End the main ImGui window
       ImGui::End ( );
 
@@ -4068,6 +4267,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
     // Actual rendering is conditional, this just processes input and ends the ImGui frame.
     ImGui::Render (); // also calls ImGui::EndFrame ();
 
+    // What the grid view's animated covers take in video memory, logged once that changes (on any tab)
+    SKIF_LibraryArtwork::Get ( ).LogVideoMemory (SKIF_Util_timeGetTime ( ));
+
     // The last window of the frame may have been on another monitor, so return to the main window's DPI scale
     //   for everything that runs between frames
     SKIF_ImGui_RestoreMainDPIScale ( );
@@ -4093,12 +4295,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     // Conditional rendering, but only if a viewport is actually visible
     extern bool SKIF_ImGui_ImplWin32_IsAnyViewportVisible (void);
-    bool bRefresh = (SKIF_ImGui_ImplWin32_IsAnyViewportVisible ( )) ? true : false; // (SKIF_ImGui_hWnd != NULL && (SKIF_isTrayed || IsIconic (SKIF_ImGui_hWnd))) ? false : true;
+    bool bRefresh = (SKIF_ImGui_ImplWin32_IsAnyViewportVisible ( )) ? true : false;
 
     if (invalidatedDevice > 0 && SKIF_Tab_Selected == UITab_Library)
       bRefresh = false;
 
-    if (bRefresh)
+    // If the library tab is selected and an animated cover is playing, force a refresh every frame
+    if (bRefresh && SKIF_Tab_Selected == UITab_Library && SKIF_LibraryArtwork::Get ( ).IsAnimatedCoverPlaying ( ))
+      bRefresh = true;
+
+    // Conditional refreshing of the ImGui viewports, to avoid unnecessary rendering when nothing has changed
+    else if (bRefresh)
     {
       bRefresh = false;
       // Two persistent buffers that are swapped every frame, so the comparison
@@ -4236,18 +4443,32 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     // Release any leftover resources from last frame
     IUnknown* pResource = nullptr;
+    bool      released  = false;
+    size_t    releases  = 0;
+    IUnknown* pFirst    = nullptr;
     while (! SKIF_ResourcesToFree.empty ())
     {
       if (SKIF_ResourcesToFree.try_pop (pResource))
       {
         CComPtr <IUnknown> ptr = pResource;
-        PLOG_VERBOSE << "SKIF_ResourcesToFree: Releasing " << ptr.p;
+
+        if (releases++ == 0)
+          pFirst = ptr.p;
+
         ptr.p->Release();
+        released = true;
       }
 
       if (invalidatedDevice == 2)
         invalidatedDevice = 0;
     }
+
+    PLOG_VERBOSE_IF (releases == 1) << "SKIF_ResourcesToFree: Released " << pFirst;
+    PLOG_VERBOSE_IF (releases >  1) << "SKIF_ResourcesToFree: Released " << releases << " resources";
+
+    // Flushed before SKIF goes to sleep (see SKIF_D3D11_FlushPending)
+    if (released)
+      SKIF_D3D11_FlushPending.store (true);
 
     // If process should stop, post WM_QUIT
     if ((! bKeepProcessAlive))// && SKIF_ImGui_hWnd != 0)
@@ -4277,6 +4498,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       processAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If the background is currently currently undergoing a fade effect
     else if (SKIF_Tab_Selected == UITab_Library && coverFadeActive)
       processAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If the cover is currently undergoing a fade effect
+    //else if (SKIF_Tab_Selected == UITab_Library && SKIF_LibraryArtwork::Get ( ).IsAnimatedCoverPlaying ( ))
+    //  processAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If an animated cover is playing (hovered)
     else if (ImGui::notifications.size() > 0)
       processAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If we have any visible notifications
     else if (addAdditionalFrames > 0)
@@ -4339,6 +4562,10 @@ wWinMain ( _In_     HINSTANCE hInstance,
         // - Bad idea because it will immediately hitch when that stuff has to be moved back from the pagefile
         //   There's no predicting how long it will take to move those pages back into memory
         SK_RunOnce (SKIF_Util_CompactWorkingSet ( ));
+
+        // Resources were released since the last flush (see SKIF_D3D11_FlushPending): flush now, as SKIF goes to sleep and
+        //   there is no Present ( ) to do it. While rendering, each Present ( ) flushes anyway.
+        _FlushReleasedResources ( );
 
         // Create/update the timer when we are pausing
         if (_registry.bEfficiencyMode && ! _registry._EfficiencyMode && SKIF_Notify_hWnd != NULL && ! msgDontRedraw && ! SKIF_ImGui_IsFocused ( ))
@@ -4530,21 +4757,29 @@ wWinMain ( _In_     HINSTANCE hInstance,
   _registry.regKVCategoriesState.putDataMultiSZ (_inBools);
   PLOG_INFO << "Wrote the collapsible category state to the registry.";
 
-  // Only store window size and position to the registry if we are not in a maximized state
-  ImVec2 vecCurrentModeDPIUnaware = ImFloor (SKIF_vecCurrentMode / SKIF_ImGui_MainDPIScale);
+  // Remember whether the window was maximized (also if it was minimized, or closed to the notification area, while maximized)
+  //   so it can be shown maximized on the next launch. Mini mode is never restored as maximized.
+  WINDOWPLACEMENT wndPlacement = { };
+  wndPlacement.length = sizeof (WINDOWPLACEMENT);
 
-  if (! IsZoomed (SKIF_ImGui_hWnd) ||
-     (vecCurrentModeDPIUnaware.x <= SKIF_vecRegularModeDefault.x * 1.5f &&
-      vecCurrentModeDPIUnaware.y <= SKIF_vecRegularModeDefault.y * 1.5f))
+  _registry.bUIMaximized = (! _registry.bMiniMode && SKIF_ImGui_hWnd != NULL &&
+                             (IsZoomed (SKIF_ImGui_hWnd) ||
+                             (IsIconic (SKIF_ImGui_hWnd) && GetWindowPlacement (SKIF_ImGui_hWnd, &wndPlacement) &&
+                                                            (wndPlacement.flags & WPF_RESTORETOMAXIMIZED))));
+  _registry.regKVUIMaximized.putData (_registry.bUIMaximized);
+
+  PLOG_INFO << "Wrote the maximized state to the registry: " << _registry.bUIMaximized;
+
+  // Store the size and position the window had when it was last neither maximized nor minimized
   {
     // Only store the window size if we are not in service mode
     if (! _registry.bMiniMode  &&
-        vecCurrentModeDPIUnaware.x > 0 &&
-        vecCurrentModeDPIUnaware.y > 0)
+        SKIF_vecRestoredModeDPIUnaware.x > 0 &&
+        SKIF_vecRestoredModeDPIUnaware.y > 0)
     {
       // Store a DPI-unaware size, so SKIF can automatically adjust it to the proper DPI on launch
-      _registry.iUIWidth  = static_cast<int> (vecCurrentModeDPIUnaware.x);
-      _registry.iUIHeight = static_cast<int> (vecCurrentModeDPIUnaware.y);
+      _registry.iUIWidth  = static_cast<int> (SKIF_vecRestoredModeDPIUnaware.x);
+      _registry.iUIHeight = static_cast<int> (SKIF_vecRestoredModeDPIUnaware.y);
 
       _registry.regKVUIWidth .putData (_registry.iUIWidth);
       _registry.regKVUIHeight.putData (_registry.iUIHeight);
@@ -4553,16 +4788,16 @@ wWinMain ( _In_     HINSTANCE hInstance,
     }
 
     // Note that negative window positions are valid!
-    if (SKIF_vecCurrentPosition.x != -1.0f &&
-        SKIF_vecCurrentPosition.y != -1.0f)
+    if (SKIF_vecRestoredPosition.x != -1.0f &&
+        SKIF_vecRestoredPosition.y != -1.0f)
     {
       // Doesn't seem to be needed
       //RECT dwmBorder = { };
       //if (S_OK == DwmGetWindowAttribute (SKIF_ImGui_hWnd, DWMWA_EXTENDED_FRAME_BOUNDS, &dwmBorder, sizeof(dwmBorder)))
       //{ }
 
-      _registry.iUIPositionX = static_cast<int> (SKIF_vecCurrentPosition.x);
-      _registry.iUIPositionY = static_cast<int> (SKIF_vecCurrentPosition.y);
+      _registry.iUIPositionX = static_cast<int> (SKIF_vecRestoredPosition.x);
+      _registry.iUIPositionY = static_cast<int> (SKIF_vecRestoredPosition.y);
 
       _registry.regKVUIPositionX.putData (_registry.iUIPositionX);
       _registry.regKVUIPositionY.putData (_registry.iUIPositionY);
@@ -5353,13 +5588,23 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       addAdditionalFrames += 3;
       break;
 
+    case WM_SKIF_DRAGOVER:
+      // Something is dragged over SKIF (or no longer is): the next frames show the grid view's drop highlight (or hide it)
+      addAdditionalFrames += 3;
+      break;
+
     case WM_SKIF_REFRESHCOVER:
+    {
       addAdditionalFrames += 3;
 
-      // A custom cover has been saved: reload it if it is the one shown
-      SKIF_LibraryArtwork::Get ( ).OnCoverSaved ({ (app_record_s::Store)lParam, (uint32_t)wParam }); // SaveGameCover: wParam = app ID, lParam = store
+      // A custom cover has been saved: reload it if it is the one shown. SaveGameCover: wParam = app ID, lParam = store and flags
+      //   How it went is shown by the library tab (a notification needs an ImGui frame, which the window procedure is not in)
+      SKIF_LibraryArtwork::Get ( ).OnCoverSaved ({ (app_record_s::Store)(lParam & 0xFFFF), (uint32_t)wParam },
+                                                  (lParam & SKIF_RefreshCover_Notify)  != 0,
+                                                  (lParam & SKIF_RefreshCover_Success) != 0);
 
       break;
+    }
 
     case WM_SKIF_ICON:
       addAdditionalFrames += 3;
@@ -5502,6 +5747,18 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
           break;
         case  IDT_REFRESH_UPDATER:
           //OutputDebugString(L"IDT_REFRESH_UPDATER\n");
+          break;
+        // Unloads the grid view's thumbnails that went out of view. Frames only if any was (they release the textures)
+        case cIDT_TIMER_THUMBNAILS:
+          if (! SKIF_LibraryArtwork::Get ( ).OnThumbnailTimer ( ))
+          {
+            msgDontRedraw = true;
+            addAdditionalFrames -= 3; // Undo the 3 frames we added just above
+          }
+          break;
+        // The next frame of the hovered animated cover is due: the frames this gives draw it (and re-arm the timer)
+        case cIDT_TIMER_COVERANIM:
+          SKIF_LibraryArtwork::Get ( ).OnAnimatedCoverTimer ( );
           break;
       }
       break;

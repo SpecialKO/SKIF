@@ -2471,7 +2471,20 @@ static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd,
 
         case    WM_NCLBUTTONDBLCLK:
         {
-          // Only convert "non-client" double clicks to single clicks
+          // Double-clicking the caption area of the main window (the empty space between the tabs and the window buttons)
+          //   is acted on by the main loop on the next frame: it maximizes/restores the window, or leaves mini mode
+          extern ImRect SKIF_ImGui_CaptionArea;
+          extern bool   SKIF_ImGui_CaptionDoubleClicked;
+          if (hWnd   == SKIF_ImGui_hWnd &&
+              wParam == HTCAPTION       &&
+              SKIF_ImGui_CaptionArea.Contains (ImVec2 (static_cast<float> (GET_X_LPARAM (lParam)),
+                                                       static_cast<float> (GET_Y_LPARAM (lParam)))))
+          {
+            SKIF_ImGui_CaptionDoubleClicked = true;
+            return 0;
+          }
+
+          // Only convert other "non-client" double clicks to single clicks
           //   if dragging windows from a maximized state is disabled
           //if (! _registry.bMaximizeOnDoubleClick || ! SKIF_Util_GetDragFromMaximized ( ))
             msg = WM_NCLBUTTONDOWN;

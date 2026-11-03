@@ -198,7 +198,8 @@ SKIF_Lib_GetWithoutSKState (app_record_s* pApp, app_record_s::launch_config_s* l
                                          : (pApp->specialk.injection.injection.type == InjectionType::Local))
     return SKIF_Lib_WithoutSK::LocalInjection;
 
-  if (lc->isBlacklisted ( ) || _inject._TestUserList (lc->getExecutableFullPathUTF8 ( ).c_str ( ), false))
+  // The launch behaviors (Properties) can have the service used all the same for an executable Special K is disabled for
+  if ((lc->isBlacklisted ( ) || _inject._TestUserList (lc->getExecutableFullPathUTF8 ( ).c_str ( ), false)) && ! lc->isIgnoringBlacklist ( ))
     return SKIF_Lib_WithoutSK::Blacklisted;
 
   return SKIF_Lib_WithoutSK::Available;
@@ -521,11 +522,42 @@ DrawGameContextMenu_Running (app_record_s* pApp)
 }
 
 
-// Game context menu: "Browse" submenu (moved verbatim from DrawGameContextMenu)
-static void
-DrawGameContextMenu_Browse (app_record_s* pApp)
+// Opens the game's Special K config file in SKIF's INI editor, creating it (and its folders) first if it does not exist:
+//   Manage > Configuration in the game menu, and the Configuration button in the launch bar of the game details
+void
+SKIF_Lib_OpenGameConfig (app_record_s* pApp)
 {
-  if (SKIF_ImGui_BeginMenuEx2 (L_("Browse"), ICON_FA_FOLDER, ImColor(255, 207, 72)))
+  if (pApp == nullptr)
+    return;
+
+  // If the file does not exist, create it
+  if (! PathFileExists (pApp->specialk.injection.config.full_path.c_str()))
+  {
+    std::error_code ec;
+    // Create any missing directories
+    if (! std::filesystem::exists             (pApp->specialk.injection.config.root_dir, ec))
+          std::filesystem::create_directories (pApp->specialk.injection.config.root_dir, ec);
+
+    std::wofstream config_file (pApp->specialk.injection.config.full_path.c_str(), std::wofstream::out | std::wofstream::trunc);
+
+    if (config_file.is_open())
+    {
+      config_file << utf8_bom;
+      config_file.close ( );
+    }
+  }
+
+  // Internal editor
+  SKIF_UI_IniEditor_OpenFile (nullptr, IniType_DLL, pApp->specialk.injection.config.full_path, pApp->names.normal);
+
+  // External editor
+  //SKIF_Util_OpenURI (pApp->specialk.injection.config.full_path.c_str(), SW_SHOWNORMAL, NULL);
+}
+
+// The items of the "Browse" menu: the game menu's Browse submenu, and the Browse button in the launch bar of the game details
+void
+DrawGameBrowseMenuItems (app_record_s* pApp)
+{
   {
     if (SKIF_ImGui_MenuItemEx2 (L_("Game folder"), ICON_FA_FOLDER_OPEN, ImColor(255, 207, 72)))
       SKIF_Util_ExplorePath         (pApp->install_dir);
@@ -557,42 +589,6 @@ DrawGameContextMenu_Browse (app_record_s* pApp)
       SKIF_ImGui_SetHoverText       (SK_WideCharToUTF8 (pApp->ui.wsScreenshotDir.data()).c_str());
     }
 
-    ImGui::Separator    ( );
-
-    // --------------------------------------------
-
-    // Config File
-    if (SKIF_ImGui_MenuItemEx2 (L_("Configuration"), ICON_FA_FILE_LINES)) // pApp->specialk.injection.config.shorthand_utf8.c_str ()
-    {
-      // If the file does not exist, create it
-      if (! PathFileExists (pApp->specialk.injection.config.full_path.c_str()))
-      {
-        std::error_code ec;
-        // Create any missing directories
-        if (! std::filesystem::exists             (pApp->specialk.injection.config.root_dir, ec))
-              std::filesystem::create_directories (pApp->specialk.injection.config.root_dir, ec);
-
-        std::wofstream config_file (pApp->specialk.injection.config.full_path.c_str(), std::wofstream::out | std::wofstream::trunc);
-
-        if (config_file.is_open())
-        {
-          config_file << utf8_bom;
-          config_file.close ( );
-        }
-      }
-
-      // Internal editor
-      SKIF_UI_IniEditor_OpenFile (nullptr, IniType_DLL, pApp->specialk.injection.config.full_path, pApp->names.normal);
-
-      // External editor
-      //SKIF_Util_OpenURI (pApp->specialk.injection.config.full_path.c_str(), SW_SHOWNORMAL, NULL);
-    }
-
-    SKIF_ImGui_SetMouseCursorHand ();
-    SKIF_ImGui_SetHoverText       (pApp->specialk.injection.config.full_path_utf8.c_str ());
-
-    DrawGameConfigMenu (pApp);
-
     // --------------------------------------------
 
     if (! pApp->ui.cloud_paths.empty())
@@ -622,26 +618,29 @@ DrawGameContextMenu_Browse (app_record_s* pApp)
         ImGui::EndMenu ();
       }
     }
+  }
+}
+
+// Game context menu: "Browse" submenu
+static void
+DrawGameContextMenu_Browse (app_record_s* pApp)
+{
+  if (SKIF_ImGui_BeginMenuEx2 (L_("Browse"), ICON_FA_FOLDER, ImColor(255, 207, 72)))
+  {
+    DrawGameBrowseMenuItems (pApp);
 
     ImGui::EndMenu ();
   }
 }
 
 
-// The number of games pinned on top in the whole library, including filtered and hidden ones
-//   (numPinnedOnTop only counts the visible ones, so it cannot be used to enforce the limit of 5)
-static int
-SKIF_Lib_CountPinnedOnTop (void)
+// The tooltip of a game that is a favorite because it is one in its store client (Steam): Favorite / Unfavorite in the
+//   game menu, and Favorited in Properties
+std::string
+SKIF_Lib_GetClientFavoriteTip (const std::string& client)
 {
-  static SKIF_GamingCollection& _games = SKIF_GamingCollection::Get ( );
-
-  int count = 0;
-
-  for (auto& app : _games.GetApps ( ))
-    if (app.second->id != 0 && app.second->skif.pinned > 50)
-      count++;
-
-  return count;
+  // TRANSLATORS: {0} is the name of a store client, e.g. Steam
+  return F_("Favorited in {0}. Changing it here only affects Special K.", client);
 }
 
 // Game context menu: "Manage" submenu (moved verbatim from DrawGameContextMenu)
@@ -660,19 +659,14 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
     if (SKIF_ImGui_MenuItemEx2 (L_("Properties"), ICON_FA_GEAR, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info)))
       ModifyGamePopup = PopupState_Open;
 
-    if (51 > pApp->skif.pinned && 5 > SKIF_Lib_CountPinnedOnTop ( ))
-    {
-      if (SKIF_ImGui_MenuItemEx2 (L_("Favorite (pinned; max 5)"), ICON_FA_STAR, ImColor(255, 207, 72)))
-      {
-        pApp->skif.pinned =  51;
-        numPinnedOnTop++;
+    // Config File (right-click: troubleshooting)
+    if (SKIF_ImGui_MenuItemEx2 (L_("Configuration"), ICON_FA_FILE_LINES)) // pApp->specialk.injection.config.shorthand_utf8.c_str ()
+      SKIF_Lib_OpenGameConfig (pApp);
 
-        SKIF_GamingCollection::Get ( ).MetaDB_UpdateApp  ( pApp, true);
+    SKIF_ImGui_SetMouseCursorHand ();
+    SKIF_ImGui_SetHoverText       (pApp->specialk.injection.config.full_path_utf8.c_str ());
 
-        SKIF_GamingCollection::SortApps (&_games.GetApps());
-        sort_changed = true;
-      }
-    }
+    DrawGameConfigMenu (pApp);
 
     constexpr char* labelPin   =   NL_("Favorite###Manage-Favorite");
     constexpr char* labelUnpin = NL_("Unfavorite###Manage-Favorite");
@@ -680,9 +674,6 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
     bool isFavorite = pApp->IsFavorite ( );
     if (SKIF_ImGui_MenuItemEx2 (TL_(isFavorite ? labelUnpin : labelPin), (isFavorite ? ICON_FA_HEART_CRACK : ICON_FA_HEART), ImColor(245, 66, 66, 255)))
     {
-      if (pApp->skif.pinned > 50)
-        numPinnedOnTop--;
-
       pApp->skif.pinned = isFavorite ? 0 : 1;
 
       SKIF_GamingCollection::Get ( ).MetaDB_UpdateApp   (pApp, true);
@@ -690,6 +681,10 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
       SKIF_GamingCollection::SortApps (&_games.GetApps());
       sort_changed = true;
     }
+
+    // A favorite only because the game is one in the store client (Steam), until it is changed here
+    else if (pApp->skif.pinned == -1 && pApp->GetClientFavorite ( ) == 1)
+      SKIF_ImGui_SetHoverTip (SKIF_Lib_GetClientFavoriteTip (pApp->store_utf8));
 
     ImGui::Separator ( );
 
@@ -700,19 +695,12 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
       ImGui::PushItemFlag (ImGuiItemFlags_AutoClosePopups, false); // ImGuiItemFlags_SelectableDontClosePopup before ImGui 1.91.0
       ImGui::PushID       ("###ManageCategories");
 
-      if (ImGui::MenuItem (CL_("category", "Favorites###ManageCategoiesFavorites"), "", isFavorite))
+      // Favorites is not a category of its own here (Favorite / Unfavorite above), but a favorite is only shown there
+      if (isFavorite)
       {
-        if (pApp->skif.pinned > 50)
-          numPinnedOnTop--;
-
-        pApp->skif.pinned = isFavorite ? 0 : 1;
-        SKIF_GamingCollection::Get ( ).MetaDB_UpdateApp (pApp, true);
-
-        SKIF_GamingCollection::SortApps (&_games.GetApps());
-        sort_changed = true;
+        ImGui::TextDisabled ("%s", _("Favorited games are always shown under Favorites."));
+        ImGui::Separator    ( );
       }
-
-      ImGui::Separator ( );
 
       static char charCategoryRename[maxCategoryNameLen] = {  };
       static char charCategoryName  [maxCategoryNameLen] = {  };
@@ -1169,6 +1157,23 @@ DrawGameContextMenu_Developer (app_record_s* pApp)
       }
 
 
+      // The game's asset folder: SKIF's custom / downloaded covers and icons, and the grid view's thumbnail cache
+      std::wstring assetDir = pApp->GetAssetDirectory ( );
+
+      if (SKIF_ImGui_MenuItemEx2 (L_("Asset folder"), ICON_FA_FOLDER_OPEN, ImColor(255, 207, 72), 0, nullptr, ! assetDir.empty ( )))
+      {
+        std::error_code ec;
+        std::filesystem::create_directories (assetDir, ec); // A game without any artwork yet has none
+
+        SKIF_Util_ExplorePath (assetDir);
+      }
+
+      else if (! assetDir.empty ( ))
+      {
+        SKIF_ImGui_SetMouseCursorHand ( );
+        SKIF_ImGui_SetHoverText       (SK_WideCharToUTF8 (assetDir));
+      }
+
       // Store-specific developer actions (e.g. Xbox: Open Terminal)
       pApp->DrawDeveloperActions ( );
 
@@ -1388,14 +1393,8 @@ DrawSpecialKContextMenu (app_record_s* pApp)
   bool isFavorite = (pApp->skif.pinned > 0);
   if (SKIF_ImGui_MenuItemEx2 (TL_(isFavorite ? labelUnpin : labelPin), (isFavorite ? ICON_FA_HEART_CRACK : ICON_FA_HEART), ImColor(245, 66, 66, 255)))
   {
-    int old_value = pApp->skif.pinned;
-
-    pApp->skif.pinned =  (isFavorite ? 0 : (5 > SKIF_Lib_CountPinnedOnTop ( ) ? 99 : 50));
-
-    if (pApp->skif.pinned > 50)
-      numPinnedOnTop++;
-    else if (old_value > 50)
-      numPinnedOnTop--;
+    // Special K's default (99) sorts it first among the Favorites
+    pApp->skif.pinned =  (isFavorite ? 0 : 99);
 
     SKIF_GamingCollection::Get ( ).MetaDB_UpdateApp  ( pApp, true);
 
@@ -1405,6 +1404,147 @@ DrawSpecialKContextMenu (app_record_s* pApp)
 }
 
 #pragma endregion
+
+// Change / Reset (Clear, Refresh) of a game's cover: the cover menu, and the game menu of the grid view.
+//   isCustom / isManaged: whether its cover is the user's own, or one SKIF manages (both enable Reset)
+void
+DrawCoverMenuChangeReset (app_record_s* pApp, bool isCustom, bool isManaged)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_LibraryArtwork&   _art        = SKIF_LibraryArtwork  ::Get ( );
+
+  static bool&                update       = GetLibraryTab ( ).update;
+
+  // Preparations
+
+  bool resetVisible = (pApp->HasStoreCover ( )   || // Not for Special K or custom games, unless they have custom / managed covers
+                       isCustom ||
+                       isManaged);
+
+  if (SKIF_ImGui_MenuItemEx2 (L_("Change"), ICON_FA_FILE_IMAGE, (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255)))
+  {
+    LPWSTR pwszFilePath = NULL;
+    HRESULT hr          =
+      SKIF_Util_FileExplorer_BrowseForFile (&pwszFilePath, SKIF_ImGui_hWnd, { { W_("Images"), L"*.png;*.apng;*.gif;*.jpg;*.jpeg;*.webp;*.psd;*.bmp" } }, FOS_FILEMUSTEXIST, FOLDERID_Pictures);
+
+    if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED))
+    {
+      // If cancelled, do nothing
+    }
+
+    else if (SUCCEEDED(hr))
+    {
+      std::wstring filePath = std::wstring(pwszFilePath);
+      if (SaveGameCover (pApp, filePath))
+      {
+        // Shows the "..." loading dots, and sets up the current cover to be released
+        _art.BeginSavingCover (pApp);
+      }
+    }
+  }
+
+  else
+    SKIF_ImGui_SetMouseCursorHand ( );
+
+  if (resetVisible)
+  {
+    constexpr char* textCustom1 = NL_("Clear");
+    constexpr char* textCustom2 = NL_("Reset");
+    constexpr char* textDefault = NL_("Refresh");
+    char*           textPtr     = textDefault;
+    constexpr char* iconCustom  = ICON_FA_ROTATE_LEFT;
+    constexpr char* iconDefault = ICON_FA_ROTATE;
+    char*           iconPtr     = iconDefault;
+    ImColor         iconColor   = (_registry._StyleLightMode) ? ImColor (128, 128, 128) : ImColor (128, 128, 128); // If neither custom nor managed (aka disabled)
+
+    if (isCustom)
+    {
+      iconColor = (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255);
+      iconPtr   = iconCustom;
+      textPtr   = ((pApp->IsUserAdded ( )) ? textCustom1 : textCustom2);
+    }
+
+    else if (isManaged)
+    {
+      iconColor = (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255);
+    }
+
+    bool enabled = (isCustom || isManaged);
+    bool doReset = SKIF_ImGui_MenuItemEx2 (TL_(textPtr), iconPtr, iconColor, 0, nullptr, enabled);
+
+    if (! enabled)
+      SKIF_ImGui_SetHoverTip (_("Managed by the platform client."), false, true);
+
+    else
+      SKIF_ImGui_SetMouseCursorHand ( );
+
+    if (doReset)
+    {
+      std::wstring targetPath = L"";
+
+      targetPath = pApp->GetAssetDirectory ( );
+
+      if (PathFileExists (targetPath.c_str()))
+      {
+        std::wstring fileName = (isCustom) ? L"cover" : L"cover-original";
+
+        bool d1 = false,
+             d2 = false,
+             d3 = false;
+
+        // A custom cover (.png, .jpg, .gif, .webp) is kept as the previous cover, so Restore previous cover undoes this
+        if (isCustom)
+          d1 = SKIF_Lib_KeepPreviousCover (targetPath);
+
+        // Will fail on read-only marked files
+        else
+        {
+          d1 = DeleteFile ((targetPath + fileName + L".png").c_str());
+          d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str());
+        }
+
+        // Store-managed fallback covers (PCGamingWiki covers for GOG and Steam, Xbox fallback cover)
+        if (! isCustom)
+          d3 = pApp->DeleteStoreCoverFiles (targetPath);
+
+        // The preferred IGDB cover (Settings), downloaded again on the reload
+        bool d4 = (! isCustom && DeleteFile ((targetPath + L"cover-igdb.jpg").c_str()));
+
+        // If any file was removed
+        if (d1 || d2 || d3 || d4)
+        {
+          update    = true;
+          _art.ForgetCover ( ); // Needed as otherwise SKIF would not reload the cover
+          _art.InvalidateThumbnail (pApp); // The grid view's thumbnail
+        }
+      }
+    }
+  }
+
+  // The custom cover a new one replaced (or that was reset) last: restoring swaps the two, so it is undone the same way.
+  //   Not while a cover is being saved for the game (that moves the same files).
+  if (! SKIF_Lib_FindPreviousCover (pApp).empty ( ))
+  {
+    const bool enabled = ! _art.IsSavingCover (pApp);
+
+    if (SKIF_ImGui_MenuItemEx2 (L_("Restore previous cover"), ICON_FA_CLOCK_ROTATE_LEFT, (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255), 0, nullptr, enabled))
+    {
+      if (SKIF_Lib_RestorePreviousCover (pApp))
+      {
+        update = true;
+        _art.ForgetCover ( );            // Needed as otherwise SKIF would not reload the cover
+        _art.InvalidateThumbnail (pApp); // The grid view's thumbnail (the restored cover is older than its cache)
+      }
+    }
+
+    if (enabled)
+    {
+      SKIF_ImGui_SetMouseCursorHand ( );
+      SKIF_ImGui_SetHoverTip (_("Brings back the cover this one replaced. Restoring again brings this one back."));
+    }
+  }
+
+}
 
 // Context menu for the selected game's cover (moved verbatim from SKIF_UI_Tab_DrawLibrary)
 void
@@ -1434,100 +1574,7 @@ DrawCoverMenu (void)
     {
       ImGui::PushStyleColor (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
 
-      // Preparations
-
-      bool resetVisible = (pApp->HasStoreCover ( )   || // Not for Special K or custom games, unless they have custom / managed covers
-                           pApp->tex_cover.isCustom ||
-                           pApp->tex_cover.isManaged);
-
-      if (SKIF_ImGui_MenuItemEx2 (L_("Change"), ICON_FA_FILE_IMAGE, (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255)))
-      {
-        LPWSTR pwszFilePath = NULL;
-        HRESULT hr          =
-          SKIF_Util_FileExplorer_BrowseForFile (&pwszFilePath, SKIF_ImGui_hWnd, { { W_("Images"), L"*.png;*.jpg;*.jpeg;*.webp;*.psd;*.bmp" } }, FOS_FILEMUSTEXIST, FOLDERID_Pictures);
-
-        if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED))
-        {
-          // If cancelled, do nothing
-        }
-
-        else if (SUCCEEDED(hr))
-        {
-          std::wstring filePath = std::wstring(pwszFilePath);
-          if (SaveGameCover (pApp, filePath))
-          {
-            // Shows the "..." loading dots, and sets up the current cover to be released
-            _art.BeginSavingCover (pApp);
-          }
-        }
-      }
-
-      else
-        SKIF_ImGui_SetMouseCursorHand ( );
-
-      if (resetVisible)
-      {
-        constexpr char* textCustom1 = NL_("Clear");
-        constexpr char* textCustom2 = NL_("Reset");
-        constexpr char* textDefault = NL_("Refresh");
-        char*           textPtr     = textDefault;
-        constexpr char* iconCustom  = ICON_FA_ROTATE_LEFT;
-        constexpr char* iconDefault = ICON_FA_ROTATE;
-        char*           iconPtr     = iconDefault;
-        ImColor         iconColor   = (_registry._StyleLightMode) ? ImColor (128, 128, 128) : ImColor (128, 128, 128); // If neither custom nor managed (aka disabled)
-
-        if (pApp->tex_cover.isCustom)
-        {
-          iconColor = (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255);
-          iconPtr   = iconCustom;
-          textPtr   = ((pApp->IsUserAdded ( )) ? textCustom1 : textCustom2);
-        }
-
-        else if (pApp->tex_cover.isManaged)
-        {
-          iconColor = (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255);
-        }
-
-        bool enabled = (pApp->tex_cover.isCustom || pApp->tex_cover.isManaged);
-        bool doReset = SKIF_ImGui_MenuItemEx2 (TL_(textPtr), iconPtr, iconColor, 0, nullptr, enabled);
-
-        if (! enabled)
-          SKIF_ImGui_SetHoverTip (_("Managed by the platform client."), false, true);
-
-        else
-          SKIF_ImGui_SetMouseCursorHand ( );
-
-        if (doReset)
-        {
-          std::wstring targetPath = L"";
-
-          targetPath = pApp->GetAssetDirectory ( );
-
-          if (PathFileExists (targetPath.c_str()))
-          {
-            std::wstring fileName = (pApp->tex_cover.isCustom) ? L"cover" : L"cover-original";
-
-            // Will fail on read-only marked files
-            bool d1 = DeleteFile ((targetPath + fileName + L".png").c_str()),
-                 d2 = DeleteFile ((targetPath + fileName + L".jpg").c_str()),
-                 d3 = false;
-
-            // Store-managed fallback covers (PCGamingWiki covers for GOG and Steam, Xbox fallback cover)
-            if (! pApp->tex_cover.isCustom)
-              d3 = pApp->DeleteStoreCoverFiles (targetPath);
-
-            // The preferred IGDB cover (Settings), downloaded again on the reload
-            bool d4 = (! pApp->tex_cover.isCustom && DeleteFile ((targetPath + L"cover-igdb.jpg").c_str()));
-
-            // If any file was removed
-            if (d1 || d2 || d3 || d4)
-            {
-              update    = true;
-              _art.ForgetCover ( ); // Needed as otherwise SKIF would not reload the cover
-            }
-          }
-        }
-      }
+      DrawCoverMenuChangeReset (pApp, pApp->tex_cover.isCustom, pApp->tex_cover.isManaged);
 
       ImGui::Separator ( );
 
@@ -1975,7 +2022,7 @@ DrawEmptySpaceMenu (bool showClearBtn)
 
     ImGui::Separator      ( );
 
-    ShowLargeIconToggle   ( );
+    ShowLibraryViewToggles ( );
 
     if (SKIF_ImGui_MenuItemEx2 (L_("Refresh"), ICON_FA_ROTATE_RIGHT, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)))
       RepopulateGames = true;

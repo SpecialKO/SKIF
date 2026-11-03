@@ -105,26 +105,34 @@ struct SKIF_GamingCollection {
         app_record_s* Find (app_record_s::Store store, uint32_t appid);
         app_record_s* Find (const app_key_s& key) { return Find (key.store, key.appid); }
 
+        // The same, as a shared reference: a background worker keeps the record alive with it, even after a library
+        //   refresh has replaced it (main thread). nullptr if not found.
+        std::shared_ptr <app_record_s> FindShared (const app_key_s& key);
+
         // Library population (call from the main thread).
         //   PopulateGames ( )        starts the background library worker unless one is already running.
         //   IsPopulating ( )         true while a worker exists (running, or finished but not yet swapped in).
         //   IsPopulateFinished ( )   true once the worker is done with its results and they can be swapped in (its
         //                            thread may still be ending: it posts WM_SKIF_ICON right after).
-        //   SwapInPopulatedGames ( ) replaces the app list with the worker's results and returns the number of
-        //                            icon workers it reaped. Current records whose library data is unchanged
-        //                            (app_record_s::HasSameLibraryData) are kept instead of the new ones, and
-        //                            replaced records carry over their icon and run state. pChanged is set to
-        //                            false if every record was kept, in the same order (nothing shown changes).
+        //   SwapInPopulatedGames ( ) replaces the app list with the worker's results. Current records whose library
+        //                            data is unchanged (app_record_s::HasSameLibraryData) are kept instead of the
+        //                            new ones, and replaced records carry over their icon and run state. pChanged
+        //                            is set to false if every record was kept, in the same order (nothing shown
+        //                            changes). Replaced records live on while a worker still holds them (FindShared).
         bool PopulateGames        (void);
         bool IsPopulating         (void) const;
         bool IsPopulateFinished   (void) const;
-        int  SwapInPopulatedGames (bool* pChanged = nullptr);
+        void SwapInPopulatedGames (bool* pChanged = nullptr);
         bool HasPopulatedOnce     (void) const { return m_populatedOnce.load ( ); } // A library has been swapped in (any thread)
         uint32_t GetSwapCount     (void) const { return m_swapCount; }             // Increased by every swap-in (records may have been replaced); main thread
 
         // Steam app tickets and the keyboard-hint label trie produced by the last population
   std::set <std::string>& GetAppTickets (void) { return m_apptickets; }
   Trie&                   GetLabels     (void) { return m_tLabels;    }
+
+        // The asset folders of every game the stores reported in the last population, also those not shown (hidden
+        //   games, games without a name or install folder): what CleanUpOrphanedCoverCaches keeps. Main thread.
+  const std::vector <std::wstring>& GetKnownAssetDirectories (void) const { return m_assetDirs; }
 
         // Library-wide textures loaded by the library worker
   ID3D11ShaderResourceView* GetPatreonTexture (void)       { AdoptEmbeddedTextures ( ); return m_pPatTexSRV.p; }
@@ -151,6 +159,7 @@ private:
   worker_s*                 m_worker = nullptr;
   Trie                      m_tLabels;
   std::set <std::string>    m_apptickets;
+  std::vector <std::wstring> m_assetDirs;   // See GetKnownAssetDirectories ( )
   nlohmann::json            m_jsonMetaDB;
   std::recursive_mutex      m_jsonMetaDB_mutex;
   std::wstring              m_metadataPath;

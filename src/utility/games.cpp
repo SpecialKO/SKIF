@@ -605,6 +605,8 @@ struct SKIF_GamingCollection::worker_s {
   bool                    pcores     = false; // First refresh of the session (launch): its threads run on the P-cores
   std::unique_ptr <skValveDataFile>
                           appinfo    = nullptr; // Steam's appinfo.vdf, read by the worker (see SwapInPopulatedGames)
+  std::vector <std::wstring>
+                          assetDirs  = { };     // See GetKnownAssetDirectories ( )
 };
 
 bool
@@ -680,31 +682,29 @@ SKIF_GamingCollection::Find (app_record_s::Store store, uint32_t appid)
   return nullptr;
 }
 
-int
+std::shared_ptr <app_record_s>
+SKIF_GamingCollection::FindShared (const app_key_s& key)
+{
+  for (auto& app : m_apps)
+  {
+    if (app.second->id    != 0         &&
+        app.second->id    == key.appid &&
+        app.second->store == key.store)
+      return app.second;
+  }
+
+  return nullptr;
+}
+
+// Workers still using a record that is replaced here keep it alive (shared_ptr), so nothing waits for them
+void
 SKIF_GamingCollection::SwapInPopulatedGames (bool* pChanged)
 {
   if (pChanged != nullptr)
     *pChanged = true;
 
   if (! IsPopulateFinished ( ))
-    return 0;
-
-  int reaped = 0;
-
-  // Clear up any unacknowledged icon workers
-  for (auto& app : m_apps)
-  {
-    if (app.second->tex_icon.iWorker == 1)
-    {
-      if (WaitForSingleObject (app.second->tex_icon.hWorker, 200) == WAIT_OBJECT_0) // 200 second timeout (maybe change it?)
-      {
-        CloseHandle (app.second->tex_icon.hWorker);
-        app.second->tex_icon.hWorker = NULL;
-        app.second->tex_icon.iWorker = 2;
-        reaped++;
-      }
-    }
-  }
+    return;
 
   std::scoped_lock app_lock (m_apps_mutex);
 
@@ -781,6 +781,14 @@ SKIF_GamingCollection::SwapInPopulatedGames (bool* pChanged)
       cur.second->tex_icon         = { }; // Not for release
     }
 
+    // An icon still loading: its result is put on this record (found by its key), so don't start another
+    else if (cur.second->tex_icon.iWorker == 1)
+      app.second->tex_icon.iWorker = 1;
+
+    // The thumbnail (grid view), with its state: a load in flight is put on this record (its request matches)
+    app.second->tex_thumb = std::move (cur.second->tex_thumb);
+    cur.second->tex_thumb = { }; // Not for release
+
     // The run state, until SKIF_LibRefreshWorker checks it again (it would otherwise blink out for a moment)
     if (cur.second->_status.running != 0 && app.second->_status.running == 0)
     {
@@ -803,7 +811,7 @@ SKIF_GamingCollection::SwapInPopulatedGames (bool* pChanged)
                                       << ((! m_populatedOnce.load ( )) ? " (first library)" :
                                           (! changed)                  ? " (unchanged)"     : "") << ".";
 
-  // Push the icons of the records not carried over for release
+  // Push the icons and thumbnails of the records not carried over for release
   for (auto& app : m_apps)
   {
     if (app.second != nullptr && app.second->tex_icon.texture.p != nullptr)
@@ -811,12 +819,19 @@ SKIF_GamingCollection::SwapInPopulatedGames (bool* pChanged)
       SKIF_ResourcesToFree.push(app.second->tex_icon.texture.p);
       app.second->tex_icon.texture.p = nullptr;
     }
+
+    if (app.second != nullptr && app.second->tex_thumb.texture.p != nullptr)
+    {
+      SKIF_ResourcesToFree.push(app.second->tex_thumb.texture.p);
+      app.second->tex_thumb.texture.p = nullptr;
+    }
   }
 
-  // Insert new data (the current records not kept are freed)
-  m_apps       = std::move (apps);             // app_entry_t is move-only, so no brace-list assignment
+  // Insert new data (the current records not kept are freed, unless a worker still holds one)
+  m_apps       = std::move (apps);
   m_apptickets = std::move (m_worker->apptickets); // The worker is discarded after the swap
   m_tLabels    = std::move (m_worker->labels); // Trie is move-only (it owns its nodes)
+  m_assetDirs  = std::move (m_worker->assetDirs);
 
   m_populatedOnce.store (true);
   m_swapCount++;
@@ -838,8 +853,6 @@ SKIF_GamingCollection::SwapInPopulatedGames (bool* pChanged)
   m_worker = nullptr;
 
   PLOG_VERBOSE << "Swapped in the new library data (collection)!";
-
-  return reaped;
 }
 
 // Main thread: takes the embedded textures once the library worker's thread has loaded them
@@ -1573,6 +1586,15 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
 
   DWORD dwPhase = SKIF_Util_timeGetTime1 ( );
 
+  // The asset folders of every game the stores reported, taken before the processing below skips any (hidden games,
+  //   and in the hidden games view the others; games without a name; games whose install folder is missing, e.g. on a
+  //     drive that is not connected): none of those are gone, so their cover caches stay (CleanUpOrphanedCoverCaches)
+  _data->assetDirs.reserve (_data->apps.size ( ));
+
+  for (auto& app : _data->apps)
+    if (app.second != nullptr && app.second->id != 0 && ! app.second->IsSpecialK ( ))
+      _data->assetDirs.push_back (app.second->GetAssetDirectory ( ));
+
   std::vector <game_job_s> jobs (_data->apps.size ( ));
   bool                     metaAvailable = false;
 
@@ -2017,6 +2039,14 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
             PLOG_ERROR << "Failed adding profile name (" << wsName << ") to registry value: " << path;
         }
       }
+    }
+
+    // Special K: no profile mappings and not in the labels above, but it needs its sort key (names.all_upper_alnum) all the
+    //   same, or SortApps ( ) puts it before every other game (an empty name sorts first)
+    else if (app.second->id != 0 && app.second->IsSpecialK ( ))
+    {
+      Trie unused;
+      InsertTrieKey (&app, &unused);
     }
   }
 

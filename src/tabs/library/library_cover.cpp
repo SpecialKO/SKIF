@@ -291,11 +291,17 @@ DrawGameCover (bool sameLine, bool& isCoverHovered, ImVec2& vecPosCover)
         ImGui::SetCursorPos (vecPosCoverInner);
       }
 
-      // Display game cover image
+      // Display game cover image: while an animated cover (APNG, GIF) plays, its current frame instead. Both are sized by the
+      //   cover's resolution, as the frames may have been made smaller (SKIF_LibraryArtwork::UpdateAnimatedCover)
+      ID3D11ShaderResourceView* pCoverSRV = _art.GetAnimatedCoverFrame ( );
+
+      if (pCoverSRV == nullptr)
+        pCoverSRV = _art.GetCoverTexture ( );
+
       CalculateImageSizing (cover, vecContentRegionAvail, _art.GetCoverResolution ( ));
 
       ImGui::SetCursorPos  (cover.position); //vecPosImage
-      SKIF_ImGui_OptImage  (_art.GetCoverTexture ( ),
+      SKIF_ImGui_OptImage  (pCoverSRV,
                                                         cover.size,     //sizeCoverFloored,
                                                         ImVec2 (0, 0),  // Top Left coordinates
                                                         ImVec2 (1, 1),  // Bottom Right coordinates
@@ -323,10 +329,44 @@ DrawGameCover (bool sameLine, bool& isCoverHovered, ImVec2& vecPosCover)
         );
       }
 
+      // Images dropped anywhere on the cover area change the selected game's cover. While one is dragged over it, the cover
+      //   image is highlighted (here, in the cover's own window, so it is drawn over the image): the image shown (the cover,
+      //     else Special K's logo), or the whole area if there is none (missing, loading)
+      if (pApp != nullptr)
+      {
+        const ImVec2 areaMin = ImGui::GetWindowPos ( ),
+                     areaMax = areaMin + ImGui::GetWindowSize ( );
+
+        if (RegisterCoverDropTarget (areaMin, areaMax, pApp->GetKey ( )))
+        {
+          const image_s* shown = (pCoverSRV != nullptr) ? &cover   :
+                                 (isSpecialK)           ? &coverSK : nullptr;
+
+          ImVec2 highlightMin = areaMin,
+                 highlightMax = areaMax;
+
+          // Within the area (a filled cover may be larger than it)
+          if (shown != nullptr && shown->size.x > 0.0f && shown->size.y > 0.0f)
+          {
+            highlightMin = ImMax (areaMin, areaMin + shown->position);
+            highlightMax = ImMin (areaMax, areaMin + shown->position + shown->size);
+          }
+
+          DrawCoverDropHighlight (ImGui::GetWindowDrawList ( ), highlightMin, highlightMax, 0.0f);
+        }
+      }
+
       ImGui::EndChild ( );
     }
 
     isCoverHovered = ImGui::IsItemHovered();
+
+    // An animated cover plays while:
+    //   hovered,
+    //   always,
+    //   or while SKIF have focus (automatic).
+    if (isCoverHovered || _art.AreCoverAnimationsAlways ( ) || (_art.AreCoverAnimationsAutomatic ( ) && SKIF_ImGui_IsFocused ( )))
+      _art.HoverAnimatedCover ( );
 
     if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
       CoverMenu = PopupState_Open;

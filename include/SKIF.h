@@ -28,6 +28,7 @@
 
 #include <string>
 #include <string_view>
+#include <atomic>
 
 #ifndef PLOG_ENABLE_WCHAR_INPUT
 #define PLOG_ENABLE_WCHAR_INPUT 1
@@ -46,6 +47,8 @@ const     UINT_PTR        IDT_REFRESH_NOTIFY    =             1343;
 const     UINT_PTR        IDT_REFRESH_DIR_ROOT  =             1344; // Used by the directory watch for the root folder
 const     UINT_PTR       cIDT_TIMER_EFFICIENCY  =             1345; // Engages Efficiency Mode (Win11) and compacts the working set
 const     UINT_PTR       cIDT_TIMER_STARTUP     =             1346; // Fallback for finishing startup (E-cores, notification icon) if nothing has been presented
+const     UINT_PTR       cIDT_TIMER_THUMBNAILS  =             1347; // Wakes SKIF to unload the grid view's thumbnails that went out of view (SKIF_LibraryArtwork::UpdateThumbnails)
+const     UINT_PTR       cIDT_TIMER_COVERANIM   =             1348; // Wakes SKIF for the next frame of a hovered animated cover (SKIF_LibraryArtwork::UpdateAnimatedCover)
 //const   UINT_PTR        IDT_REFRESH_STEAM_LIB =        1983-1999; // Used by the directory watch for Steam libraries
 
 // Desktop notification types
@@ -69,7 +72,10 @@ constexpr UINT           WM_SKIF_COVER          = WM_USER + 0x2050; // Cover wor
 constexpr UINT           WM_SKIF_UPDATER        = WM_USER + 0x2051; // Updater worker completed
 constexpr UINT           WM_SKIF_ICON           = WM_USER + 0x2052; // Patreon/Cover/Icon textures workers completed...
 constexpr UINT           WM_SKIF_REFRESHCOVER   = WM_USER + 0x2053; // Refresh Cover -- Update Cover worker completed
+constexpr LPARAM         SKIF_RefreshCover_Notify  = 0x10000;         //   lParam flags (besides the store): a notification once it is saved,
+constexpr LPARAM         SKIF_RefreshCover_Success = 0x20000;         //     and whether it was (one is shown if it was not)
 constexpr UINT           WM_SKIF_REFRESHFOCUS   = WM_USER + 0x2054; // Trigger a new focus check from the main thread (used by child threads, e.g. gamepad input thread)
+constexpr UINT           WM_SKIF_DRAGOVER       = WM_USER + 0x2055; // Something is dragged over SKIF, or no longer is: frames for the grid view's drop highlight (droptarget.hpp)
 
 // Callbacks / Event Signals
 constexpr UINT           WM_SKIF_POWERMODE      = WM_USER + 0x2101; // Used to signal that a new effective power mode has been applied
@@ -173,6 +179,8 @@ extern std::string SKIF_StatusBarHelp;
 
 extern bool        PopulatedGames;
 extern bool        SKIF_StartupFinished; // Set once the first frame has been presented (see SKIF_OnStartupFinished)
+extern std::atomic<bool>
+                   SKIF_D3D11_FlushPending; // A D3D11 resource was released (any thread): flush before SKIF sleeps, so its memory is reclaimed (SKIF.cpp)
 extern bool        RepopulateGames;
 extern bool        RefreshHardwareTab;
 extern bool        RefreshSettingsTab;

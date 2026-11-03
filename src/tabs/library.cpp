@@ -103,8 +103,6 @@ bool                   launchViaPlatform = false;   // Explicitly through the pl
 bool                   launchInstant     = false;
 bool                   launchWithoutSK   = false;
 
-int                    numRegular        = 0;
-int                    numPinnedOnTop    = 0;
 
 // Support up to 16 running games at once, lol
 
@@ -168,6 +166,122 @@ PopupState KeyboardHint        = PopupState_Closed;
 change_category_s static_category; // library_ui.h
 
 std::wstring dragDroppedFilePath = L"";
+POINT        dragDroppedPoint    = { }; // Where it was dropped (screen coordinates; droptarget.hpp)
+bool         dragOverActive      = false; // Something is dragged over SKIF (droptarget.hpp) ...
+bool         dragOverImage       = false; //   ... that may be an image (not e.g. a game to add) ...
+POINT        dragOverPoint       = { };   //   ... here (screen coordinates): the game it would change the cover of is highlighted
+
+// Where the drop targets for images were drawn in the latest frame (the visible part of each): the grid's tiles, the list's
+//   rows, the cover panel (RegisterCoverDropTarget). Drawn before drops are handled (SKIF_UI_Tab_DrawLibrary).
+struct cover_drop_target_s {
+  ImVec2    min;
+  ImVec2    max;
+  app_key_s game;
+};
+
+static std::vector <cover_drop_target_s> s_dropTargets;
+static int                               s_dropTargetsFrame = -1;
+
+bool
+RegisterCoverDropTarget (ImVec2 min, ImVec2 max, app_key_s game)
+{
+  // A new frame: those of the previous one are gone
+  if (const int frame = ImGui::GetFrameCount ( ); s_dropTargetsFrame != frame)
+  {
+    s_dropTargets.clear ( );
+    s_dropTargetsFrame = frame;
+  }
+
+  // Only its visible part: within the window it is drawn in (which may scroll, e.g. the list)
+  ImDrawList*  draw_list = ImGui::GetWindowDrawList ( );
+  const ImVec2 clipMin   = draw_list->GetClipRectMin ( ),
+               clipMax   = draw_list->GetClipRectMax ( );
+
+  min = ImVec2 (std::max (min.x, clipMin.x), std::max (min.y, clipMin.y));
+  max = ImVec2 (std::min (max.x, clipMax.x), std::min (max.y, clipMax.y));
+
+  if (min.x >= max.x || min.y >= max.y)
+    return false;
+
+  s_dropTargets.push_back ({ min, max, game });
+
+  const ImVec2 drag = ImVec2 (static_cast <float> (dragOverPoint.x), static_cast <float> (dragOverPoint.y));
+
+  return (dragOverActive && dragOverImage &&
+          drag.x >= min.x && drag.x < max.x &&
+          drag.y >= min.y && drag.y < max.y);
+}
+
+bool
+GetCoverDropTargetAt (ImVec2 pos, app_key_s& game)
+{
+  if (s_dropTargetsFrame < ImGui::GetFrameCount ( ) - 1)
+    return false;
+
+  for (auto& target : s_dropTargets)
+  {
+    if (pos.x >= target.min.x && pos.x < target.max.x &&
+        pos.y >= target.min.y && pos.y < target.max.y)
+    {
+      game = target.game;
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// While an image is dragged near the top or bottom edge of the current window, it scrolls toward that edge: faster the closer
+//   the image is to it. ImGui gets no mouse input during a drag, so this goes by where the drop target says it is.
+void
+ScrollForCoverDrag (void)
+{
+  extern bool coverFadeActive; // Keeps the frames coming (SKIF.cpp)
+
+  if (! dragOverActive || ! dragOverImage)
+    return;
+
+  const ImRect rect = ImGui::GetCurrentWindowRead ( )->InnerRect;
+  const ImVec2 drag = ImVec2 (static_cast <float> (dragOverPoint.x), static_cast <float> (dragOverPoint.y));
+
+  if (! rect.Contains (drag))
+    return;
+
+  // The edge zones: up to a quarter of the window each
+  const float zone      = std::min (ImFloor (48.0f * SKIF_ImGui_GlobalDPIScale), rect.GetHeight ( ) * 0.25f);
+  const float maxSpeed  = 1200.0f * SKIF_ImGui_GlobalDPIScale; // Pixels a second, at the edge
+  float       direction = 0.0f;
+
+  if      (drag.y < rect.Min.y + zone)
+    direction = -(1.0f - (drag.y - rect.Min.y) / zone);
+  else if (drag.y > rect.Max.y - zone)
+    direction =  (1.0f - (rect.Max.y - drag.y) / zone);
+
+  if (direction == 0.0f || zone <= 0.0f)
+    return;
+
+  // At least a fifth of the speed as soon as it is in a zone
+  const float speed  = maxSpeed * std::max (0.2f, std::abs (direction));
+  const float dt     = std::clamp (ImGui::GetIO ( ).DeltaTime, 0.0f, 0.05f); // Not a jump after SKIF slept
+  const float scroll = std::clamp (ImGui::GetScrollY ( ) + ((direction < 0.0f) ? -speed : speed) * dt, 0.0f, ImGui::GetScrollMaxY ( ));
+
+  if (scroll != ImGui::GetScrollY ( ))
+  {
+    ImGui::SetScrollY (scroll);
+    coverFadeActive = true; // The drop target only wakes SKIF when the image moves
+  }
+}
+
+// Lightened, in a thick accent border just inside its edge
+void
+DrawCoverDropHighlight (ImDrawList* draw_list, ImVec2 min, ImVec2 max, float rounding)
+{
+  const float  border = std::max (3.0f, ImFloor (3.0f * SKIF_ImGui_GlobalDPIScale));
+  const ImVec2 half   = ImVec2 (border * 0.5f, border * 0.5f);
+
+  draw_list->AddRectFilled (min, max, IM_COL32 (255, 255, 255, 50), rounding);
+  draw_list->AddRect       (min + half, max - half, ImGui::GetColorU32 (ImGuiCol_SKIF_Info), rounding, border, ImDrawFlags_None);
+}
 std::wstring dragDroppedFilePathGame = L"";
 
 extern ImVec2          SKIF_vecServiceMode;
@@ -262,6 +376,63 @@ ShowLargeIconToggle (void)
     SKIF_ImGui_PopDisableState  ( );
     SKIF_ImGui_SetHoverTip      (_("Currently enforced by touch input mode."), false, true);
   }
+}
+
+bool
+IsLibraryGridView (void)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  return (_registry.iLibraryView == 1);
+}
+
+// The view options of the Filter menu (the empty space menu): Grid view, Show titles, Show platform and Cover size (grid view), then
+//   Show icons and Large icons (the list, shown in both views)
+void
+ShowLibraryViewToggles (void)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  bool gridView = IsLibraryGridView ( );
+
+  if (SKIF_ImGui_MenuItemEx2 (L_("Grid view"), ICON_FA_TABLE_CELLS_LARGE, ImColor(255, 207, 72), spaces, &gridView))
+  {
+    _registry.iLibraryView = (gridView) ? 1 : 0;
+    _registry.regKVLibraryView.putData (_registry.iLibraryView);
+  }
+
+  if (gridView)
+  {
+    if (SKIF_ImGui_MenuItemEx2 (L_("Show titles"), ICON_FA_HEADING, ImColor(255, 207, 72), spaces, &_registry.bLibraryGridTitles))
+      _registry.regKVLibraryGridTitles.putData (_registry.bLibraryGridTitles);
+
+    // The store's logo (or name) in a corner of each cover
+    if (SKIF_ImGui_MenuItemEx2 (L_("Show platform"), ICON_FA_STORE, ImColor(255, 207, 72), spaces, &_registry.bLibraryGridPlatform))
+      _registry.regKVLibraryGridPlatform.putData (_registry.bLibraryGridPlatform);
+
+    // The size of the covers: the grid follows while dragging, and the registry is written once released
+    // TRANSLATORS: {0} is the width of the covers in the library's grid view (in pixels at 100% scale)
+    const std::string sizeFormat = SKIF_L10n_PrintfFormat (_("Cover size: {0}"), "%d");
+
+    ImGui::SetNextItemWidth (ImMax (ImGui::GetContentRegionAvail ( ).x, ImFloor (180.0f * SKIF_ImGui_GlobalDPIScale)));
+    ImGui::SliderInt        ("###LibraryGridSize", &_registry.iLibraryGridSize, 80, 240, sizeFormat.c_str ( ), ImGuiSliderFlags_AlwaysClamp);
+
+    if (ImGui::IsItemDeactivatedAfterEdit ( ))
+      _registry.regKVLibraryGridSize.putData (_registry.iLibraryGridSize);
+  }
+
+  // The list is shown in both views
+  if (SKIF_ImGui_MenuItemEx2 (L_("Show icons"), ICON_FA_ICONS, ImColor(255, 207, 72), spaces, &_registry.bLibraryShowIcons))
+    _registry.regKVLibraryShowIcons.putData (_registry.bLibraryShowIcons);
+
+  // Large icons only matter while the icons are shown
+  if (! _registry.bLibraryShowIcons)
+    SKIF_ImGui_PushDisableState ( );
+
+  ShowLargeIconToggle ( );
+
+  if (! _registry.bLibraryShowIcons)
+    SKIF_ImGui_PopDisableState  ( );
 }
 
 
@@ -456,7 +627,7 @@ SearchAppsList (void)
 
 #pragma endregion
 
-// Clears the search filter and counts the regular / pinned-on-top entries again
+// Clears the search filter
 void
 ClearCharFilter (void)
 {
@@ -465,20 +636,8 @@ ClearCharFilter (void)
   strncpy (charFilter,    "\0", MAX_PATH);
   strncpy (charFilterTmp, "\0", MAX_PATH);
 
-  numPinnedOnTop = 0;
-  numRegular     = 0;
-
   for (auto& app : _games.GetApps())
-  {
     app.second->filtered = false;
-
-    numRegular++;
-
-    if (app.second->skif.pinned > 50)
-      numPinnedOnTop++;
-  }
-
-  numRegular -= numPinnedOnTop;
 }
 
 
@@ -648,15 +807,15 @@ SKIF_UI_Tab_DrawLibrary (void)
   if (! PopulatedGames && ! _games.IsPopulating ( ))
     _games.PopulateGames ( );
 
-  // Swapping in frees the old records, so it waits until no cover / icon worker still uses one
-  else if (! PopulatedGames && _games.IsPopulateFinished ( ) && ! _art.IsUsingRecords ( ))
+  // Swapping in frees the old records; a cover / icon worker still using one keeps it alive (FindShared)
+  else if (! PopulatedGames && _games.IsPopulateFinished ( ))
   {
     firstLibrary = (! _games.HasPopulatedOnce ( ));
 
     const app_record_s* pPrevSelected  = _games.Find (selection.game);
     bool                libraryChanged = true;
 
-    _art.OnIconWorkersReaped (_games.SwapInPopulatedGames (&libraryChanged));
+    _games.SwapInPopulatedGames (&libraryChanged);
 
     // Any game worker still running was started on the old library, so its results are outdated,
     //   unless the swap kept the record it was started for (SwapInPopulatedGames keeps unchanged records)
@@ -707,9 +866,6 @@ SKIF_UI_Tab_DrawLibrary (void)
     if (! keepSelection && selection.game.appid != 0)
       selection.reset();
 
-    bool resortGames   = false;
-    int tmpPinnedOnTop = 0;
-
     // Do other misc stuff
     for (auto& app : _games.GetApps())
     {
@@ -721,9 +877,7 @@ SKIF_UI_Tab_DrawLibrary (void)
       {
         PLOG_VERBOSE << "Selected app ID " << app.second->id << " from platform ID " << (int)app.second->store << ".";
         selection.game         =    app.second->GetKey ( );
-        selection.category     =   (app.second->skif.pinned > 50 && ! _registry._LibHorizonMode && _registry._LibPinnedVisible) // Only when not using horizon mode
-                               ?   "Favorites (pinned)" // Workaround to not expand Favorites tab on launch
-                               :    GetEffectiveCategory (app.second.get ( ));
+        selection.category     =    GetEffectiveCategory (app.second.get ( ));
         search_selection.game  =    selection.game;
         search_selection.category = selection.category;
         update = true;
@@ -740,47 +894,16 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Apply the current filter
       app.second->filtered = (charFilter[0] != '\0' && (StrStrIA (app.first.c_str(), charFilter) == NULL &&                // Name
                                                        StrStrIA (app.second->skif.category.c_str(), charFilter) == NULL)); // Category
-
-      // Count the number of pinned entries on top
-      if (app.second->skif.pinned > 50)
-      {
-        // Only allow 5 pinned on top
-        if (5 > tmpPinnedOnTop)
-          tmpPinnedOnTop++;
-
-        // Reduce all other to normal favorite status
-        else
-        {
-          app.second->skif.pinned = 50;
-          resortGames = true;
-        }
-      }
     }
 
-    if (resortGames)
-    {
-      SKIF_GamingCollection::SortApps (&_games.GetApps());
-      sort_changed = true;
-    }
-
-    // Use a separate pass to count the actual figures used for the UI calculations later
-    numRegular       = 0;
-    numPinnedOnTop   = 0;
-
+    // The keyboard hint search of the games shown
     for (auto& app : _games.GetApps())
     {
       if (app.second->id == 0 || app.second->filtered)
         continue;
 
       InsertTrieKey (&app, &labelsFiltered);
-
-      numRegular++;
-
-      if (app.second->skif.pinned > 50)
-        numPinnedOnTop++;
     }
-
-    numRegular -= numPinnedOnTop;
 
     PopulatedGames = true;
 
@@ -789,10 +912,44 @@ SKIF_UI_Tab_DrawLibrary (void)
       sort_changed = true;
 
     PLOG_VERBOSE << "Swapped in the new library data!";
+
+    // Once per session, with the whole library known: the cover caches (thumbnails, animations) of the asset folders of
+    //   games no longer in it are deleted (in the background). Not with an empty library (nothing could be told apart).
+    //     Every game the stores reported counts, also those not shown (hidden games, or the others in the hidden view).
+    static bool cleanedUpCoverCaches = false;
+
+    if (! cleanedUpCoverCaches && ! _games.IsPopulating ( ))
+    {
+      const std::vector <std::wstring>& assetDirs = _games.GetKnownAssetDirectories ( );
+
+      if (! assetDirs.empty ( ))
+      {
+        cleanedUpCoverCaches = true;
+        _art.CleanUpOrphanedCoverCaches (assetDirs);
+      }
+    }
   }
 
   // Swap in the covers / icons the background workers finished
   _art.ApplyWorkerResults ( );
+
+  // Saved custom covers to notify of (WM_SKIF_REFRESHCOVER): an image dropped on a game, or a save that failed. Shown here,
+  //   as a notification needs a frame (and a window) to be made in.
+  for (app_key_s game; ; )
+  {
+    bool success = false;
+
+    if (! _art.PopCoverSavedNotice (game, success))
+      break;
+
+    const app_record_s* pGame = _games.Find (game);
+    const std::string   name  = (pGame != nullptr) ? pGame->names.normal : "";
+
+    if (success)
+      ImGui::InsertNotification ({ ImGuiToastType::Success, 4000, _("Cover changed"),              "%s", name.c_str ( ) });
+    else
+      ImGui::InsertNotification ({ ImGuiToastType::Error,   6000, _("Could not change the cover"), "%s", name.c_str ( ) });
+  }
 
   extern bool  coverFadeActive;
   static int   tmp_iDimCovers = _registry.iDimCovers;
@@ -1079,8 +1236,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     float horizon_cutoff_height = 550.0f * SKIF_ImGui_GlobalDPIScale; // 750.0f // 650.0f
 
-    _registry._LibPinnedVisible = tab_ContentRegionAvail.y >= horizon_cutoff_height;
-
     _registry._LibHorizonMode  = (tab_ContentRegionAvail.x > 600.0f * SKIF_ImGui_GlobalDPIScale &&
                                   tab_ContentRegionAvail.y < horizon_cutoff_height);
     _registry._UseLowResCovers = (_registry._LibHorizonMode &&
@@ -1092,7 +1247,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     tab_scrollbar_width    = ImGui::GetCurrentWindowRead()->ScrollbarY ? ImGui::GetStyle().ScrollbarSize : 0.0f;
     lib_column2_width      = 376.0f * SKIF_ImGui_GlobalDPIScale; // tab_scrollbar_width // SKIF_vecServiceMode (not ready yet) // ((_registry._LibHorizonMode) ? 376.0f : 376.0f) * SKIF_ImGui_GlobalDPIScale
 
-    sizeList        = ImFloor ((_registry._LibHorizonMode || ! _registry._LibPinnedVisible)  ? (_registry.bUIBorders)
+    sizeList        = ImFloor ((_registry._LibHorizonMode)  ? (_registry.bUIBorders)
                                                                    ? ImVec2 (lib_column2_width, 334.0f * SKIF_ImGui_GlobalDPIScale)   // Horizon + Borders
                                                                    : ImVec2 (lib_column2_width, 332.0f * SKIF_ImGui_GlobalDPIScale)   // Horizon
                                                                    : ImVec2 (lib_column2_width, 620.0f * SKIF_ImGui_GlobalDPIScale)); // Regular
@@ -1158,7 +1313,21 @@ SKIF_UI_Tab_DrawLibrary (void)
   bool          isCoverHovered     = false;
   ImVec2        vecPosCover        = ImVec2 (0, 0);
 
-  DrawGameCover (true, isCoverHovered, vecPosCover);
+  // The grid view: a grid of covers in place of the selected game's cover (regular and horizon mode), with the same list
+  //   and details beside it (library/library_grid.cpp)
+  if (IsLibraryGridView ( ) && uiCoverVisible)
+  {
+    DrawGamesGrid (current_time, sizeCover, (charFilter[0] != '\0'));
+
+    // The same line as the list + details, as the cover
+    ImGui::SameLine (0.0f, 3.0f * SKIF_ImGui_GlobalDPIScale);
+  }
+
+  else
+    DrawGameCover (true, isCoverHovered, vecPosCover);
+
+  // An animated cover (APNG, GIF) plays while hovered: the cover, or its tile in the grid view (whichever was hovered above)
+  _art.UpdateAnimatedCover ( );
 
 #pragma endregion
 
@@ -1239,11 +1408,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   ImGui::SameLine ( );
 
-  //static int numPinned   = 0;
-  //static int numRegular  = 0;
-  //bool       resortGames = false;
-
-  // Preprocess pinned/favorite entries
 
   // Update some stuff if filter query has changed
   if (strncmp (charFilter, charFilterTmp, MAX_PATH) != 0)
@@ -1251,8 +1415,6 @@ SKIF_UI_Tab_DrawLibrary (void)
     strncpy (charFilter, charFilterTmp, MAX_PATH);
 
     labelsFiltered = Trie { };
-    numPinnedOnTop = 0;
-    numRegular     = 0;
 
     for (auto& app : _games.GetApps())
     {
@@ -1266,17 +1428,8 @@ SKIF_UI_Tab_DrawLibrary (void)
         continue;
 
       InsertTrieKey (&app, &labelsFiltered);
-
-      numRegular++;
-
-      if (app.second->skif.pinned > 50)
-        numPinnedOnTop++;
     }
-
-    numRegular -= numPinnedOnTop;
   }
-
-  //PLOG_VERBOSE << "Numbers: " << numRegular << " (regular) -- " << numPinnedOnTop << " (on top)";
 
   // Clears the search filter: ClearCharFilter ( ) (library.cpp)
 
@@ -1338,6 +1491,9 @@ SKIF_UI_Tab_DrawLibrary (void)
   // Games list (library/library_list.cpp); fTop3 / fTop3ScreenPos: where the list starts
   ImVec2 fTop3, fTop3ScreenPos;
   DrawGamesList (current_time, fTop1, showClearBtn, fTop3, fTop3ScreenPos);
+
+  // Unloads the thumbnails out of view for a while (all of them when the grid is not shown)
+  _art.UpdateThumbnails (IsLibraryGridView ( ) && uiCoverVisible);
 
   // Filter history (drawn after the games list so it overlaps it). The cursor is restored, as the code below positions
   //   itself relative to where the games list ended
@@ -1427,7 +1583,8 @@ SKIF_UI_Tab_DrawLibrary (void)
 #pragma region SpecialKPatreon
 
   // Special K's Patreon panel at the bottom of the cover (library/library_cover.cpp)
-  DrawSpecialKPatreon (isCoverHovered, vecPosCover);
+  if (! IsLibraryGridView ( )) // The grid view has no cover for it to sit on
+    DrawSpecialKPatreon (isCoverHovered, vecPosCover);
 
 #pragma endregion
 
@@ -1474,10 +1631,44 @@ SKIF_UI_Tab_DrawLibrary (void)
       // Show a loading label if the data is currently being processed
       if (pApp->loading)
         ImGui::TextDisabled ("%s", _("Loading..."));
-      else if (pApp->id == SKIF_STEAM_APPID)
-        DrawSpecialKContextMenu (pApp);
       else
-        DrawGameContextMenu     (pApp);
+      {
+        if (pApp->id == SKIF_STEAM_APPID)
+          DrawSpecialKContextMenu (pApp);
+        else
+          DrawGameContextMenu     (pApp);
+
+        // The grid view has no cover panel (and its menu): its cover actions are here. Also for Special K, whose
+        //   custom cover is shown behind its logo
+        if (IsLibraryGridView ( ) && ! pApp->loading)
+        {
+          ImGui::Separator ( );
+
+          if (SKIF_ImGui_BeginMenuEx2 (L_("Cover"), ICON_FA_IMAGE))
+          {
+            // The cover panel knows whether its cover is custom / managed once it has loaded it; a thumbnail loaded from
+            //   the cache does not, so it is looked up here: custom if there is a custom cover, and managed (SKIF
+            //   downloads it) for the stores with a cover of their own, except GOG (its client provides it)
+            bool isCustom  = ! pApp->FindCustomArtwork (LibraryTexture::Cover).empty ( );
+            bool isManaged = (pApp->tex_cover.isManaged || pApp->tex_thumb.isManaged ||
+                             (pApp->HasStoreCover ( ) && pApp->store != app_record_s::Store::GOG));
+
+            DrawCoverMenuChangeReset (pApp, isCustom, isManaged);
+
+            ImGui::Separator ( );
+
+            if (SKIF_ImGui_MenuItemEx2 (L_("Open SteamGridDB"), ICON_FA_UP_RIGHT_FROM_SQUARE, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)))
+              SKIF_Util_OpenURI (SK_UTF8ToWideChar (pApp->ui.sgdbGrids));
+            else
+            {
+              SKIF_ImGui_SetMouseCursorHand ( );
+              SKIF_ImGui_SetHoverText       (pApp->ui.sgdbGrids);
+            }
+
+            ImGui::EndMenu ( );
+          }
+        }
+      }
 
       //else if (! update)
       //  ImGui::CloseCurrentPopup ();
@@ -1524,7 +1715,8 @@ SKIF_UI_Tab_DrawLibrary (void)
   // Streams the cover in on a background thread once the cover area is visible (not while a custom cover is being saved for this game).
   //   Not until SKIF has started: the cover can't be created before the hardware device exists (created after the first
   //   present), and starting the worker would only delay the first present.
-  if (SKIF_StartupFinished && uiCoverVisible && _art.IsCoverRequested ( ) && PopulatedGames && ! _art.IsSavingCover (pApp))
+  //   Not in the grid view: the grid replaces the cover.
+  if (SKIF_StartupFinished && uiCoverVisible && ! IsLibraryGridView ( ) && _art.IsCoverRequested ( ) && PopulatedGames && ! _art.IsSavingCover (pApp))
     _art.StartCoverWorker (pApp);
 
 #pragma endregion
@@ -1642,6 +1834,18 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     _inject._RefreshSKDLLVersions ();
     _inject._RefreshUIQuickToggle (bWasRunning);
+  };
+
+  // The game whose cover a dropped image changes: the game it was dropped on (its tile in the grid view, its row in the
+  //   list, or the cover of the selected game); none if it was dropped anywhere else
+  auto _GetCoverDropTarget = [&](void) -> app_record_s*
+  {
+    app_key_s game;
+
+    if (GetCoverDropTargetAt (ImVec2 (static_cast <float> (dragDroppedPoint.x), static_cast <float> (dragDroppedPoint.y)), game))
+      return _games.Find (game);
+
+    return nullptr;
   };
 
   if (! dragDroppedFilePath.empty())
@@ -1901,11 +2105,25 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
     }
 
-    // Images + URLs
-    else if (SaveGameCover (pApp, dragDroppedFilePath))
+    // Images + URLs dropped anywhere but on a game: no game's cover to change
+    else if (_GetCoverDropTarget ( ) == nullptr)
     {
-      // Shows the "..." loading dots, and sets up the current cover to be released
-      _art.BeginSavingCover (pApp);
+      PLOG_INFO << "The drop was not on a game (its tile, its row, or the cover); nothing was changed.";
+
+      ImGui::InsertNotification ({
+        ImGuiToastType::Info, 5000,
+        _("Nothing was changed"),
+        "%s", _("Drop the image on a game to change its cover: on its cover, its tile, or its row in the list.")
+      });
+    }
+
+    // Images + URLs: the cover of the game they were dropped on (its tile, its row, or the cover), selected or not
+    else if (app_record_s* pTarget = _GetCoverDropTarget ( ); pTarget != nullptr && SaveGameCover (pTarget, dragDroppedFilePath, true))
+    {
+      // The shown cover: shows the "..." loading dots, and sets up the current cover to be released. Another game's
+      //   tile keeps its thumbnail until the new cover is saved (OnCoverSaved reloads it).
+      if (pTarget == pApp)
+        _art.BeginSavingCover (pApp);
 
       // A child thread will post WM_SKIF_REFRESHCOVER once done
     }
@@ -1920,7 +2138,7 @@ SKIF_UI_Tab_DrawLibrary (void)
         "   *.bat\n"
         "\n"
         "\n"
-        + _("Update the cover for the current selected game:") + "\n"
+        + _("Change the cover of a game (drop the image on it):") + "\n"
         "   *.jpg\n"
       //"   *.jxr\n"
         "   *.png\n"
@@ -1928,10 +2146,9 @@ SKIF_UI_Tab_DrawLibrary (void)
       //"   *.tga\n"
         "   *.bmp\n"
         "   *.psd\n"
-      //"   *.gif\n"
+        "   *.gif\n"
       //"   *.tif\n"
-        "\n"
-        + _("Note that the app has no support for animated images.");
+        ;
 
       SKIF_ImGui_InfoMessage (error_title, error_label);
     }

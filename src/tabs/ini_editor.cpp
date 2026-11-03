@@ -844,7 +844,7 @@ SKIF_UI_IniEditor_Process (void)
     SKIF_ImGui_EndCenteredColumn (true, false);
 
     // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
-    SKIF_ImGui_AutoScroll  (false, SKIF_ImGuiAxis_Y);
+    SKIF_ImGui_AutoScroll  (false, SKIF_ImGuiAxis_Y, "##AutoScrollIniEditor");
 
     ImGui::EndChild ( );
 

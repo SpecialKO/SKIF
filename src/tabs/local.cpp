@@ -1120,7 +1120,7 @@ SKIF_LocalManager::Process (void)
       ImGui::PopStyleColor    ( ); // ImGuiCol_Text
 
       // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
-      SKIF_ImGui_AutoScroll  (false, SKIF_ImGuiAxis_Y);
+      SKIF_ImGui_AutoScroll  (false, SKIF_ImGuiAxis_Y, "##AutoScrollLocalInstalls");
 
       ImGui::EndTable ();
     }

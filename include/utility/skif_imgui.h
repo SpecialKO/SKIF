@@ -125,7 +125,8 @@ void     SKIF_ImGui_PopDisabledSpacing    (void);
 void     SKIF_ImGui_BlockDragMove         (void);       // Prevents SKIF from enabling drag move when the current window is focused
 void     SKIF_ImGui_BlockDragMoveWhenItemActive (void); // Prevents SKIF from enabling drag move if the last item is active
 bool     SKIF_ImGui_CanMouseDragMove      (void); // True if drag move using the mouse is allowed, false if not
-void     SKIF_ImGui_AutoScroll            (bool touch_only_on_void, SKIF_ImGuiAxis axis);
+bool     SKIF_ImGui_IsAutoScrollActive    (void);
+void     SKIF_ImGui_AutoScroll            (bool touch_only_on_void, SKIF_ImGuiAxis axis, const char* unique_id);
 
 // Centered content column: at most max_width wide (pass it DPI-scaled), centered in the current window, so content
 //   doesn't stretch across wide windows. Its width and position don't depend on the window's vertical scrollbar, as

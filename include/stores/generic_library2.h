@@ -9,6 +9,7 @@
 #include <d3d11.h>
 #include <vector>
 #include <atomic>
+#include <functional>
 
 #include "Steam/app_record.h"
 #include <imgui/imgui.h>
@@ -20,7 +21,10 @@ enum class LibraryTexture
   Icon,
   Cover,
   Patreon,
-  Logo
+  Logo,
+  Thumbnail, // A cover scaled down for the grid view (loaded as a Cover, see library_thumbnail_s)
+  AnimatedCover, // The frames of an animated cover (APNG, GIF, WebP), played while the cover is hovered (LoadAnimatedLibraryTexture)
+  AnimatedThumbnail // The frames of an animated cover as thumbnails, for the grid view (LoadAnimatedLibraryThumbnail)
 };
 
 enum ImageDecoder {
@@ -37,6 +41,24 @@ struct library_texture_s {
   ImVec2                             resolution = ImVec2 (0, 0);
   bool                               isCustom   = false; // The user's custom artwork (games only)
   bool                               isManaged  = false; // A file SKIF manages, so the menus can refresh / reset it (games only)
+  ImVec2                             uv0        = ImVec2 (0, 0); // The part of the texture that is the image: all of it, except for the
+  ImVec2                             uv1        = ImVec2 (1, 1); //   grid view's animated covers, whose frames share a few textures
+                                                         //   (LoadAnimatedLibraryThumbnail): then the frame's cell, inset by half a texel
+  std::wstring                       animatedSource;     // Covers, thumbnails: the file it was loaded from, if that is animated (APNG, GIF, WebP);
+                                                         //   it shows its first frame, and LoadAnimatedLibraryTexture loads the rest
+};
+
+// A cover loaded as a thumbnail (the grid view): scaled to fill width x height (rounded up to multiples of 4), with 3 mip
+//   levels, compressed to BC7, and saved to cachePath (if set) as a DDS before it is turned into a texture, so the next
+//   time it loads from there as it is (LoadLibraryThumbnailFromCache)
+struct library_thumbnail_s {
+  float                              width      = 0.0f;
+  float                              height     = 0.0f;
+  std::wstring                       cachePath;
+  std::function <bool (void)>        wanted;    // If set: whether the texture is still needed (its tile in view); asked before the
+                                                //   texture is created, so one no longer needed is never created (the cache is still saved)
+  bool                               fullSize   = false; // Animated covers (LoadAnimatedLibraryThumbnail): the full-size one (the cover
+                                                //   panel's, see GetAnimatedLibraryCoverCachePath), with all its mip levels instead of 3
 };
 
 // Loads a cover / icon (pApp: from ResolveArtwork) or an embedded Special K texture into 'out'. Returns true if out.srv is set.
@@ -49,7 +71,54 @@ LoadLibraryTextureEx (
         uint32_t                            appid,
         const std::wstring&                 name,
         app_record_s*                       pApp,
-        library_texture_s&                  out);
+        library_texture_s&                  out,
+        const library_thumbnail_s*          thumb = nullptr); // Covers only: load as a thumbnail
+
+// Whether the image file is animated: an APNG (acTL chunk before its image data), a GIF with more than one frame, or a WebP
+//   with its animation flag set.
+//   Only reads what it needs to tell. Thread-safe.
+bool
+IsAnimatedImageFile (const std::wstring& path);
+
+// The frames of an animated cover (APNG, GIF, WebP), each as a texture of its own (the full canvas, as it is shown at that point),
+//   and how long each one is shown (ms). Scaled like the cover (low-res covers), and further down if all the frames would
+//     take more than about 192 MB of video memory. wanted (if set) is asked between frames, and stops the load once it
+//       returns false. Returns false if it is not animated (fewer than two frames), cannot be decoded, or was stopped.
+//         Thread-safe like LoadLibraryTextureEx; call CoInitializeEx on the thread first (scaling uses WIC).
+bool
+LoadAnimatedLibraryTexture (const std::wstring&                path,
+                            std::vector <library_texture_s>&   frames,
+                            std::vector <DWORD>&               delays,
+                            const std::function <bool (void)>& wanted = nullptr);
+
+// The frames of an animated cover (APNG, GIF, WebP) as thumbnails, for the grid view: each scaled to fill thumb.width x thumb.height,
+//   with 3 mips, compressed to BC1 (BC3 with transparency), and how long each one is shown (ms). They are cached in
+//     thumb.cachePath (header, delays, then a DDS texture array): loaded from there if useCache (the caller knows it is
+//       current), else built from source (decoded, which takes a while) and saved there. bytes: what they take (also
+//         without createTextures, which only builds / checks the cache). tooLarge: they would take more than maxBytes.
+//           thumb.wanted (if set) stops it between frames. Thread-safe like LoadLibraryTextureEx; call CoInitializeEx first.
+// The full-size animated cover (the cover panel's) can also be loaded compressed, as LoadAnimatedLibraryThumbnail does
+//   for the grid view: BC1 (BC3 with transparency) with all its mip levels, cached in the game's asset folder. This gives
+//     where (cover-thumb-anim-<width>x<height>.anim in assetFolder, so the thumbnails' cleanup covers it) and the size
+//       to make it at (thumb.width / height): as the cover is shown, then smaller if all the frames would take more than
+//         about 192 MB. False if it is not animated, too large to play, or there is no asset folder. Reads the file.
+bool
+GetAnimatedLibraryCoverCachePath (const std::wstring& source, const std::wstring& assetFolder, library_thumbnail_s& thumb);
+
+bool
+LoadAnimatedLibraryThumbnail (const std::wstring&                source,
+                              const library_thumbnail_s&         thumb,
+                              bool                               useCache,
+                              size_t                             maxBytes,
+                              bool                               createTextures,
+                              std::vector <library_texture_s>&   frames,
+                              std::vector <DWORD>&               delays,
+                              size_t&                            bytes,
+                              bool&                              tooLarge);
+
+// A thumbnail saved by LoadLibraryTextureEx (thumb->cachePath). Thread-safe like LoadLibraryTextureEx.
+bool
+LoadLibraryThumbnailFromCache (const std::wstring& path, library_texture_s& out, const library_thumbnail_s* thumb = nullptr); // thumb: its wanted ( ) only
 
 // LoadLibraryTextureEx, applied directly: replaces pLibTexSRV (the old one is released after the frame) and pApp's
 //   custom / managed flags. Only for textures nothing else is using at the time (the library worker's Patreon / logo).

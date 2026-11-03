@@ -1302,13 +1302,141 @@ SKIF_UI_Tab_DrawSettings (void)
         _("Dim game covers by 25%:"));
     ImGui::TreePush        ("DimCovers");
     if (SKIF_ImGui_RadioButton (L_("Never"),                 &_registry.iDimCovers, 0))
-      _registry.regKVDimCovers.putData (                        _registry.iDimCovers);
+      _registry.regKVDimCovers.putData (                      _registry.iDimCovers);
     SKIF_ImGui_SameLineIfFits (SKIF_ImGui_CheckboxWidth (L_("Always")));
     if (SKIF_ImGui_RadioButton (L_("Always"),                &_registry.iDimCovers, 1))
-      _registry.regKVDimCovers.putData (                        _registry.iDimCovers);
+      _registry.regKVDimCovers.putData (                      _registry.iDimCovers);
     SKIF_ImGui_SameLineIfFits (SKIF_ImGui_CheckboxWidth (L_("Based on mouse cursor")));
     if (SKIF_ImGui_RadioButton (L_("Based on mouse cursor"), &_registry.iDimCovers, 2))
-      _registry.regKVDimCovers.putData (                        _registry.iDimCovers);
+      _registry.regKVDimCovers.putData (                      _registry.iDimCovers);
+    ImGui::TreePop         ( );
+
+    ImGui::Spacing         ( );
+
+    // Animated covers (APNG, GIF, WebP): whether they play when hovered, or always (SKIF_LibraryArtwork::AreCoverAnimationsOn)
+    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
+    SKIF_ImGui_SetHoverTip (_("Determines when animated covers (APNG, GIF, WebP) will play:\n"
+                              "- Automatic: lets SKIF decide when to animate covers.\n"
+                              "- Always: as many visible covers as possible will play.\n"
+                              "- When hovered: only the hovered cover will play.\n"
+                              "- Never: only the first still frame will be shown."));
+    ImGui::SameLine        ( );
+    SKIF_ImGui_TextColoredWrapped (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+        _("Play animated covers:"));
+
+    // Always: SKIF keeps rendering while an animated cover is in view, as it does for Shelly the Ghost
+    if (_registry.iLibraryAnimatedCovers == 3)
+    {
+      ImGui::SameLine        ( );
+      ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_TRIANGLE_EXCLAMATION);
+      SKIF_ImGui_SetHoverTip (_("The UI keeps rendering frames while an animated cover is in view.\n"
+                                "This uses more GPU than playing them only when hovered."));
+    }
+
+    // Automatic:
+    // - Thumbnail animations play when hovered
+    // - Large cover animations play while SKIF has focus
+    // - "Animation Effects" in Windows disables animations
+    ImGui::TreePush        ("AnimatedCovers");
+    if (SKIF_ImGui_RadioButton (L_("Automatic"),         &_registry.iLibraryAnimatedCovers, 1))
+      _registry.regKVLibraryAnimatedCovers.putData (      _registry.iLibraryAnimatedCovers);
+    SKIF_ImGui_SameLineIfFits (SKIF_ImGui_CheckboxWidth (L_("When hovered")));
+    if (SKIF_ImGui_RadioButton (L_("When hovered"),      &_registry.iLibraryAnimatedCovers, 2))
+      _registry.regKVLibraryAnimatedCovers.putData (      _registry.iLibraryAnimatedCovers);
+    SKIF_ImGui_SameLineIfFits (SKIF_ImGui_CheckboxWidth (L_("Always")));
+    if (SKIF_ImGui_RadioButton (L_("Always"),            &_registry.iLibraryAnimatedCovers, 3))
+      _registry.regKVLibraryAnimatedCovers.putData (      _registry.iLibraryAnimatedCovers);
+    SKIF_ImGui_SameLineIfFits (SKIF_ImGui_CheckboxWidth (L_("Never")));
+    if (SKIF_ImGui_RadioButton (L_("Never"),             &_registry.iLibraryAnimatedCovers, 0))
+      _registry.regKVLibraryAnimatedCovers.putData (      _registry.iLibraryAnimatedCovers);
+    ImGui::TreePop         ( );
+
+    ImGui::Spacing         ( );
+
+    // Animated covers (APNG, GIF, WebP) in the grid view: how much video memory their tile-size frames may be kept loaded in
+    ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
+    SKIF_ImGui_SetHoverTip (_("The amount of video memory to use for caching animated covers in the grid view.\n"
+                              "Off: only one will be loaded at a time."));
+    ImGui::SameLine        ( );
+    SKIF_ImGui_TextColoredWrapped (
+      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
+        _("VRAM cache for animated covers:"));
+    ImGui::TreePush        ("GridAnimMemory");
+    {
+      // Of no use while animated covers do not play
+      const bool animationsOff = ! SKIF_LibraryArtwork::Get ( ).AreCoverAnimationsOn ( );
+
+      if (animationsOff)
+        SKIF_ImGui_PushDisableState ( );
+
+      // TRANSLATORS: {0} is an amount of video memory in megabytes
+      const std::string memoryFormat = (_registry.iLibraryGridAnimMemory <= 0) ? SKIF_L10n_PrintfFormat (_("Off"), "")
+                                                                               : SKIF_L10n_PrintfFormat (_("Up to {0} MB"), "%d");
+
+      if (SKIF_ImGui_SliderInt (L_("Video memory"), &_registry.iLibraryGridAnimMemory, 0, 1024, memoryFormat.c_str ( )))
+      {
+        // In steps of 32 MB
+        _registry.iLibraryGridAnimMemory    = std::clamp ((_registry.iLibraryGridAnimMemory + 16) / 32 * 32, 0, 1024);
+        _registry.regKVLibraryGridAnimationMemory.putData (_registry.iLibraryGridAnimMemory);
+
+        SKIF_LibraryArtwork::Get ( ).OnAnimatedThumbnailMemoryChanged ( );
+      }
+
+      // Always: those in view that do not fit in this memory only play when hovered
+      if (! animationsOff && SKIF_LibraryArtwork::Get ( ).AreCoverAnimationsAlways ( ) &&
+          (_registry.iLibraryGridAnimMemory <= 0 || SKIF_LibraryArtwork::Get ( ).DidAnimatedThumbnailsNotFit ( )))
+      {
+        ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_TRIANGLE_EXCLAMATION);
+        ImGui::SameLine    ( );
+        SKIF_ImGui_TextColoredWrapped (
+          ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),
+            (_registry.iLibraryGridAnimMemory <= 0) ? _("Off: only one cover will animate at a time.")
+                                                    : _("Insufficient VRAM: some animated covers will only play when hovered."));
+      }
+
+      // What the loaded ones take, and SKIF's video memory in use (Task Manager's "Dedicated GPU memory"), with what its
+      //   textures take on hover
+      if (! animationsOff)
+      {
+        const SKIF_LibraryArtwork::video_memory_s vram = SKIF_LibraryArtwork::Get ( ).GetVideoMemory ( );
+
+        auto _MB = [](uint64_t bytes) -> int { return static_cast <int> ((bytes + 512 * 1024) / (1024 * 1024)); };
+
+        ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_CIRCLE_INFO);
+
+        if (vram.inUse > 0)
+        {
+          const int other = _MB (vram.inUse) - _MB (vram.animBytes) - _MB (vram.animCoverBytes) - _MB (vram.coverBytes)
+                                             - _MB (vram.thumbBytes) - _MB (vram.iconBytes);
+
+          // TRANSLATORS: Each {n} is an amount of video memory in megabytes
+          SKIF_ImGui_SetHoverTip (F_("SKIF's video memory in use: {0} MB\n"
+                                     "Animated covers of the grid view: {1} MB\n"
+                                     "The full-size animated cover: {2} MB\n"
+                                     "Covers: {3} MB\n"
+                                     "Thumbnails: {4} MB\n"
+                                     "Icons: {5} MB\n"
+                                     "Other (the window, fonts, the graphics driver): {6} MB",
+                                     _MB (vram.inUse), _MB (vram.animBytes), _MB (vram.animCoverBytes), _MB (vram.coverBytes),
+                                     _MB (vram.thumbBytes), _MB (vram.iconBytes), std::max (0, other)));
+        }
+
+        ImGui::SameLine    ( );
+        SKIF_ImGui_TextColoredWrapped (
+          ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),
+            (vram.inUse > 0)
+              // TRANSLATORS: {0} is a number of animated covers, {1} and {2} are amounts of video memory in megabytes
+              ? FP_("In use: {1} MB for {0} animated cover. SKIF uses {2} MB of video memory in all.",
+                    "In use: {1} MB for {0} animated covers. SKIF uses {2} MB of video memory in all.", vram.animLoaded, _MB (vram.animBytes), _MB (vram.inUse)).c_str ( )
+              // TRANSLATORS: {0} is a number of animated covers, {1} is an amount of video memory in megabytes
+              : FP_("In use: {1} MB for {0} animated cover.",
+                    "In use: {1} MB for {0} animated covers.", vram.animLoaded, _MB (vram.animBytes)).c_str ( ));
+      }
+
+      if (animationsOff)
+        SKIF_ImGui_PopDisableState ( );
+    }
     ImGui::TreePop         ( );
 
     ImGui::Spacing         ( );
@@ -1319,9 +1447,9 @@ SKIF_UI_Tab_DrawSettings (void)
     SKIF_ImGui_TextColoredWrapped (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
         _("Show Shelly the Ghost:"));
-    ImGui::SameLine        ( );
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_TRIANGLE_EXCLAMATION);
-    SKIF_ImGui_SetHoverTip (_("A critical rendering optimization will not function properly when Shelly is visibly moving.\nIt is therefor recommended to leave Shelly hidden in favor of a reduced GPU usage."));
+  //ImGui::SameLine        ( );
+  //ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Yellow), ICON_FA_TRIANGLE_EXCLAMATION);
+  //SKIF_ImGui_SetHoverTip (_("A critical rendering optimization will not function properly when Shelly is visibly moving.\nIt is therefor recommended to leave Shelly hidden in favor of a reduced GPU usage."));
     ImGui::TreePush        ("Shelly");
     if (SKIF_ImGui_RadioButton (L_("Never"),                    &_registry.iGhostVisibility, 0))
       _registry.regKVGhostVisibility.putData (                     _registry.iGhostVisibility);

@@ -1167,7 +1167,8 @@ namespace
 
   // The current values of the registry references a product's executables are read from (path: register:,
   //   arguments_register:), which the client writes on the game's first launch (Far Cry 3 Blood Dragon).
-  //   Main thread only: the references are kept per product until its configuration changes.
+  //   Any thread (the fingerprint is taken by the library worker and by the change check): the references are kept per
+  //     product until its configuration changes.
   std::string
   SKIF_Ubisoft_GetRegisterValues (uint32_t productID, const std::string& yaml)
   {
@@ -1177,6 +1178,9 @@ namespace
     };
 
     static std::map <uint32_t, references_s> cache;
+    static std::mutex                        cacheMutex;
+
+    std::scoped_lock lock (cacheMutex);
 
     std::hash <std::string> hasher;
     size_t                  hash = hasher (yaml);
@@ -1210,14 +1214,24 @@ namespace
     return values;
   }
 
+  // One install's line of the fingerprint (SKIF_Ubisoft_GetFingerprint). Also built by the library scan, from what it
+  //   resolves anyway, so both must give the same result.
+  std::string
+  SKIF_Ubisoft_GetFingerprintLine (const ubisoft_install_s& install, const std::string& yaml, uint32_t borrowedFrom, bool downloading)
+  {
+    std::hash <std::string> hasher;
+
+    return std::to_string (install.product_id) + "|" + SK_WideCharToUTF8 (install.install_dir) + "|" + SK_WideCharToUTF8 (install.language) + "|" +
+           std::to_string (hasher (yaml)) + "|" + std::to_string (borrowedFrom) + "|" + ((downloading) ? "downloading" : "") + "|" +
+           SKIF_Ubisoft_GetRegisterValues (install.product_id, yaml) + "\n";
+  }
+
   // Identifies the installed games and their configurations, to tell when the library has to be repopulated
   std::string
   SKIF_Ubisoft_GetFingerprint (void)
   {
     std::wstring clientFolder = SKIF_Ubisoft_GetClientFolder ( );
     std::string  fingerprint  = SK_WideCharToUTF8 (clientFolder) + "\n";
-
-    std::hash <std::string> hasher;
 
     // A download finishing (or starting) is part of it: games are only listed once their executable exists.
     //   So are the registry values executables are read from, which the client writes on a game's first launch.
@@ -1234,13 +1248,26 @@ namespace
       std::string displayName  = SK_WideCharToUTF8 (SKIF_Ubisoft_GetRegString32 (UNINSTALL_KEY + std::to_wstring (install.product_id), L"DisplayName"));
       std::string yaml         = SKIF_Ubisoft_ResolveConfiguration (clientFolder, install.product_id, install.install_dir, installed, displayName, borrowedFrom);
 
-      fingerprint += std::to_string (install.product_id) + "|" + SK_WideCharToUTF8 (install.install_dir) + "|" + SK_WideCharToUTF8 (install.language) + "|" +
-                     std::to_string (hasher (yaml)) + "|" + std::to_string (borrowedFrom) + "|" +
-                     ((SKIF_Ubisoft_IsDownloading (install.install_dir, install.product_id)) ? "downloading" : "") + "|" +
-                     SKIF_Ubisoft_GetRegisterValues (install.product_id, yaml) + "\n";
+      fingerprint += SKIF_Ubisoft_GetFingerprintLine (install, yaml, borrowedFrom, SKIF_Ubisoft_IsDownloading (install.install_dir, install.product_id));
     }
 
     return fingerprint;
+  }
+
+  // The fingerprint of the installs the last library scan listed (SKIF_Ubisoft_GetInstalledAppIDs, on a library worker
+  //   thread), which SKIF_Ubisoft_hasInstalledGamesChanged (main thread) compares against. Not taken by the check itself,
+  //     so that its first call (the first frame) does not read every game's configuration on the main thread.
+  struct ubisoft_baseline_s {
+    std::mutex  mutex;
+    std::string fingerprint;
+    bool        set = false;
+  };
+
+  ubisoft_baseline_s&
+  SKIF_Ubisoft_GetBaseline (void)
+  {
+    static ubisoft_baseline_s baseline;
+    return baseline;
   }
 
   // Letters and digits only, lower-cased: "RAYMAN® LEGENDS" -> "raymanlegends"
@@ -1273,10 +1300,26 @@ SKIF_Ubisoft_GetInstalledAppIDs (app_list_t *apps)
   if (apps == nullptr)
     return;
 
+  // What SKIF_Ubisoft_hasInstalledGamesChanged compares against from now on (see the end): the fingerprint, built from
+  //   what the scan resolves anyway, so every configuration is resolved once
+  auto _SetBaseline = [](std::string&& fingerprint)
+  {
+    ubisoft_baseline_s& baseline = SKIF_Ubisoft_GetBaseline ( );
+    std::scoped_lock    lock (baseline.mutex);
+
+    baseline.fingerprint = std::move (fingerprint);
+    baseline.set         = true;
+  };
+
   std::wstring clientFolder = SKIF_Ubisoft_GetClientFolder ( );
 
   if (clientFolder.empty ( ))
+  {
+    _SetBaseline (SKIF_Ubisoft_GetFingerprint ( ));
     return;
+  }
+
+  std::string fingerprint = SK_WideCharToUTF8 (clientFolder) + "\n"; // Every install is added below (also those skipped)
 
   std::set <uint32_t> ids; // Product IDs already added
 
@@ -1289,6 +1332,16 @@ SKIF_Ubisoft_GetInstalledAppIDs (app_list_t *apps)
   for (auto& install : installs)
   {
     const uint32_t productID = install.product_id;
+
+    // The uninstall entry's name, the configuration and whether a download is in progress: part of the fingerprint for
+    //   every install (also those skipped below), and used by the scan
+    std::wstring uninstallKey = UNINSTALL_KEY + std::to_wstring (productID);
+    std::string  displayName  = SK_WideCharToUTF8 (SKIF_Ubisoft_GetRegString32 (uninstallKey, L"DisplayName"));
+    uint32_t     borrowedFrom = 0;
+    std::string  yaml         = SKIF_Ubisoft_ResolveConfiguration (clientFolder, productID, install.install_dir, installed, displayName, borrowedFrom);
+    const bool   downloading  = SKIF_Ubisoft_IsDownloading (install.install_dir, productID);
+
+    fingerprint += SKIF_Ubisoft_GetFingerprintLine (install, yaml, borrowedFrom, downloading);
 
     // Games that take long to scan are logged (the scan only reads the registry and checks that files exist,
     //   so this points at a slow drive, or a file system filter such as an antivirus)
@@ -1322,18 +1375,14 @@ SKIF_Ubisoft_GetInstalledAppIDs (app_list_t *apps)
       continue;
     }
 
-    // The uninstall entry: the name (not always a proper title) and the client's icon for the game
-    std::wstring uninstallKey = UNINSTALL_KEY + std::to_wstring (productID);
-    std::string  displayName  = SK_WideCharToUTF8 (SKIF_Ubisoft_GetRegString32 (uninstallKey, L"DisplayName"));
+    // The uninstall entry: the name (not always a proper title, read above) and the client's icon for the game
     std::wstring displayIcon  = SKIF_Ubisoft_NormalizePath (SKIF_Ubisoft_GetRegString32 (uninstallKey, L"DisplayIcon"));
 
     if (! SKIF_Ubisoft_HasExtension (displayIcon, L".ico") || ! PathFileExistsW (displayIcon.c_str ( )))
       displayIcon.clear ( );
 
-    // The product's configuration
+    // The product's configuration (resolved above)
     std::string    language = SK_WideCharToUTF8 (install.language);
-    uint32_t       borrowedFrom = 0;
-    std::string    yaml     = SKIF_Ubisoft_ResolveConfiguration (clientFolder, productID, install.install_dir, installed, displayName, borrowedFrom);
     ubisoft_yaml_s document;
 
     if (! yaml.empty ( ))
@@ -1387,7 +1436,7 @@ SKIF_Ubisoft_GetInstalledAppIDs (app_list_t *apps)
 
     // A download in progress is shown as updating (the game can still be launched, see CanLaunchWhileUpdating). The game
     //   is only listed if its executable exists: an update, or a progressive install that is already playable.
-    record._status.updating       = (SKIF_Ubisoft_IsDownloading (install.install_dir, productID)) ? 0x1 : 0x0;
+    record._status.updating       = (downloading) ? 0x1 : 0x0;
 
     PLOG_VERBOSE_IF (record._status.updating) << "Ubisoft Connect product " << productID << " is being downloaded";
 
@@ -1547,24 +1596,40 @@ SKIF_Ubisoft_GetInstalledAppIDs (app_list_t *apps)
 
     apps->emplace_back (std::move (Ubisoft_entry));
   }
+
+  _SetBaseline (std::move (fingerprint));
 }
 
 bool
 SKIF_Ubisoft_hasInstalledGamesChanged (void)
 {
   static DWORD       dwLastSignalCheck = 0;
-  static std::string fingerprint       = SKIF_Ubisoft_GetFingerprint ( );
 
   bool signal = false;
   if (SKIF_Util_timeGetTime ( ) > dwLastSignalCheck + 5000)
   {
-    // A few registry reads; the configurations file is only re-read when it changed
-    std::string current = SKIF_Ubisoft_GetFingerprint ( );
+    ubisoft_baseline_s& baseline = SKIF_Ubisoft_GetBaseline ( );
+    bool                hasBaseline;
+    std::string         previous;
 
-    if (current != fingerprint)
     {
-      fingerprint = std::move (current);
-      signal      = true;
+      std::scoped_lock lock (baseline.mutex);
+      hasBaseline = baseline.set;
+      previous    = baseline.fingerprint;
+    }
+
+    // Until the first library scan has taken a fingerprint there is nothing to compare against (that scan is underway).
+    //   After that: a few registry reads; the configurations file is only re-read when it changed.
+    if (hasBaseline)
+    {
+      std::string current = SKIF_Ubisoft_GetFingerprint ( );
+
+      if (current != previous)
+      {
+        std::scoped_lock lock (baseline.mutex);
+        baseline.fingerprint = std::move (current);
+        signal               = true;
+      }
     }
 
     dwLastSignalCheck = SKIF_Util_timeGetTime ( );

@@ -828,11 +828,43 @@ DrawGameDetails_LaunchBar (app_record_s* pApp)
     return clicked;
   };
 
-  // Left corner: Properties (as Manage > Properties); grey, so it doesn't draw the eye
+  // Left corner: Properties (as Manage > Properties), Browse (the game menu's Browse submenu) and Configuration (as
+  //   Manage > Configuration); grey, so they don't draw the eye
   if (_IconButton (ICON_FA_GEAR "###SKIFPropertiesShortcut", ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled)))
     ModifyGamePopup = PopupState_Open;
 
   SKIF_ImGui_SetHoverTip (_("Properties"));
+
+  ImGui::SameLine ( );
+
+  if (_IconButton (ICON_FA_FOLDER "###SKIFBrowseShortcut", ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled)))
+    ImGui::OpenPopup ("###LaunchBarBrowseMenu");
+
+  SKIF_ImGui_SetHoverTip (_("Browse"));
+
+  if (ImGui::BeginPopup ("###LaunchBarBrowseMenu", ImGuiWindowFlags_NoMove))
+  {
+    // As the game menu: no navigation highlight (white border around items)
+    ImGui::PushStyleColor (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
+
+    DrawGameBrowseMenuItems (pApp);
+
+    ImGui::PopStyleColor  ( );
+    ImGui::EndPopup       ( );
+  }
+
+  ImGui::SameLine ( );
+
+  if (_IconButton (ICON_FA_FILE_LINES "###SKIFConfigShortcut", ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled)))
+    SKIF_Lib_OpenGameConfig (pApp);
+
+  if (ImGui::IsItemHovered ( ))
+    SKIF_ImGui_SetHoverText (pApp->specialk.injection.config.full_path_utf8.c_str ( ));
+
+  SKIF_ImGui_SetHoverTip (_("Configuration"));
+
+  // Right-click: troubleshooting (as Manage > Configuration)
+  DrawGameConfigMenu (pApp);
 
   // Right corner: how Play launches the default launch config, as icons placed from the right corner leftwards
   //   (only shown when it is not the usual: Special K disabled, an elevated service, Instant play)
@@ -870,7 +902,7 @@ DrawGameDetails_LaunchBar (app_record_s* pApp)
 
   else if (defaultLaunchConfig != nullptr)
   {
-    // Special K disabled, or an elevated service (a blocked executable does not use the service, so never both)
+    // Special K disabled, and/or an elevated service (both when the service is used all the same: Ignore blacklist)
     if (! defaultLocal)
     {
       const bool blacklisted        = defaultLaunchConfig->isBlacklisted ( );             // Cached by the launch config
@@ -878,20 +910,34 @@ DrawGameDetails_LaunchBar (app_record_s* pApp)
 
       if (blacklisted || blacklistedPattern)
       {
-        if (_RightIconButton (ICON_FA_LOCK "###SKDisabledIndicator", ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning)))
+        // An open lock when the service is started all the same (Ignore blacklist): Special K remains disabled for the
+        //   executable itself, but the game it starts (e.g. through a launcher) gets Special K
+        const char*  lockIcon  = (defaultLaunchConfig->isIgnoringBlacklist ( )) ? ICON_FA_LOCK_OPEN "###SKDisabledIndicator"
+                                                                                : ICON_FA_LOCK      "###SKDisabledIndicator";
+        const ImVec4 lockColor = (defaultLaunchConfig->isIgnoringBlacklist ( )) ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning)
+                                                                                : ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info);
+
+        if (_RightIconButton (lockIcon, lockColor))
           _OpenProperties (PropertiesPage::Launch);
 
         if (ImGui::IsItemHovered ( ))
           SKIF_ImGui_SetHoverText (defaultLaunchConfig->getExecutableFullPathUTF8 ( ).c_str ( ));
 
-        if (blacklistedPattern)
+        // The launch behaviors (Properties) can have the service started all the same (e.g. for a blocked launcher)
+        const std::string ignoredTip = (defaultLaunchConfig->isIgnoringBlacklist ( ))
+                                     ? std::string ("\n\n") + _("The injection service is started all the same (Ignore blacklist).")
+                                     : std::string ( );
+
+        if (defaultLaunchConfig->isIgnoringBlacklist ( ))
+          SKIF_ImGui_SetHoverTip (_("Special K will be used as the blacklist is ignored."));
+        else if (blacklistedPattern)
           SKIF_ImGui_SetHoverTip (_("Special K is disabled through a blacklist pattern in the Settings tab."));
-        else
-          SKIF_ImGui_SetHoverTip (_("Special K is disabled for the default launch option.\n"
-                                    "Click to change it in Properties."));
+        else  // blacklisted
+          SKIF_ImGui_SetHoverTip (_("Special K is disabled for the default launch option."));
       }
 
-      else if (defaultLaunchConfig->isElevated ( ))
+      // Only when the service is used: not blocked, or used all the same (Ignore blacklist)
+      if ((! (blacklisted || blacklistedPattern) || defaultLaunchConfig->isIgnoringBlacklist ( )) && defaultLaunchConfig->isElevated ( ))
       {
         if (_RightIconButton (ICON_FA_USER_SHIELD "###SKElevatedIndicator", ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled)))
           _OpenProperties (PropertiesPage::Launch);

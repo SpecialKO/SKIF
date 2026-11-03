@@ -4,52 +4,18 @@ on: [push, pull_request]
 
 jobs:
   Build:
+    name: Build (${{ matrix.platform }})
     runs-on: windows-2022
 
     strategy:
       fail-fast: false
-      #matrix:
-      #  config: [Release]
-      #  platform: [Win32, x64]
-      # Originally the build was then executed with this:
-      # msbuild SKIF.sln -p:Configuration="${{ matrix.config }}" -p:Platform="${{ matrix.platform }}" -m
-    
+      matrix:
+        platform: [x64, Win32]
+
     steps:
     - uses: actions/checkout@v4
 
     - uses: SpecialKO/GA-setup-cpp-n20@master
-
-    - name: Uninstall MSVC Toolset (latest) components
-      run: |
-              Set-Location "C:\Program Files (x86)\Microsoft Visual Studio\Installer\"
-              $InstallPath = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
-              $Components = @(
-                "Microsoft.VisualStudio.Component.VC.ATL"
-                "Microsoft.VisualStudio.Component.VC.ATLMFC"
-                "Microsoft.VisualStudio.Component.VC.Tools.x86.x64"
-                "Microsoft.VisualStudio.Component.VC.CLI.Support"
-              )
-              [string]$workloadArgs = $Components | ForEach-Object {" --remove " +  $_}
-              $Arguments = ('/c', "vs_installer.exe", 'modify', '--installPath', "`"$InstallPath`"",$workloadArgs, '--quiet', '--norestart', '--nocache')
-              # should be run twice
-              $process = Start-Process -FilePath cmd.exe -ArgumentList $Arguments -Wait -PassThru -WindowStyle Hidden
-              $process = Start-Process -FilePath cmd.exe -ArgumentList $Arguments -Wait -PassThru -WindowStyle Hidden
-    
-    - name: Install MSVC Toolset (v14.43-17.13) components
-      run: |
-              Set-Location "C:\Program Files (x86)\Microsoft Visual Studio\Installer\"
-              $InstallPath = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
-              $Components = @(
-                "Microsoft.VisualStudio.Component.VC.14.43.17.13.ATL"
-                "Microsoft.VisualStudio.Component.VC.14.43.17.13.MFC"
-                "Microsoft.VisualStudio.Component.VC.14.43.17.13.x86.x64"
-                "Microsoft.VisualStudio.Component.VC.14.43.17.13.CLI.Support"
-              )
-              [string]$workloadArgs = $Components | ForEach-Object {" --add " +  $_}
-              $Arguments = ('/c', "vs_installer.exe", 'modify', '--installPath', "`"$InstallPath`"",$workloadArgs, '--quiet', '--norestart', '--nocache')
-              # should be run twice
-              $process = Start-Process -FilePath cmd.exe -ArgumentList $Arguments -Wait -PassThru -WindowStyle Hidden
-              $process = Start-Process -FilePath cmd.exe -ArgumentList $Arguments -Wait -PassThru -WindowStyle Hidden
 
     - uses: microsoft/setup-msbuild@v2
       with:
@@ -59,31 +25,68 @@ jobs:
       run: |
         nuget restore SKIF.sln
 
-    - name: Build the codebase (64-bit)
+    - name: Build the codebase (${{ matrix.platform }})
       run: |
-        msbuild SKIF.sln -p:Configuration="Release" -p:Platform="x64" -m
+        msbuild SKIF.sln -p:Configuration="Release" -p:Platform="${{ matrix.platform }}" -m
 
-    - name: Build the codebase (32-bit)
-      run: |
-        msbuild SKIF.sln -p:Configuration="Release" -p:Platform="Win32" -m
-
-    - name: Prepare environment variables for the artifact name
-      run: |
-        $Version = (Get-Item ".\Builds\SKIF*.exe").VersionInfo.ProductVersion | Select-Object -First 1
-        If ($null -eq $Version) { $Version = "unknown" }
-        "SKIF_VERSION=$Version" | Out-File -FilePath $env:GITHUB_ENV -Encoding UTF8 -Append
-        "SHORT_SHA=$("${{ github.sha }}".SubString(0, 8))" | Out-File -FilePath $env:GITHUB_ENV -Encoding UTF8 -Append
-
+    # Per-platform artifacts; the Merge job combines them and then deletes these
     - uses: actions/upload-artifact@v4
       with:
-        name: SKIF_${{ env.SKIF_VERSION }}_${{ env.SHORT_SHA }}
+        name: build-${{ matrix.platform }}
         path: |
           Builds/SKIF*.exe
         if-no-files-found: error
+        retention-days: 1
 
     - uses: actions/upload-artifact@v4
       with:
-        name: SKIF_${{ env.SKIF_VERSION }}_${{ env.SHORT_SHA }}_debug_symbols
+        name: symbols-${{ matrix.platform }}
         path: |
           Builds/SKIF*.pdb
         if-no-files-found: warn
+        retention-days: 1
+
+  Merge:
+    name: Merge artifacts
+    needs: Build
+    runs-on: windows-2022
+
+    steps:
+    - uses: actions/download-artifact@v4
+      with:
+        pattern: build-*
+        path: Builds
+        merge-multiple: true
+
+    - uses: actions/download-artifact@v4
+      with:
+        pattern: symbols-*
+        path: Symbols
+        merge-multiple: true
+
+    - name: Prepare environment variables for the artifact name
+      id: prep
+      run: |
+        # Prefer the 64-bit SKIF.exe for the version, fall back to any SKIF*.exe
+        $Exe = Get-Item ".\Builds\SKIF.exe", ".\Builds\SKIF*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+        $Version = if ($Exe) { $Exe.VersionInfo.ProductVersion } else { $null }
+        If ([string]::IsNullOrWhiteSpace($Version)) { $Version = "unknown" }
+        "SKIF_VERSION=$($Version.Trim())" | Out-File -FilePath $env:GITHUB_ENV -Encoding UTF8 -Append
+        "SHORT_SHA=$("${{ github.sha }}".SubString(0, 8))" | Out-File -FilePath $env:GITHUB_ENV -Encoding UTF8 -Append
+
+        $HasSymbols = [bool](Get-ChildItem ".\Symbols\*.pdb" -ErrorAction SilentlyContinue)
+        "has_symbols=$($HasSymbols.ToString().ToLower())" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding UTF8 -Append
+        Get-ChildItem .\Builds, .\Symbols -ErrorAction SilentlyContinue | Format-Table Name, Length -AutoSize
+
+    - uses: actions/upload-artifact/merge@v4
+      with:
+        name: SKIF_${{ env.SKIF_VERSION }}_${{ env.SHORT_SHA }}
+        pattern: build-*
+        delete-merged: true
+
+    - uses: actions/upload-artifact/merge@v4
+      if: steps.prep.outputs.has_symbols == 'true'
+      with:
+        name: SKIF_${{ env.SKIF_VERSION }}_${{ env.SHORT_SHA }}_debug_symbols
+        pattern: symbols-*
+        delete-merged: true

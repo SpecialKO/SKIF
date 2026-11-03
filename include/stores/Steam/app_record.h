@@ -115,9 +115,17 @@ struct app_record_s {
     bool            isCustom    = false; // Indicates whether SKIF is using a custom texture or not
     bool            isManaged   = false; // Indicates whether the texture is managed by SKIF or not (can be refreshed by SKIF)
     bool            queriedPCGW = false; // Has we queried PCGW for an artwork?
-    int             iWorker     = 0;     // 0 = worker not started, 1 = worker active, 2 = worker done
-    HANDLE          hWorker     = NULL;
-  } tex_icon, tex_cover;
+    int             iWorker     = 0;     // 0 = worker not started, 1 = worker active, 2 = worker done (SKIF_LibraryArtwork tracks the threads); thumbnails: SKIF_ThumbnailState
+    int             request     = 0;     // Thumbnails: the load in flight (results of an older one are dropped)
+    DWORD           lastUsed    = 0;     // Thumbnails: when its tile was last drawn (unloaded when out of view for a while)
+    int             lastFrame   = 0;     // Thumbnails: the frame its tile was last drawn in (in view: the grid's last frame)
+    DWORD           loadedAt    = 0;     // Thumbnails: when the texture arrived (fade-in)
+    float           width       = 0.0f;  // Thumbnails: the texture's size (cropped to fill the tile where drawn)
+    float           height      = 0.0f;
+    DWORD           retryAt     = 0;     // Thumbnails: a build that found no cover is tried once more after this (0 = not)
+    bool            retried     = false; // Thumbnails: ... and has been
+    std::wstring    animatedSource;      // Thumbnails: the cover's file, if it is animated (APNG, GIF): it plays while the tile is hovered
+  } tex_icon, tex_cover, tex_thumb;      // tex_thumb: the grid view's cover (SKIF_LibraryArtwork::RequestThumbnail)
 
   enum class Store {
     Steam       = 0x1,   // Initial commit
@@ -262,6 +270,11 @@ struct app_record_s {
     bool         setElevated                (bool elevated);
     bool          isElevated                (bool refresh = false);
 
+    // Use the service even if Special K is disabled for the executable (setBlacklisted, or a blacklist pattern of the
+    //   Settings tab), e.g. for a launcher: Special K stays disabled for the executable itself (launch behaviors)
+    bool         setIgnoreBlacklist         (bool ignore);
+    bool          isIgnoringBlacklist       (bool refresh = false);
+
     std::wstring getExecutableFileName      (void);
     std:: string getExecutableFileNameUTF8  (void);
     bool          isExecutableFileNameValid (void);
@@ -322,6 +335,7 @@ struct app_record_s {
     int          owns_dlc           = -1;    // Does the user own the required DLC ?
     int          blacklisted        = -1;
     int          elevated           = -1;
+    int          ignore_blacklist   = -1;
   };
 
   // Where a launch config comes from: the store itself, lc.json (SKIF), or lc_user.json (the user)
@@ -653,7 +667,9 @@ using ConfigType =
 
 // An entry in the game list: the (cleaned) display name used for sorting/searching, and the record itself.
 // Records are heap-allocated so the list can later hold store-specific derived types without slicing.
-using app_entry_t = std::pair <std::string, std::unique_ptr <app_record_s>>;
+// They are shared so a background worker (cover, icon) can keep the record it was started for alive after a library
+//   refresh has replaced it (SKIF_GamingCollection::FindShared); everything else uses the record through the list.
+using app_entry_t = std::pair <std::string, std::shared_ptr <app_record_s>>;
 using app_list_t  = std::vector <app_entry_t>;
 
 // Identifies a game across library refreshes (records are replaced on every refresh): (store, appid)

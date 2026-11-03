@@ -271,6 +271,34 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(UI Large Icons)" );
 
+  KeyValue <bool> regKVLibraryShowIcons =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Library Show Icons)" );
+
+  KeyValue <int> regKVLibraryView =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Library View)" );
+
+  KeyValue <bool> regKVLibraryGridTitles =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Library Grid Titles)" );
+
+  KeyValue <bool> regKVLibraryGridPlatform =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Library Grid Platform)" );
+
+  KeyValue <int> regKVLibraryGridSize =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Library Grid Size)" );
+
+  KeyValue <int> regKVLibraryAnimatedCovers =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Library Animated Covers)" );
+
+  KeyValue <int> regKVLibraryGridAnimationMemory =
+    SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Library Grid Animation Memory)" );
+
   KeyValue <bool> regKVTouchInput =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(UI Touch Input)" );
@@ -541,6 +569,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(UI Position Y)" );
 
+  KeyValue <bool> regKVUIMaximized =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(UI Maximized)" );
+
   KeyValue <int> regKVCoverScaling =
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Cover Scaling)" );
@@ -641,6 +673,10 @@ struct SKIF_RegistrySettings {
   int iAutoStopBehavior        =   1; //  0 = Never [not implemented],     1 = Stop on Injection,      2 = Stop on Game Exit
   int iLogging                 =   4; //  0 = None,                        1 = Fatal,                  2 = Error,                       3 = Warning,                        4 = Info,       5 = Debug,       6 = Verbose
   int iLibrarySort             =   0; //  0 = Name,                        1 = Uses (frequently),      2 = Last Used (recently)
+  int iLibraryView             =   0; //  0 = List,                        1 = Grid (the grid takes the cover's place)
+  int iLibraryGridSize         = 120; // The width of the covers in the grid view at 100% DPI scale (80-240; their height is 1.5 times it)
+  int iLibraryAnimatedCovers   =   2; //  0 = Never,                       1 = Automatic,              2 = Play when hovered,           3 = Always (all in view)
+  int iLibraryGridAnimMemory   = 256; // MB of video memory the animated covers of the grid view may be kept loaded in (0-1024; 0: none, they load when hovered)
   int iProcessSort             =   0; //  0 = Status,                      1 = PID,                    2 = Arch,                        3 = Admin,                          4 = Name
   int iProcessRefreshInterval  =   2; //  0 = Paused,                      1 = Slow (5s),              2 = Normal (1s),                [3 = High (0.5s; not implemented)]
   int iSDRMode                 =   2; //  0 = 8 bpc,                       1 = 10 bpc,                 2 = 16 bpc
@@ -663,6 +699,9 @@ struct SKIF_RegistrySettings {
   bool bUITooltips              =  true;
   bool bUIStatusBar             =  true;
   bool bUILargeIcons            = false; // 32x32 icons instead of 24x24
+  bool bLibraryGridTitles       =  true; // Titles beneath the covers in the library's grid view
+  bool bLibraryGridPlatform     =  true; // The platform (store) badge on the covers in the library's grid view
+  bool bLibraryShowIcons        =  true; // The game icons in the library's games list
   bool bDPIScaling              =  true;
   bool bWin11Corners            =  true; // 2023-08-28: Enabled by default
   bool bTouchInput              =  true; // Automatically make the UI more optimized for touch input on capable devices
@@ -683,6 +722,7 @@ struct SKIF_RegistrySettings {
   bool bMiniMode                = false;
   bool bHorizonMode             = false; // 1038 x 325 -- covers are 186.67 x 280
 //bool bHorizonModeAuto         =  true;
+  bool bUIMaximized             = false; // Whether the app window was maximized when the app was last closed
 
   bool bFirstLaunch             = false;
   bool bAllowMultipleInstances  = false;
@@ -769,7 +809,6 @@ struct SKIF_RegistrySettings {
   bool _RendererHDREnabled          = false; // HDR Enabled
   bool _TouchDevice                 = false;
   bool _LibHorizonMode              = false; // Whether to use the horizontal layout
-  bool _LibPinnedVisible            = false; // Whether to show pinned apps separately or not
   bool _UseLowResCovers             = false; // Whether to use low-res covers
   bool _UseLowResCoversHiDPIBypass  = false; // Bypass for HiDPI scenarios
 

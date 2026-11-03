@@ -68,16 +68,19 @@ LaunchGame (app_record_s* pApp)
     if (! usingSK)
     {
       bool isLocalBlacklisted  = launchConfig->isBlacklisted ( ),
-           isGlobalBlacklisted = _inject._TestUserList (launchConfig->getExecutableFullPathUTF8 ( ).c_str (), false);
+           isGlobalBlacklisted = _inject._TestUserList (launchConfig->getExecutableFullPathUTF8 ( ).c_str (), false),
+           isBlacklisted       = (isLocalBlacklisted || isGlobalBlacklisted);
 
+      // The launch behaviors (Properties) can have the service used all the same, e.g. for a blocked launcher so the game
+      //   it starts gets Special K. Special K stays disabled for the executable itself, so it is then not whitelisted.
       usingSK = ! launchWithoutSK       &&
-                ! isLocalBlacklisted    &&
-                ! isGlobalBlacklisted;
+              (! isBlacklisted || launchConfig->isIgnoringBlacklist ( ));
 
       if (usingSK)
       {
         // Whitelist the game if it hasn't been already (store-specific; Steam needs none)
-        pApp->WhitelistForInjection (launchConfig);
+        if (! isBlacklisted)
+          pApp->WhitelistForInjection (launchConfig);
 
         // Disable the first service notification
         if (_registry.bMinimizeOnGameLaunch)
@@ -164,13 +167,110 @@ SKIF_Lib_GetCoverExtension (const std::wstring& path)
     return L".jpg";
 
   if (memcmp (sig, sigPNG, sizeof (sigPNG)) == 0)
-    return L".png";
+    return L".png"; // Also animated PNGs (APNG), which play while hovered
+
+  if (memcmp (sig, "GIF8", 4) == 0)
+    return L".gif"; // Kept as it is, as it may be animated
+
+  if (memcmp (sig, "RIFF", 4) == 0 && IsAnimatedImageFile (path))
+    return L".webp"; // An animated WebP is kept as it is (a still one is converted to PNG)
+
+  return L"";
+}
+
+// The extensions a custom cover can have (FindCustomArtwork), and the previous custom cover: <asset folder>previous-cover.<ext>,
+//   the custom cover replaced (SaveGameCover) or reset last. Named so it is no cover ("cover*") to the rest of SKIF.
+static const wchar_t* const s_coverExts [] = { L".png", L".jpg", L".gif", L".webp" };
+
+static void
+_DeletePreviousCover (const std::wstring& assetDir)
+{
+  for (const wchar_t* ext : s_coverExts)
+    DeleteFileW ((assetDir + L"previous-cover" + ext).c_str ( ));
+}
+
+std::wstring
+SKIF_Lib_FindPreviousCover (app_record_s* pApp)
+{
+  const std::wstring assetDir = (pApp != nullptr) ? pApp->GetAssetDirectory ( ) : L"";
+
+  if (! assetDir.empty ( ))
+    for (const wchar_t* ext : s_coverExts)
+      if (PathFileExistsW ((assetDir + L"previous-cover" + ext).c_str ( )))
+        return assetDir + L"previous-cover" + ext;
 
   return L"";
 }
 
 bool
-SaveGameCover (app_record_s* pApp, std::wstring_view path)
+SKIF_Lib_KeepPreviousCover (const std::wstring& assetDir)
+{
+  bool kept    = false;
+  bool cleared = false;
+
+  for (const wchar_t* ext : s_coverExts)
+  {
+    const std::wstring current = assetDir + L"cover" + ext;
+
+    if (! PathFileExistsW (current.c_str ( )))
+      continue;
+
+    // The one kept before goes (once there is one to keep)
+    if (! cleared)
+    {
+      _DeletePreviousCover (assetDir);
+      cleared = true;
+    }
+
+    if (MoveFileExW (current.c_str ( ), (assetDir + L"previous-cover" + ext).c_str ( ), MOVEFILE_REPLACE_EXISTING))
+      kept = true;
+  }
+
+  return kept;
+}
+
+bool
+SKIF_Lib_RestorePreviousCover (app_record_s* pApp)
+{
+  const std::wstring previous = SKIF_Lib_FindPreviousCover (pApp);
+
+  if (previous.empty ( ))
+    return false;
+
+  const std::wstring assetDir = pApp->GetAssetDirectory ( );
+  const std::wstring ext      = std::filesystem::path (previous).extension ( ).wstring ( );
+
+  // The current custom cover (if any) steps aside first
+  std::vector <std::wstring> current;
+
+  for (const wchar_t* cur : s_coverExts)
+  {
+    if (MoveFileExW ((assetDir + L"cover" + cur).c_str ( ), (assetDir + L"cover" + cur + L".swap").c_str ( ), MOVEFILE_REPLACE_EXISTING))
+      current.push_back (cur);
+  }
+
+  // The previous one becomes the cover
+  if (! MoveFileExW (previous.c_str ( ), (assetDir + L"cover" + ext).c_str ( ), MOVEFILE_REPLACE_EXISTING))
+  {
+    PLOG_ERROR << "Could not restore the previous cover: " << previous;
+
+    for (auto& cur : current)
+      MoveFileExW ((assetDir + L"cover" + cur + L".swap").c_str ( ), (assetDir + L"cover" + cur).c_str ( ), MOVEFILE_REPLACE_EXISTING);
+
+    return false;
+  }
+
+  // ... and the one it replaced becomes the previous one, so restoring again brings it back
+  for (auto& cur : current)
+    MoveFileExW ((assetDir + L"cover" + cur + L".swap").c_str ( ), (assetDir + L"previous-cover" + cur).c_str ( ), MOVEFILE_REPLACE_EXISTING);
+
+  PLOG_INFO << "Restored the previous cover: " << previous;
+
+  return true;
+}
+
+bool
+SaveGameCover (app_record_s* pApp, std::wstring_view path, bool notify)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
@@ -198,6 +298,7 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
       FileSignature { L"image/png",                 L".png",  { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A } },
       FileSignature { L"image/webp",                L".webp", { 0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50 },     // 52 49 46 46 ?? ?? ?? ?? 57 45 42 50
                                                               { 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF } }, // mask
+      FileSignature { L"image/gif",                 L".gif",  { 0x47, 0x49, 0x46, 0x38 } }, // GIF8 (GIF87a, GIF89a)
       FileSignature { L"image/bmp",                 L".bmp",  { 0x42, 0x4D } },
       FileSignature { L"image/vnd.adobe.photoshop", L".psd",  { 0x38, 0x42, 0x50, 0x53 } }
     };
@@ -256,6 +357,7 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
     std::wstring destination   = L"";
     std::wstring ext_original  = L"";
     bool         is_url        = false;
+    bool         notify        = false; // A notification once it is saved (it always shows one if it fails)
     uint32_t     appid         = 0;
     int          store         = 0;
   };
@@ -266,6 +368,7 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
   data->destination   = targetPath;
   data->ext_original  = ext;
   data->is_url        = isURL;
+  data->notify        = notify;
   data->appid         = pApp->id;
   data->store         = (int)pApp->store;
 
@@ -306,9 +409,10 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
 
     else
     {
-      // Backup any existing copies
-      backup =  MoveFileEx((_data->destination + L".jpg").c_str(), (_data->destination + L".jpg.old").c_str(), MOVEFILE_REPLACE_EXISTING)
-             || MoveFileEx((_data->destination + L".png").c_str(), (_data->destination + L".png.old").c_str(), MOVEFILE_REPLACE_EXISTING);
+      // Backup any existing copies (all of them: SKIF prefers .png over .jpg over .gif over .webp, so none may be left behind)
+      for (const wchar_t* ext_old : { L".jpg", L".png", L".gif", L".webp" })
+        if (MoveFileEx((_data->destination + ext_old).c_str(), (_data->destination + ext_old + L".old").c_str(), MOVEFILE_REPLACE_EXISTING))
+          backup = true;
 
       // This both downloads a new image from the internet as well as copies a local file to the destination
       // BMP files are downloaded to .tmp, while all others are downloaded to their intended path
@@ -346,9 +450,9 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
     // Swap it in
     if (success)
     {
-      // SKIF only looks for cover.jpg and cover.png, so JPEG and PNG images are kept as they are,
-      //   while anything else (WebP, BMP, PSD, ...) is converted to PNG. This goes by the file's
-      //     signature, so it also covers URLs and files with a misleading file extension.
+      // SKIF only looks for cover.png, cover.jpg, cover.gif and cover.webp, so JPEG, PNG (APNG too), GIF and animated WebP
+      //   images are kept as they are, while anything else (still WebP, BMP, PSD, ...) is converted to PNG. This goes by
+      //     the file's signature, so it also covers URLs and files with a misleading file extension.
       const std::wstring ext_saved =
         SKIF_Lib_GetCoverExtension (tmpPath);
 
@@ -375,11 +479,17 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
       }
     }
 
-    // If everything checks out, remove any backups made
+    // If everything checks out, the cover it replaced is kept as the previous cover (Restore previous cover, in the cover
+    //   menu), in place of the one kept before. Without one (there was no custom cover), the one kept before goes too, as
+    //     restoring it would not lead back to what was shown before (the store's cover; Reset does that).
     if (success)
     {
-      DeleteFile((_data->destination + L".jpg.old").c_str());
-      DeleteFile((_data->destination + L".png.old").c_str());
+      const std::wstring assetDir = _data->destination.substr (0, _data->destination.size ( ) - 5); // Without "cover"
+
+      _DeletePreviousCover (assetDir);
+
+      for (const wchar_t* ext : s_coverExts)
+        MoveFileExW ((_data->destination + ext + L".old").c_str ( ), (assetDir + L"previous-cover" + ext).c_str ( ), MOVEFILE_REPLACE_EXISTING);
     }
 
     // If something failed, restore the backups
@@ -388,6 +498,8 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
       PLOG_INFO << "Restoring the original cover...";
       MoveFile((_data->destination + L".jpg.old").c_str(), (_data->destination + L".jpg").c_str());
       MoveFile((_data->destination + L".png.old").c_str(), (_data->destination + L".png").c_str());
+      MoveFile((_data->destination + L".gif.old").c_str(), (_data->destination + L".gif").c_str());
+      MoveFile((_data->destination + L".webp.old").c_str(), (_data->destination + L".webp").c_str());
     }
 
     // Delete the temporary file after we are done with it
@@ -395,7 +507,9 @@ SaveGameCover (app_record_s* pApp, std::wstring_view path)
 
     PLOG_ERROR_IF(! success) << "Failed to process the new cover image!";
 
-    PostMessage (SKIF_Notify_hWnd, WM_SKIF_REFRESHCOVER, _data->appid, _data->store); // Force a refresh when the cover has been swapped in
+    // Force a refresh when the cover has been swapped in, and a notification of how it went (WM_SKIF_REFRESHCOVER)
+    PostMessage (SKIF_Notify_hWnd, WM_SKIF_REFRESHCOVER, _data->appid, _data->store | ((_data->notify) ? SKIF_RefreshCover_Notify  : 0)
+                                                                                    | ((success)       ? SKIF_RefreshCover_Success : 0));
 
     PLOG_INFO  << "Finished updating game cover asynchronously...";
 

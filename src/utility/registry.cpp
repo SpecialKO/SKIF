@@ -292,6 +292,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   // Remembered app window size and position
   iUIWidth                 =   regKVUIWidth                .getData (&hKey);
   iUIHeight                =   regKVUIHeight               .getData (&hKey);
+  bUIMaximized             =   regKVUIMaximized            .getData (&hKey);
 
   iCoverScaling            =   regKVCoverScaling           .getData (&hKey);
 
@@ -329,6 +330,20 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
     bWin11Corners          =   regKVWin11Corners           .getData (&hKey);
   if (regKVUILargeIcons.hasData(&hKey))
     bUILargeIcons          =   regKVUILargeIcons           .getData (&hKey);
+  if (regKVLibraryShowIcons.hasData(&hKey))
+    bLibraryShowIcons      =   regKVLibraryShowIcons       .getData (&hKey);
+  if (regKVLibraryView.hasData(&hKey))
+    iLibraryView           =   regKVLibraryView            .getData (&hKey);
+  if (regKVLibraryGridTitles.hasData(&hKey))
+    bLibraryGridTitles     =   regKVLibraryGridTitles      .getData (&hKey);
+  if (regKVLibraryGridPlatform.hasData(&hKey))
+    bLibraryGridPlatform   =   regKVLibraryGridPlatform    .getData (&hKey);
+  if (regKVLibraryGridSize.hasData(&hKey))
+    iLibraryGridSize       =   std::clamp (regKVLibraryGridSize.getData (&hKey), 80, 240);
+  if (regKVLibraryAnimatedCovers.hasData(&hKey))
+    iLibraryAnimatedCovers =   std::clamp (regKVLibraryAnimatedCovers.getData (&hKey), 0, 3);
+  if (regKVLibraryGridAnimationMemory.hasData(&hKey))
+    iLibraryGridAnimMemory =   std::clamp (regKVLibraryGridAnimationMemory.getData (&hKey), 0, 1024);
   if (regKVTouchInput.hasData(&hKey))
     bTouchInput            =   regKVTouchInput             .getData (&hKey);
 

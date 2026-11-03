@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <functional>
 #include <mutex>
+#include <map>
 #include <set>
 
 #include <utility/registry.h>
@@ -318,8 +319,32 @@ namespace
     return stamp;
   }
 
-  // Identifies the current set of installs. butler writes to the database all the time (cached metadata, play time),
-  //   so only the columns that affect the library are included.
+  // The fingerprint of one itch app's installs (SKIF_itch_GetFingerprint): its name and whether it sandboxes its games,
+  //   then a line per cave with the columns that affect the library, by cave ID. butler writes to the database all the
+  //     time (cached metadata, play time), so nothing else is included. Built both by the change check (its own query)
+  //       and by the library scan (from the rows it reads anyway), which must give the same result: the rows are ordered
+  //         here, not by SQLite.
+  struct itch_fingerprint_s {
+    std::map <std::string, std::string> rows; // Cave ID -> its line
+
+    void add (const std::string& caveID, const std::string& buildID, const std::string& folderName, const std::string& customFolder,
+              const std::string& verdict, const std::string& locationPath, const std::string& settings)
+    {
+      rows [caveID] = caveID + "|" + buildID + "|" + folderName + "|" + customFolder + "|" + verdict + "|" + locationPath + "|" + settings + "|\n";
+    }
+
+    std::string get (const std::string& app, bool isolateApps) const
+    {
+      std::string out = app + ((isolateApps) ? ":sandboxed\n" : ":\n");
+
+      for (auto& row : rows)
+        out += row.second;
+
+      return out;
+    }
+  };
+
+  // Identifies the current set of installs (of both apps)
   std::string
   SKIF_itch_GetFingerprint (void)
   {
@@ -327,23 +352,37 @@ namespace
 
     for (const char* app : ITCH_APPS)
     {
-      itch_db_c db (SKIF_itch_GetDatabasePath (app));
-
-      fingerprint += std::string (app) + ((SKIF_itch_GetIsolateApps (app)) ? ":sandboxed\n" : ":\n");
+      itch_db_c          db (SKIF_itch_GetDatabasePath (app));
+      itch_fingerprint_s rows;
 
       db.query (R"(SELECT c.id, c.build_id, c.install_folder_name, c.custom_install_folder, c.verdict, l.path, c.settings
-                   FROM caves c LEFT JOIN install_locations l ON l.id = c.install_location_id
-                   ORDER BY c.id)",
+                   FROM caves c LEFT JOIN install_locations l ON l.id = c.install_location_id)",
         [&](sqlite3_stmt* row)
         {
-          for (int col = 0; col < 7; col++)
-            fingerprint += db.text (row, col) + "|";
-
-          fingerprint += "\n";
+          rows.add (db.text (row, 0), db.text (row, 1), db.text (row, 2), db.text (row, 3), db.text (row, 4), db.text (row, 5), db.text (row, 6));
         });
+
+      fingerprint += rows.get (app, SKIF_itch_GetIsolateApps (app));
     }
 
     return fingerprint;
+  }
+
+  // The stamp and fingerprint of the installs the last library scan listed (SKIF_itch_GetInstalledAppIDs, on a library
+  //   worker thread), which SKIF_itch_hasInstalledGamesChanged (main thread) compares against. Not taken by the check
+  //     itself, so that its first call (the first frame) does not query the databases on the main thread.
+  struct itch_baseline_s {
+    std::mutex   mutex;
+    std::wstring stamp;
+    std::string  fingerprint;
+    bool         set = false;
+  };
+
+  itch_baseline_s&
+  SKIF_itch_GetBaseline (void)
+  {
+    static itch_baseline_s baseline;
+    return baseline;
   }
 }
 
@@ -351,24 +390,30 @@ namespace
 
 #pragma region Library
 
-// Adds the installs of one itch app (itch or kitch). keys and ids are shared between the apps.
+// Adds the installs of one itch app (itch or kitch). keys and ids are shared between the apps. Appends the app's part of
+//   the fingerprint (SKIF_itch_GetFingerprint) to fingerprint, from the rows read here, so the database is opened once.
 static void
-SKIF_itch_ScanDatabase (const std::string& app, app_list_t *apps, std::set <std::string>& keys, std::set <uint32_t>& ids)
+SKIF_itch_ScanDatabase (const std::string& app, app_list_t *apps, std::set <std::string>& keys, std::set <uint32_t>& ids, std::string& fingerprint)
 {
   std::wstring dbPath = SKIF_itch_GetDatabasePath (app);
+
+  const bool         isolateApps = SKIF_itch_GetIsolateApps (app);
+  itch_fingerprint_s rows;
 
   if (! PathFileExistsW (dbPath.c_str ( )))
   {
     PLOG_VERBOSE << "The " << app.c_str ( ) << " database was not found: " << dbPath;
+    fingerprint += rows.get (app, isolateApps);
     return;
   }
 
   itch_db_c db (dbPath);
 
   if (! db.isOpen ( ))
+  {
+    fingerprint += rows.get (app, isolateApps);
     return;
-
-  const bool isolateApps = SKIF_itch_GetIsolateApps (app);
+  }
 
   enum { Col_CaveID, Col_GameID, Col_UploadID, Col_BuildID, Col_FolderName, Col_CustomFolder, Col_Verdict,
          Col_LocationPath, Col_Title, Col_Classification, Col_URL, Col_CoverURL, Col_StillCoverURL, Col_Settings };
@@ -382,6 +427,11 @@ SKIF_itch_ScanDatabase (const std::string& app, app_list_t *apps, std::set <std:
     [&](sqlite3_stmt* row)
   {
     std::string caveID         = db.text  (row, Col_CaveID);
+
+    // Every cave is part of the fingerprint, also those skipped below
+    rows.add (caveID, db.text (row, Col_BuildID), db.text (row, Col_FolderName), db.text (row, Col_CustomFolder),
+              db.text (row, Col_Verdict), db.text (row, Col_LocationPath), db.text (row, Col_Settings));
+
     int64_t     gameID         = db.int64 (row, Col_GameID);
     int64_t     uploadID       = db.int64 (row, Col_UploadID);
     std::string classification = db.text  (row, Col_Classification);
@@ -543,6 +593,8 @@ SKIF_itch_ScanDatabase (const std::string& app, app_list_t *apps, std::set <std:
 
     apps->emplace_back (std::move (itch_entry));
   });
+
+  fingerprint += rows.get (app, isolateApps);
 }
 
 void
@@ -554,33 +606,60 @@ SKIF_itch_GetInstalledAppIDs (app_list_t *apps)
   std::set <std::string> keys; // Persistent keys already added
   std::set <uint32_t>    ids;  // Internal IDs already added
 
+  // What SKIF_itch_hasInstalledGamesChanged compares against from now on: the fingerprint, built by the scans from the
+  //   rows they read. The stamp is taken first, so a change made while the databases are read shows up as a newer stamp.
+  std::wstring stamp       = SKIF_itch_GetDatabaseStamp ( );
+  std::string  fingerprint;
+
   for (const char* app : ITCH_APPS)
-    SKIF_itch_ScanDatabase (app, apps, keys, ids);
+    SKIF_itch_ScanDatabase (app, apps, keys, ids, fingerprint);
+
+  itch_baseline_s& baseline = SKIF_itch_GetBaseline ( );
+  std::scoped_lock lock (baseline.mutex);
+
+  baseline.stamp       = std::move (stamp);
+  baseline.fingerprint = std::move (fingerprint);
+  baseline.set         = true;
 }
 
 bool
 SKIF_itch_hasInstalledGamesChanged (void)
 {
   static DWORD        dwLastSignalCheck = 0;
-  static std::wstring stamp             = SKIF_itch_GetDatabaseStamp ( );
-  static std::string  fingerprint       = SKIF_itch_GetFingerprint   ( );
 
   bool signal = false;
   if (SKIF_Util_timeGetTime ( ) > dwLastSignalCheck + 5000)
   {
-    std::wstring currentStamp = SKIF_itch_GetDatabaseStamp ( );
+    itch_baseline_s& baseline = SKIF_itch_GetBaseline ( );
+    bool             hasBaseline;
+    std::wstring     stamp;
+    std::string      fingerprint;
 
-    // The database files changed: only repopulate when the installs changed
-    if (currentStamp != stamp)
     {
-      stamp = std::move (currentStamp);
+      std::scoped_lock lock (baseline.mutex);
+      hasBaseline = baseline.set;
+      stamp       = baseline.stamp;
+      fingerprint = baseline.fingerprint;
+    }
 
-      std::string current = SKIF_itch_GetFingerprint ( );
+    // Until the first library scan has taken a fingerprint there is nothing to compare against (that scan is underway)
+    if (hasBaseline)
+    {
+      std::wstring currentStamp = SKIF_itch_GetDatabaseStamp ( );
 
-      if (current != fingerprint)
+      // The database files changed: only repopulate when the installs changed
+      if (currentStamp != stamp)
       {
-        fingerprint = std::move (current);
-        signal      = true;
+        std::string current = SKIF_itch_GetFingerprint ( );
+
+        std::scoped_lock lock (baseline.mutex);
+        baseline.stamp = std::move (currentStamp);
+
+        if (current != fingerprint)
+        {
+          baseline.fingerprint = std::move (current);
+          signal               = true;
+        }
       }
     }
 

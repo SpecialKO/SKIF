@@ -293,7 +293,7 @@ app_launch_config_s::setBlacklisted (bool blacklist)
 
   if (blacklist)
   {
-    // This replaces any elevation, as a blocked executable does not use the service at all
+    // The elevation is kept: it still applies if the service is used all the same (Ignore blacklist)
     SKIF_LaunchBehaviors::SetService (behaviors_path, Service::Blocked);
 
     FILE* fBlacklist =
@@ -318,9 +318,6 @@ app_launch_config_s::setBlacklisted (bool blacklist)
       DeleteFileW       (blacklist_path.c_str ());
   }
 
-  // The elevation state might have changed as well
-  elevated = -1;
-
   return isBlacklisted (true);
 }
 
@@ -344,7 +341,6 @@ app_launch_config_s::isBlacklisted (bool refresh)
   {
     SKIF_LaunchBehaviors::SetService (behaviors_path, Service::Blocked);
     service  = Service::Blocked;
-    elevated = -1;
   }
 
   blacklisted =
@@ -400,31 +396,29 @@ app_launch_config_s::getElevatedFilename (void)
     elevated_file;
 }
 
+// The elevation of the service for the executable, whenever it is used: also for a blocked executable that uses the
+//   service all the same (Ignore blacklist), so it is kept independently of setBlacklisted ( )
 bool
 app_launch_config_s::setElevated (bool elevate)
 {
-  using Service = SKIF_LaunchBehaviors::Service;
+  using Elevation = SKIF_LaunchBehaviors::Elevation;
 
   if (elevate == isElevated ( ))
     return elevated;
-
-  // A blocked executable does not use the service, so it cannot be elevated
-  if (elevate && isBlacklisted ( ))
-    return isElevated (true);
 
   std::wstring behaviors_path =
     _GetLaunchBehaviorsPath (*this);
 
   if (elevate)
-    SKIF_LaunchBehaviors::SetService (behaviors_path, Service::Elevated);
+    SKIF_LaunchBehaviors::SetElevation (behaviors_path, Elevation::Elevated);
 
   else
   {
-    SKIF_LaunchBehaviors::SetService (behaviors_path, Service::Inherit);
+    SKIF_LaunchBehaviors::SetElevation (behaviors_path, Elevation::Inherit);
 
     // Still elevated through a parent folder -- override it for this executable
-    if (SKIF_LaunchBehaviors::Resolve (behaviors_path).service == Service::Elevated)
-      SKIF_LaunchBehaviors::SetService (behaviors_path, Service::Normal);
+    if (SKIF_LaunchBehaviors::Resolve (behaviors_path).elevation == Elevation::Elevated)
+      SKIF_LaunchBehaviors::SetElevation (behaviors_path, Elevation::Normal);
 
     // The legacy file is only read by SKIF, and has been superseded by the registry
     std::wstring elevated_path =
@@ -440,7 +434,7 @@ app_launch_config_s::setElevated (bool elevate)
 bool
 app_launch_config_s::isElevated (bool refresh)
 {
-  using Service = SKIF_LaunchBehaviors::Service;
+  using Elevation = SKIF_LaunchBehaviors::Elevation;
 
   if (elevated != -1 && ! refresh)
     return elevated;
@@ -448,20 +442,60 @@ app_launch_config_s::isElevated (bool refresh)
   std::wstring behaviors_path =
     _GetLaunchBehaviorsPath (*this);
 
-  Service service =
-    SKIF_LaunchBehaviors::Resolve (behaviors_path).service;
+  Elevation elevation =
+    SKIF_LaunchBehaviors::Resolve (behaviors_path).elevation;
 
-  // Migrate the legacy file to the registry if the registry has no service setting yet
-  if (service == Service::Inherit && PathFileExistsW (getElevatedFilename ( ).c_str ()))
+  // Migrate the legacy file to the registry if the registry has no elevation setting yet
+  if (elevation == Elevation::Inherit && PathFileExistsW (getElevatedFilename ( ).c_str ()))
   {
-    SKIF_LaunchBehaviors::SetService (behaviors_path, Service::Elevated);
-    service = Service::Elevated;
+    SKIF_LaunchBehaviors::SetElevation (behaviors_path, Elevation::Elevated);
+    elevation = Elevation::Elevated;
   }
 
   elevated =
-    (service == Service::Elevated) ? 1 : 0;
+    (elevation == Elevation::Elevated) ? 1 : 0;
 
   return elevated;
+}
+
+bool
+app_launch_config_s::setIgnoreBlacklist (bool ignore)
+{
+  using Blacklist = SKIF_LaunchBehaviors::Blacklist;
+
+  if (ignore == isIgnoringBlacklist ( ))
+    return ignore_blacklist;
+
+  std::wstring behaviors_path =
+    _GetLaunchBehaviorsPath (*this);
+
+  if (ignore)
+    SKIF_LaunchBehaviors::SetBlacklist (behaviors_path, Blacklist::Ignore);
+
+  else
+  {
+    SKIF_LaunchBehaviors::SetBlacklist (behaviors_path, Blacklist::Inherit);
+
+    // Still ignored through a parent folder -- override it for this executable
+    if (SKIF_LaunchBehaviors::Resolve (behaviors_path).blacklist == Blacklist::Ignore)
+      SKIF_LaunchBehaviors::SetBlacklist (behaviors_path, Blacklist::Respect);
+  }
+
+  return isIgnoringBlacklist (true);
+}
+
+bool
+app_launch_config_s::isIgnoringBlacklist (bool refresh)
+{
+  using Blacklist = SKIF_LaunchBehaviors::Blacklist;
+
+  if (ignore_blacklist != -1 && ! refresh)
+    return ignore_blacklist;
+
+  ignore_blacklist =
+    (SKIF_LaunchBehaviors::Resolve (_GetLaunchBehaviorsPath (*this)).blacklist == Blacklist::Ignore) ? 1 : 0;
+
+  return ignore_blacklist;
 }
 
 std::wstring
@@ -1113,7 +1147,7 @@ app_record_s::MatchProcess (const wchar_t* wszExeFile, const wchar_t* wszExePath
 
 #pragma region Artwork
 
-// The user's custom cover / icon: <asset dir>cover|icon .png, .jpg (and .ico for icons)
+// The user's custom cover / icon: <asset dir>cover|icon .png, .jpg (and .gif / .webp for covers, .ico for icons)
 std::wstring
 app_record_s::FindCustomArtwork (LibraryTexture type) const
 {
@@ -1123,6 +1157,12 @@ app_record_s::FindCustomArtwork (LibraryTexture type) const
     return                   SKIFCustomPath + L".png";
   else if (PathFileExistsW ((SKIFCustomPath + L".jpg").c_str()))
     return                   SKIFCustomPath + L".jpg";
+  else if (type == LibraryTexture::Cover && // Animated covers (SaveGameCover keeps GIFs as they are)
+           PathFileExistsW ((SKIFCustomPath + L".gif").c_str()))
+    return                   SKIFCustomPath + L".gif";
+  else if (type == LibraryTexture::Cover && // Animated WebP covers (SaveGameCover keeps them as they are)
+           PathFileExistsW ((SKIFCustomPath + L".webp").c_str()))
+    return                   SKIFCustomPath + L".webp";
   else if (type == LibraryTexture::Icon &&
            PathFileExistsW ((SKIFCustomPath + L".ico").c_str()))
     return                   SKIFCustomPath + L".ico";
