@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-02 23:45+0100\n"
+"POT-Creation-Date: 2026-11-03 05:37+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -195,30 +195,30 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-#: src/SKIF.cpp:5618
+#: src/SKIF.cpp:5624
 msgid "Blink and you'll miss it ;)"
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/SKIF.cpp:5620
+#: src/SKIF.cpp:5626
 msgid "An update is being installed..."
 msgstr ""
 
-#: src/SKIF.cpp:5646
+#: src/SKIF.cpp:5652
 msgid "Open the app to continue."
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/SKIF.cpp:5648
+#: src/SKIF.cpp:5654
 msgid "An update to Special K is available!"
 msgstr ""
 
-#: src/SKIF.cpp:5660
+#: src/SKIF.cpp:5666
 msgid "The update will be retried later."
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/SKIF.cpp:5662
+#: src/SKIF.cpp:5668
 msgid "Update failed :("
 msgstr ""
 

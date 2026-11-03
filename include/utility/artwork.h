@@ -88,6 +88,8 @@ public:
   void HoverAnimatedCover     (void);                // The cover panel is hovered this frame (plays the shown cover, if animated)
   void HoverAnimatedThumbnail (app_record_s* pApp);  // A grid tile is hovered this frame (plays its thumbnail's cover, if animated)
   void UpdateAnimatedCover    (void);                // Once per frame of the library tab, after the cover / grid is drawn
+  bool IsAnimatedCoverPlaying (void) const;          // An animated cover (the cover panel's or a grid tile's) played this frame:
+                                                     //   SKIF keeps rendering frames while it does (SKIF.cpp)
   ID3D11ShaderResourceView*
        GetAnimatedCoverFrame  (app_key_s game, ImVec2* resolution = nullptr) const; // The frame to draw in place of the game's cover or
                                                      //   thumbnail while it plays (and its size), else nullptr
@@ -230,6 +232,7 @@ private:
   DWORD                     m_animLastHovered   = 0;
   DWORD                     m_animTimerDue      = 0;     // When the timer fires, while it runs
   bool                      m_animTimer         = false; // cIDT_TIMER_COVERANIM is running
+  int                       m_animPlayingFrame  = -1;    // The last frame (ImGui::GetFrameCount) an animated cover played in
 
   // Animated covers in the grid view (RequestAnimatedThumbnail), by game. Owned here, so the pointers stay valid.
   struct anim_thumb_s {

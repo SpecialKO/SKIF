@@ -4292,12 +4292,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
     // Conditional rendering, but only if a viewport is actually visible
     extern bool SKIF_ImGui_ImplWin32_IsAnyViewportVisible (void);
-    bool bRefresh = (SKIF_ImGui_ImplWin32_IsAnyViewportVisible ( )) ? true : false; // (SKIF_ImGui_hWnd != NULL && (SKIF_isTrayed || IsIconic (SKIF_ImGui_hWnd))) ? false : true;
+    bool bRefresh = (SKIF_ImGui_ImplWin32_IsAnyViewportVisible ( )) ? true : false;
 
     if (invalidatedDevice > 0 && SKIF_Tab_Selected == UITab_Library)
       bRefresh = false;
 
-    if (bRefresh)
+    // If the library tab is selected and an animated cover is playing, force a refresh every frame
+    if (bRefresh && SKIF_Tab_Selected == UITab_Library && SKIF_LibraryArtwork::Get ( ).IsAnimatedCoverPlaying ( ))
+      bRefresh = true;
+
+    // Conditional refreshing of the ImGui viewports, to avoid unnecessary rendering when nothing has changed
+    else if (bRefresh)
     {
       bRefresh = false;
       // Two persistent buffers that are swapped every frame, so the comparison
@@ -4482,6 +4487,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
       processAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If the background is currently currently undergoing a fade effect
     else if (SKIF_Tab_Selected == UITab_Library && coverFadeActive)
       processAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If the cover is currently undergoing a fade effect
+    //else if (SKIF_Tab_Selected == UITab_Library && SKIF_LibraryArtwork::Get ( ).IsAnimatedCoverPlaying ( ))
+    //  processAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If an animated cover is playing (hovered)
     else if (ImGui::notifications.size() > 0)
       processAdditionalFrames = ImGui::GetFrameCount ( ) + 3; // If we have any visible notifications
     else if (addAdditionalFrames > 0)

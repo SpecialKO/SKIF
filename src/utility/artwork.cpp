@@ -788,8 +788,12 @@ SKIF_LibraryArtwork::UpdateAnimatedCover (void)
     wakeIn = wakeGrid;
 
   // Wake SKIF when the next frame is due (re-armed only when that changes). Once it fires, the frames it gives re-arm it.
+  //   While anything plays, SKIF also keeps rendering (IsAnimatedCoverPlaying): the timer alone is not enough, as Windows
+  //     coalesces and delays SKIF's timers (by seconds in efficiency mode, e.g. while its window is not focused).
   if (wakeIn > 0)
   {
+    m_animPlayingFrame = ImGui::GetFrameCount ( );
+
     const DWORD due = now + wakeIn;
 
     if (! m_animTimer || due != m_animTimerDue)
@@ -826,6 +830,13 @@ SKIF_LibraryArtwork::GetAnimatedCoverFrame (app_key_s game, ImVec2* resolution) 
     *resolution = m_animResolution;
 
   return m_animFrames [frame].p;
+}
+
+bool
+SKIF_LibraryArtwork::IsAnimatedCoverPlaying (void) const
+{
+  // Only for the frame it was set in: once the library tab is no longer drawn (another tab, SKIF minimized), it is not
+  return (m_animPlayingFrame == ImGui::GetFrameCount ( ));
 }
 
 void
