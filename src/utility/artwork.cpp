@@ -247,7 +247,6 @@ SKIF_LibraryArtwork::ApplyWorkerResults (void)
   {
     if (srv.p != nullptr)
     {
-      PLOG_VERBOSE << "SKIF_ResourcesToFree: Pushing " << srv.p << " to be released";;
       SKIF_ResourcesToFree.push (srv.p);
       srv.p = nullptr;
     }

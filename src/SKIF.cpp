@@ -4444,12 +4444,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
     // Release any leftover resources from last frame
     IUnknown* pResource = nullptr;
     bool      released  = false;
+    size_t    releases  = 0;
+    IUnknown* pFirst    = nullptr;
     while (! SKIF_ResourcesToFree.empty ())
     {
       if (SKIF_ResourcesToFree.try_pop (pResource))
       {
         CComPtr <IUnknown> ptr = pResource;
-        PLOG_VERBOSE << "SKIF_ResourcesToFree: Releasing " << ptr.p;
+
+        if (releases++ == 0)
+          pFirst = ptr.p;
+
         ptr.p->Release();
         released = true;
       }
@@ -4457,6 +4462,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
       if (invalidatedDevice == 2)
         invalidatedDevice = 0;
     }
+
+    PLOG_VERBOSE_IF (releases == 1) << "SKIF_ResourcesToFree: Released " << pFirst;
+    PLOG_VERBOSE_IF (releases >  1) << "SKIF_ResourcesToFree: Released " << releases << " resources";
 
     // Flushed before SKIF goes to sleep (see SKIF_D3D11_FlushPending)
     if (released)
