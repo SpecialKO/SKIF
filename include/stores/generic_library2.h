@@ -54,6 +54,8 @@ struct library_thumbnail_s {
   std::wstring                       cachePath;
   std::function <bool (void)>        wanted;    // If set: whether the texture is still needed (its tile in view); asked before the
                                                 //   texture is created, so one no longer needed is never created (the cache is still saved)
+  bool                               fullSize   = false; // Animated covers (LoadAnimatedLibraryThumbnail): the full-size one (the cover
+                                                //   panel's, see GetAnimatedLibraryCoverCachePath), with all its mip levels instead of 3
 };
 
 // Loads a cover / icon (pApp: from ResolveArtwork) or an embedded Special K texture into 'out'. Returns true if out.srv is set.
@@ -92,6 +94,14 @@ LoadAnimatedLibraryTexture (const std::wstring&                path,
 //       current), else built from source (decoded, which takes a while) and saved there. bytes: what they take (also
 //         without createTextures, which only builds / checks the cache). tooLarge: they would take more than maxBytes.
 //           thumb.wanted (if set) stops it between frames. Thread-safe like LoadLibraryTextureEx; call CoInitializeEx first.
+// The full-size animated cover (the cover panel's) can also be loaded compressed, as LoadAnimatedLibraryThumbnail does
+//   for the grid view: BC1 (BC3 with transparency) with all its mip levels, cached in the game's asset folder. This gives
+//     where (cover-thumb-anim-<width>x<height>.anim in assetFolder, so the thumbnails' cleanup covers it) and the size
+//       to make it at (thumb.width / height): as the cover is shown, then smaller if all the frames would take more than
+//         about 192 MB. False if it is not animated, too large to play, or there is no asset folder. Reads the file.
+bool
+GetAnimatedLibraryCoverCachePath (const std::wstring& source, const std::wstring& assetFolder, library_thumbnail_s& thumb);
+
 bool
 LoadAnimatedLibraryThumbnail (const std::wstring&                source,
                               const library_thumbnail_s&         thumb,

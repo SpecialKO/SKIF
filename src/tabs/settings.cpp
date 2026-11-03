@@ -1395,6 +1395,45 @@ SKIF_UI_Tab_DrawSettings (void)
                                                     : _("Insufficient VRAM: some animated covers will only play when hovered."));
       }
 
+      // What the loaded ones take, and SKIF's video memory in use (Task Manager's "Dedicated GPU memory"), with what its
+      //   textures take on hover
+      if (! animationsOff)
+      {
+        const SKIF_LibraryArtwork::video_memory_s vram = SKIF_LibraryArtwork::Get ( ).GetVideoMemory ( );
+
+        auto _MB = [](uint64_t bytes) -> int { return static_cast <int> ((bytes + 512 * 1024) / (1024 * 1024)); };
+
+        ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_CIRCLE_INFO);
+
+        if (vram.inUse > 0)
+        {
+          const int other = _MB (vram.inUse) - _MB (vram.animBytes) - _MB (vram.animCoverBytes) - _MB (vram.coverBytes)
+                                             - _MB (vram.thumbBytes) - _MB (vram.iconBytes);
+
+          // TRANSLATORS: Each {n} is an amount of video memory in megabytes
+          SKIF_ImGui_SetHoverTip (F_("SKIF's video memory in use: {0} MB\n"
+                                     "Animated covers of the grid view: {1} MB\n"
+                                     "The full-size animated cover: {2} MB\n"
+                                     "Covers: {3} MB\n"
+                                     "Thumbnails: {4} MB\n"
+                                     "Icons: {5} MB\n"
+                                     "Other (the window, fonts, the graphics driver): {6} MB",
+                                     _MB (vram.inUse), _MB (vram.animBytes), _MB (vram.animCoverBytes), _MB (vram.coverBytes),
+                                     _MB (vram.thumbBytes), _MB (vram.iconBytes), std::max (0, other)));
+        }
+
+        ImGui::SameLine    ( );
+        SKIF_ImGui_TextColoredWrapped (
+          ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),
+            (vram.inUse > 0)
+              // TRANSLATORS: {0} is a number of animated covers, {1} and {2} are amounts of video memory in megabytes
+              ? FP_("In use: {1} MB for {0} animated cover. SKIF uses {2} MB of video memory in all.",
+                    "In use: {1} MB for {0} animated covers. SKIF uses {2} MB of video memory in all.", vram.animLoaded, _MB (vram.animBytes), _MB (vram.inUse)).c_str ( )
+              // TRANSLATORS: {0} is a number of animated covers, {1} is an amount of video memory in megabytes
+              : FP_("In use: {1} MB for {0} animated cover.",
+                    "In use: {1} MB for {0} animated covers.", vram.animLoaded, _MB (vram.animBytes)).c_str ( ));
+      }
+
       if (animationsOff)
         SKIF_ImGui_PopDisableState ( );
     }

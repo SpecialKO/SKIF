@@ -4267,6 +4267,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
     // Actual rendering is conditional, this just processes input and ends the ImGui frame.
     ImGui::Render (); // also calls ImGui::EndFrame ();
 
+    // What the grid view's animated covers take in video memory, logged once that changes (on any tab)
+    SKIF_LibraryArtwork::Get ( ).LogVideoMemory (SKIF_Util_timeGetTime ( ));
+
     // The last window of the frame may have been on another monitor, so return to the main window's DPI scale
     //   for everything that runs between frames
     SKIF_ImGui_RestoreMainDPIScale ( );

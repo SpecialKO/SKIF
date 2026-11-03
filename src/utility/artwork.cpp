@@ -13,6 +13,8 @@
 #include <utility/fsutil.h>
 #include <unordered_set>
 #include <map>
+#include <mutex>
+#include <dxgi1_4.h>
 
 extern concurrency::concurrent_queue <IUnknown *> SKIF_ResourcesToFree;
 
@@ -339,15 +341,27 @@ SKIF_LibraryArtwork::ApplyWorkerResults (void)
     // Animated covers: only the latest request, for the cover still shown, made on the current device
     else if (result.type == LibraryTexture::AnimatedCover)
     {
-      m_animWorkerBusy = false;
+      // A replacement comes after the worker's first result, which ended its turn
+      if (! result.replace)
+        m_animWorkerBusy = false;
 
       const bool live = (result.queuePos   == m_animRequest.load ( ) &&
                          result.generation == m_generation.load  ( ) &&
                          result.game       == m_animGame             &&
-                         m_animState       == AnimatedCoverState::Loading);
+                         m_animState       == ((result.replace) ? AnimatedCoverState::Ready : AnimatedCoverState::Loading));
 
       if (live && result.frames.size ( ) >= 2 && result.frames.size ( ) == result.delays.size ( ))
       {
+        // Its compressed frames, replacing the uncompressed ones: the same animation, so it plays on from where it is
+        if (result.replace)
+        {
+          for (auto& frame : m_animFrames)
+            _Release (frame);
+
+          m_animFrames   .clear ( );
+          m_animFrameEnds.clear ( );
+        }
+
         DWORD end = 0;
 
         for (size_t i = 0; i < result.frames.size ( ); i++)
@@ -364,8 +378,9 @@ SKIF_LibraryArtwork::ApplyWorkerResults (void)
         m_animState      = AnimatedCoverState::Ready;
       }
 
-      // Not animated after all, too large, or not decodable: it stays a still cover
-      else if (live)
+      // Not animated after all, too large, or not decodable: it stays a still cover (a replacement that failed: it plays on
+      //   as it is)
+      else if (live && ! result.replace)
         m_animState    = AnimatedCoverState::Failed;
 
       for (auto& frame : result.frames)
@@ -655,14 +670,21 @@ SKIF_LibraryArtwork::HoverAnimatedThumbnail (app_record_s* pApp)
 void
 SKIF_LibraryArtwork::StartAnimatedCoverWorker (void)
 {
+  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
+
   struct thread_s {
     std::wstring path;
     app_key_s    game;
     int          request    = 0;
     unsigned int generation = 0;
+    std::wstring assetFolder; // Where its compressed frames are cached (empty: not cached)
   };
 
   thread_s* data = new thread_s { m_animSource, m_animGame, ++m_animRequest, m_generation.load ( ) };
+
+  // Special K's asset folder is the Assets folder itself, which the cleanup of cover caches leaves alone: not cached there
+  if (app_record_s* pApp = _games.Find (m_animGame); pApp != nullptr && ! pApp->IsSpecialK ( ))
+    data->assetFolder = pApp->GetAssetDirectory ( );
 
   m_animState      = AnimatedCoverState::Loading;
   m_animWorkerBusy = true;
@@ -685,22 +707,126 @@ SKIF_LibraryArtwork::StartAnimatedCoverWorker (void)
     result.queuePos   = _data->request;
     result.generation = _data->generation;
 
-    const int          request = _data->request;
-    const std::wstring path    = _data->path;
+    const int          request     = _data->request;
+    const std::wstring path        = _data->path;
+    const std::wstring assetFolder = _data->assetFolder;
 
     delete _data;
 
-    // Stops between frames once a newer request or a release made this one stale
-    LoadAnimatedLibraryTexture (path, result.frames, result.delays,
-      [&self, request](void) -> bool { return self.m_animRequest.load ( ) == request; });
+    // Its frames compressed (BC1 / BC3, as the grid view's are: a fraction of the video memory), cached in the game's asset
+    //   folder. All the frames together are kept below this (as LoadAnimatedLibraryTexture keeps the uncompressed ones).
+    constexpr size_t budget = 192ull * 1024 * 1024;
 
-    // The main thread swaps them in if this is still the latest request (ApplyWorkerResults)
-    self.m_results.push (std::move (result));
+    auto _Wanted = [&self, request](void) -> bool { return self.m_animRequest.load ( ) == request; };
+
+    library_thumbnail_s compressed;
+    const bool          cacheable = GetAnimatedLibraryCoverCachePath (path, assetFolder, compressed);
+    size_t              bytes     = 0;
+    bool                tooLarge  = false;
+
+    // The main thread swaps them in if this is still the latest request (ApplyWorkerResults). Forces a frame for that.
+    auto _Push = [&self](worker_result_s&& done)
+    {
+      self.m_results.push (std::move (done));
+      PostMessage (SKIF_Notify_hWnd, WM_SKIF_COVER, 0x0, 0x0);
+    };
+
+    // Compressed, from its cache
+    if (cacheable && _IsThumbnailCacheCurrent (compressed.cachePath))
+    {
+      compressed.wanted = _Wanted;
+
+      if (LoadAnimatedLibraryThumbnail (path, compressed, true, budget, true, result.frames, result.delays, bytes, tooLarge))
+      {
+        _Push (std::move (result));
+
+        PLOG_VERBOSE << "SKIF_LibAnimCoverWorker thread stopped!";
+        return 0;
+      }
+
+      result.frames.clear ( );
+      result.delays.clear ( );
+    }
+
+    // Not cached yet: uncompressed, right away (it plays meanwhile). Stops between frames once a newer request or a release
+    //   made this one stale.
+    LoadAnimatedLibraryTexture (path, result.frames, result.delays, _Wanted);
+
+    const bool playable   = (result.frames.size ( ) >= 2);
+    const auto generation = result.generation;
+    const auto game       = result.game;
+
+    // Builds its compressed frames (to the cache), for next time: to the end even if no longer shown (so a short hover makes
+    //   them too), one at a time (CPU heavy: every frame is decoded, scaled and compressed, the latter on several threads),
+    //     at below normal priority. Not in efficiency mode: on a hybrid CPU that keeps it on the slower cores, and the
+    //       cover is being looked at.
+    auto _Build = [&](void) -> bool
+    {
+      static std::mutex buildMutex;
+      std::scoped_lock  lock (buildMutex);
+
+      // Another worker may have built it while this one waited
+      if (_IsThumbnailCacheCurrent (compressed.cachePath))
+        return true;
+
+      const int priority = GetThreadPriority (GetCurrentThread ( ));
+      SetThreadPriority (GetCurrentThread ( ), THREAD_PRIORITY_BELOW_NORMAL);
+
+      std::vector <library_texture_s> none;
+      std::vector <DWORD>             delays;
+
+      compressed.wanted = nullptr;
+      LoadAnimatedLibraryThumbnail (path, compressed, false, budget, false, none, delays, bytes, tooLarge);
+
+      SetThreadPriority (GetCurrentThread ( ), priority);
+
+      return _IsThumbnailCacheCurrent (compressed.cachePath);
+    };
+
+    // Its compressed frames, from the cache just built, if it is still shown
+    auto _LoadBuilt = [&](worker_result_s& into) -> bool
+    {
+      compressed.wanted = _Wanted;
+
+      return (_Wanted ( ) && LoadAnimatedLibraryThumbnail (path, compressed, true, budget, true, into.frames, into.delays, bytes, tooLarge));
+    };
+
+    // Too large to play uncompressed (or not decodable): compressed it may fit. It shows still until they are built.
+    if (! playable && cacheable && _Wanted ( ))
+    {
+      result.frames.clear ( );
+      result.delays.clear ( );
+
+      if (! _Build ( ) || ! _LoadBuilt (result))
+      {
+        result.frames.clear ( );
+        result.delays.clear ( );
+      }
+
+      _Push (std::move (result));
+    }
+
+    else
+    {
+      _Push (std::move (result));
+
+      // If it is still shown once they are built, its compressed frames replace the uncompressed ones (it plays on from where
+      //   it is)
+      if (playable && cacheable && _Build ( ))
+      {
+        worker_result_s replacement;
+        replacement.type       = LibraryTexture::AnimatedCover;
+        replacement.game       = game;
+        replacement.queuePos   = request;
+        replacement.generation = generation;
+        replacement.replace    = true;
+
+        if (_LoadBuilt (replacement))
+          _Push (std::move (replacement));
+      }
+    }
 
     PLOG_VERBOSE << "SKIF_LibAnimCoverWorker thread stopped!";
-
-    // Force a frame, so the result is swapped in
-    PostMessage (SKIF_Notify_hWnd, WM_SKIF_COVER, 0x0, 0x0);
 
     return 0;
   }, data, 0x0, nullptr);
@@ -1697,6 +1823,186 @@ SKIF_LibraryArtwork::OnThumbnailTimer (void)
 #pragma endregion
 
 #pragma region Animated Thumbnails
+
+// SKIF's video memory in use (bytes): the local memory of the device's adapter used by this process, which is what Task
+//   Manager shows as "Dedicated GPU memory". 0 if unknown (no device, or the hardware device is still being switched to).
+extern ID3D11Device* SKIF_pd3dDevice; // SKIF.cpp
+
+static uint64_t
+_QueryVideoMemoryInUse (void)
+{
+  if (SKIF_pd3dDevice == nullptr)
+    return 0;
+
+  CComQIPtr <IDXGIDevice> pDXGIDevice (SKIF_pd3dDevice);
+  CComPtr   <IDXGIAdapter> pAdapter;
+
+  if (pDXGIDevice == nullptr || FAILED (pDXGIDevice->GetAdapter (&pAdapter.p)))
+    return 0;
+
+  CComQIPtr <IDXGIAdapter3> pAdapter3 (pAdapter);
+  DXGI_QUERY_VIDEO_MEMORY_INFO info = { };
+
+  if (pAdapter3 == nullptr || FAILED (pAdapter3->QueryVideoMemoryInfo (0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &info)))
+    return 0;
+
+  return info.CurrentUsage;
+}
+
+// What a texture takes: its format at its size, for each mip and array slice. Shared textures are counted once (seen).
+static size_t
+_TextureBytes (ID3D11ShaderResourceView* pSRV, std::unordered_set <ID3D11Resource*>& seen)
+{
+  if (pSRV == nullptr)
+    return 0;
+
+  CComPtr <ID3D11Resource> pResource;
+  pSRV->GetResource (&pResource.p);
+
+  if (pResource == nullptr || ! seen.insert (pResource.p).second)
+    return 0;
+
+  CComQIPtr <ID3D11Texture2D> pTexture (pResource);
+
+  if (pTexture == nullptr)
+    return 0;
+
+  D3D11_TEXTURE2D_DESC desc = { };
+  pTexture->GetDesc (&desc);
+
+  size_t bytes = 0;
+
+  for (UINT mip = 0; mip < desc.MipLevels; mip++)
+  {
+    size_t rowPitch   = 0,
+           slicePitch = 0;
+
+    if (SUCCEEDED (DirectX::ComputePitch (desc.Format, std::max (1u, desc.Width >> mip), std::max (1u, desc.Height >> mip), rowPitch, slicePitch)))
+      bytes += slicePitch;
+  }
+
+  return bytes * desc.ArraySize;
+}
+
+SKIF_LibraryArtwork::video_memory_s
+SKIF_LibraryArtwork::GetVideoMemory (bool fresh) const
+{
+  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
+
+  const DWORD now = SKIF_Util_timeGetTime ( );
+
+  if (! fresh && m_vramQueriedAt != 0 && now - m_vramQueriedAt < 1000)
+    return m_vram;
+
+  video_memory_s                      out;
+  std::unordered_set <ID3D11Resource*> seen;
+
+  out.inUse = _QueryVideoMemoryInUse ( );
+
+  // The grid view's animated covers: their texture arrays' data
+  for (auto& thumb : m_animThumbs)
+  {
+    if (thumb->state != anim_thumb_s::State::Loaded)
+      continue;
+
+    for (auto& frame : thumb->frames)
+      out.animBytes += _TextureBytes (frame.p, seen);
+
+    out.animFrames += thumb->frames.size ( );
+    out.animLoaded++;
+  }
+
+  // The full-size animated cover
+  for (auto& frame : m_animFrames)
+    out.animCoverBytes += _TextureBytes (frame.p, seen);
+
+  out.animCoverFrames = m_animFrames.size ( );
+
+  // The cover panel's cover, and the one fading out
+  out.coverBytes = _TextureBytes (m_pTexSRV.p, seen) + _TextureBytes (m_pTexSRV_old.p, seen);
+
+  // The games' thumbnails and icons
+  for (auto& app : _games.GetApps ( ))
+  {
+    if (app.second == nullptr)
+      continue;
+
+    if (const size_t bytes = _TextureBytes (app.second->tex_thumb.texture.p, seen); bytes > 0)
+    {
+      out.thumbBytes += bytes;
+      out.thumbs++;
+    }
+
+    if (const size_t bytes = _TextureBytes (app.second->tex_icon.texture.p, seen); bytes > 0)
+    {
+      out.iconBytes += bytes;
+      out.icons++;
+    }
+  }
+
+  m_vram          = out;
+  m_vramQueriedAt = now;
+
+  return out;
+}
+
+// Logs SKIF's video memory in use, and what its textures take, once the animated covers (the grid view's and the full-size
+//   one) or the cover changed, and then stayed the same for two seconds with no worker running (released textures are
+//     freed some frames later). Comparing two lines tells how much video memory each really takes. Called every frame on
+//       any tab, so it also logs once they are all unloaded (e.g. turned off in Settings).
+void
+SKIF_LibraryArtwork::LogVideoMemory (DWORD now)
+{
+  // What is loaded (cheap to tell every frame): the grid view's animated covers, the full-size one, and the cover
+  const uint64_t state = static_cast <uint64_t> (m_animThumbBytes) ^ (static_cast <uint64_t> (m_animFrames.size ( )) << 40) ^
+                         static_cast <uint64_t> (reinterpret_cast <uintptr_t> (m_pTexSRV.p)) ^
+                        (static_cast <uint64_t> (reinterpret_cast <uintptr_t> (m_pTexSRV_old.p)) << 1);
+
+  if (state != m_vramPendingState)
+  {
+    m_vramPendingState = state;
+    m_vramChangedAt    = now;
+    return;
+  }
+
+  if (state == m_vramLoggedState || now - m_vramChangedAt < 2000 || m_animThumbBuilds > 0 || m_animThumbLoads > 0 || m_animWorkerBusy)
+    return;
+
+  // Measured now (not the figure Settings shows, which may be from before the last textures were freed)
+  const video_memory_s vram = GetVideoMemory (true);
+
+  if (vram.inUse == 0)
+    return;
+
+  constexpr double MB = 1024.0 * 1024.0;
+
+  const size_t known = vram.Known ( );
+  const double other = (static_cast <double> (vram.inUse) - static_cast <double> (known)) / MB;
+
+  std::string change;
+
+  // Since the last line: what SKIF's textures and its video memory changed by
+  if (m_vramLoggedState != UINT64_MAX && m_vramLogged.inUse != 0)
+  {
+    const double dataChange = (static_cast <double> (known)      - static_cast <double> (m_vramLogged.Known ( ))) / MB,
+                 usedChange = (static_cast <double> (vram.inUse) - static_cast <double> (m_vramLogged.inUse))   / MB;
+
+    change = SK_FormatString ("; since the last measurement: %+.1f MB of textures, %+.1f MB of video memory", dataChange, usedChange);
+
+    if (std::abs (dataChange) >= 1.0)
+      change += SK_FormatString (" (%.2fx)", usedChange / dataChange);
+  }
+
+  PLOG_DEBUG << "[Video memory] SKIF's video memory in use: " << SK_FormatString ("%.1f", vram.inUse / MB) << " MB. "
+             << SK_FormatString ("Animated covers of the grid view: %.1f MB (%d, %zu frames); ", vram.animBytes / MB, vram.animLoaded, vram.animFrames)
+             << SK_FormatString ("the full-size animated cover: %.1f MB (%zu frames); ",          vram.animCoverBytes / MB, vram.animCoverFrames)
+             << SK_FormatString ("covers: %.1f MB; thumbnails: %.1f MB (%d); icons: %.1f MB (%d); ", vram.coverBytes / MB, vram.thumbBytes / MB, vram.thumbs,
+                                                                                                vram.iconBytes / MB, vram.icons)
+             << SK_FormatString ("other (the swap chain, fonts, the driver): %.1f MB", other) << change << ".";
+
+  m_vramLoggedState = state;
+  m_vramLogged      = vram;
+}
 
 size_t
 SKIF_LibraryArtwork::GetAnimatedThumbnailBudget (void) const

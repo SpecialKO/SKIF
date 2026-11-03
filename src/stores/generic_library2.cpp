@@ -8,6 +8,11 @@
 #include <cmath>
 #include <fstream>
 #include <memory>
+#include <atomic>
+#include <deque>
+#include <condition_variable>
+#include <mutex>
+#include <thread>
 
 #include <images/patreon.png.h>
 #include <images/sk_icon.jpg.h>
@@ -626,38 +631,24 @@ _OpenAnimatedImage (const std::wstring& path, animated_image_s& image, uint32_t 
   return true;
 }
 
-bool
-LoadAnimatedLibraryTexture (const std::wstring&                path,
-                            std::vector <library_texture_s>&   frames,
-                            std::vector <DWORD>&               delays,
-                            const std::function <bool (void)>& wanted)
+// The full-size animated cover (the cover panel's): all its frames together, mipmaps included, are kept below this (they are
+//   scaled down to fit), and there can be no more frames than this. Below a quarter of the size (each way) it would look
+//     too poor: it stays a still cover then.
+static constexpr double   s_animCoverBudget    = 192.0 * 1024 * 1024;
+static constexpr uint32_t s_animCoverMaxFrames = 1000;
+static constexpr double   s_animCoverMinScale  = 0.25;
+
+// The size the full-size animated cover's frames are made at: as the cover is shown (low-res covers: 220x330, filled as
+//   _ScaleLibraryImageToFill does), then smaller if all of them would take more than the budget at bytesPerPixel (mips
+//     included). False if that would be too small (see s_animCoverMinScale).
+static bool
+_GetAnimatedCoverSize (const std::wstring& path, uint32_t width, uint32_t height, uint32_t count, double bytesPerPixel,
+                       double& targetWidth, double& targetHeight)
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
-  // All the frames together, mipmaps included, are kept below this (they are scaled down to fit), and there can be no more
-  //   frames than this. Below a quarter of the size (each way) it would look too poor: it stays a still cover then.
-  constexpr double   budgetBytes = 192.0 * 1024 * 1024;
-  constexpr uint32_t maxFrames   = 1000;
-  constexpr double   minScale    = 0.25;
-
-  frames.clear ( );
-  delays.clear ( );
-
-  DWORD pre = SKIF_Util_timeGetTime1 ( );
-
-  animated_image_s image;
-
-  if (! _OpenAnimatedImage (path, image, maxFrames))
-    return false;
-
-  const uint32_t width  = image.width,
-                 height = image.height,
-                 count  = image.count;
-
-  // The size of the frames: as the cover is shown (low-res covers: 220x330, filled as _ScaleLibraryImageToFill does),
-  //   then smaller if all of them would take more than the budget
-  double targetWidth  = width,
-         targetHeight = height;
+  targetWidth  = width;
+  targetHeight = height;
 
   if (_registry._UseLowResCovers && ! _registry._UseLowResCoversHiDPIBypass)
   {
@@ -677,13 +668,13 @@ LoadAnimatedLibraryTexture (const std::wstring&                path,
     }
   }
 
-  const double bytes = targetWidth * targetHeight * 4.0 * (4.0 / 3.0) * count; // RGBA, with mipmaps
+  const double bytes = targetWidth * targetHeight * bytesPerPixel * count;
 
-  if (bytes > budgetBytes)
+  if (bytes > s_animCoverBudget)
   {
-    const double scale = std::sqrt (budgetBytes / bytes);
+    const double scale = std::sqrt (s_animCoverBudget / bytes);
 
-    if (scale * targetWidth / width < minScale)
+    if (scale * targetWidth / width < s_animCoverMinScale)
     {
       PLOG_WARNING << "Animated cover is too large to play (" << width << "x" << height << ", " << count << " frames): " << path;
       return false;
@@ -692,6 +683,36 @@ LoadAnimatedLibraryTexture (const std::wstring&                path,
     targetWidth  *= scale;
     targetHeight *= scale;
   }
+
+  return true;
+}
+
+bool
+LoadAnimatedLibraryTexture (const std::wstring&                path,
+                            std::vector <library_texture_s>&   frames,
+                            std::vector <DWORD>&               delays,
+                            const std::function <bool (void)>& wanted)
+{
+  frames.clear ( );
+  delays.clear ( );
+
+  DWORD pre = SKIF_Util_timeGetTime1 ( );
+
+  animated_image_s image;
+
+  if (! _OpenAnimatedImage (path, image, s_animCoverMaxFrames))
+    return false;
+
+  const uint32_t width  = image.width,
+                 height = image.height,
+                 count  = image.count;
+
+  // Uncompressed: RGBA, with mipmaps
+  double targetWidth  = width,
+         targetHeight = height;
+
+  if (! _GetAnimatedCoverSize (path, width, height, count, 4.0 * (4.0 / 3.0), targetWidth, targetHeight))
+    return false;
 
   const size_t outWidth  = std::max (static_cast <size_t> (targetWidth),  size_t (1)),
                outHeight = std::max (static_cast <size_t> (targetHeight), size_t (1));
@@ -871,12 +892,12 @@ _SaveAnimationCache (const std::wstring& path, const DirectX::ScratchImage& arra
 //   (alpha). Not BC7 as still thumbnails are: the CPU encoder takes several hundred milliseconds a frame, BC1 / BC3 a few,
 //     and BC1 takes half the memory. On success, pImg points to target and meta is its metadata. Worker threads: CPU only.
 static bool
-_MakeAnimatedThumbnailFrame (DirectX::TexMetadata& meta, DirectX::ScratchImage*& pImg, DirectX::ScratchImage& target, bool alpha)
+_MakeAnimatedThumbnailFrame (DirectX::TexMetadata& meta, DirectX::ScratchImage*& pImg, DirectX::ScratchImage& target, bool alpha, size_t mipLevels = 3)
 {
   DirectX::ScratchImage mipmapped;
 
   if (FAILED (DirectX::GenerateMipMaps (pImg->GetImages ( ), pImg->GetImageCount ( ), pImg->GetMetadata ( ),
-                                        DirectX::TEX_FILTER_FORCE_NON_WIC, 3, mipmapped)))
+                                        DirectX::TEX_FILTER_FORCE_NON_WIC, mipLevels, mipmapped)))
     return false;
 
   if (FAILED (DirectX::Compress (mipmapped.GetImages ( ), mipmapped.GetImageCount ( ), mipmapped.GetMetadata ( ),
@@ -893,10 +914,14 @@ _MakeAnimatedThumbnailFrame (DirectX::TexMetadata& meta, DirectX::ScratchImage*&
 // The frames of an animated cover as thumbnails, in a texture array: each scaled to fill width x height (as a thumbnail)
 //   and made a frame (_MakeAnimatedThumbnailFrame; BC1 / BC3 by the first frame's alpha). tooLarge: they would take more
 //     than maxBytes (stopped once the first frame says so).
+//   Frames are decoded in order (each is drawn onto the one before it), and then scaled, mipmapped and compressed by up to
+//     threads worker threads at once (most of the time goes to compressing). efficient: they run in efficiency mode
+//       (EcoQoS, background priority; the grid view's builds), else at below normal priority (the full-size cover's, which
+//         is being looked at).
 static bool
 _BuildAnimatedThumbnail (const std::wstring& source, float width, float height, size_t maxBytes,
                          DirectX::ScratchImage& array, std::vector <DWORD>& delays, bool& tooLarge,
-                         const std::function <bool (void)>& wanted)
+                         const std::function <bool (void)>& wanted, size_t mipLevels = 3, int threads = 1, bool efficient = true)
 {
   constexpr uint32_t maxFrames = 1000;
 
@@ -905,75 +930,183 @@ _BuildAnimatedThumbnail (const std::wstring& source, float width, float height, 
   if (! _OpenAnimatedImage (source, image, maxFrames))
     return false;
 
-  std::vector <DirectX::ScratchImage> made;
-  made.reserve (image.count);
+  std::vector <DirectX::ScratchImage> made (image.count); // By frame; the decoder may end up with fewer
   delays.clear ( );
 
-  bool failed = false;
-  bool alpha  = false; // The first frame has transparency: BC3 for all of them
+  std::atomic <bool> failed = false;
+  bool               alpha  = false; // The first frame has transparency: BC3 for all of them
+  size_t             count  = 0;     // Frames decoded
+
+  // A frame, made from a copy of the canvas
+  auto _Make = [&](DirectX::ScratchImage& img, DirectX::ScratchImage& thumb) -> bool
+  {
+    DirectX::ScratchImage  scaled;
+    DirectX::ScratchImage* pImg = &img;
+    DirectX::TexMetadata   meta = img.GetMetadata ( );
+
+    return (_ScaleLibraryImageToFill    (meta, pImg, scaled, width, height, true) &&
+            _MakeAnimatedThumbnailFrame (meta, pImg, thumb, alpha, mipLevels));
+  };
+
+  // The worker threads, and the decoded frames waiting for them (a few at a time, so memory stays low)
+  struct job_s {
+    size_t                index = 0;
+    DirectX::ScratchImage img;
+  };
+
+  std::mutex                mutex;
+  std::condition_variable   jobReady,
+                            jobTaken;
+  std::deque <job_s>        jobs;
+  bool                      decoded = false;
+  std::vector <std::thread> workers;
+  const size_t              queued  = static_cast <size_t> (std::max (threads, 1)) * 2;
+
+  auto _Worker = [&](void)
+  {
+    // Scaling uses WIC
+    CoInitializeEx (nullptr, COINIT_MULTITHREADED);
+
+    if (efficient)
+    {
+      SKIF_Util_SetThreadPowerThrottling (GetCurrentThread (), 1); // EcoQoS
+      SetThreadPriority                  (GetCurrentThread (), THREAD_MODE_BACKGROUND_BEGIN);
+    }
+
+    else
+      SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_BELOW_NORMAL);
+
+    for (;;)
+    {
+      job_s job;
+      {
+        std::unique_lock lock (mutex);
+        jobReady.wait (lock, [&] { return ! jobs.empty ( ) || decoded; });
+
+        if (jobs.empty ( ))
+          break;
+
+        job = std::move (jobs.front ( ));
+        jobs.pop_front ( );
+      }
+
+      jobTaken.notify_one ( );
+
+      if (! failed.load ( ) && ! _Make (job.img, made [job.index]))
+        failed.store (true);
+    }
+
+    if (efficient)
+      SetThreadPriority (GetCurrentThread (), THREAD_MODE_BACKGROUND_END);
+
+    CoUninitialize ( );
+  };
 
   auto _OnFrame = [&](const uint8_t* canvas, uint32_t delay) -> bool
   {
-    if (wanted && ! wanted ( ))
+    if ((wanted && ! wanted ( )) || failed.load ( ) || count >= made.size ( ))
     {
-      failed = true;
+      failed.store (true);
       return false;
     }
 
-    DirectX::ScratchImage  img;
-    DirectX::ScratchImage  scaled;
-    DirectX::ScratchImage  thumb;
-    DirectX::ScratchImage* pImg = &img;
+    DirectX::ScratchImage img;
 
     if (FAILED (img.Initialize2D (DXGI_FORMAT_R8G8B8A8_UNORM, image.width, image.height, 1, 1)))
     {
-      failed = true;
+      failed.store (true);
       return false;
     }
 
     memcpy (img.GetImage (0, 0, 0)->pixels, canvas, static_cast <size_t> (image.width) * image.height * 4);
 
-    if (made.empty ( ))
+    // The first frame, here: it tells the format (its alpha) and what they all take, before the workers start
+    if (count == 0)
+    {
       alpha = ! img.IsAlphaAllOpaque ( );
 
-    DirectX::TexMetadata meta = img.GetMetadata ( );
+      if (! _Make (img, made [0]))
+      {
+        failed.store (true);
+        return false;
+      }
 
-    if (! _ScaleLibraryImageToFill    (meta, pImg, scaled, width, height, true) ||
-        ! _MakeAnimatedThumbnailFrame (meta, pImg, thumb, alpha))
-    {
-      failed = true;
-      return false;
+      // All of them would take more than the budget (each frame takes as much as the first)
+      if (made [0].GetPixelsSize ( ) * image.count > maxBytes)
+      {
+        tooLarge = true;
+        failed.store (true);
+        return false;
+      }
+
+      // One thread: no workers (they are made here, as they are decoded)
+      for (int i = 0; threads > 1 && i < threads; i++)
+      {
+        try {
+          workers.emplace_back (_Worker);
+        }
+        catch (...) {
+          break; // Fewer workers (or none: the frames are then made here)
+        }
+      }
     }
 
-    // All of them would take more than the budget (each frame takes as much as the first)
-    if (made.empty ( ) && thumb.GetPixelsSize ( ) * image.count > maxBytes)
+    // The others: to a worker, or here without any
+    else if (workers.empty ( ))
     {
-      tooLarge = true;
-      failed   = true;
-      return false;
+      if (! _Make (img, made [count]))
+      {
+        failed.store (true);
+        return false;
+      }
     }
 
-    // Each frame must be like the first
-    if (! made.empty ( ) && (thumb.GetMetadata ( ).format    != made [0].GetMetadata ( ).format ||
-                             thumb.GetMetadata ( ).width     != made [0].GetMetadata ( ).width  ||
-                             thumb.GetMetadata ( ).mipLevels != made [0].GetMetadata ( ).mipLevels))
+    else
     {
-      failed = true;
-      return false;
+      std::unique_lock lock (mutex);
+      jobTaken.wait (lock, [&] { return jobs.size ( ) < queued; });
+
+      jobs.push_back ({ count, std::move (img) });
+      jobReady.notify_one ( );
     }
 
-    made.push_back   (std::move (thumb));
     delays.push_back (delay);
+    count++;
 
     return true;
   };
 
-  if (image.Decode (_OnFrame) < 2 || failed || made.size ( ) < 2)
+  const int result = image.Decode (_OnFrame);
+
+  // Done decoding: the workers finish the frames waiting, then end
+  {
+    std::scoped_lock lock (mutex);
+    decoded = true;
+  }
+
+  jobReady.notify_all ( );
+
+  for (auto& worker : workers)
+    worker.join ( );
+
+  if (result < 2 || failed.load ( ) || count < 2)
     return false;
 
-  // Into one texture array
+  made.resize (count);
+
+  // Each frame must be like the first
   const DirectX::TexMetadata& first = made [0].GetMetadata ( );
 
+  for (auto& frame : made)
+  {
+    if (frame.GetImageCount ( ) == 0 || frame.GetMetadata ( ).format    != first.format ||
+                                        frame.GetMetadata ( ).width     != first.width  ||
+                                        frame.GetMetadata ( ).height    != first.height ||
+                                        frame.GetMetadata ( ).mipLevels != first.mipLevels)
+      return false;
+  }
+
+  // Into one texture array
   if (FAILED (array.Initialize2D (first.format, first.width, first.height, made.size ( ), first.mipLevels)))
     return false;
 
@@ -1025,6 +1158,41 @@ _CreateLibraryTextureFromImages (const DirectX::TexMetadata& meta, const DirectX
 }
 
 bool
+GetAnimatedLibraryCoverCachePath (const std::wstring& source, const std::wstring& assetFolder, library_thumbnail_s& thumb)
+{
+  if (assetFolder.empty ( ))
+    return false;
+
+  animated_image_s image;
+
+  if (! _OpenAnimatedImage (source, image, s_animCoverMaxFrames))
+    return false;
+
+  // Compressed: at most a byte per pixel (BC3; BC1 takes half), with all its mipmaps
+  double targetWidth  = image.width,
+         targetHeight = image.height;
+
+  if (! _GetAnimatedCoverSize (source, image.width, image.height, image.count, 1.0 * (4.0 / 3.0), targetWidth, targetHeight))
+    return false;
+
+  // Block-compressed: sides that are multiples of 4 (as _ScaleLibraryImageToFill rounds them)
+  const int width  = static_cast <int> (std::ceil (std::max (targetWidth,  1.0) / 4.0) * 4.0),
+            height = static_cast <int> (std::ceil (std::max (targetHeight, 1.0) / 4.0) * 4.0);
+
+  std::wstring folder = assetFolder;
+
+  if (folder.back ( ) != L'\\' && folder.back ( ) != L'/')
+    folder += L'\\';
+
+  thumb.width     = static_cast <float> (width);
+  thumb.height    = static_cast <float> (height);
+  thumb.cachePath = SK_FormatStringW (L"%wscover-thumb-anim-%ix%i.anim", folder.c_str ( ), width, height);
+  thumb.fullSize  = true;
+
+  return true;
+}
+
+bool
 LoadAnimatedLibraryThumbnail (const std::wstring&                source,
                               const library_thumbnail_s&         thumb,
                               bool                               useCache,
@@ -1048,7 +1216,14 @@ LoadAnimatedLibraryThumbnail (const std::wstring&                source,
   // The cache, else a build (saved to the cache)
   if (! useCache || thumb.cachePath.empty ( ) || ! _LoadAnimationCache (thumb.cachePath, array, delays))
   {
-    if (! _BuildAnimatedThumbnail (source, thumb.width, thumb.height, maxBytes, array, delays, tooLarge, thumb.wanted))
+    // The full-size one: all its mip levels (0), as covers have (they are drawn smaller than they are, e.g. in horizon mode)
+    //   Built by several threads: the full-size one (looked at) with up to 4, at below normal priority; the grid view's with
+    //     up to 2, in efficiency mode
+    const int cores   = static_cast <int> (std::max (std::thread::hardware_concurrency ( ), 1u));
+    const int threads = (thumb.fullSize) ? std::clamp (cores / 4, 1, 4) : std::clamp (cores / 8, 1, 2);
+
+    if (! _BuildAnimatedThumbnail (source, thumb.width, thumb.height, maxBytes, array, delays, tooLarge, thumb.wanted,
+                                   (thumb.fullSize) ? 0 : 3, threads, ! thumb.fullSize))
     {
       PLOG_WARNING_IF (tooLarge) << "Animated cover is too large for the memory set aside for animated covers in the grid view: " << source;
       return false;
@@ -1101,7 +1276,7 @@ LoadAnimatedLibraryThumbnail (const std::wstring&                source,
   }
 
   DWORD post = SKIF_Util_timeGetTime1 ( );
-  PLOG_DEBUG << "[Image Processing] " << ((built) ? "Built" : "Loaded") << " an animated thumbnail (" << delays.size ( ) << " frames, "
+  PLOG_DEBUG << "[Image Processing] " << ((built) ? "Built" : "Loaded") << ((thumb.fullSize) ? " a compressed animated cover (" : " an animated thumbnail (") << delays.size ( ) << " frames, "
              << meta.width << "x" << meta.height << ", " << (bytes / 1024) << " KB) in " << (post - pre) << " ms.";
 
   return true;

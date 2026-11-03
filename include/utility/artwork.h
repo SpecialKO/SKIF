@@ -114,6 +114,25 @@ public:
   bool AreCoverAnimationsAutomatic (void) const;     // Settings (iLibraryAnimatedCovers 1): custom animation behavior across SKIF
   bool AreCoverAnimationsAlways    (void) const;     // Settings (iLibraryAnimatedCovers 3): every animated cover in view plays, not only
                                                      //   the hovered one (in the grid view: those that fit in its video memory)
+  // Video memory (Settings, and the log): what the grid view's loaded animated covers take, and what SKIF uses in all
+  //   The sizes are those of the textures themselves (their format, size, mips and array slices)
+  struct video_memory_s {
+    uint64_t inUse           = 0; // SKIF's video memory in use, as Task Manager's "Dedicated GPU memory" (0: unknown)
+    size_t   animBytes       = 0; // The frame data of the grid view's loaded animated covers
+    size_t   animFrames      = 0;
+    int      animLoaded      = 0;
+    size_t   animCoverBytes  = 0; // The full-size animated cover's frames (the cover panel's, or a grid tile's not built yet)
+    size_t   animCoverFrames = 0;
+    size_t   coverBytes      = 0; // The cover panel's cover (and the one fading out)
+    size_t   thumbBytes      = 0; // The grid view's still thumbnails
+    int      thumbs          = 0;
+    size_t   iconBytes       = 0; // The games' icons
+    int      icons           = 0;
+    size_t   Known (void) const { return animBytes + animCoverBytes + coverBytes + thumbBytes + iconBytes; }
+  };
+  video_memory_s GetVideoMemory (bool fresh = false) const; // Main thread; measured at most once a second, unless fresh
+  void LogVideoMemory         (DWORD now);           // Every frame, on any tab (SKIF.cpp): logs it once the animated covers or the
+                                                     //   cover change, and then stay the same for two seconds
   bool DidAnimatedThumbnailsNotFit (void) const { return m_animThumbsDidNotFit; } // While they always play: the last time the grid
                                                      //   view was shown, some in view did not fit in its video memory (they play when hovered)
   bool ReleaseAnimatedThumbnails (void);             // Unloads all of them (SKIF goes idle); true if any were. They load again once shown.
@@ -276,6 +295,12 @@ private:
   int                       m_animThumbBuilds   = 0;     // Workers running
   int                       m_animThumbLoads    = 0;
   bool                      m_animThumbsDidNotFit = false; // See DidAnimatedThumbnailsNotFit ( )
+  mutable video_memory_s    m_vram;                      // GetVideoMemory ( ): the last measurement, and when
+  mutable DWORD             m_vramQueriedAt     = 0;
+  uint64_t                  m_vramLoggedState   = UINT64_MAX; // LogVideoMemory ( ): what was loaded when it last logged, and when
+  uint64_t                  m_vramPendingState  = UINT64_MAX; //   that last changed
+  DWORD                     m_vramChangedAt     = 0;
+  video_memory_s            m_vramLogged;
   size_t        GetAnimatedThumbnailBudget   (void) const;                  // Bytes (Settings)
   anim_thumb_s* FindAnimatedThumbnail        (app_key_s game) const;        // nullptr if none
   void          ReleaseAnimatedThumbnail     (anim_thumb_s& thumb);         // Unloads its frames (Loaded → Cached)
@@ -315,6 +340,7 @@ private:
     size_t                  bytes      = 0;     // Animated thumbnails: what the frames take
     bool                    tooLarge   = false; // Animated thumbnails: too large for the limit
     bool                    ok         = false; // Animated thumbnails: loaded (or built)
+    bool                    replace    = false; // Animated covers: compressed frames, replacing the uncompressed ones shown meanwhile
     std::shared_ptr <app_record_s>
                             record;          // The record the worker used, kept alive until here (released on the main thread)
   };
