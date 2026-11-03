@@ -603,14 +603,15 @@ SKIF_LibraryArtwork::AreCoverAnimationsOn (void) const
   if (_registry.iLibraryAnimatedCovers == 0)
     return false;
 
-  if (_registry.iLibraryAnimatedCovers == 1)
+  // Play when hovered, or always
+  if (_registry.iLibraryAnimatedCovers == 2 || _registry.iLibraryAnimatedCovers == 3)
     return true;
 
   // As Windows' "Animation effects" (Settings > Accessibility > Visual effects; on Windows 10: "Show animations in Windows").
-  //   Read once a second, so a change applies while SKIF runs.
+  //   Read once every ten seconds, so a change applies while SKIF runs.
   const DWORD now = SKIF_Util_timeGetTime ( );
 
-  if (m_animsCheckedAt == 0 || now - m_animsCheckedAt > 1000)
+  if (m_animsCheckedAt == 0 || now - m_animsCheckedAt > 10000)
   {
     BOOL animations = TRUE;
 
@@ -1782,9 +1783,20 @@ SKIF_LibraryArtwork::ReleaseAnimatedThumbnails (void)
   return released;
 }
 
+bool
+SKIF_LibraryArtwork::AreCoverAnimationsAlways (void) const
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  return (_registry.iLibraryAnimatedCovers == 3);
+}
+
 void
 SKIF_LibraryArtwork::OnAnimatedThumbnailMemoryChanged (void)
 {
+  // Known again the next time the grid view is shown
+  m_animThumbsDidNotFit = false;
+
   // Off: as before (they play when hovered, see HoverAnimatedThumbnail)
   if (GetAnimatedThumbnailBudget ( ) == 0)
   {
@@ -2046,26 +2058,44 @@ SKIF_LibraryArtwork::UpdateAnimatedThumbnails (DWORD now)
 
   anim_thumb_s* hoveredThumb = nullptr;
 
-  // Play while hovered; pause on the current frame once not
+  // Always (Settings): every one in view plays, not only the hovered one. Those that do not fit in the video memory stay
+  //   still (built, but not loaded) until hovered: a tile in view only unloads others for itself while hovered.
+  const bool always   = AreCoverAnimationsAlways ( );
+  bool       gridShown = false;
+  bool       notFit    = false;
+
+  // Play while hovered (or in view); pause on the current frame once not
   for (auto& thumb : m_animThumbs)
   {
     const bool hovered = (thumb->hoveredFrame == frame);
+    const bool inView  = (thumb->lastFrame    == frame);
 
     if (hovered)
       hoveredThumb = thumb.get ( );
 
+    if (inView)
+    {
+      gridShown = true;
+
+      if (always && ! hovered && thumb->state == anim_thumb_s::State::Cached)
+        notFit = true;
+    }
+
     if (thumb->state != anim_thumb_s::State::Loaded || thumb->duration == 0)
       continue;
 
-    if (hovered)
+    if (hovered || (always && inView))
     {
       if (thumb->playingSince == 0)
         thumb->playingSince = now;
 
       const DWORD position = (thumb->position + (now - thumb->playingSince)) % thumb->duration;
       const auto  frameEnd = std::upper_bound (thumb->frameEnds.begin ( ), thumb->frameEnds.end ( ), position);
+      const DWORD due      = (frameEnd != thumb->frameEnds.end ( )) ? (*frameEnd - position) : 1;
 
-      wakeIn = (frameEnd != thumb->frameEnds.end ( )) ? (*frameEnd - position) : 1;
+      // The soonest frame of all those playing
+      if (wakeIn == 0 || due < wakeIn)
+        wakeIn = due;
     }
 
     else if (thumb->playingSince != 0)
@@ -2102,6 +2132,10 @@ SKIF_LibraryArtwork::UpdateAnimatedThumbnails (DWORD now)
   for (auto& thumb : m_animThumbs)
     if (thumb->lastFrame == frame && thumb.get ( ) != hoveredThumb)
       _Start (*thumb, false);
+
+  // Known while the grid view is shown (Settings shows it)
+  if (gridShown)
+    m_animThumbsDidNotFit = (always && notFit);
 
   return wakeIn;
 }

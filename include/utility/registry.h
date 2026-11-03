@@ -675,7 +675,7 @@ struct SKIF_RegistrySettings {
   int iLibrarySort             =   0; //  0 = Name,                        1 = Uses (frequently),      2 = Last Used (recently)
   int iLibraryView             =   0; //  0 = List,                        1 = Grid (the grid takes the cover's place)
   int iLibraryGridSize         = 120; // The width of the covers in the grid view at 100% DPI scale (80-240; their height is 1.5 times it)
-  int iLibraryAnimatedCovers   =   2; // Animated covers play when hovered: 0: never, 1: always, 2: while Windows' "Animation effects" is on
+  int iLibraryAnimatedCovers   =   2; //  0 = Never,                       1 = Automatic,              2 = Play when hovered,           3 = Always (all in view)
   int iLibraryGridAnimMemory   = 256; // MB of video memory the animated covers of the grid view may be kept loaded in (0-1024; 0: none, they load when hovered)
   int iProcessSort             =   0; //  0 = Status,                      1 = PID,                    2 = Arch,                        3 = Admin,                          4 = Name
   int iProcessRefreshInterval  =   2; //  0 = Paused,                      1 = Slow (5s),              2 = Normal (1s),                [3 = High (0.5s; not implemented)]

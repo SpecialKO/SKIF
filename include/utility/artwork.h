@@ -83,9 +83,10 @@ public:
   //       cover panel and the game's tile, and are released once another cover is hovered, on a device reset, when SKIF
   //         goes idle, when the game's cover changes, or once it has not been hovered for a while. A timer
   //           (cIDT_TIMER_COVERANIM) wakes SKIF for each new frame, so it does not draw more frames than that.
-  bool AreCoverAnimationsOn   (void) const;          // Settings (iLibraryAnimatedCovers): always, never, or while Windows' "Animation effects" is on.
+  bool AreCoverAnimationsOn   (void) const;          // Settings (iLibraryAnimatedCovers): hovered, always, never, or while Windows' "Animation effects" is on.
                                                      //   While off, no cover plays (and the frames loaded are released): they show still.
-  void HoverAnimatedCover     (void);                // The cover panel is hovered this frame (plays the shown cover, if animated)
+  void HoverAnimatedCover     (void);                // The cover panel is hovered this frame, or shown while they always play (plays
+                                                     //   the shown cover, if animated)
   void HoverAnimatedThumbnail (app_record_s* pApp);  // A grid tile is hovered this frame (plays its thumbnail's cover, if animated)
   void UpdateAnimatedCover    (void);                // Once per frame of the library tab, after the cover / grid is drawn
   bool IsAnimatedCoverPlaying (void) const;          // An animated cover (the cover panel's or a grid tile's) played this frame:
@@ -110,6 +111,10 @@ public:
   ID3D11ShaderResourceView*
        GetAnimatedThumbnailFrame (app_key_s game, ImVec2* resolution) const; // Its frame to draw (playing, or paused), else nullptr
   void OnAnimatedThumbnailMemoryChanged (void);      // Settings changed the limit
+  bool AreCoverAnimationsAlways (void) const;        // Settings (iLibraryAnimatedCovers 3): every animated cover in view plays, not only
+                                                     //   the hovered one (in the grid view: those that fit in its video memory)
+  bool DidAnimatedThumbnailsNotFit (void) const { return m_animThumbsDidNotFit; } // While they always play: the last time the grid
+                                                     //   view was shown, some in view did not fit in its video memory (they play when hovered)
   bool ReleaseAnimatedThumbnails (void);             // Unloads all of them (SKIF goes idle); true if any were. They load again once shown.
 
   // Icons (one background worker per game, up to 8 at once). tex_icon.iWorker: 0 → 1 (StartIconWorker) → 2 once its
@@ -269,6 +274,7 @@ private:
   int                       m_animThumbRequests = 0;
   int                       m_animThumbBuilds   = 0;     // Workers running
   int                       m_animThumbLoads    = 0;
+  bool                      m_animThumbsDidNotFit = false; // See DidAnimatedThumbnailsNotFit ( )
   size_t        GetAnimatedThumbnailBudget   (void) const;                  // Bytes (Settings)
   anim_thumb_s* FindAnimatedThumbnail        (app_key_s game) const;        // nullptr if none
   void          ReleaseAnimatedThumbnail     (anim_thumb_s& thumb);         // Unloads its frames (Loaded → Cached)
