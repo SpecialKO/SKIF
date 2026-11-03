@@ -361,9 +361,11 @@ DrawGameCover (bool sameLine, bool& isCoverHovered, ImVec2& vecPosCover)
 
     isCoverHovered = ImGui::IsItemHovered();
 
-    // An animated cover (APNG, GIF, WebP) plays while hovered, or all the time while shown when they always play (Settings;
-    //   SKIF_LibraryArtwork::UpdateAnimatedCover)
-    if (isCoverHovered || _art.AreCoverAnimationsAlways ( ))
+    // An animated cover plays while:
+    //   hovered,
+    //   always,
+    //   or while SKIF have focus (automatic).
+    if (isCoverHovered || _art.AreCoverAnimationsAlways ( ) || (_art.AreCoverAnimationsAutomatic ( ) && SKIF_ImGui_IsFocused ( )))
       _art.HoverAnimatedCover ( );
 
     if (ImGui::IsItemClicked (ImGuiMouseButton_Right))

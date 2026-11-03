@@ -1302,13 +1302,13 @@ SKIF_UI_Tab_DrawSettings (void)
         _("Dim game covers by 25%:"));
     ImGui::TreePush        ("DimCovers");
     if (SKIF_ImGui_RadioButton (L_("Never"),                 &_registry.iDimCovers, 0))
-      _registry.regKVDimCovers.putData (                        _registry.iDimCovers);
+      _registry.regKVDimCovers.putData (                      _registry.iDimCovers);
     SKIF_ImGui_SameLineIfFits (SKIF_ImGui_CheckboxWidth (L_("Always")));
     if (SKIF_ImGui_RadioButton (L_("Always"),                &_registry.iDimCovers, 1))
-      _registry.regKVDimCovers.putData (                        _registry.iDimCovers);
+      _registry.regKVDimCovers.putData (                      _registry.iDimCovers);
     SKIF_ImGui_SameLineIfFits (SKIF_ImGui_CheckboxWidth (L_("Based on mouse cursor")));
     if (SKIF_ImGui_RadioButton (L_("Based on mouse cursor"), &_registry.iDimCovers, 2))
-      _registry.regKVDimCovers.putData (                        _registry.iDimCovers);
+      _registry.regKVDimCovers.putData (                      _registry.iDimCovers);
     ImGui::TreePop         ( );
 
     ImGui::Spacing         ( );
@@ -1334,6 +1334,10 @@ SKIF_UI_Tab_DrawSettings (void)
                                 "This uses more GPU than playing them only when hovered."));
     }
 
+    // Automatic:
+    // - Thumbnail animations play when hovered
+    // - Large cover animations play while SKIF has focus
+    // - "Animation Effects" in Windows disables animations
     ImGui::TreePush        ("AnimatedCovers");
     if (SKIF_ImGui_RadioButton (L_("Automatic"),         &_registry.iLibraryAnimatedCovers, 1))
       _registry.regKVLibraryAnimatedCovers.putData (      _registry.iLibraryAnimatedCovers);

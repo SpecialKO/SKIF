@@ -1784,6 +1784,14 @@ SKIF_LibraryArtwork::ReleaseAnimatedThumbnails (void)
 }
 
 bool
+SKIF_LibraryArtwork::AreCoverAnimationsAutomatic (void) const
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+
+  return (_registry.iLibraryAnimatedCovers == 1);
+}
+
+bool
 SKIF_LibraryArtwork::AreCoverAnimationsAlways (void) const
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );

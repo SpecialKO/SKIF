@@ -111,7 +111,8 @@ public:
   ID3D11ShaderResourceView*
        GetAnimatedThumbnailFrame (app_key_s game, ImVec2* resolution) const; // Its frame to draw (playing, or paused), else nullptr
   void OnAnimatedThumbnailMemoryChanged (void);      // Settings changed the limit
-  bool AreCoverAnimationsAlways (void) const;        // Settings (iLibraryAnimatedCovers 3): every animated cover in view plays, not only
+  bool AreCoverAnimationsAutomatic (void) const;     // Settings (iLibraryAnimatedCovers 1): custom animation behavior across SKIF
+  bool AreCoverAnimationsAlways    (void) const;     // Settings (iLibraryAnimatedCovers 3): every animated cover in view plays, not only
                                                      //   the hovered one (in the grid view: those that fit in its video memory)
   bool DidAnimatedThumbnailsNotFit (void) const { return m_animThumbsDidNotFit; } // While they always play: the last time the grid
                                                      //   view was shown, some in view did not fit in its video memory (they play when hovered)
