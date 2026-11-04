@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-04 19:35+0100\n"
+"POT-Creation-Date: 2026-11-04 20:57+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -280,7 +280,7 @@ msgstr ""
 #: src/stores/SKIF/custom_library.cpp:383
 #: src/stores/SKIF/custom_library.cpp:490
 #: src/tabs/library/library_properties.cpp:216
-#: src/utility/env_vars.cpp:485
+#: src/utility/env_vars.cpp:505
 msgid "Name"
 msgstr ""
 
@@ -3762,38 +3762,66 @@ msgstr ""
 msgid "SKIF sets this itself for Steam games. This value is used instead."
 msgstr ""
 
-#: src/utility/env_vars.cpp:456
+#: src/utility/env_vars.cpp:439
+msgid "Special K: leaves Steam Input as it is, without working around it."
+msgstr ""
+
+#: src/utility/env_vars.cpp:440
+msgid "DXVK: shows an overlay (e.g. fps, frametimes, gpuload)."
+msgstr ""
+
+#: src/utility/env_vars.cpp:441
+msgid "DXVK: limits the frame rate."
+msgstr ""
+
+#: src/utility/env_vars.cpp:442
+msgid "DXVK: how much is logged (none, error, warn, info, debug)."
+msgstr ""
+
+#: src/utility/env_vars.cpp:443
+msgid "Steam: disables the Steam overlay."
+msgstr ""
+
+#: src/utility/env_vars.cpp:476
 msgid "(removes the variable)"
 msgstr ""
 
-#: src/utility/env_vars.cpp:456
+#: src/utility/env_vars.cpp:476
 msgid "(empty)"
 msgstr ""
 
-#: src/utility/env_vars.cpp:495
+#: src/utility/env_vars.cpp:515
 msgid "Removes the variable."
 msgstr ""
 
-#: src/utility/env_vars.cpp:509
+#: src/utility/env_vars.cpp:529
 msgid "Add variable"
 msgstr ""
 
-#: src/utility/env_vars.cpp:518
+#: src/utility/env_vars.cpp:541
+msgid "Adds a well-known variable."
+msgstr ""
+
+#: src/utility/env_vars.cpp:560
+msgid "Already listed."
+msgstr ""
+
+#: src/utility/env_vars.cpp:568
 msgid "Paste"
 msgstr ""
 
-#: src/utility/env_vars.cpp:539
+#: src/utility/env_vars.cpp:589
 msgid ""
 "Adds the variables in the clipboard: one NAME=value per line,\n"
 "or Special K's format on a single line (A=1|B=2).\n"
 "Variables that are already listed get the new value."
 msgstr ""
 
-#: src/utility/env_vars.cpp:548
+#: src/utility/env_vars.cpp:598
 msgid "Copy"
 msgstr ""
 
-#: src/utility/env_vars.cpp:551
+#: src/utility/env_vars.cpp:601
 msgid "Copies the variables to the clipboard, one NAME=value per line."
 msgstr ""
 

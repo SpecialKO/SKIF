@@ -55,8 +55,8 @@ app_record_s::launch_ref_s SKIF_Library_LaunchRefFromJson (const nlohmann::json&
 //   The file is read when the library is populated (games.cpp); these read and write one game's entries for Properties.
 struct user_launch_config_s {
   std::string    desc, exe, dir, args;           // UTF-8, as stored (Exe with forward slashes)
-  SKIF_EnvVars::List env;                        // "Env", in the order shown (the file keeps them sorted by name)
-  nlohmann::json extra        = nlohmann::json::object ( ); // Keys SKIF doesn't know, written back unchanged
+  SKIF_EnvVars::List env;                        // "Env", in the order of the file
+  nlohmann::ordered_json extra = nlohmann::ordered_json::object ( ); // Keys SKIF doesn't know, written back unchanged
 
   bool operator== (const user_launch_config_s& o) const { return (desc == o.desc && exe == o.exe && dir == o.dir && args == o.args && env == o.env && extra == o.extra); }
   bool operator!= (const user_launch_config_s& o) const { return ! (*this == o); }
@@ -68,8 +68,8 @@ struct SKIF_UserLaunchConfigs {
   static bool         Set     (const app_record_s& app, const std::vector <user_launch_config_s>& configs); // Replaces the game's entries (removed if empty); false on failure. Refuses to touch a file it can't parse
 
   // One entry in the lc.json format, and back (out is filled as far as possible; false if it is not an object with a string Desc and Exe)
-  static nlohmann::json ToJson   (const user_launch_config_s& lc);
-  static bool           FromJson (const nlohmann::json& entry, user_launch_config_s& out);
+  static nlohmann::ordered_json ToJson   (const user_launch_config_s& lc);
+  static bool                   FromJson (const nlohmann::ordered_json& entry, user_launch_config_s& out);
 
   // Clipboard sharing (Properties > Launch > Import / Export), in the same shape as the file: { "<store>": { "<key>": [ ... ] } }
   //   Import also takes an array of entries or a single entry, and the entries of another game when they are the only ones.

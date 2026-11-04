@@ -2176,9 +2176,9 @@ SKIF_UserLaunchConfigs::GetPath (void)
 }
 
 static bool
-_UserLaunchConfigs_ReadFile (const std::wstring& path, nlohmann::json& out)
+_UserLaunchConfigs_ReadFile (const std::wstring& path, nlohmann::ordered_json& out)
 {
-  out = nlohmann::json::object ( );
+  out = nlohmann::ordered_json::object ( );
 
   if (! PathFileExistsW (path.c_str ( )))
     return true;
@@ -2195,7 +2195,7 @@ _UserLaunchConfigs_ReadFile (const std::wstring& path, nlohmann::json& out)
   if (content.find_first_not_of (" \t\r\n") == std::string::npos)
     return true;
 
-  nlohmann::json jf = nlohmann::json::parse (content, nullptr, false);
+  nlohmann::ordered_json jf = nlohmann::ordered_json::parse (content, nullptr, false);
 
   if (jf.is_discarded ( ) || ! jf.is_object ( ))
     return false;
@@ -2210,7 +2210,7 @@ SKIF_UserLaunchConfigs::Get (const app_record_s& app, std::vector <user_launch_c
 {
   out.clear ( );
 
-  nlohmann::json jf;
+  nlohmann::ordered_json jf;
 
   if (! _UserLaunchConfigs_ReadFile (GetPath ( ), jf))
   {
@@ -2242,10 +2242,10 @@ SKIF_UserLaunchConfigs::Get (const app_record_s& app, std::vector <user_launch_c
   return true;
 }
 
-nlohmann::json
+nlohmann::ordered_json
 SKIF_UserLaunchConfigs::ToJson (const user_launch_config_s& lc)
 {
-  nlohmann::json entry = (lc.extra.is_object ( )) ? lc.extra : nlohmann::json::object ( );
+  nlohmann::ordered_json entry = (lc.extra.is_object ( )) ? lc.extra : nlohmann::ordered_json::object ( );
 
   // The loader requires all four keys (lc.json format)
   entry ["Desc"] = lc.desc;
@@ -2254,14 +2254,14 @@ SKIF_UserLaunchConfigs::ToJson (const user_launch_config_s& lc)
   entry ["Args"] = lc.args;
 
   // Optional, so only written if set (an Env that could not be read stays in extra, unless replaced here)
-  if (nlohmann::json env = SKIF_EnvVars::ToJson (lc.env); ! env.empty ( ))
+  if (nlohmann::ordered_json env = SKIF_EnvVars::ToJson (lc.env); ! env.empty ( ))
     entry ["Env"] = env;
 
   return entry;
 }
 
 bool
-SKIF_UserLaunchConfigs::FromJson (const nlohmann::json& entry, user_launch_config_s& out)
+SKIF_UserLaunchConfigs::FromJson (const nlohmann::ordered_json& entry, user_launch_config_s& out)
 {
   out = user_launch_config_s { };
 
@@ -2300,12 +2300,12 @@ SKIF_UserLaunchConfigs::FromJson (const nlohmann::json& entry, user_launch_confi
 std::string
 SKIF_UserLaunchConfigs::Export (const app_record_s& app, const std::vector <user_launch_config_s>& configs)
 {
-  nlohmann::json entries = nlohmann::json::array ( );
+  nlohmann::ordered_json entries = nlohmann::ordered_json::array ( );
 
   for (const auto& lc : configs)
     entries.push_back (ToJson (lc));
 
-  nlohmann::json jf = nlohmann::json::object ( );
+  nlohmann::ordered_json jf = nlohmann::ordered_json::object ( );
   jf [app.store_utf8] [app.GetPersistentKey ( )] = entries;
 
   try {
@@ -2326,7 +2326,7 @@ SKIF_UserLaunchConfigs::Import (const app_record_s& app, const std::string& text
   out.clear   ( );
   error.clear ( );
 
-  nlohmann::json jf = nlohmann::json::parse (text, nullptr, false);
+  nlohmann::ordered_json jf = nlohmann::ordered_json::parse (text, nullptr, false);
 
   if (jf.is_discarded ( ) || (! jf.is_object ( ) && ! jf.is_array ( )))
   {
@@ -2334,8 +2334,8 @@ SKIF_UserLaunchConfigs::Import (const app_record_s& app, const std::string& text
     return false;
   }
 
-  const nlohmann::json* entries = nullptr;
-  nlohmann::json        single  = nlohmann::json::array ( );
+  const nlohmann::ordered_json* entries = nullptr;
+  nlohmann::ordered_json        single  = nlohmann::ordered_json::array ( );
 
   // A single entry
   if (jf.is_object ( ) && jf.contains ("Desc"))
@@ -2415,7 +2415,7 @@ SKIF_UserLaunchConfigs::Set (const app_record_s& app, const std::vector <user_la
   const std::wstring path = GetPath ( );
 
   // Read the file again right before writing, so edits made elsewhere in the meantime are kept
-  nlohmann::json jf;
+  nlohmann::ordered_json jf;
 
   if (! _UserLaunchConfigs_ReadFile (path, jf))
   {
@@ -2445,7 +2445,7 @@ SKIF_UserLaunchConfigs::Set (const app_record_s& app, const std::vector <user_la
 
     else
     {
-      nlohmann::json entries = nlohmann::json::array ( );
+      nlohmann::ordered_json entries = nlohmann::ordered_json::array ( );
 
       for (const auto& lc : configs)
         entries.push_back (ToJson (lc));
