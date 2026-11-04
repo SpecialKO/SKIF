@@ -5,6 +5,7 @@
 #include <windows.h>
 
 #include <utility/sk_utility.h>
+#include <utility/utility.h>
 #include <utility/skif_imgui.h>
 #include <fonts/fa_621.h>
 
@@ -337,6 +338,32 @@ namespace SKIF_EnvVars
 
       env [SK_UTF8ToWideChar (var.name)] = SK_UTF8ToWideChar (var.value);
     }
+  }
+
+  std::wstring
+  ToCommandLine (const List& vars)
+  {
+    const nlohmann::json env = ToJson (vars);
+
+    if (env.empty ( ))
+      return L"";
+
+    return L"SKIF_Env=" + SK_UTF8ToWideChar (SKIF_Util_Base64UrlEncode (env.dump ( )));
+  }
+
+  bool
+  FromCommandLine (std::wstring_view encoded, List& out)
+  {
+    out.clear ( );
+
+    std::string decoded;
+
+    if (! SKIF_Util_Base64UrlDecode (SK_WideCharToUTF8 (std::wstring (encoded)), decoded))
+      return false;
+
+    const nlohmann::json env = nlohmann::json::parse (decoded, nullptr, false);
+
+    return (! env.is_discarded ( ) && FromJson (env, out));
   }
 
   std::wstring

@@ -77,6 +77,11 @@ namespace SKIF_EnvVars
   //   replacing a variable of the same name in any letter case
   void          ApplyTo     (const List& vars, std::map <std::wstring, std::wstring>& env);
 
+  // SKIF's command line (launcher mode, e.g. jump list items): SKIF_Env=<base64url of the lc_user.json form>, which has
+  //   no spaces, quotes or dots. ToCommandLine ( ) returns the whole argument, or nothing if there are no variables
+  std::wstring  ToCommandLine   (const List& vars);
+  bool          FromCommandLine (std::wstring_view encoded, List& out); // The part after SKIF_Env=
+
   // Part of the key telling identical launch options apart (Steam's duplicate detection): empty for no variables
   std::wstring  GetKey      (const List& vars);
 }

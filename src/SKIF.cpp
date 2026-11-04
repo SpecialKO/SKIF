@@ -78,6 +78,7 @@
 
 #include <utility/registry.h>
 #include <utility/launch_behaviors.h>
+#include <utility/env_vars.h>
 #include <utility/updater.h>
 
 #include <utility/drvreset.h>
@@ -824,6 +825,9 @@ SKIF_Startup_AddGame (LPWSTR lpCmdLine)
   }
 }
 
+// The environment variables of the launch (SKIF_Env=), e.g. from a jump list item of a launch option that sets them
+static SKIF_EnvVars::List SKIF_Startup_LauncherEnv;
+
 void
 SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
 {
@@ -886,6 +890,32 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
     // Remove substring from the original variables
     cmdLine     .erase (posSKIF_SteamAppIDtxt_start, posSKIF_SteamAppIDtxt_end);
     cmdLineLower.erase (posSKIF_SteamAppIDtxt_start, posSKIF_SteamAppIDtxt_end);
+  }
+
+  // Extract the SKIF_Env cmd line argument (environment variables of the launch, see SKIF_EnvVars::ToCommandLine).
+  //   Its value is case-sensitive, so it is read from the original command line (both have the same length)
+  const std::wstring argSKIF_Env = L"skif_env=";
+  size_t posSKIF_Env_start       = cmdLineLower.find (argSKIF_Env);
+
+  if (posSKIF_Env_start != std::wstring::npos)
+  {
+    size_t
+      posSKIF_Env_end    = cmdLineLower.find (L" ", posSKIF_Env_start);
+
+    if (posSKIF_Env_end == std::wstring::npos)
+      posSKIF_Env_end    = cmdLineLower.length ( );
+
+    // Length of the substring to remove
+    posSKIF_Env_end -= posSKIF_Env_start;
+
+    const std::wstring encoded = cmdLine.substr (posSKIF_Env_start + argSKIF_Env.length ( ), posSKIF_Env_end - argSKIF_Env.length ( ));
+
+    if (! SKIF_EnvVars::FromCommandLine (encoded, SKIF_Startup_LauncherEnv))
+      PLOG_ERROR << "Could not read the environment variables of the SKIF_Env cmd line argument!";
+
+    // Remove substring from the original variables
+    cmdLine     .erase (posSKIF_Env_start, posSKIF_Env_end);
+    cmdLineLower.erase (posSKIF_Env_start, posSKIF_Env_end);
   }
 
   // Extract the target path and any proxied command line arguments
@@ -1149,31 +1179,62 @@ SKIF_Startup_LaunchGame (void)
     overrides.emplace (L"SteamGameId", _Signal._SteamAppID);
   }
 
-  SHELLEXECUTEINFOW
-    sexi              = { };
-    sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
-    sexi.lpVerb       = L"OPEN";
-    sexi.lpFile       = _Signal._GamePath.c_str();
-    sexi.lpParameters = (! _Signal._GameArgs.empty()) ? _Signal._GameArgs.c_str() : NULL;
-    sexi.lpDirectory  = _Signal._GameWorkDir.c_str();
-    sexi.nShow        = SW_SHOWNORMAL;
-    sexi.fMask        = SEE_MASK_NOCLOSEPROCESS | // We need the PID of the process that gets started
-                        SEE_MASK_NOASYNC        | // Never async since our own process might stop executing before the new process is ready
-                        SEE_MASK_NOZONECHECKS;    // No zone check needs to be performed
-
-  // Launch executable (the new process inherits SKIF's environment, so the Steam App ID is only applied
-  //   for the duration of the call, after which the previous values are restored)
+  // With environment variables of its own (SKIF_Env=, e.g. a jump list item of a launch option that sets them): started
+  //   the same way as the library starts the launch option (Instant Play), which also applies them to an executable that
+  //     requires elevation (SKIF_Util_CreateProcess ( ) waits for its worker thread here, as this instance may exit next)
+  if (! SKIF_Startup_LauncherEnv.empty ( ))
   {
-    SKIF_Util_ScopedEnvironment scopedEnv (overrides);
-    ShellExecuteExW (&sexi);
+    PLOG_INFO << "   Environment variables : " << SKIF_Startup_LauncherEnv.size ( );
+
+    SKIF_EnvVars::ApplyTo (SKIF_Startup_LauncherEnv, overrides);
+
+    SKIF_Util_CreateProcess_s proc;
+
+    if (SKIF_Util_CreateProcess (_Signal._GamePath, _Signal._GameArgs, _Signal._GameWorkDir, &overrides, &proc))
+    {
+      if (HANDLE hWorkerThread = proc.hWorkerThread.load ( ); hWorkerThread != NULL)
+      {
+        WaitForSingleObject (hWorkerThread, INFINITE);
+        CloseHandle         (hWorkerThread);
+      }
+
+      // Set the new process as foreground window
+      if (HANDLE hProcess = proc.hProcess.load ( ); hProcess != NULL)
+      {
+        pidForegroundFocusOnExit = proc.dwProcessId.load ( );
+        CloseHandle (hProcess);
+      }
+    }
   }
 
-  // Set the new process as foreground window
-  if (sexi.hInstApp  > (HINSTANCE)32 &&
-      sexi.hProcess != NULL)
+  else
   {
-    pidForegroundFocusOnExit = GetProcessId (sexi.hProcess);
-    CloseHandle (sexi.hProcess);
+    SHELLEXECUTEINFOW
+      sexi              = { };
+      sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
+      sexi.lpVerb       = L"OPEN";
+      sexi.lpFile       = _Signal._GamePath.c_str();
+      sexi.lpParameters = (! _Signal._GameArgs.empty()) ? _Signal._GameArgs.c_str() : NULL;
+      sexi.lpDirectory  = _Signal._GameWorkDir.c_str();
+      sexi.nShow        = SW_SHOWNORMAL;
+      sexi.fMask        = SEE_MASK_NOCLOSEPROCESS | // We need the PID of the process that gets started
+                          SEE_MASK_NOASYNC        | // Never async since our own process might stop executing before the new process is ready
+                          SEE_MASK_NOZONECHECKS;    // No zone check needs to be performed
+
+    // Launch executable (the new process inherits SKIF's environment, so the Steam App ID is only applied
+    //   for the duration of the call, after which the previous values are restored)
+    {
+      SKIF_Util_ScopedEnvironment scopedEnv (overrides);
+      ShellExecuteExW (&sexi);
+    }
+
+    // Set the new process as foreground window
+    if (sexi.hInstApp  > (HINSTANCE)32 &&
+        sexi.hProcess != NULL)
+    {
+      pidForegroundFocusOnExit = GetProcessId (sexi.hProcess);
+      CloseHandle (sexi.hProcess);
+    }
   }
 
   // If a running instance of SKIF already exists, or the game was blacklisted, terminate this one as it has served its purpose
@@ -1888,6 +1949,11 @@ wWinMain ( _In_     HINSTANCE hInstance,
 {
   UNREFERENCED_PARAMETER (hPrevInstance);
   UNREFERENCED_PARAMETER (hInstance);
+
+  // An elevated instance that only starts a game elevated with its environment variables (SKIF_Util_CreateProcessElevated):
+  //   it does nothing else, and exits with the result as its exit code
+  if (SKIF_Util_IsElevatedLaunch (lpCmdLine))
+    ExitProcess (SKIF_Util_ElevatedLaunchWorker (lpCmdLine));
 
   MH_Initialize ();
 
