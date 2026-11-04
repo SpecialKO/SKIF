@@ -1,6 +1,8 @@
 #include <utility/ini_reader.h>
 #include <utility/fsutil.h>
 #include <utility/skif_imgui.h>
+#include <utility/env_vars.h>
+#include <fonts/fa_621.h>
 
 #include <imgui/imgui.h>
 
@@ -365,35 +367,55 @@ DrawCheckbox (IniEntry* ptr)
   //ImGui::SetNextItemWidth (300.0f * SKIF_ImGui_GlobalDPIScale);
   if (ImGui::Checkbox (ptr->_label_v.c_str(), &ptr->value_b))
   {
-    strncpy (ptr->value, ((ptr->value_b) ? "true" : "false"), MAX_PATH);
+    ptr->value   = (ptr->value_b) ? "true" : "false";
     ptr->_ignore = false;
   }
 
   return (ptr->value_b != ptr->default_b);
 }
 
+// InputText ( ) on a std::string, which grows as needed (imgui_stdlib is not part of the project)
+static int
+InputTextResize (ImGuiInputTextCallbackData* data)
+{
+  if (data->EventFlag == ImGuiInputTextFlags_CallbackResize)
+  {
+    std::string* str = static_cast <std::string*> (data->UserData);
+    str->resize (data->BufTextLen);
+    data->Buf = str->data ( );
+  }
+
+  return 0;
+}
+
+static bool
+InputString (const char* label, std::string& value)
+{
+  return ImGui::InputText (label, value.data ( ), value.capacity ( ) + 1, ImGuiInputTextFlags_CallbackResize, InputTextResize, &value);
+}
+
 static bool
 DrawInputBox (IniEntry* ptr)
 {
   ImGui::SetNextItemWidth (300.0f * SKIF_ImGui_GlobalDPIScale);
-  if (ImGui::InputText (ptr->_label_v.c_str(), ptr->value, MAX_PATH))
+  if (InputString (ptr->_label_v.c_str(), ptr->value))
     ptr->_ignore = false;
 
-  return (strcmp (ptr->value, ptr->default) != 0);
+  return (ptr->value != ptr->default);
 }
 
 static bool
 DrawDropDown (IniEntry* ptr)
 {
   ImGui::SetNextItemWidth (150.0f * SKIF_ImGui_GlobalDPIScale);
-  if (ImGui::BeginCombo  (ptr->_label_k.c_str(), ptr->value))
+  if (ImGui::BeginCombo  (ptr->_label_k.c_str(), ptr->value.c_str()))
   {
     for (auto& item : ptr->_dditems)
     {
       bool is_selected = (item == ptr->value);
       if (ImGui::Selectable (item.c_str(), is_selected))
       {
-        strncpy (ptr->value, item.c_str(), MAX_PATH);
+        ptr->value   = item;
         ptr->_ignore = false;
       }
       if (is_selected)
@@ -402,7 +424,92 @@ DrawDropDown (IniEntry* ptr)
     ImGui::EndCombo  ( );
   }
 
-  return (strcmp (ptr->value, ptr->default) != 0);
+  return (ptr->value != ptr->default);
+}
+
+// [Compatibility.General] EnvironmentVars of Special K ("A=1|B=2", see utility/env_vars.h): the variables in a table,
+//   with the value as text below it for those who prefer to edit it that way. The table of an entry is kept while its
+//     value stays the same, so rows that are not part of the value (yet), such as a new and empty one, are not lost
+static bool
+DrawEnvironmentVars (IniEntry* ptr)
+{
+  struct state_s {
+    std::string               value;
+    SKIF_EnvVars::List        vars;
+    std::vector <std::string> dropped; // Parts of the value Special K ignores
+  };
+
+  static std::unordered_map <ImGuiID, state_s> states;
+
+  auto [it, inserted] = states.try_emplace (ImGui::GetID ("###EnvironmentVars"));
+  state_s& state      = it->second;
+
+  // Parsed again whenever the value changes elsewhere: the text field, Undo Changes, a preset, a reload
+  if (inserted || state.value != ptr->value)
+  {
+    state.value = ptr->value;
+    state.dropped.clear ( );
+    state.vars  = SKIF_EnvVars::ParseSK (ptr->value, &state.dropped);
+  }
+
+  const float width = 600.0f * SKIF_ImGui_GlobalDPIScale;
+
+  ImGui::BeginGroup     ( );
+  ImGui::PushTextWrapPos (ImGui::GetCursorPosX ( ) + std::min (width, ImGui::GetContentRegionAvail ( ).x));
+
+  if (SKIF_ImGui_EnvVarsEditor ("###EnvVarsEditor", state.vars, SKIF_EnvVars::Target::SpecialK, width))
+  {
+    ptr->value   = SKIF_EnvVars::SerializeSK (state.vars);
+    ptr->_ignore = false;
+
+    state.value  = ptr->value;
+    state.dropped.clear ( ); // No longer part of the value
+  }
+
+  // Braces are not part of the format: Special K would set "{A" and "C}"
+  if (SKIF_EnvVars::HasBraces (ptr->value))
+  {
+    ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
+    ImGui::SameLine    ( );
+    ImGui::TextWrapped ("%s", _("Special K does not remove braces around the variables, so {A=1} sets \"{A\" to \"1}\"."));
+
+    if (ImGui::SmallButton (L_("Remove the braces###EnvVarsRemoveBraces")))
+    {
+      ptr->value   = SKIF_EnvVars::StripBraces (ptr->value);
+      ptr->_ignore = false;
+    }
+  }
+
+  else if (! state.dropped.empty ( ))
+  {
+    std::string parts;
+
+    for (const auto& part : state.dropped)
+      parts += ((parts.empty ( )) ? "" : ", ") + part;
+
+    ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), ICON_FA_TRIANGLE_EXCLAMATION);
+    ImGui::SameLine    ( );
+    // TRANSLATORS: {0} is a list of the ignored parts of the value
+    ImGui::TextWrapped ("%s", F_("Special K ignores parts without a name or an equals sign (=): {0}", parts).c_str ( ));
+  }
+
+  // The value as it is written to the file
+  ImGui::SetNextItemWidth (std::min (width, ImGui::GetContentRegionAvail ( ).x));
+  if (InputString ("###EnvVarsText", ptr->value))
+    ptr->_ignore = false;
+  SKIF_ImGui_SetHoverTip (_("The value as it is written to the file: NAME=value, separated by |.\n"
+                            "Use || for a | in a name or value."));
+
+  ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled));
+  ImGui::TextWrapped    ("%s", _("Set by Special K once it is loaded into the game, however the game is started. "
+                                 "This is in time for mods and overlays such as ReShade, but usually too late for the game itself. "
+                                 "For the game, add the variables to a launch option of your own instead (Properties > Launch)."));
+  ImGui::PopStyleColor  ( );
+
+  ImGui::PopTextWrapPos ( );
+  ImGui::EndGroup       ( );
+
+  return (ptr->value != ptr->default);
 }
 
 // Keybindings Special K always has: it falls back to their default when they are unbound. SKIF shows that default when
@@ -440,7 +547,7 @@ DrawKeybinding (IniEntry* ptr)
     // Only update the label if we are done assigning
     if (! ptr->_keybind.assigning)
     {
-      strncpy (ptr->value, ptr->_keybind.getKeybind()->human_readable_utf8.c_str(), MAX_PATH);
+      ptr->value   = ptr->_keybind.getKeybind()->human_readable_utf8;
       ptr->_ignore = false;
     }
   }
@@ -455,7 +562,7 @@ void
 IniEntry::Reset (void)
 {
   value_b = default_b;
-  strncpy (value, default, MAX_PATH);
+  value   = default;
 }
 
 IniEntry::IniEntry (ParameterType _t, const std::string& _s, const std::string& _k, const std::string& _v)
@@ -466,8 +573,8 @@ IniEntry::IniEntry (ParameterType _t, const std::string& _s, const std::string& 
   {
     default_b = (_v == "true");
     value_b   = default_b;
-    strncpy (default, ((value_b) ? "true" : "false"), MAX_PATH);
-    strncpy (value, default, MAX_PATH);
+    default   = (value_b) ? "true" : "false";
+    value     = default;
     DrawFunction = DrawCheckbox;
   };
 
@@ -492,8 +599,8 @@ IniEntry::IniEntry (ParameterType _t, const std::string& _s, const std::string& 
       _keybind.pending.parse();
       _keybind.applyChanges();
 
-      strncpy (default, required, MAX_PATH);
-      strncpy (value,   required, MAX_PATH);
+      default = required;
+      value   = required;
     }
 
     DrawFunction = DrawKeybinding;
@@ -504,8 +611,8 @@ IniEntry::IniEntry (ParameterType _t, const std::string& _s, const std::string& 
   _type = _t;
   strncpy (section, _s.c_str(), MAX_PATH);
   strncpy (key,     _k.c_str(), MAX_PATH);
-  strncpy (default, _v.c_str(), MAX_PATH);
-  strncpy (value,   default,    MAX_PATH);
+  default = _v;
+  value   = default;
   _label_k = ("###" + _s + "-" + _k);
   _label_v = ("###" + _s + "-" + _k + "-" + _v);
 
@@ -564,6 +671,13 @@ IniEntry::IniEntry (ParameterType _t, const std::string& _s, const std::string& 
           _dditems.push_back ("Raise");
           _dditems.push_back ("Ignore");
           DrawFunction = DrawDropDown;
+          break;
+        }
+
+        // [Compatibility.General]
+        case SwitchHash ("EnvironmentVars"):
+        {
+          DrawFunction = DrawEnvironmentVars;
           break;
         }
 
@@ -1162,6 +1276,8 @@ SKIF_IniReader_GetDefaultParams (IniType ini_type)
     ConfigEntry (ParameterBool,     "Runs hook initialization on a separate thread,. high safety",                                                                    dll_ini,       "Compatibility.General",   "AsyncInit"                           ),
     ConfigEntry (ParameterBool,     "Initializes hooks in a way that ReShade will not interfere",                                                                     dll_ini,       "Compatibility.General",   "ReShadeMode"                         ),
     ConfigEntry (ParameterInt,      "Debug Level (0=Most debug code OFF, >0=Normal behavior)",                                                                        dll_ini,       "Compatibility.General",   "DebugLevel"                          ),
+    ConfigEntry (ParameterStringW,  "Environment Variables (delimited by |, use || for vars that must contain |) to set; usually too late for games to notice, and is intended to control mods/overlays.",
+                                                                                                                                                                      dll_ini,       "Compatibility.General",   "EnvironmentVars"                     ),
     ConfigEntry (ParameterInt,      "Set Default (1) or Override (2) SDL input/window behavior.",                                                                     dll_ini,       "Compatibility.General",   "SDLSanityLevel"                      ),
     // Refer to SDL_hints.h, only the most useful options are exposed here...
     ConfigEntry (ParameterInt,      "SDL_JOYSTICK_WGI",                                                                                                               dll_ini,       "Compatibility.SDL",       "SDL_JOYSTICK_WGI"                    ),
