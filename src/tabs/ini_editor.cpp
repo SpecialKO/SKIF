@@ -34,7 +34,7 @@ IniWindow::ApplyFilter (void)
     if (! default)
       trie._show = (StrStrIA (trie.section, charFilter) != NULL) ||
                    (StrStrIA (trie.key,     charFilter) != NULL) ||
-                   (StrStrIA (trie.value,   charFilter) != NULL);
+                   (StrStrIA (trie.value.c_str ( ), charFilter) != NULL);
   }
 }
 
@@ -146,7 +146,7 @@ SKIF_UI_IniEditor_Save (IniWindow* iniWindow)
   for (auto& trie : iniWindow->ini)
   {
     trie.default_b = trie.value_b;
-    strncpy (trie.default, trie.value, MAX_PATH);
+    trie.default = trie.value;
   }
 
   iniWindow->saved       = SKIF_Util_timeGetTime ( );

@@ -59,8 +59,8 @@ struct ConfigEntry
 struct IniEntry {
   char  section[MAX_PATH + 2] = { };
   char  key    [MAX_PATH + 2] = { };
-  char  value  [MAX_PATH + 2] = { };
-  char  default[MAX_PATH + 2] = { }; // Used when resetting any unsaved changes
+  std::string value;                 // No length limit (e.g. EnvironmentVars holds any number of variables)
+  std::string default;               // Used when resetting any unsaved changes
   const char* description   = nullptr;
   ParameterType _type = ParameterUnknown;
   std::string _label_k;
