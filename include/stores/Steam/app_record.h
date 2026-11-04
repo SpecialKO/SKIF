@@ -35,6 +35,7 @@
 #include <Windows.h>
 
 #include <utility/utility.h>
+#include <utility/env_vars.h>
 
 //#include "steam/steam_api.h"
 #include <utility/vfs.h>
@@ -319,6 +320,8 @@ struct app_record_s {
     std:: string launch_options_utf8;
     std::wstring working_dir;
     std:: string working_dir_utf8;
+    SKIF_EnvVars::List
+                 env;                // Environment variables of the launch (lc.json / lc_user.json "Env"), applied by LaunchInstant ( )
     std::wstring blacklist_file;
     std::wstring elevated_file;
     std::wstring executable_helper;  // Used by Xbox to hold gamelaunchhelper.exe

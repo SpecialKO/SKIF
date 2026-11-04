@@ -782,6 +782,14 @@ app_record_s::LaunchInstant (const launch_context_s& ctx)
     }
   }
 
+  // The environment variables of the launch option (lc.json / lc_user.json), after SKIF's own ones so they take
+  //   precedence (an empty value removes the variable)
+  if (! ctx.config->env.empty ( ))
+  {
+    PLOG_DEBUG << "Applying " << ctx.config->env.size ( ) << " environment variable(s) of the launch option...";
+    SKIF_EnvVars::ApplyTo (ctx.config->env, env);
+  }
+
   if (launchDecision)
   {
     SKIF_Util_CreateProcess_s* proc = nullptr;
@@ -908,12 +916,18 @@ app_record_s::LaunchInstant (const launch_context_s& ctx)
       if (! ClientCanLaunch (*ctx.config) && ! ctx.config->description.empty ( ))
         jumpListName += L" (" + ctx.config->description + L")";
 
-      SKIF_Shell_AddJumpList (jumpListName,
-        ctx.config->getExecutableFullPath ( ),
-        cmdLine,
-        dirPath,
-        iconPath,
-        (! ctx.localInjection && ctx.usingSK));
+      // A jump list item starts the executable through SKIF's launcher mode, which knows nothing of the environment
+      //   variables of the launch option, so it would start the game differently
+      if (ctx.config->env.empty ( ))
+        SKIF_Shell_AddJumpList (jumpListName,
+          ctx.config->getExecutableFullPath ( ),
+          cmdLine,
+          dirPath,
+          iconPath,
+          (! ctx.localInjection && ctx.usingSK));
+
+      else
+        PLOG_INFO << "Not added to the jump list, as the launch option sets environment variables.";
     }
 
     else {
@@ -1220,6 +1234,7 @@ app_record_s::HasSameLaunchConfigs (const std::map <int, launch_config_s>& a,
         lcA.getExecutableFullPath ( ) != lcB.getExecutableFullPath ( ) ||
         lcA.getLaunchOptions ( )    != lcB.getLaunchOptions ( )    ||
         lcA.getWorkingDirectory ( ) != lcB.getWorkingDirectory ( ) ||
+        lcA.env                     != lcB.env                     ||
         lcA.install_dir             != lcB.install_dir             ||
         lcA.executable_helper       != lcB.executable_helper       ||
         lcA.Xbox_ApplicationId      != lcB.Xbox_ApplicationId      ||

@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <stores/generic_library2.h>
 #include <nlohmann/json.hpp>
+#include <utility/env_vars.h>
 
 // Prefix tree of the library's game names (upper-case ASCII letters, digits and spaces), used by the keyboard hint search.
 //   Owns its nodes (freed with the tree); move-only. Characters outside 0-127 are never stored or found.
@@ -48,14 +49,16 @@ nlohmann::json             SKIF_Library_LaunchRefToJson   (const app_record_s::l
 app_record_s::launch_ref_s SKIF_Library_LaunchRefFromJson (const nlohmann::json& j); // Empty if missing or not valid
 
 // User launch configs: <SK user data>\Assets\lc_user.json, same format as lc.json:
-//   { "<store>": { "<GetPersistentKey ( )>": [ { "Desc": "", "Exe": "", "Dir": "", "Args": "" }, ... ] } }
-//   Exe and Dir are relative to the install folder of the game.
+//   { "<store>": { "<GetPersistentKey ( )>": [ { "Desc": "", "Exe": "", "Dir": "", "Args": "", "Env": { } }, ... ] } }
+//   Exe and Dir are relative to the install folder of the game. Env is optional: the environment variables of the launch
+//     (utility/env_vars.h), where a null value removes the variable.
 //   The file is read when the library is populated (games.cpp); these read and write one game's entries for Properties.
 struct user_launch_config_s {
   std::string    desc, exe, dir, args;           // UTF-8, as stored (Exe with forward slashes)
+  SKIF_EnvVars::List env;                        // "Env", in the order shown (the file keeps them sorted by name)
   nlohmann::json extra        = nlohmann::json::object ( ); // Keys SKIF doesn't know, written back unchanged
 
-  bool operator== (const user_launch_config_s& o) const { return (desc == o.desc && exe == o.exe && dir == o.dir && args == o.args && extra == o.extra); }
+  bool operator== (const user_launch_config_s& o) const { return (desc == o.desc && exe == o.exe && dir == o.dir && args == o.args && env == o.env && extra == o.extra); }
   bool operator!= (const user_launch_config_s& o) const { return ! (*this == o); }
 };
 

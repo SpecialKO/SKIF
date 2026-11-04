@@ -25,6 +25,7 @@
 #include "library_ui.h"
 #include <tabs/properties.h>
 #include <utility/hotkeys.h>
+#include <utility/env_vars.h>
 
 #include <algorithm>
 #include <cctype>
@@ -639,6 +640,7 @@ public:
         row.fullExe         = SK_WideCharToUTF8 (lc.getExecutableFullPath ( ));
         row.args            = SK_WideCharToUTF8 (lc.getLaunchOptions      ( ));
         row.workDir         = SK_WideCharToUTF8 (lc.getWorkingDirectory   ( ));
+        row.env             = lc.env;
         row.clientCanLaunch = app.ClientCanLaunch (lc);
         row.ref             = app.MakeLaunchRef   (lc);
 
@@ -706,7 +708,7 @@ public:
         if (! lc.valid || ! lc.isExecutableFileNameValid ( ))
           continue;
 
-        const std::wstring key = lc.getExecutableFileName ( ) + lc.getLaunchOptions ( ) + L"|" + lc.working_dir;
+        const std::wstring key = lc.getExecutableFileName ( ) + lc.getLaunchOptions ( ) + L"|" + lc.working_dir + SKIF_EnvVars::GetKey (lc.env);
 
         if (! lc.duplicate_exe_args)
         {
@@ -985,6 +987,10 @@ public:
 
       if (! row.user.dir.empty ( ) && (! PathIsRelativeW (SK_UTF8ToWideChar (row.user.dir).c_str ( )) || row.user.dir.rfind ("..", 0) == 0))
         out.push_back ({ Level::Error, F_("The working directory of \"{0}\" must be inside the install folder of the game.", name) });
+
+      // The problems themselves are shown next to the variables
+      if (SKIF_EnvVars::HasErrors (row.user.env, SKIF_EnvVars::Target::LaunchConfig))
+        out.push_back ({ Level::Error, F_("The environment variables of \"{0}\" need to be fixed.", name) });
     }
   }
 
@@ -1062,6 +1068,7 @@ private:
     std::string                fullExe;
     std::string                args;
     std::string                workDir;
+    SKIF_EnvVars::List         env;                     // lc.json "Env"
     bool                       clientCanLaunch = false;
     std::string                duplicateBlocker;        // Why it can't be copied to lc_user.json (empty if it can)
     app_record_s::launch_ref_s ref;
@@ -1070,7 +1077,7 @@ private:
     user_launch_config_s       user;
 
     // User rows identical to another launch option when loaded (its name), and the entry as it was then: the warning
-    //   is shown until the executable, arguments or working directory are changed (checked again once saved)
+    //   is shown until the executable, arguments, working directory or environment variables are changed (checked again once saved)
     std::string                identicalTo;
     user_launch_config_s       identicalUser;
 
@@ -1078,7 +1085,8 @@ private:
     {
       return (! identicalTo.empty ( ) && user.exe  == identicalUser.exe
                                       && user.args == identicalUser.args
-                                      && user.dir  == identicalUser.dir);
+                                      && user.dir  == identicalUser.dir
+                                      && user.env  == identicalUser.env);
     }
   };
 
@@ -1387,6 +1395,7 @@ private:
 
       row.user.exe          = _ToForwardSlashes (SK_WideCharToUTF8 (rel));
       row.user.args         = src.args;
+      row.user.env          = src.env;
 
       // A working directory outside of the install folder can't be stored, so the copy uses the executable's folder
       if (! _MakeUserDir (SK_UTF8ToWideChar (src.workDir), fullExe, row.user.dir))
@@ -1523,7 +1532,7 @@ private:
       ImGui::SameLine    ( );
       // TRANSLATORS: {0} is the name of the other launch option
       SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning),
-        F_("Identical to \"{0}\" (same executable, arguments and working directory). It is hidden from the menus and can't be the default launch option until it is changed.", row.identicalTo).c_str ( ));
+        F_("Identical to \"{0}\" (same executable, arguments, working directory and environment variables). It is hidden from the menus and can't be the default launch option until it is changed.", row.identicalTo).c_str ( ));
     }
 
     SKIF_ImGui_PushDisableState (! userReadable);
@@ -1637,6 +1646,16 @@ private:
     SKIF_Properties_Label (_("Arguments"));
     _InputString          ("###PropsLaunchArgs", user.args, _("Leave empty if unsure"));
 
+    // Environment variables (lc_user.json "Env")
+    SKIF_Properties_Label (_("Environment"), _("Environment variables set when SKIF starts this launch option.\n"
+                                               "A variable with an empty value is removed instead.\n\n"
+                                               "They are not set when the game is started any other way.\n"
+                                               "For mods and overlays, Special K's EnvironmentVars (INI editor) applies however the game is started."));
+
+    ImGui::BeginGroup        ( );
+    SKIF_ImGui_EnvVarsEditor ("###PropsLaunchEnv", user.env, SKIF_EnvVars::Target::LaunchConfig);
+    ImGui::EndGroup          ( );
+
     // (Your own launch options always start directly: the platform client can't start them. How the primary one
     //   starts is set in General > Play.)
 
@@ -1689,6 +1708,18 @@ private:
 
     SKIF_Properties_Label (_("Arguments"));
     _ReadOnlyString       ("###PropsLaunchROArgs", row.args);
+
+    // lc.json "Env"
+    if (! row.env.empty ( ))
+    {
+      std::string env;
+
+      for (const auto& var : row.env)
+        env += ((env.empty ( )) ? "" : "  ") + var.name + "=" + var.value;
+
+      SKIF_Properties_Label (_("Environment"), _("Environment variables set when SKIF starts this launch option."));
+      _ReadOnlyString       ("###PropsLaunchROEnv", env);
+    }
 
     _DrawService (SK_UTF8ToWideChar (row.fullExe));
 
