@@ -1215,7 +1215,16 @@ SKIF_Util_CreateProcess (
     PLOG_INFO_IF  (! _data->parameters       .empty()) << "Parameters          : " << _data->parameters;
     PLOG_INFO_IF  (! _data->parameters_actual.empty() && _data->parameters_actual  != _data->parameters) << "Parameters (actual) : " << _data->parameters_actual;
     PLOG_INFO_IF  (! _data->directory        .empty()) << "Directory           : " << _data->directory;
-    PLOG_INFO_IF  (! _data->env              .empty()) << "Environment         : " << _data->env;
+    // Only the names of the variables: their values may be personal (paths, tokens), and logs get shared for support
+    if (! _data->env.empty ( ))
+    {
+      std::wstring names;
+
+      for (const auto& [name, value] : _data->env)
+        names += ((names.empty ( )) ? L"" : L", ") + name + ((value.empty ( )) ? L" (removed)" : L"");
+
+      PLOG_INFO << "Environment         : " << names;
+    }
 
     if (CreateProcessW (
         (_data->path             .empty()) ? NULL : _data->path.c_str(),
