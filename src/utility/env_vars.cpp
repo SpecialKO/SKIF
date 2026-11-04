@@ -423,6 +423,22 @@ _EnvVars_InputString (const char* id, std::string& value, const char* hint)
   return changed;
 }
 
+// Well-known variables, offered next to Add variable (with a value to start from)
+struct SKIF_EnvVars_Known {
+  const char* name;
+  const char* value;
+  const char* description; // N_ ( ): translated where it is shown
+  bool        launchOnly;  // Only for launch options (SKIF sets it before the game starts, Special K would be too late)
+};
+
+static constexpr SKIF_EnvVars_Known SKIF_EnvVars_KnownList [] = {
+  { "SK_IGNORE_STEAM_INPUT",   "1",    N_("Special K: leaves Steam Input as it is, without working around it."), false },
+  { "DXVK_HUD",                "fps",  N_("DXVK: shows an overlay (e.g. fps, frametimes, gpuload)."),            false },
+  { "DXVK_FRAME_RATE",         "60",   N_("DXVK: limits the frame rate."),                                       false },
+  { "DXVK_LOG_LEVEL",          "none", N_("DXVK: how much is logged (none, error, warn, info, debug)."),         false },
+  { "SteamNoOverlayUIDrawing", "1",    N_("Steam: disables the Steam overlay."),                                 true  },
+};
+
 bool
 SKIF_ImGui_EnvVarsEditor (const char* str_id, SKIF_EnvVars::List& vars, SKIF_EnvVars::Target target, float max_width)
 {
@@ -511,6 +527,36 @@ SKIF_ImGui_EnvVarsEditor (const char* str_id, SKIF_EnvVars::List& vars, SKIF_Env
     vars.push_back ({ });
     storage->SetInt (focusKey, static_cast <int> (vars.size ( )) - 1);
     changed = true;
+  }
+
+  // Well-known variables (as a split button with Add variable)
+  ImGui::SameLine (0.0f, 1.0f);
+
+  if (ImGui::Button (ICON_FA_CHEVRON_DOWN "###EnvVarsKnown"))
+    ImGui::OpenPopup ("###EnvVarsKnownPopup");
+  SKIF_ImGui_SetHoverTip (_("Adds a well-known variable."));
+
+  if (ImGui::BeginPopup ("###EnvVarsKnownPopup"))
+  {
+    for (const auto& known : SKIF_EnvVars_KnownList)
+    {
+      if (known.launchOnly && target != SKIF_EnvVars::Target::LaunchConfig)
+        continue;
+
+      const bool listed = std::any_of (vars.begin ( ), vars.end ( ), [&](const SKIF_EnvVar& var) { return SKIF_EnvVars::SameName (var.name, known.name); });
+
+      SKIF_ImGui_PushDisableState (listed);
+      if (ImGui::Selectable (known.name, false, (listed) ? ImGuiSelectableFlags_Disabled : ImGuiSelectableFlags_None))
+      {
+        vars.push_back ({ known.name, known.value });
+        changed = true;
+      }
+      SKIF_ImGui_PopDisableState  (listed);
+
+      SKIF_ImGui_SetHoverTip ((listed) ? std::string (_("Already listed.")) : std::string (T_(known.description)), false, true);
+    }
+
+    ImGui::EndPopup ( );
   }
 
   ImGui::SameLine ( );
