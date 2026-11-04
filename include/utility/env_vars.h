@@ -7,19 +7,30 @@
 
 #include <nlohmann/json.hpp>
 
-// Environment variables, in the two places SKIF lets them be set:
+// Configurable environment variables!
 //
-//   LaunchConfig  Launch options of your own (Properties > Launch, lc_user.json "Env"). Set by SKIF when it starts the
-//                   executable, so the game sees them from the start. Only applies to launches SKIF starts itself.
-//                   lc_user.json: "Env": { "NAME": "value", "OTHER": null }   A null value removes the variable (also
-//                     one inherited from the user's environment). An empty value is the same as null.
+//   LaunchConfig  Launch options of your own (Properties > Launch, lc_user.json "Env"). Set by SKIF when it starts an
+//                   executable so the game sees the variables from the start. Only applies to launches handled by SKIF.
+// 
+//                     lc_user.json: "Env": { "NAME": "value", "OTHER": null }
+// 
+//                   A null value removes a variable (including ones inherited from the user's environment).
+//                   An empty value is the same as null.
 //
-//   SpecialK      [Compatibility.General] EnvironmentVars of Special K (INI editor): "A=1|B=2", with || for a literal
-//                   pipe. Set by Special K once it is loaded into the game, whichever way the game was started: meant for
-//                     mods and overlays that load after it (e.g. ReShade), as it is usually too late for the game itself.
-//                   Parsed the same way as SK_Win32_ParseEnvVarsFromStr ( ) of Special K: split at each single |, then
-//                     at the first =, then the name and value are trimmed. Entries without an = or a name are ignored.
-//                   Braces are not part of the format: {A=1} sets "{A" to "1}".
+//   SpecialK      Set by Special K once it has been loaded into the game. Meant for mods and overlays that load after
+//                 it (e.g. ReShade), as by that point in time it is usually too late for the game to act upon them.
+//                 Configure this parameter through SKIF's Ini Editor.
+//
+//                   [Compatibility.General]
+//                   EnvironmentVars=A=1|B=2
+//                     (use || for a literal pipe)
+//
+//                   Parsed the same way as SK_Win32_ParseEnvVarsFromStr ( ) of Special K:
+//                     - split at each single |,
+//                     - then at the first =,
+//                     - then the name and value are trimmed.
+//                     - Entries without an = or a name are ignored.
+//                     - Note that braces are not part of the format so {A=1} sets "{A" to "1}".
 
 struct SKIF_EnvVar {
   std::string name;  // UTF-8
@@ -38,11 +49,11 @@ namespace SKIF_EnvVars
     SpecialK
   };
 
-  // A problem with one variable of a list (for the editor, and Properties > Launch's validation)
+  // Used to indicate an issue with one variable of a list
   struct issue_s {
     enum class Level {
       None,
-      Info,    // Works, but worth knowing (e.g. SKIF also sets the variable)
+      Info,    // Works, but worth knowing (e.g. duplicate assignment by SKIF and Special K)
       Warning, // Saved, but likely not what was meant (Special K ignores or changes it)
       Error    // Can't be saved (LaunchConfig)
     };
@@ -57,28 +68,33 @@ namespace SKIF_EnvVars
   // Case-insensitive, as names are on Windows
   bool          SameName    (std::string_view a, std::string_view b);
 
-  // Special K's format. dropped receives the parts Special K ignores (no = or no name), as written
+  // Special K's format.
+  //   The 'dropped' parameter receives the parts Special K ignores (no = or no name)
   List          ParseSK     (std::string_view input, std::vector <std::string>* dropped = nullptr);
-  std::string   SerializeSK (const List& vars); // Variables without a name are left out
+  std::string   SerializeSK (const List& vars);       // Variables without a name are left out
   bool          HasBraces   (std::string_view input); // Wrapped in { }, which Special K does not strip
   std::string   StripBraces (std::string_view input);
 
-  // lc_user.json "Env". FromJson ( ) returns false if it is not an object (out is then empty); values that are not
-  //   strings or null are converted to text (numbers, booleans) or skipped (arrays, objects)
-  bool           FromJson   (const nlohmann::json& env, List& out);
-  nlohmann::json ToJson     (const List& vars); // Variables without a name are left out; empty values are written as null
+  // lc_user.json "Env".
+  //   FromJson ( ) returns false if the input is not an object.
+  //   Values that are not strings or null are converted to text (numbers, booleans) or skipped (arrays, objects)
+  bool                   FromJson (const nlohmann::json&         env, List& out);
+  bool                   FromJson (const nlohmann::ordered_json& env, List& out); // Keeps the order of the file
+  nlohmann::ordered_json ToJson   (const List& vars); // In the order of the list. Variables without a name are left out; empty values are written as null
 
-  // Pasted text: one NAME=value per line, or Special K's format on a single line (braces are stripped). Lines without an
-  //   = are skipped, as are empty lines and lines starting with # or ;
+  // Pasted text: one NAME=value per line, or Special K's format on a single line.
+  // Lines without an = are skipped, as are empty lines and lines starting with # or ;
   List          ParseText   (std::string_view text);
   std::string   ToText      (const List& vars); // One NAME=value per line
 
-  // Adds the variables to a launch's environment (SKIF_Util_CreateProcess ( ): an empty value removes the variable),
-  //   replacing a variable of the same name in any letter case
+  // Adds the variables to a launch's environment
+  //   - case insensitive replacement of a variable
+  //   - an empty value removes the variable
   void          ApplyTo     (const List& vars, std::map <std::wstring, std::wstring>& env);
 
-  // SKIF's command line (launcher mode, e.g. jump list items): SKIF_Env=<base64url of the lc_user.json form>, which has
-  //   no spaces, quotes or dots. ToCommandLine ( ) returns the whole argument, or nothing if there are no variables
+  // SKIF's command line (launcher mode, e.g. jump list items):
+  //   SKIF_Env=<base64url of the lc_user.json form>, which has no spaces, quotes or dots.
+  //   ToCommandLine ( ) returns the whole argument, or nothing if there are no variables.
   std::wstring  ToCommandLine   (const List& vars);
   bool          FromCommandLine (std::wstring_view encoded, List& out); // The part after SKIF_Env=
 

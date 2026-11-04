@@ -222,8 +222,9 @@ namespace SKIF_EnvVars
     return std::string (_Trim (trimmed.substr (1, trimmed.size ( ) - 2)));
   }
 
-  bool
-  FromJson (const nlohmann::json& env, List& out)
+  template <typename Json>
+  static bool
+  _FromJson (const Json& env, List& out)
   {
     out.clear ( );
 
@@ -233,7 +234,7 @@ namespace SKIF_EnvVars
     for (const auto& [name, value] : env.items ( ))
     {
       if (value.is_string ( ))
-        out.push_back ({ name, value.get <std::string> ( ) });
+        out.push_back ({ name, value.template get <std::string> ( ) });
 
       else if (value.is_null ( ))
         out.push_back ({ name, "" });
@@ -245,10 +246,13 @@ namespace SKIF_EnvVars
     return true;
   }
 
-  nlohmann::json
+  bool FromJson (const nlohmann::json&         env, List& out) { return _FromJson (env, out); }
+  bool FromJson (const nlohmann::ordered_json& env, List& out) { return _FromJson (env, out); }
+
+  nlohmann::ordered_json
   ToJson (const List& vars)
   {
-    nlohmann::json env = nlohmann::json::object ( );
+    nlohmann::ordered_json env = nlohmann::ordered_json::object ( );
 
     for (const auto& var : vars)
     {
@@ -343,7 +347,7 @@ namespace SKIF_EnvVars
   std::wstring
   ToCommandLine (const List& vars)
   {
-    const nlohmann::json env = ToJson (vars);
+    const nlohmann::ordered_json env = ToJson (vars);
 
     if (env.empty ( ))
       return L"";
@@ -361,7 +365,7 @@ namespace SKIF_EnvVars
     if (! SKIF_Util_Base64UrlDecode (SK_WideCharToUTF8 (std::wstring (encoded)), decoded))
       return false;
 
-    const nlohmann::json env = nlohmann::json::parse (decoded, nullptr, false);
+    const nlohmann::ordered_json env = nlohmann::ordered_json::parse (decoded, nullptr, false);
 
     return (! env.is_discarded ( ) && FromJson (env, out));
   }
