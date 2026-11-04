@@ -858,13 +858,59 @@ app_record_s::LaunchInstant (const launch_context_s& ctx)
                             SEE_MASK_NOASYNC        | // Never async since we need env variables to be set properly
                             SEE_MASK_NOZONECHECKS;    // No zone check needs to be performed
 
-      PLOG_INFO                       << "Performing a ShellExecuteEx call...";
-      PLOG_INFO_IF(! exePath.empty()) << "File      : " << exePath;
-      PLOG_INFO_IF(! cmdLine.empty()) << "Parameters: " << cmdLine;
-      PLOG_INFO_IF(! dirPath.empty()) << "Directory : " << dirPath;
+      // An executable that Windows elevates would not inherit the environment (the variables above, and those of SKIF),
+      //   so it is started through an elevated instance of SKIF instead, with the environment of this one
+      bool elevatedLaunch = false;
+
+      if (SKIF_Util_RequiresElevation (exePath))
+      {
+        PLOG_INFO << "The executable requires elevation: " << exePath;
+
+        HANDLE hProcess    = NULL;
+        DWORD  dwProcessId = 0;
+        DWORD  error       = SKIF_Util_CreateProcessElevated (exePath, cmdLine, dirPath, overrides, true, &hProcess, &dwProcessId);
+
+        if (error == NO_ERROR || error == ERROR_CANCELLED)
+        {
+          elevatedLaunch = true;
+
+          PLOG_INFO_IF (error == NO_ERROR)        << "The operation was successful (PID " << dwProcessId << ").";
+          PLOG_INFO_IF (error == ERROR_CANCELLED) << "The elevation prompt was declined.";
+
+          if (proc != nullptr && hProcess != NULL)
+          {
+            proc->hProcess    = hProcess;
+            proc->dwProcessId = dwProcessId;
+          }
+
+          else
+          {
+            if (hProcess != NULL)
+              CloseHandle (hProcess);
+
+            // Not started, or there is nothing to monitor it with
+            if (proc != nullptr)
+            {
+              proc->id       =  0;
+              proc->store_id = -1;
+            }
+          }
+        }
+
+        else
+          PLOG_ERROR << "The elevated launch failed (" << SKIF_Util_GetErrorAsWStr (error) << "), so ShellExecuteEx is used instead.";
+      }
+
+      PLOG_INFO_IF(! elevatedLaunch)                    << "Performing a ShellExecuteEx call...";
+      PLOG_INFO_IF(! elevatedLaunch && ! exePath.empty()) << "File      : " << exePath;
+      PLOG_INFO_IF(! elevatedLaunch && ! cmdLine.empty()) << "Parameters: " << cmdLine;
+      PLOG_INFO_IF(! elevatedLaunch && ! dirPath.empty()) << "Directory : " << dirPath;
 
       // Attempt to execute the call
-      if (ShellExecuteExW (&sexi))
+      if (elevatedLaunch)
+      { } // Done above
+
+      else if (ShellExecuteExW (&sexi))
       {
         DWORD dwProcessId = (sexi.hProcess != NULL) ? GetProcessId (sexi.hProcess) : 0;
 

@@ -1259,7 +1259,7 @@ SKIF_Util_CreateProcess (
         HANDLE hProcess    = NULL;
         DWORD  dwProcessId = 0;
 
-        error = SKIF_Util_CreateProcessElevated (_data->path, _data->parameters, _data->directory, _data->env, &hProcess, &dwProcessId);
+        error = SKIF_Util_CreateProcessElevated (_data->path, _data->parameters, _data->directory, _data->env, false, &hProcess, &dwProcessId);
 
         if (error == NO_ERROR)
         {
@@ -1324,7 +1324,7 @@ static constexpr const wchar_t* SKIF_ElevatedLaunchArg = L"SKIF_ElevatedLaunch="
 
 // The exit code of the elevated instance:
 //   0                   failed
-//   multiple of 4       a handle to the started process, duplicated into the process that asked for the launch
+//   multiple of 4       a handle to the started process, duplicated into the instance that asked for the launch
 //                         (SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE, so it can be monitored
 //                           and ended, but nothing more: it is a process of a lower integrity level)
 //   odd                 the process ID of the started process (| 1), if the handle could not be duplicated
@@ -1353,16 +1353,66 @@ SKIF_Util_ElevatedLaunchWorker (LPCWSTR lpCmdLine)
 
   const std::wstring path (cmdLine.substr (open + 1, close - open - 1));
 
-  // The rest, after SKIF_ElevatedLaunch=, up to the next space
-  std::wstring_view encoded (StrStrIW (lpCmdLine, SKIF_ElevatedLaunchArg) + wcslen (SKIF_ElevatedLaunchArg));
-  encoded = encoded.substr (0, encoded.find_first_of (L" \t"));
+  // <process ID of the requesting instance>:<handle of the section with the request, in that process>
+  const wchar_t* arg       = StrStrIW (lpCmdLine, SKIF_ElevatedLaunchArg) + wcslen (SKIF_ElevatedLaunchArg);
+  wchar_t*       separator = nullptr;
+  const DWORD    parentPid = wcstoul (arg, &separator, 10);
 
-  std::string decoded;
-
-  if (! SKIF_Util_Base64UrlDecode (SK_WideCharToUTF8 (std::wstring (encoded)), decoded))
+  if (parentPid == 0 || separator == nullptr || *separator != L':')
     return 0;
 
-  const nlohmann::json data = nlohmann::json::parse (decoded, nullptr, false);
+  const uintptr_t sectionValue = static_cast <uintptr_t> (_wcstoui64 (separator + 1, nullptr, 10));
+
+  if (sectionValue == 0)
+    return 0;
+
+  CHandle hParent (OpenProcess (PROCESS_DUP_HANDLE | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, parentPid));
+
+  if (hParent.m_h == NULL)
+    return 0;
+
+  // Only requests of SKIF itself are carried out: the requesting process must be this same executable
+  {
+    wchar_t wszSelf   [MAX_PATH * 2] = { };
+    wchar_t wszParent [MAX_PATH * 2] = { };
+    DWORD   dwParent                 = MAX_PATH * 2;
+
+    if (GetModuleFileNameW (NULL, wszSelf, MAX_PATH * 2) == 0 ||
+        ! QueryFullProcessImageNameW (hParent, 0, wszParent, &dwParent) ||
+        _wcsicmp (wszSelf, wszParent) != 0)
+      return 0;
+  }
+
+  // The request: a section of the requesting instance (a 32-bit length, then the JSON in UTF-8)
+  std::string request;
+  {
+    HANDLE hSection = NULL;
+
+    if (! DuplicateHandle (hParent, reinterpret_cast <HANDLE> (sectionValue), GetCurrentProcess ( ), &hSection, FILE_MAP_READ, FALSE, 0))
+      return 0;
+
+    CHandle section (hSection);
+
+    const char* view = static_cast <const char*> (MapViewOfFile (section, FILE_MAP_READ, 0, 0, 0));
+
+    if (view == nullptr)
+      return 0;
+
+    MEMORY_BASIC_INFORMATION mbi = { };
+    uint32_t                 len = 0;
+
+    if (VirtualQuery (view, &mbi, sizeof (mbi)) >= sizeof (mbi) && mbi.RegionSize >= sizeof (uint32_t))
+    {
+      memcpy (&len, view, sizeof (uint32_t));
+
+      if (len <= mbi.RegionSize - sizeof (uint32_t))
+        request.assign (view + sizeof (uint32_t), len);
+    }
+
+    UnmapViewOfFile (view);
+  }
+
+  const nlohmann::json data = nlohmann::json::parse (request, nullptr, false);
 
   if (data.is_discarded ( ) || ! data.is_object ( ))
     return 0;
@@ -1387,14 +1437,34 @@ SKIF_Util_ElevatedLaunchWorker (LPCWSTR lpCmdLine)
       env [SK_UTF8ToWideChar (name)] = (value.is_string ( )) ? SK_UTF8ToWideChar (value.get <std::string> ( )) : L""; // null: removed
   }
 
-  // The default environment of the user, as for a launch that is not elevated (SKIF_Util_CreateProcess), with the variables applied
+  // The environment to start from: that of the requesting instance ("Base", for launches that would otherwise have
+  //   inherited it), or else the default environment of the user, as for a launch that is not elevated (SKIF_Util_CreateProcess)
   std::wstring envBlock;
-  LPVOID       lpEnvBlock = nullptr;
 
-  if (CreateEnvironmentBlock (&lpEnvBlock, SKIF_Util_GetCurrentUserToken ( ), FALSE))
+  if (auto it = data.find ("Base"); it != data.end ( ) && it->is_array ( ))
   {
-    envBlock = SKIF_Util_AddEnvironmentBlock (lpEnvBlock, env);
-    DestroyEnvironmentBlock (lpEnvBlock);
+    std::wstring base;
+
+    for (const auto& entry : *it)
+    {
+      if (entry.is_string ( ))
+        base += SK_UTF8ToWideChar (entry.get <std::string> ( )) + L'\0';
+    }
+
+    base += L'\0';
+
+    envBlock = SKIF_Util_AddEnvironmentBlock (base.c_str ( ), env);
+  }
+
+  else
+  {
+    LPVOID lpEnvBlock = nullptr;
+
+    if (CreateEnvironmentBlock (&lpEnvBlock, SKIF_Util_GetCurrentUserToken ( ), FALSE))
+    {
+      envBlock = SKIF_Util_AddEnvironmentBlock (lpEnvBlock, env);
+      DestroyEnvironmentBlock (lpEnvBlock);
+    }
   }
 
   // The module name as the first argument (argv[0]), as in SKIF_Util_CreateProcess
@@ -1413,22 +1483,12 @@ SKIF_Util_ElevatedLaunchWorker (LPCWSTR lpCmdLine)
 
   CloseHandle (pi.hThread);
 
-  DWORD ret = (pi.dwProcessId | 1);
+  DWORD  ret     = (pi.dwProcessId | 1);
+  HANDLE hTarget = NULL;
 
-  // Hand a handle to the process that asked for the launch (it is not a child of this one)
-  if (auto it = data.find ("Parent"); it != data.end ( ) && it->is_number_unsigned ( ))
-  {
-    HANDLE hParent = OpenProcess (PROCESS_DUP_HANDLE, FALSE, it->get <DWORD> ( ));
-    HANDLE hTarget = NULL;
-
-    if (hParent != NULL)
-    {
-      if (DuplicateHandle (GetCurrentProcess ( ), pi.hProcess, hParent, &hTarget, SKIF_ElevatedLaunchHandleAccess, FALSE, 0) && hTarget != NULL)
-        ret = static_cast <DWORD> (reinterpret_cast <uintptr_t> (hTarget));
-
-      CloseHandle (hParent);
-    }
-  }
+  // Hand a handle to the instance that asked for the launch (it is not a child of this one)
+  if (DuplicateHandle (GetCurrentProcess ( ), pi.hProcess, hParent, &hTarget, SKIF_ElevatedLaunchHandleAccess, FALSE, 0) && hTarget != NULL)
+    ret = static_cast <DWORD> (reinterpret_cast <uintptr_t> (hTarget));
 
   CloseHandle (pi.hProcess);
 
@@ -1436,7 +1496,7 @@ SKIF_Util_ElevatedLaunchWorker (LPCWSTR lpCmdLine)
 }
 
 DWORD
-SKIF_Util_CreateProcessElevated (const std::wstring& path, const std::wstring& parameters, const std::wstring& directory, const std::map<std::wstring, std::wstring>& env, HANDLE* hProcess, DWORD* dwProcessId)
+SKIF_Util_CreateProcessElevated (const std::wstring& path, const std::wstring& parameters, const std::wstring& directory, const std::map<std::wstring, std::wstring>& env, bool inheritEnvironment, HANDLE* hProcess, DWORD* dwProcessId)
 {
   if (hProcess    != nullptr) *hProcess    = NULL;
   if (dwProcessId != nullptr) *dwProcessId = 0;
@@ -1457,14 +1517,62 @@ SKIF_Util_CreateProcessElevated (const std::wstring& path, const std::wstring& p
       jEnv [SK_WideCharToUTF8 (name)] = SK_WideCharToUTF8 (value);
   }
 
-  const nlohmann::json data = {
-    { "Args",   SK_WideCharToUTF8 (parameters) },
-    { "Dir",    SK_WideCharToUTF8 (directory)  },
-    { "Env",    jEnv                           },
-    { "Parent", GetCurrentProcessId ( )        }
+  nlohmann::json data = {
+    { "Args", SK_WideCharToUTF8 (parameters) },
+    { "Dir",  SK_WideCharToUTF8 (directory)  },
+    { "Env",  jEnv                           }
   };
 
-  const std::wstring helperArgs = L"\"" + path + L"\" " + SKIF_ElevatedLaunchArg + SK_UTF8ToWideChar (SKIF_Util_Base64UrlEncode (data.dump ( )));
+  // The environment of this instance, which the launch would otherwise have inherited
+  if (inheritEnvironment)
+  {
+    nlohmann::json base = nlohmann::json::array ( );
+
+    auto lock = SKIF_Util_LockEnvironment ( );
+
+    if (LPWCH pEnv = GetEnvironmentStringsW ( ); pEnv != nullptr)
+    {
+      for (const wchar_t* entry = pEnv; *entry != L'\0'; entry += wcslen (entry) + 1)
+        base.push_back (SK_WideCharToUTF8 (entry));
+
+      FreeEnvironmentStringsW (pEnv);
+    }
+
+    data ["Base"] = base;
+  }
+
+  // The request goes in an unnamed section of this process, which the elevated instance duplicates from it (so there
+  //   is no limit to its size, and it is not readable by anyone else); only the path is on the command line, readable,
+  //     so it is what the details of the UAC prompt show
+  const std::string payload = data.dump ( );
+
+  if (payload.size ( ) > 64 * 1024 * 1024)
+    return ERROR_BUFFER_OVERFLOW;
+
+  const DWORD sectionSize = static_cast <DWORD> (payload.size ( ) + sizeof (uint32_t));
+
+  CHandle hSection (CreateFileMappingW (INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, sectionSize, NULL));
+
+  if (hSection.m_h == NULL)
+    return GetLastError ( );
+
+  {
+    char* view = static_cast <char*> (MapViewOfFile (hSection, FILE_MAP_WRITE, 0, 0, sectionSize));
+
+    if (view == nullptr)
+      return GetLastError ( );
+
+    const uint32_t len = static_cast <uint32_t> (payload.size ( ));
+
+    memcpy (view,                    &len,           sizeof (uint32_t));
+    memcpy (view + sizeof (uint32_t), payload.data ( ), payload.size ( ));
+
+    UnmapViewOfFile (view);
+  }
+
+  const std::wstring helperArgs = L"\"" + path + L"\" " + SKIF_ElevatedLaunchArg
+                                + std::to_wstring (GetCurrentProcessId ( )) + L":"
+                                + std::to_wstring (reinterpret_cast <uintptr_t> (hSection.m_h));
 
   wchar_t wszSKIF [MAX_PATH * 2] = { };
 
@@ -1489,6 +1597,7 @@ SKIF_Util_CreateProcessElevated (const std::wstring& path, const std::wstring& p
   if (sexi.hProcess == NULL)
     return ERROR_INVALID_HANDLE;
 
+  // The section stays open until the elevated instance is done with it
   DWORD       exitCode = 0;
   const DWORD wait     = WaitForSingleObject (sexi.hProcess, 30000);
 
@@ -1533,6 +1642,98 @@ SKIF_Util_CreateProcessElevated (const std::wstring& path, const std::wstring& p
   }
 
   return NO_ERROR;
+}
+
+// Whether Windows would elevate the executable when it is started through ShellExecute (see utility.h)
+bool
+SKIF_Util_RequiresElevation (const std::wstring& path)
+{
+  if (path.empty ( ) || PathIsRelativeW (path.c_str ( )) || ! PathFileExistsW (path.c_str ( )))
+    return false;
+
+  // Nothing is elevated for a process that already is
+  TOKEN_ELEVATION_TYPE elevationType = TokenElevationTypeDefault;
+  {
+    TOKEN_ELEVATION elevation = { };
+    DWORD           cbSize    = 0;
+
+    if (GetTokenInformation (SKIF_Util_GetCurrentUserToken ( ), TokenElevation, &elevation, sizeof (elevation), &cbSize) && elevation.TokenIsElevated != 0)
+      return false;
+
+    if (! GetTokenInformation (SKIF_Util_GetCurrentUserToken ( ), TokenElevationType, &elevationType, sizeof (elevationType), &cbSize))
+      elevationType = TokenElevationTypeDefault;
+  }
+
+  // Compatibility > Run this program as an administrator (for this user, or for all users)
+  for (HKEY hRoot : { HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE })
+  {
+    wchar_t wszLayers [1024] = { };
+    DWORD   cbLayers         = sizeof (wszLayers) - sizeof (wchar_t);
+    DWORD   dwType           = REG_NONE;
+    HKEY    hKey             = NULL;
+
+    if (ERROR_SUCCESS != RegOpenKeyExW (hRoot, LR"(SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers)", 0, KEY_QUERY_VALUE | KEY_WOW64_64KEY, &hKey))
+      continue;
+
+    const LSTATUS status = RegQueryValueExW (hKey, path.c_str ( ), nullptr, &dwType, reinterpret_cast <LPBYTE> (wszLayers), &cbLayers);
+
+    RegCloseKey (hKey);
+
+    if (status == ERROR_SUCCESS && dwType == REG_SZ)
+    {
+      // Space-separated flags, e.g. "~ RUNASADMIN HIGHDPIAWARE"
+      std::wstring layers = SKIF_Util_ToUpperW (wszLayers);
+      size_t       pos    = layers.find (L"RUNASADMIN");
+
+      while (pos != std::wstring::npos)
+      {
+        const bool start = (pos == 0                  || layers [pos - 1]  == L' ');
+        const bool end   = (pos + 10 >= layers.size ( ) || layers [pos + 10] == L' ');
+
+        if (start && end)
+          return true;
+
+        pos = layers.find (L"RUNASADMIN", pos + 1);
+      }
+    }
+  }
+
+  // The manifest of the executable: requireAdministrator, or highestAvailable for an administrator (whose token is the
+  //   limited one of a split token)
+  bool required = false;
+
+  if (HMODULE hModule = LoadLibraryExW (path.c_str ( ), NULL, LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_AS_IMAGE_RESOURCE); hModule != NULL)
+  {
+    if (HRSRC hResource = FindResourceW (hModule, MAKEINTRESOURCEW (1), MAKEINTRESOURCEW (24)); hResource != NULL) // CREATEPROCESS_MANIFEST_RESOURCE_ID, RT_MANIFEST
+    {
+      const DWORD size = SizeofResource (hModule, hResource);
+
+      if (HGLOBAL hData = LoadResource (hModule, hResource); hData != NULL && size != 0)
+      {
+        if (const char* data = static_cast <const char*> (LockResource (hData)); data != nullptr)
+        {
+          const std::string_view manifest (data, size);
+          const size_t           element = manifest.find ("requestedExecutionLevel");
+
+          if (element != std::string_view::npos)
+          {
+            const size_t elementEnd = manifest.find ('>', element);
+            const auto   attributes = manifest.substr (element, (elementEnd == std::string_view::npos) ? std::string_view::npos : elementEnd - element);
+
+            if (attributes.find ("requireAdministrator") != std::string_view::npos)
+              required = true;
+
+            else if (attributes.find ("highestAvailable") != std::string_view::npos)
+              required = (elevationType == TokenElevationTypeLimited);
+          }
+        }
+      }
+    }
+
+    FreeLibrary (hModule);
+  }
+
+  return required;
 }
 
 // Base64url without padding (see utility.h)
