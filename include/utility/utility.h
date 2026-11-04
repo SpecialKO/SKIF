@@ -188,6 +188,25 @@ HINSTANCE       SKIF_Util_OpenURI                     (const std::wstring& path,
 bool            SKIF_Util_ShellExecuteUnelevated      (const std::wstring& path, int nShow = SW_SHOWNORMAL, LPCWSTR verb      = L"OPEN", LPCWSTR parameters = NULL, LPCWSTR directory = NULL);
 bool            SKIF_Util_CreateProcess               (const std::wstring& path, const std::wstring& parameters, const std::wstring& directory, std::map<std::wstring, std::wstring>* env = nullptr, SKIF_Util_CreateProcess_s* proc = nullptr);
 
+// Elevated launches with environment variables
+//   A process that Windows elevates (the UAC prompt) does not inherit any environment variables: it gets the default
+//     environment of the user. So an executable that requires elevation is started through an elevated instance of SKIF
+//       instead, which starts it with the variables applied (elevated to elevated, so without a second prompt):
+//         SKIF.exe "<path>" SKIF_ElevatedLaunch=<base64url of { "Args": "", "Dir": "", "Env": { "NAME": "value" | null } }>
+//       The path is kept readable, so it is what the details of the UAC prompt show. The elevated instance does nothing
+//         else, and exits with the process ID of the started process as its exit code (0 if it failed).
+//   SKIF_Util_CreateProcessElevated blocks until the process has been started (the UAC prompt included), and returns
+//     NO_ERROR or the error code. hProcess receives a handle (SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION) to the
+//       started process, if it could be opened. In env, an empty value removes the variable (as in SKIF_Util_CreateProcess).
+DWORD           SKIF_Util_CreateProcessElevated       (const std::wstring& path, const std::wstring& parameters, const std::wstring& directory, const std::map<std::wstring, std::wstring>& env, HANDLE* hProcess = nullptr, DWORD* dwProcessId = nullptr);
+bool            SKIF_Util_IsElevatedLaunch            (LPCWSTR lpCmdLine); // The command line is that of the elevated instance
+DWORD           SKIF_Util_ElevatedLaunchWorker        (LPCWSTR lpCmdLine); // The elevated instance: starts the process, returns its process ID (or 0)
+
+// Base64url without padding (RFC 4648 section 5): text that can be put on a command line as is (no spaces, quotes, % or
+//   dots, so it never contains ".exe" either)
+std::string     SKIF_Util_Base64UrlEncode             (std::string_view data);
+bool            SKIF_Util_Base64UrlDecode             (std::string_view text, std::string& out);
+
 
 // Windows
 

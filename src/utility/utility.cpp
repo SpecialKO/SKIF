@@ -29,6 +29,7 @@
 #include <utility/fsutil.h>
 #include <utility/registry.h>
 #include <utility/injection.h>
+#include <nlohmann/json.hpp>
 #include <HybridDetect.h>
 
 #include <atlbase.h>
@@ -1248,62 +1249,40 @@ SKIF_Util_CreateProcess (
       DWORD error = GetLastError ( );
       PLOG_WARNING << "CreateProcess failed: " << SKIF_Util_GetErrorAsWStr (error);
 
-      // In case elevation is needed, try ShellExecute!
-      if (error == ERROR_ELEVATION_REQUIRED)
+      // In case elevation is needed: a process elevated by Windows does not inherit any environment variables (it gets
+      //   the default environment of the user), so it is started through an elevated instance of SKIF instead, which
+      //     applies them (see SKIF_Util_CreateProcessElevated)
+      if (error == ERROR_ELEVATION_REQUIRED && ! _data->path.empty ( ))
       {
-        PLOG_INFO << "Attempting elevation fallback...";
+        PLOG_INFO << "Attempting elevation fallback (through an elevated instance of SKIF)...";
 
-        static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+        HANDLE hProcess    = NULL;
+        DWORD  dwProcessId = 0;
 
-        // Note that any new process will inherit SKIF's environment variables, so apply the custom variables
-        //   (and remove SteamNoOverlayUIDrawing if SKIF set it for itself, unless the launch sets it explicitly)
-        //     for the duration of the ShellExecuteEx ( ) call below; restored when this scope ends
-        std::map <std::wstring, std::wstring> overrides = _data->env;
+        error = SKIF_Util_CreateProcessElevated (_data->path, _data->parameters, _data->directory, _data->env, &hProcess, &dwProcessId);
 
-        if (_registry._LoadedSteamOverlay)
-          overrides.try_emplace (L"SteamNoOverlayUIDrawing", L"");
-
-        SKIF_Util_ScopedEnvironment scopedEnv (overrides);
-
-        PLOG_INFO << "Performing a ShellExecuteEx call...";
-
-        SHELLEXECUTEINFOW
-          sexi              = { };
-          sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
-          sexi.lpVerb       = L"OPEN";
-          sexi.lpFile       = (_data->path      .empty()) ? NULL : _data->path.c_str();
-          sexi.lpParameters = (_data->parameters.empty()) ? NULL : _data->parameters.c_str();
-          sexi.lpDirectory  = (_data->directory .empty()) ? NULL : _data->directory.c_str();
-          sexi.nShow        = SW_SHOWNORMAL;
-          sexi.fMask        = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS | SEE_MASK_NOASYNC | SEE_MASK_NOCLOSEPROCESS;
-
-        if (ShellExecuteExW (&sexi))
+        if (error == NO_ERROR)
         {
-          PLOG_INFO << "The operation was successful (PID " << ((sexi.hProcess != NULL) ? GetProcessId (sexi.hProcess) : 0) << ").";
+          PLOG_INFO << "The operation was successful (PID " << dwProcessId << ").";
 
           if (_data->proc != nullptr)
           {
             _data->proc->iReturnCode.store (0);
-            _data->proc->hProcess.store    (sexi.hProcess);
-
-            if (sexi.hProcess != NULL)
-              _data->proc->dwProcessId.store (GetProcessId (sexi.hProcess));
+            _data->proc->hProcess.store    (hProcess);
+            _data->proc->dwProcessId.store (dwProcessId);
           }
 
-          // We don't have a proc structure, so the handle (requested through SEE_MASK_NOCLOSEPROCESS) is unneeded
-          else if (sexi.hProcess != NULL)
-            CloseHandle (sexi.hProcess);
+          // We don't have a proc structure, so the handle is unneeded
+          else if (hProcess != NULL)
+            CloseHandle (hProcess);
         }
 
         else {
-          error = GetLastError ( );
-          PLOG_ERROR << "ShellExecuteEx failed: " << SKIF_Util_GetErrorAsWStr (error);
+          PLOG_ERROR << "The elevated launch failed: " << SKIF_Util_GetErrorAsWStr (error);
 
           if (_data->proc != nullptr)
               _data->proc->iReturnCode.store (error);
         }
-
-        // (scopedEnv restores the environment variables when this scope ends)
       }
 
       // No fallback available
@@ -1338,6 +1317,287 @@ SKIF_Util_CreateProcess (
     delete data;
 
   return threadCreated;
+}
+
+// Elevated launches with environment variables (see utility.h)
+static constexpr const wchar_t* SKIF_ElevatedLaunchArg = L"SKIF_ElevatedLaunch=";
+
+// The exit code of the elevated instance:
+//   0                   failed
+//   multiple of 4       a handle to the started process, duplicated into the process that asked for the launch
+//                         (SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE, so it can be monitored
+//                           and ended, but nothing more: it is a process of a lower integrity level)
+//   odd                 the process ID of the started process (| 1), if the handle could not be duplicated
+//   Handles and process IDs are both multiples of 4 on Windows, so the two can be told apart
+static constexpr DWORD SKIF_ElevatedLaunchHandleAccess = SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE;
+
+bool
+SKIF_Util_IsElevatedLaunch (LPCWSTR lpCmdLine)
+{
+  return (lpCmdLine != nullptr && StrStrIW (lpCmdLine, SKIF_ElevatedLaunchArg) != nullptr);
+}
+
+DWORD
+SKIF_Util_ElevatedLaunchWorker (LPCWSTR lpCmdLine)
+{
+  if (! SKIF_Util_IsElevatedLaunch (lpCmdLine))
+    return 0;
+
+  // The path: the quoted part at the start
+  const std::wstring_view cmdLine (lpCmdLine);
+  const size_t            open  = cmdLine.find (L'"');
+  const size_t            close = (open != std::wstring_view::npos) ? cmdLine.find (L'"', open + 1) : std::wstring_view::npos;
+
+  if (close == std::wstring_view::npos || close == open + 1)
+    return 0;
+
+  const std::wstring path (cmdLine.substr (open + 1, close - open - 1));
+
+  // The rest, after SKIF_ElevatedLaunch=, up to the next space
+  std::wstring_view encoded (StrStrIW (lpCmdLine, SKIF_ElevatedLaunchArg) + wcslen (SKIF_ElevatedLaunchArg));
+  encoded = encoded.substr (0, encoded.find_first_of (L" \t"));
+
+  std::string decoded;
+
+  if (! SKIF_Util_Base64UrlDecode (SK_WideCharToUTF8 (std::wstring (encoded)), decoded))
+    return 0;
+
+  const nlohmann::json data = nlohmann::json::parse (decoded, nullptr, false);
+
+  if (data.is_discarded ( ) || ! data.is_object ( ))
+    return 0;
+
+  auto _String = [&](const char* name) -> std::wstring
+  {
+    auto it = data.find (name);
+    return (it != data.end ( ) && it->is_string ( )) ? SK_UTF8ToWideChar (it->get <std::string> ( )) : L"";
+  };
+
+  const std::wstring parameters = _String ("Args");
+  std::wstring       directory  = _String ("Dir");
+
+  if (directory.empty ( ))
+    directory = std::filesystem::path (path).parent_path ( ).wstring ( );
+
+  std::map <std::wstring, std::wstring> env;
+
+  if (auto it = data.find ("Env"); it != data.end ( ) && it->is_object ( ))
+  {
+    for (const auto& [name, value] : it->items ( ))
+      env [SK_UTF8ToWideChar (name)] = (value.is_string ( )) ? SK_UTF8ToWideChar (value.get <std::string> ( )) : L""; // null: removed
+  }
+
+  // The default environment of the user, as for a launch that is not elevated (SKIF_Util_CreateProcess), with the variables applied
+  std::wstring envBlock;
+  LPVOID       lpEnvBlock = nullptr;
+
+  if (CreateEnvironmentBlock (&lpEnvBlock, SKIF_Util_GetCurrentUserToken ( ), FALSE))
+  {
+    envBlock = SKIF_Util_AddEnvironmentBlock (lpEnvBlock, env);
+    DestroyEnvironmentBlock (lpEnvBlock);
+  }
+
+  // The module name as the first argument (argv[0]), as in SKIF_Util_CreateProcess
+  std::wstring commandLine = L"\"" + path + L"\"";
+
+  if (! parameters.empty ( ))
+    commandLine += L" " + parameters;
+
+  STARTUPINFOW        si = { };
+  PROCESS_INFORMATION pi = { };
+  si.cb                  = sizeof (STARTUPINFOW);
+
+  if (! CreateProcessW (path.c_str ( ), commandLine.data ( ), NULL, NULL, FALSE, NORMAL_PRIORITY_CLASS | CREATE_UNICODE_ENVIRONMENT,
+                        (envBlock.empty ( )) ? NULL : envBlock.data ( ), directory.c_str ( ), &si, &pi))
+    return 0;
+
+  CloseHandle (pi.hThread);
+
+  DWORD ret = (pi.dwProcessId | 1);
+
+  // Hand a handle to the process that asked for the launch (it is not a child of this one)
+  if (auto it = data.find ("Parent"); it != data.end ( ) && it->is_number_unsigned ( ))
+  {
+    HANDLE hParent = OpenProcess (PROCESS_DUP_HANDLE, FALSE, it->get <DWORD> ( ));
+    HANDLE hTarget = NULL;
+
+    if (hParent != NULL)
+    {
+      if (DuplicateHandle (GetCurrentProcess ( ), pi.hProcess, hParent, &hTarget, SKIF_ElevatedLaunchHandleAccess, FALSE, 0) && hTarget != NULL)
+        ret = static_cast <DWORD> (reinterpret_cast <uintptr_t> (hTarget));
+
+      CloseHandle (hParent);
+    }
+  }
+
+  CloseHandle (pi.hProcess);
+
+  return ret;
+}
+
+DWORD
+SKIF_Util_CreateProcessElevated (const std::wstring& path, const std::wstring& parameters, const std::wstring& directory, const std::map<std::wstring, std::wstring>& env, HANDLE* hProcess, DWORD* dwProcessId)
+{
+  if (hProcess    != nullptr) *hProcess    = NULL;
+  if (dwProcessId != nullptr) *dwProcessId = 0;
+
+  if (path.empty ( ))
+    return ERROR_INVALID_PARAMETER;
+
+  nlohmann::json jEnv = nlohmann::json::object ( );
+
+  for (const auto& [name, value] : env)
+  {
+    if (name.empty ( ))
+      continue;
+
+    if (value.empty ( ))
+      jEnv [SK_WideCharToUTF8 (name)] = nullptr;
+    else
+      jEnv [SK_WideCharToUTF8 (name)] = SK_WideCharToUTF8 (value);
+  }
+
+  const nlohmann::json data = {
+    { "Args",   SK_WideCharToUTF8 (parameters) },
+    { "Dir",    SK_WideCharToUTF8 (directory)  },
+    { "Env",    jEnv                           },
+    { "Parent", GetCurrentProcessId ( )        }
+  };
+
+  const std::wstring helperArgs = L"\"" + path + L"\" " + SKIF_ElevatedLaunchArg + SK_UTF8ToWideChar (SKIF_Util_Base64UrlEncode (data.dump ( )));
+
+  wchar_t wszSKIF [MAX_PATH * 2] = { };
+
+  if (GetModuleFileNameW (NULL, wszSKIF, MAX_PATH * 2) == 0)
+    return GetLastError ( );
+
+  PLOG_INFO << "Starting an elevated instance of SKIF to launch the executable...";
+
+  SHELLEXECUTEINFOW
+    sexi              = { };
+    sexi.cbSize       = sizeof (SHELLEXECUTEINFOW);
+    sexi.lpVerb       = L"runas";
+    sexi.lpFile       = wszSKIF;
+    sexi.lpParameters = helperArgs.c_str ( );
+    sexi.nShow        = SW_HIDE;
+    sexi.fMask        = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC | SEE_MASK_FLAG_NO_UI | SEE_MASK_NOZONECHECKS;
+
+  // ERROR_CANCELLED if the UAC prompt was declined
+  if (! ShellExecuteExW (&sexi))
+    return GetLastError ( );
+
+  if (sexi.hProcess == NULL)
+    return ERROR_INVALID_HANDLE;
+
+  DWORD       exitCode = 0;
+  const DWORD wait     = WaitForSingleObject (sexi.hProcess, 30000);
+
+  if (wait == WAIT_OBJECT_0)
+    GetExitCodeProcess (sexi.hProcess, &exitCode);
+
+  CloseHandle (sexi.hProcess);
+
+  if (wait != WAIT_OBJECT_0)
+    return ERROR_TIMEOUT;
+
+  if (exitCode == 0)
+    return ERROR_FUNCTION_FAILED;
+
+  // A handle duplicated into this process
+  if ((exitCode & 3) == 0)
+  {
+    HANDLE handle = reinterpret_cast <HANDLE> (static_cast <uintptr_t> (exitCode));
+
+    if (dwProcessId != nullptr)
+      *dwProcessId = GetProcessId (handle);
+
+    if (hProcess != nullptr)
+      *hProcess = handle;
+    else
+      CloseHandle (handle);
+
+    return NO_ERROR;
+  }
+
+  // Only the process ID: the process can still be monitored (but not ended)
+  const DWORD pid = (exitCode & ~static_cast <DWORD> (1));
+
+  if (dwProcessId != nullptr)
+    *dwProcessId = pid;
+
+  if (hProcess != nullptr)
+  {
+    *hProcess = OpenProcess (SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+
+    PLOG_WARNING_IF (*hProcess == NULL) << "Could not open the elevated process (PID " << pid << "): " << SKIF_Util_GetErrorAsWStr (GetLastError ( ));
+  }
+
+  return NO_ERROR;
+}
+
+// Base64url without padding (see utility.h)
+std::string
+SKIF_Util_Base64UrlEncode (std::string_view data)
+{
+  static constexpr char alphabet [] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+  std::string out;
+  out.reserve (((data.size ( ) + 2) / 3) * 4);
+
+  uint32_t buffer = 0;
+  int      bits   = 0;
+
+  for (const unsigned char c : data)
+  {
+    buffer = (buffer << 8) | c;
+    bits  += 8;
+
+    while (bits >= 6)
+    {
+      bits -= 6;
+      out.push_back (alphabet [(buffer >> bits) & 0x3F]);
+    }
+  }
+
+  if (bits > 0)
+    out.push_back (alphabet [(buffer << (6 - bits)) & 0x3F]);
+
+  return out;
+}
+
+bool
+SKIF_Util_Base64UrlDecode (std::string_view text, std::string& out)
+{
+  out.clear ( );
+  out.reserve ((text.size ( ) * 3) / 4);
+
+  uint32_t buffer = 0;
+  int      bits   = 0;
+
+  for (const char c : text)
+  {
+    int value = -1;
+
+    if      (c >= 'A' && c <= 'Z') value = c - 'A';
+    else if (c >= 'a' && c <= 'z') value = c - 'a' + 26;
+    else if (c >= '0' && c <= '9') value = c - '0' + 52;
+    else if (c == '-')             value = 62;
+    else if (c == '_')             value = 63;
+    else if (c == '=')             break; // Padding (not written, but accepted)
+    else
+      return false;
+
+    buffer = (buffer << 6) | static_cast <uint32_t> (value);
+    bits  += 6;
+
+    if (bits >= 8)
+    {
+      bits -= 8;
+      out.push_back (static_cast <char> ((buffer >> bits) & 0xFF));
+    }
+  }
+
+  return true;
 }
 
 

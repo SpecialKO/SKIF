@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-04 18:29+0100\n"
+"POT-Creation-Date: 2026-11-04 19:06+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,58 +16,58 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
-#: src/SKIF.cpp:1324
-#: src/SKIF.cpp:1478
+#: src/SKIF.cpp:1385
+#: src/SKIF.cpp:1539
 #: src/tabs/settings.cpp:42
 msgid "Start Service"
 msgstr ""
 
-#: src/SKIF.cpp:1325
-#: src/SKIF.cpp:1497
+#: src/SKIF.cpp:1386
+#: src/SKIF.cpp:1558
 msgid "Start Service (manual stop)"
 msgstr ""
 
-#: src/SKIF.cpp:1326
-#: src/SKIF.cpp:1515
+#: src/SKIF.cpp:1387
+#: src/SKIF.cpp:1576
 msgid "Stop Service"
 msgstr ""
 
-#: src/SKIF.cpp:1328
+#: src/SKIF.cpp:1389
 #: src/tabs/settings.cpp:794
 msgid "Check for updates"
 msgstr ""
 
-#: src/SKIF.cpp:1333
-#: src/SKIF.cpp:1581
+#: src/SKIF.cpp:1394
+#: src/SKIF.cpp:1642
 msgid "Exit"
 msgstr ""
 
-#: src/SKIF.cpp:1476
+#: src/SKIF.cpp:1537
 msgid ""
 "Starts the injection service and\n"
 "stops it after injection."
 msgstr ""
 
-#: src/SKIF.cpp:1495
+#: src/SKIF.cpp:1556
 msgid ""
 "Starts the injection service but\n"
 "does not stop it after injection."
 msgstr ""
 
-#: src/SKIF.cpp:1514
+#: src/SKIF.cpp:1575
 msgid "Stops the injection service"
 msgstr ""
 
-#: src/SKIF.cpp:1546
+#: src/SKIF.cpp:1607
 msgid "Checks for any available updates"
 msgstr ""
 
-#: src/SKIF.cpp:1547
+#: src/SKIF.cpp:1608
 msgid "Check for Updates"
 msgstr ""
 
 #. TRANSLATORS: Controlled Folder Access is a feature of Windows (use the name Windows uses in your language)
-#: src/SKIF.cpp:2190
+#: src/SKIF.cpp:2256
 msgid ""
 "Controlled Folder Access is enabled in Windows and may prevent Special K and even some games from working properly. It is recommended to either disable the feature or add exclusions for games where Special K is used as well as SKIF (this application).\n"
 "\n"
@@ -76,118 +76,118 @@ msgid ""
 "Microsoft's support page with more information will open when you select any of the options below."
 msgstr ""
 
-#: src/SKIF.cpp:2196
+#: src/SKIF.cpp:2262
 msgid "Warning about Controlled Folder Access"
 msgstr ""
 
-#: src/SKIF.cpp:3377
+#: src/SKIF.cpp:3443
 msgctxt "tab"
 msgid "Library"
 msgstr ""
 
-#: src/SKIF.cpp:3378
+#: src/SKIF.cpp:3444
 msgctxt "tab"
 msgid "Monitor"
 msgstr ""
 
-#: src/SKIF.cpp:3379
+#: src/SKIF.cpp:3445
 msgctxt "tab"
 msgid "Hardware"
 msgstr ""
 
-#: src/SKIF.cpp:3380
+#: src/SKIF.cpp:3446
 msgctxt "tab"
 msgid "Settings"
 msgstr ""
 
-#: src/SKIF.cpp:3381
+#: src/SKIF.cpp:3447
 msgctxt "tab"
 msgid "About"
 msgstr ""
 
-#: src/SKIF.cpp:3634
+#: src/SKIF.cpp:3700
 #: src/utility/injection.cpp:933
 msgid "Starting..."
 msgstr ""
 
-#: src/SKIF.cpp:3635
+#: src/SKIF.cpp:3701
 #: src/utility/injection.cpp:932
 msgid "Stopping..."
 msgstr ""
 
-#: src/SKIF.cpp:3636
+#: src/SKIF.cpp:3702
 #: src/utility/injection.cpp:853
 #: src/utility/injection.cpp:861
 #: src/utility/injection.cpp:1360
 msgid "Waiting for game..."
 msgstr ""
 
-#: src/SKIF.cpp:3637
+#: src/SKIF.cpp:3703
 #: src/utility/injection.cpp:855
 #: src/utility/injection.cpp:863
 #: src/utility/injection.cpp:1361
 msgid "Running"
 msgstr ""
 
-#: src/SKIF.cpp:3638
+#: src/SKIF.cpp:3704
 #: src/utility/injection.cpp:857
 #: src/utility/injection.cpp:865
 msgid "Stopped"
 msgstr ""
 
-#: src/SKIF.cpp:3640
+#: src/SKIF.cpp:3706
 #: src/utility/injection.cpp:1375
 msgid "Click to stop the service"
 msgstr ""
 
-#: src/SKIF.cpp:3641
+#: src/SKIF.cpp:3707
 #: src/utility/injection.cpp:1376
 msgid "Click to start the service"
 msgstr ""
 
-#: src/SKIF.cpp:3658
+#: src/SKIF.cpp:3724
 #: src/stores/SKIF/custom_library.cpp:309
 #: src/stores/SKIF/custom_library.cpp:378
 #: src/stores/SKIF/custom_library.cpp:516
 msgid "Add Game"
 msgstr ""
 
-#: src/SKIF.cpp:3671
+#: src/SKIF.cpp:3737
 msgid "Local Manager"
 msgstr ""
 
-#: src/SKIF.cpp:3817
-#: src/SKIF.cpp:3947
+#: src/SKIF.cpp:3883
+#: src/SKIF.cpp:4013
 msgid "Toggle horizontal mode"
 msgstr ""
 
-#: src/SKIF.cpp:3825
-#: src/SKIF.cpp:3955
+#: src/SKIF.cpp:3891
+#: src/SKIF.cpp:4021
 msgid "Toggle mini mode"
 msgstr ""
 
-#: src/SKIF.cpp:3867
+#: src/SKIF.cpp:3933
 msgid "This app will close to the notification area."
 msgstr ""
 
-#: src/SKIF.cpp:3869
+#: src/SKIF.cpp:3935
 #: src/utility/injection.cpp:981
 msgid "Service continues running after this app is closed."
 msgstr ""
 
-#: src/SKIF.cpp:3934
+#: src/SKIF.cpp:4000
 msgid "Restore"
 msgstr ""
 
-#: src/SKIF.cpp:3938
+#: src/SKIF.cpp:4004
 msgid "Maximize"
 msgstr ""
 
-#: src/SKIF.cpp:3942
+#: src/SKIF.cpp:4008
 msgid "Minimize"
 msgstr ""
 
-#: src/SKIF.cpp:3960
+#: src/SKIF.cpp:4026
 #: src/tabs/ini_editor.cpp:534
 #: src/tabs/local.cpp:855
 #: src/utility/updater.cpp:1405
@@ -195,30 +195,30 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-#: src/SKIF.cpp:5636
+#: src/SKIF.cpp:5702
 msgid "Blink and you'll miss it ;)"
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/SKIF.cpp:5638
+#: src/SKIF.cpp:5704
 msgid "An update is being installed..."
 msgstr ""
 
-#: src/SKIF.cpp:5664
+#: src/SKIF.cpp:5730
 msgid "Open the app to continue."
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/SKIF.cpp:5666
+#: src/SKIF.cpp:5732
 msgid "An update to Special K is available!"
 msgstr ""
 
-#: src/SKIF.cpp:5678
+#: src/SKIF.cpp:5744
 msgid "The update will be retried later."
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/SKIF.cpp:5680
+#: src/SKIF.cpp:5746
 msgid "Update failed :("
 msgstr ""
 
@@ -280,7 +280,7 @@ msgstr ""
 #: src/stores/SKIF/custom_library.cpp:383
 #: src/stores/SKIF/custom_library.cpp:490
 #: src/tabs/library/library_properties.cpp:216
-#: src/utility/env_vars.cpp:458
+#: src/utility/env_vars.cpp:485
 msgid "Name"
 msgstr ""
 
@@ -3726,74 +3726,74 @@ msgstr ""
 msgid "The blacklist could not be saved! Please remove any non-Latin characters and try again."
 msgstr ""
 
-#: src/utility/env_vars.cpp:92
+#: src/utility/env_vars.cpp:93
 msgid "Special K ignores variables without a name."
 msgstr ""
 
-#: src/utility/env_vars.cpp:93
+#: src/utility/env_vars.cpp:94
 msgid "A name is required."
 msgstr ""
 
-#: src/utility/env_vars.cpp:96
+#: src/utility/env_vars.cpp:97
 msgid "The name can't contain an equals sign (=)."
 msgstr ""
 
-#: src/utility/env_vars.cpp:99
+#: src/utility/env_vars.cpp:100
 msgid "Line breaks are not supported."
 msgstr ""
 
-#: src/utility/env_vars.cpp:104
+#: src/utility/env_vars.cpp:105
 msgid "{0} is also set above. The last one is used."
 msgstr ""
 
-#: src/utility/env_vars.cpp:105
+#: src/utility/env_vars.cpp:106
 msgid "{0} is already set above."
 msgstr ""
 
-#: src/utility/env_vars.cpp:111
+#: src/utility/env_vars.cpp:112
 msgid "Special K removes spaces at the start and end of the name and the value."
 msgstr ""
 
-#: src/utility/env_vars.cpp:117
+#: src/utility/env_vars.cpp:118
 msgid "The name starts or ends with a space."
 msgstr ""
 
-#: src/utility/env_vars.cpp:125
+#: src/utility/env_vars.cpp:126
 msgid "SKIF sets this itself for Steam games. This value is used instead."
 msgstr ""
 
-#: src/utility/env_vars.cpp:429
+#: src/utility/env_vars.cpp:456
 msgid "(removes the variable)"
 msgstr ""
 
-#: src/utility/env_vars.cpp:429
+#: src/utility/env_vars.cpp:456
 msgid "(empty)"
 msgstr ""
 
-#: src/utility/env_vars.cpp:468
+#: src/utility/env_vars.cpp:495
 msgid "Removes the variable."
 msgstr ""
 
-#: src/utility/env_vars.cpp:482
+#: src/utility/env_vars.cpp:509
 msgid "Add variable"
 msgstr ""
 
-#: src/utility/env_vars.cpp:491
+#: src/utility/env_vars.cpp:518
 msgid "Paste"
 msgstr ""
 
-#: src/utility/env_vars.cpp:512
+#: src/utility/env_vars.cpp:539
 msgid ""
 "Adds the variables in the clipboard: one NAME=value per line,\n"
 "or Special K's format on a single line (A=1|B=2).\n"
 "Variables that are already listed get the new value."
 msgstr ""
 
-#: src/utility/env_vars.cpp:521
+#: src/utility/env_vars.cpp:548
 msgid "Copy"
 msgstr ""
 
-#: src/utility/env_vars.cpp:524
+#: src/utility/env_vars.cpp:551
 msgid "Copies the variables to the clipboard, one NAME=value per line."
 msgstr ""
 

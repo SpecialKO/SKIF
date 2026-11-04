@@ -916,18 +916,19 @@ app_record_s::LaunchInstant (const launch_context_s& ctx)
       if (! ClientCanLaunch (*ctx.config) && ! ctx.config->description.empty ( ))
         jumpListName += L" (" + ctx.config->description + L")";
 
-      // A jump list item starts the executable through SKIF's launcher mode, which knows nothing of the environment
-      //   variables of the launch option, so it would start the game differently
-      if (ctx.config->env.empty ( ))
-        SKIF_Shell_AddJumpList (jumpListName,
-          ctx.config->getExecutableFullPath ( ),
-          cmdLine,
-          dirPath,
-          iconPath,
-          (! ctx.localInjection && ctx.usingSK));
+      // A jump list item starts the executable through SKIF's launcher mode, which gets the environment variables of
+      //   the launch option through SKIF_Env= (as it applies the Steam App ID through SKIF_SteamAppId=)
+      std::wstring jumpListArgs = cmdLine;
 
-      else
-        PLOG_INFO << "Not added to the jump list, as the launch option sets environment variables.";
+      if (const std::wstring envArg = SKIF_EnvVars::ToCommandLine (ctx.config->env); ! envArg.empty ( ))
+        jumpListArgs += L" " + envArg;
+
+      SKIF_Shell_AddJumpList (jumpListName,
+        ctx.config->getExecutableFullPath ( ),
+        jumpListArgs,
+        dirPath,
+        iconPath,
+        (! ctx.localInjection && ctx.usingSK));
     }
 
     else {
