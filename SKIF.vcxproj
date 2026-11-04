@@ -415,6 +415,7 @@
     <ClInclude Include="include\utility\igdb.h" />
     <ClInclude Include="include\utility\l10n.h" />
     <ClInclude Include="include\utility\launch_behaviors.h" />
+    <ClInclude Include="include\utility\env_vars.h" />
     <ClInclude Include="include\utility\registry.h" />
     <ClInclude Include="include\utility\hotkeys.h" />
     <ClInclude Include="include\utility\skif_imgui.h" />
@@ -662,6 +663,7 @@
     <ClCompile Include="src\utility\igdb.cpp" />
     <ClCompile Include="src\utility\l10n.cpp" />
     <ClCompile Include="src\utility\launch_behaviors.cpp" />
+    <ClCompile Include="src\utility\env_vars.cpp" />
     <ClCompile Include="src\utility\registry.cpp" />
     <ClCompile Include="src\utility\skif_imgui.cpp" />
     <ClCompile Include="src\utility\utility.cpp" />
