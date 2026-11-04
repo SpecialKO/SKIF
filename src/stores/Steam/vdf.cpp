@@ -810,8 +810,8 @@ skValveDataFile::getAppInfo ( uint32_t appid, app_list_t *apps )
               launch.duplicate_exe = true;
 
             // Use a combination of the executable, arguments, and working directory to identify duplicates (affects Instant Play menu)
-            //   Launch options that only differ in their working directory are different launches
-            if (! _used_executables_arguments.emplace (launch.getExecutableFileName() + launch.getLaunchOptions() + L"|" + launch.working_dir).second)
+            //   Launch options that only differ in their working directory, or in their environment variables, are different launches
+            if (! _used_executables_arguments.emplace (launch.getExecutableFileName() + launch.getLaunchOptions() + L"|" + launch.working_dir + SKIF_EnvVars::GetKey (launch.env)).second)
               launch.duplicate_exe_args = true;
           }
 

@@ -1510,6 +1510,11 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
           lc.working_dir              = SK_UTF8ToWideChar(launch_config.at("Dir"));
           std::replace(lc.working_dir.begin(), lc.working_dir.end(), '/', '\\'); // Replaces all forward slashes with backslashes
           lc.launch_options           = SK_UTF8ToWideChar(launch_config.at("Args"));
+
+          // Optional: the environment variables of the launch (utility/env_vars.h)
+          if (auto env = launch_config.find ("Env"); env != launch_config.end ( ))
+            SKIF_EnvVars::FromJson (*env, lc.env);
+
           lc.executable_path          = record.install_dir + LR"(\)" + lc.executable;
           lc.install_dir              = record.install_dir;
           lc.custom_skif              =   lc_file.first;
@@ -2248,6 +2253,10 @@ SKIF_UserLaunchConfigs::ToJson (const user_launch_config_s& lc)
   entry ["Dir"]  = lc.dir;
   entry ["Args"] = lc.args;
 
+  // Optional, so only written if set (an Env that could not be read stays in extra, unless replaced here)
+  if (nlohmann::json env = SKIF_EnvVars::ToJson (lc.env); ! env.empty ( ))
+    entry ["Env"] = env;
+
   return entry;
 }
 
@@ -2279,6 +2288,10 @@ SKIF_UserLaunchConfigs::FromJson (const nlohmann::json& entry, user_launch_confi
 
   for (const char* known : knownKeys)
     out.extra.erase (std::string (known));
+
+  // Env is only taken out of extra if it can be read, so one that can't is written back unchanged
+  if (auto env = entry.find ("Env"); env != entry.end ( ) && SKIF_EnvVars::FromJson (*env, out.env))
+    out.extra.erase ("Env");
 
   // The loader of the library requires these
   return (hasDesc && hasExe);
