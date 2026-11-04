@@ -483,7 +483,8 @@ class INIReader {
        - `[section]` lines open a section; text after ']' is ignored
        - `name = value` or `name : value` pairs, whitespace-trimmed
        - lines starting with ';' or '#' are comments
-       - a ';' preceded by whitespace starts an inline comment
+       - no inline comments: as with Special K, the value is everything after
+         the first '=' (trimmed), so values such as "a ;b" are kept whole
        Records the first faulty line in _error and stops there. Throws on
        duplicate keys. */
     void Parse(std::string_view content) {
@@ -528,12 +529,7 @@ class INIReader {
                     break;
                 }
                 const auto name = detail::rtrim(line.substr(0, sep));
-                auto value = line.substr(sep + 1);
-                const auto comment = detail::find_char_or_comment(value, {});
-                if (comment != std::string_view::npos) {
-                    value = value.substr(0, comment);
-                }
-                value = detail::trim(value);
+                const auto value = detail::trim(line.substr(sep + 1));
 
                 if (values == nullptr) {
                     values = &_values[section];
