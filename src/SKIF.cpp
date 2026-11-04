@@ -1221,8 +1221,38 @@ SKIF_Startup_LaunchGame (void)
                           SEE_MASK_NOASYNC        | // Never async since our own process might stop executing before the new process is ready
                           SEE_MASK_NOZONECHECKS;    // No zone check needs to be performed
 
+    // An executable that Windows elevates would not inherit SKIF's environment (the Steam App ID, the variables Steam
+    //   sets for SKIF %COMMAND%, ...), so it is started through an elevated instance of SKIF instead, with this environment
+    bool elevatedLaunch = false;
+
+    if (SKIF_Util_RequiresElevation (_Signal._GamePath))
+    {
+      PLOG_INFO << "The executable requires elevation.";
+
+      HANDLE hProcess    = NULL;
+      DWORD  dwProcessId = 0;
+      DWORD  error       = SKIF_Util_CreateProcessElevated (_Signal._GamePath, _Signal._GameArgs, _Signal._GameWorkDir, overrides, true, &hProcess, &dwProcessId);
+
+      if (error == NO_ERROR || error == ERROR_CANCELLED)
+      {
+        elevatedLaunch = true;
+
+        PLOG_INFO_IF (error == ERROR_CANCELLED) << "The elevation prompt was declined.";
+
+        if (error == NO_ERROR)
+          pidForegroundFocusOnExit = dwProcessId;
+
+        if (hProcess != NULL)
+          CloseHandle (hProcess);
+      }
+
+      else
+        PLOG_ERROR << "The elevated launch failed (" << SKIF_Util_GetErrorAsWStr (error) << "), so ShellExecuteEx is used instead.";
+    }
+
     // Launch executable (the new process inherits SKIF's environment, so the Steam App ID is only applied
     //   for the duration of the call, after which the previous values are restored)
+    if (! elevatedLaunch)
     {
       SKIF_Util_ScopedEnvironment scopedEnv (overrides);
       ShellExecuteExW (&sexi);

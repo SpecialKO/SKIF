@@ -192,15 +192,26 @@ bool            SKIF_Util_CreateProcess               (const std::wstring& path,
 //   A process that Windows elevates (the UAC prompt) does not inherit any environment variables: it gets the default
 //     environment of the user. So an executable that requires elevation is started through an elevated instance of SKIF
 //       instead, which starts it with the variables applied (elevated to elevated, so without a second prompt):
-//         SKIF.exe "<path>" SKIF_ElevatedLaunch=<base64url of { "Args": "", "Dir": "", "Env": { "NAME": "value" | null } }>
-//       The path is kept readable, so it is what the details of the UAC prompt show. The elevated instance does nothing
-//         else, and exits with the process ID of the started process as its exit code (0 if it failed).
+//         SKIF.exe "<path>" SKIF_ElevatedLaunch=<process ID of this instance>:<handle of the request>
+//       The request is JSON ({ "Args": "", "Dir": "", "Env": { "NAME": "value" | null }, "Base": [ "NAME=value", ... ] })
+//         in an unnamed section of this process, which the elevated instance duplicates from it: there is no limit to its
+//           size, and only requests of a process of SKIF.exe itself are carried out. The path is on the command line,
+//             readable, so it is what the details of the UAC prompt show. The elevated instance does nothing else, and
+//               exits with the result as its exit code (see utility.cpp).
 //   SKIF_Util_CreateProcessElevated blocks until the process has been started (the UAC prompt included), and returns
-//     NO_ERROR or the error code. hProcess receives a handle (SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION) to the
-//       started process, if it could be opened. In env, an empty value removes the variable (as in SKIF_Util_CreateProcess).
-DWORD           SKIF_Util_CreateProcessElevated       (const std::wstring& path, const std::wstring& parameters, const std::wstring& directory, const std::map<std::wstring, std::wstring>& env, HANDLE* hProcess = nullptr, DWORD* dwProcessId = nullptr);
+//     NO_ERROR or the error code (ERROR_CANCELLED if the prompt was declined). In env, an empty value removes the variable
+//       (as in SKIF_Util_CreateProcess). The environment is that of this instance if inheritEnvironment is set (as for a
+//         ShellExecute ( ) launch that is not elevated), else the default environment of the user (SKIF_Util_CreateProcess).
+//           hProcess receives a handle (SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, and PROCESS_TERMINATE unless only
+//             the process ID could be passed back) to the started process, if it could be opened.
+DWORD           SKIF_Util_CreateProcessElevated       (const std::wstring& path, const std::wstring& parameters, const std::wstring& directory, const std::map<std::wstring, std::wstring>& env, bool inheritEnvironment, HANDLE* hProcess = nullptr, DWORD* dwProcessId = nullptr);
 bool            SKIF_Util_IsElevatedLaunch            (LPCWSTR lpCmdLine); // The command line is that of the elevated instance
-DWORD           SKIF_Util_ElevatedLaunchWorker        (LPCWSTR lpCmdLine); // The elevated instance: starts the process, returns its process ID (or 0)
+DWORD           SKIF_Util_ElevatedLaunchWorker        (LPCWSTR lpCmdLine); // The elevated instance: starts the process, returns the result
+
+// Whether Windows would elevate the executable (an absolute path) when it is started through ShellExecute ( ): its
+//   manifest requires it (requireAdministrator, or highestAvailable for an administrator), or Compatibility > "Run this
+//     program as an administrator" is set for it. False if this process is elevated already
+bool            SKIF_Util_RequiresElevation           (const std::wstring& path);
 
 // Base64url without padding (RFC 4648 section 5): text that can be put on a command line as is (no spaces, quotes, % or
 //   dots, so it never contains ".exe" either)
