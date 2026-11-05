@@ -108,6 +108,12 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
   static DWORD     timeClicked = 0;
   static app_key_s tilePressed; // Enter / A was pressed on this tile
 
+  // A press is only kept until its key is released: one released elsewhere (e.g. while the grid was hidden, or the tile
+  //   was clipped) or held long enough to open the game menu would otherwise launch on a later short release
+  if (! ImGui::IsKeyDown     (ImGuiKey_Enter) && ! ImGui::IsKeyDown     (ImGuiKey_GamepadFaceDown) &&
+      ! ImGui::IsKeyReleased (ImGuiKey_Enter) && ! ImGui::IsKeyReleased (ImGuiKey_GamepadFaceDown))
+    tilePressed = { };
+
   ImGui::PushStyleColor      (ImGuiCol_ScrollbarBg, ImVec4(0,0,0,0));
 
   // The vertical scrollbar's width is kept free on the right whether the scrollbar is shown or not, so the tiles and the
@@ -122,6 +128,10 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
   //  flags_cld |= ImGuiChildFlags_NavFlattened;
 
   ImGui::SetNextWindowContentSize (ImVec2 (std::max (1.0f, ImFloor (size).x - ImGui::GetStyle ( ).WindowPadding.x * 2.0f - scrollbarWidth), 0.0f)); // 0: the height is not fixed
+
+  // The focus before the grid's child window begins: Enter / A on the child (it is not nav-flattened) enters it within
+  //   BeginChild ( ), which focuses its last focused tile in the same frame as that press (NavInitWindow ( ))
+  const ImGuiID focusBeforeGrid = ImGui::GetFocusID ( );
 
   ImGui::BeginChild          ( "###GameGrid", ImFloor (size),
                                   flags_cld,
@@ -229,8 +239,10 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
     ImGui::PopStyleColor   ( ); // ImGuiCol_Header
     ImGui::PopStyleColor   ( ); // ImGuiCol_NavCursor
 
-    const bool hovered   = ImGui::IsItemHovered ( );
-    const bool isFocused = (ImGui::GetFocusID ( ) == ImGui::GetID (rec->ImGuiLabelID.c_str()));
+    const ImGuiID labelID = ImGui::GetID (rec->ImGuiLabelID.c_str());
+    const bool hovered    = ImGui::IsItemHovered ( );
+    const bool isFocused  = (labelID == focusBeforeGrid) &&
+                            (labelID == ImGui::GetFocusID ( ));
 
     // Selection: a click (either button), navigation, or activation (Enter / A)
     if (! SKIF_ImGui_IsAutoScrollActive ( ) &&
@@ -271,7 +283,7 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
       }
     }
 
-    // Enter / A: only a press that started on this tile (not e.g. the one that chose an item of the game menu)
+    // Enter / A: only a press that started on this tile
     if (isFocused && (ImGui::IsKeyPressed (ImGuiKey_Enter, false) || ImGui::IsKeyPressed (ImGuiKey_GamepadFaceDown, false)))
       tilePressed = key;
 
