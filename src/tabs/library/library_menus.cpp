@@ -47,8 +47,17 @@ DrawGameConfigMenu (app_record_s* pApp)
     ImGui::OpenPopup    (idGameConfigMenu);
   }
 
+  // This is just a basic way to prevent multiple calls to DrawGameConfigMenu
+  //   occurring during the same frame (duplicating items)
+  static int
+      last_frame = 0;
+  if (last_frame == ImGui::GetFrameCount ( ))
+    return;
+
   if (ImGui::BeginPopupEx (idGameConfigMenu, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings))
   {
+    last_frame = ImGui::GetFrameCount();
+
     ImGui::PushStyleColor  (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
 
     ImGui::TextColored (
