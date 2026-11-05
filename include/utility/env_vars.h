@@ -82,7 +82,9 @@ namespace SKIF_EnvVars
   bool                   FromJson (const nlohmann::ordered_json& env, List& out); // Keeps the order of the file
   nlohmann::ordered_json ToJson   (const List& vars); // In the order of the list. Variables without a name are left out; empty values are written as null
 
-  // Pasted text: one NAME=value per line, or Special K's format on a single line.
+  // Pasted text:
+  //   - one NAME=value per line,
+  //   - or Special K's format on a single line (A=1|B=2).
   // Lines without an = are skipped, as are empty lines and lines starting with # or ;
   List          ParseText   (std::string_view text);
   std::string   ToText      (const List& vars); // One NAME=value per line

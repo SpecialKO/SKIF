@@ -696,14 +696,14 @@ SKIF_UI_Tab_DrawSettings (void)
   //
   //ImGui::SameLine        ( );
 
-  if (SKIF_ImGui_RadioButton (L_("Stop on injection"),    &_registry.iAutoStopBehavior, 1))
-    _registry.regKVAutoStopBehavior.putData (      _registry.iAutoStopBehavior);
+  if (SKIF_ImGui_RadioButton (L_("Stop on injection"), &_registry.iAutoStopBehavior, 1))
+    _registry.regKVAutoStopBehavior.putData (           _registry.iAutoStopBehavior);
 
   SKIF_ImGui_SetHoverTip (_("The service will be stopped when Special K successfully injects into a game."));
 
   SKIF_ImGui_SameLineIfFits (SKIF_ImGui_CheckboxWidth (L_("Stop on game exit")));
-  if (SKIF_ImGui_RadioButton (L_("Stop on game exit"),      &_registry.iAutoStopBehavior, 2))
-    _registry.regKVAutoStopBehavior.putData (        _registry.iAutoStopBehavior);
+  if (SKIF_ImGui_RadioButton (L_("Stop on game exit"), &_registry.iAutoStopBehavior, 2))
+    _registry.regKVAutoStopBehavior.putData (           _registry.iAutoStopBehavior);
 
   SKIF_ImGui_SetHoverTip (_("The service will be stopped when Special K detects that the game is being closed."));
 
@@ -724,14 +724,14 @@ SKIF_UI_Tab_DrawSettings (void)
   ImGui::BeginGroup    ( );
 
   ImGui::TreePush        ("CheckForUpdates");
-  if (SKIF_ImGui_RadioButton (L_("Never"),                 &_registry.iCheckForUpdates, 0))
+  if (SKIF_ImGui_RadioButton (L_("Never"),          &_registry.iCheckForUpdates, 0))
     _registry.regKVCheckForUpdates.putData (         _registry.iCheckForUpdates);
   SKIF_ImGui_SameLineIfFits (SKIF_ImGui_CheckboxWidth (L_("Weekly")));
-  if (SKIF_ImGui_RadioButton (L_("Weekly"),                &_registry.iCheckForUpdates, 1))
-    _registry.regKVCheckForUpdates.putData (        _registry.iCheckForUpdates);
+  if (SKIF_ImGui_RadioButton (L_("Weekly"),         &_registry.iCheckForUpdates, 1))
+    _registry.regKVCheckForUpdates.putData (         _registry.iCheckForUpdates);
   SKIF_ImGui_SameLineIfFits (SKIF_ImGui_CheckboxWidth (L_("On each launch")));
-  if (SKIF_ImGui_RadioButton (L_("On each launch"),        &_registry.iCheckForUpdates, 2))
-    _registry.regKVCheckForUpdates.putData (        _registry.iCheckForUpdates);
+  if (SKIF_ImGui_RadioButton (L_("On each launch"), &_registry.iCheckForUpdates, 2))
+    _registry.regKVCheckForUpdates.putData (         _registry.iCheckForUpdates);
 
   ImGui::TreePop         ( );
 
@@ -830,6 +830,9 @@ SKIF_UI_Tab_DrawSettings (void)
   }
 
   ImGui::EndGroup      ( );
+
+  if ( SKIF_ImGui_Checkbox ( L_("Automatically install new updates"), &_registry.bAutoUpdate ) )
+    _registry.regKVAutoUpdate.putData (                                _registry.bAutoUpdate);
 
   ImGui::TreePop       ( );
 
@@ -1427,8 +1430,8 @@ SKIF_UI_Tab_DrawSettings (void)
           ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase),
             (vram.inUse > 0)
               // TRANSLATORS: {0} is a number of animated covers, {1} and {2} are amounts of video memory in megabytes
-              ? FP_("In use: {1} MB for {0} animated cover. SKIF uses {2} MB of video memory in all.",
-                    "In use: {1} MB for {0} animated covers. SKIF uses {2} MB of video memory in all.", vram.animLoaded, _MB (vram.animBytes), _MB (vram.inUse)).c_str ( )
+              ? FP_("In use: {1} MB for {0} animated cover (out of {2} MB in total).",
+                    "In use: {1} MB for {0} animated covers (out of {2} MB in total).", vram.animLoaded, _MB (vram.animBytes), _MB (vram.inUse)).c_str ( )
               // TRANSLATORS: {0} is a number of animated covers, {1} is an amount of video memory in megabytes
               : FP_("In use: {1} MB for {0} animated cover.",
                     "In use: {1} MB for {0} animated covers.", vram.animLoaded, _MB (vram.animBytes)).c_str ( ));
@@ -1473,13 +1476,13 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::BeginGroup ( );
 
-    if (SKIF_ImGui_Checkbox (L_("Borders"),    &_registry.bUIBorders))
+    if (SKIF_ImGui_Checkbox (L_("Borders"), &_registry.bUIBorders))
     {
       _registry.regKVUIBorders.putData (_registry.bUIBorders);
 
       extern bool
         invalidateStyle;
-        invalidateStyle = false;
+        invalidateStyle = true;
     }
 
     SKIF_ImGui_SetHoverTip (_("Use borders around UI elements."));
@@ -1953,15 +1956,10 @@ SKIF_UI_Tab_DrawSettings (void)
     if (! g_vIniReaderOSD.empty ( ) && ! bViewMiscKeybinds)
     {
       SKIF_ImGui_Spacing ( );
-      SKIF_ImGui_Spacing ( );
 
-      const char*       szText   = _("Miscellaneous keybinds are hidden by default.");
       const std::string szButton = std::string ("   ") + _("View miscellaneous keybinds") + "   ###ViewMiscKeybinds";
 
       ImGui::PushStyleColor (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextBase) * ImVec4 (0.8f, 0.8f, 0.8f, 1.0f));
-
-      SKIF_ImGui_CenterNextItem (ImGui::CalcTextSize (szText).x);
-      ImGui::TextUnformatted    (szText);
 
       ImGui::PopStyleColor ( ); // ImGuiCol_Text
 
@@ -1996,9 +1994,6 @@ SKIF_UI_Tab_DrawSettings (void)
       ImGui::SetCursorPosX (ImGui::GetCursorPosX ( ) + ImGui::GetStyle().FramePadding.x);
       ImGui::BeginGroup    ( );
     }
-
-    if ( SKIF_ImGui_Checkbox ( L_("Automatically install new updates"),              &_registry.bAutoUpdate ) )
-      _registry.regKVAutoUpdate.putData (                                     _registry.bAutoUpdate);
 
     // TRANSLATORS: {0} is a mouse cursor icon
     if ( SKIF_ImGui_Checkbox ( (F_("Open this app on the same monitor as the {0}", " " ICON_FA_ARROW_POINTER) + "###OpenAtCursorPosition").c_str ( ), &_registry.bOpenAtCursorPosition ) )

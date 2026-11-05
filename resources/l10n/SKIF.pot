@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-04 20:57+0100\n"
+"POT-Creation-Date: 2026-11-05 05:30+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -796,7 +796,7 @@ msgstr ""
 #: src/tabs/hardware.cpp:886
 #: src/tabs/monitor.cpp:1704
 #: src/tabs/monitor.cpp:1897
-#: src/tabs/settings.cpp:1744
+#: src/tabs/settings.cpp:1747
 #: src/utility/skif_imgui.cpp:1845
 msgid "No"
 msgstr ""
@@ -1183,13 +1183,13 @@ msgid "Do you want to save changes to {0}?"
 msgstr ""
 
 #: src/tabs/library.cpp:371
-#: src/tabs/settings.cpp:1515
-#: src/tabs/settings.cpp:1532
+#: src/tabs/settings.cpp:1518
+#: src/tabs/settings.cpp:1535
 msgid "Large icons"
 msgstr ""
 
 #: src/tabs/library.cpp:377
-#: src/tabs/settings.cpp:1538
+#: src/tabs/settings.cpp:1541
 msgid "Currently enforced by touch input mode."
 msgstr ""
 
@@ -1496,7 +1496,7 @@ msgid "Remember collapsible state"
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:56
-#: src/tabs/settings.cpp:2124
+#: src/tabs/settings.cpp:2119
 #: src/utility/skif_imgui.cpp:2060
 msgid "Troubleshooting:"
 msgstr ""
@@ -1684,7 +1684,7 @@ msgstr ""
 #: src/tabs/library/library_menus.cpp:1452
 #: src/tabs/library/library_menus.cpp:1773
 #: src/tabs/monitor.cpp:1566
-#: src/tabs/settings.cpp:2619
+#: src/tabs/settings.cpp:2614
 #: src/utility/ini_presets.cpp:302
 msgid "Reset"
 msgstr ""
@@ -1840,7 +1840,7 @@ msgid "Leave empty to use the name of the game."
 msgstr ""
 
 #: src/tabs/library/library_properties.cpp:222
-#: src/tabs/settings.cpp:873
+#: src/tabs/settings.cpp:876
 msgid "Library"
 msgstr ""
 
@@ -1924,11 +1924,11 @@ msgstr ""
 
 #: src/tabs/library/library_properties.cpp:476
 #: src/tabs/settings.cpp:727
-#: src/tabs/settings.cpp:848
-#: src/tabs/settings.cpp:1304
-#: src/tabs/settings.cpp:1350
-#: src/tabs/settings.cpp:1351
-#: src/tabs/settings.cpp:1454
+#: src/tabs/settings.cpp:851
+#: src/tabs/settings.cpp:1307
+#: src/tabs/settings.cpp:1353
+#: src/tabs/settings.cpp:1354
+#: src/tabs/settings.cpp:1457
 msgid "Never"
 msgstr ""
 
@@ -2313,7 +2313,7 @@ msgid "The game is started directly, without the platform client."
 msgstr ""
 
 #: src/tabs/library/library_properties.cpp:1778
-#: src/tabs/settings.cpp:1071
+#: src/tabs/settings.cpp:1074
 msgid ""
 "Warning: This skips the regular platform launch process for the game,\n"
 "including steps like the cloud saves synchronization that usually occurs."
@@ -3057,55 +3057,59 @@ msgstr ""
 msgid "Roll back to the previous version"
 msgstr ""
 
-#: src/tabs/settings.cpp:842
+#: src/tabs/settings.cpp:834
+msgid "Automatically install new updates"
+msgstr ""
+
+#: src/tabs/settings.cpp:845
 msgid "This provides contextual notifications in Windows when the service starts or stops."
 msgstr ""
 
-#: src/tabs/settings.cpp:846
+#: src/tabs/settings.cpp:849
 msgid "Show injection service desktop notifications:"
-msgstr ""
-
-#: src/tabs/settings.cpp:850
-#: src/tabs/settings.cpp:851
-#: src/tabs/settings.cpp:1306
-#: src/tabs/settings.cpp:1307
-#: src/tabs/settings.cpp:1347
-#: src/tabs/settings.cpp:1348
-#: src/tabs/settings.cpp:1456
-#: src/tabs/settings.cpp:1457
-msgid "Always"
 msgstr ""
 
 #: src/tabs/settings.cpp:853
 #: src/tabs/settings.cpp:854
+#: src/tabs/settings.cpp:1309
+#: src/tabs/settings.cpp:1310
+#: src/tabs/settings.cpp:1350
+#: src/tabs/settings.cpp:1351
+#: src/tabs/settings.cpp:1459
+#: src/tabs/settings.cpp:1460
+msgid "Always"
+msgstr ""
+
+#: src/tabs/settings.cpp:856
+#: src/tabs/settings.cpp:857
 msgid "When unfocused"
 msgstr ""
 
-#: src/tabs/settings.cpp:892
+#: src/tabs/settings.cpp:895
 msgid "Ignore articles when sorting"
 msgstr ""
 
-#: src/tabs/settings.cpp:900
+#: src/tabs/settings.cpp:903
 msgid "Ignore articles like 'THE', 'A', and 'AN' when sorting games."
 msgstr ""
 
-#: src/tabs/settings.cpp:902
+#: src/tabs/settings.cpp:905
 msgid "Remember the last selected game"
 msgstr ""
 
-#: src/tabs/settings.cpp:905
+#: src/tabs/settings.cpp:908
 msgid "Remember category collapsible state"
 msgstr ""
 
-#: src/tabs/settings.cpp:912
+#: src/tabs/settings.cpp:915
 msgid "Prefer covers from PCGamingWiki for these platforms:"
 msgstr ""
 
-#: src/tabs/settings.cpp:940
+#: src/tabs/settings.cpp:943
 msgid "Prefer covers from IGDB for these platforms:"
 msgstr ""
 
-#: src/tabs/settings.cpp:944
+#: src/tabs/settings.cpp:947
 msgid ""
 "Games are looked up on IGDB by their store ID where possible, otherwise by their exact name.\n"
 "A cover from PCGamingWiki takes precedence over one from IGDB, as those are typically of\n"
@@ -3113,77 +3117,77 @@ msgid ""
 "platforms have no suitable covers of their own."
 msgstr ""
 
-#: src/tabs/settings.cpp:995
+#: src/tabs/settings.cpp:998
 msgid "Include games from these platforms:"
 msgstr ""
 
-#: src/tabs/settings.cpp:1058
+#: src/tabs/settings.cpp:1061
 msgid "Custom"
 msgstr ""
 
-#: src/tabs/settings.cpp:1076
+#: src/tabs/settings.cpp:1079
 msgid "Start games directly (Instant Play) for these platforms:"
 msgstr ""
 
-#: src/tabs/settings.cpp:1077
+#: src/tabs/settings.cpp:1080
 msgid "The default for the games of these platforms; each game can change it in Properties (General > Play)."
 msgstr ""
 
-#: src/tabs/settings.cpp:1143
+#: src/tabs/settings.cpp:1146
 msgid "Appearance"
 msgstr ""
 
-#: src/tabs/settings.cpp:1200
+#: src/tabs/settings.cpp:1203
 msgid "Translations are contributed by the community. Text that has not been translated yet is shown in English."
 msgstr ""
 
-#: src/tabs/settings.cpp:1204
+#: src/tabs/settings.cpp:1207
 msgid "Language:"
 msgstr ""
 
 #. TRANSLATORS: {0} is the name of the language that Windows uses (or English, if there is no translation for it)
-#: src/tabs/settings.cpp:1209
+#: src/tabs/settings.cpp:1212
 msgid "Same as Windows ({0})"
 msgstr ""
 
-#: src/tabs/settings.cpp:1263
+#: src/tabs/settings.cpp:1266
 msgid "Dynamic"
 msgstr ""
 
-#: src/tabs/settings.cpp:1264
+#: src/tabs/settings.cpp:1267
 msgid "SKIF Dark"
 msgstr ""
 
-#: src/tabs/settings.cpp:1265
+#: src/tabs/settings.cpp:1268
 msgid "SKIF Light"
 msgstr ""
 
-#: src/tabs/settings.cpp:1266
+#: src/tabs/settings.cpp:1269
 msgid "ImGui Classic"
 msgstr ""
 
-#: src/tabs/settings.cpp:1267
+#: src/tabs/settings.cpp:1270
 msgid "ImGui Dark"
 msgstr ""
 
-#: src/tabs/settings.cpp:1275
+#: src/tabs/settings.cpp:1278
 msgid "Color theme:"
 msgstr ""
 
-#: src/tabs/settings.cpp:1298
+#: src/tabs/settings.cpp:1301
 msgid "Useful if you find bright white covers an annoyance."
 msgstr ""
 
-#: src/tabs/settings.cpp:1302
+#: src/tabs/settings.cpp:1305
 msgid "Dim game covers by 25%:"
 msgstr ""
 
-#: src/tabs/settings.cpp:1309
-#: src/tabs/settings.cpp:1310
+#: src/tabs/settings.cpp:1312
+#: src/tabs/settings.cpp:1313
 msgid "Based on mouse cursor"
 msgstr ""
 
-#: src/tabs/settings.cpp:1318
+#: src/tabs/settings.cpp:1321
 msgid ""
 "Determines when animated covers (APNG, GIF, WebP) will play:\n"
 "- Automatic: lets SKIF decide when to animate covers.\n"
@@ -3192,58 +3196,58 @@ msgid ""
 "- Never: only the first still frame will be shown."
 msgstr ""
 
-#: src/tabs/settings.cpp:1326
+#: src/tabs/settings.cpp:1329
 msgid "Play animated covers:"
 msgstr ""
 
-#: src/tabs/settings.cpp:1333
+#: src/tabs/settings.cpp:1336
 msgid ""
 "The UI keeps rendering frames while an animated cover is in view.\n"
 "This uses more GPU than playing them only when hovered."
 msgstr ""
 
-#: src/tabs/settings.cpp:1342
+#: src/tabs/settings.cpp:1345
 msgid "Automatic"
 msgstr ""
 
-#: src/tabs/settings.cpp:1344
-#: src/tabs/settings.cpp:1345
+#: src/tabs/settings.cpp:1347
+#: src/tabs/settings.cpp:1348
 msgid "When hovered"
 msgstr ""
 
-#: src/tabs/settings.cpp:1359
+#: src/tabs/settings.cpp:1362
 msgid ""
 "The amount of video memory to use for caching animated covers in the grid view.\n"
 "Off: only one will be loaded at a time."
 msgstr ""
 
-#: src/tabs/settings.cpp:1364
+#: src/tabs/settings.cpp:1367
 msgid "VRAM cache for animated covers:"
 msgstr ""
 
 #. TRANSLATORS: {0} is an amount of video memory in megabytes
-#: src/tabs/settings.cpp:1374
+#: src/tabs/settings.cpp:1377
 msgid "Off"
 msgstr ""
 
-#: src/tabs/settings.cpp:1375
+#: src/tabs/settings.cpp:1378
 msgid "Up to {0} MB"
 msgstr ""
 
-#: src/tabs/settings.cpp:1377
+#: src/tabs/settings.cpp:1380
 msgid "Video memory"
 msgstr ""
 
-#: src/tabs/settings.cpp:1394
+#: src/tabs/settings.cpp:1397
 msgid "Off: only one cover will animate at a time."
 msgstr ""
 
-#: src/tabs/settings.cpp:1395
+#: src/tabs/settings.cpp:1398
 msgid "Insufficient VRAM: some animated covers will only play when hovered."
 msgstr ""
 
 #. TRANSLATORS: Each {n} is an amount of video memory in megabytes
-#: src/tabs/settings.cpp:1414
+#: src/tabs/settings.cpp:1417
 msgid ""
 "SKIF's video memory in use: {0} MB\n"
 "Animated covers of the grid view: {1} MB\n"
@@ -3255,439 +3259,431 @@ msgid ""
 msgstr ""
 
 #. TRANSLATORS: {0} is a number of animated covers, {1} and {2} are amounts of video memory in megabytes
-#: src/tabs/settings.cpp:1430
-msgid "In use: {1} MB for {0} animated cover. SKIF uses {2} MB of video memory in all."
-msgid_plural "In use: {1} MB for {0} animated covers. SKIF uses {2} MB of video memory in all."
+#: src/tabs/settings.cpp:1433
+msgid "In use: {1} MB for {0} animated cover (out of {2} MB in total)."
+msgid_plural "In use: {1} MB for {0} animated covers (out of {2} MB in total)."
 msgstr[0] ""
 msgstr[1] ""
 
 #. TRANSLATORS: {0} is a number of animated covers, {1} is an amount of video memory in megabytes
-#: src/tabs/settings.cpp:1433
+#: src/tabs/settings.cpp:1436
 msgid "In use: {1} MB for {0} animated cover."
 msgid_plural "In use: {1} MB for {0} animated covers."
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/tabs/settings.cpp:1445
+#: src/tabs/settings.cpp:1448
 msgid "Every time the UI renders a frame, Shelly the Ghost moves a little bit."
 msgstr ""
 
-#: src/tabs/settings.cpp:1449
+#: src/tabs/settings.cpp:1452
 msgid "Show Shelly the Ghost:"
 msgstr ""
 
-#: src/tabs/settings.cpp:1459
-#: src/tabs/settings.cpp:1460
+#: src/tabs/settings.cpp:1462
+#: src/tabs/settings.cpp:1463
 msgid "While service is running"
 msgstr ""
 
-#: src/tabs/settings.cpp:1467
+#: src/tabs/settings.cpp:1470
 msgid "Move the mouse over each option to get more information."
 msgstr ""
 
-#: src/tabs/settings.cpp:1471
+#: src/tabs/settings.cpp:1474
 msgid "UI elements:"
 msgstr ""
 
-#: src/tabs/settings.cpp:1476
+#: src/tabs/settings.cpp:1479
 msgid "Borders"
 msgstr ""
 
-#: src/tabs/settings.cpp:1485
+#: src/tabs/settings.cpp:1488
 msgid "Use borders around UI elements."
 msgstr ""
 
-#: src/tabs/settings.cpp:1487
+#: src/tabs/settings.cpp:1490
 msgid "Tooltips"
 msgstr ""
 
-#: src/tabs/settings.cpp:1496
+#: src/tabs/settings.cpp:1499
 #: src/utility/skif_imgui.cpp:643
 msgid "Info: "
 msgstr ""
 
-#: src/tabs/settings.cpp:1498
+#: src/tabs/settings.cpp:1501
 msgid "This is instead where additional information will be displayed."
 msgstr ""
 
-#: src/tabs/settings.cpp:1499
+#: src/tabs/settings.cpp:1502
 msgid ""
 "If tooltips are disabled the status bar will be used for additional information.\n"
 "Note that some links cannot be previewed as a result."
 msgstr ""
 
-#: src/tabs/settings.cpp:1502
+#: src/tabs/settings.cpp:1505
 msgid "Status bar"
 msgstr ""
 
-#: src/tabs/settings.cpp:1510
+#: src/tabs/settings.cpp:1513
 msgid "Disabling the status bar as well as tooltips will hide all additional information or tips."
 msgstr ""
 
-#: src/tabs/settings.cpp:1516
-#: src/tabs/settings.cpp:1542
+#: src/tabs/settings.cpp:1519
+#: src/tabs/settings.cpp:1545
 msgid "Fade covers"
 msgstr ""
 
-#: src/tabs/settings.cpp:1517
-#: src/tabs/settings.cpp:1553
+#: src/tabs/settings.cpp:1520
+#: src/tabs/settings.cpp:1556
 msgid "Win11 corners"
 msgstr ""
 
-#: src/tabs/settings.cpp:1540
+#: src/tabs/settings.cpp:1543
 msgid "Use larger game icons in the library tab."
 msgstr ""
 
-#: src/tabs/settings.cpp:1549
+#: src/tabs/settings.cpp:1552
 msgid "Fade between game covers when switching games."
 msgstr ""
 
-#: src/tabs/settings.cpp:1561
+#: src/tabs/settings.cpp:1564
 msgid "Use rounded window corners."
 msgstr ""
 
-#: src/tabs/settings.cpp:1567
-#: src/tabs/settings.cpp:1576
+#: src/tabs/settings.cpp:1570
+#: src/tabs/settings.cpp:1579
 msgid "Touch input"
 msgstr ""
 
-#: src/tabs/settings.cpp:1568
-#: src/tabs/settings.cpp:1587
+#: src/tabs/settings.cpp:1571
+#: src/tabs/settings.cpp:1590
 msgid "HiDPI scaling"
 msgstr ""
 
-#: src/tabs/settings.cpp:1585
+#: src/tabs/settings.cpp:1588
 msgid "Make the UI easier to use on touch input capable devices automatically."
 msgstr ""
 
-#: src/tabs/settings.cpp:1594
+#: src/tabs/settings.cpp:1597
 msgid "Disabling HiDPI scaling will make the application appear smaller on HiDPI displays."
 msgstr ""
 
-#: src/tabs/settings.cpp:1611
+#: src/tabs/settings.cpp:1614
 msgid "Context based information and tips will not appear!"
 msgstr ""
 
-#: src/tabs/settings.cpp:1614
+#: src/tabs/settings.cpp:1617
 msgid "Restore context based information and tips by enabling tooltips or the status bar."
 msgstr ""
 
-#: src/tabs/settings.cpp:1630
+#: src/tabs/settings.cpp:1633
 msgid "Move the mouse over each option to get more information"
 msgstr ""
 
-#: src/tabs/settings.cpp:1633
+#: src/tabs/settings.cpp:1636
 msgid "UI mode:"
 msgstr ""
 
-#: src/tabs/settings.cpp:1639
+#: src/tabs/settings.cpp:1642
 msgid "VRR Compatibility"
 msgstr ""
 
-#: src/tabs/settings.cpp:1644
+#: src/tabs/settings.cpp:1647
 msgid "Avoids signal loss and flickering on VRR displays."
 msgstr ""
 
-#: src/tabs/settings.cpp:1645
-#: src/tabs/settings.cpp:1647
+#: src/tabs/settings.cpp:1648
+#: src/tabs/settings.cpp:1650
 msgid "Normal"
 msgstr ""
 
-#: src/tabs/settings.cpp:1652
+#: src/tabs/settings.cpp:1655
 msgid "Improves UI response on low fixed-refresh rate displays."
 msgstr ""
 
-#: src/tabs/settings.cpp:1653
-#: src/tabs/settings.cpp:1654
+#: src/tabs/settings.cpp:1656
+#: src/tabs/settings.cpp:1657
 msgid "Safe Mode"
 msgstr ""
 
-#: src/tabs/settings.cpp:1659
+#: src/tabs/settings.cpp:1662
 msgid "Compatibility mode for users experiencing issues with the other two modes."
 msgstr ""
 
-#: src/tabs/settings.cpp:1665
+#: src/tabs/settings.cpp:1668
 msgid "Increases the color depth of the app."
 msgstr ""
 
-#: src/tabs/settings.cpp:1669
+#: src/tabs/settings.cpp:1672
 msgid "Color depth:"
 msgstr ""
 
-#: src/tabs/settings.cpp:1716
+#: src/tabs/settings.cpp:1719
 msgid "Linear font alpha blending"
 msgstr ""
 
-#: src/tabs/settings.cpp:1719
+#: src/tabs/settings.cpp:1722
 msgid ""
 "Disables the correction that makes text blend\n"
 "like they do in 8 bpc and 10 bpc modes."
 msgstr ""
 
-#: src/tabs/settings.cpp:1729
+#: src/tabs/settings.cpp:1732
 msgid "Makes the app pop more on HDR displays."
 msgstr ""
 
-#: src/tabs/settings.cpp:1733
+#: src/tabs/settings.cpp:1736
 msgid "High dynamic range (HDR):"
 msgstr ""
 
-#: src/tabs/settings.cpp:1739
+#: src/tabs/settings.cpp:1742
 msgid "HDR support is disabled while the UI is in Safe Mode."
 msgstr ""
 
 #. TRANSLATORS: {0} is the brightness in nits (cd/m2)
-#: src/tabs/settings.cpp:1773
+#: src/tabs/settings.cpp:1776
 msgid "{0} nits"
 msgstr ""
 
-#: src/tabs/settings.cpp:1775
+#: src/tabs/settings.cpp:1778
 msgid "HDR brightness"
 msgstr ""
 
-#: src/tabs/settings.cpp:1791
+#: src/tabs/settings.cpp:1794
 msgid "Your display(s) supports HDR, but does not use it."
 msgstr ""
 
 #. TRANSLATORS: {0} is the keyboard shortcut (Ctrl + Windows logo + Shift + H), {1} is a mouse cursor icon
-#: src/tabs/settings.cpp:1806
+#: src/tabs/settings.cpp:1809
 msgid "Use {0} to toggle HDR where the {1} is."
 msgstr ""
 
-#: src/tabs/settings.cpp:1844
+#: src/tabs/settings.cpp:1847
 msgid "Keybindings"
 msgstr ""
 
-#: src/tabs/settings.cpp:1958
-msgid "Miscellaneous keybinds are hidden by default."
-msgstr ""
-
-#: src/tabs/settings.cpp:1959
+#: src/tabs/settings.cpp:1960
 msgid "View miscellaneous keybinds"
 msgstr ""
 
-#: src/tabs/settings.cpp:1981
+#: src/tabs/settings.cpp:1979
 msgid "Advanced"
 msgstr ""
 
-#: src/tabs/settings.cpp:2000
-msgid "Automatically install new updates"
-msgstr ""
-
 #. TRANSLATORS: {0} is a mouse cursor icon
-#: src/tabs/settings.cpp:2004
+#: src/tabs/settings.cpp:1999
 msgid "Open this app on the same monitor as the {0}"
 msgstr ""
 
-#: src/tabs/settings.cpp:2007
+#: src/tabs/settings.cpp:2002
 msgid "Open this app in the mini service mode view"
 msgstr ""
 
-#: src/tabs/settings.cpp:2026
+#: src/tabs/settings.cpp:2021
 msgid "Do not stop the injection service on exit"
 msgstr ""
 
-#: src/tabs/settings.cpp:2030
+#: src/tabs/settings.cpp:2025
 msgid "This allows the injection service to remain running even after this app has been closed."
 msgstr ""
 
-#: src/tabs/settings.cpp:2032
+#: src/tabs/settings.cpp:2027
 msgid "Use hardware acceleration"
 msgstr ""
 
-#: src/tabs/settings.cpp:2044
+#: src/tabs/settings.cpp:2039
 msgid "The app will be less responsive if disabled on hybrid CPUs."
 msgstr ""
 
-#: src/tabs/settings.cpp:2049
+#: src/tabs/settings.cpp:2044
 msgid "The app may be less responsive if disabled."
 msgstr ""
 
-#: src/tabs/settings.cpp:2052
+#: src/tabs/settings.cpp:2047
 msgid "Use system proxy settings"
 msgstr ""
 
-#: src/tabs/settings.cpp:2055
+#: src/tabs/settings.cpp:2050
 msgid ""
 "Downloads go through the proxy configured in Windows.\n"
 "Automatic proxy detection and setup scripts are not used.\n"
 "If disabled, the app always connects directly."
 msgstr ""
 
-#: src/tabs/settings.cpp:2066
+#: src/tabs/settings.cpp:2061
 msgid "Allow multiple instances of this app"
 msgstr ""
 
-#: src/tabs/settings.cpp:2101
+#: src/tabs/settings.cpp:2096
 msgid "Requires 'Close to the notification area' to be disabled."
 msgstr ""
 
-#: src/tabs/settings.cpp:2128
+#: src/tabs/settings.cpp:2123
 msgctxt "log level"
 msgid "None"
 msgstr ""
 
-#: src/tabs/settings.cpp:2129
+#: src/tabs/settings.cpp:2124
 msgctxt "log level"
 msgid "Fatal"
 msgstr ""
 
-#: src/tabs/settings.cpp:2130
+#: src/tabs/settings.cpp:2125
 msgctxt "log level"
 msgid "Error"
 msgstr ""
 
-#: src/tabs/settings.cpp:2131
+#: src/tabs/settings.cpp:2126
 msgctxt "log level"
 msgid "Warning"
 msgstr ""
 
-#: src/tabs/settings.cpp:2132
+#: src/tabs/settings.cpp:2127
 msgctxt "log level"
 msgid "Info"
 msgstr ""
 
-#: src/tabs/settings.cpp:2133
+#: src/tabs/settings.cpp:2128
 msgctxt "log level"
 msgid "Debug"
 msgstr ""
 
-#: src/tabs/settings.cpp:2134
+#: src/tabs/settings.cpp:2129
 msgctxt "log level"
 msgid "Verbose"
 msgstr ""
 
-#: src/tabs/settings.cpp:2137
+#: src/tabs/settings.cpp:2132
 msgid "Log level"
 msgstr ""
 
-#: src/tabs/settings.cpp:2166
+#: src/tabs/settings.cpp:2161
 msgid "Enable excessive development logging"
 msgstr ""
 
-#: src/tabs/settings.cpp:2176
+#: src/tabs/settings.cpp:2171
 msgid "Only intended for SKIF developers as this enables excessive logging (e.g. window messages)."
 msgstr ""
 
-#: src/tabs/settings.cpp:2180
+#: src/tabs/settings.cpp:2175
 msgctxt "diagnostics"
 msgid "None"
 msgstr ""
 
-#: src/tabs/settings.cpp:2181
+#: src/tabs/settings.cpp:2176
 msgctxt "diagnostics"
 msgid "Normal"
 msgstr ""
 
-#: src/tabs/settings.cpp:2182
+#: src/tabs/settings.cpp:2177
 msgctxt "diagnostics"
 msgid "Enhanced"
 msgstr ""
 
-#: src/tabs/settings.cpp:2185
+#: src/tabs/settings.cpp:2180
 msgid "Diagnostics"
 msgstr ""
 
-#: src/tabs/settings.cpp:2209
+#: src/tabs/settings.cpp:2204
 msgid ""
 "Help improve Special K by allowing anonymized diagnostics to be sent.\n"
 "The data is used to identify issues, highlight common use cases, and\n"
 "facilitates the continued development of the application."
 msgstr ""
 
-#: src/tabs/settings.cpp:2221
+#: src/tabs/settings.cpp:2216
 msgid "Developer mode"
 msgstr ""
 
-#: src/tabs/settings.cpp:2230
+#: src/tabs/settings.cpp:2225
 msgid "Exposes additional information and context menu items that may be of interest for developers."
 msgstr ""
 
-#: src/tabs/settings.cpp:2232
-#: src/tabs/settings.cpp:2234
+#: src/tabs/settings.cpp:2227
+#: src/tabs/settings.cpp:2229
 msgid "Efficiency mode"
 msgstr ""
 
-#: src/tabs/settings.cpp:2237
+#: src/tabs/settings.cpp:2232
 msgid ""
 "Engage efficiency mode for this app when idle.\n"
 "Not recommended for Windows 10 and earlier."
 msgstr ""
 
-#: src/tabs/settings.cpp:2242
+#: src/tabs/settings.cpp:2237
 msgid "Nvidia users: Use the below button to prevent GeForce Experience from mistaking this app for a game."
 msgstr ""
 
-#: src/tabs/settings.cpp:2252
+#: src/tabs/settings.cpp:2247
 msgid "Disable GFE notifications"
 msgstr ""
 
-#: src/tabs/settings.cpp:2302
+#: src/tabs/settings.cpp:2297
 msgid ""
 "This only needs to be used if GeForce Experience notifications\n"
 "appear on the screen whenever this app is being used."
 msgstr ""
 
-#: src/tabs/settings.cpp:2321
+#: src/tabs/settings.cpp:2316
 msgid "Whitelist / Blacklist"
 msgstr ""
 
 #. TRANSLATORS: {0} is a double quote character
-#: src/tabs/settings.cpp:2361
+#: src/tabs/settings.cpp:2356
 msgid "Please remove all double quotes {0} from the list."
 msgstr ""
 
 #. TRANSLATORS: {0} is two backslashes, {1} is one backslash
-#: src/tabs/settings.cpp:2376
+#: src/tabs/settings.cpp:2371
 msgid "Folders must be separated using two backslashes {0} instead of one {1} backslash."
 msgstr ""
 
 #. TRANSLATORS: {0} is the maximum number of lines (512), {1} is the pipe character
-#: src/tabs/settings.cpp:2394
+#: src/tabs/settings.cpp:2389
 msgid "The list can only include {0} lines, though multiple can be combined using a pipe {1} character."
 msgstr ""
 
-#: src/tabs/settings.cpp:2398
+#: src/tabs/settings.cpp:2393
 msgid ""
 "(e.g. \"NieRAutomataPC|Epic Games\" will match any application\n"
 "installed under a NieRAutomataPC or Epic Games folder.)"
 msgstr ""
 
-#: src/tabs/settings.cpp:2407
+#: src/tabs/settings.cpp:2402
 msgid "The following lists manage Special K in processes as patterns are matched against the full path of the injected process."
 msgstr ""
 
-#: src/tabs/settings.cpp:2415
+#: src/tabs/settings.cpp:2410
 msgid "Easiest is to use the name of the executable or folder of the game."
 msgstr ""
 
-#: src/tabs/settings.cpp:2419
+#: src/tabs/settings.cpp:2414
 msgid ""
 "e.g. a pattern like \"Assassin's Creed Valhalla\" will match an application at\n"
 "C:\\Games\\Uplay\\games\\Assassin's Creed Valhalla\\ACValhalla.exe"
 msgstr ""
 
-#: src/tabs/settings.cpp:2425
+#: src/tabs/settings.cpp:2420
 msgid "Typing the name of a shared parent folder will match all applications below that folder."
 msgstr ""
 
-#: src/tabs/settings.cpp:2429
+#: src/tabs/settings.cpp:2424
 msgid ""
 "e.g. a pattern like \"Epic Games\" will match any\n"
 "application installed under the Epic Games folder."
 msgstr ""
 
-#: src/tabs/settings.cpp:2438
+#: src/tabs/settings.cpp:2433
 msgid "Note that these lists do not prevent Special K from being injected into processes."
 msgstr ""
 
-#: src/tabs/settings.cpp:2444
+#: src/tabs/settings.cpp:2439
 msgid ""
 "These lists control whether Special K should be enabled (the whitelist) to hook APIs etc,\n"
 "or remain disabled/idle/inert (the blacklist) within the injected process."
 msgstr ""
 
-#: src/tabs/settings.cpp:2451
+#: src/tabs/settings.cpp:2446
 msgid ""
 "The injection service injects Special K into any process that deals\n"
 "with system input or some sort of window or kb/mouse input activity.\n"
@@ -3696,33 +3692,33 @@ msgid ""
 "or remain idle/inert (the blacklist) within the injected process."
 msgstr ""
 
-#: src/tabs/settings.cpp:2470
+#: src/tabs/settings.cpp:2465
 msgid "Whitelist Patterns:"
 msgstr ""
 
-#: src/tabs/settings.cpp:2484
+#: src/tabs/settings.cpp:2479
 msgid ""
 "These are the patterns used internally to enable Special K for these specific platforms.\n"
 "They are presented here solely as examples of how a potential pattern might look like."
 msgstr ""
 
-#: src/tabs/settings.cpp:2563
+#: src/tabs/settings.cpp:2558
 msgid "Blacklist Patterns:"
 msgstr ""
 
-#: src/tabs/settings.cpp:2565
+#: src/tabs/settings.cpp:2560
 msgid "(Does not prevent injection! Use this to exclude stuff from being whitelisted)"
 msgstr ""
 
-#: src/tabs/settings.cpp:2594
+#: src/tabs/settings.cpp:2589
 msgid "Save Changes"
 msgstr ""
 
-#: src/tabs/settings.cpp:2645
+#: src/tabs/settings.cpp:2640
 msgid "The whitelist could not be saved! Please remove any non-Latin characters and try again."
 msgstr ""
 
-#: src/tabs/settings.cpp:2651
+#: src/tabs/settings.cpp:2646
 msgid "The blacklist could not be saved! Please remove any non-Latin characters and try again."
 msgstr ""
 
@@ -3799,7 +3795,7 @@ msgid "Add variable"
 msgstr ""
 
 #: src/utility/env_vars.cpp:541
-msgid "Adds a well-known variable."
+msgid "Adds a common variable."
 msgstr ""
 
 #: src/utility/env_vars.cpp:560
@@ -3812,7 +3808,7 @@ msgstr ""
 
 #: src/utility/env_vars.cpp:589
 msgid ""
-"Adds the variables in the clipboard: one NAME=value per line,\n"
+"Adds any variables in the clipboard: one NAME=value per line,\n"
 "or Special K's format on a single line (A=1|B=2).\n"
 "Variables that are already listed get the new value."
 msgstr ""

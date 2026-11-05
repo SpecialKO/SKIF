@@ -427,7 +427,7 @@ _EnvVars_InputString (const char* id, std::string& value, const char* hint)
   return changed;
 }
 
-// Well-known variables, offered next to Add variable (with a value to start from)
+// Common variables and values
 struct SKIF_EnvVars_Known {
   const char* name;
   const char* value;
@@ -533,12 +533,12 @@ SKIF_ImGui_EnvVarsEditor (const char* str_id, SKIF_EnvVars::List& vars, SKIF_Env
     changed = true;
   }
 
-  // Well-known variables (as a split button with Add variable)
+  // Provide common variables and values
   ImGui::SameLine (0.0f, 1.0f);
 
   if (ImGui::Button (ICON_FA_CHEVRON_DOWN "###EnvVarsKnown"))
     ImGui::OpenPopup ("###EnvVarsKnownPopup");
-  SKIF_ImGui_SetHoverTip (_("Adds a well-known variable."));
+  SKIF_ImGui_SetHoverTip (_("Adds a common variable."));
 
   if (ImGui::BeginPopup ("###EnvVarsKnownPopup"))
   {
@@ -586,7 +586,7 @@ SKIF_ImGui_EnvVarsEditor (const char* str_id, SKIF_EnvVars::List& vars, SKIF_Env
     }
   }
 
-  SKIF_ImGui_SetHoverTip (_("Adds the variables in the clipboard: one NAME=value per line,\n"
+  SKIF_ImGui_SetHoverTip (_("Adds any variables in the clipboard: one NAME=value per line,\n"
                             "or Special K's format on a single line (A=1|B=2).\n"
                             "Variables that are already listed get the new value."));
 

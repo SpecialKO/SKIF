@@ -115,7 +115,7 @@ public:
   bool AreCoverAnimationsAutomatic (void) const;     // Settings (iLibraryAnimatedCovers 1): custom animation behavior across SKIF
   bool AreCoverAnimationsAlways    (void) const;     // Settings (iLibraryAnimatedCovers 3): every animated cover in view plays, not only
                                                      //   the hovered one (in the grid view: those that fit in its video memory)
-  // Video memory (Settings, and the log): what the grid view's loaded animated covers take, and what SKIF uses in all
+  // Video memory (Settings, and the log): what the grid view's loaded animated covers take, and what SKIF uses in total
   //   The sizes are those of the textures themselves (their format, size, mips and array slices)
   struct video_memory_s {
     uint64_t inUse           = 0; // SKIF's video memory in use, as Task Manager's "Dedicated GPU memory" (0: unknown)
