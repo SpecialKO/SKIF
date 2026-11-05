@@ -403,22 +403,25 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
     if (srvLogo != nullptr)
       _DrawCover (srvLogo, ImVec2 (600.0f, 900.0f), minCover, maxCover, ImGui::GetStyle ( ).Alpha);
 
-    // The selected game: an accent border around the cover, and a faint light line just inside its edge (a "glow")
+    // The selected game: an accent border around the cover (3 px away from it, 5 px wide), and a faint light line just
+    //   inside its edge (a "glow")
     if (selected)
     {
-      const float  border = std::max (2.0f, ImFloor (2.0f * dpi));
-      const ImVec2 out    = ImVec2 (border * 0.5f + 1.0f, border * 0.5f + 1.0f);
+      const float  gap    = std::max (3.0f, ImFloor (3.0f * dpi));
+      const float  border = std::max (5.0f, ImFloor (5.0f * dpi));
+      const float  center = gap + border * 0.5f;                       // From the cover's edge to the middle of the stroke
+      const ImVec2 out    = ImVec2 (center + 0.5f, center + 0.5f);     // AddRect ( ) moves its path 0.5 px inward
 
-      draw_list->AddRect (minCover - out, maxCover + out, ImGui::GetColorU32 (ImGuiCol_SKIF_Info),
-                          rounding + out.x, border, ImDrawFlags_None);
+      draw_list->AddRect (minCover - out, maxCover + out, ImGui::GetColorU32 (ImGuiCol_SKIF_GridActive),
+                          rounding + center, border, ImDrawFlags_None);
       draw_list->AddRect (minCover + ImVec2 (0.5f, 0.5f), maxCover - ImVec2 (0.5f, 0.5f),
-                          IM_COL32 (255, 255, 255, 90), rounding, 1.0f, ImDrawFlags_None);
+                          ImGui::GetColorU32 (ImGuiCol_SKIF_GridHovered), rounding, 1.0f, ImDrawFlags_None);
     }
 
     // Hovered: the faint inner line only
     else if (hovered)
       draw_list->AddRect (minCover + ImVec2 (0.5f, 0.5f), maxCover - ImVec2 (0.5f, 0.5f),
-                          IM_COL32 (255, 255, 255, 85), rounding, 1.0f, ImDrawFlags_None);
+                          ImGui::GetColorU32 (ImGuiCol_SKIF_GridHovered), rounding, 1.0f, ImDrawFlags_None);
 
     // An image is dragged over it (dropped, it becomes the game's cover)
     if (dropHovered)

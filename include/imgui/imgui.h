@@ -1933,6 +1933,8 @@ enum ImGuiCol_
     ImGuiCol_SKIF_Yellow,           // Yellow
     ImGuiCol_SKIF_Icon,             // Used for icons in BeginMenuEx and MenuItemEx
     ImGuiCol_SKIF_HighlightLineBg,  // Used for the background color of SKIF_ImGui_HighlightLine...
+    ImGuiCol_SKIF_GridActive,       // Used for the selected game in grid view
+    ImGuiCol_SKIF_GridHovered,      // Used for the faint highlight border on game covers in grid view
 
     ImGuiCol_COUNT,
 
