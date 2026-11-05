@@ -3247,8 +3247,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
         s_hotkeysPressed.F11   = ImGui::Shortcut (SKIF_Hotkey_ToggleMiniModeAlt);
         s_hotkeysPressed.CtrlA = ImGui::Shortcut (SKIF_Hotkey_AddGame);
         s_hotkeysPressed.Ctrl1 = ImGui::Shortcut (SKIF_Hotkey_TabLibrary);
-        s_hotkeysPressed.Ctrl2 = ImGui::Shortcut (SKIF_Hotkey_TabMonitor);
-        s_hotkeysPressed.Ctrl3 = ImGui::Shortcut (SKIF_Hotkey_TabHardware);
+        s_hotkeysPressed.Ctrl2 = ImGui::Shortcut (SKIF_Hotkey_TabHardware);
+        s_hotkeysPressed.Ctrl3 = ImGui::Shortcut (SKIF_Hotkey_TabMonitor);
         s_hotkeysPressed.Ctrl4 = ImGui::Shortcut (SKIF_Hotkey_TabSettings);
         s_hotkeysPressed.Ctrl5 = ImGui::Shortcut (SKIF_Hotkey_TabAbout);
       }
@@ -3353,14 +3353,14 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         if (hotkeyCtrl2)
         {
-          if (SKIF_Tab_Selected != UITab_Monitor)
-              SKIF_Tab_ChangeTo  = UITab_Monitor;
+          if (SKIF_Tab_Selected != UITab_Hardware)
+              SKIF_Tab_ChangeTo  = UITab_Hardware;
         }
 
         if (hotkeyCtrl3)
         {
-          if (SKIF_Tab_Selected != UITab_Hardware)
-              SKIF_Tab_ChangeTo  = UITab_Hardware;
+          if (SKIF_Tab_Selected != UITab_Monitor)
+              SKIF_Tab_ChangeTo  = UITab_Monitor;
         }
 
         if (hotkeyCtrl4)
@@ -3471,8 +3471,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
         static constexpr tab_title_s tabTitleDefs [5] = {
           { ICON_FA_GAMEPAD,    NC_("tab", "Library"),  "###SKIF_TAB_BAR-1", 473.0f },
-          { ICON_FA_MICROCHIP,  NC_("tab", "Monitor"),  "###SKIF_TAB_BAR-2", 528.0f },
-          { ICON_FA_DISPLAY,    NC_("tab", "Hardware"), "###SKIF_TAB_BAR-3", 593.0f },
+          { ICON_FA_DISPLAY,    NC_("tab", "Hardware"), "###SKIF_TAB_BAR-2", 528.0f },
+          { ICON_FA_MICROCHIP,  NC_("tab", "Monitor"),  "###SKIF_TAB_BAR-3", 593.0f },
           { ICON_FA_LIST_CHECK, NC_("tab", "Settings"), "###SKIF_TAB_BAR-4", 648.0f },
           { ICON_FA_COMMENT,    NC_("tab", "About"),    "###SKIF_TAB_BAR-5", 688.0f }
         };
@@ -3495,8 +3495,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
 
         const char *tabTitleLibrary  = tabTitles [0].c_str ( ),
-                   *tabTitleMonitor  = tabTitles [1].c_str ( ),
-                   *tabTitleHardware = tabTitles [2].c_str ( ),
+                   *tabTitleHardware = tabTitles [1].c_str ( ),
+                   *tabTitleMonitor  = tabTitles [2].c_str ( ),
                    *tabTitleSettings = tabTitles [3].c_str ( ),
                    *tabTitleAbout    = tabTitles [4].c_str ( );
 
@@ -3571,22 +3571,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
         // The max width of the content of the Monitor, Hardware, Settings and About tabs (centered in wider windows)
         const float fTabColumnMaxWidth = 1000.0f * SKIF_ImGui_GlobalDPIScale;
 
-        if (ImGui::BeginTabItem (tabTitleMonitor, nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Monitor) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
-        {
-          SKIF_ImGui_BeginTabChildFrame ();
-
-          if (SKIF_Tab_Selected != UITab_Monitor)
-            PLOG_DEBUG << "Switched to tab: Monitor";
-
-          // Centered, with a max width, and never moved by the frame's scrollbar
-          SKIF_ImGui_BeginCenteredColumn ("###MonitorColumn", fTabColumnMaxWidth);
-          SKIF_UI_Tab_DrawMonitor ( );
-          SKIF_ImGui_EndCenteredColumn   ( );
-
-          ImGui::EndChild         ( );
-          ImGui::EndTabItem       ( );
-        }
-
         if (ImGui::BeginTabItem (tabTitleHardware, nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Hardware) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
         {
           SKIF_ImGui_BeginTabChildFrame ();
@@ -3600,6 +3584,22 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
           // Engages auto-scroll mode (left click drag on touch + middle click drag on non-touch)
           SKIF_ImGui_AutoScroll  (true, SKIF_ImGuiAxis_Y, "##AutoScrollHardwareColumn");
+
+          ImGui::EndChild         ( );
+          ImGui::EndTabItem       ( );
+        }
+
+        if (ImGui::BeginTabItem (tabTitleMonitor, nullptr, ImGuiTabItemFlags_NoTooltip | ((SKIF_Tab_ChangeTo == UITab_Monitor) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)))
+        {
+          SKIF_ImGui_BeginTabChildFrame ();
+
+          if (SKIF_Tab_Selected != UITab_Monitor)
+            PLOG_DEBUG << "Switched to tab: Monitor";
+
+          // Centered, with a max width, and never moved by the frame's scrollbar
+          SKIF_ImGui_BeginCenteredColumn ("###MonitorColumn", fTabColumnMaxWidth);
+          SKIF_UI_Tab_DrawMonitor ( );
+          SKIF_ImGui_EndCenteredColumn   ( );
 
           ImGui::EndChild         ( );
           ImGui::EndTabItem       ( );

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-05 05:30+0100\n"
+"POT-Creation-Date: 2026-11-05 17:58+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -87,12 +87,12 @@ msgstr ""
 
 #: src/SKIF.cpp:3474
 msgctxt "tab"
-msgid "Monitor"
+msgid "Hardware"
 msgstr ""
 
 #: src/SKIF.cpp:3475
 msgctxt "tab"
-msgid "Hardware"
+msgid "Monitor"
 msgstr ""
 
 #: src/SKIF.cpp:3476
@@ -775,7 +775,7 @@ msgid ""
 msgstr ""
 
 #: src/tabs/hardware.cpp:857
-#: src/tabs/hardware.cpp:1361
+#: src/tabs/hardware.cpp:1365
 msgid "Requirement:"
 msgstr ""
 
@@ -833,44 +833,44 @@ msgstr ""
 msgid "Undesirable latency:"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1036
+#: src/tabs/hardware.cpp:1029
 msgid "Multi-Plane Overlay (MPO) Support"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1039
+#: src/tabs/hardware.cpp:1043
 msgid "MPOs are additional dedicated hardware scanout planes enabling the GPU to partially take over composition from the DWM. This allows games to bypass the DWM in various mixed scenarios or window modes, eliminating the presentation latency that would otherwise be incurred."
 msgstr ""
 
-#: src/tabs/hardware.cpp:1061
+#: src/tabs/hardware.cpp:1065
 msgid "Support among connected displays:"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1068
+#: src/tabs/hardware.cpp:1072
 msgid "Display"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1069
+#: src/tabs/hardware.cpp:1073
 msgid "Planes"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1070
+#: src/tabs/hardware.cpp:1074
 msgid "Stretch"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1071
+#: src/tabs/hardware.cpp:1075
 msgid "Capabilities"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1072
+#: src/tabs/hardware.cpp:1076
 msgid "No support"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1138
+#: src/tabs/hardware.cpp:1142
 msgid "Disabled through the registry! Click to reset."
 msgstr ""
 
-#: src/tabs/hardware.cpp:1143
-#: src/tabs/hardware.cpp:1272
+#: src/tabs/hardware.cpp:1147
+#: src/tabs/hardware.cpp:1276
 msgid ""
 "Restart the display drivers and desktop window manager (DWM) to apply the changes.\n"
 "\n"
@@ -879,40 +879,40 @@ msgid ""
 "Do you want to restart the display drivers and DWM now?"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1148
-#: src/tabs/hardware.cpp:1277
+#: src/tabs/hardware.cpp:1152
+#: src/tabs/hardware.cpp:1281
 msgid "Restart the display drivers and desktop window manager (DWM)?"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1173
+#: src/tabs/hardware.cpp:1177
 msgid "A restart of the display drivers is required for the changes to be applied."
 msgstr ""
 
-#: src/tabs/hardware.cpp:1178
+#: src/tabs/hardware.cpp:1182
 msgid "Reporting MPO capabilities requires Windows 10 or newer."
 msgstr ""
 
-#: src/tabs/hardware.cpp:1198
+#: src/tabs/hardware.cpp:1202
 msgid "Minimum requirement:"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1205
+#: src/tabs/hardware.cpp:1209
 msgid "AMD: Radeon RX Vega + Adrenalin Edition 22.5.2 drivers"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1215
+#: src/tabs/hardware.cpp:1219
 msgid "Intel: HD Graphics 510-515 (Core 6th gen)"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1224
+#: src/tabs/hardware.cpp:1228
 msgid "Nvidia: GTX 16/RTX 20 series (Turing) + R460 drivers"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1231
+#: src/tabs/hardware.cpp:1235
 msgid "Support depends on the GPU and display configuration. Unusual driver or display configurations might disable MPO support, such as by using 10 bpc in SDR mode or custom GPU scaling (NIS/RSR/integer etc)."
 msgstr ""
 
-#: src/tabs/hardware.cpp:1259
+#: src/tabs/hardware.cpp:1263
 #: src/tabs/library/library_menus.cpp:1453
 #: src/tabs/library/library_menus.cpp:1774
 #: src/tabs/library/library_menus.cpp:2027
@@ -920,126 +920,126 @@ msgstr ""
 msgid "Refresh"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1266
+#: src/tabs/hardware.cpp:1270
 msgid "Enable MPOs"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1267
+#: src/tabs/hardware.cpp:1271
 msgid "Disable MPOs"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1305
+#: src/tabs/hardware.cpp:1309
 msgid "Restart display driver"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1311
+#: src/tabs/hardware.cpp:1315
 msgid "Restart DWM"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1331
+#: src/tabs/hardware.cpp:1335
 msgid "Extended CPU Hardware Reporting"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1343
+#: src/tabs/hardware.cpp:1347
 msgid "Special K can make use of an optional kernel driver to provide additional metrics in the CPU widget."
 msgstr ""
 
-#: src/tabs/hardware.cpp:1353
+#: src/tabs/hardware.cpp:1357
 msgid "Extends the CPU widget with thermals, energy, and precise clock rate on modern hardware."
 msgstr ""
 
-#: src/tabs/hardware.cpp:1368
+#: src/tabs/hardware.cpp:1372
 msgid "Kernel Driver:"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1378
+#: src/tabs/hardware.cpp:1382
 msgid "Please Wait..."
 msgstr ""
 
-#: src/tabs/hardware.cpp:1379
+#: src/tabs/hardware.cpp:1383
 #: src/tabs/library/library_details.cpp:469
 msgid "Pending..."
 msgstr ""
 
-#: src/tabs/hardware.cpp:1385
+#: src/tabs/hardware.cpp:1389
 msgid "Uninstall Driver"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1386
+#: src/tabs/hardware.cpp:1390
 msgid "Installed"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1393
+#: src/tabs/hardware.cpp:1397
 msgid "Unavailable"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1394
+#: src/tabs/hardware.cpp:1398
 msgid "Unsupported"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1399
+#: src/tabs/hardware.cpp:1403
 msgid "Conflict With:"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1407
+#: src/tabs/hardware.cpp:1411
 msgid "Migrate Driver"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1408
+#: src/tabs/hardware.cpp:1412
 msgid "Obsolete driver installed"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1414
+#: src/tabs/hardware.cpp:1418
 msgid "Install Driver"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1415
+#: src/tabs/hardware.cpp:1419
 msgid "Not Installed"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1434
+#: src/tabs/hardware.cpp:1438
 msgid "Administrative privileges are required on the system to enable this."
 msgstr ""
 
-#: src/tabs/hardware.cpp:1463
+#: src/tabs/hardware.cpp:1467
 msgid "Option is unavailable as another application have already installed a copy of the driver."
 msgstr ""
 
-#: src/tabs/hardware.cpp:1474
+#: src/tabs/hardware.cpp:1478
 msgid "An older version of the driver is installed."
 msgstr ""
 
-#: src/tabs/hardware.cpp:1489
+#: src/tabs/hardware.cpp:1493
 msgid "Vulkan Layer Management"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1500
+#: src/tabs/hardware.cpp:1504
 msgid "The Vulkan API includes support for defining third-party layers that can be implicitly or explicitly loaded by applications. These third-party layers has been known to cause compatibility issues with other third-party injectors and tools such as Special K, and might therefor be of interest to disable. Note that any change made below will affect all apps/games on the system!"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1510
-#: src/tabs/hardware.cpp:1519
+#: src/tabs/hardware.cpp:1514
+#: src/tabs/hardware.cpp:1523
 msgid "Implicit layers are automatically enabled in any running games/apps."
 msgstr ""
 
-#: src/tabs/hardware.cpp:1516
 #: src/tabs/hardware.cpp:1520
+#: src/tabs/hardware.cpp:1524
 msgid "Explicit layers are only enabled if the game/app requires it."
 msgstr ""
 
-#: src/tabs/hardware.cpp:1519
+#: src/tabs/hardware.cpp:1523
 msgid "Implicit Vulkan Layers"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1520
+#: src/tabs/hardware.cpp:1524
 msgid "Explicit Vulkan Layers"
 msgstr ""
 
-#: src/tabs/hardware.cpp:1561
+#: src/tabs/hardware.cpp:1565
 msgid "This layer has known compatibility issues with Special K and may cause issues."
 msgstr ""
 
-#: src/tabs/hardware.cpp:1580
+#: src/tabs/hardware.cpp:1584
 msgid "No layer of this kind was found."
 msgstr ""
 
@@ -1183,13 +1183,13 @@ msgid "Do you want to save changes to {0}?"
 msgstr ""
 
 #: src/tabs/library.cpp:371
-#: src/tabs/settings.cpp:1518
-#: src/tabs/settings.cpp:1535
+#: src/tabs/settings.cpp:1526
+#: src/tabs/settings.cpp:1543
 msgid "Large icons"
 msgstr ""
 
 #: src/tabs/library.cpp:377
-#: src/tabs/settings.cpp:1541
+#: src/tabs/settings.cpp:1549
 msgid "Currently enforced by touch input mode."
 msgstr ""
 
@@ -3285,94 +3285,94 @@ msgstr ""
 msgid "While service is running"
 msgstr ""
 
-#: src/tabs/settings.cpp:1470
+#: src/tabs/settings.cpp:1478
 msgid "Move the mouse over each option to get more information."
 msgstr ""
 
-#: src/tabs/settings.cpp:1474
+#: src/tabs/settings.cpp:1482
 msgid "UI elements:"
 msgstr ""
 
-#: src/tabs/settings.cpp:1479
+#: src/tabs/settings.cpp:1487
 msgid "Borders"
 msgstr ""
 
-#: src/tabs/settings.cpp:1488
+#: src/tabs/settings.cpp:1496
 msgid "Use borders around UI elements."
 msgstr ""
 
-#: src/tabs/settings.cpp:1490
+#: src/tabs/settings.cpp:1498
 msgid "Tooltips"
 msgstr ""
 
-#: src/tabs/settings.cpp:1499
+#: src/tabs/settings.cpp:1507
 #: src/utility/skif_imgui.cpp:643
 msgid "Info: "
 msgstr ""
 
-#: src/tabs/settings.cpp:1501
+#: src/tabs/settings.cpp:1509
 msgid "This is instead where additional information will be displayed."
 msgstr ""
 
-#: src/tabs/settings.cpp:1502
+#: src/tabs/settings.cpp:1510
 msgid ""
 "If tooltips are disabled the status bar will be used for additional information.\n"
 "Note that some links cannot be previewed as a result."
 msgstr ""
 
-#: src/tabs/settings.cpp:1505
+#: src/tabs/settings.cpp:1513
 msgid "Status bar"
 msgstr ""
 
-#: src/tabs/settings.cpp:1513
+#: src/tabs/settings.cpp:1521
 msgid "Disabling the status bar as well as tooltips will hide all additional information or tips."
 msgstr ""
 
-#: src/tabs/settings.cpp:1519
-#: src/tabs/settings.cpp:1545
+#: src/tabs/settings.cpp:1527
+#: src/tabs/settings.cpp:1553
 msgid "Fade covers"
 msgstr ""
 
-#: src/tabs/settings.cpp:1520
-#: src/tabs/settings.cpp:1556
+#: src/tabs/settings.cpp:1528
+#: src/tabs/settings.cpp:1564
 msgid "Win11 corners"
 msgstr ""
 
-#: src/tabs/settings.cpp:1543
+#: src/tabs/settings.cpp:1551
 msgid "Use larger game icons in the library tab."
 msgstr ""
 
-#: src/tabs/settings.cpp:1552
+#: src/tabs/settings.cpp:1560
 msgid "Fade between game covers when switching games."
 msgstr ""
 
-#: src/tabs/settings.cpp:1564
+#: src/tabs/settings.cpp:1572
 msgid "Use rounded window corners."
 msgstr ""
 
-#: src/tabs/settings.cpp:1570
-#: src/tabs/settings.cpp:1579
+#: src/tabs/settings.cpp:1578
+#: src/tabs/settings.cpp:1587
 msgid "Touch input"
 msgstr ""
 
-#: src/tabs/settings.cpp:1571
-#: src/tabs/settings.cpp:1590
+#: src/tabs/settings.cpp:1579
+#: src/tabs/settings.cpp:1598
 msgid "HiDPI scaling"
 msgstr ""
 
-#: src/tabs/settings.cpp:1588
+#: src/tabs/settings.cpp:1596
 msgid "Make the UI easier to use on touch input capable devices automatically."
 msgstr ""
 
-#: src/tabs/settings.cpp:1597
+#: src/tabs/settings.cpp:1605
 msgid "Disabling HiDPI scaling will make the application appear smaller on HiDPI displays."
 msgstr ""
 
-#: src/tabs/settings.cpp:1614
+#: src/tabs/settings.cpp:1622
 msgid "Context based information and tips will not appear!"
 msgstr ""
 
-#: src/tabs/settings.cpp:1617
+#: src/tabs/settings.cpp:1625
 msgid "Restore context based information and tips by enabling tooltips or the status bar."
 msgstr ""
 

@@ -998,12 +998,6 @@ SKIF_UI_Tab_DrawHardware (void)
     ImGui::SameLine    ();
     ImGui::Text        ("Composed: Flip");
 
-    /* Disabled as PresentMon doesn't detect this any longer as of May 2022.
-    ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
-    ImGui::SameLine    ();
-    ImGui::Text        ("Composed: Composition Atlas");
-    */
-
     ImGui::TextColored (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), (const char *)u8"\u2022 ");
     ImGui::SameLine    ();
     ImGui::Text        ("Composed: Copy with GPU GDI");
@@ -1021,19 +1015,29 @@ SKIF_UI_Tab_DrawHardware (void)
     else
       ImGui::EndGroup  ( );
 
-    ImGui::Spacing     ();
-    ImGui::Spacing     ();
+    ImGui::EndGroup    ( );
 
-    ImGui::Separator   ();
+    ImGui::PopStyleColor ();
+  }
+
+#pragma endregion
+
+  ImGui::Spacing ();
+  ImGui::Spacing ();
+
+#pragma region Section: SwapChain Presentation Monitor
+  if (ImGui::CollapsingHeader (L_("Multi-Plane Overlay (MPO) Support###SKIF_HardwareHeader-2"), ImGuiTreeNodeFlags_DefaultOpen))
+  {
+    ImGui::PushStyleColor (
+      ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
+                            );
+
+    SKIF_ImGui_Spacing      ( );
 
     // Multi-Plane Overlay (MPO) section
-    ImGui::Spacing     ();
+    ImGui::BeginGroup  ();
 
     ImVec2 mpoTop = ImGui::GetCursorScreenPos ( );
-
-    SKIF_ImGui_TextColoredWrapped (
-      ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
-                        _("Multi-Plane Overlay (MPO) Support"));
 
     ImGui::TextWrapped    ("%s",
       _("MPOs are additional dedicated hardware scanout planes"
@@ -1054,7 +1058,7 @@ SKIF_UI_Tab_DrawHardware (void)
       ImGui::BeginGroup    ( );
     }
 
-    ImGui::BeginGroup  ();
+    ImGui::BeginGroup  (); // Support among connected displays
 
     SKIF_ImGui_TextColoredWrapped (
       ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextCaption),
@@ -1178,7 +1182,7 @@ SKIF_UI_Tab_DrawHardware (void)
       ImGui::TextWrapped      ("%s", _("Reporting MPO capabilities requires Windows 10 or newer."));
     }
 
-    ImGui::EndGroup    ();
+    ImGui::EndGroup     ( ); // Support among connected displays
 
     if (enableColums)
     {
@@ -1321,14 +1325,14 @@ SKIF_UI_Tab_DrawHardware (void)
 
     ImGui::PopStyleColor ();
   }
+#pragma endregion
 
   ImGui::Spacing ();
   ImGui::Spacing ();
-#pragma endregion
 
 #pragma region Section: Extended CPU Hardware Reporting [64-bit only]
 #ifdef _WIN64
-  if (ImGui::CollapsingHeader (L_("Extended CPU Hardware Reporting###SKIF_HardwareHeader-2")))
+  if (ImGui::CollapsingHeader (L_("Extended CPU Hardware Reporting###SKIF_HardwareHeader-3")))
   {
     ImGui::PushStyleColor (
       ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)
@@ -1486,7 +1490,7 @@ SKIF_UI_Tab_DrawHardware (void)
 #pragma endregion
 
 #pragma region Section: Vulkan Layer Management
-  if (ImGui::CollapsingHeader (L_("Vulkan Layer Management###SKIF_HardwareHeader-3")))
+  if (ImGui::CollapsingHeader (L_("Vulkan Layer Management###SKIF_HardwareHeader-4")))
   {
     ImGui::PushStyleColor (
       ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_TextBase)

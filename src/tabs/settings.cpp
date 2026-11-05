@@ -1464,7 +1464,15 @@ SKIF_UI_Tab_DrawSettings (void)
       _registry.regKVGhostVisibility.putData (                     _registry.iGhostVisibility);
     ImGui::TreePop         ( );
 
-    ImGui::Spacing         ( );
+    if (enableColums)
+    {
+      ImGui::NextColumn    ( );
+      ImGui::TreePush      ("RightColumnSectionAppearance");
+    }
+    else {
+      ImGui::Spacing       ( );
+      ImGui::Spacing       ( );
+    }
 
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
     SKIF_ImGui_SetHoverTip (_("Move the mouse over each option to get more information."));
@@ -1619,15 +1627,7 @@ SKIF_UI_Tab_DrawSettings (void)
 
     ImGui::TreePop       ( );
 
-    if (enableColums)
-    {
-      ImGui::NextColumn    ( );
-      ImGui::TreePush      ("RightColumnSectionAppearance");
-    }
-    else {
-      ImGui::Spacing       ( );
-      ImGui::Spacing       ( );
-    }
+    ImGui::Spacing       ( );
 
     ImGui::TextColored     (ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info), ICON_FA_LIGHTBULB);
     SKIF_ImGui_SetHoverTip (_("Move the mouse over each option to get more information"));
