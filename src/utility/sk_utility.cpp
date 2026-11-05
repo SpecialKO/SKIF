@@ -825,8 +825,8 @@ SK_ImGui_KeybindDialog (SK_KeybindMultiState* keybind)
   if (focused)
     g_activeKeybindPopup = true;
 
-  // At most 30 times the font size wide, and never wider than the window it is centered on; longer text wraps
-  const  float         max_width = ImMax (font_size * 9.0f, ImMin (font_size * 30.0f, vp->Size.x - font_size * 2.0f));
+  // At most 35 times the font size wide, and never wider than the window it is centered on; longer text wraps
+  const  float         max_width = ImMax (font_size * 9.0f, ImMin (font_size * 35.0f, vp->Size.x - font_size * 2.0f));
 
   // One dialog per window (viewport): with the same name, dialogs open in both the main window and the INI editor at once
   //   would be one and the same ImGui window, drawn in only one of them
