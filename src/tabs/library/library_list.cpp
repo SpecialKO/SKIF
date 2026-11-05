@@ -251,12 +251,8 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
   ImGuiChildFlags  flags_cld = ImGuiChildFlags_AlwaysUseWindowPadding;
   ImGuiWindowFlags flags_wnd = ImGuiWindowFlags_None;
 
-  if (! _registry._LibHorizonMode)
-    flags_cld |= ImGuiChildFlags_NavFlattened;
-
-  ImGui::PushStyleColor      (ImGuiCol_ScrollbarBg, ImVec4(0,0,0,0));
-
-  ImGui::BeginGroup          ( ); // Start GamesList
+  //if (! _registry._LibHorizonMode)
+  //  flags_cld |= ImGuiChildFlags_NavFlattened;
 
   fTop3                 = ImGui::GetCursorPos ( );
   fTop3ScreenPos        = ImGui::GetCursorScreenPos ( );
@@ -274,11 +270,13 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
 
   const float widthIcon    = (showIcons) ? _ICON_HEIGHT + ImGui::GetStyle().ItemSpacing.x : 0.0f;
 
+  // Start GamesList
   ImGui::BeginChild          ( "###GameList",
                                 ImFloor (ImVec2 ((sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f),
-                                                  sizeList.y - (fTop3.y - fTop1.y))), //  - (ImGui::GetStyle().FramePadding.x - 2.0f * SKIF_ImGui_GlobalDPIScale)
+                                                  sizeList.y - (fTop3.y - fTop1.y))),
                                   flags_cld | (_registry.bUIBorders ? ImGuiChildFlags_Borders : ImGuiChildFlags_None),
                                   flags_wnd );
+  ImGui::BeginGroup          ( );
 
   // Start populating the list
 
@@ -585,9 +583,9 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
   // Scrolls while an image is dragged near the top or bottom edge, to reach the games out of view
   ScrollForCoverDrag     ( );
 
+  ImGui::EndGroup        ( );
   ImGui::EndChild        ( );
-  ImGui::EndGroup        ( ); // End GamesList
-  ImGui::PopStyleColor   ( );
+  // End GamesList
 
 #pragma endregion
 }

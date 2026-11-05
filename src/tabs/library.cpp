@@ -1170,37 +1170,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
 #pragma endregion
 
-  /* Design thoughts
-  *
-  * - Library tab should automatically adjust its UI elements
-  *     based on the width and height of the app window
-  *
-  * - Library tab should support 1-3 columns (Cover | List | Details)
-  *     based on the size of the app window
-  *
-  * One column  (low width):
-  *   Only column: List + Details below
-  *   Random idea: Add low-height scenario where even the details are hidden?
-  *
-  * Two columns (medium width):
-  *   Left  column: Small Cover + Details below
-  *   Right column: List
-  *
-  * Two columns (normal width + height):
-  *   Left  column: Large cover
-  *   Right column: List + Details below
-  *
-  * Three columns: (normal width + low height)
-  *   Left  column: Small Cover (or list.....?)
-  *  Center column: List        (or details..?)
-  *   Right column: Details     (or cover....?)
-  *
-  *
-  * The proper layout needs to be decided upon in Library.cpp, and
-  *   adjusted on the fly as the app window get resized by the user.
-  *
-  */
-
   // DPI-aware, calculate once per frame
   ImVec2 tab_ContentRegionAvail = ImGui::GetContentRegionAvail();
   static ImVec2 tab_ContentRegionAvail_last;
@@ -1306,7 +1275,7 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   // From now on ImGui UI calls starts being made...
 
-#pragma region GameCover
+#pragma region Grid/Cover
 
   // Cover panel (library/library_cover.cpp). Also used further down: isCoverHovered (dimming, Patreon panel),
   //   vecPosCover (Patreon panel)
@@ -1331,14 +1300,12 @@ SKIF_UI_Tab_DrawLibrary (void)
 
 #pragma endregion
 
-  //float fZ =
-  //ImGui::GetCursorPosX ( );
-
   ImVec2 fTop1 = ImGui::GetCursorPos ( );
 
   // LIST + DETAILS START
   ImGui::BeginGroup   ( );
 
+#pragma region Top Row
   // Top option: Filter icon + search field
 
   ImGui::PushStyleVar       (ImGuiStyleVar_FrameBorderSize, 0.0f);
@@ -1486,10 +1453,13 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   ImVec2 fTop2 = ImGui::GetCursorPos ( );
 
-  // End top options
+#pragma endregion
+
+#pragma region GamesList
 
   // Games list (library/library_list.cpp); fTop3 / fTop3ScreenPos: where the list starts
   ImVec2 fTop3, fTop3ScreenPos;
+
   DrawGamesList (current_time, fTop1, showClearBtn, fTop3, fTop3ScreenPos);
 
   // Unloads the thumbnails out of view for a while (all of them when the grid is not shown)
@@ -1501,9 +1471,6 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   if (_registry._LibHorizonMode)
   {
-    //ImGui::SameLine ( );
-    //ImGui::SetCursorPosX (ImGui::GetCursorPosX() - ((_registry.bUIBorders) ? 4.0f : 7.0f) * SKIF_ImGui_GlobalDPIScale);
-
     ImGui::SetCursorPos (ImFloor (ImVec2 (fTop1.x + sizeList.x - ImGui::GetStyle().WindowPadding.x / 2.0f + 3.0f * SKIF_ImGui_GlobalDPIScale,
                                           fTop1.y)));
   }
@@ -1533,6 +1500,8 @@ SKIF_UI_Tab_DrawLibrary (void)
     extern bool SKIF_MouseDragMoveAllowed;
     SKIF_MouseDragMoveAllowed = false;
   }
+
+#pragma endregion
 
 #pragma region GameDetails
 

@@ -3670,8 +3670,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
         ImVec2 tmpPos = ImGui::GetCursorPos ( );
 
         // Prevents selecting the Add Game or Filter button with a keyboard or gamepad (fixes awkward and annoying nav selection)
-        if (SKIF_Tab_Selected == UITab_Library)
-          ImGui::PushItemFlag   (ImGuiItemFlags_NoNav, true);
+        //if (SKIF_Tab_Selected == UITab_Library)
+        //  ImGui::PushItemFlag   (ImGuiItemFlags_NoNav, true);
 
         // Begin Service Status
         // The state of the injection service, which also starts / stops it when clicked (as the Monitor tab's buttons):
@@ -3777,8 +3777,8 @@ wWinMain ( _In_     HINSTANCE hInstance,
         fPosXLMEnd = ImGui::GetItemRectMax().x - ImGui::GetWindowPos().x
                    + ImGui::GetStyle ( ).ItemSpacing.x * 5.0f; // Spacing
 
-        if (SKIF_Tab_Selected == UITab_Library)
-          ImGui::PopItemFlag     ( );
+        //if (SKIF_Tab_Selected == UITab_Library)
+        //  ImGui::PopItemFlag     ( ); // ImGuiItemFlags_NoNav
 
         ImGui::SetCursorPos    (tmpPos);
         // End Add Game

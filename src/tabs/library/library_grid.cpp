@@ -115,11 +115,17 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
   //     with the scrollbar shown. The same width is left free on the left as well (Indent below), to keep the grid centered.
   const float scrollbarWidth = ImGui::GetStyle ( ).ScrollbarSize;
 
+  ImGuiChildFlags  flags_cld = ImGuiChildFlags_AlwaysUseWindowPadding; // As the list
+  ImGuiWindowFlags flags_wnd = ImGuiWindowFlags_None; // As the cover
+
+  //if (! _registry._LibHorizonMode)
+  //  flags_cld |= ImGuiChildFlags_NavFlattened;
+
   ImGui::SetNextWindowContentSize (ImVec2 (std::max (1.0f, ImFloor (size).x - ImGui::GetStyle ( ).WindowPadding.x * 2.0f - scrollbarWidth), 0.0f)); // 0: the height is not fixed
 
   ImGui::BeginChild          ( "###GameGrid", ImFloor (size),
-                                  ImGuiChildFlags_AlwaysUseWindowPadding | ((! _registry._LibHorizonMode) ? ImGuiChildFlags_NavFlattened : ImGuiChildFlags_None), // As the list
-                                  ImGuiWindowFlags_NoBackground ); // As the cover
+                                  flags_cld,
+                                  flags_wnd );
 
   ImGui::Indent              (scrollbarWidth);
 
@@ -400,7 +406,7 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
     // Hovered: the faint inner line only
     else if (hovered)
       draw_list->AddRect (minCover + ImVec2 (0.5f, 0.5f), maxCover - ImVec2 (0.5f, 0.5f),
-                          IM_COL32 (255, 255, 255, 60), rounding, 1.0f, ImDrawFlags_None);
+                          IM_COL32 (255, 255, 255, 85), rounding, 1.0f, ImDrawFlags_None);
 
     // An image is dragged over it (dropped, it becomes the game's cover)
     if (dropHovered)
