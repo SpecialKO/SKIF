@@ -86,4 +86,5 @@ std::vector <IniEntry>           SKIF_IniReader_BuildEntries     (const inih::IN
 void                             SKIF_IniReader_WriteIni         (const std::vector <IniEntry>& ini, const std::wstring& file_path);
 void                             SKIF_IniReader_ReadOSDIni       (void);
 void                             SKIF_IniReader_SaveOSDIni       (void);
+std::string                      SKIF_IniReader_GetControlPanelToggle (void); // Special K's control panel keybinding, e.g. "Ctrl+Shift+Backspace"
 std::vector <const ConfigEntry*> SKIF_IniReader_GetDefaultParams (IniType ini_type);

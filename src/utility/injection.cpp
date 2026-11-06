@@ -30,6 +30,7 @@
 #include <utility/registry.h>
 #include <utility/fsutil.h>
 #include <utility/launch_behaviors.h>
+#include <utility/ini_reader.h>
 
 #include <fonts/fa_621.h>
 #include <fonts/fa_621b.h>
@@ -283,8 +284,8 @@ SKIF_InjectionContext::_TestServletRunlevel (bool forcedCheck)
 
         else if (bAckInjSignaled)
           SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_SERVICE,
-            // TRANSLATORS: Ctrl, Shift and Backspace are keys of the keyboard (use the names printed on keyboards in your language)
-            W_("Press Ctrl + Shift + Backspace while in-game."),
+            // TRANSLATORS: {0} is the keybinding of Special K's control panel (e.g. Ctrl+Shift+Backspace; set in Special K)
+            SK_UTF8ToWideChar (F_("Press {0} while in-game.", SKIF_IniReader_GetControlPanelToggle ( ))),
             // TRANSLATORS: Title of a notification (at most 63 characters)
             W_("Special K has been injected into your game!"));
         else
@@ -2241,8 +2242,8 @@ SKIF_InjectionContext::StartServiceForForeground (void)
     PLOG_INFO << "Special K is already active in the process; the hotkey was ignored.";
 
     SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_SERVICE,
-      // TRANSLATORS: Ctrl, Shift and Backspace are keys of the keyboard (use the names printed on keyboards in your language)
-      W_("Press Ctrl + Shift + Backspace while in-game."),
+      // TRANSLATORS: {0} is the keybinding of Special K's control panel (e.g. Ctrl+Shift+Backspace; set in Special K)
+      SK_UTF8ToWideChar (F_("Press {0} while in-game.", SKIF_IniReader_GetControlPanelToggle ( ))),
       // TRANSLATORS: Title of a notification (at most 63 characters)
       W_("Special K is already injected into your game!"));
 

@@ -987,6 +987,37 @@ SKIF_IniReader_SaveOSDIni (void)
   SKIF_IniReader_WriteIni (g_vIniReaderOSD, pathOSDIni);
 }
 
+// The keybinding of Special K's control panel (ImGui.Global / ControlPanelToggle of osd.ini) as Special K uses it: the
+//   default if it is not set or unbound. Read from the file on each call, as it is changed in-game as well, and the
+//     Settings tab (g_vIniReaderOSD) may not have read it yet.
+std::string
+SKIF_IniReader_GetControlPanelToggle (void)
+{
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
+  const std::wstring pathOSDIni = SK_FormatStringW (LR"(%ws\Global\osd.ini)", _path_cache.specialk_userdata);
+  const char*        required   = SKIF_IniReader_GetRequiredKeybind ("ImGui.Global", "ControlPanelToggle");
+
+  // Handles the UTF-16 LE file that SKIF_IniReader_WriteIni ( ) writes as well
+  wchar_t wszValue [128] = { };
+  GetPrivateProfileStringW (L"ImGui.Global", L"ControlPanelToggle", L"", wszValue, _countof (wszValue), pathOSDIni.c_str ( ));
+
+  SK_Keybind keybind;
+  keybind.human_readable = wszValue;
+  keybind.parse ( );
+
+  if (keybind.vKey == 0 && required != nullptr)
+  {
+    keybind.human_readable = SK_UTF8ToWideChar (required);
+    keybind.parse ( );
+  }
+
+  // The names and order of the keys that SKIF shows for keybindings everywhere else
+  keybind.update ( );
+
+  return keybind.human_readable_utf8;
+}
+
 #define Keybind ConfigEntry
 
 std::vector <const ConfigEntry*>
