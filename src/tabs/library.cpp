@@ -1192,7 +1192,6 @@ SKIF_UI_Tab_DrawLibrary (void)
   static ImVec2 SKIF_vecRegularMode_last;
 
   if (tab_ContentRegionAvail    != tab_ContentRegionAvail_last    ||
-    //SKIF_ImGui_GlobalDPIScale != SKIF_ImGui_GlobalDPIScale_Last || // Not necessary when using SKIF_vecRegularMode
       SKIF_vecRegularMode.x     != SKIF_vecRegularMode_last.x      ) // Only one dimension needs to be checked since both will change when the DPI scaling changes
   {
     tab_ContentRegionAvail_last  = tab_ContentRegionAvail;
@@ -1216,7 +1215,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     _registry._UseLowResCoversHiDPIBypass = (ImMin (sizeSK_small.y, tab_ContentRegionAvail.y) > 330.0f);
 
     tab_scrollbar_width    = ImGui::GetCurrentWindowRead()->ScrollbarY ? ImGui::GetStyle().ScrollbarSize : 0.0f;
-    lib_column2_width      = 376.0f * SKIF_ImGui_GlobalDPIScale; // tab_scrollbar_width // SKIF_vecServiceMode (not ready yet) // ((_registry._LibHorizonMode) ? 376.0f : 376.0f) * SKIF_ImGui_GlobalDPIScale
+    lib_column2_width      = 376.0f * SKIF_ImGui_GlobalDPIScale;
 
     sizeList        = ImFloor ((_registry._LibHorizonMode)  ? (_registry.bUIBorders)
                                                                    ? ImVec2 (lib_column2_width, 334.0f * SKIF_ImGui_GlobalDPIScale)   // Horizon + Borders
@@ -1228,25 +1227,20 @@ SKIF_UI_Tab_DrawLibrary (void)
                                                                    : ImVec2 (lib_column2_width, 215.0f * SKIF_ImGui_GlobalDPIScale)); // Regular
     sizeCover    = tab_ContentRegionAvail;
     sizeCover.x -= sizeList.x;
-  //sizeCover.x -= (_registry._LibHorizonMode) ? sizeDetails.x : 0.0f; // The details panel is not shown in horizontal mode
-
-    ImVec2 sizeImage       = ImFloor ((_registry._UseLowResCovers) ? sizeSK_small
-                                                                   : sizeSK);
-
-    if (sizeCover.y < sizeImage.y)
-    {
-      sizeImage.y = sizeCover.y;
-      sizeImage.x = sizeImage.y * arCover;
-    }
 
     // Horizontal mode only shows the cover/grid and the games list (no details panel)
+    // TODO: Need to rework this (not fully followed atm)
     uiDetailsVisible  = (_registry._LibHorizonMode)
                                   ? false
                                   : (tab_ContentRegionAvail.y >= horizon_cutoff_height); // When in regular mode
 
+    // The cover disappears at the same width regardless of the window height and cover scaling: once less than 75% of the tiny
+    //   cover's width is left beside the list. Fit and Stretch scale the cover into that width; Default, Fill and None crop it
+    float coverMinWidth = sizeSK_small.x * 0.75f;
+
     uiCoverVisible    = (_registry._LibHorizonMode)
                                   ?                      (tab_ContentRegionAvail.x > (sizeList.x    + sizeSK_small.x * 0.75f))                       // When in horizontal mode, large enough to allow 75% of the tiny cover to appear
-                                  : (uiDetailsVisible) ? (tab_ContentRegionAvail.x > (SKIF_vecRegularMode.x * 0.75f)) : false; // When in regular mode, large enough to allow 75% of the large cover to appear // sizeDetails.x + sizeSK.x       * 0.75f
+                                  : (uiDetailsVisible) ? (tab_ContentRegionAvail.x > (sizeList.x    + coverMinWidth))             : false; // When in regular mode, large enough for the cover to appear beside the list (see above) // Was SKIF_vecRegularMode.x * 0.75f
 
     if (! uiCoverVisible)
     {
@@ -1264,7 +1258,6 @@ SKIF_UI_Tab_DrawLibrary (void)
     if (_registry._LibHorizonMode)
     {
       sizeDetails.y  = tab_ContentRegionAvail.y;
-    //sizeDetails.y -= (_registry.bUIBorders) ? 2.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
     }
 
     else if (tab_ContentRegionAvail.y <= shrinkDetailsAt)
@@ -1276,7 +1269,6 @@ SKIF_UI_Tab_DrawLibrary (void)
     // DPI-aware
     sizeList.y = tab_ContentRegionAvail.y;
     sizeList.y -= (  _registry._LibHorizonMode || ! uiDetailsVisible)   ? 0.0f                             : sizeDetails.y;
-  //sizeList.y -= (! _registry._LibHorizonMode && _registry.bUIBorders) ? 2.0f * SKIF_ImGui_GlobalDPIScale : 0.0f;
   }
 
   // From now on ImGui UI calls starts being made...
