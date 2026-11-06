@@ -1223,7 +1223,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     sizeDetails     = ImFloor ((_registry._LibHorizonMode)  ? (_registry.bUIBorders)
                                                                    ? ImVec2 (lib_column2_width + 2.0f  * SKIF_ImGui_GlobalDPIScale, 332.0f * SKIF_ImGui_GlobalDPIScale)  // Horizon + Borders
                                                                    : ImVec2 (lib_column2_width, 330.0f * SKIF_ImGui_GlobalDPIScale)   // Horizon
-                                                                   : ImVec2 (lib_column2_width, 280.0f * SKIF_ImGui_GlobalDPIScale)); // Regular
+                                                                   : ImVec2 (lib_column2_width, 215.0f * SKIF_ImGui_GlobalDPIScale)); // Regular
     sizeCover    = tab_ContentRegionAvail;
     sizeCover.x -= sizeList.x;
     sizeCover.x -= (_registry._LibHorizonMode) ? sizeDetails.x : 0.0f;

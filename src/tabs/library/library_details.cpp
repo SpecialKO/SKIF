@@ -86,7 +86,7 @@ DrawGameDetails_Info (app_record_s* pApp)
 #pragma endregion
 
   static constexpr float
-        num_lines = 4.0f;
+        num_lines = 2.0f;
   auto line_ht   =
     ImGui::GetTextLineHeightWithSpacing ();
 
@@ -113,8 +113,6 @@ DrawGameDetails_Info (app_record_s* pApp)
   //ImGui::TextUnformatted  ("Injection:");
   ImGui::TextUnformatted  ("Special K");
   ImGui::PushStyleColor   (ImGuiCol_Text, ImVec4 (0.5f, 0.5f, 0.5f, 1.f));
-  ImGui::TextUnformatted  (_("Profile folder:"));
-  ImGui::TextUnformatted  (_("Config file:"));
   ImGui::TextUnformatted  (_("Platform:"));
   ImGui::PopStyleColor    ();
   ImGui::ItemSize         (ImVec2 (105.f * SKIF_ImGui_GlobalDPIScale, 0.f)); // Column 1 should have min-width 105px (scaled with the DPI)
@@ -240,75 +238,6 @@ DrawGameDetails_Info (app_record_s* pApp)
     }
     else
       ImGui::NewLine ( );
-  }
-
-  // Config Root
-  // Config File
-  if (! pApp->loading && ! pApp->specialk.injection.config.shorthand.empty ())
-  {
-    // Config Root
-    const char* szConfigType = T_(pApp->specialk.injection.config.type_utf8.c_str ( ));
-
-    if (ImGui::Selectable         (TL_(pApp->specialk.injection.config.type_utf8.c_str ( )), false, ImGuiSelectableFlags_None, ImVec2 (std::max (95.f * SKIF_ImGui_GlobalDPIScale, ImGui::CalcTextSize (szConfigType).x), 0.f)))
-    {
-      std::error_code ec;
-      // Create any missing directories
-      if (! std::filesystem::exists             (pApp->specialk.injection.config.root_dir, ec))
-            std::filesystem::create_directories (pApp->specialk.injection.config.root_dir, ec);
-
-      SKIF_Util_ExplorePath       (pApp->specialk.injection.config.root_dir);
-    }
-    SKIF_ImGui_SetMouseCursorHand ();
-    SKIF_ImGui_SetHoverText       (pApp->specialk.injection.config.root_dir_utf8.c_str ());
-
-    // Config File
-    if (ImGui::Selectable         (pApp->specialk.injection.config.shorthand_utf8.c_str (), false, ImGuiSelectableFlags_None, ImVec2 (95.f * SKIF_ImGui_GlobalDPIScale, 0.f))) // 240
-    {
-      // If the file does not exist, create it
-      if (! PathFileExists (pApp->specialk.injection.config.full_path.c_str()))
-      {
-        std::error_code ec;
-        // Create any missing directories
-        if (! std::filesystem::exists             (pApp->specialk.injection.config.root_dir, ec))
-              std::filesystem::create_directories (pApp->specialk.injection.config.root_dir, ec);
-
-        std::wofstream config_file (pApp->specialk.injection.config.full_path.c_str(), std::wofstream::out | std::wofstream::trunc);
-
-        if (config_file.is_open())
-        {
-          config_file << utf8_bom;
-          config_file.close ( );
-        }
-      }
-
-      // Internal editor
-      SKIF_UI_IniEditor_OpenFile (nullptr, IniType_DLL, pApp->specialk.injection.config.full_path, pApp->names.normal);
-
-      // External editor
-      //SKIF_Util_OpenURI (pApp->specialk.injection.config.full_path.c_str(), SW_SHOWNORMAL, NULL);
-    }
-
-    SKIF_ImGui_SetMouseCursorHand ();
-    SKIF_ImGui_SetHoverText       (pApp->specialk.injection.config.full_path_utf8.c_str ());
-
-    DrawGameConfigMenu (pApp);
-  }
-
-  else if (! pApp->loading)
-  {
-    ImGui::TextUnformatted (T_(pApp->specialk.injection.config.type_utf8.c_str ()));
-    // TRANSLATORS: Not available
-    ImGui::TextUnformatted (_("N/A"));
-  }
-
-  else {
-    // Most will use global injection, so default to this in situations where the data is actually being loaded.
-    ImGui::TextUnformatted (T_(pApp->specialk.injection.config.type_utf8.c_str ()));
-    ImGui::TextUnformatted (pApp->specialk.injection.config.shorthand_utf8.c_str ());
-    //ImGui::TextUnformatted ("Centralized");
-    //ImGui::TextUnformatted ("SpecialK.ini");
-    //ImGui::NewLine ( );
-    //ImGui::NewLine ( );
   }
 
   // Platform
