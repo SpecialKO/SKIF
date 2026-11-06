@@ -349,6 +349,17 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
                   ? ImVec4 (ImColor::HSV (0.3f, 1.f, 1.f)) :
                     ImGui::GetStyleColorVec4(ImGuiCol_Text);
 
+    // Special K's entry is colored after the service status, using the same colors as its status in the details panel:
+    //   waiting for game (auto-stop) = success, running = yellow, stopped = regular text
+    if (rec->IsSpecialK ( ))
+    {
+      static SKIF_InjectionContext& _inject = SKIF_InjectionContext::GetInstance ( );
+
+      if (_inject.bCurrentState)
+        _color = ImGui::GetStyleColorVec4 ((_inject.bAckInj) ? ImGuiCol_SKIF_Success
+                                                             : ImGuiCol_SKIF_Yellow);
+    }
+
     // Game Title
     ImGui::PushStyleColor  (ImGuiCol_Text, _color);
     ImGui::PushStyleColor  (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
