@@ -792,15 +792,22 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
     //TestServletRunlevel (run_lvl_changed);
 
   // Injection Summary
+
+  static constexpr float
+        num_lines = 2.0f;
+  auto line_ht   =
+    ImGui::GetTextLineHeightWithSpacing ();
+
   auto frame_id =
     ImGui::GetID ("###Global_Injection_Summary_Frame");
 
-  SKIF_ImGui_BeginChildFrame (
-    frame_id, ImVec2 (0.0f, 3.0f * ImGui::GetTextLineHeightWithSpacing ()),
-      ImGuiChildFlags_NavFlattened,
-      ImGuiWindowFlags_NoScrollbar       |
-      ImGuiWindowFlags_NoScrollWithMouse |
-      ImGuiWindowFlags_NoBackground
+  SKIF_ImGui_BeginChildFrame ( frame_id,
+                                  ImVec2 ( 0.0f,
+                                           num_lines * line_ht ),
+                                    ImGuiChildFlags_NavFlattened,
+                                    ImGuiWindowFlags_NoScrollbar       |
+                                    ImGuiWindowFlags_NoScrollWithMouse |
+                                    ImGuiWindowFlags_NoBackground
   );
 
   // Begin columns
@@ -810,12 +817,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   ImGui::BeginGroup      ();
   ImGui::TextUnformatted ("Special K");
   ImGui::PushStyleColor  (ImGuiCol_Text, ImVec4 (0.5f, 0.5f, 0.5f, 1.f));
-  ImGui::TextUnformatted (_("32-bit service:"));
-#ifdef _WIN64
-  ImGui::TextUnformatted (_("64-bit service:"));
-#else
-  ImGui::NewLine         ();
-#endif
+  ImGui::TextUnformatted (_("Service:"));
   ImGui::PopStyleColor   ();
   ImGui::ItemSize        (ImVec2 (105.f * SKIF_ImGui_GlobalDPIScale, 0.f)); // Column 1 should have min-width 105px (scaled with the DPI)
   ImGui::EndGroup        ();
@@ -835,23 +837,27 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 #endif
 
   // 32-bit/64-bit Services (shortened with an ellipsis if wider than the rest of the frame)
-  if (pid32 && bAckInj)
+#ifdef _WIN64
+  if (bAckInj && pid32 && pid64)
+#else
+  if (bAckInj && pid32)
+#endif
     SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success), _("Waiting for game..."));
-  else if (pid32)
-    SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Yellow),  _("Running"));
-  else
-    SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), _("Stopped"));
 
 #ifdef _WIN64
-  if (pid64 && bAckInj)
-    SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Success), _("Waiting for game..."));
-  else if (pid64)
+  else if ((pid32 && ! pid64) || (pid64 && ! pid32))
+    SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning), _("Inconsistent status!"));
+#endif
+
+#ifdef _WIN64
+  else if (pid32 && pid64)
+#else
+  else if (pid32)
+#endif
     SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Yellow),  _("Running"));
+
   else
     SKIF_ImGui_TextColoredEllipsis (ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), _("Stopped"));
-#else
-  ImGui::NewLine  ();
-#endif
 
   ImGui::ItemSize ( ImVec2 (
                       100.f * SKIF_ImGui_GlobalDPIScale,
@@ -869,15 +875,11 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
 #ifdef _WIN64
   if (SKVer32 != SKVer64)
   {
-    if (! SKVer32.empty())
-      ImGui::Text ("( v %s )", SKVer32_utf8.c_str ());
-    else
-      ImGui::Text ("( %s )", _("Missing"));
+    if (SKVer32.empty())
+      ImGui::Text ("( %s )", _("32-bit missing!"));
 
-    if (! SKVer64.empty())
-      ImGui::Text ("( v %s )", SKVer64_utf8.c_str ());
-    else
-      ImGui::Text ("( %s )", _("Missing"));
+    if (SKVer64.empty())
+      ImGui::Text ("( %s )", _("64-bit missing!"));
   }
   else
     ImGui::NewLine ();
