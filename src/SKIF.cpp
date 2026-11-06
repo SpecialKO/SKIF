@@ -69,6 +69,7 @@
 #define DIRECTINPUT_VERSION 0x0800
 
 #include <stores/Steam/app_record.h>
+#include <stores/Xbox/xbox_library.h>
 
 #include <tabs/monitor.h>
 #include <tabs/hardware.h>
@@ -836,6 +837,10 @@ static SKIF_EnvVars::List SKIF_Startup_LauncherEnv;
 // The command line of the launch, to find the jump list item it was started from (see SKIF_Startup_PromoteJumpListItem)
 static std::wstring       SKIF_Startup_LauncherCmdLine;
 
+// An Xbox Instant Play launch (SKIF_XboxApp=), e.g. from a jump list item: the package and the index of its application
+static std::wstring       SKIF_Startup_XboxPackageFamily;
+static int                SKIF_Startup_XboxAppIndex = 0;
+
 void
 SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
 {
@@ -926,6 +931,40 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
     // Remove substring from the original variables
     cmdLine     .erase (posSKIF_Env_start, posSKIF_Env_end);
     cmdLineLower.erase (posSKIF_Env_start, posSKIF_Env_end);
+  }
+
+  // Extract the SKIF_XboxApp cmd line argument (an Xbox Instant Play launch, e.g. from a jump list item; see
+  //   app_record_xbox_s::Launch): <PackageFamilyName>!<index of the application in appxmanifest.xml>. Read from the
+  //     original command line as well, to keep the case of the package family name
+  const std::wstring argSKIF_XboxApp = L"skif_xboxapp=";
+  size_t posSKIF_XboxApp_start       = cmdLineLower.find (argSKIF_XboxApp);
+
+  if (posSKIF_XboxApp_start != std::wstring::npos)
+  {
+    size_t
+      posSKIF_XboxApp_end    = cmdLineLower.find (L" ", posSKIF_XboxApp_start);
+
+    if (posSKIF_XboxApp_end == std::wstring::npos)
+      posSKIF_XboxApp_end    = cmdLineLower.length ( );
+
+    // Length of the substring to remove
+    posSKIF_XboxApp_end -= posSKIF_XboxApp_start;
+
+    const std::wstring value     = cmdLine.substr (posSKIF_XboxApp_start + argSKIF_XboxApp.length ( ), posSKIF_XboxApp_end - argSKIF_XboxApp.length ( ));
+    const size_t       separator = value.rfind (L'!');
+
+    if (separator != std::wstring::npos && separator > 0)
+    {
+      SKIF_Startup_XboxPackageFamily = value.substr (0, separator);
+      SKIF_Startup_XboxAppIndex      = _wtoi (value.c_str ( ) + separator + 1);
+    }
+
+    else
+      PLOG_ERROR << "Could not read the SKIF_XboxApp cmd line argument: " << value;
+
+    // Remove substring from the original variables
+    cmdLine     .erase (posSKIF_XboxApp_start, posSKIF_XboxApp_end);
+    cmdLineLower.erase (posSKIF_XboxApp_start, posSKIF_XboxApp_end);
   }
 
   // Extract the target path and any proxied command line arguments
@@ -1179,10 +1218,59 @@ SKIF_Startup_LaunchGame (void)
     overrides.emplace (L"SteamGameId", _Signal._SteamAppID);
   }
 
+  // Xbox Instant Play (SKIF_XboxApp=, e.g. a jump list item): the executable is started within its package through
+  //   PowerShell, the same way the library does it. PowerShell reads appxmanifest.xml from the working directory, which
+  //     is the closest folder above the executable that has one. As in the library, neither environment variables nor
+  //       arguments are passed on.
+  if (! SKIF_Startup_XboxPackageFamily.empty ( ))
+  {
+    std::wstring workDir = _Signal._GameWorkDir;
+
+    for (std::filesystem::path folder  = std::filesystem::path (_Signal._GamePath).parent_path ( );
+                               folder.has_relative_path ( );
+                               folder  = folder.parent_path ( ))
+    {
+      if (PathFileExistsW ((folder / L"appxmanifest.xml").c_str ( )))
+      {
+        workDir = folder.wstring ( );
+        break;
+      }
+    }
+
+    PLOG_INFO << "   Xbox Instant Play : " << SKIF_Startup_XboxPackageFamily << " (application " << SKIF_Startup_XboxAppIndex << ")";
+    PLOG_INFO << "   Working directory : " << workDir;
+
+    PLOG_WARNING_IF (! SKIF_Startup_LauncherEnv.empty ( ) || ! _Signal._SteamAppID.empty ( ) || ! _Signal._GameArgs.empty ( ))
+      << "Environment variables and arguments are not passed on to an Xbox Instant Play launch.";
+
+    SKIF_Util_CreateProcess_s proc;
+
+    if (SKIF_Util_CreateProcess (L"",
+          SKIF_Xbox_GetCustomLaunchCommandW (SKIF_Startup_XboxAppIndex,
+                                             SK_WideCharToUTF8 (SKIF_Startup_XboxPackageFamily),
+                                             SK_WideCharToUTF8 (_Signal._GamePath)),
+          workDir, nullptr, &proc))
+    {
+      // SKIF_Util_CreateProcess ( ) starts the process on a worker thread, and this instance may exit next
+      if (HANDLE hWorkerThread = proc.hWorkerThread.load ( ); hWorkerThread != NULL)
+      {
+        WaitForSingleObject (hWorkerThread, INFINITE);
+        CloseHandle         (hWorkerThread);
+      }
+
+      // The process is PowerShell rather than the game, so it is not set as the foreground window
+      if (HANDLE hProcess = proc.hProcess.load ( ); hProcess != NULL)
+        CloseHandle (hProcess);
+    }
+
+    else
+      PLOG_ERROR << "The Xbox Instant Play launch failed!";
+  }
+
   // With environment variables of its own (SKIF_Env=, e.g. a jump list item of a launch option that sets them): started
   //   the same way as the library starts the launch option (Instant Play), which also applies them to an executable that
   //     requires elevation (SKIF_Util_CreateProcess ( ) waits for its worker thread here, as this instance may exit next)
-  if (! SKIF_Startup_LauncherEnv.empty ( ))
+  else if (! SKIF_Startup_LauncherEnv.empty ( ))
   {
     PLOG_INFO << "   Environment variables : " << SKIF_Startup_LauncherEnv.size ( );
 

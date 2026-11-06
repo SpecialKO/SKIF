@@ -698,14 +698,42 @@ SKIF_Xbox_hasInstalledGamesChanged (void)
 std::wstring
 SKIF_Xbox_GetCustomLaunchCommandW (int appId, std::string_view packageFamilyName, std::string_view customCommand)
 {
+  // The values are PowerShell single-quoted strings, in which a ' is written as '' (e.g. a path such as
+  //   C:\Games\Assassin's Creed\Game.exe). Copied to strings of their own, as a string_view is not null-terminated.
+  auto _QuoteSingle = [](std::string_view value) -> std::string
+  {
+    std::string quoted;
+    quoted.reserve (value.length ( ));
+
+    for (const char ch : value)
+    {
+      if (ch == '\'')
+        quoted += '\'';
+
+      quoted += ch;
+    }
+
+    return quoted;
+  };
+
+  const std::string packageFamilyNameQuoted = _QuoteSingle (packageFamilyName);
+  const std::string customCommandQuoted     = _QuoteSingle (customCommand);
+
   return SK_UTF8ToWideChar (SK_FormatString (
           R"(powershell.exe -Command "$XmlManifest = Select-Xml -Path 'appxmanifest.xml' -XPath '/'; $Applications = $XmlManifest.Node.Package.Applications.Application; $AppId = if ($null -eq $Applications.Count) { $Applications.Id } else { $Applications[%d].Id }; Invoke-CommandInDesktopPackage -AppId $AppId -PackageFamilyName '%s' -Command '%s' -PreventBreakaway:$true")",
-          appId, packageFamilyName.data(), customCommand.data()));
+          appId, packageFamilyNameQuoted.c_str ( ), customCommandQuoted.c_str ( )));
 }
 
 
 #pragma region Launching
 
+// The application of the package that Instant Play runs a launch config within (its index in appxmanifest.xml).
+//   lc.json / lc_user.json launch configs run in the package of the primary application
+static int
+SKIF_Xbox_GetInstantPlayAppIndex (const app_record_s::launch_config_s* config)
+{
+  return (config->custom_skif || config->custom_user) ? 0 : config->id;
+}
 
 // Xbox games are whitelisted by package name pattern as well (instant launches fall back to the executable path)
 void
@@ -767,13 +795,13 @@ app_record_xbox_s::Launch (const launch_context_s& ctx)
     if (PathFileExistsW ((working_dir +  LR"(\Content\appxmanifest.xml)").c_str ()))
                           working_dir += LR"(\Content)";
 
+    // The same command as an Instant Play jump list item (SKIF_Startup_LaunchGame in SKIF.cpp)
     SKIF_Util_CreateProcess (
       L"",
-      SK_FormatStringW (
-        LR"(powershell.exe -Command "$XmlManifest = Select-Xml -Path 'appxmanifest.xml' -XPath '/'; $Applications = $XmlManifest.Node.Package.Applications.Application; $AppId = if ($null -eq $Applications.Count) { $Applications.Id } else { $Applications[%d].Id }; Invoke-CommandInDesktopPackage -AppId $AppId -PackageFamilyName '%ws' -Command '%ws' -PreventBreakaway:$true")",
-        (config->custom_skif || config->custom_user) ? 0 : config->id, // lc.json / lc_user.json configs run in the package of the primary application
-        SK_UTF8ToWideChar (pApp->xbox.package_name_family).c_str(),
-        config->getExecutableFullPath().c_str()
+      SKIF_Xbox_GetCustomLaunchCommandW (
+        SKIF_Xbox_GetInstantPlayAppIndex (config),
+        pApp->xbox.package_name_family,
+        SK_WideCharToUTF8 (config->getExecutableFullPath())
       ),
       working_dir.c_str (),
       nullptr,
@@ -888,7 +916,28 @@ app_record_xbox_s::Launch (const launch_context_s& ctx)
   if (launched)
   {
     std::wstring iconPath = SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\icon-original.ico)",  _path_cache.specialk_userdata, SK_UTF8ToWideChar(xbox.package_name).c_str());
-    SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (names.normal), ctx.config->executable_helper, L"", ctx.config->getExecutableDir(), iconPath, (! ctx.localInjection && ctx.usingSK));
+
+    // Instant Play: the jump list item starts the executable within its package as well, through SKIF's launcher mode
+    //   (SKIF_XboxApp=<PackageFamilyName>!<application index>, see SKIF_Startup_LaunchGame). The launch helper can't be
+    //     used for it, as lc.json / lc_user.json launch configs have none.
+    if (ctx.instant)
+    {
+      std::wstring jumpListName = SK_UTF8ToWideChar (names.normal);
+
+      // Launch options other than the ones the launch helper starts are told apart by their description
+      if (! ClientCanLaunch (*ctx.config) && ! ctx.config->description.empty ( ))
+        jumpListName += L" (" + ctx.config->description + L")";
+
+      SKIF_Shell_AddJumpList (jumpListName,
+        ctx.config->getExecutableFullPath ( ),
+        SK_FormatStringW (L"SKIF_XboxApp=%ws!%d", SK_UTF8ToWideChar (xbox.package_name_family).c_str ( ), SKIF_Xbox_GetInstantPlayAppIndex (ctx.config)),
+        ctx.config->getExecutableDir ( ),
+        iconPath,
+        (! ctx.localInjection && ctx.usingSK));
+    }
+
+    else
+      SKIF_Shell_AddJumpList (SK_UTF8ToWideChar (names.normal), ctx.config->executable_helper, L"", ctx.config->getExecutableDir(), iconPath, (! ctx.localInjection && ctx.usingSK));
   }
 }
 
