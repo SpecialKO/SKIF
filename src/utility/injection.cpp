@@ -796,7 +796,7 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
     ImGui::GetID ("###Global_Injection_Summary_Frame");
 
   SKIF_ImGui_BeginChildFrame (
-    frame_id, ImVec2 (0.0f, 4.0f * ImGui::GetTextLineHeightWithSpacing ()),
+    frame_id, ImVec2 (0.0f, 3.0f * ImGui::GetTextLineHeightWithSpacing ()),
       ImGuiChildFlags_NavFlattened,
       ImGuiWindowFlags_NoScrollbar       |
       ImGuiWindowFlags_NoScrollWithMouse |
@@ -810,7 +810,6 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   ImGui::BeginGroup      ();
   ImGui::TextUnformatted ("Special K");
   ImGui::PushStyleColor  (ImGuiCol_Text, ImVec4 (0.5f, 0.5f, 0.5f, 1.f));
-  ImGui::TextUnformatted (_("Config folder:"));
   ImGui::TextUnformatted (_("32-bit service:"));
 #ifdef _WIN64
   ImGui::TextUnformatted (_("64-bit service:"));
@@ -834,19 +833,6 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   if (! SKVer32.empty())
     ImGui::TextUnformatted (("v " + SKVer32_utf8).c_str ());
 #endif
-
-  // Config Root
-  // TRANSLATORS: Where the configuration of Special K is kept (one folder for all games)
-  if (ImGui::Selectable (L_("Centralized")))
-  {
-    SKIF_Util_ExplorePath (_path_cache.specialk_userdata);
-    //SKIF_Util_OpenURI (root_dir);
-  }
-
-  SKIF_ImGui_SetMouseCursorHand ();
-  SKIF_ImGui_SetHoverText       (
-    SK_WideCharToUTF8 (_path_cache.specialk_userdata).c_str ()
-  );
 
   // 32-bit/64-bit Services (shortened with an ellipsis if wider than the rest of the frame)
   if (pid32 && bAckInj)
@@ -878,7 +864,6 @@ SKIF_InjectionContext::_GlobalInjectionCtl (void)
   // Column 3
   ImGui::BeginGroup ();
   // empty
-  ImGui::NewLine    ();
   ImGui::NewLine    ();
 
 #ifdef _WIN64
