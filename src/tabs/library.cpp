@@ -1203,7 +1203,9 @@ SKIF_UI_Tab_DrawLibrary (void)
 
     static float arCover = 600.0f / 900.0f;
 
-    float horizon_cutoff_height = 550.0f * SKIF_ImGui_GlobalDPIScale; // 750.0f // 650.0f
+    // Below this height of the tab content (330 px = a 405 px tall window, as the tab bar + status bar take 75 px), the details
+    //   panel is hidden (and horizon mode is used when the window is also wide enough)
+    float horizon_cutoff_height = 330.0f * SKIF_ImGui_GlobalDPIScale; // 550.0f // 750.0f // 650.0f
 
     _registry._LibHorizonMode  = (tab_ContentRegionAvail.x > 600.0f * SKIF_ImGui_GlobalDPIScale &&
                                   tab_ContentRegionAvail.y < horizon_cutoff_height);
@@ -1254,7 +1256,10 @@ SKIF_UI_Tab_DrawLibrary (void)
       sizeDetails.x     = newMaxWidth;
     }
 
-    float shrinkDetailsAt = horizon_cutoff_height * 1.5f;
+    // The details panel shrinks from 215 px below this height, but never below what it is at 550 px (143 px), where its
+    //   contents (summary, Play button, launch bar) still fit; the games list gets the rest
+    float shrinkDetailsAt  = 825.0f * SKIF_ImGui_GlobalDPIScale; // Was horizon_cutoff_height * 1.5f, when that was 550 px
+    float minDetailsHeight = ImFloor (215.0f * (590.0f / 825.0f) * SKIF_ImGui_GlobalDPIScale);
 
     if (_registry._LibHorizonMode)
     {
@@ -1265,7 +1270,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     else if (tab_ContentRegionAvail.y <= shrinkDetailsAt)
     {
       float shrinkPercentage = tab_ContentRegionAvail.y / shrinkDetailsAt;
-      sizeDetails.y          = shrinkPercentage * sizeDetails.y;
+      sizeDetails.y          = ImMax (minDetailsHeight, shrinkPercentage * sizeDetails.y);
     }
 
     // DPI-aware
