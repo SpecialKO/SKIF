@@ -333,7 +333,7 @@ SKIF_InjectionContext::_TestServletRunlevel (bool forcedCheck)
 #if _WIN64
     else if (runState == Started && ! pid32 && ! pid64)
 #else
-    else if (runState == Stopped && ! pid32)
+    else if (runState == Started && ! pid32)
 #endif
     {
       runState = Stopped;
@@ -1786,33 +1786,29 @@ bool SKIF_InjectionContext::RemoveUserListPatterns (const std::vector<std::strin
 
 bool SKIF_InjectionContext::AddUserListPattern (std::string pattern, bool whitelist_)
 {
-  size_t cx, size;
-
   std::scoped_lock lock (_userListsMutex);
 
+  char*        list = (whitelist_) ? whitelist         : blacklist;
+  const size_t size = (whitelist_) ? sizeof (whitelist) : sizeof (blacklist);
+  const size_t len  = strnlen (list, size);
+
+  // Appended as a line of its own
+  const std::string line = (len == 0) ? pattern : "\n" + pattern;
+
+  // A pattern that does not fit (whole) is not added, so the list is never left with a pattern cut off at its end
+  if (len + line.length ( ) + 1 > size)
+  {
+    PLOG_ERROR << "The " << ((whitelist_) ? "whitelist" : "blacklist") << " is full; could not add the pattern: " << pattern;
+    return false;
+  }
+
+  // Appended in place
+  memcpy (list + len, line.c_str ( ), line.length ( ) + 1);
+
+  // Only a list that changed has its patterns compiled again
   ++((whitelist_) ? whitelistRevision : blacklistRevision);
 
-  if (whitelist_)
-  {
-    size = sizeof whitelist;
-
-    if (*whitelist == '\0')
-      cx = snprintf (whitelist, size, "%s%s", whitelist, pattern.c_str());
-    else
-      cx = snprintf (whitelist, size, "%s%s", whitelist, ("\n" + pattern).c_str());
-  }
-
-  else
-  {
-    size = sizeof blacklist;
-
-    if (*blacklist == '\0')
-      cx = snprintf (blacklist, size, "%s%s", blacklist, pattern.c_str());
-    else
-      cx = snprintf (blacklist, size, "%s%s", blacklist, ("\n" + pattern).c_str());
-  }
-
-  return (size > cx && cx >= 0);
+  return true;
 }
 
 bool SKIF_InjectionContext::AddUserListPath (std::string fullPath, bool whitelist_)

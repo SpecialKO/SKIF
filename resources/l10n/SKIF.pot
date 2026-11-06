@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-06 22:05+0100\n"
+"POT-Creation-Date: 2026-11-06 22:27+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3866,14 +3866,14 @@ msgstr ""
 
 #. TRANSLATORS: {0} is the file name of a program (e.g. Game.exe)
 #: src/utility/injection.cpp:255
-#: src/utility/injection.cpp:2323
+#: src/utility/injection.cpp:2319
 msgid "{0} was added to the whitelist."
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
 #: src/utility/injection.cpp:257
 #: src/utility/injection.cpp:262
-#: src/utility/injection.cpp:2325
+#: src/utility/injection.cpp:2321
 msgid "Special K is ready to be injected into your game!"
 msgstr ""
 
@@ -3892,7 +3892,7 @@ msgstr ""
 
 #. TRANSLATORS: {0} is the keybinding of Special K's control panel (e.g. Ctrl+Shift+Backspace; set in Special K)
 #: src/utility/injection.cpp:288
-#: src/utility/injection.cpp:2246
+#: src/utility/injection.cpp:2242
 msgid "Press {0} while in-game."
 msgstr ""
 
@@ -4007,7 +4007,7 @@ msgid "Injection service is running."
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/utility/injection.cpp:2248
+#: src/utility/injection.cpp:2244
 msgid "Special K is already injected into your game!"
 msgstr ""
 
@@ -4099,17 +4099,17 @@ msgstr ""
 msgid "Please wait, this will only take a moment ..."
 msgstr ""
 
-#: src/utility/sk_utility.cpp:899
+#: src/utility/sk_utility.cpp:901
 msgid "Keybinding:"
 msgstr ""
 
 #. TRANSLATORS: RETURN, ESC, BACKSPACE and DELETE are keys of the keyboard (use the names printed on keyboards in your language)
-#: src/utility/sk_utility.cpp:905
+#: src/utility/sk_utility.cpp:907
 msgid "Press RETURN to confirm, ESC to cancel, BACKSPACE to clear, DELETE to reset."
 msgstr ""
 
 #. TRANSLATORS: RETURN, ESC and DELETE are keys of the keyboard (use the names printed on keyboards in your language)
-#: src/utility/sk_utility.cpp:908
+#: src/utility/sk_utility.cpp:910
 msgid "Press RETURN to confirm, ESC to cancel, DELETE to reset."
 msgstr ""
 

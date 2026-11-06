@@ -457,8 +457,10 @@ SK_Keybind::parse (void)
     return;
   }
 
-  wchar_t   wszKeyBind [128] = { };
-  lstrcatW (wszKeyBind, human_readable.c_str ());
+  // The value comes from the registry or an INI file, so it may be longer than the buffer: it is cut off (and then
+  //   most likely not a valid keybinding) instead of overrunning it
+  wchar_t    wszKeyBind [128] = { };
+  wcsncpy_s (wszKeyBind, _countof (wszKeyBind), human_readable.c_str (), _TRUNCATE);
 
   wchar_t* wszBuf = nullptr;
   wchar_t* wszTok = std::wcstok (wszKeyBind, L"+", &wszBuf);
