@@ -34,20 +34,22 @@ namespace SKIF_LaunchBehaviors
     Never        = 3
   };
 
-  // Whether the executable uses the service. Its elevation is a field of its own (Elevation), which also applies when a
-  //   blocked executable uses the service all the same (Blacklist::Ignore)
+  // Whether the executable uses the injection service.
+  //   Also applies when Blacklist::Ignore is set.
   enum class Service : DWORD {
     Inherit      = 0,
     Normal       = 1, // Use the service (also clears an inherited block)
     Blocked      = 3  // 2 is unused (it used to be the elevated service, before Elevation)
   };
 
+  // Whether to use an elevated service.
   enum class Elevation : DWORD {
     Inherit      = 0,
     Normal       = 1, // The service is not elevated (also clears an inherited elevation)
     Elevated     = 2
   };
 
+  // Should SKIF remove steam_appid.txt next to the executable?
   enum class SteamAppIDtxt : DWORD {
     Inherit      = 0,
     Remove       = 1,

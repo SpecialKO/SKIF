@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-06 19:09+0100\n"
+"POT-Creation-Date: 2026-11-06 21:29+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,58 +16,58 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
-#: src/SKIF.cpp:1415
-#: src/SKIF.cpp:1569
+#: src/SKIF.cpp:1370
+#: src/SKIF.cpp:1524
 #: src/tabs/settings.cpp:42
 msgid "Start Service"
 msgstr ""
 
-#: src/SKIF.cpp:1416
-#: src/SKIF.cpp:1588
+#: src/SKIF.cpp:1371
+#: src/SKIF.cpp:1543
 msgid "Start Service (manual stop)"
 msgstr ""
 
-#: src/SKIF.cpp:1417
-#: src/SKIF.cpp:1606
+#: src/SKIF.cpp:1372
+#: src/SKIF.cpp:1561
 msgid "Stop Service"
 msgstr ""
 
-#: src/SKIF.cpp:1419
+#: src/SKIF.cpp:1374
 #: src/tabs/settings.cpp:794
 msgid "Check for updates"
 msgstr ""
 
-#: src/SKIF.cpp:1424
-#: src/SKIF.cpp:1672
+#: src/SKIF.cpp:1379
+#: src/SKIF.cpp:1627
 msgid "Exit"
 msgstr ""
 
-#: src/SKIF.cpp:1567
+#: src/SKIF.cpp:1522
 msgid ""
 "Starts the injection service and\n"
 "stops it after injection."
 msgstr ""
 
-#: src/SKIF.cpp:1586
+#: src/SKIF.cpp:1541
 msgid ""
 "Starts the injection service but\n"
 "does not stop it after injection."
 msgstr ""
 
-#: src/SKIF.cpp:1605
+#: src/SKIF.cpp:1560
 msgid "Stops the injection service"
 msgstr ""
 
-#: src/SKIF.cpp:1637
+#: src/SKIF.cpp:1592
 msgid "Checks for any available updates"
 msgstr ""
 
-#: src/SKIF.cpp:1638
+#: src/SKIF.cpp:1593
 msgid "Check for Updates"
 msgstr ""
 
 #. TRANSLATORS: Controlled Folder Access is a feature of Windows (use the name Windows uses in your language)
-#: src/SKIF.cpp:2286
+#: src/SKIF.cpp:2241
 msgid ""
 "Controlled Folder Access is enabled in Windows and may prevent Special K and even some games from working properly. It is recommended to either disable the feature or add exclusions for games where Special K is used as well as SKIF (this application).\n"
 "\n"
@@ -76,115 +76,115 @@ msgid ""
 "Microsoft's support page with more information will open when you select any of the options below."
 msgstr ""
 
-#: src/SKIF.cpp:2292
+#: src/SKIF.cpp:2247
 msgid "Warning about Controlled Folder Access"
 msgstr ""
 
-#: src/SKIF.cpp:3473
+#: src/SKIF.cpp:3428
 msgctxt "tab"
 msgid "Library"
 msgstr ""
 
-#: src/SKIF.cpp:3474
+#: src/SKIF.cpp:3429
 msgctxt "tab"
 msgid "Hardware"
 msgstr ""
 
-#: src/SKIF.cpp:3475
+#: src/SKIF.cpp:3430
 msgctxt "tab"
 msgid "Monitor"
 msgstr ""
 
-#: src/SKIF.cpp:3476
+#: src/SKIF.cpp:3431
 msgctxt "tab"
 msgid "Settings"
 msgstr ""
 
-#: src/SKIF.cpp:3477
+#: src/SKIF.cpp:3432
 msgctxt "tab"
 msgid "About"
 msgstr ""
 
-#: src/SKIF.cpp:3730
-#: src/utility/injection.cpp:920
+#: src/SKIF.cpp:3685
+#: src/utility/injection.cpp:957
 msgid "Starting..."
 msgstr ""
 
-#: src/SKIF.cpp:3731
-#: src/utility/injection.cpp:919
+#: src/SKIF.cpp:3686
+#: src/utility/injection.cpp:956
 msgid "Stopping..."
 msgstr ""
 
-#: src/SKIF.cpp:3732
-#: src/utility/injection.cpp:845
-#: src/utility/injection.cpp:1347
+#: src/SKIF.cpp:3687
+#: src/utility/injection.cpp:882
+#: src/utility/injection.cpp:1384
 msgid "Waiting for game..."
 msgstr ""
 
-#: src/SKIF.cpp:3733
-#: src/utility/injection.cpp:857
-#: src/utility/injection.cpp:1348
+#: src/SKIF.cpp:3688
+#: src/utility/injection.cpp:894
+#: src/utility/injection.cpp:1385
 msgid "Running"
 msgstr ""
 
-#: src/SKIF.cpp:3734
-#: src/utility/injection.cpp:860
+#: src/SKIF.cpp:3689
+#: src/utility/injection.cpp:897
 msgid "Stopped"
 msgstr ""
 
-#: src/SKIF.cpp:3736
-#: src/utility/injection.cpp:1362
+#: src/SKIF.cpp:3691
+#: src/utility/injection.cpp:1399
 msgid "Click to stop the service"
 msgstr ""
 
-#: src/SKIF.cpp:3737
-#: src/utility/injection.cpp:1363
+#: src/SKIF.cpp:3692
+#: src/utility/injection.cpp:1400
 msgid "Click to start the service"
 msgstr ""
 
-#: src/SKIF.cpp:3754
+#: src/SKIF.cpp:3709
 #: src/stores/SKIF/custom_library.cpp:309
 #: src/stores/SKIF/custom_library.cpp:378
 #: src/stores/SKIF/custom_library.cpp:516
 msgid "Add Game"
 msgstr ""
 
-#: src/SKIF.cpp:3767
+#: src/SKIF.cpp:3722
 msgid "Local Manager"
 msgstr ""
 
-#: src/SKIF.cpp:3913
-#: src/SKIF.cpp:4043
+#: src/SKIF.cpp:3868
+#: src/SKIF.cpp:3998
 msgid "Toggle horizontal mode"
 msgstr ""
 
-#: src/SKIF.cpp:3921
-#: src/SKIF.cpp:4051
+#: src/SKIF.cpp:3876
+#: src/SKIF.cpp:4006
 msgid "Toggle mini mode"
 msgstr ""
 
-#: src/SKIF.cpp:3963
+#: src/SKIF.cpp:3918
 msgid "This app will close to the notification area."
 msgstr ""
 
-#: src/SKIF.cpp:3965
-#: src/utility/injection.cpp:968
+#: src/SKIF.cpp:3920
+#: src/utility/injection.cpp:1005
 msgid "Service continues running after this app is closed."
 msgstr ""
 
-#: src/SKIF.cpp:4030
+#: src/SKIF.cpp:3985
 msgid "Restore"
 msgstr ""
 
-#: src/SKIF.cpp:4034
+#: src/SKIF.cpp:3989
 msgid "Maximize"
 msgstr ""
 
-#: src/SKIF.cpp:4038
+#: src/SKIF.cpp:3993
 msgid "Minimize"
 msgstr ""
 
-#: src/SKIF.cpp:4056
+#: src/SKIF.cpp:4011
 #: src/tabs/ini_editor.cpp:534
 #: src/tabs/local.cpp:855
 #: src/utility/updater.cpp:1405
@@ -192,30 +192,30 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-#: src/SKIF.cpp:5732
+#: src/SKIF.cpp:5674
 msgid "Blink and you'll miss it ;)"
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/SKIF.cpp:5734
+#: src/SKIF.cpp:5676
 msgid "An update is being installed..."
 msgstr ""
 
-#: src/SKIF.cpp:5760
+#: src/SKIF.cpp:5702
 msgid "Open the app to continue."
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/SKIF.cpp:5762
+#: src/SKIF.cpp:5704
 msgid "An update to Special K is available!"
 msgstr ""
 
-#: src/SKIF.cpp:5774
+#: src/SKIF.cpp:5716
 msgid "The update will be retried later."
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/SKIF.cpp:5776
+#: src/SKIF.cpp:5718
 msgid "Update failed :("
 msgstr ""
 
@@ -954,7 +954,7 @@ msgid "Please Wait..."
 msgstr ""
 
 #: src/tabs/hardware.cpp:1383
-#: src/tabs/library/library_details.cpp:398
+#: src/tabs/library/library_details.cpp:395
 msgid "Pending..."
 msgstr ""
 
@@ -1220,7 +1220,7 @@ msgid "Could not change the cover"
 msgstr ""
 
 #: src/tabs/library.cpp:1600
-#: src/tabs/library/library_details.cpp:427
+#: src/tabs/library/library_details.cpp:424
 msgid "Loading..."
 msgstr ""
 
@@ -1298,130 +1298,130 @@ msgstr ""
 msgid "Special Kudos to our Patrons:"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:116
+#: src/tabs/library/library_details.cpp:113
 msgid "Platform:"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:203
+#: src/tabs/library/library_details.cpp:200
 msgid "Update to v {0}"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:209
+#: src/tabs/library/library_details.cpp:206
 msgid "Uninstall"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:325
+#: src/tabs/library/library_details.cpp:322
 #: src/tabs/local.cpp:1046
 msgid ""
 "The local DLL file is outdated.\n"
 "Click to update it to v {0}."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:368
+#: src/tabs/library/library_details.cpp:365
 #: src/tabs/library/library_menus.cpp:1222
 #: src/tabs/library/library_properties.cpp:1741
 msgid "Play"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:376
+#: src/tabs/library/library_details.cpp:373
 msgid "Install Mod"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:385
+#: src/tabs/library/library_details.cpp:382
 msgid "Installing..."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:391
+#: src/tabs/library/library_details.cpp:388
 msgid "Downloading..."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:428
+#: src/tabs/library/library_details.cpp:425
 msgid "Running..."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:429
+#: src/tabs/library/library_details.cpp:426
 msgid "Updating..."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:609
+#: src/tabs/library/library_details.cpp:606
 msgid "Please finish the ongoing mod installation first."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:638
+#: src/tabs/library/library_details.cpp:635
 msgid "Warning: VAC protected game; injection is not recommended!"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:765
+#: src/tabs/library/library_details.cpp:762
 #: src/tabs/library/library_menus.cpp:668
 msgid "Properties"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:772
+#: src/tabs/library/library_details.cpp:769
 #: src/tabs/library/library_menus.cpp:637
 #: src/tabs/library/library_menus.cpp:1331
 #: src/tabs/monitor.cpp:1621
 msgid "Browse"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:793
+#: src/tabs/library/library_details.cpp:790
 #: src/tabs/library/library_menus.cpp:672
 msgid "Configuration"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:827
+#: src/tabs/library/library_details.cpp:824
 #: src/tabs/library/library_properties.cpp:1141
-#: src/utility/injection.cpp:1044
+#: src/utility/injection.cpp:1081
 msgid "Special K is unavailable due to missing files."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:829
-#: src/utility/injection.cpp:1046
+#: src/tabs/library/library_details.cpp:826
+#: src/utility/injection.cpp:1083
 msgid "Please reinstall Special K using the latest available installer."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:857
-msgid "The injection service is started all the same (Ignore blacklist)."
+#: src/tabs/library/library_details.cpp:855
+msgid "The injection service will be used (Ignore Blacklist)."
+msgstr ""
+
+#: src/tabs/library/library_details.cpp:859
+msgid "Special K will be used as the blacklist is being ignored."
 msgstr ""
 
 #: src/tabs/library/library_details.cpp:861
-msgid "Special K will be used as the blacklist is ignored."
-msgstr ""
-
-#: src/tabs/library/library_details.cpp:863
 #: src/tabs/library/library_properties.cpp:1164
 msgid "Special K is disabled through a blacklist pattern in the Settings tab."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:865
+#: src/tabs/library/library_details.cpp:863
 msgid "Special K is disabled for the default launch option."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:877
+#: src/tabs/library/library_details.cpp:875
 msgid ""
 "The injection service is started elevated for the default launch option.\n"
 "Click to change it in Properties."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:893
+#: src/tabs/library/library_details.cpp:891
 #: src/tabs/library/library_menus.cpp:175
 msgid "Starts the game directly (Instant play)."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:895
+#: src/tabs/library/library_details.cpp:893
 msgid ""
 "Skips the regular platform launch process for the game,\n"
 "including steps such as cloud saves synchronization."
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:1459
+#: src/tabs/library/library_details.cpp:1457
 msgid "Centralized"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:1461
+#: src/tabs/library/library_details.cpp:1459
 msgid "Localized"
 msgstr ""
 
-#: src/tabs/library/library_details.cpp:1463
+#: src/tabs/library/library_details.cpp:1461
 msgid "Unknown"
 msgstr ""
 
@@ -2598,12 +2598,12 @@ msgid "Force stop"
 msgstr ""
 
 #: src/tabs/monitor.cpp:874
-#: src/utility/injection.cpp:1024
+#: src/utility/injection.cpp:1061
 msgid "Stop automatically"
 msgstr ""
 
 #: src/tabs/monitor.cpp:880
-#: src/utility/injection.cpp:1030
+#: src/utility/injection.cpp:1067
 msgid ""
 "This controls whether the configured auto-stop behavior (see Settings tab) should be used when the service is manually started.\n"
 "Note that having this unchecked does not disable the auto-stop behavior if a game is launched without the service already running."
@@ -3864,107 +3864,116 @@ msgstr ""
 msgid "Could not parse the INI file:"
 msgstr ""
 
-#: src/utility/injection.cpp:238
-msgid "Please launch a game to continue."
+#. TRANSLATORS: {0} is the file name of a program (e.g. Game.exe)
+#: src/utility/injection.cpp:254
+#: src/utility/injection.cpp:2322
+msgid "{0} was added to the whitelist."
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/utility/injection.cpp:240
+#: src/utility/injection.cpp:256
+#: src/utility/injection.cpp:261
+#: src/utility/injection.cpp:2324
 msgid "Special K is ready to be injected into your game!"
 msgstr ""
 
-#: src/utility/injection.cpp:243
+#: src/utility/injection.cpp:259
+msgid "Please launch a game to continue."
+msgstr ""
+
+#: src/utility/injection.cpp:264
 msgid "The injection service was started."
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/utility/injection.cpp:245
+#: src/utility/injection.cpp:266
 msgid "Special K is now being injected into games!"
 msgstr ""
 
 #. TRANSLATORS: Ctrl, Shift and Backspace are keys of the keyboard (use the names printed on keyboards in your language)
-#: src/utility/injection.cpp:259
+#: src/utility/injection.cpp:287
+#: src/utility/injection.cpp:2245
 msgid "Press Ctrl + Shift + Backspace while in-game."
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/utility/injection.cpp:261
+#: src/utility/injection.cpp:289
 msgid "Special K has been injected into your game!"
 msgstr ""
 
-#: src/utility/injection.cpp:264
+#: src/utility/injection.cpp:292
 msgid "The injection service was stopped."
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/utility/injection.cpp:266
+#: src/utility/injection.cpp:294
 msgid "Special K will no longer be injected into games."
 msgstr ""
 
-#: src/utility/injection.cpp:820
+#: src/utility/injection.cpp:857
 msgid "Service:"
 msgstr ""
 
-#: src/utility/injection.cpp:849
+#: src/utility/injection.cpp:886
 msgid "Inconsistent status!"
 msgstr ""
 
-#: src/utility/injection.cpp:879
+#: src/utility/injection.cpp:916
 msgid "32-bit missing!"
 msgstr ""
 
-#: src/utility/injection.cpp:882
+#: src/utility/injection.cpp:919
 msgid "64-bit missing!"
 msgstr ""
 
-#: src/utility/injection.cpp:921
-#: src/utility/injection.cpp:922
+#: src/utility/injection.cpp:958
+#: src/utility/injection.cpp:959
 msgid "Service"
 msgstr ""
 
-#: src/utility/injection.cpp:1035
+#: src/utility/injection.cpp:1072
 msgid "Auto-stop is currently unavailable."
 msgstr ""
 
-#: src/utility/injection.cpp:1036
+#: src/utility/injection.cpp:1073
 msgid "The feature requires Special K v21.08.12 or newer."
 msgstr ""
 
-#: src/utility/injection.cpp:1127
+#: src/utility/injection.cpp:1164
 msgid "Start with Windows"
 msgstr ""
 
-#: src/utility/injection.cpp:1135
+#: src/utility/injection.cpp:1172
 msgid "Start minimized in the notification area"
 msgstr ""
 
-#: src/utility/injection.cpp:1136
+#: src/utility/injection.cpp:1173
 msgid "Start minimized"
 msgstr ""
 
-#: src/utility/injection.cpp:1139
+#: src/utility/injection.cpp:1176
 msgid "Start the injection service as well"
 msgstr ""
 
-#: src/utility/injection.cpp:1185
+#: src/utility/injection.cpp:1222
 msgid ""
 "The current autostart method needs to be disabled to migrate over to this method.\n"
 "The difference is that this method autostarts SKIF, and not just the GI service."
 msgstr ""
 
-#: src/utility/injection.cpp:1198
+#: src/utility/injection.cpp:1235
 msgid "Start Injection Service At Logon (obsolete)"
 msgstr ""
 
-#: src/utility/injection.cpp:1215
+#: src/utility/injection.cpp:1252
 msgid "This method is obsolete, and can only be disabled."
 msgstr ""
 
-#: src/utility/injection.cpp:1227
+#: src/utility/injection.cpp:1264
 msgid "Start the injection service with Windows"
 msgstr ""
 
-#: src/utility/injection.cpp:1231
+#: src/utility/injection.cpp:1268
 msgid ""
 "This will start the injection service hidden in the background with Windows.\n"
 "\n"
@@ -3973,28 +3982,33 @@ msgid ""
 "Are you sure you want to proceed?"
 msgstr ""
 
-#: src/utility/injection.cpp:1236
+#: src/utility/injection.cpp:1273
 msgid "Confirm autostart"
 msgstr ""
 
-#: src/utility/injection.cpp:1274
+#: src/utility/injection.cpp:1311
 msgid "Note that this frontend app will not start with Windows."
 msgstr ""
 
-#: src/utility/injection.cpp:1282
+#: src/utility/injection.cpp:1319
 msgid ""
 "The regular autostart method needs to be disabled to migrate over to this method.\n"
 "The difference is that the current method autostarts SKIF, and not just the injection service."
 msgstr ""
 
-#: src/utility/injection.cpp:1285
+#: src/utility/injection.cpp:1322
 msgid ""
 "The old legacy method needs to be disabled to migrate over to this new method.\n"
 "The difference is that this method does not require elevated privileges."
 msgstr ""
 
-#: src/utility/injection.cpp:1325
+#: src/utility/injection.cpp:1362
 msgid "Injection service is running."
+msgstr ""
+
+#. TRANSLATORS: Title of a notification (at most 63 characters)
+#: src/utility/injection.cpp:2247
+msgid "Special K is already injected into your game!"
 msgstr ""
 
 #: src/utility/skif_imgui.cpp:481

@@ -293,7 +293,7 @@ app_launch_config_s::setBlacklisted (bool blacklist)
 
   if (blacklist)
   {
-    // The elevation is kept: it still applies if the service is used all the same (Ignore blacklist)
+    // The elevation is kept; it also applies if Ignore Blacklist is set
     SKIF_LaunchBehaviors::SetService (behaviors_path, Service::Blocked);
 
     FILE* fBlacklist =
@@ -396,8 +396,8 @@ app_launch_config_s::getElevatedFilename (void)
     elevated_file;
 }
 
-// The elevation of the service for the executable, whenever it is used: also for a blocked executable that uses the
-//   service all the same (Ignore blacklist), so it is kept independently of setBlacklisted ( )
+// The elevation of the service for the executable, whenever it is used:
+//   also used for a blocked executable that has Ignore Blacklist set.
 bool
 app_launch_config_s::setElevated (bool elevate)
 {

@@ -30,7 +30,7 @@
 
 #pragma region PrintInjectionSummary
 
-// Details panel, top frame: Special K DLL / profile folder / config file / platform, and the service toggle (moved verbatim from the former GetInjectionSummary)
+// Details panel, top frame: Special K DLL / profile folder / config file / platform, and the service toggle
 static void
 DrawGameDetails_Info (app_record_s* pApp)
 {
@@ -108,9 +108,6 @@ DrawGameDetails_Info (app_record_s* pApp)
 
   // Column 1
   ImGui::BeginGroup       ();
-  //ImGui::PushStyleColor   (ImGuiCol_Text, ImVec4 (0.5f, 0.5f, 0.5f, 1.f));
-  //ImGui::NewLine          ();
-  //ImGui::TextUnformatted  ("Injection:");
   ImGui::TextUnformatted  ("Special K");
   ImGui::PushStyleColor   (ImGuiCol_Text, ImVec4 (0.5f, 0.5f, 0.5f, 1.f));
   ImGui::TextUnformatted  (_("Platform:"));
@@ -336,7 +333,7 @@ DrawGameDetails_Info (app_record_s* pApp)
 }
 
 
-// Details panel, middle frame: the Play / install button (moved verbatim from the former GetInjectionSummary)
+// Details panel, middle frame: the Play / install button
 static void
 DrawGameDetails_Play (app_record_s* pApp)
 {
@@ -831,7 +828,7 @@ DrawGameDetails_LaunchBar (app_record_s* pApp)
 
   else if (defaultLaunchConfig != nullptr)
   {
-    // Special K disabled, and/or an elevated service (both when the service is used all the same: Ignore blacklist)
+    // Special K disabled, and/or an elevated service (both when Ignore Blacklist is set)
     if (! defaultLocal)
     {
       const bool blacklisted        = defaultLaunchConfig->isBlacklisted ( );             // Cached by the launch config
@@ -839,8 +836,9 @@ DrawGameDetails_LaunchBar (app_record_s* pApp)
 
       if (blacklisted || blacklistedPattern)
       {
-        // An open lock when the service is started all the same (Ignore blacklist): Special K remains disabled for the
-        //   executable itself, but the game it starts (e.g. through a launcher) gets Special K
+        // An open lock when Ignore Blacklist is set.
+        //   Special K remains disabled for the executable itself,
+        //     but the game it starts (e.g. through a launcher) gets Special K.
         const char*  lockIcon  = (defaultLaunchConfig->isIgnoringBlacklist ( )) ? ICON_FA_LOCK_OPEN "###SKDisabledIndicator"
                                                                                 : ICON_FA_LOCK      "###SKDisabledIndicator";
         const ImVec4 lockColor = (defaultLaunchConfig->isIgnoringBlacklist ( )) ? ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning)
@@ -852,20 +850,20 @@ DrawGameDetails_LaunchBar (app_record_s* pApp)
         if (ImGui::IsItemHovered ( ))
           SKIF_ImGui_SetHoverText (defaultLaunchConfig->getExecutableFullPathUTF8 ( ).c_str ( ));
 
-        // The launch behaviors (Properties) can have the service started all the same (e.g. for a blocked launcher)
+        // The launch behaviors (Properties) can have the service started (e.g. for a blocked launcher) if Ignore Blacklist is set
         const std::string ignoredTip = (defaultLaunchConfig->isIgnoringBlacklist ( ))
-                                     ? std::string ("\n\n") + _("The injection service is started all the same (Ignore blacklist).")
+                                     ? std::string ("\n\n") + _("The injection service will be used (Ignore Blacklist).")
                                      : std::string ( );
 
         if (defaultLaunchConfig->isIgnoringBlacklist ( ))
-          SKIF_ImGui_SetHoverTip (_("Special K will be used as the blacklist is ignored."));
+          SKIF_ImGui_SetHoverTip (_("Special K will be used as the blacklist is being ignored."));
         else if (blacklistedPattern)
           SKIF_ImGui_SetHoverTip (_("Special K is disabled through a blacklist pattern in the Settings tab."));
         else  // blacklisted
           SKIF_ImGui_SetHoverTip (_("Special K is disabled for the default launch option."));
       }
 
-      // Only when the service is used: not blocked, or used all the same (Ignore blacklist)
+      // Only when the service is used: not blocked, or Ignore Blacklist is set
       if ((! (blacklisted || blacklistedPattern) || defaultLaunchConfig->isIgnoringBlacklist ( )) && defaultLaunchConfig->isElevated ( ))
       {
         if (_RightIconButton (ICON_FA_USER_SHIELD "###SKElevatedIndicator", ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled)))
@@ -903,7 +901,7 @@ DrawGameDetails_LaunchBar (app_record_s* pApp)
 }
 
 
-// The details panel of the selected game (was GetInjectionSummary)
+// The details panel of the selected game
 void
 DrawGameDetails (app_record_s* pApp)
 {

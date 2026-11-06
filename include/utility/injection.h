@@ -122,6 +122,29 @@ struct SKIF_InjectionContext {
   std::vector<std::string> GetUserListMatches     (const char* szExecutable, bool whitelist_); // Returns the user patterns (lines) matching the executable
   bool                     RemoveUserListPatterns (const std::vector<std::string>& patterns, bool whitelist_); // Removes the given lines from the list and saves it
 
+  // What the service should do for an executable, from its launch behaviors (registry, and the legacy SpecialK.deny / SpecialK.admin
+  //   files next to it) and the blacklists. Changes nothing: whitelisting the executable is up to the caller.
+  struct ServiceDecision {
+    bool  isLocalBlacklisted  = false;               // Service::Blocked ("Disable Special K")
+    bool  isGlobalBlacklisted = false;               // A blacklist pattern (or a built-in one)
+    bool  ignoreBlacklist     = false;               // The launch behaviors ignore any blacklist that may exist
+    bool  useService          = true;                // false if blacklisted (and not ignored)
+    bool  elevated            = false;               // The service should be elevated
+    int   autoStopBehavior    = 0;                   // 0 = use global default, 1 = stop on injection, 2 = stop on game exit, 3 = never stop
+    bool  removeSteamAppIDtxt = false;               // The launch behaviors remove steam_appid.txt
+
+    bool  isBlacklisted (void) const { return isLocalBlacklisted || isGlobalBlacklisted; }
+  };
+
+  ServiceDecision ResolveServiceFor       (const std::wstring& path);
+
+  // Special K's state in a process
+  bool    IsActiveInProcess       (DWORD dwProcessId); // Special K is injected and active (SKX_GetInjectedPIDs, which includes 32-bit processes)
+  int     IsLoadedInProcess       (DWORD dwProcessId); // A global Special K DLL is loaded, active or not: 1 = yes, 0 = no, -1 = unknown (no access)
+
+  // The Start Service hotkey: whitelists the process of the foreground window (if it is a game) and starts the service for it
+  void    StartServiceForForeground (void);
+
   bool    WhitelistPath           (std::string fullPath);
   bool    BlacklistPath           (std::string fullPath);
   bool    WhitelistPattern        (std::string pattern);
@@ -163,4 +186,24 @@ private:
   std::mutex       _userListsMutex;     // Guards whitelist/blacklist and the compiled caches; _TestUserList runs on both the UI thread and the process refresh thread
 
   void    _CompileUserList        (CompiledUserList& list, const char* szList, int revision);
+
+  // Restarting the service, for a process that Special K was loaded into before it got whitelisted. Special K only reads the
+  //   whitelist when it gets injected, so it has to be ejected (by stopping the service) and injected again.
+  struct {
+    bool         pending          = false;
+    bool         autoStop         = false;
+    bool         elevated         = false;
+    int          autoStopBehavior = 0;
+    DWORD        dwProcessId      = 0;
+    void*        hWnd             = nullptr;  // HWND of the process' window
+    DWORD        dwRequested      = 0;  // When the service was asked to stop
+    DWORD        dwStopped        = 0;  // When the service was seen as stopped
+  } _restart;
+
+  // The executable that the service was last started for by the hotkey, and whether it was whitelisted by it (for the notification)
+  std::wstring _hotkeyTargetName;
+  bool         _hotkeyWhitelisted = false;
+
+  void    _RestartServiceFor      (DWORD dwProcessId, void* hWnd, bool elevated, int autoStopBehavior);
+  void    _ProcessPendingRestart  (void);
 };

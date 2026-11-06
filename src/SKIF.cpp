@@ -938,9 +938,6 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
   PLOG_INFO_IF (! proxiedCmdLine.empty()) << "Command Line Args: " << proxiedCmdLine;
   PLOG_INFO                               << "Working Directory: " << workingDirectory;
 
-  bool isLocalBlacklisted  = false,
-       isGlobalBlacklisted = false;
-
   if (PathFileExists (path.c_str()))
   {
     _Signal._GamePath        = path;
@@ -949,72 +946,30 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
     if (! steamAppId.empty())
       _Signal._SteamAppID    = steamAppId;
 
-    using Service       = SKIF_LaunchBehaviors::Service;
-    using SteamAppIDtxt = SKIF_LaunchBehaviors::SteamAppIDtxt;
-    using Blacklist     = SKIF_LaunchBehaviors::Blacklist;
-    using Elevation     = SKIF_LaunchBehaviors::Elevation;
+    // Per-executable and per-folder launch behaviors (registry, and the legacy SpecialK.deny / SpecialK.admin files),
+    //   and the blacklists; see SKIF_InjectionContext::ResolveServiceFor
+    const SKIF_InjectionContext::ServiceDecision decision =
+      _inject.ResolveServiceFor (path);
 
-    // Per-executable and per-folder launch behaviors (registry; see utility/launch_behaviors.h)
-    SKIF_LaunchBehaviors::Resolved behaviors =
-      SKIF_LaunchBehaviors::Resolve (path);
-
-    // Legacy fallback: SpecialK.deny.<exe> / SpecialK.admin.<exe> next to the executable, each only consulted when the
-    //   registry has no setting of its own (service, elevation) for the executable or its folders.
-    //     The library migrates these files to the registry when it reads them.
-    if (behaviors.service == Service::Inherit)
-    {
-      std::wstring blacklistFile = SK_FormatStringW (L"%s\\SpecialK.deny.%ws",
-                                                      std::filesystem::path(path).parent_path().wstring().c_str(),                 // full path to parent folder
-                                                      std::filesystem::path(path).filename().replace_extension().wstring().c_str() // filename without extension
-      );
-
-      if (PathFileExistsW (blacklistFile.c_str()))
-        behaviors.service = Service::Blocked;
-    }
-
-    if (behaviors.elevation == Elevation::Inherit)
-    {
-      std::wstring elevationFile = SK_FormatStringW (L"%s\\SpecialK.admin.%ws",
-                                                      std::filesystem::path(path).parent_path().wstring().c_str(),                 // full path to parent folder
-                                                      std::filesystem::path(path).filename().replace_extension().wstring().c_str() // filename without extension
-      );
-
-      if (PathFileExistsW (elevationFile.c_str()))
-        behaviors.elevation = Elevation::Elevated;
-    }
-
-    PLOG_INFO << "Launch behaviors:  auto-stop " << static_cast <int> (behaviors.autoStop)
-              << ", service "                    << static_cast <int> (behaviors.service)
-              << ", elevation "                  << static_cast <int> (behaviors.elevation)
-              << ", steam_appid.txt "            << static_cast <int> (behaviors.steamAppIDtxt)
-              << ", blacklist "                  << static_cast <int> (behaviors.blacklist);
-
-    // Check if the executable is blacklisted
-    isLocalBlacklisted  = (behaviors.service == Service::Blocked);
-    isGlobalBlacklisted = _inject._TestUserList (SK_WideCharToUTF8(path).c_str(), false);
-
-    // The launch behaviors can have the service used all the same (e.g. for a blocked launcher, so the game it starts
+    // The launch behaviors can have the service used anyway (e.g. for a blocked launcher, so the game it starts
     //   gets Special K). Special K stays disabled for the executable itself, so it is then not whitelisted either.
-    const bool isBlacklisted   = (isLocalBlacklisted || isGlobalBlacklisted);
-    const bool ignoreBlacklist = (isBlacklisted && behaviors.blacklist == Blacklist::Ignore);
+    PLOG_INFO_IF (decision.ignoreBlacklist) << "The service will be used as the launch behavior is set to ignore the blacklist.";
 
-    PLOG_INFO_IF (ignoreBlacklist) << "Special K is disabled for the executable, but its launch behaviors ignore it: the service is used all the same.";
-
-    _Signal._DoNotUseService = (isBlacklisted && ! ignoreBlacklist);
+    _Signal._DoNotUseService = (! decision.useService);
 
     if (! _Signal._DoNotUseService)
     {
       // Whitelist the path if it haven't been already
-      if (! isBlacklisted)
+      if (! decision.isBlacklisted ( ))
         _inject.WhitelistPath (SK_WideCharToUTF8(path));
 
-      _Signal._ElevatedService = (behaviors.elevation == Elevation::Elevated);
+      _Signal._ElevatedService = decision.elevated;
     }
 
-    _Signal._AutoStopBehavior = static_cast <int> (behaviors.autoStop);
+    _Signal._AutoStopBehavior = decision.autoStopBehavior;
 
     // The registry can request the removal as well (an explicit SKIF_SteamAppIDtxt=0 always removes it)
-    if (behaviors.steamAppIDtxt == SteamAppIDtxt::Remove)
+    if (decision.removeSteamAppIDtxt)
       _Signal._RemoveSteamAppIDtxt = TRUE;
 
     // The user wants us to remove any steam_appid.txt file that might be present in the working directory
@@ -5490,23 +5445,10 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       if (wParam == SKIF_HotKey_HDR)
         SKIF_Util_EnableHDROutput ( );
 
-      // Only toggle the service if we think we are not already in a game
-      else if (wParam == SKIF_HotKey_SVC && hInjectExitAckEx.m_h == 0)
-      {
-        // If the service is not running, start it
-        if (     _inject.runState != SKIF_InjectionContext::RunningState::Started)
-                 _inject._StartStopInject (false, true);
-
-        // This design is currently unsatisfactory. We want to be able to toggle injection service
-        //   on and off when no game is injected, but if a game is injected we should not be able
-        //     to trigger it... But this doesn't work as desired as SKIF isn't set up to properly
-        //       track stuff that detailed yet. 'hInjectExitAckEx' is created when the service
-        //         is started... Maybe change that to be created when injection is signaled?
-
-        // If the service is running, stop it
-        //else if (_inject.runState == SKIF_InjectionContext::RunningState::Started)
-        //         _inject._StartStopInject (true);
-      }
+      // Whitelists the process of the foreground window (unless it is SKIF, Windows or a store client), and starts the service
+      //   for it. Nothing happens if Special K is already active in that process.
+      else if (wParam == SKIF_HotKey_SVC)
+        _inject.StartServiceForForeground ( );
 
     break;
 

@@ -29,6 +29,7 @@
 #include <utility/skif_imgui.h>
 #include <utility/registry.h>
 #include <utility/fsutil.h>
+#include <utility/launch_behaviors.h>
 
 #include <fonts/fa_621.h>
 #include <fonts/fa_621b.h>
@@ -148,6 +149,19 @@ SKIF_InjectionContext::_TestServletRunlevel (bool forcedCheck)
   static DWORD dwFailed   = NULL;
   static bool  triedToFix = false;
 
+  // A restart of the service (see _RestartServiceFor) starts it again once it has stopped and Special K has unloaded from the process
+  if (_restart.pending)
+  {
+    if (runState == Stopped)
+      _ProcessPendingRestart ( );
+
+    else if (_restart.dwRequested + 15000 < SKIF_Util_timeGetTime ( ))
+    {
+      PLOG_WARNING << "The service did not stop in time; the restart of the service was cancelled.";
+      _restart.pending = false;
+    }
+  }
+
   // Perform a forced check every 500ms if we have been transitioning over for longer than half a second
   if ((runState == Starting || runState == Stopping) && dwLastSignaled + 500 < SKIF_Util_timeGetTime())
     forcedCheck = true;
@@ -233,7 +247,14 @@ SKIF_InjectionContext::_TestServletRunlevel (bool forcedCheck)
         // Do not show the first message if SKIF was hidden as a result of the game launch
         if (! _registry._SuppressServiceNotification)
         {
-          if (bAckInj)
+          // Started by the Start Service hotkey, which added the process of the foreground window to the whitelist
+          if (_hotkeyWhitelisted && ! _hotkeyTargetName.empty ( ))
+            SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_SERVICE,
+              // TRANSLATORS: {0} is the file name of a program (e.g. Game.exe)
+              SK_UTF8ToWideChar (F_("{0} was added to the whitelist.", SK_WideCharToUTF8 (_hotkeyTargetName))),
+              // TRANSLATORS: Title of a notification (at most 63 characters)
+              W_("Special K is ready to be injected into your game!"));
+          else if (bAckInj)
             SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_SERVICE,
               W_("Please launch a game to continue."),
               // TRANSLATORS: Title of a notification (at most 63 characters)
@@ -247,13 +268,20 @@ SKIF_InjectionContext::_TestServletRunlevel (bool forcedCheck)
 
         else
           _registry._SuppressServiceNotification = false;
+
+        _hotkeyTargetName.clear ( );
+        _hotkeyWhitelisted = false;
       }
       else
       {
         bCurrentState     = false;
         runState          = Stopped;
 
-        if (bAckInjSignaled)
+        // A restart of the service: no notification, as it is about to be started again
+        if (_restart.pending)
+          PLOG_INFO << "The service was stopped for a restart.";
+
+        else if (bAckInjSignaled)
           SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_SERVICE,
             // TRANSLATORS: Ctrl, Shift and Backspace are keys of the keyboard (use the names printed on keyboards in your language)
             W_("Press Ctrl + Shift + Backspace while in-game."),
@@ -276,6 +304,15 @@ SKIF_InjectionContext::_TestServletRunlevel (bool forcedCheck)
 
       if (KillTimer (SKIF_Notify_hWnd, IDT_REFRESH_PENDING))
         IDT_REFRESH_PENDING = 0;
+
+      // Keep refreshing while a restart of the service waits for Special K to unload from the process
+      if (_restart.pending)
+        IDT_REFRESH_PENDING =
+          SetTimer (SKIF_Notify_hWnd,
+                    cIDT_REFRESH_PENDING,
+                    250,
+                    (TIMERPROC) &InjectionTimerProc
+        );
 
       return true;
     }
@@ -1864,4 +1901,428 @@ bool SKIF_InjectionContext::BlacklistPattern (std::string pattern)
   return (pattern.find("InvalidPath") == std::string::npos)
     ? AddUserListPattern (pattern, false)
     : false;
+}
+
+// Start Service hotkey
+
+SKIF_InjectionContext::ServiceDecision
+SKIF_InjectionContext::ResolveServiceFor (const std::wstring& path)
+{
+  using Service       = SKIF_LaunchBehaviors::Service;
+  using SteamAppIDtxt = SKIF_LaunchBehaviors::SteamAppIDtxt;
+  using Blacklist     = SKIF_LaunchBehaviors::Blacklist;
+  using Elevation     = SKIF_LaunchBehaviors::Elevation;
+
+  ServiceDecision decision;
+
+  // Per-executable and per-folder launch behaviors (registry; see utility/launch_behaviors.h)
+  SKIF_LaunchBehaviors::Resolved behaviors =
+    SKIF_LaunchBehaviors::Resolve (path);
+
+  // Legacy fallback: SpecialK.deny.<exe> / SpecialK.admin.<exe> next to the executable, each only consulted when the
+  //   registry has no setting of its own (service, elevation) for the executable or its folders.
+  //     The library migrates these files to the registry when it reads them.
+  if (behaviors.service == Service::Inherit)
+  {
+    std::wstring blacklistFile = SK_FormatStringW (L"%s\\SpecialK.deny.%ws",
+                                                    std::filesystem::path(path).parent_path().wstring().c_str(),                 // full path to parent folder
+                                                    std::filesystem::path(path).filename().replace_extension().wstring().c_str() // filename without extension
+    );
+
+    if (PathFileExistsW (blacklistFile.c_str()))
+      behaviors.service = Service::Blocked;
+  }
+
+  if (behaviors.elevation == Elevation::Inherit)
+  {
+    std::wstring elevationFile = SK_FormatStringW (L"%s\\SpecialK.admin.%ws",
+                                                    std::filesystem::path(path).parent_path().wstring().c_str(),                 // full path to parent folder
+                                                    std::filesystem::path(path).filename().replace_extension().wstring().c_str() // filename without extension
+    );
+
+    if (PathFileExistsW (elevationFile.c_str()))
+      behaviors.elevation = Elevation::Elevated;
+  }
+
+  PLOG_INFO << "Launch behaviors: auto-stop "  << static_cast <int> (behaviors.autoStop)
+            << ", service "                    << static_cast <int> (behaviors.service)
+            << ", elevation "                  << static_cast <int> (behaviors.elevation)
+            << ", steam_appid.txt "            << static_cast <int> (behaviors.steamAppIDtxt)
+            << ", blacklist "                  << static_cast <int> (behaviors.blacklist);
+
+  // The launch behaviors can have the service used anyway (e.g. for a blocked launcher, so the game it starts
+  //   gets Special K). Special K stays disabled for the executable itself, so it should then not be whitelisted either.
+  decision.isLocalBlacklisted  = (behaviors.service == Service::Blocked);
+  decision.isGlobalBlacklisted = _TestUserList (SK_WideCharToUTF8 (path).c_str ( ), false);
+  decision.ignoreBlacklist     = (decision.isBlacklisted ( ) && behaviors.blacklist == Blacklist::Ignore);
+  decision.useService          = (! decision.isBlacklisted ( ) || decision.ignoreBlacklist);
+  decision.elevated            = (behaviors.elevation     == Elevation::Elevated);
+  decision.autoStopBehavior    = static_cast <int> (behaviors.autoStop);
+  decision.removeSteamAppIDtxt = (behaviors.steamAppIDtxt == SteamAppIDtxt::Remove);
+
+  return decision;
+}
+
+bool
+SKIF_InjectionContext::IsActiveInProcess (DWORD dwProcessId)
+{
+  static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
+  if (dwProcessId == 0)
+    return false;
+
+  using SKX_GetInjectedPIDs_pfn = size_t (__stdcall *)(DWORD *pdwList, size_t capacity);
+
+  // The DLL is only loaded for the call, as its file is renamed by updates (see _DanceOfTheDLLFiles); the Monitor tab does the same.
+  //   Its list of injected processes is shared by all its instances, and includes 32-bit processes.
+  static const std::wstring dllPath =
+#ifdef _WIN64
+    SK_FormatStringW (LR"(%ws\SpecialK64.dll)", _path_cache.specialk_install);
+#else
+    SK_FormatStringW (LR"(%ws\SpecialK32.dll)", _path_cache.specialk_install);
+#endif
+
+  HMODULE hModSpecialK =
+    LoadLibraryW (dllPath.c_str ( ));
+
+  if (hModSpecialK == nullptr)
+  {
+    PLOG_WARNING << "Could not load " << dllPath << " to check for injected processes: " << SKIF_Util_GetErrorAsWStr ( );
+    return false;
+  }
+
+  bool active = false;
+
+  SKX_GetInjectedPIDs_pfn SKX_GetInjectedPIDs =
+    (SKX_GetInjectedPIDs_pfn) GetProcAddress (hModSpecialK, "SKX_GetInjectedPIDs");
+
+  if (SKX_GetInjectedPIDs != nullptr)
+  {
+    // The 32 latest injected processes. There is no guarantee any of these are still running.
+    DWORD  dwPIDs [32] = { };
+    size_t num_pids    =
+      SKX_GetInjectedPIDs (dwPIDs, _countof (dwPIDs));
+
+    for (size_t i = 0; i < num_pids && i < _countof (dwPIDs); i++)
+    {
+      if (dwPIDs [i] == dwProcessId)
+      {
+        active = true;
+        break;
+      }
+    }
+  }
+
+  FreeLibrary (hModSpecialK);
+
+  return active;
+}
+
+int
+SKIF_InjectionContext::IsLoadedInProcess (DWORD dwProcessId)
+{
+  if (dwProcessId == 0)
+    return 0;
+
+  HANDLE hModuleSnap = INVALID_HANDLE_VALUE;
+
+  // Fails with ERROR_BAD_LENGTH while the process is loading or unloading modules, so try again a couple of times
+  for (int attempt = 0; attempt < 3; attempt++)
+  {
+    hModuleSnap =
+      CreateToolhelp32Snapshot (TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, dwProcessId);
+
+    if (hModuleSnap != INVALID_HANDLE_VALUE || GetLastError ( ) != ERROR_BAD_LENGTH)
+      break;
+  }
+
+  if (hModuleSnap == INVALID_HANDLE_VALUE)
+  {
+    // The process does not exist (any longer)
+    if (GetLastError ( ) == ERROR_INVALID_PARAMETER)
+      return 0;
+
+    // No access (an elevated or protected process), or a 64-bit process seen from 32-bit SKIF
+    return -1;
+  }
+
+  int loaded = 0;
+
+  MODULEENTRY32W me32 = { };
+  me32.dwSize         = sizeof (MODULEENTRY32W);
+
+  if (Module32FirstW (hModuleSnap, &me32))
+  {
+    do
+    {
+      // Special K's global DLL files
+      if (_wcsicmp (me32.szModule, L"SpecialK32.dll") == 0 ||
+          _wcsicmp (me32.szModule, L"SpecialK64.dll") == 0)
+      {
+        loaded = 1;
+        break;
+      }
+    } while (Module32NextW (hModuleSnap, &me32));
+  }
+
+  CloseHandle (hModuleSnap);
+
+  return loaded;
+}
+
+void
+SKIF_InjectionContext::_RestartServiceFor (DWORD dwProcessId, void* hWnd, bool elevated, int autoStopBehavior)
+{
+  _restart.pending          = true;
+  _restart.autoStop         = bAckInj; // A service that was started without auto-stop is started again without it
+  _restart.elevated         = elevated;
+  _restart.autoStopBehavior = autoStopBehavior;
+  _restart.dwProcessId      = dwProcessId;
+  _restart.hWnd             = hWnd;
+  _restart.dwRequested      = SKIF_Util_timeGetTime ( );
+  _restart.dwStopped        = 0;
+
+  PLOG_INFO << "Restarting the service, so Special K is ejected from the process (PID " << dwProcessId << ") and injected again...";
+
+  _StartStopInject (true);
+}
+
+void
+SKIF_InjectionContext::_ProcessPendingRestart (void)
+{
+  const DWORD dwNow = SKIF_Util_timeGetTime ( );
+
+  if (_restart.dwStopped == 0)
+      _restart.dwStopped = dwNow;
+
+  const DWORD dwWaited = dwNow - _restart.dwStopped;
+  const int   loaded   = IsLoadedInProcess (_restart.dwProcessId);
+
+  // Wait for Special K to unload from the process (at most 5 seconds), or a second if that cannot be seen (no access)
+  if ((loaded ==  1 && dwWaited < 5000) ||
+      (loaded == -1 && dwWaited < 1000))
+  {
+    // Windows unloads the DLL of a removed hook lazily, from a thread that runs again; a message to the window prompts that
+    HWND hWnd = static_cast <HWND> (_restart.hWnd);
+
+    if (hWnd != nullptr && IsWindow (hWnd))
+      PostMessage (hWnd, WM_NULL, 0x0, 0x0);
+
+    // Keep refreshing until then
+    if (IDT_REFRESH_PENDING == 0)
+      IDT_REFRESH_PENDING =
+        SetTimer (SKIF_Notify_hWnd,
+                  cIDT_REFRESH_PENDING,
+                  250,
+                  (TIMERPROC) &InjectionTimerProc
+      );
+
+    return;
+  }
+
+  PLOG_WARNING_IF (loaded == 1) << "Special K is still loaded in the process after 5 seconds; starting the service anyway.";
+
+  _restart.pending = false;
+
+  _StartStopInject (false, _restart.autoStop, _restart.elevated, _restart.autoStopBehavior);
+}
+
+void
+SKIF_InjectionContext::StartServiceForForeground (void)
+{
+  extern void SKIF_Shell_CreateNotifyToast (UINT type, std::wstring message, std::wstring title);
+
+  PLOG_INFO << "The Start Service hotkey was pressed.";
+
+  if (! bHasServlet)
+  {
+    PLOG_ERROR << "The injection service could not be started due to missing critical files! Please reinstall Special K using the latest installer.";
+    return;
+  }
+
+  // The service is already starting, stopping or being restarted
+  if (_restart.pending || isPending ( ))
+  {
+    PLOG_INFO << "The service is already changing its state; the hotkey was ignored.";
+    return;
+  }
+
+  // The process of the foreground window (the window with the keyboard focus)
+  HWND         hWnd        = GetForegroundWindow ( );
+  DWORD        dwProcessId = 0;
+  std::wstring path;
+
+  if (hWnd != nullptr)
+    GetWindowThreadProcessId (hWnd, &dwProcessId);
+
+  if (dwProcessId != 0)
+  {
+    // PROCESS_QUERY_LIMITED_INFORMATION is enough for elevated processes as well
+    CHandle hProcess (OpenProcess (PROCESS_QUERY_LIMITED_INFORMATION, FALSE, dwProcessId));
+
+    if (hProcess != nullptr)
+    {
+      wchar_t wszPath [MAX_PATH * 2] = { };
+      DWORD   dwSize                 = _countof (wszPath);
+
+      if (QueryFullProcessImageNameW (hProcess, 0, wszPath, &dwSize))
+        path = wszPath;
+    }
+  }
+
+  const std::wstring fileName =
+    std::filesystem::path (path).filename ( ).wstring ( );
+
+  // Windows itself (explorer, the taskbar, the Start menu, UWP frames, ...)
+  static const std::wstring windowsDir = []
+  {
+    wchar_t wszDir [MAX_PATH + 2] = { };
+    UINT    uiLen                 = GetWindowsDirectoryW (wszDir, MAX_PATH);
+
+    return (0 < uiLen && uiLen < MAX_PATH) ? std::wstring (wszDir) + L"\\"
+                                           : std::wstring ( );
+  } ( );
+
+  // Store clients and game launchers: whitelisting these would inject Special K into the client itself
+  static constexpr const wchar_t* storeClients [] = {
+    L"SKIF.exe",
+    L"steam.exe",               L"steamwebhelper.exe",
+    L"EpicGamesLauncher.exe",   L"EpicWebHelper.exe",
+    L"GalaxyClient.exe",
+    L"EADesktop.exe",           L"EALauncher.exe",
+    L"upc.exe",                 L"UbisoftConnect.exe",
+    L"Battle.net.exe",
+    L"itch.exe",                L"kitch.exe",
+    L"Amazon Games UI.exe",
+    L"XboxPcApp.exe",
+    L"Playnite.DesktopApp.exe", L"Playnite.FullscreenApp.exe"
+  };
+
+  const char* skipReason = nullptr;
+
+  if (hWnd == nullptr || dwProcessId == 0 || hWnd == GetShellWindow ( ) || hWnd == GetDesktopWindow ( ))
+    skipReason = "there is no foreground window, or it is the desktop";
+  else if (dwProcessId == GetCurrentProcessId ( ))
+    skipReason = "it is SKIF";
+  else if (path.empty ( ))
+    skipReason = "the path of its executable could not be retrieved";
+  else if (! windowsDir.empty ( ) && _wcsnicmp (path.c_str ( ), windowsDir.c_str ( ), windowsDir.length ( )) == 0)
+    skipReason = "it is a part of Windows";
+  else
+  {
+    for (const wchar_t* storeClient : storeClients)
+    {
+      if (_wcsicmp (fileName.c_str ( ), storeClient) == 0)
+      {
+        skipReason = "it is a store client or launcher";
+        break;
+      }
+    }
+  }
+
+  // Not a game: only start the service (as the hotkey always did)
+  if (skipReason != nullptr)
+  {
+    PLOG_INFO << "The process of the foreground window (" << ((path.empty ( )) ? L"unknown" : path) << ") was not whitelisted, as " << skipReason << ".";
+
+    if (runState == Stopped)
+      _StartStopInject (false, true);
+    else
+      PLOG_INFO << "The service is already running.";
+
+    return;
+  }
+
+  PLOG_INFO << "The process of the foreground window: " << path << " (PID " << dwProcessId << ")";
+
+  // Special K is already active in the process: there is nothing to do
+  if (IsActiveInProcess (dwProcessId))
+  {
+    PLOG_INFO << "Special K is already active in the process; the hotkey was ignored.";
+
+    SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_SERVICE,
+      // TRANSLATORS: Ctrl, Shift and Backspace are keys of the keyboard (use the names printed on keyboards in your language)
+      W_("Press Ctrl + Shift + Backspace while in-game."),
+      // TRANSLATORS: Title of a notification (at most 63 characters)
+      W_("Special K is already injected into your game!"));
+
+    return;
+  }
+
+  const ServiceDecision decision = ResolveServiceFor (path);
+  const std::string     pathUTF8 = SK_WideCharToUTF8 (path);
+
+  bool whitelistedNow = false;
+
+  // Special K stays disabled for a blacklisted executable, so it is not whitelisted.
+  //   The service is started anyway as the user requested it.
+  //     A blacklisted foreground process is most likely a launcher of the game that is about to be played.
+  if (decision.isBlacklisted ( ))
+    PLOG_INFO << "The executable has already been blacklisted but the service will be started anyway since the user requested it.";
+
+  else if (! _TestUserList (pathUTF8.c_str ( ), true))
+  {
+    whitelistedNow = WhitelistPath (pathUTF8);
+
+    PLOG_INFO_IF  (  whitelistedNow) << "Added the executable to the whitelist.";
+    PLOG_ERROR_IF (! whitelistedNow) << "Could not add the executable to the whitelist!";
+  }
+
+  else
+    PLOG_INFO << "The executable is already whitelisted.";
+
+  // Special K can only be injected into an elevated process by an elevated service. A process that cannot be accessed is likely
+  //   elevated (or protected, which Special K cannot be injected into regardless)
+  const bool skifElevated = (SKIF_Util_GetProcessElevation (GetCurrentProcessId ( )) == SKIF_Elevation::Elevated);
+  bool       elevated     = decision.elevated;
+
+  if (! elevated && ! skifElevated && SKIF_Util_GetProcessElevation (dwProcessId) != SKIF_Elevation::NotElevated)
+  {
+    PLOG_INFO << "The process is elevated (or cannot be accessed), so the service is elevated as well.";
+    elevated = true;
+  }
+
+  // The service is not running: start it. Special K gets injected into the running process as well.
+  if (runState == Stopped)
+  {
+    _hotkeyTargetName  = fileName;
+    _hotkeyWhitelisted = whitelistedNow;
+
+    _StartStopInject (false, true, elevated, decision.autoStopBehavior);
+
+    return;
+  }
+
+  // The service is running
+  const DWORD dwServicePid    = (pid64 != 0) ? pid64 : pid32;
+  const bool  serviceElevated = skifElevated || (dwServicePid != 0 && SKIF_Util_GetProcessElevation (dwServicePid) != SKIF_Elevation::NotElevated);
+  const int   loaded          = IsLoadedInProcess (dwProcessId);
+
+  // Special K reads the whitelist when it gets injected, so if it was loaded into the process before it got whitelisted it stays
+  //   inactive until it is ejected and injected again. This also applies if Special K cannot be seen (no access) and the process
+  //     was only whitelisted now. A service that is not elevated cannot inject Special K into an elevated process to begin with.
+  const bool needsReinjection = (! decision.isBlacklisted ( ) && (loaded == 1 || (loaded == -1 && whitelistedNow)));
+  const bool needsElevation   = (elevated && ! serviceElevated);
+
+  if (needsReinjection || needsElevation)
+  {
+    PLOG_INFO_IF (needsReinjection) << "Special K is loaded in the process, but inactive.";
+    PLOG_INFO_IF (needsElevation)   << "The running service is not elevated.";
+
+    _hotkeyTargetName  = fileName;
+    _hotkeyWhitelisted = whitelistedNow;
+
+    _RestartServiceFor (dwProcessId, hWnd, (elevated || serviceElevated), decision.autoStopBehavior);
+  }
+
+  // Special K gets injected into the process by the running service
+  else if (whitelistedNow)
+    SKIF_Shell_CreateNotifyToast (SKIF_NTOAST_SERVICE,
+      // TRANSLATORS: {0} is the file name of a program (e.g. Game.exe)
+      SK_UTF8ToWideChar (F_("{0} was added to the whitelist.", SK_WideCharToUTF8 (fileName))),
+      // TRANSLATORS: Title of a notification (at most 63 characters)
+      W_("Special K is ready to be injected into your game!"));
+
+  else
+    PLOG_INFO << "The service is already running, and there is nothing else to do.";
 }

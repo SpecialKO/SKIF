@@ -71,8 +71,7 @@ LaunchGame (app_record_s* pApp)
            isGlobalBlacklisted = _inject._TestUserList (launchConfig->getExecutableFullPathUTF8 ( ).c_str (), false),
            isBlacklisted       = (isLocalBlacklisted || isGlobalBlacklisted);
 
-      // The launch behaviors (Properties) can have the service used all the same, e.g. for a blocked launcher so the game
-      //   it starts gets Special K. Special K stays disabled for the executable itself, so it is then not whitelisted.
+      // The launch behaviors (Properties) allows a blacklisted game to still use the service if Ignore Blacklist is set
       usingSK = ! launchWithoutSK       &&
               (! isBlacklisted || launchConfig->isIgnoringBlacklist ( ));
 

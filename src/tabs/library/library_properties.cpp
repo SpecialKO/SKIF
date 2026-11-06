@@ -1042,7 +1042,7 @@ public:
       if (svc.ignorePattern != svc.ignorePatternOrig)
         lc.setIgnoreBlacklist (svc.ignorePattern);
 
-      // Its own setting (also for a blocked executable, should the service be used all the same)
+      // Its own setting (also for a blocked executable, should Ignore Blacklist be set)
       if (svc.elevated != svc.elevatedOrig)
         lc.setElevated (svc.elevated);
     }
