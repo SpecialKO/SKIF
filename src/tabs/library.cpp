@@ -1226,7 +1226,7 @@ SKIF_UI_Tab_DrawLibrary (void)
                                                                    : ImVec2 (lib_column2_width, 215.0f * SKIF_ImGui_GlobalDPIScale)); // Regular
     sizeCover    = tab_ContentRegionAvail;
     sizeCover.x -= sizeList.x;
-    sizeCover.x -= (_registry._LibHorizonMode) ? sizeDetails.x : 0.0f;
+  //sizeCover.x -= (_registry._LibHorizonMode) ? sizeDetails.x : 0.0f; // The details panel is not shown in horizontal mode
 
     ImVec2 sizeImage       = ImFloor ((_registry._UseLowResCovers) ? sizeSK_small
                                                                    : sizeSK);
@@ -1237,12 +1237,13 @@ SKIF_UI_Tab_DrawLibrary (void)
       sizeImage.x = sizeImage.y * arCover;
     }
 
+    // Horizontal mode only shows the cover/grid and the games list (no details panel)
     uiDetailsVisible  = (_registry._LibHorizonMode)
-                                  ? (tab_ContentRegionAvail.x > ImFloor ((sizeList.x + sizeDetails.x) * 0.5f))
+                                  ? false
                                   : (tab_ContentRegionAvail.y >= horizon_cutoff_height); // When in regular mode
 
     uiCoverVisible    = (_registry._LibHorizonMode)
-                                  ?                      (tab_ContentRegionAvail.x > (sizeList.x    + sizeDetails.x + sizeSK_small.x * 0.75f))       // When in horizontal mode, large enough to allow 75% of the tiny cover to appear
+                                  ?                      (tab_ContentRegionAvail.x > (sizeList.x    + sizeSK_small.x * 0.75f))                       // When in horizontal mode, large enough to allow 75% of the tiny cover to appear
                                   : (uiDetailsVisible) ? (tab_ContentRegionAvail.x > (SKIF_vecRegularMode.x * 0.75f)) : false; // When in regular mode, large enough to allow 75% of the large cover to appear // sizeDetails.x + sizeSK.x       * 0.75f
 
     if (! uiCoverVisible)
