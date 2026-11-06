@@ -92,6 +92,16 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
   static int       lastFrame    = -2;
   static app_key_s lastSelected;
   bool scrollToSelected = (lastFrame != ImGui::GetFrameCount ( ) - 1 || lastSelected != selection.game || sort_changed);
+
+  // A game that was just selected by a click on its tile is only scrolled to if it is out of view entirely, so a tile that
+  //   is partly out of view does not move away from under the mouse between the two clicks of a double-click (navigation
+  //     scrolls tiles into view by itself)
+  static app_key_s selectedByTile;
+  const bool       selectedInGrid = (lastSelected != selection.game && selectedByTile == selection.game);
+
+  if (selectedByTile != selection.game) // Another game was selected since (e.g. in the list)
+      selectedByTile  = { };
+
   lastFrame             = ImGui::GetFrameCount ( );
   lastSelected          = selection.game;
 
@@ -300,8 +310,13 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
     // Type-to-search found this game (the list, drawn next, selects it), or the selected game should be shown
     if (search_selection.game == key || (selected && scrollToSelected))
     {
+      // Out of view: center it
       if (! ImGui::IsItemVisible ( ))
         ImGui::SetScrollHereY (0.5f);
+
+      // Partly out of view: scroll just enough to show all of it (nothing happens if it is in view already)
+      else if (search_selection.game == key || ! selectedInGrid)
+        ImGui::ScrollToItem (ImGuiScrollFlags_KeepVisibleEdgeY);
     }
 
     if (change)
@@ -311,6 +326,7 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
       selection.game     =    key;
       selection.category =    GetEffectiveCategory (rec);
       selected           =    true;
+      selectedByTile     =    key;
 
       // Only update the last selected value if we're not in hidden view
       if (! _registry._LibraryHidden)
