@@ -241,6 +241,11 @@ static void         CleanupPendingDeviceD3D (void);
 LRESULT WINAPI      SKIF_WndProc            (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 LRESULT WINAPI      SKIF_Notify_WndProc     (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 void                SKIF_Initialize         (LPWSTR lpCmdLine);
+bool                SKIF_Shell_PromoteJumpListItem      (const std::wstring& arguments);
+void                SKIF_Shell_PromoteJumpListItemAsync (const std::wstring& arguments);
+
+// WM_COPYDATA: a launcher instance hands the jump list update of its launch over to the running instance (the arguments, UTF-16)
+constexpr ULONG_PTR SKIF_CopyData_PromoteJumpListItem = 0x534B4A4C; // 'SKJL'
 
 CHandle hInjectAck       (0); // Signalled when injection service should be stopped
 CHandle hInjectAckEx     (0); // Signalled when a successful injection occurs (minimizes SKIF)
@@ -828,11 +833,16 @@ SKIF_Startup_AddGame (LPWSTR lpCmdLine)
 // The environment variables of the launch (SKIF_Env=), e.g. from a jump list item of a launch option that sets them
 static SKIF_EnvVars::List SKIF_Startup_LauncherEnv;
 
+// The command line of the launch, to find the jump list item it was started from (see SKIF_Startup_PromoteJumpListItem)
+static std::wstring       SKIF_Startup_LauncherCmdLine;
+
 void
 SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
 {
   if (! _Signal.Launcher)
     return;
+
+  SKIF_Startup_LauncherCmdLine = lpCmdLine;
 
   PLOG_INFO << "Preparing game path, launch options, and working directory...";
 
@@ -1000,6 +1010,8 @@ SKIF_Startup_LaunchURIPreparation (LPWSTR lpCmdLine)
   if (! _Signal.LauncherURI)
     return;
 
+  SKIF_Startup_LauncherCmdLine = lpCmdLine;
+
   PLOG_INFO << "Preparing the shell execute call...";
 
   if (! _Signal.Start)
@@ -1115,6 +1127,39 @@ SKIF_Startup_LaunchGameService (void)
 }
 
 
+// Moves the jump list item the launch was started from to the top of the Recent list (Windows does not do that by itself).
+//   A launcher instance often exits right after starting the game, so if SKIF is already running, the update is handed over to
+//     that instance, which sticks around. Otherwise (or if it does not take it, e.g. an elevated instance) it is done right here,
+//       and finished before this instance can exit.
+static void
+SKIF_Startup_PromoteJumpListItem (void)
+{
+  if (SKIF_Startup_LauncherCmdLine.empty ( ))
+    return;
+
+  if (_Signal._RunningInstance != NULL)
+  {
+    COPYDATASTRUCT
+      cds        = { };
+      cds.dwData = SKIF_CopyData_PromoteJumpListItem;
+      cds.cbData = static_cast <DWORD> ((SKIF_Startup_LauncherCmdLine.length ( ) + 1) * sizeof (wchar_t));
+      cds.lpData = (PVOID) SKIF_Startup_LauncherCmdLine.c_str ( );
+
+    DWORD_PTR dwResult = 0;
+
+    if (SendMessageTimeoutW (_Signal._RunningInstance, WM_COPYDATA, 0x0, (LPARAM) &cds, SMTO_ABORTIFHUNG | SMTO_BLOCK, 2000, &dwResult) &&
+        dwResult == TRUE)
+    {
+      PLOG_INFO << "Handed the jump list update over to the running instance.";
+      return;
+    }
+
+    PLOG_WARNING << "The running instance did not take the jump list update, so it is done by this instance.";
+  }
+
+  SKIF_Shell_PromoteJumpListItem (SKIF_Startup_LauncherCmdLine);
+}
+
 void
 SKIF_Startup_LaunchGame (void)
 {
@@ -1221,6 +1266,9 @@ SKIF_Startup_LaunchGame (void)
       CloseHandle (sexi.hProcess);
     }
   }
+
+  // Move the jump list item of the launch to the top of the Recent list
+  SKIF_Startup_PromoteJumpListItem ( );
 
   // If a running instance of SKIF already exists, or the game was blacklisted, terminate this one as it has served its purpose
   if (_Signal._RunningInstance || _Signal._DoNotUseService)
@@ -1698,6 +1746,89 @@ void SKIF_Shell_AddJumpList (std::wstring name, std::wstring path, std::wstring 
     pPropStore .Release             ( );
     pLink      .Release             ( );
   }
+}
+
+// Moves the item of the Recent list whose arguments are the given ones (the command line of a launch) to the top, by
+//   adding it again. Returns false if there is no such item. Requires COM on the calling thread.
+bool SKIF_Shell_PromoteJumpListItem (const std::wstring& arguments)
+{
+  std::wstring wanted = arguments;
+  SKIF_Util_TrimSpacesW (wanted);
+
+  if (wanted.empty ( ))
+    return false;
+
+  CComPtr <IApplicationDocumentLists> pDocLists;
+  CComPtr <IObjectArray>              pItems;
+
+  if (FAILED (pDocLists.CoCreateInstance (CLSID_ApplicationDocumentLists)))
+  {
+    PLOG_ERROR << "Failed to create CLSID_ApplicationDocumentLists object!";
+    return false;
+  }
+
+  if (FAILED (pDocLists->SetAppID (SKIF_AppUserModelID)) ||
+      FAILED (pDocLists->GetList  (ADLT_RECENT, 0, IID_PPV_ARGS (&pItems))))
+  {
+    PLOG_ERROR << "Failed to retrieve the Recent list of the jump list!";
+    return false;
+  }
+
+  UINT uiCount = 0;
+  pItems->GetCount (&uiCount);
+
+  // Arguments can be long (SKIF_Env=), so the buffer is not on the stack
+  std::vector <wchar_t> wszArgs (32768, L'\0');
+
+  for (UINT i = 0; i < uiCount; i++)
+  {
+    CComPtr <IShellLinkW> pLink;
+
+    // Items added as links are links (others, e.g. files, are skipped)
+    if (FAILED (pItems->GetAt (i, IID_PPV_ARGS (&pLink))))
+      continue;
+
+    wszArgs [0] = L'\0';
+
+    if (FAILED (pLink->GetArguments (wszArgs.data ( ), static_cast <int> (wszArgs.size ( )))))
+      continue;
+
+    std::wstring args = wszArgs.data ( );
+    SKIF_Util_TrimSpacesW (args);
+
+    if (args != wanted)
+      continue;
+
+    // The AppUserModelID is given explicitly, as a launcher instance exits before it sets its own
+    SHARDAPPIDINFOLINK
+      info           = { };
+      info.psl       = pLink.p;
+      info.pszAppID  = SKIF_AppUserModelID;
+
+    SHAddToRecentDocs (SHARD_APPIDINFOLINK, &info);
+
+    PLOG_INFO << "Moved the jump list item of the launch to the top of the Recent list.";
+    return true;
+  }
+
+  PLOG_VERBOSE << "The launch was not started from an item of the Recent list.";
+  return false;
+}
+
+// Used by the running instance when a launcher instance hands the update over (see SKIF_Startup_PromoteJumpListItem)
+void SKIF_Shell_PromoteJumpListItemAsync (const std::wstring& arguments)
+{
+  std::thread ([arguments]
+  {
+    SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_JumpListWorker");
+
+    if (SUCCEEDED (CoInitializeEx (nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE)))
+    {
+      SKIF_Shell_PromoteJumpListItem (arguments);
+
+      CoUninitialize ( );
+    }
+  }).detach ( );
 }
 
 
@@ -5440,6 +5571,31 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
       }
       break;
+
+    // A launcher instance hands the jump list update of its launch over to this instance (see SKIF_Startup_PromoteJumpListItem)
+    case WM_COPYDATA:
+    {
+      const COPYDATASTRUCT* pcds =
+        reinterpret_cast <const COPYDATASTRUCT*> (lParam);
+
+      if (pcds          != nullptr                           &&
+          pcds->dwData  == SKIF_CopyData_PromoteJumpListItem &&
+          pcds->lpData  != nullptr                           &&
+          pcds->cbData  >= sizeof (wchar_t)                  &&
+          pcds->cbData  <= 64 * 1024                         &&
+          pcds->cbData  %  sizeof (wchar_t) == 0)
+      {
+        std::wstring arguments (static_cast <const wchar_t*> (pcds->lpData), pcds->cbData / sizeof (wchar_t));
+        arguments.resize (wcsnlen (arguments.c_str ( ), arguments.length ( ))); // Up to the terminating null
+
+        // The data is only valid during the call, so the copy is used by the worker thread
+        SKIF_Shell_PromoteJumpListItemAsync (arguments);
+
+        msgDontRedraw = true;
+        return TRUE;
+      }
+    }
+    break;
 
     case WM_HOTKEY:
       if (wParam == SKIF_HotKey_HDR)
