@@ -350,7 +350,7 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
       // An animated cover (APNG, GIF) plays while its tile is hovered, and pauses once not: its current frame, cropped by
       //   its own size. Its tile-size frames, kept loaded (SKIF_LibraryArtwork::RequestAnimatedThumbnail), else (not built
       //     yet, too large, or turned off in Settings) the cover's, shared with the cover panel (UpdateAnimatedCover)
-      _art.RequestAnimatedThumbnail (rec, hovered);
+      _art.RequestAnimatedThumbnail (rec, (hovered || (_art.AreCoverAnimationsAutomatic ( ) && (isFocused || selected) && SKIF_ImGui_IsFocused ( ))));
 
       ImVec2 resFrame;
 
