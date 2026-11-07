@@ -75,7 +75,7 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
 
   // A tile: the cover (its size is a setting: the Filter menu's slider), inset so the hover / selection highlight frames
   //   it, and the title beneath it (unless turned off). The spacing and the rounding grow with the covers.
-  const float  width        = static_cast <float> (std::clamp (_registry.iLibraryGridSize, 80, 240));
+  const float  width        = static_cast <float> (std::clamp (_registry.iLibraryGridSize, 80, 480));
   const ImVec2 sizeCover    = ImFloor (ImVec2 (width, width * 1.5f) * dpi);
   const float  inset        = ImFloor (  3.0f * dpi);
   const float  heightTitle  = (_registry.bLibraryGridTitles) ? ImGui::GetTextLineHeight ( ) + inset : 0.0f;
@@ -83,9 +83,13 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
   const float  spacing      = ImFloor (std::max (6.0f, width * 0.08f) * dpi); // Between the rows, and at least between the columns
   const float  rounding     = ImFloor (std::max (3.0f, width * 0.04f) * dpi);
 
-  // The thumbnails are made at the largest cover size (BC7 keeps them small), and drawn smaller through their mips, so the
-  //   size slider never reloads or rebuilds them. Only a change of the DPI scale does (another cache file).
-  _art.SetThumbnailSize (ImFloor (ImVec2 (240.0f, 360.0f) * dpi));
+  // The thumbnails are made at the largest cover size of their tier (BC7 keeps them small), and drawn smaller through their
+  //   mips, so the size slider only reloads them when it crosses from one tier to the other: 240 x 360 for covers up to 240
+  //     wide (the usual sizes), and 480 x 720 above that, so the large tiers don't cost four times the video memory at the
+  //       usual sizes. Each tier and DPI scale has a cache file of its own, so crossing back loads them from the cache.
+  const float  thumbWidth   = (width <= 240.0f) ? 240.0f : 480.0f;
+
+  _art.SetThumbnailSize (ImFloor (ImVec2 (thumbWidth, thumbWidth * 1.5f) * dpi));
 
   // The first frame of the grid (switched to it, or back to the library tab), or another game was selected (e.g. in the
   //   list, or by type-to-search): show the selected game

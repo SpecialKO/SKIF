@@ -339,7 +339,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   if (regKVLibraryGridPlatform.hasData(&hKey))
     bLibraryGridPlatform   =   regKVLibraryGridPlatform    .getData (&hKey);
   if (regKVLibraryGridSize.hasData(&hKey))
-    iLibraryGridSize       =   std::clamp (regKVLibraryGridSize.getData (&hKey), 80, 240);
+    iLibraryGridSize       =   std::clamp (regKVLibraryGridSize.getData (&hKey), 80, 480);
   if (regKVLibraryAnimatedCovers.hasData(&hKey))
     iLibraryAnimatedCovers =   std::clamp (regKVLibraryAnimatedCovers.getData (&hKey), 0, 3);
   if (regKVLibraryGridAnimationMemory.hasData(&hKey))

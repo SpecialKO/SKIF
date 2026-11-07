@@ -417,7 +417,7 @@ ShowLibraryViewToggles (void)
     const std::string sizeFormat = SKIF_L10n_PrintfFormat (_("Cover size: {0}"), "%d");
 
     ImGui::SetNextItemWidth (ImMax (ImGui::GetContentRegionAvail ( ).x, ImFloor (180.0f * SKIF_ImGui_GlobalDPIScale)));
-    ImGui::SliderInt        ("###LibraryGridSize", &_registry.iLibraryGridSize, 80, 240, sizeFormat.c_str ( ), ImGuiSliderFlags_AlwaysClamp);
+    ImGui::SliderInt        ("###LibraryGridSize", &_registry.iLibraryGridSize, 80, 480, sizeFormat.c_str ( ), ImGuiSliderFlags_AlwaysClamp);
 
     if (ImGui::IsItemDeactivatedAfterEdit ( ))
       _registry.regKVLibraryGridSize.putData (_registry.iLibraryGridSize);
