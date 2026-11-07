@@ -300,17 +300,41 @@ SKIF_LibraryArtwork::ApplyWorkerResults (void)
 
       // No usable cache: build it once the tile is drawn again (RequestThumbnail)
       else if (result.noCache)
+      {
         thumb.iWorker = SKIF_Thumbnail_NoCache;
+
+        // Shown until the build replaces it: the thumbnail of the other size
+        if (result.placeholder && result.texture.srv.p != nullptr)
+        {
+          if (thumb.texture.p != nullptr)
+          {
+            _Release (thumb.texture);
+            m_thumbsLoaded--;
+          }
+
+          thumb.width    = result.texture.resolution.x;
+          thumb.height   = result.texture.resolution.y;
+          thumb.loadedAt = SKIF_Util_timeGetTime ( );
+          thumb.texture.Attach (result.texture.srv.Detach ( ));
+          m_thumbsLoaded++;
+        }
+      }
 
       else
       {
         thumb.iWorker   = SKIF_Thumbnail_Done;
-        thumb.loadedAt  = SKIF_Util_timeGetTime ( );
         thumb.isCustom  = result.texture.isCustom;
         thumb.isManaged = result.texture.isManaged;
         thumb.animatedSource = result.texture.animatedSource; // Plays while its tile is hovered (UpdateAnimatedCover)
 
-        if (thumb.texture.p != nullptr) // Not expected: a thumbnail is released before it loads again
+        // Replacing a placeholder (the other size's thumbnail, shown while this one was built) keeps its fade-in time, so
+        //   the cover does not fade in a second time; otherwise a thumbnail is released before it loads again
+        const bool hadPlaceholder = (thumb.texture.p != nullptr);
+
+        if (! hadPlaceholder || result.texture.srv.p != nullptr)
+          thumb.loadedAt = (hadPlaceholder) ? thumb.loadedAt : SKIF_Util_timeGetTime ( );
+
+        if (hadPlaceholder && result.texture.srv.p != nullptr)
         {
           _Release (thumb.texture);
           m_thumbsLoaded--;
@@ -1406,23 +1430,32 @@ _DeleteThumbnails (const std::wstring& cachePath, bool all)
 std::wstring
 SKIF_LibraryArtwork::GetThumbnailCachePath (app_record_s* pApp) const
 {
+  return GetThumbnailCachePath (pApp, m_thumbSize);
+}
+
+std::wstring
+SKIF_LibraryArtwork::GetThumbnailCachePath (app_record_s* pApp, ImVec2 size) const
+{
   std::wstring assetDir = pApp->GetAssetDirectory ( );
 
-  if (assetDir.empty ( ) || m_thumbSize.x <= 0.0f)
+  if (assetDir.empty ( ) || size.x <= 0.0f)
     return L"";
 
   // Named after what it is made from: its size (one per DPI scale), and the cover sources preferred for the store
   //   (Settings). A change of either uses another file; the others are kept while current (_DeleteThumbnails).
   return SK_FormatStringW (L"%wscover-thumb-%ix%i%ws%ws.dds", assetDir.c_str ( ),
-                             static_cast <int> (m_thumbSize.x), static_cast <int> (m_thumbSize.y),
+                             static_cast <int> (size.x), static_cast <int> (size.y),
                                (pApp->WantsPCGWCover ( )) ? L"-pcgw" : L"",
                                (pApp->WantsIGDBCover ( )) ? L"-igdb" : L"");
 }
 
 void
-SKIF_LibraryArtwork::SetThumbnailSize (ImVec2 size)
+SKIF_LibraryArtwork::SetThumbnailSize (ImVec2 size, ImVec2 placeholderSize)
 {
   size = ImVec2 (std::floor (size.x), std::floor (size.y));
+
+  // Only used for loads started from now on
+  m_thumbPlaceholderSize = ImVec2 (std::floor (placeholderSize.x), std::floor (placeholderSize.y));
 
   if (size.x == m_thumbSize.x && size.y == m_thumbSize.y)
     return;
@@ -1475,6 +1508,7 @@ SKIF_LibraryArtwork::StartThumbnailWorker (app_record_s* pApp, bool build)
     bool                build      = false;
     bool                queryPCGW  = false;
     library_thumbnail_s thumb;
+    std::wstring        placeholderPath; // Loads: the cache of the placeholder size, shown if this size has none yet
   };
 
   thread_s* data = new thread_s;
@@ -1485,6 +1519,9 @@ SKIF_LibraryArtwork::StartThumbnailWorker (app_record_s* pApp, bool build)
   data->generation = m_generation.load ( );
   data->build      = build;
   data->thumb      = { m_thumbSize.x, m_thumbSize.y, GetThumbnailCachePath (pApp) };
+
+  if (! build && m_thumbPlaceholderSize.x > 0.0f && m_thumbPlaceholderSize.x != m_thumbSize.x)
+    data->placeholderPath = GetThumbnailCachePath (pApp, m_thumbPlaceholderSize);
 
   // Still needed: its tile was drawn in the grid's latest frame (or the one being drawn). The worker's record is kept
   //   alive by data->app; its lastFrame is written by the main thread (RequestThumbnail), hence atomic_ref.
@@ -1576,6 +1613,16 @@ SKIF_LibraryArtwork::StartThumbnailWorker (app_record_s* pApp, bool build)
       //     are not animated in practice, so only custom covers are checked here.)
       else if (std::wstring custom = _data->app->FindCustomArtwork (LibraryTexture::Cover); ! custom.empty ( ) && IsAnimatedImageFile (custom))
         result.texture.animatedSource = std::move (custom);
+
+      // To be built: until then, the thumbnail of the other size (e.g. just after the cover size slider crossed into the
+      //   other size tier), drawn scaled to the tile. Not checked for animation: the built one is.
+      if (result.noCache && ! _data->placeholderPath.empty ( ) && _IsThumbnailCacheCurrent (_data->placeholderPath))
+      {
+        result.texture = { };
+
+        if (LoadLibraryThumbnailFromCache (_data->placeholderPath, result.texture, &_data->thumb))
+          result.placeholder = true;
+      }
     }
 
     // The cover pipeline (may download the cover), scaled down and saved to the cache (LoadLibraryTextureEx; the cache

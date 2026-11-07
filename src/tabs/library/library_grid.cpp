@@ -87,9 +87,12 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
   //   mips, so the size slider only reloads them when it crosses from one tier to the other: 240 x 360 for covers up to 240
   //     wide (the usual sizes), and 480 x 720 above that, so the large tiers don't cost four times the video memory at the
   //       usual sizes. Each tier and DPI scale has a cache file of its own, so crossing back loads them from the cache.
+  //   Until a game's thumbnail is built at the current tier, the one cached at the other tier is shown (scaled).
   const float  thumbWidth   = (width <= 240.0f) ? 240.0f : 480.0f;
+  const float  otherWidth   = (width <= 240.0f) ? 480.0f : 240.0f;
 
-  _art.SetThumbnailSize (ImFloor (ImVec2 (thumbWidth, thumbWidth * 1.5f) * dpi));
+  _art.SetThumbnailSize (ImFloor (ImVec2 (thumbWidth, thumbWidth * 1.5f) * dpi),
+                         ImFloor (ImVec2 (otherWidth, otherWidth * 1.5f) * dpi));
 
   // The first frame of the grid (switched to it, or back to the library tab), or another game was selected (e.g. in the
   //   list, or by type-to-search): show the selected game

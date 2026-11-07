@@ -148,7 +148,9 @@ public:
   // Thumbnails (the grid view). Loaded from the thumbnail cache (<asset folder>cover-thumb-<size>-<sources>.dds, BC7) by up to
   //   16 workers; a game without a usable cache is built by up to 16 workers: the same cover pipeline as the cover worker
   //   (which may download the cover), scaled down and saved to the cache. Only tiles that are drawn request one.
-  void SetThumbnailSize       (ImVec2 size);         // The size thumbnails are made at (pixels); a change reloads them all
+  void SetThumbnailSize       (ImVec2 size, ImVec2 placeholderSize = ImVec2 (0, 0)); // The size thumbnails are made at (pixels); a change reloads them all.
+                                                     //   placeholderSize: another size whose cached thumbnail is shown while
+                                                     //     one is built at this size (the grid's other size tier), if any
   ImVec2 GetThumbnailSize     (void) const { return m_thumbSize; }
   void RequestThumbnail       (app_record_s* pApp);  // Its tile is drawn: marks it as used, and starts a load or build when there is room
   void UpdateThumbnails       (bool gridShown);      // Once per frame: unloads thumbnails out of view for a while (all of them when the grid is not shown)
@@ -196,7 +198,9 @@ private:
   void   StartThumbnailWorker (app_record_s* pApp, bool build);
   void   ReleaseThumbnail     (app_record_s* pApp);  // Pushes its texture for release; back to SKIF_Thumbnail_None
   std::wstring GetThumbnailCachePath (app_record_s* pApp) const; // Empty if the game has no asset folder
+  std::wstring GetThumbnailCachePath (app_record_s* pApp, ImVec2 size) const; // ... made at another size
   ImVec2                    m_thumbSize         = ImVec2 (0, 0);
+  ImVec2                    m_thumbPlaceholderSize = ImVec2 (0, 0); // See SetThumbnailSize ( ); 0 = none
   int                       m_activeThumbLoads  = 0;
   int                       m_activeThumbBuilds = 0;
   int                       m_thumbRequests     = 0;  // The last request ID handed out
@@ -334,6 +338,7 @@ private:
     bool                    build      = false; // Thumbnails: made by a build (else loaded from the cache)
     bool                    noCache    = false; // Thumbnails: the cache was missing or outdated (a build is needed)
     bool                    dropped    = false; // Thumbnails: its tile went out of view while it loaded, so it made no texture
+    bool                    placeholder = false; // Thumbnails: noCache, and texture is the thumbnail of the placeholder size, shown until it is built
     unsigned int            generation = 0;  // m_generation when the worker started
     library_texture_s       texture;
     std::vector <library_texture_s>

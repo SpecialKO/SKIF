@@ -13,6 +13,8 @@
 #include <condition_variable>
 #include <mutex>
 #include <thread>
+#include <semaphore>
+#include <dxgi.h>
 
 #include <images/patreon.png.h>
 #include <images/sk_icon.jpg.h>
@@ -165,9 +167,161 @@ _ScaleLibraryImageToFill (DirectX::TexMetadata& meta, DirectX::ScratchImage*& pI
   return false;
 }
 
+// BC7 on the GPU (DirectXTex's DirectCompute encoder), for the thumbnails: milliseconds a thumbnail, where the CPU encoder
+//   takes seconds (several for a 480 x 720 one, and more with many at once). A device of its own, on the adapter SKIF draws
+//     with (so a laptop's other GPU is not woken up), as DirectXTex uses the device's immediate context, which SKIF's
+//       own device can't share with worker threads. One thumbnail at a time (the mutex), which is plenty.
+//   Not on WARP (SKIF's software device: that is no faster than the CPU encoder). If the device is lost (e.g. a driver
+//     update), it is made again for the next thumbnail, a few times at most; until then the CPU encoder is used.
+namespace
+{
+  struct gpu_bc7_s {
+    std::mutex             mutex;
+    CComPtr <ID3D11Device> device;
+    bool                   tried     = false; // Device creation was attempted (see attempts)
+    int                    attempts  = 0;
+    bool                   disabled  = false; // No suitable adapter: the CPU encoder from now on
+  };
+
+  gpu_bc7_s& _GPUBC7 (void)
+  {
+    static gpu_bc7_s state;
+    return state;
+  }
+
+  constexpr int GPU_BC7_MAX_ATTEMPTS = 3;
+
+  // Under the mutex. The device, created the first time (nullptr if there is none to use)
+  ID3D11Device*
+  _GetGPUBC7Device (gpu_bc7_s& gpu)
+  {
+    if (gpu.device != nullptr || gpu.disabled)
+      return gpu.device;
+
+    if (gpu.tried && gpu.attempts >= GPU_BC7_MAX_ATTEMPTS)
+      return nullptr;
+
+    gpu.tried = true;
+    gpu.attempts++;
+
+    // The adapter of SKIF's own device (the thumbnails are only built once it is the hardware one)
+    CComPtr <IDXGIAdapter> adapter;
+
+    if (CComPtr <ID3D11Device> skifDevice = SKIF_D3D11_GetDevice ( ); skifDevice != nullptr)
+    {
+      CComQIPtr <IDXGIDevice> dxgiDevice (skifDevice);
+
+      if (dxgiDevice != nullptr)
+        dxgiDevice->GetAdapter (&adapter);
+    }
+
+    if (adapter == nullptr)
+    {
+      PLOG_WARNING << "Thumbnails: no adapter for compressing on the GPU; using the CPU encoder.";
+      gpu.disabled = true;
+      return nullptr;
+    }
+
+    DXGI_ADAPTER_DESC desc = { };
+    adapter->GetDesc (&desc);
+
+    // Microsoft Basic Render Driver (WARP)
+    if (desc.VendorId == 0x1414 && desc.DeviceId == 0x8c)
+    {
+      PLOG_INFO << "Thumbnails: SKIF is drawing with WARP; using the CPU encoder.";
+      gpu.disabled = true;
+      return nullptr;
+    }
+
+    // BC7 needs compute shaders (feature level 10.0 with CS 4.x at least; 11.0 for CS 5.0)
+    const D3D_FEATURE_LEVEL levels [] = { D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_10_0 };
+    D3D_FEATURE_LEVEL       level     = { };
+
+    HRESULT hr = D3D11CreateDevice (adapter, D3D_DRIVER_TYPE_UNKNOWN, nullptr, 0x0, levels, ARRAYSIZE (levels),
+                                    D3D11_SDK_VERSION, &gpu.device, &level, nullptr);
+
+    // Without 11.1 (older runtimes refuse it)
+    if (hr == E_INVALIDARG)
+      hr = D3D11CreateDevice (adapter, D3D_DRIVER_TYPE_UNKNOWN, nullptr, 0x0, levels + 1, ARRAYSIZE (levels) - 1,
+                              D3D11_SDK_VERSION, &gpu.device, &level, nullptr);
+
+    if (FAILED (hr) || gpu.device == nullptr)
+    {
+      PLOG_WARNING << "Thumbnails: could not create a device for compressing on the GPU (HRESULT " << SKIF_Util_GetErrorAsWStr (hr) << "); using the CPU encoder.";
+      gpu.device = nullptr;
+      return nullptr;
+    }
+
+    // Feature level 10.x: compute shaders are optional there
+    if (level < D3D_FEATURE_LEVEL_11_0)
+    {
+      D3D11_FEATURE_DATA_D3D10_X_HARDWARE_OPTIONS options = { };
+
+      if (FAILED (gpu.device->CheckFeatureSupport (D3D11_FEATURE_D3D10_X_HARDWARE_OPTIONS, &options, sizeof (options))) ||
+          ! options.ComputeShaders_Plus_RawAndStructuredBuffers_Via_Shader_4_x)
+      {
+        PLOG_INFO << "Thumbnails: the adapter has no compute shaders; using the CPU encoder.";
+        gpu.device   = nullptr;
+        gpu.disabled = true;
+        return nullptr;
+      }
+    }
+
+    PLOG_INFO << "Thumbnails: compressing on the GPU (" << desc.Description << ").";
+
+    return gpu.device;
+  }
+
+  // BC7 on the GPU; false if it can't be used for this one (the caller falls back to the CPU encoder)
+  bool
+  _CompressBC7OnGPU (const DirectX::ScratchImage& src, DirectX::ScratchImage& out)
+  {
+    gpu_bc7_s& gpu = _GPUBC7 ( );
+
+    std::scoped_lock lock (gpu.mutex);
+
+    ID3D11Device* device = _GetGPUBC7Device (gpu);
+
+    if (device == nullptr)
+      return false;
+
+    HRESULT hr = DirectX::Compress (device, src.GetImages ( ), src.GetImageCount ( ), src.GetMetadata ( ),
+                                    DXGI_FORMAT_BC7_UNORM, DirectX::TEX_COMPRESS_BC7_QUICK, DirectX::TEX_ALPHA_WEIGHT_DEFAULT, out);
+
+    if (SUCCEEDED (hr))
+      return true;
+
+    // Lost (driver update, TDR): made again next time, up to GPU_BC7_MAX_ATTEMPTS
+    const HRESULT removed = device->GetDeviceRemovedReason ( );
+
+    PLOG_WARNING << "Thumbnails: compressing on the GPU failed (HRESULT " << SKIF_Util_GetErrorAsWStr (hr) << ((removed != S_OK) ? L", device removed" : L"") << "); using the CPU encoder.";
+
+    if (removed != S_OK)
+      gpu.device = nullptr;
+
+    out.Release ( );
+
+    return false;
+  }
+
+  // The CPU encoder takes seconds a thumbnail and uses one thread, so only a few run at once: the thumbnails then come in
+  //   one after another (rather than all of them after a long while), and SKIF's UI keeps a core or two. Downloads and
+  //     decoding are not limited by this (up to 16 builds, see SKIF_LibraryArtwork::RequestThumbnail).
+  std::counting_semaphore <64>&
+  _CPUEncodeSlots (void)
+  {
+    static std::counting_semaphore <64> slots (
+      static_cast <std::ptrdiff_t> (std::clamp (std::thread::hardware_concurrency ( ) / 4U, 2U, 8U))
+    );
+
+    return slots;
+  }
+}
+
 // A thumbnail as it is kept: 3 mip levels (it is drawn at most about 1.5 times smaller than it is made), compressed to
 //   BC7 (a quarter of the memory of RGBA, also on the GPU). If compressing fails it stays uncompressed, with its mips.
-//   On success, pImg points to target and meta is its metadata. Worker threads: CPU only.
+//   On success, pImg points to target and meta is its metadata. Worker threads: on the GPU if it can (_CompressBC7OnGPU),
+//     else the CPU encoder (a few at once, _CPUEncodeSlots).
 static bool
 _MakeThumbnailImage (DirectX::TexMetadata& meta, DirectX::ScratchImage*& pImg, DirectX::ScratchImage& target)
 {
@@ -179,9 +333,22 @@ _MakeThumbnailImage (DirectX::TexMetadata& meta, DirectX::ScratchImage*& pImg, D
 
   DirectX::ScratchImage compressed;
 
+  bool ok = _CompressBC7OnGPU (mipmapped, compressed);
+
   // BC7_QUICK: the fast mode of the CPU encoder (good for covers; the full search is many times slower)
-  if (SUCCEEDED (DirectX::Compress (mipmapped.GetImages ( ), mipmapped.GetImageCount ( ), mipmapped.GetMetadata ( ),
-                                    DXGI_FORMAT_BC7_UNORM, DirectX::TEX_COMPRESS_BC7_QUICK, DirectX::TEX_THRESHOLD_DEFAULT, compressed)))
+  if (! ok)
+  {
+    auto& slots = _CPUEncodeSlots ( );
+
+    slots.acquire ( );
+
+    ok = SUCCEEDED (DirectX::Compress (mipmapped.GetImages ( ), mipmapped.GetImageCount ( ), mipmapped.GetMetadata ( ),
+                                       DXGI_FORMAT_BC7_UNORM, DirectX::TEX_COMPRESS_BC7_QUICK, DirectX::TEX_THRESHOLD_DEFAULT, compressed));
+
+    slots.release ( );
+  }
+
+  if (ok)
     target = std::move (compressed);
 
   else
