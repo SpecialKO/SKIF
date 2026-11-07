@@ -223,6 +223,7 @@ void ScrollForCoverDrag      (void);                 // In a scrolling window of
 
 // library/library_launch.cpp
 void LaunchGame              (app_record_s* pApp);
+void DrawLaunchScanPopup     (void);                 // "Scanning game folder..." while a launch waits for the game's first scan (anti-cheat), then launches it
 bool SaveGameCover           (app_record_s* pApp, std::wstring_view path, bool notify = false); // Copies / downloads an image as the game's custom cover (background
                                                      //   thread); notify: a notification once it is saved (one is always shown if it fails)
 std::wstring SKIF_Lib_FindPreviousCover    (app_record_s* pApp);          // The previous custom cover (the one replaced or reset last), or empty

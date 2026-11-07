@@ -70,6 +70,9 @@ DrawLibraryPopups (void)
 
   // Properties: a window of its own, drawn after the main window (SKIF_Properties_Draw in SKIF.cpp)
 
+  // Popup: Scanning game folder... (a launch waiting for the game's first scan; library_launch.cpp)
+  DrawLaunchScanPopup ( );
+
 
 
   // End Task confirmation prompt

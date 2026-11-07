@@ -28,6 +28,25 @@
 
 #pragma region LaunchGame
 
+// A launch that waits for the first scan of its game's folder (anti-cheat, see utility/file_detection.h): LaunchGame ( )
+//   stores it and returns, DrawLaunchScanPopup ( ) shows "Scanning game folder..." and launches it once the scan is done
+struct pending_launch_s {
+  bool         active      = false;
+  app_key_s    game        = { };
+  int          configId    = -1;    // app_record_s::launch_configs key, as the record may be replaced meanwhile
+  bool         viaPlatform = false; // launchViaPlatform
+  bool         instant     = false; // launchInstant
+  std::wstring folder;
+  DWORD        started     = 0;     // SKIF_Util_timeGetTime ( )
+  bool         popupOpened = false;
+};
+
+static pending_launch_s s_pendingLaunch;
+static bool             s_launchAfterScan = false; // LaunchGame ( ) is called by DrawLaunchScanPopup ( ): don't wait again
+
+// Gives up waiting after this long (ms): the game is then launched as if no anti-cheat was found
+static constexpr DWORD  LAUNCH_SCAN_TIMEOUT = 30000;
+
 void
 LaunchGame (app_record_s* pApp)
 {
@@ -54,6 +73,26 @@ LaunchGame (app_record_s* pApp)
                                                                     : (pApp->specialk.injection.injection.type == InjectionType::Local);
     bool usingSK               = localInjection;
 
+    // Special K is disabled by default for games with anti-cheat, so a game whose folder is still being scanned for the
+    //   first time (usually done already, as selecting the game queues it) is launched once the scan is done. Not needed
+    //     without Special K, or with a local install (which the anti-cheat default does not apply to).
+    if (! s_launchAfterScan && ! launchWithoutSK && ! localInjection && ! launchConfig->install_dir.empty ( ) &&
+        SKIF_FileDetection::Get (launchConfig->install_dir)->state == SKIF_FileDetection::result_s::State::Pending)
+    {
+      PLOG_INFO << "Waiting for the first scan of the game's folder before launching: " << launchConfig->install_dir;
+
+      s_pendingLaunch             = { };
+      s_pendingLaunch.active      = true;
+      s_pendingLaunch.game        = pApp->GetKey ( );
+      s_pendingLaunch.configId    = launchConfig->id;
+      s_pendingLaunch.viaPlatform = launchViaPlatform;
+      s_pendingLaunch.instant     = launchInstant;
+      s_pendingLaunch.folder      = launchConfig->install_dir;
+      s_pendingLaunch.started     = SKIF_Util_timeGetTime ( );
+
+      return;
+    }
+
     // Increment the uses count and used timestamp
     time_t ltime;
     time (&ltime);
@@ -68,16 +107,6 @@ LaunchGame (app_record_s* pApp)
     // Check if the injection service should be used
     if (! usingSK)
     {
-      // Special K is disabled by default for games with anti-cheat, so a game that was never scanned is scanned first
-      //   (usually done already, as selecting the game queues it). Gives up after a few seconds: Special K is then used.
-      if (! launchWithoutSK && ! launchConfig->install_dir.empty ( ))
-      {
-        const SKIF_FileDetection::result_ptr detection =
-          SKIF_FileDetection::Wait (launchConfig->install_dir, 3000);
-
-        PLOG_WARNING_IF (detection->state == SKIF_FileDetection::result_s::State::Pending) << "Launching before the scan for anti-cheat has finished.";
-      }
-
       PLOG_INFO_IF (launchConfig->isDisabledForAntiCheat ( )) << "Special K is disabled by default as the game uses anti-cheat.";
 
       bool isLocalBlacklisted  = launchConfig->isBlacklisted ( ),
@@ -156,6 +185,119 @@ LaunchGame (app_record_s* pApp)
   }
 }
 
+
+// Popup: "Scanning game folder..." while a launch waits for the first scan of its game's folder (see LaunchGame ( )).
+//   Launches the game once the scan is done (or failed), or after LAUNCH_SCAN_TIMEOUT; Cancel drops the launch.
+void
+DrawLaunchScanPopup (void)
+{
+  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
+
+  if (! s_pendingLaunch.active)
+    return;
+
+  constexpr const char* popupId = "###PopupLaunchScan";
+
+  const SKIF_FileDetection::result_ptr detection = SKIF_FileDetection::Get (s_pendingLaunch.folder, false);
+  const DWORD elapsed  = SKIF_Util_timeGetTime ( ) - s_pendingLaunch.started;
+  const bool  timedOut = (elapsed >= LAUNCH_SCAN_TIMEOUT);
+  const bool  finished = (detection->state != SKIF_FileDetection::result_s::State::Pending);
+  bool        cancel   = false;
+
+  if (! finished && ! timedOut)
+  {
+    if (! s_pendingLaunch.popupOpened)
+    {
+      ImGui::OpenPopup (popupId);
+      s_pendingLaunch.popupOpened = true;
+    }
+
+    ImGui::SetNextWindowSize (ImVec2 (0.0f, 0.0f));
+    ImGui::SetNextWindowPos  (ImGui::GetCurrentWindowRead ( )->Viewport->GetMainRect ( ).GetCenter ( ), ImGuiCond_Always, ImVec2 (0.5f, 0.5f));
+
+    if (ImGui::BeginPopupModal (L_("Scanning game folder...###PopupLaunchScan"), nullptr,
+                                  ImGuiWindowFlags_NoResize |
+                                  ImGuiWindowFlags_NoMove   |
+                                  ImGuiWindowFlags_AlwaysAutoResize))
+    {
+      SKIF_ImGui_Spacing ( );
+
+      // A simple progress indicator, as the scan does not know how many files there are
+      static constexpr const char* dots [] = { "", ".", "..", "..." };
+
+      ImGui::TextUnformatted (_("Checking the game for anti-cheat before it is launched."));
+      ImGui::TextColored     (ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), "%s%s", _("Scanning the game's files"), dots [(elapsed / 400) % 4]);
+
+      SKIF_ImGui_Spacing ( );
+
+      if (ImGui::Button (L_("Cancel###PopupLaunchScanCancel"), ImVec2 (100.0f * SKIF_ImGui_GlobalDPIScale, 25.0f * SKIF_ImGui_GlobalDPIScale)))
+        cancel = true;
+
+      if (ImGui::IsKeyPressed (ImGuiKey_Escape))
+        cancel = true;
+
+      if (cancel)
+        ImGui::CloseCurrentPopup ( );
+
+      ImGui::EndPopup ( );
+    }
+
+    // Closed some other way (e.g. by another popup)
+    else if (s_pendingLaunch.popupOpened)
+      cancel = true;
+
+    if (cancel)
+    {
+      PLOG_INFO << "The launch was cancelled while the game's folder was being scanned.";
+      s_pendingLaunch = { };
+      return;
+    }
+
+    // Keep drawing frames for the indicator and the timeout (the end of the scan also wakes SKIF: WM_SKIF_FILEDETECTION)
+    extern int addAdditionalFrames;
+    addAdditionalFrames += 1;
+
+    return;
+  }
+
+  // Done (or given up): close the popup and launch
+  if (s_pendingLaunch.popupOpened && ImGui::BeginPopupModal (popupId))
+  {
+    ImGui::CloseCurrentPopup ( );
+    ImGui::EndPopup          ( );
+  }
+
+  PLOG_WARNING_IF (timedOut && ! finished) << "Gave up waiting for the scan of the game's folder; launching anyway.";
+
+  const pending_launch_s pending = s_pendingLaunch;
+  s_pendingLaunch = { };
+
+  app_record_s* pApp = _games.Find (pending.game);
+
+  if (pApp == nullptr)
+    return;
+
+  auto it = pApp->launch_configs.find (pending.configId);
+
+  if (it == pApp->launch_configs.end ( ))
+    return;
+
+  // As the library tab's launch logic (library.cpp), with the request that was waiting
+  launchConfig      = &it->second;
+  launchViaPlatform = pending.viaPlatform;
+  launchInstant     = pending.instant;
+  launchWithoutSK   = false;
+
+  s_launchAfterScan = true;
+  LaunchGame (pApp);
+  s_launchAfterScan = false;
+
+  launchConfig      = pApp->GetDefaultLaunchConfig ( );
+  launchGame        = false;
+  launchViaPlatform = false;
+  launchInstant     = false;
+  launchWithoutSK   = false;
+}
 
 #pragma endregion
 
