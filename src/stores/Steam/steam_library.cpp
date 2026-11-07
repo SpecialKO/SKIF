@@ -2243,7 +2243,8 @@ app_record_steam_s::ResolveArtwork (LibraryTexture type, const std::wstring& sou
     std::wstring
       ExtractedIconPath = GetStoreAssetDirectory ( ) + L"icon-original.ico";
 
-    if (! PathFileExistsW (ExtractedIconPath.c_str()))
+    // Only if Steam has an icon for the game (source: from the library cache, which may have none)
+    if (! source.empty ( ) && ! PathFileExistsW (ExtractedIconPath.c_str()) && PathFileExistsW (source.c_str()))
       SKIF_Util_SaveImageAsICO (source.c_str(), ExtractedIconPath.c_str(), 32);
   }
 

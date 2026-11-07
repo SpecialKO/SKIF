@@ -855,7 +855,9 @@ app_record_epic_s::ResolveArtwork (LibraryTexture type, const std::wstring& sour
       OriginalIconPath  = EpicAssetPath + L"icon-original.png",
       ExtractedIconPath = EpicAssetPath + L"icon-original.ico";
 
-    if (! PathFileExistsW (ExtractedIconPath.c_str()))
+    // Only once the icon was extracted from the executable above: entries without one (e.g. a pre-order, which has no
+    //   executable yet) would otherwise try, and log a failure, every time the icon loads
+    if (! PathFileExistsW (ExtractedIconPath.c_str()) && PathFileExistsW (OriginalIconPath.c_str()))
       SKIF_Util_SaveImageAsICO (OriginalIconPath.c_str(), ExtractedIconPath.c_str(), 32);
   }
 

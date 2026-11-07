@@ -3455,7 +3455,11 @@ SKIF_Util_SaveImageAsICO (const wchar_t* imgFilePath, const wchar_t* icoFilePath
   {
     // Load the input image
     Gdiplus::Image* image = new Gdiplus::Image (imgFilePath);
-    if (Gdiplus::Status::Ok == image->GetLastStatus ( ))
+
+    // Read once: GetLastStatus ( ) resets it to Ok
+    const Gdiplus::Status loadStatus = image->GetLastStatus ( );
+
+    if (Gdiplus::Status::Ok == loadStatus)
     {
       INT size = 32;
 
@@ -3467,7 +3471,7 @@ SKIF_Util_SaveImageAsICO (const wchar_t* imgFilePath, const wchar_t* icoFilePath
 
       // Convert the resized image to HICON format
       HICON hIcon;
-      if (Gdiplus::Status::Ok == resizedImage.GetHICON (&hIcon))
+      if (const Gdiplus::Status iconStatus = resizedImage.GetHICON (&hIcon); Gdiplus::Status::Ok == iconStatus)
       {
         std::vector<char> fileData = { };
         if (GetIcoBuffer (hIcon, iColorBits, fileData))
@@ -3482,18 +3486,35 @@ SKIF_Util_SaveImageAsICO (const wchar_t* imgFilePath, const wchar_t* icoFilePath
               status = true;
             }
 
+            else
+              PLOG_ERROR << "Failed to write the icon " << icoFilePath << ": " << SKIF_Util_GetErrorAsWStr ( );
+
             CloseHandle (hFile);
           }
+
+          else
+            PLOG_ERROR << "Failed to create the icon " << icoFilePath << ": " << SKIF_Util_GetErrorAsWStr ( );
         }
+
+        else
+          PLOG_ERROR << "Failed to convert " << imgFilePath << " to an icon (" << iColorBits << "-bit).";
 
         // Destroy the icon
         DestroyIcon (hIcon);
       }
 
+      else
+        PLOG_ERROR << "Failed to make an icon of " << imgFilePath << " (GDI+ status " << static_cast <int> (iconStatus) << ").";
     }
 
     else {
-      PLOG_ERROR << L"Failed to load source image.";
+      // Which image, and why: GDI+ says what went wrong (e.g. 10 = FileNotFound, 2 = InvalidParameter for an empty path)
+      const std::wstring path = (imgFilePath != nullptr) ? imgFilePath : L"";
+
+      PLOG_ERROR << "Failed to load the source image for the icon " << ((icoFilePath != nullptr) ? icoFilePath : L"") << ": "
+                 << ((path.empty ( )) ? L"(no image given)" : path)
+                 << " (GDI+ status " << static_cast <int> (loadStatus)
+                 << ((! path.empty ( ) && ! PathFileExistsW (path.c_str ( ))) ? L"; the file does not exist)" : L")");
     }
 
     // Cleanup
