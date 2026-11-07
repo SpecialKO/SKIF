@@ -376,8 +376,7 @@ DrawGameContextMenu_PlayWith (app_record_s* pApp, bool playDisabled)
     ImGui::PopStyleColor  ( ); // ImGuiCol_Text
     ImGui::PopItemFlag    ( ); // ImGuiItemFlags_AutoClosePopups
 
-    SKIF_ImGui_SetHoverTip (_("Starts the launch option clicked next without Special K.\n"
-                              "This stops the injection service, so other games launched meanwhile are affected as well."));
+    SKIF_ImGui_SetHoverTip (_("Skips Special K for this launch."));
   }
 
   SKIF_ImGui_PopDisableState  (playDisabled);
