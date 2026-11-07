@@ -30,7 +30,7 @@
 
 #pragma region PrintInjectionSummary
 
-// Details panel, top frame: Special K DLL / profile folder / config file / platform, and the service toggle
+// Details panel, top frame: Special K DLL, platform, service toggle
 static void
 DrawGameDetails_Info (app_record_s* pApp)
 {
@@ -907,7 +907,7 @@ DrawGameDetails (app_record_s* pApp)
   if (pApp == nullptr)
     return;
 
-  // Top frame: Special K DLL, profile folder, config file, platform, service toggle
+  // Top frame: Special K DLL, platform, service toggle
   DrawGameDetails_Info (pApp);
 
   ImGui::Separator ();
