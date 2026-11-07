@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-07 12:23+0100\n"
+"POT-Creation-Date: 2026-11-07 12:40+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -340,29 +340,29 @@ msgid "Select the executable and the working directory of the game."
 msgstr ""
 
 #: src/stores/Steam/app_record.cpp:805
-#: src/stores/Steam/steam_library.cpp:1890
+#: src/stores/Steam/steam_library.cpp:1892
 msgid "Conflicting configuration"
 msgstr ""
 
 #: src/stores/Steam/app_record.cpp:806
-#: src/stores/Steam/steam_library.cpp:1891
+#: src/stores/Steam/steam_library.cpp:1893
 msgid "Could not launch game due to conflicting launch options in Steam:"
 msgstr ""
 
 #: src/stores/Steam/app_record.cpp:810
-#: src/stores/Steam/steam_library.cpp:1895
+#: src/stores/Steam/steam_library.cpp:1897
 msgid "Please change the launch options in Steam before trying again."
 msgstr ""
 
-#: src/stores/Steam/steam_library.cpp:1984
+#: src/stores/Steam/steam_library.cpp:1986
 msgid "Details"
 msgstr ""
 
-#: src/stores/Steam/steam_library.cpp:1994
+#: src/stores/Steam/steam_library.cpp:1996
 msgid "A controller must be connected."
 msgstr ""
 
-#: src/stores/Steam/steam_library.cpp:1997
+#: src/stores/Steam/steam_library.cpp:1999
 msgid "Game properties"
 msgstr ""
 
@@ -568,7 +568,7 @@ msgstr ""
 
 #. TRANSLATORS: 'Use Microsoft Detours API hooking' is an option of RTSS (in English)
 #: src/tabs/common_ui.cpp:248
-#: src/utility/games.cpp:420
+#: src/utility/games.cpp:421
 msgid ""
 "RivaTuner Statistics Server (RTSS) occasionally conflicts with Special K.\n"
 "Try closing it down if Special K does not behave as expected, or enable\n"
@@ -3914,11 +3914,11 @@ msgstr ""
 msgid "Other"
 msgstr ""
 
-#: src/utility/games.cpp:417
+#: src/utility/games.cpp:418
 msgid "One-time warning about RTSS.exe"
 msgstr ""
 
-#: src/utility/games.cpp:426
+#: src/utility/games.cpp:427
 msgid "This warning will not appear again."
 msgstr ""
 

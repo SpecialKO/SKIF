@@ -198,7 +198,9 @@ SK_GetManifestContentsForAppID (app_record_steam_s *app)
        app->steam.manifest_path.c_str(), _TRUNCATE
     );
 
-    found = PathFileExistsW (wszManifestFullPath);
+    // Not checked first: opening it (below) fails just the same if it is gone, and on a network drive each check is a
+    //   round trip of its own
+    found = true;
   }
 
   // Otherwise look for it in the Steam libraries

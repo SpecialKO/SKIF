@@ -15,6 +15,7 @@
 #include <thread>
 #include <functional>
 #include <algorithm>
+#include <mutex>
 #include <Shlwapi.h>
 #include <process.h>
 #include <ctime>
@@ -1634,6 +1635,101 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
     }
   }
 
+  // The install folders are checked against a listing of their parent folder (e.g. a Steam library's steamapps\common),
+  //   read once per parent folder and refresh, instead of a lookup per game: on a network drive each lookup is a round
+  //     trip (e.g. a Steam library on a NAS with hundreds of downloads queued: their manifests exist, their folders not
+  //       yet). The games of a volume are checked by several threads at once, so the first to need a listing reads it
+  //         and the others wait for it (std::call_once).
+  struct folder_listing_s {
+    std::once_flag                           once;
+    bool                                     ok = false; // Listed (an empty listing if the parent folder does not exist)
+    std::unordered_map <std::wstring, bool>  entries;    // Lowercase names; true for a reparse point (junction, symbolic link)
+  };
+
+  std::mutex                                                           listingsMutex;
+  std::unordered_map <std::wstring, std::unique_ptr <folder_listing_s>> listings;
+
+  // As PathFileExists ( ) on the install folder (also true for a file of that name), from the listing of its parent.
+  //   Falls back to PathFileExists ( ) if the parent can't be listed (e.g. access denied), and for reparse points (a
+  //     junction whose target is gone is listed, but does not exist).
+  auto _InstallFolderExists = [&](const std::wstring& path) -> bool
+  {
+    std::wstring folder = path;
+    std::replace (folder.begin ( ), folder.end ( ), L'/', L'\\');
+
+    while (folder.length ( ) > 3 && folder.back ( ) == L'\\')
+      folder.pop_back ( );
+
+    const size_t slash = folder.rfind (L'\\');
+
+    // A drive root, a relative path, or nothing at all: as before
+    if (slash == std::wstring::npos || slash < 2 || slash + 1 >= folder.length ( ))
+      return (PathFileExistsW (path.c_str ( )) != FALSE);
+
+    const std::wstring parent = folder.substr (0, slash);
+    const std::wstring name   = SKIF_Util_ToLowerW (std::wstring_view (folder).substr (slash + 1));
+
+    folder_listing_s* listing = nullptr;
+
+    {
+      std::scoped_lock lock (listingsMutex);
+
+      auto& entry = listings [SKIF_Util_ToLowerW (parent)];
+
+      if (entry == nullptr)
+        entry = std::make_unique <folder_listing_s> ( );
+
+      listing = entry.get ( );
+    }
+
+    std::call_once (listing->once, [&]
+    {
+      const DWORD dwStart = SKIF_Util_timeGetTime1 ( );
+
+      WIN32_FIND_DATAW ffd   = { };
+      HANDLE           hFind = FindFirstFileExW ((parent + L"\\*").c_str ( ), FindExInfoBasic, &ffd, FindExSearchNameMatch, nullptr, FIND_FIRST_EX_LARGE_FETCH);
+
+      if (hFind == INVALID_HANDLE_VALUE)
+      {
+        const DWORD dwError = GetLastError ( );
+
+        // The parent folder does not exist: neither does the install folder
+        listing->ok = (dwError == ERROR_FILE_NOT_FOUND || dwError == ERROR_PATH_NOT_FOUND);
+
+        PLOG_VERBOSE_IF (! listing->ok) << "[Library Processing] Could not list " << parent << " (" << SKIF_Util_GetErrorAsWStr (dwError) << "); checking its install folders one by one.";
+        return;
+      }
+
+      do
+      {
+        if (wcscmp (ffd.cFileName, L".") == 0 || wcscmp (ffd.cFileName, L"..") == 0)
+          continue;
+
+        listing->entries [SKIF_Util_ToLowerW (ffd.cFileName)] = ((ffd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0);
+      } while (FindNextFileW (hFind, &ffd));
+
+      FindClose (hFind);
+
+      listing->ok = true;
+
+      PLOG_VERBOSE << "[Library Processing] Listed " << parent << ": " << listing->entries.size ( ) << " entries in " << (SKIF_Util_timeGetTime1 ( ) - dwStart) << " ms.";
+    });
+
+    if (! listing->ok)
+      return (PathFileExistsW (path.c_str ( )) != FALSE);
+
+    auto it = listing->entries.find (name);
+
+    if (it == listing->entries.end ( ))
+      return false;
+
+    // A junction or symbolic link: whether its target exists
+    if (it->second)
+      return (PathFileExistsW (path.c_str ( )) != FALSE);
+
+    return true;
+  };
+
   auto _ProcessGame = [&](game_job_s& job) -> void
   {
     app_entry_t& app = *job.app;
@@ -1889,7 +1985,7 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
       // This populates install_dir for Steam games
       app.second->ResolveInstallDirectory ( );
 
-      if (! PathFileExists (app.second->install_dir.c_str()))
+      if (! _InstallFolderExists (app.second->install_dir))
       {
         PLOG_DEBUG << "App ID " << app.second->id << " (" << app.second->store_utf8 << ") has non-existent install folder; ignoring!";
 
@@ -1907,10 +2003,26 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
   for (auto& job : jobs)
     volumes [SKIF_GetVolumeKey (job.app->second->GetStorageLocation ( ))].push_back (&job);
 
-  // One worker per volume, at most one per CPU thread; with more volumes than that, each volume goes to the worker with the fewest games
-  std::vector <std::vector <game_job_s*>> workloads (
-    std::min <size_t> (volumes.size ( ), std::max <size_t> (1, std::thread::hardware_concurrency ( )))
-  );
+  // A network drive (a mapped drive letter or a share): the time goes to waiting on the network, as each manifest read
+  //   and folder check is a round trip (tens of ms each), so several threads check its games at once. E.g. a Steam
+  //     library on a NAS with hundreds of downloads queued: their manifests exist, their folders not yet.
+  auto _IsNetworkVolume = [](const std::wstring& key) -> bool
+  {
+    if (key.starts_with (LR"(\\)"))
+      return true;
+
+    return (key.length ( ) >= 3 && key [1] == L':' && GetDriveTypeW (key.c_str ( )) == DRIVE_REMOTE);
+  };
+
+  // The games of one or more volumes, taken one at a time by its threads
+  struct workload_s {
+    std::vector <game_job_s*> jobs;
+    std::atomic <size_t>      next    = 0;
+    size_t                    threads = 1;
+  };
+
+  const size_t cpuThreads     = std::max <size_t> (1, std::thread::hardware_concurrency ( ));
+  const size_t networkThreads = std::clamp <size_t> (cpuThreads, 2, 16);
 
   std::vector <std::pair <std::wstring, std::vector <game_job_s*>*>> bySize;
   for (auto& volume : volumes)
@@ -1918,37 +2030,81 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
 
   std::stable_sort (bySize.begin ( ), bySize.end ( ), [](const auto& a, const auto& b) { return a.second->size ( ) > b.second->size ( ); });
 
+  // Each network volume gets a workload of its own (with several threads); the local ones one per volume, at most one
+  //   per CPU thread; with more local volumes than that, each goes to the local workload with the fewest games
+  std::vector <std::unique_ptr <workload_s>> workloads;
+  std::vector <workload_s*>                  local;
+
+  size_t localVolumes = 0;
+
+  for (auto& volume : bySize)
+    if (! _IsNetworkVolume (volume.first))
+      localVolumes++;
+
+  for (size_t i = 0; i < std::min (localVolumes, cpuThreads); i++)
+  {
+    workloads.push_back (std::make_unique <workload_s> ( ));
+    local.push_back     (workloads.back ( ).get ( ));
+  }
+
   for (auto& volume : bySize)
   {
-    auto& workload =
-      *std::min_element (workloads.begin ( ), workloads.end ( ), [](const auto& a, const auto& b) { return a.size ( ) < b.size ( ); });
+    const bool network = _IsNetworkVolume (volume.first);
 
-    workload.insert (workload.end ( ), volume.second->begin ( ), volume.second->end ( ));
+    workload_s* workload = nullptr;
 
-    PLOG_VERBOSE << "[Library Processing] Volume " << (volume.first.empty ( ) ? L"(unknown)" : volume.first) << ": " << volume.second->size ( ) << " games";
+    if (network)
+    {
+      workloads.push_back (std::make_unique <workload_s> ( ));
+      workload          = workloads.back ( ).get ( );
+      workload->threads = std::min (networkThreads, volume.second->size ( ));
+    }
+
+    else
+      workload =
+        *std::min_element (local.begin ( ), local.end ( ), [](const workload_s* a, const workload_s* b) { return a->jobs.size ( ) < b->jobs.size ( ); });
+
+    workload->jobs.insert (workload->jobs.end ( ), volume.second->begin ( ), volume.second->end ( ));
+
+    PLOG_VERBOSE << "[Library Processing] Volume " << (volume.first.empty ( ) ? L"(unknown)" : volume.first) << ": " << volume.second->size ( ) << " games"
+                 << ((network) ? SK_FormatStringW (L" (network drive: %zu threads)", workload->threads) : L"");
   }
+
+  // The largest first: this thread works on it
+  std::stable_sort (workloads.begin ( ), workloads.end ( ), [](const auto& a, const auto& b) { return a->jobs.size ( ) > b->jobs.size ( ); });
 
   PLOG_DEBUG << "[Library Processing] Prepared the games (metadata, drives) in " << (SKIF_Util_timeGetTime1 ( ) - dwPhase) << " ms.";
   dwPhase = SKIF_Util_timeGetTime1 ( );
 
-  // The first (largest) workload is processed on this thread, the others on their own threads: one drive means no
-  //   extra threads at all. As with the store scans, this thread does any whose thread hasn't started yet (see _Start).
-  std::vector <worker_task_t> drives;
-
-  for (size_t i = 1; i < workloads.size ( ); i++)
+  auto _RunWorkload = [&](workload_s& workload)
   {
-    drives.push_back (_Start (L"SKIF_LibraryWorker_Games", [&, i]
+    for (size_t i = workload.next.fetch_add (1); i < workload.jobs.size ( ); i = workload.next.fetch_add (1))
+      _ProcessGame (*workload.jobs [i]);
+  };
+
+  // Each workload has its threads (one, or several for a network drive); this thread is one of the first (largest)
+  //   workload's, so one local drive means no extra threads at all. As with the store scans, this thread does any
+  //     whose thread hasn't started yet (see _Start): a workload's threads share its games, so that is always safe.
+  std::vector <worker_task_t> drives;
+  size_t                      threadsUsed = (workloads.empty ( )) ? 0 : 1;
+
+  for (size_t i = 0; i < workloads.size ( ); i++)
+  {
+    workload_s* workload = workloads [i].get ( );
+
+    for (size_t t = (i == 0) ? 1 : 0; t < workload->threads; t++)
     {
-      for (auto* job : workloads [i])
-        _ProcessGame (*job);
-    }));
+      drives.push_back (_Start (L"SKIF_LibraryWorker_Games", [&, workload]
+      {
+        _RunWorkload (*workload);
+      }));
+
+      threadsUsed++;
+    }
   }
 
   if (! workloads.empty ( ))
-  {
-    for (auto* job : workloads [0])
-      _ProcessGame (*job);
-  }
+    _RunWorkload (*workloads [0]);
 
   for (auto& drive : drives)
     _Steal (drive);
@@ -1956,7 +2112,7 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
   for (auto& drive : drives)
     _Wait (drive);
 
-  PLOG_DEBUG << "[Library Processing] Processed games on " << volumes.size ( ) << " drive(s) using " << workloads.size ( ) << " thread(s) in " << (SKIF_Util_timeGetTime1 ( ) - dwPhase) << " ms.";
+  PLOG_DEBUG << "[Library Processing] Processed games on " << volumes.size ( ) << " drive(s) using " << threadsUsed << " thread(s) in " << (SKIF_Util_timeGetTime1 ( ) - dwPhase) << " ms.";
   dwPhase = SKIF_Util_timeGetTime1 ( );
 
   // Write the updated metadata back to db.json (in memory; the file is written below)
