@@ -175,12 +175,12 @@ SK_VFS_ScanTree ( SK_VirtualFS::vfsNode* pVFSRoot,
 
 #pragma region Manifest cache
 
-// Steam libraries on network drives (e.g. a NAS): each manifest read is a few network round trips, which add up with
-//   hundreds of games (e.g. downloads that are queued). So their contents are cached in Assets\Cache\SteamManifests.json,
-//     keyed on the manifest's path, size and time of its last change, as listed when the library is scanned (one listing
-//       per library, see SKIF_SteamInt_DiscoverInstalledApps): a manifest that is unchanged since is not opened again.
-//         Steam rewrites a manifest as a download progresses, which changes its time, so that one is read again.
-//   Libraries on local drives are read as before: their manifests are cheap to read.
+// Reading a manifest takes a few file system calls: round trips on a network drive (e.g. a NAS), seeks on a mechanical
+//   hard drive, which add up with hundreds of games (e.g. downloads that are queued). So the contents of the manifests of
+//     all Steam libraries are cached in Assets\Cache\SteamManifests.json, keyed on the manifest's path, size and time of
+//       its last change, as listed when the library is scanned (the same listing that finds them, see
+//         _ScanManifests): a manifest that is unchanged since is not opened again. Steam rewrites a manifest as a
+//           download progresses, which changes its time, so that one is read again.
 //
 //   { "version": 1, "manifests": { "<path, lowercase>": { "size": n, "time": <FILETIME>, "data": "<contents>" } } }
 namespace
@@ -200,27 +200,12 @@ namespace
   constexpr int            MANIFEST_CACHE_VERSION = 1;
 
   std::mutex                                                s_manifestMutex;
-  std::unordered_map <std::wstring, manifest_stamp_s>       s_manifestStamps; // Manifests of network libraries, from their latest listing
+  std::unordered_map <std::wstring, manifest_stamp_s>       s_manifestStamps; // Manifests of the libraries, from their latest listing
   std::unordered_map <std::wstring, manifest_cache_entry_s> s_manifestCache;
   bool                                                      s_manifestCacheLoaded = false;
   bool                                                      s_manifestCacheDirty  = false;
   uint32_t                                                  s_manifestHits        = 0; // Since the last save
   uint32_t                                                  s_manifestReads       = 0;
-
-  // A mapped drive letter of a network share, or a UNC path
-  bool
-  _IsNetworkPath (const std::wstring& path)
-  {
-    if (path.starts_with (LR"(\\)") && ! path.starts_with (LR"(\\?\)") && ! path.starts_with (LR"(\\.\)"))
-      return true;
-
-    if (path.length ( ) < 2 || path [1] != L':')
-      return false;
-
-    const wchar_t root [] = { path [0], L':', L'\\', L'\0' };
-
-    return (GetDriveTypeW (root) == DRIVE_REMOTE);
-  }
 
   // The cache is JSON, which only holds valid UTF-8 (nlohmann::json throws on anything else when writing it)
   bool
@@ -282,21 +267,20 @@ namespace
         s_manifestCache.emplace (SK_UTF8ToWideChar (key), std::move (entry));
     }
 
-    PLOG_VERBOSE << "Steam manifest cache: loaded " << s_manifestCache.size ( ) << " manifests of network libraries.";
+    PLOG_VERBOSE << "Steam manifest cache: loaded " << s_manifestCache.size ( ) << " manifests.";
   }
 
-  // Lists the manifests of a library on a network drive (its steamapps folder), replacing what was listed before
-  void
-  _ListNetworkManifests (const wchar_t* steamapps)
+  // A library (its steamapps folder): its manifests, added to the library's VFS as SK_VFS_ScanTree ( ) does, and the
+  //   size and time of each from the same listing (for the cache). Replaces what was listed for the library before.
+  //     Returns how many manifests it has.
+  int
+  _ScanManifests (SK_VirtualFS::vfsNode* pVFSRoot, const wchar_t* steamapps)
   {
     const std::wstring folder = steamapps;
-
-    if (folder.empty ( ) || ! _IsNetworkPath (folder))
-      return;
-
     const std::wstring prefix = SKIF_Util_ToLowerW (folder) + L"\\";
 
     std::unordered_map <std::wstring, manifest_stamp_s> listed;
+    int                                                 found = 0;
 
     WIN32_FIND_DATAW ffd   = { };
     HANDLE           hFind = FindFirstFileExW ((folder + LR"(\appmanifest_*.acf)").c_str ( ), FindExInfoBasic, &ffd,
@@ -304,10 +288,16 @@ namespace
 
     if (hFind != INVALID_HANDLE_VALUE)
     {
+      // As SK_VFS_ScanTree ( ): the folder (by its full path) under the root, the manifests in it
+      SK_VirtualFS::vfsNode* pFolder = pVFSRoot->addDirectory (steamapps);
+
       do
       {
         if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
           continue;
+
+        pFolder->addFile (ffd.cFileName);
+        ++found;
 
         manifest_stamp_s stamp;
         stamp.size = (static_cast <uint64_t> (ffd.nFileSizeHigh)                 << 32) | ffd.nFileSizeLow;
@@ -325,9 +315,11 @@ namespace
       it = (it->first.starts_with (prefix)) ? s_manifestStamps.erase (it) : std::next (it);
 
     s_manifestStamps.merge (listed);
+
+    return found;
   }
 
-  // The cached contents of a manifest of a network library, if it is unchanged since it was cached
+  // The cached contents of a manifest, if it is unchanged since it was cached
   bool
   _GetCachedManifest (const std::wstring& path, std::string& data)
   {
@@ -356,7 +348,7 @@ namespace
     return true;
   }
 
-  // Caches a manifest of a network library that was just read (with its size and time as listed)
+  // Caches a manifest that was just read (with its size and time as listed)
   void
   _CacheManifest (const std::wstring& path, const std::string& data)
   {
@@ -384,12 +376,12 @@ SKIF_Steam_SaveManifestCache (void)
 
   if (s_manifestHits + s_manifestReads > 0)
     PLOG_DEBUG << "Steam manifest cache: " << s_manifestHits << " of " << (s_manifestHits + s_manifestReads)
-               << " manifests of network libraries came from the cache.";
+               << " Steam manifests came from the cache.";
 
   s_manifestHits  = 0;
   s_manifestReads = 0;
 
-  // Nothing listed (no network libraries, or Steam was not scanned): keep the file as it is
+  // Nothing listed (no Steam libraries, or Steam was not scanned): keep the file as it is
   if (s_manifestStamps.empty ( ) || ! s_manifestCacheLoaded)
     return;
 
@@ -505,7 +497,7 @@ SK_GetManifestContentsForAppID (app_record_steam_s *app)
     }
   }
 
-  // A library on a network drive: unchanged since it was cached (see SKIF_Steam_SaveManifestCache)
+  // Unchanged since it was cached (see SKIF_Steam_SaveManifestCache)
   if (found)
   {
     if (std::string cached; _GetCachedManifest (wszManifestFullPath, cached))
@@ -567,7 +559,7 @@ SK_GetManifestContentsForAppID (app_record_steam_s *app)
         app->steam.manifest_data = manifest;
         app->steam.manifest_path = wszManifestFullPath;
 
-        _CacheManifest (wszManifestFullPath, manifest); // Network libraries only
+        _CacheManifest (wszManifestFullPath, manifest);
 
         return app->steam.manifest_data;
       }
@@ -1527,9 +1519,10 @@ SKIF_Steam_areLibrariesSignaled (void)
       // Clear out any existing paths
       library.manifest_vfs.clear();
 
+      // Also the size and time of each manifest for the cache: the library worker uses this listing if it runs in the
+      //   same frame (frame_last_scanned), so it has to be as current as its own would be
       library.count =
-        SK_VFS_ScanTree ( library.manifest_vfs,
-                          library.path, L"appmanifest_*.acf", 0);
+        _ScanManifests (library.manifest_vfs, library.path);
 
       if (library.count != prevCount)
         isSignaled = true;
@@ -1588,12 +1581,10 @@ SKIF_SteamInt_DiscoverInstalledApps (void)
         // Clear out any existing paths
         library.manifest_vfs.clear();
 
+        // The same listing also gives the size and time of each manifest, so unchanged ones come from the cache (see
+        //   SKIF_Steam_SaveManifestCache)
         library.count =
-          SK_VFS_ScanTree ( library.manifest_vfs,
-                            library.path, L"appmanifest_*.acf", 0);
-
-        // A library on a network drive: the size and time of each manifest, so unchanged ones come from the cache
-        _ListNetworkManifests (library.path);
+          _ScanManifests (library.manifest_vfs, library.path);
       }
 
       SK_VirtualFS::vfsNode* pFolder =

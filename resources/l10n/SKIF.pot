@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-07 13:18+0100\n"
+"POT-Creation-Date: 2026-11-07 13:41+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,58 +16,58 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
-#: src/SKIF.cpp:1506
-#: src/SKIF.cpp:1660
+#: src/SKIF.cpp:1505
+#: src/SKIF.cpp:1659
 #: src/tabs/settings.cpp:42
 msgid "Start Service"
 msgstr ""
 
-#: src/SKIF.cpp:1507
-#: src/SKIF.cpp:1679
+#: src/SKIF.cpp:1506
+#: src/SKIF.cpp:1678
 msgid "Start Service (manual stop)"
 msgstr ""
 
-#: src/SKIF.cpp:1508
-#: src/SKIF.cpp:1697
+#: src/SKIF.cpp:1507
+#: src/SKIF.cpp:1696
 msgid "Stop Service"
 msgstr ""
 
-#: src/SKIF.cpp:1510
+#: src/SKIF.cpp:1509
 #: src/tabs/settings.cpp:794
 msgid "Check for updates"
 msgstr ""
 
-#: src/SKIF.cpp:1515
-#: src/SKIF.cpp:1763
+#: src/SKIF.cpp:1514
+#: src/SKIF.cpp:1762
 msgid "Exit"
 msgstr ""
 
-#: src/SKIF.cpp:1658
+#: src/SKIF.cpp:1657
 msgid ""
 "Starts the injection service and\n"
 "stops it after injection."
 msgstr ""
 
-#: src/SKIF.cpp:1677
+#: src/SKIF.cpp:1676
 msgid ""
 "Starts the injection service but\n"
 "does not stop it after injection."
 msgstr ""
 
-#: src/SKIF.cpp:1696
+#: src/SKIF.cpp:1695
 msgid "Stops the injection service"
 msgstr ""
 
-#: src/SKIF.cpp:1728
+#: src/SKIF.cpp:1727
 msgid "Checks for any available updates"
 msgstr ""
 
-#: src/SKIF.cpp:1729
+#: src/SKIF.cpp:1728
 msgid "Check for Updates"
 msgstr ""
 
 #. TRANSLATORS: Controlled Folder Access is a feature of Windows (use the name Windows uses in your language)
-#: src/SKIF.cpp:2460
+#: src/SKIF.cpp:2459
 msgid ""
 "Controlled Folder Access is enabled in Windows and may prevent Special K and even some games from working properly. It is recommended to either disable the feature or add exclusions for games where Special K is used as well as SKIF (this application).\n"
 "\n"
@@ -76,115 +76,115 @@ msgid ""
 "Microsoft's support page with more information will open when you select any of the options below."
 msgstr ""
 
-#: src/SKIF.cpp:2466
+#: src/SKIF.cpp:2465
 msgid "Warning about Controlled Folder Access"
 msgstr ""
 
-#: src/SKIF.cpp:3644
+#: src/SKIF.cpp:3643
 msgctxt "tab"
 msgid "Library"
 msgstr ""
 
-#: src/SKIF.cpp:3645
+#: src/SKIF.cpp:3644
 msgctxt "tab"
 msgid "Hardware"
 msgstr ""
 
-#: src/SKIF.cpp:3646
+#: src/SKIF.cpp:3645
 msgctxt "tab"
 msgid "Monitor"
 msgstr ""
 
-#: src/SKIF.cpp:3647
+#: src/SKIF.cpp:3646
 msgctxt "tab"
 msgid "Settings"
 msgstr ""
 
-#: src/SKIF.cpp:3648
+#: src/SKIF.cpp:3647
 msgctxt "tab"
 msgid "About"
 msgstr ""
 
-#: src/SKIF.cpp:3904
+#: src/SKIF.cpp:3903
 #: src/utility/injection.cpp:959
 msgid "Starting..."
 msgstr ""
 
-#: src/SKIF.cpp:3905
+#: src/SKIF.cpp:3904
 #: src/utility/injection.cpp:958
 msgid "Stopping..."
 msgstr ""
 
-#: src/SKIF.cpp:3906
+#: src/SKIF.cpp:3905
 #: src/utility/injection.cpp:884
 #: src/utility/injection.cpp:1386
 msgid "Waiting for game..."
 msgstr ""
 
-#: src/SKIF.cpp:3907
+#: src/SKIF.cpp:3906
 #: src/utility/injection.cpp:896
 #: src/utility/injection.cpp:1387
 msgid "Running"
 msgstr ""
 
-#: src/SKIF.cpp:3908
+#: src/SKIF.cpp:3907
 #: src/utility/injection.cpp:899
 msgid "Stopped"
 msgstr ""
 
-#: src/SKIF.cpp:3910
+#: src/SKIF.cpp:3909
 #: src/utility/injection.cpp:1401
 msgid "Click to stop the service"
 msgstr ""
 
-#: src/SKIF.cpp:3911
+#: src/SKIF.cpp:3910
 #: src/utility/injection.cpp:1402
 msgid "Click to start the service"
 msgstr ""
 
-#: src/SKIF.cpp:3928
+#: src/SKIF.cpp:3927
 #: src/stores/SKIF/custom_library.cpp:309
 #: src/stores/SKIF/custom_library.cpp:378
 #: src/stores/SKIF/custom_library.cpp:516
 msgid "Add Game"
 msgstr ""
 
-#: src/SKIF.cpp:3941
+#: src/SKIF.cpp:3940
 msgid "Local Manager"
 msgstr ""
 
-#: src/SKIF.cpp:4087
-#: src/SKIF.cpp:4217
+#: src/SKIF.cpp:4086
+#: src/SKIF.cpp:4216
 msgid "Toggle horizontal mode"
 msgstr ""
 
-#: src/SKIF.cpp:4095
-#: src/SKIF.cpp:4225
+#: src/SKIF.cpp:4094
+#: src/SKIF.cpp:4224
 msgid "Toggle mini mode"
 msgstr ""
 
-#: src/SKIF.cpp:4137
+#: src/SKIF.cpp:4136
 msgid "This app will close to the notification area."
 msgstr ""
 
-#: src/SKIF.cpp:4139
+#: src/SKIF.cpp:4138
 #: src/utility/injection.cpp:1007
 msgid "Service continues running after this app is closed."
 msgstr ""
 
-#: src/SKIF.cpp:4204
+#: src/SKIF.cpp:4203
 msgid "Restore"
 msgstr ""
 
-#: src/SKIF.cpp:4208
+#: src/SKIF.cpp:4207
 msgid "Maximize"
 msgstr ""
 
-#: src/SKIF.cpp:4212
+#: src/SKIF.cpp:4211
 msgid "Minimize"
 msgstr ""
 
-#: src/SKIF.cpp:4230
+#: src/SKIF.cpp:4229
 #: src/tabs/ini_editor.cpp:534
 #: src/tabs/library/library_properties.cpp:2249
 #: src/tabs/library/library_properties.cpp:2336
@@ -194,30 +194,30 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-#: src/SKIF.cpp:5915
+#: src/SKIF.cpp:5865
 msgid "Blink and you'll miss it ;)"
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/SKIF.cpp:5917
+#: src/SKIF.cpp:5867
 msgid "An update is being installed..."
 msgstr ""
 
-#: src/SKIF.cpp:5943
+#: src/SKIF.cpp:5893
 msgid "Open the app to continue."
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/SKIF.cpp:5945
+#: src/SKIF.cpp:5895
 msgid "An update to Special K is available!"
 msgstr ""
 
-#: src/SKIF.cpp:5957
+#: src/SKIF.cpp:5907
 msgid "The update will be retried later."
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/SKIF.cpp:5959
+#: src/SKIF.cpp:5909
 msgid "Update failed :("
 msgstr ""
 
@@ -340,29 +340,29 @@ msgid "Select the executable and the working directory of the game."
 msgstr ""
 
 #: src/stores/Steam/app_record.cpp:805
-#: src/stores/Steam/steam_library.cpp:2163
+#: src/stores/Steam/steam_library.cpp:2154
 msgid "Conflicting configuration"
 msgstr ""
 
 #: src/stores/Steam/app_record.cpp:806
-#: src/stores/Steam/steam_library.cpp:2164
+#: src/stores/Steam/steam_library.cpp:2155
 msgid "Could not launch game due to conflicting launch options in Steam:"
 msgstr ""
 
 #: src/stores/Steam/app_record.cpp:810
-#: src/stores/Steam/steam_library.cpp:2168
+#: src/stores/Steam/steam_library.cpp:2159
 msgid "Please change the launch options in Steam before trying again."
 msgstr ""
 
-#: src/stores/Steam/steam_library.cpp:2257
+#: src/stores/Steam/steam_library.cpp:2248
 msgid "Details"
 msgstr ""
 
-#: src/stores/Steam/steam_library.cpp:2267
+#: src/stores/Steam/steam_library.cpp:2258
 msgid "A controller must be connected."
 msgstr ""
 
-#: src/stores/Steam/steam_library.cpp:2270
+#: src/stores/Steam/steam_library.cpp:2261
 msgid "Game properties"
 msgstr ""
 

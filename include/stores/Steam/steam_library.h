@@ -278,7 +278,7 @@ void                         SKIF_Steam_PreloadUserConfig        (SteamId3_t use
 bool                         SKIF_Steam_isSteamOverlayEnabled    (AppId_t appid, SteamId3_t userid);
 bool                         SKIF_Steam_areLibrariesSignaled     (void);
 void                         SKIF_Steam_GetInstalledAppIDs       (app_list_t *apps);
-void                         SKIF_Steam_SaveManifestCache        (void); // Library worker, after the games are processed: saves the manifests of network libraries (Assets\Cache\SteamManifests.json)
+void                         SKIF_Steam_SaveManifestCache        (void); // Library worker, after the games are processed: saves the cache of the Steam manifests (Assets\Cache\SteamManifests.json)
 bool                         SKIF_Steam_HasActiveProcessChanged  (app_list_t *apps, std::set <std::string> *apptickets);
 SteamId3_t                   SKIF_Steam_GetCurrentUser           (void);
 DWORD                        SKIF_Steam_GetActiveProcess         (void);

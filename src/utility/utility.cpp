@@ -3476,6 +3476,10 @@ SKIF_Util_SaveImageAsICO (const wchar_t* imgFilePath, const wchar_t* icoFilePath
         std::vector<char> fileData = { };
         if (GetIcoBuffer (hIcon, iColorBits, fileData))
         {
+          // Its folder may not exist yet (e.g. the asset folder of a game that was just installed)
+          std::error_code ec;
+          std::filesystem::create_directories (std::filesystem::path (icoFilePath).parent_path ( ), ec);
+
           HANDLE hFile = CreateFile (icoFilePath, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
           if (hFile != INVALID_HANDLE_VALUE) // CreateFile returns INVALID_HANDLE_VALUE on failure, not NULL
           {

@@ -2168,7 +2168,7 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
     PLOG_DEBUG << summary << ".";
   }
 
-  // The manifests of Steam libraries on network drives that were read (see SKIF_Steam_SaveManifestCache)
+  // The Steam manifests that were read (see SKIF_Steam_SaveManifestCache)
   if (_registry.bLibrarySteam || _registry._LibraryHidden)
     SKIF_Steam_SaveManifestCache ( );
 
