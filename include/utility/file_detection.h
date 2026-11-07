@@ -90,6 +90,15 @@ namespace SKIF_FileDetection
   //   main thread with WM_SKIF_FILEDETECTION. A cached result is returned right away and checked in the background.
   result_ptr       Get                 (const std::wstring& folder, bool request = true);
 
+  // Any thread (blocking). As Get ( ), but waits up to timeoutMs for a pending scan to finish (e.g. right before a
+  //   launch). A cached result is returned right away, even if it has not been checked yet.
+  result_ptr       Wait                (const std::wstring& folder, uint32_t timeoutMs);
+
+  // Any thread. The cached result of the folder that holds a path (the deepest scanned folder that is the path or one of
+  //   its parents), without scanning anything; state None if there is none. For SKIF's launcher mode, which only has
+  //   the executable's path and should not wait for a scan.
+  result_ptr       FindCached          (const std::wstring& path);
+
   // Any thread. Scans the folder again even if the cached result is current (e.g. a Rescan button)
   void             Rescan              (const std::wstring& folder);
 

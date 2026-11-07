@@ -86,7 +86,8 @@ namespace
 
   struct service_s {
     std::mutex                                  mutex;
-    std::condition_variable                     wake;
+    std::condition_variable                     wake;        // The worker: something was queued
+    std::condition_variable                     done;        // Wait ( ): a result was stored
     std::unordered_map <std::wstring, entry_s>  entries;     // By lowercase folder
     std::deque <std::wstring>                   queue;       // Keys
 
@@ -570,6 +571,8 @@ namespace
       it->second.checked   = true;
       it->second.queued    = false;
       it->second.noRulesAt = (it->second.result->state == result_s::State::NoRules) ? SKIF_Util_timeGetTime ( ) : 0;
+
+      svc.done.notify_all ( );
     };
 
     if (! _LoadRules (svc))
@@ -752,6 +755,67 @@ namespace SKIF_FileDetection
     }
 
     return entry.result;
+  }
+
+  result_ptr
+  Wait (const std::wstring& folder, uint32_t timeoutMs)
+  {
+    result_ptr result = Get (folder, true);
+
+    if (result->state != result_s::State::Pending)
+      return result;
+
+    service_s& svc = _Service ( );
+    const std::wstring key = _MakeKey (folder);
+
+    std::unique_lock lock (svc.mutex);
+
+    auto _Ready = [&](void) -> bool
+    {
+      auto it = svc.entries.find (key);
+      return (it == svc.entries.end ( ) || it->second.result->state != result_s::State::Pending);
+    };
+
+    svc.done.wait_for (lock, std::chrono::milliseconds (timeoutMs), _Ready);
+
+    auto it = svc.entries.find (key);
+
+    return (it != svc.entries.end ( )) ? it->second.result : _None ( );
+  }
+
+  result_ptr
+  FindCached (const std::wstring& path)
+  {
+    if (path.empty ( ))
+      return _None ( );
+
+    service_s& svc = _Service ( );
+    const std::wstring key = _MakeKey (path);
+
+    std::scoped_lock lock (svc.mutex);
+
+    _LoadCache (svc);
+
+    result_ptr best;
+    size_t     bestLength = 0;
+
+    for (const auto& [folder, entry] : svc.entries)
+    {
+      if (entry.result == nullptr || entry.result->state != result_s::State::Done || folder.empty ( ) || folder.size ( ) <= bestLength)
+        continue;
+
+      // The folder itself, or one of its files or subfolders
+      if (key.size ( ) < folder.size ( ) || key.compare (0, folder.size ( ), folder) != 0)
+        continue;
+
+      if (key.size ( ) > folder.size ( ) && key [folder.size ( )] != L'\\')
+        continue;
+
+      best       = entry.result;
+      bestLength = folder.size ( );
+    }
+
+    return (best != nullptr) ? best : _None ( );
   }
 
   void

@@ -30,6 +30,7 @@
 #include <utility/registry.h>
 #include <utility/fsutil.h>
 #include <utility/launch_behaviors.h>
+#include <utility/file_detection.h>
 #include <utility/ini_reader.h>
 
 #include <fonts/fa_621.h>
@@ -1950,6 +1951,15 @@ SKIF_InjectionContext::ResolveServiceFor (const std::wstring& path)
   // The launch behaviors can have the service used anyway (e.g. for a blocked launcher, so the game it starts
   //   gets Special K). Special K stays disabled for the executable itself, so it should then not be whitelisted either.
   decision.isLocalBlacklisted  = (behaviors.service == Service::Blocked);
+
+  // Nothing set for the executable: Special K is disabled by default for a game with anti-cheat (as in the library).
+  //   Only a cached result is used (utility/file_detection.h): launcher mode does not wait for a scan.
+  if (behaviors.service == Service::Inherit &&
+      SKIF_FileDetection::FindCached (path)->Has (SKIF_FileDetection::Category::AntiCheat))
+  {
+    PLOG_INFO << "Special K is disabled by default as anti-cheat was detected in the game's files.";
+    decision.isLocalBlacklisted = true;
+  }
   decision.isGlobalBlacklisted = _TestUserList (SK_WideCharToUTF8 (path).c_str ( ), false);
   decision.ignoreBlacklist     = (decision.isBlacklisted ( ) && behaviors.blacklist == Blacklist::Ignore);
   decision.useService          = (! decision.isBlacklisted ( ) || decision.ignoreBlacklist);

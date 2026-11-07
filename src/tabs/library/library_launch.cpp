@@ -21,6 +21,7 @@
 //
 
 #include "library_ui.h"
+#include <utility/file_detection.h>
 
 // Last, as it defines short macros such as _ ( )
 #include <utility/l10n.h>
@@ -67,6 +68,18 @@ LaunchGame (app_record_s* pApp)
     // Check if the injection service should be used
     if (! usingSK)
     {
+      // Special K is disabled by default for games with anti-cheat, so a game that was never scanned is scanned first
+      //   (usually done already, as selecting the game queues it). Gives up after a few seconds: Special K is then used.
+      if (! launchWithoutSK && ! launchConfig->install_dir.empty ( ))
+      {
+        const SKIF_FileDetection::result_ptr detection =
+          SKIF_FileDetection::Wait (launchConfig->install_dir, 3000);
+
+        PLOG_WARNING_IF (detection->state == SKIF_FileDetection::result_s::State::Pending) << "Launching before the scan for anti-cheat has finished.";
+      }
+
+      PLOG_INFO_IF (launchConfig->isDisabledForAntiCheat ( )) << "Special K is disabled by default as the game uses anti-cheat.";
+
       bool isLocalBlacklisted  = launchConfig->isBlacklisted ( ),
            isGlobalBlacklisted = _inject._TestUserList (launchConfig->getExecutableFullPathUTF8 ( ).c_str (), false),
            isBlacklisted       = (isLocalBlacklisted || isGlobalBlacklisted);

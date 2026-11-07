@@ -39,12 +39,14 @@
 #include <vector>
 #include <memory>
 
-// The groups of the window's single page, in this order; each group after the first gets a heading. Today: General and Launch options
+// The groups of the window's single page, in this order; each group after the first gets a heading. Today: General,
+//   Launch options, the store's own, and Technology (read only, always last)
 enum class PropertiesPage {
   General,
   Launch,
   SpecialK,
-  Store
+  Store,
+  Technology
 };
 
 // What the library has to do after a section has been applied (combined over all sections, done once)

@@ -265,7 +265,12 @@ struct app_record_s {
 
     std::wstring getBlacklistFilename       (void);
     bool         setBlacklisted             (bool blacklist);
-    bool          isBlacklisted             (bool refresh = false);
+    bool          isBlacklisted             (bool refresh = false); // Also when disabled by default for anti-cheat (below)
+
+    // Special K is disabled by default as anti-cheat was detected in the game's folder (utility/file_detection.h), and
+    //   nothing is set for the executable or its folders. Enabling it (setBlacklisted (false)) sets it for the executable.
+    bool          isDisabledForAntiCheat    (void);
+    void         _RefreshBlacklisted        (void); // Reads blacklisted and service_inherited from the launch behaviors
 
     std::wstring getElevatedFilename        (void);
     bool         setElevated                (bool elevated);
@@ -337,6 +342,7 @@ struct app_record_s {
     bool         custom_user        = false; // Is the launch config a user-specied custom one?
     int          owns_dlc           = -1;    // Does the user own the required DLC ?
     int          blacklisted        = -1;
+    int          service_inherited  = -1;    // Nothing is set for the service of the executable or its folders (launch behaviors), so the anti-cheat default applies
     int          elevated           = -1;
     int          ignore_blacklist   = -1;
   };

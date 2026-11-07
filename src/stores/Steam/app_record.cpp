@@ -10,6 +10,7 @@
 #include <utility/games.h>
 #include <utility/igdb.h>
 #include <utility/launch_behaviors.h>
+#include <utility/file_detection.h>
 #include <filesystem>
 #include <algorithm>
 
@@ -276,13 +277,27 @@ _GetLaunchBehaviorsPath (app_launch_config_s& config)
           : config.install_dir;
 }
 
+// Anti-cheat was detected in the game's folder. Queues a scan if there is no result yet (until then: no)
+static bool
+_HasAntiCheat (const app_launch_config_s& config)
+{
+  if (config.install_dir.empty ( ))
+    return false;
+
+  const SKIF_FileDetection::result_ptr result =
+    SKIF_FileDetection::Get (config.install_dir);
+
+  return (result->state == SKIF_FileDetection::result_s::State::Done &&
+          result->Has (SKIF_FileDetection::Category::AntiCheat));
+}
+
 bool
 app_launch_config_s::setBlacklisted (bool blacklist)
 {
   using Service = SKIF_LaunchBehaviors::Service;
 
   if (blacklist == isBlacklisted ( ))
-    return blacklisted;
+    return blacklist;
 
   std::wstring behaviors_path =
     _GetLaunchBehaviorsPath (*this);
@@ -310,8 +325,8 @@ app_launch_config_s::setBlacklisted (bool blacklist)
   {
     SKIF_LaunchBehaviors::SetService (behaviors_path, Service::Inherit);
 
-    // Still blocked through a parent folder -- override it for this executable
-    if (SKIF_LaunchBehaviors::Resolve (behaviors_path).service == Service::Blocked)
+    // Still blocked through a parent folder, or by default as the game uses anti-cheat -- override it for this executable
+    if (SKIF_LaunchBehaviors::Resolve (behaviors_path).service == Service::Blocked || _HasAntiCheat (*this))
       SKIF_LaunchBehaviors::SetService (behaviors_path, Service::Normal);
 
     if (PathFileExistsW (blacklist_path.c_str ()))
@@ -324,10 +339,26 @@ app_launch_config_s::setBlacklisted (bool blacklist)
 bool
 app_launch_config_s::isBlacklisted (bool refresh)
 {
-  using Service = SKIF_LaunchBehaviors::Service;
+  if (blacklisted == -1 || service_inherited == -1 || refresh)
+    _RefreshBlacklisted ( );
 
-  if (blacklisted != -1 && ! refresh)
-    return blacklisted;
+  // The anti-cheat default is not cached: the scan may finish after the first call
+  return (blacklisted == 1 || (service_inherited == 1 && _HasAntiCheat (*this)));
+}
+
+bool
+app_launch_config_s::isDisabledForAntiCheat (void)
+{
+  if (blacklisted == -1 || service_inherited == -1)
+    _RefreshBlacklisted ( );
+
+  return (blacklisted == 0 && service_inherited == 1 && _HasAntiCheat (*this));
+}
+
+void
+app_launch_config_s::_RefreshBlacklisted (void)
+{
+  using Service = SKIF_LaunchBehaviors::Service;
 
   std::wstring behaviors_path =
     _GetLaunchBehaviorsPath (*this);
@@ -346,7 +377,8 @@ app_launch_config_s::isBlacklisted (bool refresh)
   blacklisted =
     (service == Service::Blocked) ? 1 : 0;
 
-  return blacklisted;
+  service_inherited =
+    (service == Service::Inherit) ? 1 : 0;
 }
 
 std::wstring

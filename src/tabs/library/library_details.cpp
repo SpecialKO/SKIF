@@ -24,6 +24,7 @@
 
 #include <ctime>
 #include <tabs/properties.h>
+#include <utility/file_detection.h>
 
 // Last, as it defines short macros such as _ ( )
 #include <utility/l10n.h>
@@ -631,11 +632,35 @@ DrawGameDetails_Play (app_record_s* pApp)
     GameMenuUpwardsAnchor = ImVec2 (ImGui::GetMousePos ( ).x, ImGui::GetItemRectMin ( ).y - ImGui::GetStyle ( ).ItemSpacing.y);
   }
 
-  // Warnings next to the launch button: VAC, and store-specific ones (itch.io: sandboxed launches; Ubisoft: still installing)
+  // Warnings next to the launch button: anti-cheat, VAC, and store-specific ones (itch.io: sandboxed launches; Ubisoft: still installing)
   std::string launchWarning = pApp->GetLaunchWarning ( );
 
   if (pApp->extended_config.vac.enabled == 1)
     launchWarning = _("Warning: VAC protected game; injection is not recommended!") + ((launchWarning.empty ( )) ? std::string ( ) : "\n\n" + launchWarning);
+
+  // Anti-cheat detected in the game's files (utility/file_detection.h): Special K is disabled by default for the launch
+  //   option Play uses, unless it was enabled for it in Properties
+  {
+    const SKIF_FileDetection::result_ptr detection =
+      SKIF_FileDetection::Get (pApp->install_dir);
+
+    const std::string antiCheat =
+      detection->GetNames (SKIF_FileDetection::Category::AntiCheat);
+
+    if (! antiCheat.empty ( ))
+    {
+      app_record_s::launch_config_s*
+        playConfig = pApp->GetDefaultLaunchConfig ( );
+
+      // TRANSLATORS: {0} is the anti-cheat detected in the game's files (e.g. EasyAntiCheat)
+      std::string acWarning = (playConfig != nullptr && playConfig->isDisabledForAntiCheat ( ))
+                            ? F_("Anti-cheat detected ({0}): Special K is disabled by default for this game.\n"
+                                 "It can be enabled in Properties > Launch options.", antiCheat)
+                            : F_("Warning: Anti-cheat detected ({0}); injection is not recommended!", antiCheat);
+
+      launchWarning = acWarning + ((launchWarning.empty ( )) ? std::string ( ) : "\n\n" + launchWarning);
+    }
+  }
 
   if (! launchWarning.empty ( ))
   {
@@ -869,6 +894,9 @@ DrawGameDetails_LaunchBar (app_record_s* pApp)
           SKIF_ImGui_SetHoverTip (_("Special K will be used as the blacklist is being ignored."));
         else if (blacklistedPattern)
           SKIF_ImGui_SetHoverTip (_("Special K is disabled through a blacklist pattern in the Settings tab."));
+        else if (defaultLaunchConfig->isDisabledForAntiCheat ( ))
+          SKIF_ImGui_SetHoverTip (_("Special K is disabled by default as the game uses anti-cheat.\n"
+                                    "Click to enable it in Properties."));
         else  // blacklisted
           SKIF_ImGui_SetHoverTip (_("Special K is disabled for the default launch option."));
       }

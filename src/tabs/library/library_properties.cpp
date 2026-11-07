@@ -490,16 +490,17 @@ private:
 #pragma endregion
 
 
-#pragma region Detected technology
+#pragma region Technology
 
 // What the game is made with, from the names of its files (utility/file_detection.h): engine, anti-cheat, SDKs, ...
-//   Read only. The folder is scanned in the background the first time it is shown, and the result is cached.
+//   Read only, in a group of its own at the bottom. The folder is scanned in the background the first time it is
+//     shown, and the result is cached.
 class PropertiesSection_Detection : public IPropertySection
 {
 public:
   const char*    GetTitle (void) const override { return ""; }
-  PropertiesPage GetPage  (void) const override { return PropertiesPage::General; }
-  int            GetOrder (void) const override { return 30; }
+  PropertiesPage GetPage  (void) const override { return PropertiesPage::Technology; }
+  int            GetOrder (void) const override { return 10; }
 
   void Load (app_record_s& app) override
   {
@@ -514,40 +515,42 @@ public:
 
     const ImVec4 colDisabled = ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled);
 
-    SKIF_Properties_Label (_("Technology"), _("Detected from the names of the game's files, using SteamDB's file detection rules.\n"
-                                              "These are educated guesses: some may be missing or wrong."));
-
     if (folder.empty ( ))
     {
+      SKIF_Properties_Label         (_("Detected"));
       SKIF_ImGui_TextColoredWrapped (colDisabled, _("Not available for this game."));
       return;
     }
 
     const result_ptr result = Get (folder);
 
-    ImGui::BeginGroup ( );
-
     switch (result->state)
     {
       case result_s::State::None:
       case result_s::State::Pending:
+        SKIF_Properties_Label         (_("Detected"));
         SKIF_ImGui_TextColoredWrapped (colDisabled, _("Scanning the game's files..."));
         break;
 
       case result_s::State::Failed:
+        SKIF_Properties_Label         (_("Detected"));
         SKIF_ImGui_TextColoredWrapped (colDisabled, _("The game's folder could not be read."));
         break;
 
       case result_s::State::NoRules:
+        SKIF_Properties_Label         (_("Detected"));
         SKIF_ImGui_TextColoredWrapped (colDisabled, _("The detection rules could not be downloaded."));
         break;
 
       case result_s::State::Done:
       {
         if (result->detections.empty ( ))
+        {
+          SKIF_Properties_Label         (_("Detected"));
           SKIF_ImGui_TextColoredWrapped (colDisabled, _("Nothing was detected."));
+        }
 
-        // Most useful first
+        // Most useful first, one row each
         static constexpr Category order [] = {
           Category::Engine, Category::AntiCheat, Category::Launcher, Category::Container, Category::Emulator, Category::SDK, Category::Other
         };
@@ -571,15 +574,17 @@ public:
             tooltip += (detection->deduced) ? _("Deduced from the kinds of files the game has") : detection->example.c_str ( );
           }
 
-          ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption), "%s:", GetCategoryLabel (category));
-          ImGui::SameLine    ( );
-          ImGui::TextWrapped ("%s", result->GetNames (category).c_str ( ));
+          SKIF_Properties_Label  (GetCategoryLabel (category));
+          ImGui::TextWrapped     ("%s", result->GetNames (category).c_str ( ));
           SKIF_ImGui_SetHoverTip (tooltip);
         }
 
         if (result->truncated)
+        {
+          SKIF_Properties_Label         ("");
           // TRANSLATORS: {0} is a number of files and folders
           SKIF_ImGui_TextColoredWrapped (colDisabled, F_("Only the first {0} files and folders were checked.", kMaxEntries).c_str ( ));
+        }
 
         break;
       }
@@ -588,13 +593,16 @@ public:
     // Also for a cached result, as the cache only notices changes to the top level of the game's folder
     if (result->state != result_s::State::Pending)
     {
+      SKIF_Properties_Label ("");
+
       if (ImGui::Button (L_("Scan again###PropsDetectionRescan")))
         Rescan (folder);
 
       SKIF_ImGui_SetHoverTip (_("Checks the game's files again, for instance after it was updated."), false, true);
-    }
 
-    ImGui::EndGroup ( );
+      ImGui::SameLine ( );
+      SKIF_ImGui_TextColoredWrapped (colDisabled, _("Educated guesses from the names of the game's files (SteamDB's file detection rules)."));
+    }
   }
 
   bool     IsDirty (void) const override { return false; }
@@ -797,6 +805,7 @@ public:
         svc.elevated       = svc.elevatedOrig = lc.isElevated    ( );
         svc.ignorePattern  = svc.ignorePatternOrig = lc.isIgnoringBlacklist ( );
         svc.blockedPattern = _inject._TestUserList (lc.getExecutableFullPathUTF8 ( ).c_str ( ), false);
+        svc.antiCheat      = lc.isDisabledForAntiCheat ( );
 
         services.push_back (svc);
       }
@@ -1219,6 +1228,7 @@ private:
     bool         blockedPattern = false; // Blocked through a blacklist pattern in the Settings tab
     bool         ignorePattern  = false, // The service is used even if Special K is disabled for the executable (launch behaviors)
                  ignorePatternOrig = false;
+    bool         antiCheat      = false; // Disabled by default, as anti-cheat was detected (nothing set for the executable)
   };
 
   std::vector <service_s>            services;
@@ -1280,6 +1290,10 @@ private:
 
     if (svc.blockedPattern)
       SKIF_ImGui_SetHoverTip (_("Special K is disabled through a blacklist pattern in the Settings tab."), true, true);
+
+    else if (svc.antiCheat && svc.blocked)
+      SKIF_ImGui_SetHoverTip (_("Special K is disabled by default as the game uses anti-cheat (see Technology).\n"
+                                "Uncheck this to use Special K with the game anyway."), true, true);
 
     ImGui::SameLine ( );
     ImGui::Spacing  ( );
@@ -2161,8 +2175,9 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
       if (! firstSection && page != lastPage)
       {
         const char* pageName =
-          (page == PropertiesPage::Launch)   ? _("Launch options") :
-          (page == PropertiesPage::SpecialK) ? "Special K"      : pApp->store_utf8.c_str ( );
+          (page == PropertiesPage::Launch)     ? _("Launch options") :
+          (page == PropertiesPage::SpecialK)   ? "Special K"         :
+          (page == PropertiesPage::Technology) ? _("Technology")     : pApp->store_utf8.c_str ( );
 
         SKIF_ImGui_Spacing ( );
         ImGui::SeparatorText (pageName);
