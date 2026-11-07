@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-07 11:30+0100\n"
+"POT-Creation-Date: 2026-11-07 12:02+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -248,10 +248,11 @@ msgstr ""
 
 #: src/stores/SKIF/custom_library.cpp:379
 #: src/stores/SKIF/custom_library.cpp:558
-#: src/tabs/library/library_popups.cpp:154
-#: src/tabs/library/library_popups.cpp:238
-#: src/tabs/library/library_popups.cpp:266
-#: src/tabs/library/library_popups.cpp:306
+#: src/tabs/library/library_launch.cpp:233
+#: src/tabs/library/library_popups.cpp:157
+#: src/tabs/library/library_popups.cpp:241
+#: src/tabs/library/library_popups.cpp:269
+#: src/tabs/library/library_popups.cpp:309
 #: src/tabs/local.cpp:1213
 #: src/tabs/local.cpp:1238
 #: src/tabs/monitor.cpp:1981
@@ -782,8 +783,8 @@ msgid "Granted 'Performance Log Users' permission?"
 msgstr ""
 
 #: src/tabs/hardware.cpp:884
-#: src/tabs/library/library_popups.cpp:153
-#: src/tabs/library/library_popups.cpp:163
+#: src/tabs/library/library_popups.cpp:156
+#: src/tabs/library/library_popups.cpp:166
 #: src/tabs/monitor.cpp:1704
 #: src/tabs/monitor.cpp:1897
 #: src/utility/skif_imgui.cpp:1882
@@ -1445,12 +1446,24 @@ msgstr ""
 msgid "Loading games..."
 msgstr ""
 
-#: src/tabs/library/library_launch.cpp:46
+#: src/tabs/library/library_launch.cpp:65
 msgid "Missing executable"
 msgstr ""
 
-#: src/tabs/library/library_launch.cpp:46
+#: src/tabs/library/library_launch.cpp:65
 msgid "Could not launch game due to missing executable:"
+msgstr ""
+
+#: src/tabs/library/library_launch.cpp:218
+msgid "Scanning game folder..."
+msgstr ""
+
+#: src/tabs/library/library_launch.cpp:228
+msgid "Checking the game for anti-cheat before it is launched."
+msgstr ""
+
+#: src/tabs/library/library_launch.cpp:229
+msgid "Scanning the game's files"
 msgstr ""
 
 #: src/tabs/library/library_list.cpp:90
@@ -1765,61 +1778,61 @@ msgstr ""
 msgid "Hidden games"
 msgstr ""
 
-#: src/tabs/library/library_popups.cpp:83
+#: src/tabs/library/library_popups.cpp:86
 msgid "Remove category"
 msgstr ""
 
-#: src/tabs/library/library_popups.cpp:84
+#: src/tabs/library/library_popups.cpp:87
 msgid "Merge categories"
 msgstr ""
 
-#: src/tabs/library/library_popups.cpp:85
+#: src/tabs/library/library_popups.cpp:88
 msgid "Rename category"
 msgstr ""
 
 #. TRANSLATORS: {0} is the name of a category of the library
-#: src/tabs/library/library_popups.cpp:111
+#: src/tabs/library/library_popups.cpp:114
 msgid "Are you sure you want to remove the {0} category?"
 msgstr ""
 
 #. TRANSLATORS: {0} and {1} are the names of two categories of the library
-#: src/tabs/library/library_popups.cpp:117
+#: src/tabs/library/library_popups.cpp:120
 msgid "Are you sure you want to merge the {0} category with the {1} category?"
 msgstr ""
 
 #. TRANSLATORS: {0} is the current name of a category of the library, {1} the new one
-#: src/tabs/library/library_popups.cpp:123
+#: src/tabs/library/library_popups.cpp:126
 msgid "Are you sure you want to rename {0} to {1}?"
 msgstr ""
 
 #. TRANSLATORS: {0} is the name of a category of the library
-#: src/tabs/library/library_popups.cpp:129
+#: src/tabs/library/library_popups.cpp:132
 msgid "What do you want to rename the {0} category to?"
 msgstr ""
 
-#: src/tabs/library/library_popups.cpp:149
+#: src/tabs/library/library_popups.cpp:152
 msgid "This will affect all games that make use of the category."
 msgstr ""
 
 #. TRANSLATORS: {0} is the name of a game
 #. TRANSLATORS: {0} is the file name of a process
-#: src/tabs/library/library_popups.cpp:260
+#: src/tabs/library/library_popups.cpp:263
 #: src/tabs/monitor.cpp:1971
 msgid "Do you want to end {0}?"
 msgstr ""
 
-#: src/tabs/library/library_popups.cpp:261
+#: src/tabs/library/library_popups.cpp:264
 msgid "Any unsaved game data may be lost."
 msgstr ""
 
-#: src/tabs/library/library_popups.cpp:265
-#: src/tabs/library/library_popups.cpp:289
+#: src/tabs/library/library_popups.cpp:268
+#: src/tabs/library/library_popups.cpp:292
 #: src/tabs/monitor.cpp:1980
 #: src/tabs/monitor.cpp:1985
 msgid "End Process"
 msgstr ""
 
-#: src/tabs/library/library_popups.cpp:273
+#: src/tabs/library/library_popups.cpp:276
 #: src/tabs/monitor.cpp:1966
 msgid "Task Manager"
 msgstr ""
