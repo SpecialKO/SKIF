@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-07 13:41+0100\n"
+"POT-Creation-Date: 2026-11-07 15:22+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1210,72 +1210,72 @@ msgstr ""
 msgid "Show icons"
 msgstr ""
 
-#: src/tabs/library.cpp:951
+#: src/tabs/library.cpp:959
 msgid "Cover changed"
 msgstr ""
 
-#: src/tabs/library.cpp:953
+#: src/tabs/library.cpp:961
 msgid "Could not change the cover"
 msgstr ""
 
-#: src/tabs/library.cpp:1602
+#: src/tabs/library.cpp:1610
 #: src/tabs/library/library_details.cpp:424
 msgid "Loading..."
 msgstr ""
 
-#: src/tabs/library.cpp:1616
+#: src/tabs/library.cpp:1624
 msgid "Cover"
 msgstr ""
 
-#: src/tabs/library.cpp:1629
+#: src/tabs/library.cpp:1637
 #: src/tabs/library/library_menus.cpp:1683
 #: src/tabs/library/library_menus.cpp:1841
 msgid "Open SteamGridDB"
 msgstr ""
 
-#: src/tabs/library.cpp:1797
+#: src/tabs/library.cpp:1805
 msgid "New 32-bit DLL Installed"
 msgstr ""
 
-#: src/tabs/library.cpp:1798
+#: src/tabs/library.cpp:1806
 msgid "New 64-bit DLL Installed"
 msgstr ""
 
-#: src/tabs/library.cpp:1929
-#: src/tabs/library.cpp:2037
+#: src/tabs/library.cpp:1937
+#: src/tabs/library.cpp:2045
 msgid "Missing Files"
 msgstr ""
 
-#: src/tabs/library.cpp:1930
-#: src/tabs/library.cpp:2038
+#: src/tabs/library.cpp:1938
+#: src/tabs/library.cpp:2046
 msgid "Unable to extract Special K DLL files from the provided {0} file."
 msgstr ""
 
-#: src/tabs/library.cpp:2076
+#: src/tabs/library.cpp:2084
 msgid "Unsupported Feature"
 msgstr ""
 
-#: src/tabs/library.cpp:2077
+#: src/tabs/library.cpp:2085
 msgid "SKIF cannot perform a drag-n-drop update because Special K {0} or newer is required."
 msgstr ""
 
-#: src/tabs/library.cpp:2088
+#: src/tabs/library.cpp:2096
 msgid "Nothing was changed"
 msgstr ""
 
-#: src/tabs/library.cpp:2089
+#: src/tabs/library.cpp:2097
 msgid "Drop the image on a game to change its cover: on its cover, its tile, or its row in the list."
 msgstr ""
 
-#: src/tabs/library.cpp:2106
+#: src/tabs/library.cpp:2114
 msgid "Unsupported file format"
 msgstr ""
 
-#: src/tabs/library.cpp:2108
+#: src/tabs/library.cpp:2116
 msgid "Add a game to the library:"
 msgstr ""
 
-#: src/tabs/library.cpp:2114
+#: src/tabs/library.cpp:2122
 msgid "Change the cover of a game (drop the image on it):"
 msgstr ""
 

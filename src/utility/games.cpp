@@ -608,6 +608,14 @@ struct SKIF_GamingCollection::worker_s {
                           appinfo    = nullptr; // Steam's appinfo.vdf, read by the worker (see SwapInPopulatedGames)
   std::vector <std::wstring>
                           assetDirs  = { };     // See GetKnownAssetDirectories ( )
+
+  // The early library (the first library of a session, see LibraryWorkerThread): copies of the records of the stores
+  //   scanned first, and their labels. The worker fills them, then sets earlyReady; from then on they are the main
+  //     thread's (SwapInEarlyGames).
+  std::atomic <bool>      earlyReady  = false;
+  bool                    earlyTaken  = false; // Main thread: swapped in
+  AppList                 earlyApps   = { };
+  Trie                    earlyLabels = { };
 };
 
 bool
@@ -662,6 +670,13 @@ SKIF_GamingCollection::IsPopulating (void) const
 }
 
 bool
+SKIF_GamingCollection::IsEarlyLibraryReady (void) const
+{
+  return (m_worker != nullptr && m_worker->iWorker == 1 && ! m_worker->earlyTaken &&
+          m_worker->earlyReady.load ( ) && ! m_worker->done.load ( ));
+}
+
+bool
 SKIF_GamingCollection::IsPopulateFinished (void) const
 {
   // Not the thread handle: the worker posts WM_SKIF_ICON to wake the main thread just after setting done, and could
@@ -699,6 +714,31 @@ SKIF_GamingCollection::FindShared (const app_key_s& key)
 
 // Workers still using a record that is replaced here keep it alive (shared_ptr), so nothing waits for them
 void
+SKIF_GamingCollection::SwapInEarlyGames (bool* pChanged)
+{
+  if (pChanged != nullptr)
+    *pChanged = true;
+
+  if (! IsEarlyLibraryReady ( ))
+    return;
+
+  std::scoped_lock app_lock (m_apps_mutex);
+
+  m_worker->earlyTaken = true;
+
+  _SwapInApps (m_worker->earlyApps, pChanged);
+
+  m_tLabels = std::move (m_worker->earlyLabels);
+
+  // The rest stays with the worker until its full library is swapped in: the Steam app tickets, the known asset folders
+  //   (the cover caches of games not in the library yet would otherwise be cleaned up), the appinfo.vdf reader
+  m_worker->earlyApps.clear ( );
+  m_worker->earlyLabels = Trie { };
+
+  PLOG_VERBOSE << "Swapped in the early library data (the stores scanned so far)!";
+}
+
+void
 SKIF_GamingCollection::SwapInPopulatedGames (bool* pChanged)
 {
   if (pChanged != nullptr)
@@ -709,8 +749,35 @@ SKIF_GamingCollection::SwapInPopulatedGames (bool* pChanged)
 
   std::scoped_lock app_lock (m_apps_mutex);
 
-  AppList& apps = m_worker->apps;
+  _SwapInApps (m_worker->apps, pChanged);
 
+  m_apptickets = std::move (m_worker->apptickets); // The worker is discarded after the swap
+  m_tLabels    = std::move (m_worker->labels); // Trie is move-only (it owns its nodes)
+  m_assetDirs  = std::move (m_worker->assetDirs);
+
+  // The Steam appinfo.vdf reader the worker created
+  appinfo = std::move (m_worker->appinfo);
+
+  CloseHandle (m_worker->hWorker);
+  m_worker->hWorker = NULL;
+  m_worker->iWorker = 2;
+  m_worker->labels  = Trie { };
+  m_worker->apps.clear ();
+  m_worker->apptickets.clear();
+  m_worker->earlyApps.clear ( ); // An early library that was never swapped in
+  m_worker->earlyLabels = Trie { };
+
+  delete m_worker;
+  m_worker = nullptr;
+
+  PLOG_VERBOSE << "Swapped in the new library data (collection)!";
+}
+
+// Under m_apps_mutex. Replaces the app list with apps (the worker's full library, or its early library), keeping the
+//   current records that are unchanged (see SwapInPopulatedGames in games.h)
+void
+SKIF_GamingCollection::_SwapInApps (AppList& apps, bool* pChanged)
+{
   // Indexed by store + app ID instead of searching the current list for every game
   auto _Key = [](const app_record_s& record) -> uint64_t
   {
@@ -830,30 +897,12 @@ SKIF_GamingCollection::SwapInPopulatedGames (bool* pChanged)
 
   // Insert new data (the current records not kept are freed, unless a worker still holds one)
   m_apps       = std::move (apps);
-  m_apptickets = std::move (m_worker->apptickets); // The worker is discarded after the swap
-  m_tLabels    = std::move (m_worker->labels); // Trie is move-only (it owns its nodes)
-  m_assetDirs  = std::move (m_worker->assetDirs);
 
   m_populatedOnce.store (true);
   m_swapCount++;
 
-  // The Steam appinfo.vdf reader the worker created
-  appinfo = std::move (m_worker->appinfo);
-
   if (pChanged != nullptr)
     *pChanged = changed;
-
-  CloseHandle (m_worker->hWorker);
-  m_worker->hWorker = NULL;
-  m_worker->iWorker = 2;
-  m_worker->labels  = Trie { };
-  m_worker->apps.clear ();
-  m_worker->apptickets.clear();
-
-  delete m_worker;
-  m_worker = nullptr;
-
-  PLOG_VERBOSE << "Swapped in the new library data (collection)!";
 }
 
 // Main thread: takes the embedded textures once the library worker's thread has loaded them
@@ -1407,30 +1456,46 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
   for (auto& scan : scans_here)
     scan ( );
 
-  // Any scan whose thread hasn't started yet is done here, then the rest are waited for
+  // Any scan whose thread hasn't started yet is done here
   for (auto& scan : scans)
     _Steal (scan);
 
-  for (auto& scan : scans)
-    _Wait (scan);
+  // The first library of the session (while "Loading games..." shows): if a store is still being scanned
+  //   EARLY_LIBRARY_AFTER ms after the refresh started (e.g. a Steam library on a network drive that is slow to answer),
+  //     the games of the stores that are done are processed and swapped in first, as an early library (copies of their
+  //       records, see SwapInEarlyGames), and the full library replaces it once the rest is done (SwapInPopulatedGames,
+  //         which keeps the records that are unchanged, along with what was loaded into them meanwhile). Not on later
+  //           refreshes: the games of the slower stores would disappear from the list shown until the full library is in.
+  constexpr DWORD EARLY_LIBRARY_AFTER = 150;
 
-  // Reserve for every store's results (+1 for the Special K entry) so the merge does not reallocate
-  size_t total_apps = _data->apps.size ( ) + 1;
-  for (auto& list : scanned)
-    total_apps += list.size ( );
-  _data->apps.reserve (total_apps);
-
-  auto _Merge = [&](app_list_t& list)
+  auto _ScansDone = [&](void) -> bool
   {
-    for (auto& entry : list)
-      _data->apps.emplace_back (std::move (entry));
+    for (auto& scan : scans)
+      if (scan && ! scan->done.load ( ))
+        return false;
 
-    list.clear ( );
+    return true;
   };
 
-  _Merge (scanned [Scan_Steam]);
-  games = _data->apps.size();
+  bool early = false;
 
+  if (! self.HasPopulatedOnce ( ) && ! _registry._LibraryHidden)
+  {
+    while (! _ScansDone ( ) && SKIF_Util_timeGetTime1 ( ) - start < EARLY_LIBRARY_AFTER)
+      Sleep (2);
+
+    early = ! _ScansDone ( );
+  }
+
+  // The scans that are part of the early library: those done by now (the quick ones on this thread are)
+  bool inEarly [Scan_Count] = { };
+
+  for (int i = 0; i < Scan_Count; i++)
+    inEarly [i] = (early && (! scans [i] || scans [i]->done.load ( )));
+
+  // The Special K entry
+  auto _AddSpecialK = [&](AppList& to)
+  {
   if ( ! SKIF_STEAM_OWNER )
   {
     app_record_steam_s SKIF_record (SKIF_STEAM_APPID);
@@ -1451,21 +1516,75 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
     app_entry_t
       SKIF ( "Special K", std::make_unique <app_record_steam_s> (std::move (SKIF_record)) );
 
-    _data->apps.emplace_back (std::move (SKIF));
-    games = _data->apps.size();
+    to.emplace_back (std::move (SKIF));
+  }
+  };
+
+  // Merges the scans' lists in a fixed order: Steam, Special K, GOG, Epic, EA, itch, Ubisoft, Xbox, custom. earlyPart:
+  //   the scans of the early library (with the Special K entry), or the others; without an early library, all of them.
+  auto _MergeScans = [&](AppList& to, bool earlyPart)
+  {
+    // Reserve for every store's results (+1 for the Special K entry) so the merge does not reallocate
+    size_t total_apps = to.size ( ) + 1;
+    for (int i = 0; i < Scan_Count; i++)
+      if (! early || inEarly [i] == earlyPart)
+        total_apps += scanned [i].size ( );
+    to.reserve (total_apps);
+
+    for (int i = 0; i < Scan_Count; i++)
+    {
+      if (! early || inEarly [i] == earlyPart)
+      {
+        for (auto& entry : scanned [i])
+          to.emplace_back (std::move (entry));
+
+        scanned [i].clear ( );
+      }
+
+      if (i == Scan_Steam && (! early || earlyPart))
+        _AddSpecialK (to);
+    }
+  };
+
+  // The keyboard hint / search labels of a list (as the processing below makes them)
+  auto _MakeLabels = [](AppList& list, Trie& labels)
+  {
+    for (auto& app : list)
+      if (app.second->id != 0 && app.second->_status.installed && ! app.second->IsSpecialK ( ))
+        InsertTrieKey (&app, &labels);
+  };
+
+  // The persistent metadata is used by the processing of every list
+
+  PLOG_INFO << "Loading persistent metadata...";
+
+  std::ifstream file(self.m_metadataPath);
+  if (file.is_open())
+  {
+    std::scoped_lock jsonLock (self.m_jsonMetaDB_mutex);
+
+    self.m_jsonMetaDB = nlohmann::json::parse(file, nullptr, false);
+    file.close();
+
+    if (self.m_jsonMetaDB.is_discarded ( ))
+    {
+      PLOG_ERROR << "Error occurred while trying to parse " << self.m_metadataPath;
+      MoveFileEx (self.m_metadataPath.c_str(), (self.m_metadataPath + L".bak").c_str(), MOVEFILE_REPLACE_EXISTING);
+      self.m_jsonMetaDB = nlohmann::json();
+    }
+    else {
+      PLOG_INFO << "Successfully read persistent metadata (" << self.MetaDB_CountElements ( ) << " items) from JSON file.";
+    }
+  }
+  else {
+    PLOG_ERROR << "Could not open JSON file for reading: " << self.m_metadataPath;
   }
 
-  _Merge (scanned [Scan_GOG]);
-  _Merge (scanned [Scan_Epic]);
-  _Merge (scanned [Scan_EA]);
-  _Merge (scanned [Scan_itch]);
-  _Merge (scanned [Scan_Ubisoft]);
-  _Merge (scanned [Scan_Xbox]);
-  _Merge (scanned [Scan_Custom]);
-  games = _data->apps.size();
-
-  post = SKIF_Util_timeGetTime1 ( );
-  PLOG_DEBUG << "[Library Processing] Loaded the stores' games (in parallel) in " << (post - start) << " ms.";
+  // Processes a list of games -- launch configs, names, install folders, metadata, shared state -- as one library
+  //   refresh did before there were early libraries (the code below keeps its indentation, for its history). steamDone:
+  //     the Steam scan is done (the list may lack it: an early library).
+  auto _ProcessList = [&](AppList& list, Trie& labels, bool steamDone) -> void
+  {
 
   PLOG_INFO << "Loading custom launch configs synchronously...";
 
@@ -1493,7 +1612,7 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
     }
 
     try {
-      for (auto& app : _data->apps)
+      for (auto& app : list)
       {
         auto& record     = *app.second;
         auto& append_cfg = record.GetOnlineLaunchConfigs ( );
@@ -1535,30 +1654,6 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
     }
   }
 
-  PLOG_INFO << "Loading persistent metadata...";
-
-  std::ifstream file(self.m_metadataPath);
-  if (file.is_open())
-  {
-    std::scoped_lock jsonLock (self.m_jsonMetaDB_mutex);
-
-    self.m_jsonMetaDB = nlohmann::json::parse(file, nullptr, false);
-    file.close();
-
-    if (self.m_jsonMetaDB.is_discarded ( ))
-    {
-      PLOG_ERROR << "Error occurred while trying to parse " << self.m_metadataPath;
-      MoveFileEx (self.m_metadataPath.c_str(), (self.m_metadataPath + L".bak").c_str(), MOVEFILE_REPLACE_EXISTING);
-      self.m_jsonMetaDB = nlohmann::json();
-    }
-    else {
-      PLOG_INFO << "Successfully read persistent metadata (" << self.MetaDB_CountElements ( ) << " items) from JSON file.";
-    }
-  }
-  else {
-    PLOG_ERROR << "Could not open JSON file for reading: " << self.m_metadataPath;
-  }
-
   PLOG_INFO << "Processing detected games...";
   pre = SKIF_Util_timeGetTime1 ( );
 
@@ -1596,13 +1691,13 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
   // The asset folders of every game the stores reported, taken before the processing below skips any (hidden games,
   //   and in the hidden games view the others; games without a name; games whose install folder is missing, e.g. on a
   //     drive that is not connected): none of those are gone, so their cover caches stay (CleanUpOrphanedCoverCaches)
-  _data->assetDirs.reserve (_data->apps.size ( ));
+  _data->assetDirs.reserve (list.size ( ));
 
-  for (auto& app : _data->apps)
+  for (auto& app : list)
     if (app.second != nullptr && app.second->id != 0 && ! app.second->IsSpecialK ( ))
       _data->assetDirs.push_back (app.second->GetAssetDirectory ( ));
 
-  std::vector <game_job_s> jobs (_data->apps.size ( ));
+  std::vector <game_job_s> jobs (list.size ( ));
   bool                     metaAvailable = false;
 
   {
@@ -1614,7 +1709,7 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
     for (size_t i = 0; i < jobs.size ( ); i++)
     {
       auto& job = jobs [i];
-      job.app   = &_data->apps [i];
+      job.app   = &list [i];
 
       if (! metaAvailable)
         continue;
@@ -2168,8 +2263,9 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
     PLOG_DEBUG << summary << ".";
   }
 
-  // The Steam manifests that were read (see SKIF_Steam_SaveManifestCache)
-  if (_registry.bLibrarySteam || _registry._LibraryHidden)
+  // The Steam manifests that were read (see SKIF_Steam_SaveManifestCache): only once the Steam scan is in, as saving
+  //   drops the manifests it hasn't listed (an early library is processed while it may still be listing them)
+  if (steamDone && (_registry.bLibrarySteam || _registry._LibraryHidden))
     SKIF_Steam_SaveManifestCache ( );
 
   PLOG_DEBUG << "[Library Processing] Processed games on " << volumes.size ( ) << " drive(s) using " << threadsUsed << " thread(s) in " << (SKIF_Util_timeGetTime1 ( ) - dwPhase) << " ms.";
@@ -2188,7 +2284,7 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
   }
 
   // Shared state, in list order
-  for (auto& app : _data->apps)
+  for (auto& app : list)
   {
     // For unrecognized categories, add them to SKIF's internal database as well
     const std::string& keyGroup = app.second->skif.category;
@@ -2206,7 +2302,7 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
     if (app.second->id != 0 && app.second->_status.installed && ! app.second->IsSpecialK ( ))
     {
       // Prepare for the keyboard hint / search/filter functionality
-      InsertTrieKey (&app, &_data->labels);
+      InsertTrieKey (&app, &labels);
 
       std::wstring wsName =
         SK_UTF8ToWideChar (app.second->names.original);
@@ -2304,6 +2400,82 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
     _registry.regKVCategories.     putDataMultiSZ (_inNames);
     _registry.regKVCategoriesState.putDataMultiSZ (_inBools);
   }
+  };
+
+  if (! early)
+  {
+    for (auto& scan : scans)
+      _Wait (scan);
+
+    _MergeScans (_data->apps, false);
+
+    post = SKIF_Util_timeGetTime1 ( );
+    PLOG_DEBUG << "[Library Processing] Loaded the stores' games (in parallel) in " << (post - start) << " ms.";
+
+    _ProcessList (_data->apps, _data->labels, true);
+  }
+
+  else
+  {
+    // The early library: the stores done so far, processed and sorted, handed to the main thread as copies (it may use
+    //   them while this thread goes on with the rest)
+    AppList earlyApps;
+    _MergeScans (earlyApps, true);
+
+    PLOG_DEBUG << "[Library Processing] Still scanning after " << EARLY_LIBRARY_AFTER << " ms: showing the "
+               << earlyApps.size ( ) << " games of the stores done so far first.";
+
+    Trie earlyLabels;
+    _ProcessList (earlyApps, earlyLabels, inEarly [Scan_Steam] || ! scans [Scan_Steam]);
+    SKIF_GamingCollection::SortApps (&earlyApps);
+
+    {
+      AppList copies;
+      copies.reserve (earlyApps.size ( ));
+
+      for (auto& app : earlyApps)
+        copies.emplace_back (app.first, std::shared_ptr <app_record_s> (app.second->Clone ( )));
+
+      Trie labels;
+      _MakeLabels (copies, labels);
+
+      _data->earlyApps   = std::move (copies);
+      _data->earlyLabels = std::move (labels);
+      _data->earlyReady.store (true); // From here on, the main thread owns earlyApps and earlyLabels (SwapInEarlyGames)
+    }
+
+    // Wake the main thread to swap in the early library
+    PostMessage (SKIF_Notify_hWnd, WM_SKIF_ICON, 0x0, 0x0);
+
+    PLOG_DEBUG << "[Library Processing] Early library ready " << (SKIF_Util_timeGetTime1 ( ) - start) << " ms after the refresh started.";
+
+    // The rest
+    for (auto& scan : scans)
+      _Wait (scan);
+
+    AppList lateApps;
+    _MergeScans (lateApps, false);
+
+    post = SKIF_Util_timeGetTime1 ( );
+    PLOG_DEBUG << "[Library Processing] Loaded the stores' games (in parallel) in " << (post - start) << " ms.";
+
+    Trie lateLabels;
+    _ProcessList (lateApps, lateLabels, true);
+
+    // The full library: both lists (sorted below), and the labels of all of them
+    _data->apps.reserve (earlyApps.size ( ) + lateApps.size ( ));
+
+    for (auto& app : earlyApps)
+      _data->apps.emplace_back (std::move (app));
+
+    for (auto& app : lateApps)
+      _data->apps.emplace_back (std::move (app));
+
+    _MakeLabels (_data->apps, _data->labels);
+  }
+
+  games = _data->apps.size();
+
 
   post = SKIF_Util_timeGetTime1 ( );
   games = games - 1; // Do not count Special K as a game

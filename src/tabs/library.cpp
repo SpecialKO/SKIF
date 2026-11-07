@@ -805,19 +805,26 @@ SKIF_UI_Tab_DrawLibrary (void)
   bool applyLibrary  = false; // The swapped in library changed: apply the UI-side state below
   bool firstLibrary  = false; // The first library of the session, as opposed to a refresh of the one shown
   bool keepSelection = false; // A refresh still has the selected game, so it stays selected
+  bool earlyLibrary  = false; // Only the stores scanned first (SwapInEarlyGames): the full library follows
 
   if (! PopulatedGames && ! _games.IsPopulating ( ))
     _games.PopulateGames ( );
 
-  // Swapping in frees the old records; a cover / icon worker still using one keeps it alive (FindShared)
-  else if (! PopulatedGames && _games.IsPopulateFinished ( ))
+  // Swapping in frees the old records; a cover / icon worker still using one keeps it alive (FindShared).
+  //   The session's first library may come in two steps: an early one with the stores scanned first (while another
+  //     takes long), then the full one, which counts as a refresh of the early one (its records are kept).
+  else if (! PopulatedGames && (_games.IsPopulateFinished ( ) || _games.IsEarlyLibraryReady ( )))
   {
+    earlyLibrary = (! _games.IsPopulateFinished ( ));
     firstLibrary = (! _games.HasPopulatedOnce ( ));
 
     const app_record_s* pPrevSelected  = _games.Find (selection.game);
     bool                libraryChanged = true;
 
-    _games.SwapInPopulatedGames (&libraryChanged);
+    if (earlyLibrary)
+      _games.SwapInEarlyGames     (&libraryChanged);
+    else
+      _games.SwapInPopulatedGames (&libraryChanged);
 
     // Any game worker still running was started on the old library, so its results are outdated,
     //   unless the swap kept the record it was started for (SwapInPopulatedGames keeps unchanged records)
@@ -834,7 +841,7 @@ SKIF_UI_Tab_DrawLibrary (void)
     // Same games, same data, same order: every record was kept, so nothing shown changes
     if (! libraryChanged)
     {
-      PopulatedGames = true;
+      PopulatedGames = ! earlyLibrary;
 
       PLOG_VERBOSE << "Swapped in the new library data (unchanged)!";
     }
@@ -907,7 +914,8 @@ SKIF_UI_Tab_DrawLibrary (void)
       InsertTrieKey (&app, &labelsFiltered);
     }
 
-    PopulatedGames = true;
+    // An early library: the full one is swapped in once the worker is done
+    PopulatedGames = ! earlyLibrary;
 
     // Scrolls to the selected game and opens its category (it reselects it, which loads its details again)
     if (! keepSelection)

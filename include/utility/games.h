@@ -122,10 +122,16 @@ struct SKIF_GamingCollection {
         //                            new ones, and replaced records carry over their icon and run state. pChanged
         //                            is set to false if every record was kept, in the same order (nothing shown
         //                            changes). Replaced records live on while a worker still holds them (FindShared).
+        //   IsEarlyLibraryReady ( ) true while the worker of the session's first library has an early library ready (the
+        //                            stores scanned first, when another one takes long; see LibraryWorkerThread).
+        //   SwapInEarlyGames ( )     swaps it in as SwapInPopulatedGames ( ) does, but the worker keeps running: its
+        //                            full library follows (IsPopulating ( ) stays true until then).
         bool PopulateGames        (void);
         bool IsPopulating         (void) const;
         bool IsPopulateFinished   (void) const;
+        bool IsEarlyLibraryReady  (void) const;
         void SwapInPopulatedGames (bool* pChanged = nullptr);
+        void SwapInEarlyGames     (bool* pChanged = nullptr);
         bool HasPopulatedOnce     (void) const { return m_populatedOnce.load ( ); } // A library has been swapped in (any thread)
         uint32_t GetSwapCount     (void) const { return m_swapCount; }             // Increased by every swap-in (records may have been replaced); main thread
 
@@ -157,6 +163,7 @@ struct SKIF_GamingCollection {
 private:
   SKIF_GamingCollection (void);
   struct worker_s; // Library worker state (defined in games.cpp)
+  void   _SwapInApps (AppList& apps, bool* pChanged); // Shared by SwapInPopulatedGames ( ) and SwapInEarlyGames ( )
   static unsigned __stdcall LibraryWorkerThread (void* var);
 
   worker_s*                 m_worker = nullptr;
