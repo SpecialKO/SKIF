@@ -5884,6 +5884,11 @@ SKIF_WndProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
       addAdditionalFrames += 3;
       break;
 
+    case WM_SKIF_FILEDETECTION:
+      // A file detection scan finished: the next frames show its result (e.g. in Properties)
+      addAdditionalFrames += 3;
+      break;
+
     case WM_SKIF_RUN_UPDATER:
       SKIF_Updater::GetInstance ( ).CheckForUpdates ( );
       break;

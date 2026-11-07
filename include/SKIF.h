@@ -75,6 +75,7 @@ constexpr UINT           WM_SKIF_REFRESHCOVER   = WM_USER + 0x2053; // Refresh C
 constexpr LPARAM         SKIF_RefreshCover_Notify  = 0x10000;         //   lParam flags (besides the store): a notification once it is saved,
 constexpr LPARAM         SKIF_RefreshCover_Success = 0x20000;         //     and whether it was (one is shown if it was not)
 constexpr UINT           WM_SKIF_REFRESHFOCUS   = WM_USER + 0x2054; // Trigger a new focus check from the main thread (used by child threads, e.g. gamepad input thread)
+constexpr UINT           WM_SKIF_FILEDETECTION  = WM_USER + 0x2056; // A file detection scan finished (utility/file_detection.h)
 constexpr UINT           WM_SKIF_DRAGOVER       = WM_USER + 0x2055; // Something is dragged over SKIF, or no longer is: frames for the grid view's drop highlight (droptarget.hpp)
 
 // Callbacks / Event Signals

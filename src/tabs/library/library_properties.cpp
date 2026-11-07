@@ -26,6 +26,7 @@
 #include <tabs/properties.h>
 #include <utility/hotkeys.h>
 #include <utility/env_vars.h>
+#include <utility/file_detection.h>
 
 #include <algorithm>
 #include <cctype>
@@ -484,6 +485,123 @@ private:
   int                            value     = 0,
                                  valueOrig = 0;
   SKIF_LaunchBehaviors::AutoStop inherited = SKIF_LaunchBehaviors::AutoStop::Inherit;
+};
+
+#pragma endregion
+
+
+#pragma region Detected technology
+
+// What the game is made with, from the names of its files (utility/file_detection.h): engine, anti-cheat, SDKs, ...
+//   Read only. The folder is scanned in the background the first time it is shown, and the result is cached.
+class PropertiesSection_Detection : public IPropertySection
+{
+public:
+  const char*    GetTitle (void) const override { return ""; }
+  PropertiesPage GetPage  (void) const override { return PropertiesPage::General; }
+  int            GetOrder (void) const override { return 30; }
+
+  void Load (app_record_s& app) override
+  {
+    folder = app.install_dir;
+  }
+
+  void Draw (app_record_s& app) override
+  {
+    using namespace SKIF_FileDetection;
+
+    UNREFERENCED_PARAMETER (app);
+
+    const ImVec4 colDisabled = ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled);
+
+    SKIF_Properties_Label (_("Technology"), _("Detected from the names of the game's files, using SteamDB's file detection rules.\n"
+                                              "These are educated guesses: some may be missing or wrong."));
+
+    if (folder.empty ( ))
+    {
+      SKIF_ImGui_TextColoredWrapped (colDisabled, _("Not available for this game."));
+      return;
+    }
+
+    const result_ptr result = Get (folder);
+
+    ImGui::BeginGroup ( );
+
+    switch (result->state)
+    {
+      case result_s::State::None:
+      case result_s::State::Pending:
+        SKIF_ImGui_TextColoredWrapped (colDisabled, _("Scanning the game's files..."));
+        break;
+
+      case result_s::State::Failed:
+        SKIF_ImGui_TextColoredWrapped (colDisabled, _("The game's folder could not be read."));
+        break;
+
+      case result_s::State::NoRules:
+        SKIF_ImGui_TextColoredWrapped (colDisabled, _("The detection rules could not be downloaded."));
+        break;
+
+      case result_s::State::Done:
+      {
+        if (result->detections.empty ( ))
+          SKIF_ImGui_TextColoredWrapped (colDisabled, _("Nothing was detected."));
+
+        // Most useful first
+        static constexpr Category order [] = {
+          Category::Engine, Category::AntiCheat, Category::Launcher, Category::Container, Category::Emulator, Category::SDK, Category::Other
+        };
+
+        for (Category category : order)
+        {
+          const auto detections = result->Get (category);
+
+          if (detections.empty ( ))
+            continue;
+
+          // Each detection with the first file that matched (or how it was found)
+          std::string tooltip;
+
+          for (const detection_s* detection : detections)
+          {
+            if (! tooltip.empty ( ))
+              tooltip += "\n";
+
+            tooltip += GetDisplayName (detection->name) + "\n  ";
+            tooltip += (detection->deduced) ? _("Deduced from the kinds of files the game has") : detection->example.c_str ( );
+          }
+
+          ImGui::TextColored (ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption), "%s:", GetCategoryLabel (category));
+          ImGui::SameLine    ( );
+          ImGui::TextWrapped ("%s", result->GetNames (category).c_str ( ));
+          SKIF_ImGui_SetHoverTip (tooltip);
+        }
+
+        if (result->truncated)
+          // TRANSLATORS: {0} is a number of files and folders
+          SKIF_ImGui_TextColoredWrapped (colDisabled, F_("Only the first {0} files and folders were checked.", kMaxEntries).c_str ( ));
+
+        break;
+      }
+    }
+
+    // Also for a cached result, as the cache only notices changes to the top level of the game's folder
+    if (result->state != result_s::State::Pending)
+    {
+      if (ImGui::Button (L_("Scan again###PropsDetectionRescan")))
+        Rescan (folder);
+
+      SKIF_ImGui_SetHoverTip (_("Checks the game's files again, for instance after it was updated."), false, true);
+    }
+
+    ImGui::EndGroup ( );
+  }
+
+  bool     IsDirty (void) const override { return false; }
+  uint32_t Apply   (app_record_s& app) override { UNREFERENCED_PARAMETER (app); return PropertiesApply_None; }
+
+private:
+  std::wstring folder;
 };
 
 #pragma endregion
@@ -1846,6 +1964,7 @@ _SKIF_Properties_Create (app_record_s* pApp)
 
   wnd->sections.push_back (std::make_unique <PropertiesSection_General> ( ));
   wnd->sections.push_back (std::move (launchBehavior));
+  wnd->sections.push_back (std::make_unique <PropertiesSection_Detection> ( ));
   wnd->sections.push_back (std::move (launchOptions));
 
   // Store-specific sections (Custom: the executable)
