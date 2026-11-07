@@ -46,6 +46,7 @@
 #include <utility/skif_imgui.h>
 #include <utility/hotkeys.h>
 #include <utility/gamepad.h>
+#include <utility/render.h>
 
 #include <utility/injection.h>
 
@@ -234,8 +235,6 @@ static DWORD                 SKIF_MainThreadId             = 0;
 //ID3D11RenderTargetView* SKIF_g_mainRenderTargetView = nullptr;
 
 // Forward declarations
-HRESULT             SKIF_CreateDXGIFactory1 (REFIID riid, void **ppFactory);
-HRESULT             SKIF_D3D11CreateDevice  (IDXGIAdapter *pAdapter, D3D_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, const D3D_FEATURE_LEVEL *pFeatureLevels, UINT FeatureLevels, UINT SDKVersion, ID3D11Device **ppDevice, D3D_FEATURE_LEVEL *pFeatureLevel, ID3D11DeviceContext **ppImmediateContext);
 bool                CreateDeviceD3D         (HWND hWnd);
 void                CleanupDeviceD3D        (void);
 static void         CleanupPendingDeviceD3D (void);
@@ -319,13 +318,13 @@ SKIF_D3D11_StartHardwareDevice (void)
     ID3D11DeviceContext* pDevCtx = nullptr;
     D3D_FEATURE_LEVEL    level;
 
-    HRESULT hrHardware = SKIF_D3D11CreateDevice ( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
-                                                    createDeviceFlags, featureLevelArray,
-                                                                sizeof (featureLevelArray) / sizeof level,
-                                                      D3D11_SDK_VERSION,
-                                                              &pDevice,
-                                                                      &level,
-                                                              &pDevCtx);
+    HRESULT hrHardware = SKIF_DXGI_D3D11CreateDevice ( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
+                                                          createDeviceFlags, featureLevelArray,
+                                                                      sizeof (featureLevelArray) / sizeof level,
+                                                            D3D11_SDK_VERSION,
+                                                                    &pDevice,
+                                                                            &level,
+                                                                    &pDevCtx);
 
     if (SUCCEEDED (hrHardware))
     {
@@ -2189,7 +2188,7 @@ wWinMain ( _In_     HINSTANCE hInstance,
     const auto factoryStart = std::chrono::steady_clock::now ( );
 
     IDXGIFactory2* pFactory = nullptr;
-    if (SUCCEEDED (SKIF_CreateDXGIFactory1 (__uuidof (IDXGIFactory2), (void **)&pFactory)))
+    if (SUCCEEDED (SKIF_DXGI_CreateDXGIFactory1 (__uuidof (IDXGIFactory2), (void **)&pFactory)))
       SKIF_D3DDllPreloadFactory = pFactory;
 
     SKIF_D3DDllPreloadFactoryMs = SKIF_StartupMs (factoryStart);
@@ -5113,55 +5112,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
 #include <D3D9.h>
 #endif
 
-HRESULT
-SKIF_CreateDXGIFactory1 (REFIID riid, void **ppFactory)
-{
-  using CreateDXGIFactory1_pfn =
-           HRESULT (WINAPI *)(REFIID, void **);
-
-  static CreateDXGIFactory1_pfn
-         CreateDXGIFactory1 =
-        (CreateDXGIFactory1_pfn)GetProcAddress (LoadLibraryEx (L"dxgi.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
-        "CreateDXGIFactory1");
-
-  if (CreateDXGIFactory1 == nullptr)
-    return E_FAIL;
-
-  return CreateDXGIFactory1 (riid, ppFactory);
-}
-
-HRESULT
-SKIF_D3D11CreateDevice (
-  IDXGIAdapter            *pAdapter,
-  D3D_DRIVER_TYPE          DriverType,
-  HMODULE                  Software,
-  UINT                     Flags,
-  const D3D_FEATURE_LEVEL *pFeatureLevels,
-  UINT                     FeatureLevels,
-  UINT                     SDKVersion,
-  ID3D11Device           **ppDevice,
-  D3D_FEATURE_LEVEL       *pFeatureLevel,
-  ID3D11DeviceContext    **ppImmediateContext )
-{
-  using D3D11CreateDevice_pfn =
-           HRESULT (WINAPI *)( IDXGIAdapter *, D3D_DRIVER_TYPE, HMODULE, UINT,
-                         const D3D_FEATURE_LEVEL *, UINT, UINT,
-                               ID3D11Device **, D3D_FEATURE_LEVEL *,
-                               ID3D11DeviceContext ** );
-
-  static D3D11CreateDevice_pfn
-         D3D11CreateDevice =
-        (D3D11CreateDevice_pfn)GetProcAddress (LoadLibraryEx (L"d3d11.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32),
-        "D3D11CreateDevice");
-
-  if (D3D11CreateDevice == nullptr)
-    return E_FAIL;
-
-  return D3D11CreateDevice ( pAdapter, DriverType, Software, Flags,
-                             pFeatureLevels, FeatureLevels, SDKVersion,
-                             ppDevice, pFeatureLevel, ppImmediateContext );
-}
-
 bool CreateDeviceD3D (HWND hWnd)
 {
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
@@ -5224,7 +5174,7 @@ bool CreateDeviceD3D (HWND hWnd)
                  << ((pFactory2 == nullptr) ? "; it failed, so the factory is created here." : ".");
   }
 
-  if (pFactory2 == nullptr && FAILED (SKIF_CreateDXGIFactory1 (__uuidof (IDXGIFactory2), (void **)&pFactory2.p)))
+  if (pFactory2 == nullptr && FAILED (SKIF_DXGI_CreateDXGIFactory1 (__uuidof (IDXGIFactory2), (void **)&pFactory2.p)))
     return false;
 
   // Windows 7 (2013 Platform Update), or Windows 8+
@@ -5301,7 +5251,7 @@ bool CreateDeviceD3D (HWND hWnd)
   const DWORD dwCreateStart = SKIF_Util_timeGetTime1 ( );
   const bool  bWARPLoaded   = (GetModuleHandleW (L"d3d10warp.dll") != NULL);
 
-  HRESULT hr = SKIF_D3D11CreateDevice ( nullptr, driverType, nullptr,
+  HRESULT hr = SKIF_DXGI_D3D11CreateDevice ( nullptr, driverType, nullptr,
                                           createDeviceFlags, featureLevelArray,
                                                       sizeof (featureLevelArray) / sizeof featureLevel,
                                             D3D11_SDK_VERSION,
@@ -5328,25 +5278,25 @@ bool CreateDeviceD3D (HWND hWnd)
 
     driverType = D3D_DRIVER_TYPE_HARDWARE;
 
-    hr = SKIF_D3D11CreateDevice ( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
-                                    createDeviceFlags, featureLevelArray,
-                                                sizeof (featureLevelArray) / sizeof featureLevel,
-                                      D3D11_SDK_VERSION,
-                                              &SKIF_pd3dDevice,
-                                                      &featureLevel,
-                                              &SKIF_pd3dDeviceContext);
+    hr = SKIF_DXGI_D3D11CreateDevice ( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
+                                          createDeviceFlags, featureLevelArray,
+                                                      sizeof (featureLevelArray) / sizeof featureLevel,
+                                            D3D11_SDK_VERSION,
+                                                    &SKIF_pd3dDevice,
+                                                            &featureLevel,
+                                                    &SKIF_pd3dDeviceContext);
   }
 
   if (FAILED (hr) && driverType != D3D_DRIVER_TYPE_WARP)
   {
     PLOG_WARNING << "D3D11CreateDevice failed when using hardware. Attempting with WARP...";
-    hr = SKIF_D3D11CreateDevice ( nullptr, D3D_DRIVER_TYPE_WARP, nullptr,
-                                    createDeviceFlags, featureLevelArray,
-                                                sizeof (featureLevelArray) / sizeof featureLevel,
-                                      D3D11_SDK_VERSION,
-                                              &SKIF_pd3dDevice,
-                                                      &featureLevel,
-                                              &SKIF_pd3dDeviceContext);
+    hr = SKIF_DXGI_D3D11CreateDevice ( nullptr, D3D_DRIVER_TYPE_WARP, nullptr,
+                                          createDeviceFlags, featureLevelArray,
+                                                      sizeof (featureLevelArray) / sizeof featureLevel,
+                                            D3D11_SDK_VERSION,
+                                                    &SKIF_pd3dDevice,
+                                                            &featureLevel,
+                                                    &SKIF_pd3dDeviceContext);
   }
 
   if (FAILED (hr))

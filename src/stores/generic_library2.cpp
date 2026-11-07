@@ -25,6 +25,7 @@
 #include <concurrent_queue.h>
 #include "stores/Steam/steam_library.h"
 #include <utility/registry.h>
+#include <utility/render.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_WINDOWS_UTF8
@@ -237,13 +238,13 @@ namespace
     const D3D_FEATURE_LEVEL levels [] = { D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_10_0 };
     D3D_FEATURE_LEVEL       level     = { };
 
-    HRESULT hr = D3D11CreateDevice (adapter, D3D_DRIVER_TYPE_UNKNOWN, nullptr, 0x0, levels, ARRAYSIZE (levels),
-                                    D3D11_SDK_VERSION, &gpu.device, &level, nullptr);
+    HRESULT hr = SKIF_DXGI_D3D11CreateDevice (adapter, D3D_DRIVER_TYPE_UNKNOWN, nullptr, 0x0, levels, ARRAYSIZE (levels),
+                                                D3D11_SDK_VERSION, &gpu.device, &level, nullptr);
 
     // Without 11.1 (older runtimes refuse it)
     if (hr == E_INVALIDARG)
-      hr = D3D11CreateDevice (adapter, D3D_DRIVER_TYPE_UNKNOWN, nullptr, 0x0, levels + 1, ARRAYSIZE (levels) - 1,
-                              D3D11_SDK_VERSION, &gpu.device, &level, nullptr);
+      hr = SKIF_DXGI_D3D11CreateDevice (adapter, D3D_DRIVER_TYPE_UNKNOWN, nullptr, 0x0, levels + 1, ARRAYSIZE (levels) - 1,
+                                          D3D11_SDK_VERSION, &gpu.device, &level, nullptr);
 
     if (FAILED (hr) || gpu.device == nullptr)
     {

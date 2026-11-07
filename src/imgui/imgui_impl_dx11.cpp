@@ -1260,7 +1260,7 @@ void ImGui_ImplDX11_NewFrame()
     ImGuiContext& g = *ImGui::GetCurrentContext();
 
     // External declarations
-    extern HRESULT SKIF_CreateDXGIFactory1 (REFIID riid, void **ppFactory);
+    extern HRESULT SKIF_DXGI_CreateDXGIFactory1 (REFIID riid, void **ppFactory);
     extern bool    CreateDeviceD3D         (HWND hWnd);
     extern void    CleanupDeviceD3D        (void);
     extern HWND                    SKIF_Notify_hWnd;
@@ -1314,7 +1314,7 @@ void ImGui_ImplDX11_NewFrame()
         bd->pFactory = nullptr;
 
         if (! RecreateD3DDevice && ! SwitchD3DDevice)
-          SKIF_CreateDXGIFactory1 (__uuidof (IDXGIFactory2), (void **)&bd->pFactory);
+          SKIF_DXGI_CreateDXGIFactory1 (__uuidof (IDXGIFactory2), (void **)&bd->pFactory);
       }
 
       if (SwitchD3DDevice)

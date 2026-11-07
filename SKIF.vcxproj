@@ -153,7 +153,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>advapi32.lib;comdlg32.lib;d3d11.lib;dbghelp.lib;dwmapi.lib;dxgi.lib;gdi32.lib;kernel32.lib;odbc32.lib;odbccp32.lib;ole32.lib;oleaut32.lib;shell32.lib;user32.lib;uuid.lib;version.lib;winmm.lib;winspool.lib;$(SolutionDir)\packages_misc\DirectXTex\Bin\Desktop_2022\$(Platform)\$(Configuration)\DirectXTex.lib;$(SolutionDir)\packages_misc\pugixml\scripts\vs2022\$(Platform)_$(Configuration)Static\pugixml.lib</AdditionalDependencies>
+      <AdditionalDependencies>advapi32.lib;comdlg32.lib;dbghelp.lib;dwmapi.lib;gdi32.lib;kernel32.lib;odbc32.lib;odbccp32.lib;ole32.lib;oleaut32.lib;shell32.lib;user32.lib;uuid.lib;version.lib;winmm.lib;winspool.lib;$(SolutionDir)\packages_misc\DirectXTex\Bin\Desktop_2022\$(Platform)\$(Configuration)\DirectXTex.lib;$(SolutionDir)\packages_misc\pugixml\scripts\vs2022\$(Platform)_$(Configuration)Static\pugixml.lib</AdditionalDependencies>
       <DelayLoadDLLs>
       </DelayLoadDLLs>
       <OptimizeReferences>true</OptimizeReferences>
@@ -212,7 +212,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>advapi32.lib;comdlg32.lib;d3d11.lib;dbghelp.lib;dwmapi.lib;dxgi.lib;gdi32.lib;kernel32.lib;odbc32.lib;odbccp32.lib;ole32.lib;oleaut32.lib;shell32.lib;user32.lib;uuid.lib;version.lib;winmm.lib;winspool.lib;$(SolutionDir)\packages_misc\DirectXTex\Bin\Desktop_2022\$(Platform)\$(Configuration)\DirectXTex.lib;$(SolutionDir)\packages_misc\pugixml\scripts\vs2022\$(Platform)_$(Configuration)Static\pugixml.lib</AdditionalDependencies>
+      <AdditionalDependencies>advapi32.lib;comdlg32.lib;dbghelp.lib;dwmapi.lib;gdi32.lib;kernel32.lib;odbc32.lib;odbccp32.lib;ole32.lib;oleaut32.lib;shell32.lib;user32.lib;uuid.lib;version.lib;winmm.lib;winspool.lib;$(SolutionDir)\packages_misc\DirectXTex\Bin\Desktop_2022\$(Platform)\$(Configuration)\DirectXTex.lib;$(SolutionDir)\packages_misc\pugixml\scripts\vs2022\$(Platform)_$(Configuration)Static\pugixml.lib</AdditionalDependencies>
       <DelayLoadDLLs>
       </DelayLoadDLLs>
       <OptimizeReferences>true</OptimizeReferences>
@@ -353,7 +353,7 @@
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
-      <AdditionalDependencies>advapi32.lib;comdlg32.lib;d3d11.lib;dbghelp.lib;dwmapi.lib;dxgi.lib;gdi32.lib;kernel32.lib;odbc32.lib;odbccp32.lib;ole32.lib;oleaut32.lib;shell32.lib;user32.lib;uuid.lib;version.lib;winmm.lib;winspool.lib;$(SolutionDir)\packages_misc\DirectXTex\Bin\Desktop_2022\$(Platform)\$(Configuration)\DirectXTex.lib;$(SolutionDir)\packages_misc\pugixml\scripts\vs2022\$(Platform)_$(Configuration)Static\pugixml.lib</AdditionalDependencies>
+      <AdditionalDependencies>advapi32.lib;comdlg32.lib;dbghelp.lib;dwmapi.lib;gdi32.lib;kernel32.lib;odbc32.lib;odbccp32.lib;ole32.lib;oleaut32.lib;shell32.lib;user32.lib;uuid.lib;version.lib;winmm.lib;winspool.lib;$(SolutionDir)\packages_misc\DirectXTex\Bin\Desktop_2022\$(Platform)\$(Configuration)\DirectXTex.lib;$(SolutionDir)\packages_misc\pugixml\scripts\vs2022\$(Platform)_$(Configuration)Static\pugixml.lib</AdditionalDependencies>
       <DelayLoadDLLs>
       </DelayLoadDLLs>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -408,6 +408,7 @@
     <ClInclude Include="packages_misc\stb_image.h" />
     <ClInclude Include="packages_misc\TextFlow.hpp" />
     <ClInclude Include="packages_misc\vdf_parser.hpp" />
+    <ClInclude Include="include\utility\render.h" />
     <ClInclude Include="resources\fonts\fa_621.h" />
     <ClInclude Include="resources\fonts\fa_621b.h" />
     <ClInclude Include="include\utility\artwork.h" />
@@ -671,6 +672,7 @@
     <ClCompile Include="src\utility\skif_imgui.cpp" />
     <ClCompile Include="src\utility\utility.cpp" />
     <ClCompile Include="src\utility\fsutil.cpp" />
+    <ClCompile Include="src\utility\render.cpp" />
     <ClCompile Include="src\imgui\imgui.cpp" />
     <ClCompile Include="src\imgui\imgui_draw.cpp" />
     <ClCompile Include="src\imgui\imgui_widgets.cpp" />
