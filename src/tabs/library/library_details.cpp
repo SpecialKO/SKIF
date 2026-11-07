@@ -625,6 +625,10 @@ DrawGameDetails_Play (app_record_s* pApp)
       GameMenu == PopupState_Closed)
   {
     GameMenu = PopupState_Open;
+
+    // Open the menu upwards, its bottom-left corner above the Play button at the mouse, so it does not cover the status bar
+    GameMenuOpenUpwards   = true;
+    GameMenuUpwardsAnchor = ImVec2 (ImGui::GetMousePos ( ).x, ImGui::GetItemRectMin ( ).y - ImGui::GetStyle ( ).ItemSpacing.y);
   }
 
   // Warnings next to the launch button: VAC, and store-specific ones (itch.io: sandboxed launches; Ubisoft: still installing)
@@ -765,7 +769,14 @@ DrawGameDetails_LaunchBar (app_record_s* pApp)
   if (_IconButton (ICON_FA_FOLDER "###SKIFBrowseShortcut", ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled)))
     ImGui::OpenPopup ("###LaunchBarBrowseMenu");
 
+  // Top-left corner of the Browse button, used to open the menu upwards from it
+  const ImVec2 vecBrowseButtonMin = ImGui::GetItemRectMin ( );
+
   SKIF_ImGui_SetHoverTip (_("Browse"), false, false, true);
+
+  // Open the menu upwards (its bottom-left corner at the top-left corner of the Browse button) so it does not cover the status bar
+  if (ImGui::IsPopupOpen ("###LaunchBarBrowseMenu"))
+    ImGui::SetNextWindowPos (ImVec2 (vecBrowseButtonMin.x, vecBrowseButtonMin.y - ImGui::GetStyle ( ).ItemSpacing.y), ImGuiCond_Always, ImVec2 (0.0f, 1.0f));
 
   if (ImGui::BeginPopup ("###LaunchBarBrowseMenu", ImGuiWindowFlags_NoMove))
   {
@@ -788,8 +799,8 @@ DrawGameDetails_LaunchBar (app_record_s* pApp)
 
   SKIF_ImGui_SetHoverTip (_("Configuration"), false, false, true);
 
-  // right-click: Config Menu (as Manage > Configuration)
-  DrawGameConfigMenu (pApp);
+  // right-click: Config Menu (as Manage > Configuration), opening upwards so it does not cover the status bar
+  DrawGameConfigMenu (pApp, true);
 
   // Right corner: how Play launches the default launch config, as icons placed from the right corner leftwards
   //   (only shown when it is not the usual: Special K disabled, an elevated service, Instant play)

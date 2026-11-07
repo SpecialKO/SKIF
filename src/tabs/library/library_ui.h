@@ -188,6 +188,8 @@ extern bool                   launchViaPlatform; // Explicitly through the platf
 extern bool                   launchInstant;
 extern bool                   launchWithoutSK;
 extern PopupState             GameMenu;
+extern bool                   GameMenuOpenUpwards;   // Set alongside GameMenu = PopupState_Open to open the game menu upwards, its bottom-left corner at GameMenuUpwardsAnchor
+extern ImVec2                 GameMenuUpwardsAnchor;
 extern PopupState             EmptySpaceMenu;
 extern PopupState             ServiceMenu;
 extern PopupState             AddGamePopup;
@@ -230,7 +232,7 @@ bool         SKIF_Lib_RestorePreviousCover (app_record_s* pApp);          // Swa
 // library/library_menus.cpp
 void DrawCoverMenuChangeReset (app_record_s* pApp, bool isCustom, bool isManaged); // Change / Reset of the cover (cover menu, grid view's game menu)
 std::string SKIF_Lib_GetClientFavoriteTip (const std::string& client); // Tooltip of a game favorited in its store client (Steam)
-void DrawGameConfigMenu      (app_record_s* pApp);
+void DrawGameConfigMenu      (app_record_s* pApp, bool openUpwards = false); // openUpwards: open above the item (e.g. to not cover the status bar)
 void DrawGameBrowseMenuItems (app_record_s* pApp); // The items of the Browse menu (game menu, launch bar of the game details)
 void SKIF_Lib_OpenGameConfig (app_record_s* pApp); // Opens the game's Special K config file in the INI editor (created if missing)
 void DrawGameContextMenu     (app_record_s* pApp);

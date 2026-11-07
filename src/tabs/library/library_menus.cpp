@@ -30,7 +30,7 @@
 // This is an unusual popup that needs to be called from two different ImGui popup contexts...
 // ... usually this means any existing popup is closed, hence why we instead invoke this directly where relevant!
 void
-DrawGameConfigMenu (app_record_s* pApp)
+DrawGameConfigMenu (app_record_s* pApp, bool openUpwards)
 {
   if (pApp == nullptr)
     return;
@@ -39,6 +39,9 @@ DrawGameConfigMenu (app_record_s* pApp)
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
   static ImGuiID idGameConfigMenu = ImGui::GetID ("###GameConfigMenu");
+
+  // Top-left corner of the item the menu belongs to, used to open the menu upwards from it
+  const ImVec2 vecItemMin = ImGui::GetItemRectMin ( );
 
   if (! ImGui::IsPopupOpen   (idGameConfigMenu, ImGuiPopupFlags_AnyPopupLevel) &&
         ImGui::IsItemClicked (ImGuiMouseButton_Right))
@@ -54,6 +57,11 @@ DrawGameConfigMenu (app_record_s* pApp)
       last_frame = 0;
   if (last_frame == ImGui::GetFrameCount ( ))
     return;
+
+  // Open the menu upwards (its bottom-left corner at the top-left corner of the item)
+  //   Same popup level check as BeginPopupEx ( ), so this is only set when this call is the one that begins the menu
+  if (openUpwards && ImGui::IsPopupOpen (idGameConfigMenu, ImGuiPopupFlags_None))
+    ImGui::SetNextWindowPos (ImVec2 (vecItemMin.x, vecItemMin.y - ImGui::GetStyle ( ).ItemSpacing.y), ImGuiCond_Always, ImVec2 (0.0f, 1.0f));
 
   if (ImGui::BeginPopupEx (idGameConfigMenu, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings))
   {

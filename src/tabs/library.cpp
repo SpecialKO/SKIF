@@ -151,6 +151,8 @@ LibraryFadeIn (library_fade_in_s& fade)
 }
 
 PopupState GameMenu            = PopupState_Closed;
+bool       GameMenuOpenUpwards   = false;
+ImVec2     GameMenuUpwardsAnchor = ImVec2 (0.0f, 0.0f);
 PopupState EmptySpaceMenu      = PopupState_Closed;
 PopupState CoverMenu           = PopupState_Closed;
 PopupState IconMenu            = PopupState_Closed;
@@ -1584,6 +1586,12 @@ SKIF_UI_Tab_DrawLibrary (void)
 
   if (pApp != nullptr)
   {
+    // Whether the currently open game menu was opened upwards (e.g. from the Play button, to not cover the status bar)
+    static bool s_GameMenuUpwards = false;
+
+    if (s_GameMenuUpwards && ImGui::IsPopupOpen ("###GameContextMenu"))
+      ImGui::SetNextWindowPos (GameMenuUpwardsAnchor, ImGuiCond_Always, ImVec2 (0.0f, 1.0f));
+
     if (ImGui::BeginPopup ("###GameContextMenu", ImGuiWindowFlags_NoMove))
     {
       // Context menu should not have any navigation highlight (white border around items)
@@ -1644,6 +1652,10 @@ SKIF_UI_Tab_DrawLibrary (void)
     {
       ImGui::OpenPopup    ("###GameContextMenu");
       GameMenu = PopupState_Closed;
+
+      // Latch the direction for as long as this menu stays open; openers that do not ask for it (list, grid) open it downwards
+      s_GameMenuUpwards   = GameMenuOpenUpwards;
+      GameMenuOpenUpwards = false;
     }
   }
 
