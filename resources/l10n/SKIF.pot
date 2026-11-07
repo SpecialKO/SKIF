@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-07 12:02+0100\n"
+"POT-Creation-Date: 2026-11-07 12:04+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1980,10 +1980,6 @@ msgstr ""
 
 #: src/tabs/library/library_properties.cpp:601
 msgid "Checks the game's files again, for instance after it was updated."
-msgstr ""
-
-#: src/tabs/library/library_properties.cpp:604
-msgid "Educated guesses from the names of the game's files (SteamDB's file detection rules)."
 msgstr ""
 
 #: src/tabs/library/library_properties.cpp:632

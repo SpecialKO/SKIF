@@ -600,8 +600,8 @@ public:
 
       SKIF_ImGui_SetHoverTip (_("Checks the game's files again, for instance after it was updated."), false, true);
 
-      ImGui::SameLine ( );
-      SKIF_ImGui_TextColoredWrapped (colDisabled, _("Educated guesses from the names of the game's files (SteamDB's file detection rules)."));
+      //ImGui::SameLine ( );
+      //SKIF_ImGui_TextColoredWrapped (colDisabled, _("Educated guesses from the names of the game's files (SteamDB's file detection rules)."));
     }
   }
 
