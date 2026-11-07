@@ -37,7 +37,6 @@ DrawGameConfigMenu (app_record_s* pApp)
 
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
-//static SKIF_InjectionContext& _inject     = SKIF_InjectionContext::GetInstance ( );
 
   static ImGuiID idGameConfigMenu = ImGui::GetID ("###GameConfigMenu");
 
@@ -49,6 +48,8 @@ DrawGameConfigMenu (app_record_s* pApp)
 
   // This is just a basic way to prevent multiple calls to DrawGameConfigMenu
   //   occurring during the same frame (duplicating items)
+  // TODO: Contemplate moving away from the current design (last_frame == frameCount).
+  //         Other menus are just drawn once, at the end of the tab.
   static int
       last_frame = 0;
   if (last_frame == ImGui::GetFrameCount ( ))
@@ -59,13 +60,6 @@ DrawGameConfigMenu (app_record_s* pApp)
     last_frame = ImGui::GetFrameCount();
 
     ImGui::PushStyleColor  (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
-
-    ImGui::TextColored (
-      ImColor::HSV (0.11F, 1.F, 1.F), "%s",
-        _("Troubleshooting:")
-    );
-
-    ImGui::Separator ( );
 
     if (ImGui::Selectable (L_("External Editor")))
     {
@@ -86,12 +80,11 @@ DrawGameConfigMenu (app_record_s* pApp)
         }
       }
 
-      // Internal editor
-      //SKIF_UI_IniEditor_OpenFile (nullptr, pApp->specialk.injection.config.full_path, pApp->names.normal);
-
       // External editor
       SKIF_Util_OpenURI (pApp->specialk.injection.config.full_path, SW_SHOWNORMAL, NULL);
     }
+
+    ImGui::Separator ( );
 
     // Apply Preset, Apply Compatibility Config and Reset (shared with the INI editor, see <utility/ini_presets.h>)
     const SKIF_IniPresetChoice preset = SKIF_ImGui_IniPresetItems ( );
@@ -668,7 +661,7 @@ DrawGameContextMenu_Manage (app_record_s* pApp)
     if (SKIF_ImGui_MenuItemEx2 (L_("Properties"), ICON_FA_GEAR, ImGui::GetStyleColorVec4(ImGuiCol_SKIF_Info)))
       ModifyGamePopup = PopupState_Open;
 
-    // Config File (right-click: troubleshooting)
+    // Config File (right-click: Config Menu)
     if (SKIF_ImGui_MenuItemEx2 (L_("Configuration"), ICON_FA_FILE_LINES)) // pApp->specialk.injection.config.shorthand_utf8.c_str ()
       SKIF_Lib_OpenGameConfig (pApp);
 

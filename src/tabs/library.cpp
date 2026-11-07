@@ -1577,12 +1577,6 @@ SKIF_UI_Tab_DrawLibrary (void)
   SKIF_GamingCollection::s_bAnyMouseDownUI.store (ImGui::IsAnyMouseDown ( ));
   SetEvent (hRefreshSignal);
 
-#pragma region ServiceMenu
-
-  SKIF_ImGui_ServiceMenu ( );
-
-#pragma endregion
-
   // Context menu for the cover (library/library_menus.cpp)
   DrawCoverMenu ( );
 

@@ -3621,9 +3621,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
         _inject._GlobalInjectionCtl ( );
 
         ImGui::EndChild             ( );
-
-        SKIF_ImGui_ServiceMenu      ( );
-
       } // End Mini Mode
 
 #pragma endregion
@@ -3871,6 +3868,9 @@ wWinMain ( _In_     HINSTANCE hInstance,
             else
               _inject._StartStopInject (false, _registry.bStopOnInjection);
           }
+
+          if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
+            ServiceMenu = PopupState_Open;
 
           ImVec4 vColor = ImGui::GetStyleColorVec4 ((! running) ? ImGuiCol_TextDisabled :
                                                      (autoStop) ? ImGuiCol_SKIF_Success :
@@ -4325,6 +4325,12 @@ wWinMain ( _In_     HINSTANCE hInstance,
 
 #pragma endregion
 
+#pragma region ServiceMenu
+
+      SKIF_ImGui_ServiceMenu ( );
+
+#pragma endregion
+
       // Open INI Editor
       if (hotkeyCtrlShiftN)
       {
@@ -4399,20 +4405,6 @@ wWinMain ( _In_     HINSTANCE hInstance,
       SK_RunOnce (
         RespectMonBoundaries = true
       );
-
-      // This allows us to compact the working set on launch
-#if 0
-      SK_RunOnce (
-        invalidatedFonts = SKIF_Util_timeGetTime ( )
-      );
-
-      if (invalidatedFonts > 0 &&
-          invalidatedFonts + 500 < SKIF_Util_timeGetTime())
-      {
-        SKIF_Util_CompactWorkingSet ();
-        invalidatedFonts = 0;
-      }
-#endif
 
       // Main rendering function
       ImGui::RenderNotifications ( );

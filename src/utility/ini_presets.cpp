@@ -289,8 +289,6 @@ SKIF_ImGui_IniPresetItems (bool handCursor)
     ImGui::EndMenu ( );
   }
 
-  ImGui::Separator ( );
-
   if (ImGui::Selectable (L_("Apply Compatibility Config")))
     choice = { SKIF_IniPresetAction_Compatibility, L"" };
 
@@ -298,6 +296,8 @@ SKIF_ImGui_IniPresetItems (bool handCursor)
 
   SKIF_ImGui_SetHoverTip (_("Known as the \"sledgehammer\" config within the community as it disables\n"
                             "various features of Special K in an attempt to improve compatibility."));
+
+  ImGui::Separator ( );
 
   if (ImGui::Selectable (L_("Reset")))
     choice = { SKIF_IniPresetAction_Reset, L"" };

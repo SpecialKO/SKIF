@@ -299,8 +299,7 @@ DrawGameDetails_Info (app_record_s* pApp)
     SKIF_ImGui_SetHoverTip        ((bTruncated) ? std::string (szQuickToggle, szQuickToggleEnd) + "\n" + T_(_inject.ui_game_summary.hover_tip.c_str ())
                                                 : std::string (T_(_inject.ui_game_summary.hover_tip.c_str ())));
 
-    if ( ! ImGui::IsPopupOpen ("ServiceMenu") &&
-           ImGui::IsItemClicked (ImGuiMouseButton_Right))
+    if (ImGui::IsItemClicked (ImGuiMouseButton_Right))
       ServiceMenu = PopupState_Open;
   }
 
@@ -789,7 +788,7 @@ DrawGameDetails_LaunchBar (app_record_s* pApp)
 
   SKIF_ImGui_SetHoverTip (_("Configuration"));
 
-  // Right-click: troubleshooting (as Manage > Configuration)
+  // right-click: Config Menu (as Manage > Configuration)
   DrawGameConfigMenu (pApp);
 
   // Right corner: how Play launches the default launch config, as icons placed from the right corner leftwards

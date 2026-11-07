@@ -2059,12 +2059,6 @@ void SKIF_ImGui_ServiceMenu (void)
   if (ImGui::BeginPopup ("ServiceMenu", ImGuiWindowFlags_NoMove))
   {
     ImGui::PushStyleColor (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
-    ImGui::TextColored (
-      ImColor::HSV (0.11F, 1.F, 1.F), "%s",
-        _("Troubleshooting:")
-    );
-
-    ImGui::Separator ( );
 
     if (ImGui::Selectable(L_("Force start service###ServiceMenuStart")))
       _inject._StartStopInject (false, _registry.bStopOnInjection);

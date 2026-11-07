@@ -1958,10 +1958,6 @@ SKIF_UI_Tab_DrawMonitor (void)
 
 #pragma endregion
 
-  // Service Menu
-
-  SKIF_ImGui_ServiceMenu ( );
-
   // Confirm prompt
 
   if (static_proc.pid != 0)
