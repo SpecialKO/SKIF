@@ -1588,6 +1588,7 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
     std::string    key;           // GetPersistentKey ( ), taken before the processing (it may set a Steam game's ID to 0)
     nlohmann::json meta;          // The game's db.json entry (null if it has none); updated by the processing
     bool           write = false; // Write meta back to db.json
+    bool           missingFolder = false; // Skipped as its install folder is missing (summarized per drive, not logged per game)
   };
 
   DWORD dwPhase = SKIF_Util_timeGetTime1 ( );
@@ -1734,7 +1735,10 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
   {
     app_entry_t& app = *job.app;
 
+#ifdef _DEBUG
+    // Per game in debug builds only: one line for each game the stores report (hundreds); the drives are summarized below
     PLOG_VERBOSE << "Working on " << app.second->id << " (" << app.second->store_utf8 << ")";
+#endif
 
     bool isSpecialK = app.second->IsSpecialK ( );
 
@@ -1985,9 +1989,11 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
       // This populates install_dir for Steam games
       app.second->ResolveInstallDirectory ( );
 
+      // Not logged per game: e.g. hundreds of Steam downloads that are queued have their manifests, but no folders yet
+      //   (see the summary per drive below)
       if (! _InstallFolderExists (app.second->install_dir))
       {
-        PLOG_DEBUG << "App ID " << app.second->id << " (" << app.second->store_utf8 << ") has non-existent install folder; ignoring!";
+        job.missingFolder = true;
 
         app.second->id = 0;
         return;
@@ -2111,6 +2117,56 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
 
   for (auto& drive : drives)
     _Wait (drive);
+
+  // One line per drive: how many games were kept, and which were skipped as their install folder is missing (the
+  //   first few IDs). The others were skipped as not installed according to the store, without a name, or hidden (the
+  //     last two are logged per game above)
+  for (auto& [volume, volumeJobs] : volumes)
+  {
+    constexpr size_t maxListed = 10;
+
+    size_t       kept    = 0,
+                 missing = 0,
+                 other   = 0;
+    std::wstring listed;
+
+    for (const game_job_s* job : volumeJobs)
+    {
+      if (job->missingFolder)
+      {
+        if (missing++ < maxListed)
+        {
+          if (! listed.empty ( ))
+            listed += L", ";
+
+          // Its ID was set to 0: the persistent key has it (e.g. Steam's app ID, Epic's AppName)
+          listed += SK_UTF8ToWideChar (job->key) + L" (" + SK_UTF8ToWideChar (job->app->second->store_utf8) + L")";
+        }
+      }
+
+      else if (job->app->second->id == 0)
+        other++;
+      else
+        kept++;
+    }
+
+    std::wstring summary = SK_FormatStringW (L"[Library Processing] Volume %ws: %zu game(s) kept", (volume.empty ( ) ? L"(unknown)" : volume.c_str ( )), kept);
+
+    if (missing > 0)
+    {
+      summary += SK_FormatStringW (L", %zu skipped as their install folder is missing (%ws", missing, listed.c_str ( ));
+
+      if (missing > maxListed)
+        summary += SK_FormatStringW (L", and %zu more", missing - maxListed);
+
+      summary += L")";
+    }
+
+    if (other > 0)
+      summary += SK_FormatStringW (L", %zu skipped for other reasons", other);
+
+    PLOG_DEBUG << summary << ".";
+  }
 
   PLOG_DEBUG << "[Library Processing] Processed games on " << volumes.size ( ) << " drive(s) using " << threadsUsed << " thread(s) in " << (SKIF_Util_timeGetTime1 ( ) - dwPhase) << " ms.";
   dwPhase = SKIF_Util_timeGetTime1 ( );
