@@ -1966,15 +1966,25 @@ SKIF_Steam_GetCoverURI (uint32_t app_id, bool force_2x)
       {
         const auto& item = jf["response"]["store_items"][0];
 
+        if (! item.is_object ( ))
+          continue;
+
         if (item.value ("unavailable_for_country_restriction", false))
+          continue;
+
+        // item is const, so item["assets"] would be undefined behaviour if the key is missing
+        //   (nlohmann's const operator[] only asserts in debug builds and returns garbage in release)
+        const auto assets = item.find ("assets");
+
+        if (assets == item.end ( ) || ! assets->is_object ( ))
           continue;
 
         std::string
         //store_url_path           = item          .value ("store_url_path",     std::string{}), // app/1675830/1000xRESIST
-          asset_url_format         = item["assets"].value ("asset_url_format",   std::string{}), // steam/apps/2483190/${FILENAME}?t=1779221600
-          asset_library_capsule_2x = item["assets"].value ("library_capsule_2x", std::string{}), // library_600x900_2x.jpg
-          asset_library_capsule    = item["assets"].value ("library_capsule",    std::string{}); // library_600x900.jpg
-        //asset_header             = item["assets"].value ("header",             std::string{}); // header.jpg
+          asset_url_format         = assets->value ("asset_url_format",   std::string{}), // steam/apps/2483190/${FILENAME}?t=1779221600
+          asset_library_capsule_2x = assets->value ("library_capsule_2x", std::string{}), // library_600x900_2x.jpg
+          asset_library_capsule    = assets->value ("library_capsule",    std::string{}); // library_600x900.jpg
+        //asset_header             = assets->value ("header",             std::string{}); // header.jpg
 
         if (asset_library_capsule_2x.empty() && asset_library_capsule.empty())
           continue;
@@ -1985,7 +1995,12 @@ SKIF_Steam_GetCoverURI (uint32_t app_id, bool force_2x)
                     ? "library_600x900_2x.jpg"  //   as apparently some games are just weird like that, such as Returnal (1649240) and Forbidden West (2420110).
                     : asset_library_capsule);
 
-        asset = SteamCDN + asset_url_format.replace (asset_url_format.find (pattern), pattern.length(), asset);
+        const size_t pos = asset_url_format.find (pattern);
+
+        if (pos == std::string::npos)
+          continue;
+
+        asset = SteamCDN + asset_url_format.replace (pos, pattern.length(), asset);
 
         PLOG_VERBOSE << "asset_url_format: " << asset_url_format;
         PLOG_VERBOSE << "asset: " << asset;
