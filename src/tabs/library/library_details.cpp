@@ -758,14 +758,14 @@ DrawGameDetails_LaunchBar (app_record_s* pApp)
   if (_IconButton (ICON_FA_GEAR "###SKIFPropertiesShortcut", ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled)))
     ModifyGamePopup = PopupState_Open;
 
-  SKIF_ImGui_SetHoverTip (_("Properties"));
+  SKIF_ImGui_SetHoverTip (_("Properties"), false, false, true);
 
   ImGui::SameLine ( );
 
   if (_IconButton (ICON_FA_FOLDER "###SKIFBrowseShortcut", ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled)))
     ImGui::OpenPopup ("###LaunchBarBrowseMenu");
 
-  SKIF_ImGui_SetHoverTip (_("Browse"));
+  SKIF_ImGui_SetHoverTip (_("Browse"), false, false, true);
 
   if (ImGui::BeginPopup ("###LaunchBarBrowseMenu", ImGuiWindowFlags_NoMove))
   {
@@ -786,7 +786,7 @@ DrawGameDetails_LaunchBar (app_record_s* pApp)
   if (ImGui::IsItemHovered ( ))
     SKIF_ImGui_SetHoverText (pApp->specialk.injection.config.full_path_utf8.c_str ( ));
 
-  SKIF_ImGui_SetHoverTip (_("Configuration"));
+  SKIF_ImGui_SetHoverTip (_("Configuration"), false, false, true);
 
   // right-click: Config Menu (as Manage > Configuration)
   DrawGameConfigMenu (pApp);

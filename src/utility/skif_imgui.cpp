@@ -602,7 +602,7 @@ SKIF_ImGui_SetMouseCursorHand (void)
 }
 
 void
-SKIF_ImGui_SetHoverTip (const std::string_view& szText, bool ignoreDisabledTooltips, bool allowWhenItemDisabled)
+SKIF_ImGui_SetHoverTip (const std::string_view& szText, bool ignoreDisabledTooltips, bool allowWhenItemDisabled, bool showAboveCursor)
 {
   static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
 
@@ -632,6 +632,29 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText, bool ignoreDisabledToolt
 
       else if (HoverTipDuration + 500 < SKIF_Util_timeGetTime ( ))
       {
+        // Optionally place the tooltip above the cursor instead of below it (e.g. to not cover the status bar for items near the bottom of the window)
+        if (showAboveCursor)
+        {
+          // Defined in imgui.cpp, but not exposed in the public API
+          static const ImVec2 TOOLTIP_DEFAULT_OFFSET_MOUSE = ImVec2(16, 10);      // Multiplied by g.Style.MouseCursorScale
+
+          ImGuiContext& g     = *GImGui;
+          ImGuiStyle&   style = ImGui::GetStyle ( );
+          const float   scale = style.MouseCursorScale;
+
+          // Anchor to the item when it is being hovered through keyboard/gamepad navigation, otherwise to the mouse cursor
+          const bool    navHover = (g.NavCursorVisible && g.NavHighlightItemUnderNav);
+          const ImVec2  anchor   = (navHover) ? ImGui::GetItemRectMin ( ) : ImGui::GetMousePos ( );
+
+          // Mirror ImGui's default tooltip offset (TOOLTIP_DEFAULT_OFFSET_MOUSE = 16, 10 -- below and to the right)
+          //   to be above and to the right instead, at the same distance from the anchor
+          const ImVec2  offset   = scale * TOOLTIP_DEFAULT_OFFSET_MOUSE * ImVec2 (1.0f, -1.0f);
+          const ImVec2  tipPos   = anchor + offset;
+
+          // Pivot (0, 1) = the bottom-left corner of the tooltip is placed at the offset position
+          ImGui::SetNextWindowPos (ImVec2 (tipPos.x, tipPos.y), ImGuiCond_Always, ImVec2 (0.0f, 1.0f));
+        }
+
         ImGui::SetTooltip (
           "%hs", szText.data ()
         );

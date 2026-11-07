@@ -64,7 +64,7 @@ bool     SKIF_ImGui_IsMouseHovered        (void);
 bool     SKIF_ImGui_IsAnyInputDown        (void);
 bool     SKIF_ImGui_IsAnyPopupOpen        (bool includeSKIFPopups = true); // ImGui popups, and SKIF_ImGui_BeginPopup ( ) ones shown this frame or the last (unless excluded)
 void     SKIF_ImGui_SetMouseCursorHand    (void);
-void     SKIF_ImGui_SetHoverTip           (const std::string_view& szText, bool ignoreDisabledTooltips = false, bool allowWhenItemDisabled = false);
+void     SKIF_ImGui_SetHoverTip           (const std::string_view& szText, bool ignoreDisabledTooltips = false, bool allowWhenItemDisabled = false, bool showAboveCursor = false); // showAboveCursor: place the tooltip above the cursor (falls back to below if there is no room)
 void     SKIF_ImGui_SetHoverText          (const std::string_view& szText, bool overrideExistingText = false);
 bool     SKIF_ImGui_BeginChildFrame       (ImGuiID id, const ImVec2& size, ImGuiChildFlags child_flags, ImGuiWindowFlags window_flags = ImGuiWindowFlags_None);
 ImVec2   SKIF_ImGui_GetContentRegionMax       (void); // Same as ImGui::GetContentRegionMax ( ), removed in ImGui 1.91.0
