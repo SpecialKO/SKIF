@@ -4956,6 +4956,17 @@ wWinMain ( _In_     HINSTANCE hInstance,
         }
       }
 
+      // Frames whose content did not change are not presented, which also means there is no swapchain to wait on.
+      //   Without a wait here the loop spins at tens of thousands of iterations per second for as long as something
+      //     keeps it awake (e.g. while a notification is shown). New input or a change notification still wakes it at
+      //       once, and the timeout is kept short as the fade effects of the viewer advance on a 15 ms tick.
+      if (! bRefresh && ! pause && ! msgDontRedraw && ! HiddenFramesContinueProcessing && SKIF_ImGui_hWnd != NULL)
+      {
+        timeBeginPeriod (1);
+        MsgWaitForMultipleObjects (static_cast<DWORD>(vWatchHandles[SKIF_Tab_Selected].size()), vWatchHandles[SKIF_Tab_Selected].data(), false, 4, QS_ALLINPUT);
+        timeEndPeriod   (1);
+      }
+
       // Reset stuff that's set as part of pumping the message queue
       msgDontRedraw = false;
       uiLastMsg     = 0x0;

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-07 15:22+0100\n"
+"POT-Creation-Date: 2026-11-07 18:05+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -194,30 +194,30 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-#: src/SKIF.cpp:5865
+#: src/SKIF.cpp:5876
 msgid "Blink and you'll miss it ;)"
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/SKIF.cpp:5867
+#: src/SKIF.cpp:5878
 msgid "An update is being installed..."
 msgstr ""
 
-#: src/SKIF.cpp:5893
+#: src/SKIF.cpp:5904
 msgid "Open the app to continue."
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/SKIF.cpp:5895
+#: src/SKIF.cpp:5906
 msgid "An update to Special K is available!"
 msgstr ""
 
-#: src/SKIF.cpp:5907
+#: src/SKIF.cpp:5918
 msgid "The update will be retried later."
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/SKIF.cpp:5909
+#: src/SKIF.cpp:5920
 msgid "Update failed :("
 msgstr ""
 
@@ -340,29 +340,29 @@ msgid "Select the executable and the working directory of the game."
 msgstr ""
 
 #: src/stores/Steam/app_record.cpp:805
-#: src/stores/Steam/steam_library.cpp:2154
+#: src/stores/Steam/steam_library.cpp:2169
 msgid "Conflicting configuration"
 msgstr ""
 
 #: src/stores/Steam/app_record.cpp:806
-#: src/stores/Steam/steam_library.cpp:2155
+#: src/stores/Steam/steam_library.cpp:2170
 msgid "Could not launch game due to conflicting launch options in Steam:"
 msgstr ""
 
 #: src/stores/Steam/app_record.cpp:810
-#: src/stores/Steam/steam_library.cpp:2159
+#: src/stores/Steam/steam_library.cpp:2174
 msgid "Please change the launch options in Steam before trying again."
 msgstr ""
 
-#: src/stores/Steam/steam_library.cpp:2248
+#: src/stores/Steam/steam_library.cpp:2263
 msgid "Details"
 msgstr ""
 
-#: src/stores/Steam/steam_library.cpp:2258
+#: src/stores/Steam/steam_library.cpp:2273
 msgid "A controller must be connected."
 msgstr ""
 
-#: src/stores/Steam/steam_library.cpp:2261
+#: src/stores/Steam/steam_library.cpp:2276
 msgid "Game properties"
 msgstr ""
 
