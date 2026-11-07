@@ -173,6 +173,257 @@ SK_VFS_ScanTree ( SK_VirtualFS::vfsNode* pVFSRoot,
   return found;
 }
 
+#pragma region Manifest cache
+
+// Steam libraries on network drives (e.g. a NAS): each manifest read is a few network round trips, which add up with
+//   hundreds of games (e.g. downloads that are queued). So their contents are cached in Assets\Cache\SteamManifests.json,
+//     keyed on the manifest's path, size and time of its last change, as listed when the library is scanned (one listing
+//       per library, see SKIF_SteamInt_DiscoverInstalledApps): a manifest that is unchanged since is not opened again.
+//         Steam rewrites a manifest as a download progresses, which changes its time, so that one is read again.
+//   Libraries on local drives are read as before: their manifests are cheap to read.
+//
+//   { "version": 1, "manifests": { "<path, lowercase>": { "size": n, "time": <FILETIME>, "data": "<contents>" } } }
+namespace
+{
+  struct manifest_stamp_s {
+    uint64_t size = 0;
+    uint64_t time = 0; // FILETIME of the last write
+  };
+
+  struct manifest_cache_entry_s {
+    uint64_t    size = 0;
+    uint64_t    time = 0;
+    std::string data;
+  };
+
+  constexpr const wchar_t* MANIFEST_CACHE_FILE    = L"SteamManifests.json";
+  constexpr int            MANIFEST_CACHE_VERSION = 1;
+
+  std::mutex                                                s_manifestMutex;
+  std::unordered_map <std::wstring, manifest_stamp_s>       s_manifestStamps; // Manifests of network libraries, from their latest listing
+  std::unordered_map <std::wstring, manifest_cache_entry_s> s_manifestCache;
+  bool                                                      s_manifestCacheLoaded = false;
+  bool                                                      s_manifestCacheDirty  = false;
+  uint32_t                                                  s_manifestHits        = 0; // Since the last save
+  uint32_t                                                  s_manifestReads       = 0;
+
+  // A mapped drive letter of a network share, or a UNC path
+  bool
+  _IsNetworkPath (const std::wstring& path)
+  {
+    if (path.starts_with (LR"(\\)") && ! path.starts_with (LR"(\\?\)") && ! path.starts_with (LR"(\\.\)"))
+      return true;
+
+    if (path.length ( ) < 2 || path [1] != L':')
+      return false;
+
+    const wchar_t root [] = { path [0], L':', L'\\', L'\0' };
+
+    return (GetDriveTypeW (root) == DRIVE_REMOTE);
+  }
+
+  // The cache is JSON, which only holds valid UTF-8 (nlohmann::json throws on anything else when writing it)
+  bool
+  _IsValidUTF8 (std::string_view text)
+  {
+    size_t i = 0;
+
+    while (i < text.size ( ))
+    {
+      const unsigned char ch = static_cast <unsigned char> (text [i]);
+      size_t extra = 0;
+
+      if      (ch < 0x80)           extra = 0;
+      else if ((ch & 0xE0) == 0xC0) extra = 1;
+      else if ((ch & 0xF0) == 0xE0) extra = 2;
+      else if ((ch & 0xF8) == 0xF0) extra = 3;
+      else                          return false;
+
+      // Its continuation bytes must all be there
+      if (i + extra >= text.size ( ))
+        return false;
+
+      for (size_t j = 1; j <= extra; j++)
+        if ((static_cast <unsigned char> (text [i + j]) & 0xC0) != 0x80)
+          return false;
+
+      i += extra + 1;
+    }
+
+    return true;
+  }
+
+  // Under s_manifestMutex
+  void
+  _LoadManifestCache (void)
+  {
+    if (s_manifestCacheLoaded)
+      return;
+
+    s_manifestCacheLoaded = true;
+
+    nlohmann::json json = SKIF_Library_ReadCache (MANIFEST_CACHE_FILE);
+
+    if (! json.is_object ( ) || json.value ("version", 0) != MANIFEST_CACHE_VERSION ||
+        ! json.contains ("manifests") || ! json ["manifests"].is_object ( ))
+      return;
+
+    for (const auto& [key, item] : json ["manifests"].items ( ))
+    {
+      if (! item.is_object ( ) || ! item.contains ("data") || ! item ["data"].is_string ( ))
+        continue;
+
+      manifest_cache_entry_s entry;
+      entry.size = item.value ("size", uint64_t (0));
+      entry.time = item.value ("time", uint64_t (0));
+      entry.data = item ["data"].get <std::string> ( );
+
+      if (! entry.data.empty ( ))
+        s_manifestCache.emplace (SK_UTF8ToWideChar (key), std::move (entry));
+    }
+
+    PLOG_VERBOSE << "Steam manifest cache: loaded " << s_manifestCache.size ( ) << " manifests of network libraries.";
+  }
+
+  // Lists the manifests of a library on a network drive (its steamapps folder), replacing what was listed before
+  void
+  _ListNetworkManifests (const wchar_t* steamapps)
+  {
+    const std::wstring folder = steamapps;
+
+    if (folder.empty ( ) || ! _IsNetworkPath (folder))
+      return;
+
+    const std::wstring prefix = SKIF_Util_ToLowerW (folder) + L"\\";
+
+    std::unordered_map <std::wstring, manifest_stamp_s> listed;
+
+    WIN32_FIND_DATAW ffd   = { };
+    HANDLE           hFind = FindFirstFileExW ((folder + LR"(\appmanifest_*.acf)").c_str ( ), FindExInfoBasic, &ffd,
+                                               FindExSearchNameMatch, nullptr, FIND_FIRST_EX_LARGE_FETCH);
+
+    if (hFind != INVALID_HANDLE_VALUE)
+    {
+      do
+      {
+        if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+          continue;
+
+        manifest_stamp_s stamp;
+        stamp.size = (static_cast <uint64_t> (ffd.nFileSizeHigh)                 << 32) | ffd.nFileSizeLow;
+        stamp.time = (static_cast <uint64_t> (ffd.ftLastWriteTime.dwHighDateTime) << 32) | ffd.ftLastWriteTime.dwLowDateTime;
+
+        listed.emplace (prefix + SKIF_Util_ToLowerW (ffd.cFileName), stamp);
+      } while (FindNextFileW (hFind, &ffd));
+
+      FindClose (hFind);
+    }
+
+    std::scoped_lock lock (s_manifestMutex);
+
+    for (auto it = s_manifestStamps.begin ( ); it != s_manifestStamps.end ( ); )
+      it = (it->first.starts_with (prefix)) ? s_manifestStamps.erase (it) : std::next (it);
+
+    s_manifestStamps.merge (listed);
+  }
+
+  // The cached contents of a manifest of a network library, if it is unchanged since it was cached
+  bool
+  _GetCachedManifest (const std::wstring& path, std::string& data)
+  {
+    const std::wstring key = SKIF_Util_ToLowerW (path);
+
+    std::scoped_lock lock (s_manifestMutex);
+
+    auto stamp = s_manifestStamps.find (key);
+
+    if (stamp == s_manifestStamps.end ( ))
+      return false;
+
+    _LoadManifestCache ( );
+
+    auto entry = s_manifestCache.find (key);
+
+    if (entry == s_manifestCache.end ( ) || entry->second.size != stamp->second.size || entry->second.time != stamp->second.time)
+    {
+      s_manifestReads++;
+      return false;
+    }
+
+    s_manifestHits++;
+    data = entry->second.data;
+
+    return true;
+  }
+
+  // Caches a manifest of a network library that was just read (with its size and time as listed)
+  void
+  _CacheManifest (const std::wstring& path, const std::string& data)
+  {
+    const std::wstring key = SKIF_Util_ToLowerW (path);
+
+    std::scoped_lock lock (s_manifestMutex);
+
+    auto stamp = s_manifestStamps.find (key);
+
+    if (stamp == s_manifestStamps.end ( ) || data.empty ( ) || ! _IsValidUTF8 (data))
+      return;
+
+    _LoadManifestCache ( );
+
+    // Its size and time as listed: had Steam written it after the listing, the next listing differs and it is read again
+    s_manifestCache [key] = { stamp->second.size, stamp->second.time, data };
+    s_manifestCacheDirty  = true;
+  }
+}
+
+void
+SKIF_Steam_SaveManifestCache (void)
+{
+  std::scoped_lock lock (s_manifestMutex);
+
+  if (s_manifestHits + s_manifestReads > 0)
+    PLOG_DEBUG << "Steam manifest cache: " << s_manifestHits << " of " << (s_manifestHits + s_manifestReads)
+               << " manifests of network libraries came from the cache.";
+
+  s_manifestHits  = 0;
+  s_manifestReads = 0;
+
+  // Nothing listed (no network libraries, or Steam was not scanned): keep the file as it is
+  if (s_manifestStamps.empty ( ) || ! s_manifestCacheLoaded)
+    return;
+
+  // Manifests that are gone (e.g. uninstalled games) are dropped
+  for (auto it = s_manifestCache.begin ( ); it != s_manifestCache.end ( ); )
+  {
+    if (s_manifestStamps.count (it->first) == 0)
+    {
+      it = s_manifestCache.erase (it);
+      s_manifestCacheDirty = true;
+    }
+
+    else
+      ++it;
+  }
+
+  if (! s_manifestCacheDirty)
+    return;
+
+  nlohmann::json manifests = nlohmann::json::object ( );
+
+  for (const auto& [key, entry] : s_manifestCache)
+    manifests [SK_WideCharToUTF8 (key)] = { { "size", entry.size }, { "time", entry.time }, { "data", entry.data } };
+
+  SKIF_Library_WriteCache (MANIFEST_CACHE_FILE, {
+    { "version",   MANIFEST_CACHE_VERSION },
+    { "manifests", std::move (manifests) }
+  });
+
+  s_manifestCacheDirty = false;
+}
+
+#pragma endregion
+
 std::string
 SK_GetManifestContentsForAppID (app_record_steam_s *app)
 {
@@ -254,6 +505,20 @@ SK_GetManifestContentsForAppID (app_record_steam_s *app)
     }
   }
 
+  // A library on a network drive: unchanged since it was cached (see SKIF_Steam_SaveManifestCache)
+  if (found)
+  {
+    if (std::string cached; _GetCachedManifest (wszManifestFullPath, cached))
+    {
+      manifest    = std::move (cached);
+      manifest_id = app->id;
+
+      app->steam.manifest_data = manifest;
+      app->steam.manifest_path = wszManifestFullPath;
+      return app->steam.manifest_data;
+    }
+  }
+
   if (found)
   {
     // When opening an existing file, the CreateFile function performs the following actions:
@@ -301,6 +566,9 @@ SK_GetManifestContentsForAppID (app_record_steam_s *app)
 
         app->steam.manifest_data = manifest;
         app->steam.manifest_path = wszManifestFullPath;
+
+        _CacheManifest (wszManifestFullPath, manifest); // Network libraries only
+
         return app->steam.manifest_data;
       }
     }
@@ -1323,6 +1591,9 @@ SKIF_SteamInt_DiscoverInstalledApps (void)
         library.count =
           SK_VFS_ScanTree ( library.manifest_vfs,
                             library.path, L"appmanifest_*.acf", 0);
+
+        // A library on a network drive: the size and time of each manifest, so unchanged ones come from the cache
+        _ListNetworkManifests (library.path);
       }
 
       SK_VirtualFS::vfsNode* pFolder =
