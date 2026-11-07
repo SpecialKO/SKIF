@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-07 07:36+0100\n"
+"POT-Creation-Date: 2026-11-07 07:42+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -258,7 +258,7 @@ msgstr ""
 #: src/tabs/monitor.cpp:1999
 #: src/tabs/monitor.cpp:2086
 #: src/tabs/monitor.cpp:2119
-#: src/utility/skif_imgui.cpp:1869
+#: src/utility/skif_imgui.cpp:1880
 #: src/utility/updater.cpp:1570
 #: src/utility/updater.cpp:1627
 msgid "Cancel"
@@ -786,7 +786,7 @@ msgstr ""
 #: src/tabs/library/library_popups.cpp:163
 #: src/tabs/monitor.cpp:1704
 #: src/tabs/monitor.cpp:1897
-#: src/utility/skif_imgui.cpp:1871
+#: src/utility/skif_imgui.cpp:1882
 msgid "Yes"
 msgstr ""
 
@@ -794,7 +794,7 @@ msgstr ""
 #: src/tabs/monitor.cpp:1704
 #: src/tabs/monitor.cpp:1897
 #: src/tabs/settings.cpp:1747
-#: src/utility/skif_imgui.cpp:1872
+#: src/utility/skif_imgui.cpp:1883
 msgid "No"
 msgstr ""
 
@@ -1112,7 +1112,7 @@ msgstr ""
 #: src/tabs/ini_editor.cpp:519
 #: src/tabs/library/library_properties.cpp:2114
 #: src/tabs/library/library_properties.cpp:2193
-#: src/utility/skif_imgui.cpp:1874
+#: src/utility/skif_imgui.cpp:1885
 msgid "Save"
 msgstr ""
 
@@ -3280,7 +3280,7 @@ msgid "Tooltips"
 msgstr ""
 
 #: src/tabs/settings.cpp:1507
-#: src/utility/skif_imgui.cpp:670
+#: src/utility/skif_imgui.cpp:681
 msgid "Info: "
 msgstr ""
 
@@ -4009,89 +4009,89 @@ msgstr ""
 
 #: src/utility/skif_imgui.cpp:481
 #: src/utility/skif_imgui.cpp:485
-#: src/utility/skif_imgui.cpp:1880
+#: src/utility/skif_imgui.cpp:1891
 msgid "OK"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1868
+#: src/utility/skif_imgui.cpp:1879
 msgid "None"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1875
+#: src/utility/skif_imgui.cpp:1886
 msgid "Don't Save"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1934
+#: src/utility/skif_imgui.cpp:1945
 msgid "Are you sure you want to continue?"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1950
+#: src/utility/skif_imgui.cpp:1961
 msgid "Do you want to save the changes made?"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1951
+#: src/utility/skif_imgui.cpp:1962
 msgid "Your changes will be lost if you don't save them."
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1979
+#: src/utility/skif_imgui.cpp:1990
 msgid "Should 64-bit or 32-bit be used?"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:1980
+#: src/utility/skif_imgui.cpp:1991
 msgid "Processes can only load DLL files of the same bitness."
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:2086
+#: src/utility/skif_imgui.cpp:2097
 msgid "Force start service"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:2093
+#: src/utility/skif_imgui.cpp:2104
 msgid "Elevated"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:2098
+#: src/utility/skif_imgui.cpp:2109
 msgid "Force stop service"
 msgstr ""
 
 #. TRANSLATORS: An April Fools' Day joke (a fake activation of Special K, with technobabble), shown on April 1st
-#: src/utility/skif_imgui.cpp:3361
+#: src/utility/skif_imgui.cpp:3372
 msgid "Special K Activation"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3369
+#: src/utility/skif_imgui.cpp:3380
 msgid "Special K  //  Nominal Flow Activation"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3373
+#: src/utility/skif_imgui.cpp:3384
 msgid "Client fingerprint:"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3412
+#: src/utility/skif_imgui.cpp:3423
 msgid "This title is missing its nominal constant (0x00000000)."
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3417
+#: src/utility/skif_imgui.cpp:3428
 msgid "Contacting activation server  sk-activation.local ..."
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3422
+#: src/utility/skif_imgui.cpp:3433
 msgid "Transforming constant against client fingerprint ..."
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3427
+#: src/utility/skif_imgui.cpp:3438
 msgid "Nominal flow restored."
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3443
+#: src/utility/skif_imgui.cpp:3454
 msgid "Just kidding -- Special K needs no such thing. Happy April Fools' Day!"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3446
-#: src/utility/skif_imgui.cpp:3448
+#: src/utility/skif_imgui.cpp:3457
+#: src/utility/skif_imgui.cpp:3459
 msgid "Phew, OK"
 msgstr ""
 
-#: src/utility/skif_imgui.cpp:3455
+#: src/utility/skif_imgui.cpp:3466
 msgid "Please wait, this will only take a moment ..."
 msgstr ""
 

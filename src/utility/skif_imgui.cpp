@@ -618,9 +618,20 @@ SKIF_ImGui_SetHoverTip (const std::string_view& szText, bool ignoreDisabledToolt
       ImGui::PushStyleColor (ImGuiCol_Text,     ImGui::GetStyleColorVec4 (ImGuiCol_WindowBg));
       HoverTipActive = true;
 
+      // Mouse position when the hover duration was last (re)started; any movement before the tooltip
+      //   appears restarts the duration, so the tooltip only appears if the mouse is kept completely still
+      static ImVec2 s_HoverTipMousePos = ImVec2 (-FLT_MAX, -FLT_MAX);
+      const  ImVec2 mousePos           = ImGui::GetMousePos ( );
+      const  bool   mouseMoved         = (mousePos.x != s_HoverTipMousePos.x || mousePos.y != s_HoverTipMousePos.y);
+
+      // The tooltip has not appeared yet, but the mouse has moved: invalidate the hover duration
+      if (HoverTipDuration != 0 && mouseMoved && HoverTipDuration + 500 >= SKIF_Util_timeGetTime ( ))
+        HoverTipDuration = 0;
+
       if (HoverTipDuration == 0)
       {
-        HoverTipDuration = SKIF_Util_timeGetTime ( );
+        HoverTipDuration   = SKIF_Util_timeGetTime ( );
+        s_HoverTipMousePos = mousePos;
 
         // Use a timer to force SKIF to refresh once the duration has passed
         SetTimer (SKIF_Notify_hWnd,
