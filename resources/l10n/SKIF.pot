@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-07 07:59+0100\n"
+"POT-Creation-Date: 2026-11-07 10:40+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -186,6 +186,8 @@ msgstr ""
 
 #: src/SKIF.cpp:4230
 #: src/tabs/ini_editor.cpp:534
+#: src/tabs/library/library_properties.cpp:2115
+#: src/tabs/library/library_properties.cpp:2202
 #: src/tabs/local.cpp:855
 #: src/utility/updater.cpp:1405
 #: src/utility/updater.cpp:1411
@@ -250,8 +252,6 @@ msgstr ""
 #: src/tabs/library/library_popups.cpp:238
 #: src/tabs/library/library_popups.cpp:266
 #: src/tabs/library/library_popups.cpp:306
-#: src/tabs/library/library_properties.cpp:2116
-#: src/tabs/library/library_properties.cpp:2211
 #: src/tabs/local.cpp:1213
 #: src/tabs/local.cpp:1238
 #: src/tabs/monitor.cpp:1981
@@ -1050,7 +1050,7 @@ msgid "{0} - Editor"
 msgstr ""
 
 #: src/tabs/ini_editor.cpp:90
-#: src/tabs/library/library_properties.cpp:2242
+#: src/tabs/library/library_properties.cpp:2233
 msgid "Save Changes?"
 msgstr ""
 
@@ -1110,8 +1110,6 @@ msgid "Open"
 msgstr ""
 
 #: src/tabs/ini_editor.cpp:519
-#: src/tabs/library/library_properties.cpp:2114
-#: src/tabs/library/library_properties.cpp:2193
 #: src/utility/skif_imgui.cpp:1885
 msgid "Save"
 msgstr ""
@@ -1175,7 +1173,7 @@ msgstr ""
 
 #. TRANSLATORS: {0} is the name of a file (or of a game)
 #: src/tabs/ini_editor.cpp:944
-#: src/tabs/library/library_properties.cpp:2244
+#: src/tabs/library/library_properties.cpp:2235
 msgid "Do you want to save changes to {0}?"
 msgstr ""
 
@@ -2060,7 +2058,7 @@ msgid "Applies to the executable, so to every launch option that starts it."
 msgstr ""
 
 #: src/tabs/library/library_properties.cpp:1150
-msgid "Save first to change these for this executable."
+msgid "Apply first to change these for this executable."
 msgstr ""
 
 #: src/tabs/library/library_properties.cpp:1159
@@ -2126,12 +2124,12 @@ msgid "Imported launch option"
 msgstr ""
 
 #: src/tabs/library/library_properties.cpp:1483
-msgid "Imported \"{0}\" from the clipboard. Save to keep it."
+msgid "Imported \"{0}\" from the clipboard. Apply to keep it."
 msgstr ""
 
 #: src/tabs/library/library_properties.cpp:1484
-msgid "Imported {0} launch option from the clipboard. Save to keep it."
-msgid_plural "Imported {0} launch options from the clipboard. Save to keep them."
+msgid "Imported {0} launch option from the clipboard. Apply to keep it."
+msgid_plural "Imported {0} launch options from the clipboard. Apply to keep them."
 msgstr[0] ""
 msgstr[1] ""
 
@@ -2298,17 +2296,17 @@ msgstr ""
 msgid "{0} - Properties"
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:2115
-#: src/tabs/library/library_properties.cpp:2203
+#: src/tabs/library/library_properties.cpp:2114
+#: src/tabs/library/library_properties.cpp:2194
 msgid "Apply"
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:2135
-#: src/tabs/library/library_properties.cpp:2188
+#: src/tabs/library/library_properties.cpp:2132
+#: src/tabs/library/library_properties.cpp:2185
 msgid "Could not save"
 msgstr ""
 
-#: src/tabs/library/library_properties.cpp:2154
+#: src/tabs/library/library_properties.cpp:2151
 msgid "Some of the changes could not be saved."
 msgstr ""
 

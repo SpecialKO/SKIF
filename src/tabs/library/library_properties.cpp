@@ -1147,7 +1147,7 @@ private:
     // A new executable: the library has no launch config for it until the launch options are saved
     if (idx == -1)
     {
-      SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), _("Save first to change these for this executable."));
+      SKIF_ImGui_TextColoredWrapped (ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled), _("Apply first to change these for this executable."));
       return;
     }
 
@@ -1480,8 +1480,8 @@ private:
     selected = first;
 
     pickError.clear ( );
-    note = (imported.size ( ) == 1) ? F_("Imported \"{0}\" from the clipboard. Save to keep it.", rows [first].user.desc)
-                                    : FP_("Imported {0} launch option from the clipboard. Save to keep it.", "Imported {0} launch options from the clipboard. Save to keep them.", imported.size ( ));
+    note = (imported.size ( ) == 1) ? F_ ("Imported \"{0}\" from the clipboard. Apply to keep it.", rows [first].user.desc)
+                                    : FP_("Imported {0} launch option from the clipboard. Apply to keep it.", "Imported {0} launch options from the clipboard. Apply to keep them.", imported.size ( ));
   }
 
   void _RemoveRow (int index)
@@ -1908,7 +1908,7 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
   extern ImRect windowRect;
   const float   fOffset = static_cast <float> ((wnd.id % 5) * 24) * fDPI;
 
-  // Room for the spacing above and below the Save / Cancel buttons (two SKIF_ImGui_Spacing ( ), each a quarter of a line
+  // Room for the spacing above and below the Apply / Close buttons (two SKIF_ImGui_Spacing ( ), each a quarter of a line
   //   plus the item spacing; see the footer), at 100%, so the pages keep the height they had before it was added
   const float   fFooterSpacing = 2.0f * (ImGui::GetTextLineHeightWithSpacing ( ) * 0.25f + ImGui::GetStyle ( ).ItemSpacing.y) / SKIF_ImGui_GlobalDPIScale;
 
@@ -1970,8 +1970,8 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
     const bool hotkeyClose  = ImGui::Shortcut (SKIF_Hotkey_CloseWindow);
     const bool hotkeyEscape = ImGui::Shortcut (ImGuiKey_Escape);
 
-    // Closing the window: the title bar's close button, Escape (unless it closes a combo box or menu of ours first)
-    //   or Ctrl+W. With unsaved changes the user is asked first (see below)
+    // Closing the window: the Close button, the title bar's close button, Escape (unless it closes a combo box or menu
+    //   of ours first) or Ctrl+W. With unsaved changes the user is asked first (see below)
     bool closeRequest = ! open;
     open              = true;
 
@@ -2082,7 +2082,7 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
 
     ImGui::EndChild ( ); // ###PropsContent
 
-    // Warnings and errors of all sections (errors block Save)
+    // Warnings and errors of all sections (errors block saving)
     bool hasErrors = false;
 
     for (const auto& issue : issues)
@@ -2111,23 +2111,20 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
 
     // Both as wide as the wider of the two (at least as wide as before)
     ImVec2 vButtonSize = ImVec2 (std::max ({ 80.0f * SKIF_ImGui_GlobalDPIScale,
-                                             ImGui::CalcTextSize (L_("Save###PropsSave"),     nullptr, true).x + style.FramePadding.x * 2.0f,
-                                             ImGui::CalcTextSize (L_("Apply###PropsApply"),   nullptr, true).x + style.FramePadding.x * 2.0f,
-                                             ImGui::CalcTextSize (L_("Cancel###PropsCancel"), nullptr, true).x + style.FramePadding.x * 2.0f }), 0.0f);
+                                             ImGui::CalcTextSize (L_("Apply###PropsApply"), nullptr, true).x + style.FramePadding.x * 2.0f,
+                                             ImGui::CalcTextSize (L_("Close###PropsClose"), nullptr, true).x + style.FramePadding.x * 2.0f }), 0.0f);
 
-    const bool saveDisabled = (! anyDirty || hasErrors);
+    const bool applyDisabled = (! anyDirty || hasErrors);
 
     SKIF_ImGui_Spacing ( );
 
-    // Save / Apply / Cancel, centered
-    ImGui::SetCursorPosX ((ImGui::GetWindowWidth ( ) - vButtonSize.x * 3.0f - style.ItemSpacing.x * 2.0f) / 2.0f);
-
-    SKIF_ImGui_PushDisableState (saveDisabled);
+    // Apply / Close, centered
+    ImGui::SetCursorPosX ((ImGui::GetWindowWidth ( ) - vButtonSize.x * 2.0f - style.ItemSpacing.x) / 2.0f);
 
     // Applies the changes of every section; false (with the reasons shown as toasts in the window) if something was not saved
     auto _Save = [&](void) -> bool
     {
-      // Save is not possible while there are errors (the Save button is disabled then, but the prompt can still ask)
+      // Saving is not possible while there are errors (the Apply button is disabled then, but the prompt can still ask)
       if (hasErrors)
       {
         for (const auto& issue : issues)
@@ -2149,7 +2146,7 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
 
         if (ret & PropertiesApply_Failed)
         {
-          // Its changes are kept, so Save can be tried again
+          // Its changes are kept, so saving can be tried again
           std::string error = section->GetApplyError ( );
           errors.push_back ((error.empty ( )) ? std::string (_("Some of the changes could not be saved.")) : error);
         }
@@ -2158,7 +2155,7 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
         {
           effects |= ret;
 
-          // Saved: what it shows is what is stored now, so it doesn't apply the same changes again on a later Save
+          // Saved: what it shows is what is stored now, so it doesn't apply the same changes again on a later Apply
           section->Load (*pApp);
         }
       }
@@ -2190,26 +2187,20 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
       return errors.empty ( );
     };
 
-    if (ImGui::Button (L_("Save###PropsSave"), vButtonSize))
-    {
-      if (_Save ( ))
-        closed = true;
-    }
+    // Apply saves the changes and keeps the window open: settings that only appear once something is saved (e.g. those of
+    //   a new launch option's executable) show up when the library has been refreshed (the sections are loaded again then)
+    SKIF_ImGui_PushDisableState (applyDisabled);
 
-    ImGui::SameLine ( );
-
-    // Apply saves as well, but keeps the window open: settings that only appear once something is saved (e.g. those of a
-    //   new launch option's executable) show up when the library has been refreshed (the sections are loaded again then)
     if (ImGui::Button (L_("Apply###PropsApply"), vButtonSize))
       _Save ( );
 
-    SKIF_ImGui_PopDisableState (saveDisabled);
+    SKIF_ImGui_PopDisableState (applyDisabled);
 
     ImGui::SameLine ( );
 
-    // Cancel discards the changes without asking: it is the explicit way to do so
-    if (ImGui::Button (L_("Cancel###PropsCancel"), vButtonSize))
-      closed = true;
+    // Close is the same as closing the window (title bar, Escape, Ctrl+W): with unsaved changes the user is asked first
+    if (ImGui::Button (L_("Close###PropsClose"), vButtonSize))
+      closeRequest = true;
 
     SKIF_ImGui_Spacing ( );
 
@@ -2273,7 +2264,7 @@ _SKIF_Properties_DrawWindow (properties_window_s& wnd, app_record_s* pApp)
 
   ImGui::End ( );
 
-  // Closed: saved, Cancel, or closed (title bar, Escape, Ctrl+W) without unsaved changes / after the prompt
+  // Closed: Close, or closed (title bar, Escape, Ctrl+W), without unsaved changes / after the prompt
   if (closed)
   {
     pApp->launch_failed = false;
