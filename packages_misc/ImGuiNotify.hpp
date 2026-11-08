@@ -56,7 +56,20 @@ extern float SKIF_ImGui_GlobalDPIScale;
 
 
 
+/**
+	* @brief The viewport of the current window, or the main viewport when the toast is created outside of a window.
+	*
+	* @return HWND The HWND of the current/main viewport.
+	*/
+static HWND getDefaultHWND()
+{
+	const ImGuiContext* g = ImGui::GetCurrentContext();
 
+	if (g != nullptr && g->CurrentWindow != nullptr && g->CurrentWindow->Viewport != nullptr)
+		return (HWND)g->CurrentWindow->Viewport->PlatformHandleRaw;
+
+	return (HWND)ImGui::GetMainViewport()->PlatformHandleRaw;
+}
 
 static const ImGuiChildFlags  NOTIFY_DEFAULT_CHILD_FLAGS  = ImGuiChildFlags_AlwaysAutoResize | ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_Borders;
 static const ImGuiWindowFlags NOTIFY_DEFAULT_WINDOW_FLAGS = ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_Tooltip; // ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoFocusOnAppearing;
@@ -113,7 +126,7 @@ private:
 	std::function<void()>						onButtonPress = nullptr; // A lambda variable, which will be executed when button in notification is pressed
 	char 										buttonLabel[NOTIFY_MAX_MSG_LENGTH];
 
-  HWND hwnd = (HWND)ImGui::GetWindowViewport()->PlatformHandleRaw;
+  HWND hwnd = getDefaultHWND();
 
 	static int32_t maxAssignedId;
 	       int32_t      uniqueId = 0;
