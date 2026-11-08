@@ -569,7 +569,7 @@ struct app_record_s {
   virtual bool         DownloadIGDBCover       (const std::wstring& targetPath);               // app_record.cpp, cover worker thread: look the game up on IGDB. Base: by name; stores with an IGDB source try their store ID first
   std::wstring         GetPreferredIGDBCover   (void) const;                                   // app_record.cpp: <GetAssetDirectory ( )>cover-igdb.jpg when IGDB covers are preferred and there is no custom or PCGamingWiki cover; else empty
   virtual std::wstring GetIconSource           (void) const { return L"icon"; }                // Icon source hint (Steam: library cache icon; GOG: goggame-<id>.ico)
-  virtual void         PrepareIconSource       (void)       { }                                // Main thread, before loading the icon (Steam: icon hash from appinfo.vdf)
+  virtual bool         PrepareIconSource       (void)       { return true; }                   // Main thread, before loading the icon (Steam: icon hash from appinfo.vdf). false: not possible yet, the icon is requested again later
   virtual bool         HasStoreCover           (void) const { return ! IsSpecialK ( ); }       // A default cover exists, so the cover menu offers Refresh / Reset
   virtual bool         DeleteStoreCoverFiles   (const std::wstring& assetDir) { UNREFERENCED_PARAMETER (assetDir); return false; } // Cover reset: delete store-managed fallbacks; true if any was removed
   virtual bool         CoverNeedsClientSignIn  (void) const { return false; }                  // The cover is missing because the store client is signed out (GOG Galaxy)

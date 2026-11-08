@@ -1145,11 +1145,11 @@ app_record_xbox_s::ResolveArtwork (LibraryTexture type, const std::wstring& sour
 
 // Main thread, before loading the icon: SKIF's copy of the package's icon (icon-original.png, and the .ico of desktop
 //   shortcuts) is made when the games are detected, and deleted by Refresh in the icon menu, so make it again if missing
-void
+bool
 app_record_xbox_s::PrepareIconSource (void)
 {
   if (xbox.icon_source.empty ( ))
-    return;
+    return true;
 
   std::wstring targetPath  = GetStoreAssetDirectory ( );
   std::wstring iconPath    = targetPath + L"icon-original.png";
@@ -1167,6 +1167,8 @@ app_record_xbox_s::PrepareIconSource (void)
 
   if (icon && ! PathFileExistsW (iconIcoPath.c_str ( )))
     SKIF_Util_SaveImageAsICO (iconPath.c_str ( ), iconIcoPath.c_str ( ), 32);
+
+  return true;
 }
 
 // Cover worker thread: the downloaded cover, else look it up in the Microsoft Store

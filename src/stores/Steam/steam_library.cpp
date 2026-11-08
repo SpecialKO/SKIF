@@ -2715,13 +2715,23 @@ app_record_steam_s::GetIconSource (void) const
   return SK_FormatStringW(LR"(%ws\appcache\librarycache\%i\%hs.jpg)", _path_cache.steam_install, id, common_config.icon_hash.c_str ()); //L"_icon.jpg"
 }
 
-void
+bool
 app_record_steam_s::PrepareIconSource (void)
 {
   static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
 
-  if (! IsSpecialK ( ))
-    appinfo->getAppInfo ( id, &_games.GetApps() );
+  if (IsSpecialK ( ))
+    return true;
+
+  // The appinfo.vdf reader arrives with the full library (SwapInPopulatedGames), but the early library (the first library
+  //   of a session, see SwapInEarlyGames) can show Steam games before that: their icons wait for it, as the icon hash
+  //     comes from appinfo.vdf
+  if (appinfo == nullptr)
+    return false;
+
+  appinfo->getAppInfo ( id, &_games.GetApps() );
+
+  return true;
 }
 
 bool

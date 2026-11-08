@@ -1172,10 +1172,12 @@ SKIF_LibraryArtwork::ProcessCoverRefresh (void)
 void
 SKIF_LibraryArtwork::StartIconWorker (app_record_s* pApp)
 {
-  m_activeIconWorkers++;
+  // Store-specific icon source (Steam: parses appinfo.vdf for the icon hash first). Not possible yet (Steam: the early
+  //   library is shown before appinfo.vdf is read): tex_icon.iWorker stays 0, so the row asks again on a later frame
+  if (! pApp->PrepareIconSource ( ))
+    return;
 
-  // Store-specific icon source (Steam: parses appinfo.vdf for the icon hash first)
-  pApp->PrepareIconSource ( );
+  m_activeIconWorkers++;
 
   std::wstring load_str = pApp->GetIconSource ( );
 

@@ -72,7 +72,7 @@ struct app_record_xbox_s : app_record_store_s <app_record_xbox_s, app_record_s::
 
   // Artwork (xbox_library.cpp)
   std::wstring ResolveArtwork          (LibraryTexture type, const std::wstring& source, bool& isCustom, bool& isManaged) override;
-  void         PrepareIconSource       (void) override;
+  bool         PrepareIconSource       (void) override;
   std::wstring PrepareCoverSource      (bool queryPCGW) override;
   bool         DeleteStoreCoverFiles   (const std::wstring& assetDir) override;
   bool         WantsIGDBCover          (void) const override;

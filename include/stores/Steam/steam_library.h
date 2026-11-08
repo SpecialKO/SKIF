@@ -353,7 +353,7 @@ struct app_record_steam_s : app_record_store_s <app_record_steam_s, app_record_s
   bool         WantsIGDBCover          (void) const override;
   bool         DownloadIGDBCover       (const std::wstring& targetPath) override;
   std::wstring GetIconSource           (void) const override;
-  void         PrepareIconSource       (void) override;
+  bool         PrepareIconSource       (void) override;
   bool         DeleteStoreCoverFiles   (const std::wstring& assetDir) override;
   std::string  GetLocalizedName        (void)       override;
   bool         CanCreateDesktopShortcut(void)       override;

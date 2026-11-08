@@ -142,7 +142,7 @@ public:
   //   result has been applied (ApplyWorkerResults), to whichever record the game has by then
   int  GetActiveIconWorkers   (void) const { return m_activeIconWorkers; }
   bool CanStartIconWorker     (void) const { return m_activeIconWorkers < 8; }
-  void StartIconWorker        (app_record_s* pApp);  // tex_icon.iWorker 0 → 1 (SKIF_LibIconWorker)
+  void StartIconWorker        (app_record_s* pApp);  // tex_icon.iWorker 0 → 1 (SKIF_LibIconWorker); stays 0 if PrepareIconSource ( ) can't yet
   void ReloadIcon             (app_record_s* pApp);  // Loads the icon again on this thread (icon changed or reset); waits for its icon worker first
 
   // Thumbnails (the grid view). Loaded from the thumbnail cache (<asset folder>cover-thumb-<size>-<sources>.dds, BC7) by up to
