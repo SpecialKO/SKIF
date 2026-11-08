@@ -286,9 +286,11 @@ std::wstring                 SKIF_Steam_GetAppStateString        (HKEY* hKey, co
 wchar_t                      SKIF_Steam_GetAppStateDWORD         (HKEY* hKey, const wchar_t *wszStateKey, DWORD *pdwStateVal);
 bool                         SKIF_Steam_UpdateAppState           (app_record_s *pApp);
 void                         SKIF_Steam_IdentifyAssetPCGW        (uint32_t app_id);
-std::wstring                 SKIF_Steam_GetCoverURI              (uint32_t app_id, bool force_2x);
+std::wstring                 SKIF_Steam_GetCoverURI              (uint32_t app_id, bool force_2x); // Worker threads: blocks until the store API has been asked (in batches); empty if not found
+void                         SKIF_Steam_SetCoverURICandidates    (std::vector <uint32_t> app_ids); // Main thread: the library's Steam games, looked up ahead along with those asked for
 std::wstring                 SKIF_SteamWebAPI_AppDetails         (uint32_t app_id);
 std::wstring                 SKIF_SteamWebAPI_IStoreBrowseService_GetItems1 (uint32_t app_id, std::string country_code);
+std::wstring                 SKIF_SteamWebAPI_IStoreBrowseService_GetItems1 (const std::vector <uint32_t>& app_ids, std::string country_code);
 std::wstring                 SKIF_SteamWebAPI_ISteamUserStats_GetNumberOfCurrentPlayers1 (uint32_t app_id);
 
 // Library record for a Steam game

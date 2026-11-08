@@ -3,6 +3,7 @@
 #include <utility/registry.h>
 #include <utility/utility.h>
 #include <stores/generic_library2.h>
+#include <stores/Steam/steam_library.h>
 #include <SKIF.h>
 #include <concurrent_queue.h>
 #include <process.h>
@@ -107,6 +108,37 @@ SKIF_LibraryArtwork::ReleaseOldCoverIfFaded (void)
 
 #pragma region Cover Worker
 
+// Main thread: once per library (swap-in), tells the Steam cover lookups which games to look up ahead (in library order),
+//   so a cover that is downloaded doesn't wait on a store API request of its own (SKIF_Steam_GetCoverURI)
+static void
+_UpdateSteamCoverURICandidates (void)
+{
+  static uint32_t lastSwap = UINT32_MAX;
+
+  SKIF_GamingCollection& games = SKIF_GamingCollection::Get ( );
+
+  if (games.GetSwapCount ( ) == lastSwap)
+    return;
+
+  lastSwap = games.GetSwapCount ( );
+
+  std::vector <uint32_t> ids;
+
+  {
+    std::scoped_lock app_lock (games.GetMutex ( ));
+
+    for (const auto& app : games.GetApps ( ))
+    {
+      const app_record_s* rec = app.second.get ( );
+
+      if (rec != nullptr && rec->store == app_record_s::Store::Steam && rec->id != 0 && ! rec->IsSpecialK ( ))
+        ids.push_back (rec->id);
+    }
+  }
+
+  SKIF_Steam_SetCoverURICandidates (std::move (ids));
+}
+
 // The cover pipeline of the cover worker and the thumbnail builds (worker threads): the store's cover (downloaded when
 //   missing), the IGDB cover when preferred, then the texture (thumb: as a thumbnail, saved to the thumbnail cache)
 static bool
@@ -160,6 +192,9 @@ SKIF_LibraryArtwork::StartCoverWorker (app_record_s* pApp)
   thread_s* data = new thread_s { (pApp != nullptr) ? SKIF_GamingCollection::Get ( ).FindShared (pApp->GetKey ( )) : nullptr,
                                   false,
                                   (pApp != nullptr) ? pApp->GetKey ( ) : app_key_s { } };
+
+  if (pApp != nullptr && pApp->store == app_record_s::Store::Steam)
+    _UpdateSteamCoverURICandidates ( );
 
   if (pApp != nullptr && pApp->WantsPCGWCover ( ) && ! pApp->tex_cover.queriedPCGW)
   {
@@ -1472,7 +1507,8 @@ void
 SKIF_LibraryArtwork::RequestThumbnail (app_record_s* pApp)
 {
   constexpr int maxLoads  = 16; // From the cache: local only
-  constexpr int maxBuilds = 16; // Mostly waiting on downloads (Steam's store API, the PCGamingWiki / IGDB cover proxies)
+  constexpr int maxBuilds = 32; // Mostly waiting on cover downloads (Steam's CDN; the PCGamingWiki / IGDB cover proxies). The Steam
+                                //   store API lookups are batched (SKIF_Steam_GetCoverURI), so they no longer hold builds up for long
 
   auto& thumb = pApp->tex_thumb;
 
@@ -1551,6 +1587,9 @@ SKIF_LibraryArtwork::StartThumbnailWorker (app_record_s* pApp, bool build)
     std::scoped_lock app_lock (SKIF_GamingCollection::Get ( ).GetMutex ( ));
     pApp->LoadStoreDetails ( );
   }
+
+  if (build && pApp->store == app_record_s::Store::Steam)
+    _UpdateSteamCoverURICandidates ( );
 
   // As the cover worker: a PCGamingWiki cover is looked up once per record (decided here, on the main thread)
   if (build && pApp->WantsPCGWCover ( ) && ! pApp->tex_cover.queriedPCGW)

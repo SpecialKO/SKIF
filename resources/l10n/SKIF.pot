@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-07 18:05+0100\n"
+"POT-Creation-Date: 2026-11-08 22:27+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -340,29 +340,29 @@ msgid "Select the executable and the working directory of the game."
 msgstr ""
 
 #: src/stores/Steam/app_record.cpp:805
-#: src/stores/Steam/steam_library.cpp:2169
+#: src/stores/Steam/steam_library.cpp:2480
 msgid "Conflicting configuration"
 msgstr ""
 
 #: src/stores/Steam/app_record.cpp:806
-#: src/stores/Steam/steam_library.cpp:2170
+#: src/stores/Steam/steam_library.cpp:2481
 msgid "Could not launch game due to conflicting launch options in Steam:"
 msgstr ""
 
 #: src/stores/Steam/app_record.cpp:810
-#: src/stores/Steam/steam_library.cpp:2174
+#: src/stores/Steam/steam_library.cpp:2485
 msgid "Please change the launch options in Steam before trying again."
 msgstr ""
 
-#: src/stores/Steam/steam_library.cpp:2263
+#: src/stores/Steam/steam_library.cpp:2574
 msgid "Details"
 msgstr ""
 
-#: src/stores/Steam/steam_library.cpp:2273
+#: src/stores/Steam/steam_library.cpp:2584
 msgid "A controller must be connected."
 msgstr ""
 
-#: src/stores/Steam/steam_library.cpp:2276
+#: src/stores/Steam/steam_library.cpp:2587
 msgid "Game properties"
 msgstr ""
 
