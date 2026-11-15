@@ -5376,6 +5376,8 @@ SKIF_UtilInt_UpdateMonitors (void)
   // For each active path
   for (auto& path : pathArray)
   {
+    ReaderVersion _rv = RV_Unknown;
+
     // Virtual Display Area
     UINT32 idx = (path.flags & DISPLAYCONFIG_PATH_SUPPORT_VIRTUAL_MODE)
                 ? path.sourceInfo.sourceModeInfoIdx
@@ -5438,7 +5440,7 @@ SKIF_UtilInt_UpdateMonitors (void)
 
       if (ERROR_SUCCESS == SKIF_Util_DisplayConfigGetDeviceInfo (&getDisplayHDR.header))
       {
-        readerVersion = RV_Win32v2;
+        _rv = RV_Win32v2;
 
         monitor.hdr.supported = getDisplayHDR.highDynamicRangeSupported &&
                              (! getDisplayHDR.advancedColorLimitedByPolicy);
@@ -5472,7 +5474,7 @@ SKIF_UtilInt_UpdateMonitors (void)
     }
 
     // Windows 10 1803+ (Build 17134) or newer
-    if (readerVersion == RV_Unknown && SKIF_Util_IsWindows10v1803OrGreater ( ))
+    if (_rv == RV_Unknown && SKIF_Util_IsWindows10v1803OrGreater ( ))
     {
       if (IDisplayInformationStaticsInterop* pStatics = _GetDisplayInformationStatics ( ))
       {
@@ -5480,9 +5482,9 @@ SKIF_UtilInt_UpdateMonitors (void)
         if (SUCCEEDED (pStatics->GetForMonitor (monitor.handle, IID_IDisplayInformation5, reinterpret_cast<void**>(&pDisp))) && pDisp != nullptr)
         {
           IAdvancedColorInfo* pAc = nullptr;
-          if (SUCCEEDED (pDisp->GetAdvancedColorInfo(&pAc)) && pAc != nullptr)
+          if (SUCCEEDED (pDisp->GetAdvancedColorInfo (&pAc)) && pAc != nullptr)
           {
-            readerVersion = RV_WinRT;
+            _rv = RV_WinRT;
 
             BOOLEAN available = FALSE;
 
@@ -5509,7 +5511,7 @@ SKIF_UtilInt_UpdateMonitors (void)
     }
 
     // Windows 10 1709+ (Build 16299) fallback
-    if (readerVersion == RV_Unknown && SKIF_Util_IsWindows10v1709OrGreater ( ))
+    if (_rv == RV_Unknown && SKIF_Util_IsWindows10v1709OrGreater ( ))
     {
       DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO
         getDisplayHDR                   = { };
@@ -5520,7 +5522,7 @@ SKIF_UtilInt_UpdateMonitors (void)
 
       if (ERROR_SUCCESS == SKIF_Util_DisplayConfigGetDeviceInfo (&getDisplayHDR.header))
       {
-        readerVersion = RV_Win32v1;
+        _rv = RV_Win32v1;
 
         // Technically incomplete since this also returns true
         //   for WCG capable SDR displays!
@@ -5552,6 +5554,7 @@ SKIF_UtilInt_UpdateMonitors (void)
       }
     }
 
+    readerVersion = std::max (readerVersion, _rv);
     g_Monitors.push_back (monitor);
   }
 
