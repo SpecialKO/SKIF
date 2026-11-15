@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-08 22:27+0100\n"
+"POT-Creation-Date: 2026-11-15 06:43+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -4210,17 +4210,17 @@ msgstr ""
 msgid "Please wait, this will only take a moment ..."
 msgstr ""
 
-#: src/utility/sk_utility.cpp:901
+#: src/utility/sk_utility.cpp:891
 msgid "Keybinding:"
 msgstr ""
 
 #. TRANSLATORS: RETURN, ESC, BACKSPACE and DELETE are keys of the keyboard (use the names printed on keyboards in your language)
-#: src/utility/sk_utility.cpp:907
+#: src/utility/sk_utility.cpp:897
 msgid "Press RETURN to confirm, ESC to cancel, BACKSPACE to clear, DELETE to reset."
 msgstr ""
 
 #. TRANSLATORS: RETURN, ESC and DELETE are keys of the keyboard (use the names printed on keyboards in your language)
-#: src/utility/sk_utility.cpp:910
+#: src/utility/sk_utility.cpp:900
 msgid "Press RETURN to confirm, ESC to cancel, DELETE to reset."
 msgstr ""
 

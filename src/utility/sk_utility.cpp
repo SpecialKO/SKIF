@@ -843,32 +843,20 @@ SK_ImGui_KeybindDialog (SK_KeybindMultiState* keybind)
 
     int  vKey = 256;
 
-// ImGui removed IMGUI_DISABLE_OBSOLETE_KEYIO in 1.91.5 (the legacy key IO is gone), so the ImGuiKey scan below is
-//   the one in use, as it was before with IMGUI_DISABLE_OBSOLETE_KEYIO defined. This VK scan is kept for reference.
-#if 0
-    for (vKey = 0x08; vKey < 256; vKey++)
-    {
-      if ( vKey == VK_LCONTROL || vKey == VK_RCONTROL || vKey == VK_CONTROL || // Ctrl
-           vKey == VK_LSHIFT   || vKey == VK_RSHIFT   || vKey == VK_SHIFT   || // Shift
-           vKey == VK_LMENU    || vKey == VK_RMENU    || vKey == VK_MENU    || // Alt
-           vKey == VK_LWIN     || vKey == VK_RWIN     )                        // Windows
-        continue;
-
-      extern
-          ImGuiKey       ImGui_ImplWin32_KeyEventToImGuiKey (WPARAM, LPARAM);
-      if (ImGuiKey key = ImGui_ImplWin32_KeyEventToImGuiKey (vKey, (LPARAM)(MapVirtualKeyW (vKey, MAPVK_VK_TO_VSC) << 16)))
-      {
-        if (ImGui::IsKeyPressed (key, false))
-          break;
-      }
-    }
-#else
     for (ImGuiKey imKey = ImGuiKey_NamedKey_BEGIN; focused && imKey < ImGuiKey_NamedKey_END; imKey = (ImGuiKey)(imKey + 1))
     {
+      // Modifier keys
       if ( imKey == ImGuiKey_LeftCtrl  || imKey == ImGuiKey_RightCtrl  || // Ctrl
            imKey == ImGuiKey_LeftShift || imKey == ImGuiKey_RightShift || // Shift
            imKey == ImGuiKey_LeftAlt   || imKey == ImGuiKey_RightAlt   || // Alt
            imKey == ImGuiKey_LeftSuper || imKey == ImGuiKey_RightSuper )  // Windows
+        continue;
+
+      // Reserved keys (not used for keybindings)
+      if ( imKey == ImGuiKey_Escape    || // Cancel operation
+           imKey == ImGuiKey_Backspace || // Clear keybinding
+           imKey == ImGuiKey_Delete    || // Reset to default
+           imKey == ImGuiKey_Enter     || imKey == ImGuiKey_KeypadEnter)  // Confirm
         continue;
 
       if (ImGui::IsKeyPressed (imKey, false))
@@ -882,18 +870,20 @@ SK_ImGui_KeybindDialog (SK_KeybindMultiState* keybind)
         }
       }
     }
-#endif
 
     bool modifierKey = io.KeyCtrl || io.KeyShift || io.KeyAlt || io.KeySuper;
+    bool bEscape = false, // Cancel operation
+      bBackspace = false, // Clear keybinding
+         bDelete = false, // Reset to default
+          bEnter = false; // Confirm
 
-    bool bEscape    = (focused && ! modifierKey && // Cancel operation
-      ImGui::IsKeyPressed (ImGuiKey_Escape,    false)),
-         bBackspace = (focused && ! modifierKey && // Clear keybinding
-      ImGui::IsKeyPressed (ImGuiKey_Backspace, false)),
-         bDelete    = (focused && ! modifierKey && // Reset to default
-      ImGui::IsKeyPressed (ImGuiKey_Delete,    false)),
-         bEnter     = (focused && ! modifierKey && // Confirm
-     (ImGui::IsKeyPressed (ImGuiKey_Enter,     false) || ImGui::IsKeyPressed (ImGuiKey_KeypadEnter, false)));
+    if (focused && ! modifierKey)
+    {
+      bEscape    = ImGui::IsKeyPressed (ImGuiKey_Escape,    false);
+      bBackspace = ImGui::IsKeyPressed (ImGuiKey_Backspace, false);
+      bDelete    = ImGui::IsKeyPressed (ImGuiKey_Delete,    false);
+      bEnter     = ImGui::IsKeyPressed (ImGuiKey_Enter,     false) || ImGui::IsKeyPressed (ImGuiKey_KeypadEnter, false);
+    }
 
     // Wrap the text at the widest the dialog may be (Text, TextColored and TextDisabled all follow the wrap position)
     ImGui::PushTextWrapPos (ImGui::GetCursorPosX ( ) + max_width - ImGui::GetStyle ( ).WindowPadding.x * 2.0f);
