@@ -169,7 +169,7 @@
       </Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>post_build.bat "$(TargetPath)" "$(TargetFileName)"</Command>
+      <Command>"$(ProjectDir)post_build.bat" "$(TargetPath)" "$(TargetFileName)"</Command>
       <Message>Execute post-build events</Message>
     </PostBuildEvent>
     <Manifest>
@@ -231,7 +231,7 @@
       </Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>post_build.bat "$(TargetPath)" "$(TargetFileName)"</Command>
+      <Command>"$(ProjectDir)post_build.bat" "$(TargetPath)" "$(TargetFileName)"</Command>
       <Message>Execute post-build events</Message>
     </PostBuildEvent>
     <Manifest>
@@ -299,7 +299,7 @@
       <AdditionalManifestFiles>.\resources\appcompat.manifest %(AdditionalManifestFiles)</AdditionalManifestFiles>
     </Manifest>
     <PostBuildEvent>
-      <Command>post_build.bat "$(TargetPath)" "$(TargetFileName)"</Command>
+      <Command>"$(ProjectDir)post_build.bat" "$(TargetPath)" "$(TargetFileName)"</Command>
     </PostBuildEvent>
     <PostBuildEvent>
       <Message>Execute post-build events</Message>
@@ -379,7 +379,7 @@
       </Message>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>post_build.bat "$(TargetPath)" "$(TargetFileName)"</Command>
+      <Command>"$(ProjectDir)post_build.bat" "$(TargetPath)" "$(TargetFileName)"</Command>
     </PostBuildEvent>
     <PostBuildEvent>
       <Message>Execute post-build events</Message>
@@ -782,6 +782,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="post_build.bat" />
     <None Include="resources\l10n\SKIF.pot" />
     <None Include="tools\l10n_extract.ps1" />
   </ItemGroup>
