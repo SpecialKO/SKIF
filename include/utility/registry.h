@@ -279,6 +279,10 @@ struct SKIF_RegistrySettings {
     SKIF_MakeRegKeyI ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Library View)" );
 
+  KeyValue <bool> regKVLibraryViewChosen =
+    SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
+                         LR"(Library View Chosen)" );
+
   KeyValue <bool> regKVLibraryGridTitles =
     SKIF_MakeRegKeyB ( LR"(SOFTWARE\Kaldaien\Special K\)",
                          LR"(Library Grid Titles)" );
@@ -702,6 +706,7 @@ struct SKIF_RegistrySettings {
   bool bLibraryGridTitles       =  true; // Titles beneath the covers in the library's grid view
   bool bLibraryGridPlatform     =  true; // The platform (store) badge on the covers in the library's grid view
   bool bLibraryShowIcons        =  true; // The game icons in the library's games list
+  bool bLibraryViewChosen       = false; // The view of the library (Cover or Grid) was chosen: the onboarding popup of the Library tab is not shown
   bool bDPIScaling              =  true;
   bool bWin11Corners            =  true; // 2023-08-28: Enabled by default
   bool bTouchInput              =  true; // Automatically make the UI more optimized for touch input on capable devices

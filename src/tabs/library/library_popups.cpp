@@ -26,6 +26,193 @@
 // Last, as it defines short macros such as _ ( )
 #include <utility/l10n.h>
 
+#pragma region Library View Onboarding
+
+// A clickable card of the library view onboarding popup: a sketch of the view (the games list on the right, the cover or
+//   the grid of covers on the left), its name and a description. Returns true when clicked.
+static bool
+DrawLibraryViewCard (const char* id, bool grid, const char* icon, const char* title, const char* desc, ImVec2 size)
+{
+  const float       dpi   = SKIF_ImGui_GlobalDPIScale;
+  const ImGuiStyle& style = ImGui::GetStyle ( );
+  const float       pad   = 10.0f * dpi;
+  const float       illH  = 90.0f * dpi;
+
+  const ImVec2 pos     = ImGui::GetCursorScreenPos ( );
+  const bool   clicked = ImGui::InvisibleButton (id, size);
+  const bool   hovered = ImGui::IsItemHovered   ( ) || ImGui::IsItemFocused ( );
+
+  SKIF_ImGui_BlockDragMoveWhenItemActive ( );
+
+  if (ImGui::IsItemHovered ( ))
+    SKIF_ImGui_SetMouseCursorHand ( );
+
+  ImDrawList* dl = ImGui::GetWindowDrawList ( );
+
+  const ImU32 colBg      = ImGui::GetColorU32 ((hovered) ? ImGuiCol_FrameBgHovered : ImGuiCol_FrameBg);
+  const ImU32 colBorder  = (hovered) ? ImGui::GetColorU32 (ImGuiCol_SKIF_TextCaption)
+                                     : ImGui::GetColorU32 (ImGuiCol_Border);
+  const ImU32 colLine    = ImGui::GetColorU32 (ImGuiCol_SKIF_TextBase,    0.35f);
+  const ImU32 colAccent  = ImGui::GetColorU32 (ImGuiCol_SKIF_TextCaption, 0.75f);
+  const ImU32 colFill    = ImGui::GetColorU32 (ImGuiCol_SKIF_TextCaption, 0.20f);
+
+  const ImVec2 max = ImVec2 (pos.x + size.x, pos.y + size.y);
+
+  dl->AddRectFilled (pos, max, colBg,     style.FrameRounding);
+  dl->AddRect       (pos, max, colBorder, style.FrameRounding, ((hovered) ? 2.0f : 1.0f) * dpi);
+
+  // The sketch: a window with the cover (or the grid) on the left and the games list on the right
+  const ImVec2 il0 = ImVec2 (pos.x + pad,          pos.y + pad);
+  const ImVec2 il1 = ImVec2 (pos.x + size.x - pad, pos.y + pad + illH);
+  const float  ip  = 6.0f * dpi;
+
+  dl->AddRect (il0, il1, colLine, 3.0f * dpi, 1.0f * dpi);
+
+  const float paneX0 = il0.x + ip;
+  const float paneX1 = il0.x + (il1.x - il0.x) * 0.62f;
+  const float paneY0 = il0.y + ip;
+  const float paneY1 = il1.y - ip;
+  const float paneH  = paneY1 - paneY0;
+
+  if (! grid)
+  {
+    // One large cover (2:3)
+    const float w = ImMin (paneH * 2.0f / 3.0f, paneX1 - paneX0);
+    dl->AddRectFilled (ImVec2 (paneX0, paneY0), ImVec2 (paneX0 + w, paneY1), colFill,   2.0f * dpi);
+    dl->AddRect       (ImVec2 (paneX0, paneY0), ImVec2 (paneX0 + w, paneY1), colAccent, 2.0f * dpi, 1.0f * dpi);
+  }
+
+  else
+  {
+    // Two rows of small covers (2:3), the first one selected
+    const float th   = (paneH - ip) / 2.0f;
+    const float tw   = th * 2.0f / 3.0f;
+    const int   cols = ImMax (1, (int)((paneX1 - paneX0 + ip) / (tw + ip)));
+
+    for (int row = 0; row < 2; row++)
+    {
+      for (int col = 0; col < cols; col++)
+      {
+        const ImVec2 t0 = ImVec2 (paneX0 + col * (tw + ip), paneY0 + row * (th + ip));
+        const ImVec2 t1 = ImVec2 (t0.x + tw, t0.y + th);
+
+        dl->AddRectFilled (t0, t1, colFill, 2.0f * dpi);
+        dl->AddRect       (t0, t1, (row == 0 && col == 0) ? colAccent : colLine, 2.0f * dpi, 1.0f * dpi);
+      }
+    }
+  }
+
+  // The games list, the first game selected
+  static constexpr float widths[] = { 0.85f, 0.65f, 0.95f, 0.55f, 0.80f, 0.70f, 0.90f, 0.60f };
+  const float listX0 = paneX1 + ip * 1.5f;
+  const float listW  = il1.x - ip - listX0;
+  const float barH   = 4.0f * dpi;
+  const float barGap = 6.0f * dpi;
+
+  int bar = 0;
+  for (float y = paneY0; y + barH <= paneY1 && bar < IM_ARRAYSIZE (widths); y += barH + barGap, bar++)
+    dl->AddRectFilled (ImVec2 (listX0, y), ImVec2 (listX0 + listW * widths [bar], y + barH), (bar == 0) ? colAccent : colLine, barH * 0.5f);
+
+  // The name and description
+  ImFont*     font     = ImGui::GetFont     ( );
+  const float fontSize = ImGui::GetFontSize ( );
+
+  const std::string label = std::string (icon) + "  " + title;
+  ImVec2 txt = ImVec2 (pos.x + pad, il1.y + pad);
+
+  dl->AddText (font, fontSize, txt, ImGui::GetColorU32 (ImGuiCol_SKIF_TextCaption), label.c_str ( ));
+
+  txt.y += ImGui::GetTextLineHeight ( ) + style.ItemSpacing.y;
+
+  dl->AddText (font, fontSize, txt, ImGui::GetColorU32 (ImGuiCol_SKIF_TextBase), desc, nullptr, size.x - pad * 2.0f);
+
+  return clicked;
+}
+
+// Popup: the first time the Library tab is shown, explains the two views of the library (Cover view: the games list
+//   beside the cover of the selected game; Grid view: beside a grid of all the covers) and asks which one to use.
+//   Not shown to those who already picked one through the Filter menu (the Library View value exists; registry.cpp).
+static void
+DrawLibraryViewOnboardingPopup (void)
+{
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
+  static bool showing = false;
+
+  if (_registry.bLibraryViewChosen)
+    return;
+
+  // Not on the frames the tab is being left (the first launch switches to the About tab), and not over another popup
+  if (! SKIF_StartupFinished || SKIF_Tab_Selected != UITab_Library || SKIF_Tab_ChangeTo != UITab_None)
+    return;
+
+  if (! showing && SKIF_ImGui_IsAnyPopupOpen ( ))
+    return;
+
+  const float       dpi     = SKIF_ImGui_GlobalDPIScale;
+  const ImGuiStyle& style   = ImGui::GetStyle ( );
+  const float       pad     = 10.0f * dpi;
+  const float       cardW   = 240.0f * dpi;
+  const float       gap     = style.ItemSpacing.x * 2.0f;
+  const float       totalW  = cardW * 2.0f + gap;
+
+  const char* descCover = _("A large cover of the selected game beside the games list, with its details and launch options. "
+                            "Best for focusing on one game at a time.");
+  const char* descGrid  = _("The covers of all your games as a grid beside the games list. Best for browsing a large library "
+                            "at a glance. The size of the covers, their titles and platform badges can be adjusted.");
+
+  // Both cards as tall as the taller one
+  const float descH = ImMax (ImGui::CalcTextSize (descCover, nullptr, false, cardW - pad * 2.0f).y,
+                             ImGui::CalcTextSize (descGrid,  nullptr, false, cardW - pad * 2.0f).y);
+  const ImVec2 cardSize = ImVec2 (cardW, pad + 90.0f * dpi + pad + ImGui::GetTextLineHeight ( ) + style.ItemSpacing.y + descH + pad);
+
+  int choice = -1;
+
+  showing = SKIF_ImGui_BeginPopup (L_("Choose a library view###PopupLibraryView"));
+
+  if (showing)
+  {
+    ImGui::PushTextWrapPos (ImGui::GetCursorPosX ( ) + totalW);
+    ImGui::TextUnformatted (_("Your games can be shown in one of two views. Which one would you like to use?"));
+    ImGui::PopTextWrapPos  ( );
+
+    SKIF_ImGui_Spacing ( );
+
+    if (DrawLibraryViewCard ("###LibraryViewCover", false, ICON_FA_IMAGE,             _("Cover view"), descCover, cardSize))
+      choice = 0;
+
+    ImGui::SameLine (0.0f, gap);
+
+    if (DrawLibraryViewCard ("###LibraryViewGrid",  true,  ICON_FA_TABLE_CELLS_LARGE, _("Grid view"),  descGrid,  cardSize))
+      choice = 1;
+
+    SKIF_ImGui_Spacing ( );
+
+    // TRANSLATORS: {0} is the icon of the Filter button above the games list of the library
+    SKIF_ImGui_TextHighlighted (_("You can switch at any time through the {0} button above the games list."), ICON_FA_FILTER, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_TextCaption));
+
+    // Escape keeps the current view (the Cover view by default), and the popup is not shown again
+    if (choice == -1 && ImGui::IsWindowFocused (ImGuiFocusedFlags_RootAndChildWindows) && ImGui::IsKeyPressed (ImGuiKey_Escape, false))
+      choice = _registry.iLibraryView;
+  }
+
+  SKIF_ImGui_EndPopup ( ); // Must always be called, regardless of the return value of SKIF_ImGui_BeginPopup
+
+  if (choice != -1)
+  {
+    PLOG_INFO << "Library view chosen through the onboarding popup: " << ((choice == 1) ? "Grid" : "Cover");
+
+    _registry.iLibraryView       = choice;
+    _registry.bLibraryViewChosen = true;
+    _registry.regKVLibraryView      .putData (_registry.iLibraryView);
+    _registry.regKVLibraryViewChosen.putData (_registry.bLibraryViewChosen);
+
+    showing = false;
+  }
+}
+
+#pragma endregion
+
 // Popups of the library tab (moved verbatim from SKIF_UI_Tab_DrawLibrary)
 void
 DrawLibraryPopups (void)
@@ -72,6 +259,9 @@ DrawLibraryPopups (void)
 
   // Popup: Scanning game folder... (a launch waiting for the game's first scan; library_launch.cpp)
   DrawLaunchScanPopup ( );
+
+  // Popup: Choose a library view (the first time the tab is shown)
+  DrawLibraryViewOnboardingPopup ( );
 
 
 

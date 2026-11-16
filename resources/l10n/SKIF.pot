@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-15 06:43+0100\n"
+"POT-Creation-Date: 2026-11-16 18:57+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -249,10 +249,10 @@ msgstr ""
 #: src/stores/SKIF/custom_library.cpp:379
 #: src/stores/SKIF/custom_library.cpp:558
 #: src/tabs/library/library_launch.cpp:233
-#: src/tabs/library/library_popups.cpp:157
-#: src/tabs/library/library_popups.cpp:241
-#: src/tabs/library/library_popups.cpp:269
-#: src/tabs/library/library_popups.cpp:309
+#: src/tabs/library/library_popups.cpp:347
+#: src/tabs/library/library_popups.cpp:431
+#: src/tabs/library/library_popups.cpp:459
+#: src/tabs/library/library_popups.cpp:499
 #: src/tabs/local.cpp:1213
 #: src/tabs/local.cpp:1238
 #: src/tabs/monitor.cpp:1981
@@ -783,8 +783,8 @@ msgid "Granted 'Performance Log Users' permission?"
 msgstr ""
 
 #: src/tabs/hardware.cpp:884
-#: src/tabs/library/library_popups.cpp:156
-#: src/tabs/library/library_popups.cpp:166
+#: src/tabs/library/library_popups.cpp:346
+#: src/tabs/library/library_popups.cpp:356
 #: src/tabs/monitor.cpp:1704
 #: src/tabs/monitor.cpp:1897
 #: src/utility/skif_imgui.cpp:1882
@@ -1189,93 +1189,99 @@ msgstr ""
 msgid "Currently enforced by touch input mode."
 msgstr ""
 
-#: src/tabs/library.cpp:400
+#: src/tabs/library.cpp:411
+#: src/tabs/library/library_popups.cpp:181
+msgid "Cover view"
+msgstr ""
+
+#: src/tabs/library.cpp:414
+#: src/tabs/library/library_popups.cpp:186
 msgid "Grid view"
 msgstr ""
 
-#: src/tabs/library.cpp:408
+#: src/tabs/library.cpp:423
 msgid "Show titles"
 msgstr ""
 
-#: src/tabs/library.cpp:412
+#: src/tabs/library.cpp:427
 msgid "Show platform"
 msgstr ""
 
 #. TRANSLATORS: {0} is the width of the covers in the library's grid view (in pixels at 100% scale)
-#: src/tabs/library.cpp:417
+#: src/tabs/library.cpp:432
 msgid "Cover size: {0}"
 msgstr ""
 
-#: src/tabs/library.cpp:427
+#: src/tabs/library.cpp:445
 msgid "Show icons"
 msgstr ""
 
-#: src/tabs/library.cpp:959
+#: src/tabs/library.cpp:977
 msgid "Cover changed"
 msgstr ""
 
-#: src/tabs/library.cpp:961
+#: src/tabs/library.cpp:979
 msgid "Could not change the cover"
 msgstr ""
 
-#: src/tabs/library.cpp:1610
+#: src/tabs/library.cpp:1628
 #: src/tabs/library/library_details.cpp:424
 msgid "Loading..."
 msgstr ""
 
-#: src/tabs/library.cpp:1624
+#: src/tabs/library.cpp:1642
 msgid "Cover"
 msgstr ""
 
-#: src/tabs/library.cpp:1637
+#: src/tabs/library.cpp:1655
 #: src/tabs/library/library_menus.cpp:1683
 #: src/tabs/library/library_menus.cpp:1841
 msgid "Open SteamGridDB"
 msgstr ""
 
-#: src/tabs/library.cpp:1805
+#: src/tabs/library.cpp:1823
 msgid "New 32-bit DLL Installed"
 msgstr ""
 
-#: src/tabs/library.cpp:1806
+#: src/tabs/library.cpp:1824
 msgid "New 64-bit DLL Installed"
 msgstr ""
 
-#: src/tabs/library.cpp:1937
-#: src/tabs/library.cpp:2045
+#: src/tabs/library.cpp:1955
+#: src/tabs/library.cpp:2063
 msgid "Missing Files"
 msgstr ""
 
-#: src/tabs/library.cpp:1938
-#: src/tabs/library.cpp:2046
+#: src/tabs/library.cpp:1956
+#: src/tabs/library.cpp:2064
 msgid "Unable to extract Special K DLL files from the provided {0} file."
 msgstr ""
 
-#: src/tabs/library.cpp:2084
+#: src/tabs/library.cpp:2102
 msgid "Unsupported Feature"
 msgstr ""
 
-#: src/tabs/library.cpp:2085
+#: src/tabs/library.cpp:2103
 msgid "SKIF cannot perform a drag-n-drop update because Special K {0} or newer is required."
 msgstr ""
 
-#: src/tabs/library.cpp:2096
+#: src/tabs/library.cpp:2114
 msgid "Nothing was changed"
 msgstr ""
 
-#: src/tabs/library.cpp:2097
+#: src/tabs/library.cpp:2115
 msgid "Drop the image on a game to change its cover: on its cover, its tile, or its row in the list."
 msgstr ""
 
-#: src/tabs/library.cpp:2114
+#: src/tabs/library.cpp:2132
 msgid "Unsupported file format"
 msgstr ""
 
-#: src/tabs/library.cpp:2116
+#: src/tabs/library.cpp:2134
 msgid "Add a game to the library:"
 msgstr ""
 
-#: src/tabs/library.cpp:2122
+#: src/tabs/library.cpp:2140
 msgid "Change the cover of a game (drop the image on it):"
 msgstr ""
 
@@ -1778,61 +1784,82 @@ msgstr ""
 msgid "Hidden games"
 msgstr ""
 
-#: src/tabs/library/library_popups.cpp:86
+#: src/tabs/library/library_popups.cpp:159
+msgid "A large cover of the selected game beside the games list, with its details and launch options. Best for focusing on one game at a time."
+msgstr ""
+
+#: src/tabs/library/library_popups.cpp:161
+msgid "The covers of all your games as a grid beside the games list. Best for browsing a large library at a glance. The size of the covers, their titles and platform badges can be adjusted."
+msgstr ""
+
+#: src/tabs/library/library_popups.cpp:171
+msgid "Choose a library view"
+msgstr ""
+
+#: src/tabs/library/library_popups.cpp:176
+msgid "Your games can be shown in one of two views. Which one would you like to use?"
+msgstr ""
+
+#. TRANSLATORS: {0} is the icon of the Filter button above the games list of the library
+#: src/tabs/library/library_popups.cpp:192
+msgid "You can switch at any time through the {0} button above the games list."
+msgstr ""
+
+#: src/tabs/library/library_popups.cpp:276
 msgid "Remove category"
 msgstr ""
 
-#: src/tabs/library/library_popups.cpp:87
+#: src/tabs/library/library_popups.cpp:277
 msgid "Merge categories"
 msgstr ""
 
-#: src/tabs/library/library_popups.cpp:88
+#: src/tabs/library/library_popups.cpp:278
 msgid "Rename category"
 msgstr ""
 
 #. TRANSLATORS: {0} is the name of a category of the library
-#: src/tabs/library/library_popups.cpp:114
+#: src/tabs/library/library_popups.cpp:304
 msgid "Are you sure you want to remove the {0} category?"
 msgstr ""
 
 #. TRANSLATORS: {0} and {1} are the names of two categories of the library
-#: src/tabs/library/library_popups.cpp:120
+#: src/tabs/library/library_popups.cpp:310
 msgid "Are you sure you want to merge the {0} category with the {1} category?"
 msgstr ""
 
 #. TRANSLATORS: {0} is the current name of a category of the library, {1} the new one
-#: src/tabs/library/library_popups.cpp:126
+#: src/tabs/library/library_popups.cpp:316
 msgid "Are you sure you want to rename {0} to {1}?"
 msgstr ""
 
 #. TRANSLATORS: {0} is the name of a category of the library
-#: src/tabs/library/library_popups.cpp:132
+#: src/tabs/library/library_popups.cpp:322
 msgid "What do you want to rename the {0} category to?"
 msgstr ""
 
-#: src/tabs/library/library_popups.cpp:152
+#: src/tabs/library/library_popups.cpp:342
 msgid "This will affect all games that make use of the category."
 msgstr ""
 
 #. TRANSLATORS: {0} is the name of a game
 #. TRANSLATORS: {0} is the file name of a process
-#: src/tabs/library/library_popups.cpp:263
+#: src/tabs/library/library_popups.cpp:453
 #: src/tabs/monitor.cpp:1971
 msgid "Do you want to end {0}?"
 msgstr ""
 
-#: src/tabs/library/library_popups.cpp:264
+#: src/tabs/library/library_popups.cpp:454
 msgid "Any unsaved game data may be lost."
 msgstr ""
 
-#: src/tabs/library/library_popups.cpp:268
-#: src/tabs/library/library_popups.cpp:292
+#: src/tabs/library/library_popups.cpp:458
+#: src/tabs/library/library_popups.cpp:482
 #: src/tabs/monitor.cpp:1980
 #: src/tabs/monitor.cpp:1985
 msgid "End Process"
 msgstr ""
 
-#: src/tabs/library/library_popups.cpp:276
+#: src/tabs/library/library_popups.cpp:466
 #: src/tabs/monitor.cpp:1966
 msgid "Task Manager"
 msgstr ""

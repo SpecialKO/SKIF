@@ -388,20 +388,35 @@ IsLibraryGridView (void)
   return (_registry.iLibraryView == 1);
 }
 
-// The view options of the Filter menu (the empty space menu): Grid view, Show titles, Show platform and Cover size (grid view), then
+// The view options of the Filter menu (the empty space menu): Cover view / Grid view, Show titles, Show platform and Cover size (grid view), then
 //   Show icons and Large icons (the list, shown in both views)
 void
 ShowLibraryViewToggles (void)
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
-  bool gridView = IsLibraryGridView ( );
-
-  if (SKIF_ImGui_MenuItemEx2 (L_("Grid view"), ICON_FA_TABLE_CELLS_LARGE, ImColor(255, 207, 72), spaces, &gridView))
+  // The view: a choice of two (as the onboarding popup of the tab; library_popups.cpp), the current one checked
+  auto SetView = [&](int view)
   {
-    _registry.iLibraryView = (gridView) ? 1 : 0;
-    _registry.regKVLibraryView.putData (_registry.iLibraryView);
-  }
+    _registry.iLibraryView       = view;
+    _registry.bLibraryViewChosen = true;
+    _registry.regKVLibraryView      .putData (_registry.iLibraryView);
+    _registry.regKVLibraryViewChosen.putData (_registry.bLibraryViewChosen);
+  };
+
+  bool coverView = ! IsLibraryGridView ( );
+  bool gridView  =   IsLibraryGridView ( );
+
+  // Clicking the checked one keeps it (the menu item would otherwise uncheck it)
+  if (SKIF_ImGui_MenuItemEx2 (L_("Cover view"), ICON_FA_IMAGE,             ImColor(255, 207, 72), spaces, &coverView))
+    SetView (0);
+
+  if (SKIF_ImGui_MenuItemEx2 (L_("Grid view"),  ICON_FA_TABLE_CELLS_LARGE, ImColor(255, 207, 72), spaces, &gridView))
+    SetView (1);
+
+  gridView = IsLibraryGridView ( );
+
+  ImGui::Separator ( );
 
   if (gridView)
   {
@@ -421,6 +436,9 @@ ShowLibraryViewToggles (void)
 
     if (ImGui::IsItemDeactivatedAfterEdit ( ))
       _registry.regKVLibraryGridSize.putData (_registry.iLibraryGridSize);
+
+    // The grid options apart from the list's below
+    ImGui::Separator ( );
   }
 
   // The list is shown in both views

@@ -333,7 +333,12 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
   if (regKVLibraryShowIcons.hasData(&hKey))
     bLibraryShowIcons      =   regKVLibraryShowIcons       .getData (&hKey);
   if (regKVLibraryView.hasData(&hKey))
+  {
     iLibraryView           =   regKVLibraryView            .getData (&hKey);
+    bLibraryViewChosen     =   true; // Already picked through the Filter menu: no onboarding popup
+  }
+  else
+    bLibraryViewChosen     =   regKVLibraryViewChosen      .getData (&hKey);
   if (regKVLibraryGridTitles.hasData(&hKey))
     bLibraryGridTitles     =   regKVLibraryGridTitles      .getData (&hKey);
   if (regKVLibraryGridPlatform.hasData(&hKey))

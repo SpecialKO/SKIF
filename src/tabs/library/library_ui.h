@@ -208,7 +208,7 @@ std::string GetEffectiveCategory (const app_record_s* app);
 bool SKIF_Lib_CategoryExists (const std::string& name);
 bool SKIF_Lib_AddCategory    (const std::string& name);  // Adds the category (sorted) and saves the list in the registry; false if empty or it already exists
 void ShowLargeIconToggle     (void);                 // Shared between the Icon menu and the Filter menu
-void ShowLibraryViewToggles  (void);                 // The Filter menu's view options: Grid view, then Show titles (grid) or Large icons (list)
+void ShowLibraryViewToggles  (void);                 // The Filter menu's view options: Cover view / Grid view, then Show titles (grid) or Large icons (list)
 bool IsLibraryGridView       (void);                 // The grid view is chosen (Library View); the grid takes the cover's place
 void ClearCharFilter         (void);
 
