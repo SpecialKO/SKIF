@@ -84,7 +84,7 @@ ReadFile (const fs::path& path)
   return data;
 }
 
-struct frame_s   { uint32_t delay = 0; std::vector <uint8_t> rgba; };
+struct frame_s   { uint32_t delay = 0; std::vector <uint8_t> rgba; }; // delay: microseconds
 struct decoded_s { int result = -1; uint32_t width = 0, height = 0; std::vector <frame_s> frames; };
 
 // Decodes the frames of an animated image as SKIF does (_OpenAnimatedImage, then its decoder). stopAfter: onFrame returns
@@ -152,6 +152,7 @@ ReadExpected (const fs::path& folder)
     {
       frame_s f;
       s >> f.delay;
+      f.delay *= 1000; // expected.txt has milliseconds; the decoders give microseconds
       out.back ( ).frames.push_back (f);
     }
   }
@@ -196,7 +197,7 @@ main (int argc, char** argv)
     for (size_t i = 0; i < std::min (got.frames.size ( ), e.frames.size ( )); i++)
     {
       Check (got.frames [i].delay == e.frames [i].delay, e.name, "frame " + std::to_string (i) + ": delay " +
-                                    std::to_string (got.frames [i].delay) + " ms, expected " + std::to_string (e.frames [i].delay));
+                                    std::to_string (got.frames [i].delay) + " us, expected " + std::to_string (e.frames [i].delay));
       const int difference = MaxDifference (got.frames [i].rgba, e.frames [i].rgba);
       Check (difference <= 1, e.name, "frame " + std::to_string (i) + ": pixels differ (by up to " + std::to_string (difference) + ")");
     }
@@ -206,6 +207,61 @@ main (int argc, char** argv)
     // Stopped by onFrame after two frames: decodes no more
     const auto stopped = Decode (file, 2);
     Check (stopped.frames.size ( ) == 2, e.name, "did not stop after two frames");
+  }
+
+  // An RGBA APNG with a (not allowed, but written by some encoders) tRNS chunk, which stb_image refuses, decodes as it
+  //   would without one, as browsers decode it
+  {
+    const auto original = ReadFile (images / "apng_basic.png"); // Color type 6 (RGBA)
+    auto       withTRNS = original;
+
+    // tRNS, right after IHDR (8 bytes of signature, 25 of IHDR)
+    std::vector <uint8_t> chunk;
+    const uint8_t trns [6] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+    _AppendPNGChunk (chunk, "tRNS", trns, sizeof (trns));
+    withTRNS.insert (withTRNS.begin ( ) + 33, chunk.begin ( ), chunk.end ( ));
+
+    const auto expected = Decode (original);
+    const auto got      = Decode (withTRNS);
+
+    Check (got.result > 0 && got.result == expected.result, "apng_basic.png + tRNS", "decoded " + std::to_string (got.result) + " frames");
+
+    for (size_t i = 0; i < std::min (got.frames.size ( ), expected.frames.size ( )); i++)
+      Check (got.frames [i].rgba == expected.frames [i].rgba, "apng_basic.png + tRNS", "frame " + std::to_string (i) + ": pixels differ");
+  }
+
+  // APNG delays that are fractions of a millisecond keep them: 1/60 s is 16,666 us (not 16 ms), 1/24 s 41,666 us
+  {
+    auto file = ReadFile (images / "apng_basic.png");
+
+    // Each fcTL's delay_num / delay_den (bytes 20 to 23 of its data): alternately 1/60 and 1/24 (CRCs are not checked)
+    size_t   pos    = 8;
+    uint32_t frames = 0;
+
+    while (pos + 12 <= file.size ( ))
+    {
+      const uint32_t length = _ReadBE32 (file.data ( ) + pos);
+
+      if (_IsChunk (file.data ( ) + pos + 4, "fcTL") && length >= 26 && pos + 8 + 24 <= file.size ( ))
+      {
+        uint8_t* delay = file.data ( ) + pos + 8 + 20;
+        delay [0] = 0; delay [1] = 1;
+        delay [2] = 0; delay [3] = (frames++ % 2 == 0) ? 60 : 24;
+      }
+
+      pos += 12 + static_cast <size_t> (length);
+    }
+
+    const auto got = Decode (file);
+
+    Check (got.result > 0 && static_cast <uint32_t> (got.result) == frames, "apng_basic.png, 1/60 and 1/24 s", "decoded " + std::to_string (got.result) + " frames");
+
+    for (size_t i = 0; i < got.frames.size ( ); i++)
+    {
+      const uint32_t expected = (i % 2 == 0) ? 16666 : 41666;
+      Check (got.frames [i].delay == expected, "apng_basic.png, 1/60 and 1/24 s", "frame " + std::to_string (i) + ": delay " +
+                                   std::to_string (got.frames [i].delay) + " us, expected " + std::to_string (expected));
+    }
   }
 
   // Not animated: still images, and files that are not images at all

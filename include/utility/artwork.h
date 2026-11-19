@@ -252,11 +252,11 @@ private:
   bool                      m_animWorkerBusy    = false; // One worker at a time
   std::vector <CComPtr <ID3D11ShaderResourceView>>
                             m_animFrames;
-  std::vector <DWORD>       m_animFrameEnds;             // When each frame ends (ms into the animation)
+  std::vector <uint64_t>    m_animFrameEnds;             // When each frame ends (microseconds into the animation)
   ImVec2                    m_animResolution    = ImVec2 (0, 0); // The frames' size (may be smaller than the cover)
-  DWORD                     m_animDuration      = 0;     // ms
-  DWORD                     m_animPlayingSince  = 0;     // 0: not playing (paused, or not started)
-  DWORD                     m_animPosition      = 0;     // ms into the animation where it paused (it resumes from there)
+  uint64_t                  m_animDuration      = 0;     // microseconds
+  uint64_t                  m_animPlayingSince  = 0;     // SKIF_Util_timeGetTimeUs; 0: not playing (paused, or not started)
+  uint64_t                  m_animPosition      = 0;     // Microseconds into the animation where it paused (it resumes from there)
   mutable DWORD             m_animsCheckedAt    = 0;     // AreCoverAnimationsOn: when Windows' setting was last read (once a second) ...
   mutable bool              m_animsWindows      = true;  //   ... and what it said
   DWORD                     m_animLastHovered   = 0;
@@ -282,13 +282,13 @@ private:
     int                     request      = 0;     // Its worker's (results of an older one are dropped)
     std::vector <CComPtr <ID3D11ShaderResourceView>>
                             frames;
-    std::vector <DWORD>     frameEnds;           // When each frame ends (ms into the animation)
+    std::vector <uint64_t>  frameEnds;           // When each frame ends (microseconds into the animation)
     std::vector <ImVec4>    frameUVs;            // Each frame's part of its texture (uv0, uv1): frames share a few textures
-    DWORD                   duration     = 0;     // ms
+    uint64_t                duration     = 0;     // microseconds
     ImVec2                  resolution   = ImVec2 (0, 0);
     size_t                  bytes        = 0;     // What its frames take (known once loaded or built)
-    DWORD                   position     = 0;     // ms into the animation where it paused
-    DWORD                   playingSince = 0;     // 0: paused
+    uint64_t                position     = 0;     // Microseconds into the animation where it paused
+    uint64_t                playingSince = 0;     // SKIF_Util_timeGetTimeUs; 0: paused
     DWORD                   lastUsed     = 0;     // When its tile was last drawn
     DWORD                   lastHovered  = 0;     // When its tile was last hovered (0: never)
     int                     lastFrame    = -1;    // The frame its tile was last drawn in
@@ -314,7 +314,7 @@ private:
   void          ResetAnimatedThumbnails      (void);                        // Forgets all of them (device reset, thumbnails reloaded)
   bool          MakeAnimatedThumbnailRoom    (size_t bytes, const anim_thumb_s* keep, bool hovered); // Unloads others until bytes fit
   void          StartAnimatedThumbnailWorker (anim_thumb_s& thumb, bool build);
-  DWORD         UpdateAnimatedThumbnails     (DWORD now);                   // UpdateAnimatedCover: play / pause, start workers; ms until a frame is due (0: none)
+  uint64_t      UpdateAnimatedThumbnails     (uint64_t nowUs);              // UpdateAnimatedCover: play / pause, start workers; microseconds until a frame is due (0: none)
 
   // Cover caches (CleanUpOrphanedCoverCaches): its worker is running
   std::atomic<bool>         m_coverCacheBusy    { false };
@@ -343,7 +343,7 @@ private:
     library_texture_s       texture;
     std::vector <library_texture_s>
                             frames;          // Animated covers: the frames (queuePos: the request)
-    std::vector <DWORD>     delays;          // Animated covers: how long each frame is shown (ms)
+    std::vector <DWORD>     delays;          // Animated covers: how long each frame is shown (microseconds)
     size_t                  bytes      = 0;     // Animated thumbnails: what the frames take
     bool                    tooLarge   = false; // Animated thumbnails: too large for the limit
     bool                    ok         = false; // Animated thumbnails: loaded (or built)

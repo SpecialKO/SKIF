@@ -81,7 +81,7 @@ bool
 IsAnimatedImageFile (const std::wstring& path);
 
 // The frames of an animated cover (APNG, GIF, WebP), each as a texture of its own (the full canvas, as it is shown at that point),
-//   and how long each one is shown (ms). Scaled like the cover (low-res covers), and further down if all the frames would
+//   and how long each one is shown (microseconds). Scaled like the cover (low-res covers), and further down if all the frames would
 //     take more than about 192 MB of video memory. wanted (if set) is asked between frames, and stops the load once it
 //       returns false. Returns false if it is not animated (fewer than two frames), cannot be decoded, or was stopped.
 //         Thread-safe like LoadLibraryTextureEx; call CoInitializeEx on the thread first (scaling uses WIC).
@@ -92,7 +92,7 @@ LoadAnimatedLibraryTexture (const std::wstring&                path,
                             const std::function <bool (void)>& wanted = nullptr);
 
 // The frames of an animated cover (APNG, GIF, WebP) as thumbnails, for the grid view: each scaled to fill thumb.width x thumb.height,
-//   with 3 mips, compressed to BC1 (BC3 with transparency), and how long each one is shown (ms). They are cached in
+//   with 3 mips, compressed to BC1 (BC3 with transparency), and how long each one is shown (microseconds). They are cached in
 //     thumb.cachePath (header, delays, then a DDS texture array): loaded from there if useCache (the caller knows it is
 //       current), else built from source (decoded, which takes a while) and saved there. bytes: what they take (also
 //         without createTextures, which only builds / checks the cache). tooLarge: they would take more than maxBytes.

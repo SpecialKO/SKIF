@@ -956,12 +956,12 @@ LoadAnimatedLibraryTexture (const std::wstring&                path,
   return true;
 }
 
-// The animation cache of the grid view (LoadAnimatedLibraryThumbnail): a small header, each frame's delay (ms), then the
+// The animation cache of the grid view (LoadAnimatedLibraryThumbnail): a small header, each frame's delay (microseconds), then the
 //   frames as a DDS texture array (each frame a thumbnail: BC7, 3 mips; see _MakeThumbnailImage)
 struct anim_cache_header_s
 {
   char     magic [4] = { 'S', 'K', 'A', 'N' };
-  uint32_t version   = 1;
+  uint32_t version   = 2; // 2: delays in microseconds (1: ms)
   uint32_t frames    = 0;
   uint32_t reserved  = 0;
 };

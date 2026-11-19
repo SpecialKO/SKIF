@@ -43,6 +43,7 @@
 
 std::vector<HANDLE> vWatchHandles[UITab_ALL];
 INT64               SKIF_TimeInMilliseconds = 0;
+INT64               SKIF_TimeInMicroseconds = 0;
 
 bool bHotKeyHDR = false,
      bHotKeySVC = false;
@@ -389,6 +390,13 @@ SKIF_Util_timeGetTime (void)
 {
   return static_cast<DWORD>
           ( SKIF_TimeInMilliseconds & 0xFFFFFFFFLL );
+}
+
+// The same, in microseconds (never wraps)
+uint64_t
+SKIF_Util_timeGetTimeUs (void)
+{
+  return static_cast<uint64_t> (SKIF_TimeInMicroseconds);
 }
 
 DWORD

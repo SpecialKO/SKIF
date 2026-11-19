@@ -420,7 +420,7 @@ SKIF_LibraryArtwork::ApplyWorkerResults (void)
           m_animFrameEnds.clear ( );
         }
 
-        DWORD end = 0;
+        uint64_t end = 0;
 
         for (size_t i = 0; i < result.frames.size ( ); i++)
         {
@@ -476,7 +476,7 @@ SKIF_LibraryArtwork::ApplyWorkerResults (void)
           // Room for them: unloads those out of view, or (hovered) those hovered least recently
           if (MakeAnimatedThumbnailRoom (thumb->bytes, thumb, thumb->hoveredFrame >= ImGui::GetFrameCount ( ) - 1))
           {
-            DWORD end = 0;
+            uint64_t end = 0;
 
             for (size_t i = 0; i < result.frames.size ( ); i++)
             {
@@ -906,8 +906,9 @@ SKIF_LibraryArtwork::StartAnimatedCoverWorker (void)
 void
 SKIF_LibraryArtwork::UpdateAnimatedCover (void)
 {
-  const DWORD now    = SKIF_Util_timeGetTime ( );
-  DWORD       wakeIn = 0; // When the next frame is due (ms), 0 if none
+  const DWORD    now    = SKIF_Util_timeGetTime   ( );
+  const uint64_t nowUs  = SKIF_Util_timeGetTimeUs ( ); // Playback: frames may last fractions of a millisecond
+  uint64_t       wakeIn = 0; // When the next frame is due (microseconds), 0 if none
 
   // What was hovered this frame (HoverAnimatedCover / HoverAnimatedThumbnail)
   const bool hovered = m_hoverSet;
@@ -948,9 +949,9 @@ SKIF_LibraryArtwork::UpdateAnimatedCover (void)
     if (m_animState == AnimatedCoverState::Ready && m_animDuration > 0)
     {
       if (m_animPlayingSince == 0)
-        m_animPlayingSince = now;
+        m_animPlayingSince = nowUs;
 
-      const DWORD position = (m_animPosition + (now - m_animPlayingSince)) % m_animDuration;
+      const uint64_t position = (m_animPosition + (nowUs - m_animPlayingSince)) % m_animDuration;
       const auto  frameEnd = std::upper_bound (m_animFrameEnds.begin ( ), m_animFrameEnds.end ( ), position);
 
       wakeIn = (frameEnd != m_animFrameEnds.end ( )) ? (*frameEnd - position) : 1;
@@ -962,7 +963,7 @@ SKIF_LibraryArtwork::UpdateAnimatedCover (void)
     // Pause on the current frame (it stays shown, and the animation resumes from there)
     if (m_animPlayingSince != 0 && m_animDuration > 0)
     {
-      m_animPosition     = (m_animPosition + (now - m_animPlayingSince)) % m_animDuration;
+      m_animPosition     = (m_animPosition + (nowUs - m_animPlayingSince)) % m_animDuration;
       m_animPlayingSince = 0;
     }
 
@@ -971,7 +972,7 @@ SKIF_LibraryArtwork::UpdateAnimatedCover (void)
   }
 
   // The grid view's animated covers (their hovered tile plays)
-  if (const DWORD wakeGrid = UpdateAnimatedThumbnails (now); wakeGrid > 0 && (wakeIn == 0 || wakeGrid < wakeIn))
+  if (const uint64_t wakeGrid = UpdateAnimatedThumbnails (nowUs); wakeGrid > 0 && (wakeIn == 0 || wakeGrid < wakeIn))
     wakeIn = wakeGrid;
 
   // Wake SKIF when the next frame is due (re-armed only when that changes). Once it fires, the frames it gives re-arm it.
@@ -981,11 +982,13 @@ SKIF_LibraryArtwork::UpdateAnimatedCover (void)
   {
     m_animPlayingFrame = ImGui::GetFrameCount ( );
 
-    const DWORD due = now + wakeIn;
+    // Timers are in milliseconds: rounded up, so SKIF never wakes before the frame is due
+    const DWORD wakeInMs = static_cast <DWORD> (std::min <uint64_t> ((wakeIn + 999) / 1000, USER_TIMER_MAXIMUM));
+    const DWORD due      = now + wakeInMs;
 
     if (! m_animTimer || due != m_animTimerDue)
     {
-      m_animTimer    = (SetTimer (SKIF_Notify_hWnd, cIDT_TIMER_COVERANIM, std::max (wakeIn, static_cast <DWORD> (USER_TIMER_MINIMUM)), NULL) != 0);
+      m_animTimer    = (SetTimer (SKIF_Notify_hWnd, cIDT_TIMER_COVERANIM, std::max (wakeInMs, static_cast <DWORD> (USER_TIMER_MINIMUM)), NULL) != 0);
       m_animTimerDue = due;
     }
   }
@@ -1005,8 +1008,8 @@ SKIF_LibraryArtwork::GetAnimatedCoverFrame (app_key_s game, ImVec2* resolution) 
     return nullptr;
 
   // Playing, or paused
-  const DWORD position = (m_animPlayingSince != 0) ? (m_animPosition + (SKIF_Util_timeGetTime ( ) - m_animPlayingSince)) % m_animDuration
-                                                   :  m_animPosition;
+  const uint64_t position = (m_animPlayingSince != 0) ? (m_animPosition + (SKIF_Util_timeGetTimeUs ( ) - m_animPlayingSince)) % m_animDuration
+                                                      :  m_animPosition;
   const auto  frameEnd = std::upper_bound (m_animFrameEnds.begin ( ), m_animFrameEnds.end ( ), position);
   const auto  frame    = static_cast <size_t> (std::distance (m_animFrameEnds.begin ( ), frameEnd));
 
@@ -2340,8 +2343,8 @@ SKIF_LibraryArtwork::GetAnimatedThumbnailFrame (app_key_s game, ImVec2* resoluti
   if (thumb->playingSince == 0 && thumb->position == 0)
     return nullptr;
 
-  const DWORD position = (thumb->playingSince != 0) ? (thumb->position + (SKIF_Util_timeGetTime ( ) - thumb->playingSince)) % thumb->duration
-                                                    :  thumb->position;
+  const uint64_t position = (thumb->playingSince != 0) ? (thumb->position + (SKIF_Util_timeGetTimeUs ( ) - thumb->playingSince)) % thumb->duration
+                                                       :  thumb->position;
   const auto  frameEnd = std::upper_bound (thumb->frameEnds.begin ( ), thumb->frameEnds.end ( ), position);
   const auto  index    = static_cast <size_t> (std::distance (thumb->frameEnds.begin ( ), frameEnd));
 
@@ -2455,15 +2458,15 @@ SKIF_LibraryArtwork::StartAnimatedThumbnailWorker (anim_thumb_s& thumb, bool bui
   }
 }
 
-DWORD
-SKIF_LibraryArtwork::UpdateAnimatedThumbnails (DWORD now)
+uint64_t
+SKIF_LibraryArtwork::UpdateAnimatedThumbnails (uint64_t nowUs)
 {
   constexpr int maxBuilds = 1; // Decoding and compressing every frame: CPU heavy
   constexpr int maxLoads  = 2; // From the cache: quick
 
   const size_t budget = GetAnimatedThumbnailBudget ( );
   const int    frame  = ImGui::GetFrameCount ( );
-  DWORD        wakeIn = 0;
+  uint64_t     wakeIn = 0; // Microseconds
 
   if (budget == 0)
     return 0;
@@ -2499,11 +2502,11 @@ SKIF_LibraryArtwork::UpdateAnimatedThumbnails (DWORD now)
     if (hovered || (always && inView))
     {
       if (thumb->playingSince == 0)
-        thumb->playingSince = now;
+        thumb->playingSince = nowUs;
 
-      const DWORD position = (thumb->position + (now - thumb->playingSince)) % thumb->duration;
-      const auto  frameEnd = std::upper_bound (thumb->frameEnds.begin ( ), thumb->frameEnds.end ( ), position);
-      const DWORD due      = (frameEnd != thumb->frameEnds.end ( )) ? (*frameEnd - position) : 1;
+      const uint64_t position = (thumb->position + (nowUs - thumb->playingSince)) % thumb->duration;
+      const auto     frameEnd = std::upper_bound (thumb->frameEnds.begin ( ), thumb->frameEnds.end ( ), position);
+      const uint64_t due      = (frameEnd != thumb->frameEnds.end ( )) ? (*frameEnd - position) : 1;
 
       // The soonest frame of all those playing
       if (wakeIn == 0 || due < wakeIn)
@@ -2512,7 +2515,7 @@ SKIF_LibraryArtwork::UpdateAnimatedThumbnails (DWORD now)
 
     else if (thumb->playingSince != 0)
     {
-      thumb->position     = (thumb->position + (now - thumb->playingSince)) % thumb->duration;
+      thumb->position     = (thumb->position + (nowUs - thumb->playingSince)) % thumb->duration;
       thumb->playingSince = 0;
     }
   }

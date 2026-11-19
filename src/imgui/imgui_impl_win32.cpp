@@ -594,6 +594,12 @@ void    ImGui_ImplWin32_NewFrame()
       SKIF_TimeInMilliseconds =
         bd->Time / (bd->TicksPerSecond / 1000LL);
 
+    // The same, in microseconds (animated covers: frames of fractions of a millisecond). Split so it does not overflow.
+    extern INT64
+      SKIF_TimeInMicroseconds;
+      SKIF_TimeInMicroseconds =
+        (bd->Time / bd->TicksPerSecond) * 1000000LL + (bd->Time % bd->TicksPerSecond) * 1000000LL / bd->TicksPerSecond;
+
     // Windows whose rect was changed by the OS from within ImGui's own UpdatePlatformWindows () loop:
     //   - Secondary windows resized by WM_DPICHANGED: that message usually arrives within ImGui's own Platform_SetWindowPos ()
     //       call (when ImGui moves the window to another monitor).
