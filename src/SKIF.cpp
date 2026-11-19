@@ -35,6 +35,7 @@
 #include <chrono>
 #include <cmath>
 #include <sstream>
+#include <functional>
 
 // Plog ini includes (must be included after SKIF.h)
 #include "plog/Initializers/RollingFileInitializer.h"
@@ -81,6 +82,7 @@
 #include <utility/registry.h>
 #include <utility/launch_behaviors.h>
 #include <utility/env_vars.h>
+#include <utility/jumplist.h>
 #include <utility/updater.h>
 
 #include <utility/drvreset.h>
@@ -1165,7 +1167,7 @@ SKIF_Startup_LaunchGameService (void)
 }
 
 
-// Moves the jump list item the launch was started from to the top of the Recent list (Windows does not do that by itself).
+// Moves the jump list item the launch was started from to the top of the Recent category (see utility/jumplist.h).
 //   A launcher instance often exits right after starting the game, so if SKIF is already running, the update is handed over to
 //     that instance, which sticks around. Otherwise (or if it does not take it, e.g. an elevated instance) it is done right here,
 //       and finished before this instance can exit.
@@ -1600,10 +1602,11 @@ void SKIF_Shell_CreateNotifyToast (UINT type, std::wstring message, std::wstring
 
 void SKIF_Shell_CreateJumpList (void);
 
-// Creates the jump list on a thread of its own (~30 ms of COM / shell work)
-void SKIF_Shell_CreateJumpListAsync (void)
+// Runs the job (if any) and then creates the jump list again, on a thread of its own (~30 ms of COM / shell work).
+//   The jump list is only created again if the job returns true.
+void SKIF_Shell_UpdateJumpListAsync (std::function <bool (void)> job)
 {
-  std::thread ([]
+  std::thread ([job = std::move (job)]
   {
     SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_JumpListWorker");
 
@@ -1615,13 +1618,22 @@ void SKIF_Shell_CreateJumpListAsync (void)
       static std::mutex           lockJumpList;
       std::lock_guard <std::mutex> lock (lockJumpList);
 
-      SKIF_Shell_CreateJumpList ( );
+      if (! job || job ( ))
+      {
+        SKIF_Shell_CreateJumpList ( );
 
-      PLOG_VERBOSE << "Created the jump list in " << (SKIF_Util_timeGetTime1 ( ) - dwStart) << " ms.";
+        PLOG_VERBOSE << "Created the jump list in " << (SKIF_Util_timeGetTime1 ( ) - dwStart) << " ms.";
+      }
 
       CoUninitialize ( );
     }
   }).detach ( );
+}
+
+// Creates the jump list on a thread of its own
+void SKIF_Shell_CreateJumpListAsync (void)
+{
+  SKIF_Shell_UpdateJumpListAsync (nullptr);
 }
 
 void SKIF_Shell_CreateJumpList (void)
@@ -1631,9 +1643,12 @@ void SKIF_Shell_CreateJumpList (void)
   CComPtr <ICustomDestinationList>   pDestList;                                 // The jump list
   CComPtr <IObjectCollection>        pObjColl;                                  // Object collection to hold the custom tasks.
   CComPtr <IShellLink>               pLink;                                     // Reused for the custom tasks
-  CComPtr <IObjectArray>             pRemovedItems;                             // Not actually used since we don't carry custom destinations
+  CComPtr <IObjectArray>             pRemovedItems;                             // Items the user removed from the Recent category
   PROPVARIANT                        pv;                                        // Used to give the custom tasks a title
-  UINT                               cMaxSlots;                                 // Not actually used since we don't carry custom destinations
+  UINT                               cMaxSlots = 10;                            // How many items the Recent category may show
+
+  // The Recent category and the jump list are changed by one instance of SKIF at a time
+  SKIF_JumpList::Lock                lockJumpList;
 
   // Create a jump list COM object.
   if     (SUCCEEDED (pDestList.CoCreateInstance (CLSID_DestinationList)))
@@ -1641,7 +1656,8 @@ void SKIF_Shell_CreateJumpList (void)
     pDestList     ->SetAppID        (SKIF_AppUserModelID);
     pDestList     ->BeginList       (&cMaxSlots, IID_PPV_ARGS (&pRemovedItems));
 
-    pDestList     ->AppendKnownCategory (KDC_RECENT);
+    // The Recent category is SKIF's own (see utility/jumplist.h), ordered by when each item was last used
+    SKIF_JumpList::AppendRecentCategory (pDestList, pRemovedItems, cMaxSlots);
 
     if   (SUCCEEDED (pObjColl.CoCreateInstance (CLSID_EnumerableObjectCollection)))
     {
@@ -1784,209 +1800,62 @@ void SKIF_Shell_CreateJumpList (void)
     PLOG_ERROR << "Failed to create CLSID_DestinationList object!";
 }
 
+// Adds a launch from the library to the Recent category of the jump list (or moves it to the top, if it is there)
 void SKIF_Shell_AddJumpList (std::wstring name, std::wstring path, std::wstring parameters, std::wstring directory, std::wstring icon_path, bool bService)
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
 
-  CComPtr <IShellLink>               pLink;                                     // Reused for the custom tasks
-  PROPVARIANT                        pv;                                        // Used to give the custom tasks a title
+  // When it was launched, as the list is updated on another thread
+  const uint64_t used = SKIF_JumpList::Now ( );
 
-  if (SUCCEEDED (pLink.CoCreateInstance (CLSID_ShellLink)))
+  bool uriLaunch = (path.empty() || ! PathFileExists (path.c_str()));
+
+  if (uriLaunch)
   {
-    CComQIPtr <IPropertyStore>   pPropStore = pLink.p;                      // The link title is kept in the object's property store, so QI for that interface.
+    parameters = L"SKIF_URI=" + parameters;
 
-    bool uriLaunch = (path.empty() || ! PathFileExists (path.c_str()));
-
-    if (uriLaunch)
-    {
-      parameters = L"SKIF_URI=" + parameters;
-
-      if (! bService)
-        name       = name + L" (w/o Special K)";
-      else
-        parameters = L"Start Temp " + parameters;
-    }
-
-    else {
-      parameters = SK_FormatStringW (LR"("%ws" %ws)", path.c_str(), parameters.c_str());
-    }
-
-    pLink     ->SetPath             (_path_cache.skif_executable);         // Point to SKIF.exe
-    pLink     ->SetArguments        (parameters.c_str());                  // Set the arguments
-
-    if (! directory.empty())
-      pLink   ->SetWorkingDirectory (directory.c_str());                   // Set the working directory
-
-    if (PathFileExists (icon_path.c_str()))
-      pLink   ->SetIconLocation     (icon_path.c_str(), 0);                // Set the icon location
-
-    pLink     ->SetDescription      (parameters.c_str());                  // Set the link description (tooltip on the jump list item)
-
-    InitPropVariantFromString       (name.c_str(), &pv);
-    pPropStore->SetValue            (PKEY_Title,    pv);                   // Set the title property
-    PropVariantClear                              (&pv);
-
-    pPropStore->Commit              ( );                                   // Save the changes we made to the property store
-
-    SHAddToRecentDocs               (SHARD_LINK, pLink.p);                 // Add to the Recent list
-
-    pPropStore .Release             ( );
-    pLink      .Release             ( );
+    if (! bService)
+      name       = name + L" (w/o Special K)";
+    else
+      parameters = L"Start Temp " + parameters;
   }
+
+  else {
+    parameters = SK_FormatStringW (LR"("%ws" %ws)", path.c_str(), parameters.c_str());
+  }
+
+  if (! PathFileExists (icon_path.c_str()))
+    icon_path.clear ( );
+
+  // The item starts SKIF.exe (its launcher mode) with the arguments
+  SKIF_Shell_UpdateJumpListAsync ([name, executable = std::wstring (_path_cache.skif_executable), parameters, directory, icon_path, used]
+  {
+    SKIF_JumpList::Add (name, executable, parameters, directory, icon_path, used);
+    return true;
+  });
 }
 
-// Finds the item of the Recent list of the jump list whose arguments are the given ones (trimmed). Returns its
-//   index (and the link, if asked for), or -1 if there is none or the list could not be read. Requires COM.
-struct SKIF_JumpListRecentLookup {
-  int  index     = -1; // Of the matching item
-  UINT count     =  0; // Items in the Recent list
-  UINT links     =  0; // Of those, the ones that are links with readable arguments
-  bool listRead  = false;
-};
-
-static SKIF_JumpListRecentLookup
-SKIF_Shell_FindJumpListRecentItem (const std::wstring& wanted, IShellLinkW** ppLink)
-{
-  SKIF_JumpListRecentLookup result;
-
-  CComPtr <IApplicationDocumentLists> pDocLists;
-  CComPtr <IObjectArray>              pItems;
-
-  if (FAILED (pDocLists.CoCreateInstance (CLSID_ApplicationDocumentLists)))
-  {
-    PLOG_ERROR << "Failed to create CLSID_ApplicationDocumentLists object!";
-    return result;
-  }
-
-  if (FAILED (pDocLists->SetAppID (SKIF_AppUserModelID)) ||
-      FAILED (pDocLists->GetList  (ADLT_RECENT, 0, IID_PPV_ARGS (&pItems))))
-  {
-    PLOG_ERROR << "Failed to retrieve the Recent list of the jump list!";
-    return result;
-  }
-
-  result.listRead = true;
-  pItems->GetCount (&result.count);
-
-  // Arguments can be long (SKIF_Env=), so the buffer is not on the stack
-  std::vector <wchar_t> wszArgs (32768, L'\0');
-
-  for (UINT i = 0; i < result.count; i++)
-  {
-    CComPtr <IShellLinkW> pLink;
-
-    // Items added as links are links (others, e.g. files, are skipped)
-    if (FAILED (pItems->GetAt (i, IID_PPV_ARGS (&pLink))))
-      continue;
-
-    wszArgs [0] = L'\0';
-
-    if (FAILED (pLink->GetArguments (wszArgs.data ( ), static_cast <int> (wszArgs.size ( )))))
-      continue;
-
-    result.links++;
-
-    std::wstring args = wszArgs.data ( );
-    SKIF_Util_TrimSpacesW (args);
-
-    if (args != wanted)
-      continue;
-
-    result.index = static_cast <int> (i);
-
-    if (ppLink != nullptr)
-      *ppLink = pLink.Detach ( );
-
-    break;
-  }
-
-  return result;
-}
-
-// Moves the item of the Recent list whose arguments are the given ones (the command line of a launch) to the top, by
-//   adding it again. Returns false if there is no such item. Requires COM on the calling thread.
-//     SHAddToRecentDocs ( ) finishes the update in the background, and the callers exit (the launcher instance) or
-//       uninitialize COM (the worker thread of the running instance) right after this, which could lose it. So this
-//         waits (briefly) until the item is at the top of the list.
+// Moves the item of the Recent category whose arguments are the given ones (the command line of a launch) to the top,
+//   and creates the jump list again. Returns false if there is no such item. Requires COM on the calling thread.
 bool SKIF_Shell_PromoteJumpListItem (const std::wstring& arguments)
 {
-  std::wstring wanted = arguments;
-  SKIF_Util_TrimSpacesW (wanted);
-
-  if (wanted.empty ( ))
+  if (! SKIF_JumpList::Touch (arguments, SKIF_JumpList::Now ( )))
     return false;
 
-  CComPtr <IShellLinkW>     pLink;
-  SKIF_JumpListRecentLookup lookup =
-    SKIF_Shell_FindJumpListRecentItem (wanted, &pLink);
+  SKIF_Shell_CreateJumpList ( );
 
-  if (lookup.index < 0)
-  {
-    if (lookup.listRead)
-      PLOG_INFO << "The launch was not started from an item of the Recent list (" << lookup.count << " items, "
-                << lookup.links << " of which are links with arguments); looked for the arguments: " << wanted;
-    return false;
-  }
-
-  if (lookup.index == 0)
-  {
-    PLOG_INFO << "The jump list item of the launch is already at the top of the Recent list.";
-    return true;
-  }
-
-  // The AppUserModelID is given explicitly, as a launcher instance exits before it sets its own
-  SHARDAPPIDINFOLINK
-    info           = { };
-    info.psl       = pLink.p;
-    info.pszAppID  = SKIF_AppUserModelID;
-
-  SHAddToRecentDocs (SHARD_APPIDINFOLINK, &info);
-
-  // Wait until the item is at the top (at most ~1 second)
-  static constexpr DWORD dwTimeoutMs = 1000;
-  static constexpr DWORD dwPollMs    =   25;
-
-  const DWORD dwStart = SKIF_Util_timeGetTime1 ( );
-
-  while (true)
-  {
-    const int index =
-      SKIF_Shell_FindJumpListRecentItem (wanted, nullptr).index;
-
-    const DWORD dwElapsed = SKIF_Util_timeGetTime1 ( ) - dwStart;
-
-    if (index == 0)
-    {
-      PLOG_INFO << "Moved the jump list item of the launch from position " << lookup.index
-                << " to the top of the Recent list (took " << dwElapsed << " ms).";
-      return true;
-    }
-
-    if (dwElapsed >= dwTimeoutMs)
-    {
-      PLOG_WARNING << "The jump list item of the launch was not at the top of the Recent list " << dwElapsed
-                   << " ms after it was added again (it is at position " << index << ", was at " << lookup.index << ").";
-      return true;
-    }
-
-    Sleep (dwPollMs);
-  }
+  return true;
 }
 
 // Used by the running instance when a launcher instance hands the update over (see SKIF_Startup_PromoteJumpListItem)
 void SKIF_Shell_PromoteJumpListItemAsync (const std::wstring& arguments)
 {
-  std::thread ([arguments]
+  const uint64_t used = SKIF_JumpList::Now ( );
+
+  SKIF_Shell_UpdateJumpListAsync ([arguments, used]
   {
-    SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_JumpListWorker");
-
-    if (SUCCEEDED (CoInitializeEx (nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE)))
-    {
-      SKIF_Shell_PromoteJumpListItem (arguments);
-
-      CoUninitialize ( );
-    }
-  }).detach ( );
+    return SKIF_JumpList::Touch (arguments, used);
+  });
 }
 
 

@@ -417,6 +417,7 @@
     <ClInclude Include="include\utility\l10n.h" />
     <ClInclude Include="include\utility\launch_behaviors.h" />
     <ClInclude Include="include\utility\env_vars.h" />
+    <ClInclude Include="include\utility\jumplist.h" />
     <ClInclude Include="include\utility\file_detection.h" />
     <ClInclude Include="include\utility\registry.h" />
     <ClInclude Include="include\utility\hotkeys.h" />
@@ -666,6 +667,7 @@
     <ClCompile Include="src\utility\l10n.cpp" />
     <ClCompile Include="src\utility\launch_behaviors.cpp" />
     <ClCompile Include="src\utility\env_vars.cpp" />
+    <ClCompile Include="src\utility\jumplist.cpp" />
     <ClCompile Include="src\utility\file_detection.cpp" />
     <ClCompile Include="src\utility\file_detection_rules.cpp" />
     <ClCompile Include="src\utility\registry.cpp" />
