@@ -1835,15 +1835,19 @@ void SKIF_Shell_AddJumpList (std::wstring name, std::wstring path, std::wstring 
   }
 }
 
-// Moves the item of the Recent list whose arguments are the given ones (the command line of a launch) to the top, by
-//   adding it again. Returns false if there is no such item. Requires COM on the calling thread.
-bool SKIF_Shell_PromoteJumpListItem (const std::wstring& arguments)
-{
-  std::wstring wanted = arguments;
-  SKIF_Util_TrimSpacesW (wanted);
+// Finds the item of the Recent list of the jump list whose arguments are the given ones (trimmed). Returns its
+//   index (and the link, if asked for), or -1 if there is none or the list could not be read. Requires COM.
+struct SKIF_JumpListRecentLookup {
+  int  index     = -1; // Of the matching item
+  UINT count     =  0; // Items in the Recent list
+  UINT links     =  0; // Of those, the ones that are links with readable arguments
+  bool listRead  = false;
+};
 
-  if (wanted.empty ( ))
-    return false;
+static SKIF_JumpListRecentLookup
+SKIF_Shell_FindJumpListRecentItem (const std::wstring& wanted, IShellLinkW** ppLink)
+{
+  SKIF_JumpListRecentLookup result;
 
   CComPtr <IApplicationDocumentLists> pDocLists;
   CComPtr <IObjectArray>              pItems;
@@ -1851,23 +1855,23 @@ bool SKIF_Shell_PromoteJumpListItem (const std::wstring& arguments)
   if (FAILED (pDocLists.CoCreateInstance (CLSID_ApplicationDocumentLists)))
   {
     PLOG_ERROR << "Failed to create CLSID_ApplicationDocumentLists object!";
-    return false;
+    return result;
   }
 
   if (FAILED (pDocLists->SetAppID (SKIF_AppUserModelID)) ||
       FAILED (pDocLists->GetList  (ADLT_RECENT, 0, IID_PPV_ARGS (&pItems))))
   {
     PLOG_ERROR << "Failed to retrieve the Recent list of the jump list!";
-    return false;
+    return result;
   }
 
-  UINT uiCount = 0;
-  pItems->GetCount (&uiCount);
+  result.listRead = true;
+  pItems->GetCount (&result.count);
 
   // Arguments can be long (SKIF_Env=), so the buffer is not on the stack
   std::vector <wchar_t> wszArgs (32768, L'\0');
 
-  for (UINT i = 0; i < uiCount; i++)
+  for (UINT i = 0; i < result.count; i++)
   {
     CComPtr <IShellLinkW> pLink;
 
@@ -1880,26 +1884,93 @@ bool SKIF_Shell_PromoteJumpListItem (const std::wstring& arguments)
     if (FAILED (pLink->GetArguments (wszArgs.data ( ), static_cast <int> (wszArgs.size ( )))))
       continue;
 
+    result.links++;
+
     std::wstring args = wszArgs.data ( );
     SKIF_Util_TrimSpacesW (args);
 
     if (args != wanted)
       continue;
 
-    // The AppUserModelID is given explicitly, as a launcher instance exits before it sets its own
-    SHARDAPPIDINFOLINK
-      info           = { };
-      info.psl       = pLink.p;
-      info.pszAppID  = SKIF_AppUserModelID;
+    result.index = static_cast <int> (i);
 
-    SHAddToRecentDocs (SHARD_APPIDINFOLINK, &info);
+    if (ppLink != nullptr)
+      *ppLink = pLink.Detach ( );
 
-    PLOG_INFO << "Moved the jump list item of the launch to the top of the Recent list.";
+    break;
+  }
+
+  return result;
+}
+
+// Moves the item of the Recent list whose arguments are the given ones (the command line of a launch) to the top, by
+//   adding it again. Returns false if there is no such item. Requires COM on the calling thread.
+//     SHAddToRecentDocs ( ) finishes the update in the background, and the callers exit (the launcher instance) or
+//       uninitialize COM (the worker thread of the running instance) right after this, which could lose it. So this
+//         waits (briefly) until the item is at the top of the list.
+bool SKIF_Shell_PromoteJumpListItem (const std::wstring& arguments)
+{
+  std::wstring wanted = arguments;
+  SKIF_Util_TrimSpacesW (wanted);
+
+  if (wanted.empty ( ))
+    return false;
+
+  CComPtr <IShellLinkW>     pLink;
+  SKIF_JumpListRecentLookup lookup =
+    SKIF_Shell_FindJumpListRecentItem (wanted, &pLink);
+
+  if (lookup.index < 0)
+  {
+    if (lookup.listRead)
+      PLOG_INFO << "The launch was not started from an item of the Recent list (" << lookup.count << " items, "
+                << lookup.links << " of which are links with arguments); looked for the arguments: " << wanted;
+    return false;
+  }
+
+  if (lookup.index == 0)
+  {
+    PLOG_INFO << "The jump list item of the launch is already at the top of the Recent list.";
     return true;
   }
 
-  PLOG_VERBOSE << "The launch was not started from an item of the Recent list.";
-  return false;
+  // The AppUserModelID is given explicitly, as a launcher instance exits before it sets its own
+  SHARDAPPIDINFOLINK
+    info           = { };
+    info.psl       = pLink.p;
+    info.pszAppID  = SKIF_AppUserModelID;
+
+  SHAddToRecentDocs (SHARD_APPIDINFOLINK, &info);
+
+  // Wait until the item is at the top (at most ~1 second)
+  static constexpr DWORD dwTimeoutMs = 1000;
+  static constexpr DWORD dwPollMs    =   25;
+
+  const DWORD dwStart = SKIF_Util_timeGetTime1 ( );
+
+  while (true)
+  {
+    const int index =
+      SKIF_Shell_FindJumpListRecentItem (wanted, nullptr).index;
+
+    const DWORD dwElapsed = SKIF_Util_timeGetTime1 ( ) - dwStart;
+
+    if (index == 0)
+    {
+      PLOG_INFO << "Moved the jump list item of the launch from position " << lookup.index
+                << " to the top of the Recent list (took " << dwElapsed << " ms).";
+      return true;
+    }
+
+    if (dwElapsed >= dwTimeoutMs)
+    {
+      PLOG_WARNING << "The jump list item of the launch was not at the top of the Recent list " << dwElapsed
+                   << " ms after it was added again (it is at position " << index << ", was at " << lookup.index << ").";
+      return true;
+    }
+
+    Sleep (dwPollMs);
+  }
 }
 
 // Used by the running instance when a launcher instance hands the update over (see SKIF_Startup_PromoteJumpListItem)
