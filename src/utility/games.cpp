@@ -1322,16 +1322,17 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
     }, true);
   }
 
-  // Read Steam's appinfo.vdf (the whole file, several ms) alongside the library refresh. Only the main thread uses the
-  //   reader, once SwapInPopulatedGames ( ) has handed it over, so the library doesn't need it.
+  // Read Steam's app info (appinfo.vdf, or the appinfo\appinfo_XX.vdf files of the split format; all of it, several
+  //   ms) alongside the library refresh. Only the main thread uses the reader, once SwapInPopulatedGames ( ) has handed
+  //     it over, so the library doesn't need it.
   worker_task_t appinfoTask =
     _Start (L"SKIF_LibraryWorker_AppInfo", [_worker]
     {
       DWORD dwStart = SKIF_Util_timeGetTime1 ( );
 
-      _worker->appinfo = std::make_unique <skValveDataFile> (std::wstring (_path_cache.steam_install) + LR"(\appcache\appinfo.vdf)");
+      _worker->appinfo = std::make_unique <skValveDataFile> (std::wstring (_path_cache.steam_install) + LR"(\appcache)");
 
-      PLOG_DEBUG << "[Library Processing] Read appinfo.vdf in " << (SKIF_Util_timeGetTime1 ( ) - dwStart) << " ms.";
+      PLOG_DEBUG << "[Library Processing] Read Steam's app info in " << (SKIF_Util_timeGetTime1 ( ) - dwStart) << " ms.";
     });
 
   DWORD pre   = 0,

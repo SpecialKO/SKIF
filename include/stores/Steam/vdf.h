@@ -3,6 +3,7 @@
 #include <string>
 #include <cstdint>
 #include <vector>
+#include <memory>
 #include <unordered_map>
 #include <wtypes.h>
 //#include <steam/isteamuser.h>
@@ -19,16 +20,47 @@ typedef uint64 UGCHandle_t;
 
 #pragma pack(push)
 #pragma pack(1)
+// Steam's app info cache, in either of its two formats:
+//  - appcache\appinfo.vdf:             a single file (versions 0x27 - 0x29)
+//  - appcache\appinfo\appinfo_XX.vdf:  split into 256 files (version 0x2a, Steam beta of November 2026), each with
+//                                        an index, its own string table and the apps' data (see bucket_header_s)
+// If both are present (e.g. after leaving the beta), the most recently written one is used.
 class skValveDataFile
 {
 public:
-  skValveDataFile (std::wstring source);
+  skValveDataFile (std::wstring appcache); // Steam's appcache folder
 
   static constexpr
     uint32_t _LastSteamApp = 0;
 
   static
     uint32_t vdf_version;
+
+  // The split format (0x2a): the files' version, and the header of each file
+  static constexpr
+    uint32_t _SplitVersion = 0x2a;
+
+  struct bucket_header_s
+  {
+    DWORD     version;      // 0x07564400 | version (0x2a)
+    DWORD     universe;
+    uint32_t  bucket;       // XX of appinfo_XX.vdf
+    uint32_t  num_buckets;  // 256
+    uint32_t  num_apps;
+    uint32_t  index_size;   // The index follows the header: per app, a bucket_entry_s and its entry_size bytes of metadata
+    uint32_t  num_strings;  // The string table follows the index: num_strings null-terminated strings
+    uint32_t  strings_size;
+    uint32_t  data_size;    // The apps' data follows the string table: per app, a SHA-1 (20 bytes) and its key-values
+    uint64_t  checksum;
+  };
+
+  struct bucket_entry_s
+  {
+     AppId_t  appid;
+    uint32_t  offset;       // Of the app's data, from the start of the data
+    uint32_t  size;
+    uint32_t  entry_size;   // Of the metadata that follows (change number, last update, access token, SHA-1s, ...)
+  };
 
   struct appinfo27_s
   {
@@ -75,14 +107,19 @@ public:
         section_data_s
       > finished_sections;
 
-      void parse (section_desc_s& desc);
+      // strs: the string table the key names index (nullptr: the names are inline, before June 2024)
+      void parse (section_desc_s& desc, const std::vector <char *>* strs);
     };
 
     void*      getRootSection (size_t* pSize = nullptr);
     appinfo_s* getNextApp     (void);
   };
 
-  appinfo_s* getAppInfo ( uint32_t     appid, app_list_t *apps );
+  // Parses the app's data into its record (or a dummy one, if not in apps). false: not in the file, or already processed
+  bool       getAppInfo ( uint32_t     appid, app_list_t *apps );
+
+  // Whether any app info was read
+  bool       isLoaded   (void) const { return ! apps_index.empty ( ); }
 
   struct header_s
   {
@@ -99,17 +136,39 @@ public:
     uint8_t   strings [1];
   };
 
+  // The single file (appinfo.vdf)
   header_s*  base  = nullptr;
   appinfo_s* root  = nullptr;
   str_tbl_s* table = nullptr;
 
 protected:
 private:
+  // An app's key-values, and the string table their names index (nullptr: inline names)
+  struct app_entry_s
+  {
+    void*                       blob;
+    size_t                      size;
+    const std::vector <char *>* strs;
+  };
+
+  // A file of the split format: its contents, and its string table
+  struct bucket_s
+  {
+    std::vector <BYTE>   data;
+    std::vector <char *> strs;
+  };
+
+  bool _ReadFile        (const std::wstring& file, std::vector <BYTE>& data);
+  bool _LoadSingleFile  (const std::wstring& file);
+  bool _LoadSplitFiles  (const std::wstring& folder, const std::vector <std::wstring>& files);
+
   std::wstring          path;
   std::vector <BYTE>   _data;
   std::vector <char *>  strs; // Preparsed array of pointers
-  std::unordered_map <AppId_t, appinfo_s*>
-                        apps_index; // App ID -> entry, built once so lookups do not walk the whole file
+  std::vector <std::unique_ptr <bucket_s>>
+                        buckets;    // The split format: one per file (unique_ptr, as the entries point into them)
+  std::unordered_map <AppId_t, app_entry_s>
+                        apps_index; // App ID -> its data, built once so lookups do not walk the file(s)
 };
 
 #pragma pack(pop)

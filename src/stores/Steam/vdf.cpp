@@ -22,6 +22,7 @@
 
 #include <stores/Steam/vdf.h>
 #include <utility/fsutil.h>
+#include <utility/utility.h>
 #include <regex>
 #include <stores/Steam/steam_library.h>
 #include <filesystem>
@@ -33,33 +34,205 @@ using app_section_s =                  appinfo_s::section_s;
 
 uint32_t skValveDataFile::vdf_version = 0x27; // Default to Pre-December 2022
 
-skValveDataFile::skValveDataFile (std::wstring source) : path (source)
+static_assert (sizeof (skValveDataFile::bucket_header_s) == 44, "The header of the split appinfo files is 44 bytes");
+static_assert (sizeof (skValveDataFile::bucket_entry_s)  == 16, "An index entry of the split appinfo files starts with 16 bytes");
+
+skValveDataFile::skValveDataFile (std::wstring appcache) : path (appcache)
 {
-  FILE *fData = nullptr;
+  // The single file, and the files of the split format (with the time the most recent of them was written)
+  const std::wstring single_file  = appcache + LR"(\appinfo.vdf)";
+  const std::wstring split_folder = appcache + LR"(\appinfo\)";
 
-  _wfopen_s (&fData, path.c_str (), L"rbS");
+  std::vector <std::wstring> split_files;
+  ULONGLONG                  split_time  = 0;
+  ULONGLONG                  single_time = 0;
 
-  if (fData != nullptr)
+  WIN32_FIND_DATAW ffd   = { };
+  HANDLE           hFind = FindFirstFileExW ((split_folder + L"appinfo_*.vdf").c_str ( ), FindExInfoBasic, &ffd,
+                                           FindExSearchNameMatch, nullptr, FIND_FIRST_EX_LARGE_FETCH);
+
+  if (hFind != INVALID_HANDLE_VALUE)
   {
-#ifdef _WIN64
-    _fseeki64 (fData, 0, SEEK_END);
-#else
-    fseek     (fData, 0, SEEK_END);
-#endif
-    size_t
-    size =
-#ifdef _WIN64
-    _ftelli64 (fData);
-#else
-    ftell     (fData);
-#endif
-    rewind    (fData);
+    do
+    {
+      if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+        continue;
 
-    _data.resize (size);
+      split_files.emplace_back (ffd.cFileName);
+      split_time = std::max (split_time, (static_cast <ULONGLONG> (ffd.ftLastWriteTime.dwHighDateTime) << 32) | ffd.ftLastWriteTime.dwLowDateTime);
+    } while (FindNextFileW (hFind, &ffd));
 
-    fread  (_data.data (), size, 1, fData);
-    fclose (                        fData);
+    FindClose (hFind);
+  }
 
+  WIN32_FILE_ATTRIBUTE_DATA fad = { };
+
+  if (GetFileAttributesExW (single_file.c_str ( ), GetFileExInfoStandard, &fad))
+    single_time = (static_cast <ULONGLONG> (fad.ftLastWriteTime.dwHighDateTime) << 32) | fad.ftLastWriteTime.dwLowDateTime;
+
+  // Both are present when Steam has switched from one to the other (joined or left the beta): use the one it last wrote
+  bool loaded = false;
+
+  if (! split_files.empty ( ) && split_time >= single_time)
+    loaded = _LoadSplitFiles (split_folder, split_files);
+
+  if (! loaded && single_time != 0)
+    loaded = _LoadSingleFile (single_file);
+
+  if (! loaded && ! split_files.empty ( ) && split_time < single_time)
+    loaded = _LoadSplitFiles (split_folder, split_files);
+
+  PLOG_ERROR_IF (! loaded) << "Could not read Steam's app info from " << appcache << " (appinfo.vdf, appinfo\\appinfo_*.vdf)!";
+}
+
+// Reads a whole file. Steam may have it open (it writes the files while it runs), so it is opened with full sharing
+bool
+skValveDataFile::_ReadFile (const std::wstring& file, std::vector <BYTE>& data)
+{
+  data.clear ( );
+
+  HANDLE hFile = CreateFileW (file.c_str ( ), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                              nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
+
+  if (hFile == INVALID_HANDLE_VALUE)
+  {
+    PLOG_ERROR << "Could not open " << file << ": " << SKIF_Util_GetErrorAsWStr ( );
+    return false;
+  }
+
+  LARGE_INTEGER size = { };
+  bool          read = false;
+
+  if (GetFileSizeEx (hFile, &size) && size.QuadPart > 0 && static_cast <ULONGLONG> (size.QuadPart) <= std::numeric_limits <DWORD>::max ( ))
+  {
+    data.resize (static_cast <size_t> (size.QuadPart));
+
+    DWORD dwRead = 0;
+    read = ReadFile (hFile, data.data ( ), static_cast <DWORD> (data.size ( )), &dwRead, nullptr) && dwRead == data.size ( );
+  }
+
+  CloseHandle (hFile);
+
+  if (! read)
+  {
+    PLOG_ERROR << "Could not read " << file;
+    data.clear ( );
+  }
+
+  return read;
+}
+
+// The split format (0x2a): appinfo\appinfo_XX.vdf
+bool
+skValveDataFile::_LoadSplitFiles (const std::wstring& folder, const std::vector <std::wstring>& files)
+{
+  buckets.clear    ( );
+  apps_index.clear ( );
+
+  buckets.reserve  (files.size ( ));
+
+  for (const auto& name : files)
+  {
+    auto bucket = std::make_unique <bucket_s> ( );
+
+    if (! _ReadFile (folder + name, bucket->data))
+      continue;
+
+    const BYTE*            pData  = bucket->data.data ( );
+    const size_t           size   = bucket->data.size ( );
+    const bucket_header_s* header = reinterpret_cast <const bucket_header_s*> (pData);
+
+    // The header, and the index, string table and data fit in the file
+    if ( size                                             < sizeof (bucket_header_s) ||
+        (header->version & 0xFFFFFF00)                   != 0x07564400               ||
+        (header->version & 0xFF)                         != _SplitVersion            ||
+         sizeof (bucket_header_s) + static_cast <uint64_t> (header->index_size)
+                                  + header->strings_size
+                                  + header->data_size     > size )
+    {
+      PLOG_ERROR << "Unsupported or malformed app info file: " << name;
+      continue;
+    }
+
+    const BYTE* pIndex   = pData    + sizeof (bucket_header_s);
+    const BYTE* pStrings = pIndex   + header->index_size;
+    const BYTE* pApps    = pStrings + header->strings_size;
+
+    // The string table: num_strings null-terminated strings
+    bucket->strs.reserve (header->num_strings);
+
+    const char* str     = reinterpret_cast <const char*> (pStrings);
+    const char* end_tbl = reinterpret_cast <const char*> (pApps);
+
+    while (bucket->strs.size ( ) < header->num_strings && str < end_tbl)
+    {
+      bucket->strs.push_back (const_cast <char*> (str));
+
+      while (str < end_tbl && *str != '\0')
+        ++str;
+
+      ++str;
+    }
+
+    if (bucket->strs.size ( ) != header->num_strings || str > end_tbl)
+    {
+      PLOG_ERROR << "Malformed string table in app info file: " << name;
+      continue;
+    }
+
+    // The index: per app, a bucket_entry_s followed by entry_size bytes of metadata
+    size_t pos = 0;
+
+    for (uint32_t i = 0; i < header->num_apps; ++i)
+    {
+      if (pos + sizeof (bucket_entry_s) > header->index_size)
+        break;
+
+      const bucket_entry_s* entry = reinterpret_cast <const bucket_entry_s*> (pIndex + pos);
+
+      pos += sizeof (bucket_entry_s) + entry->entry_size;
+
+      // The data: a SHA-1, then the key-values
+      constexpr uint32_t sha1_size = 20;
+
+      if (pos > header->index_size || entry->size <= sha1_size ||
+          static_cast <uint64_t> (entry->offset) + entry->size > header->data_size)
+      {
+        PLOG_ERROR << "Malformed index entry " << i << " in app info file: " << name;
+        break;
+      }
+
+      apps_index.emplace (entry->appid, app_entry_s { const_cast <BYTE*> (pApps + entry->offset + sha1_size),
+                                                      entry->size - sha1_size, &bucket->strs }); // First occurrence wins
+    }
+
+    buckets.push_back (std::move (bucket));
+  }
+
+  if (apps_index.empty ( ))
+  {
+    buckets.clear ( );
+    return false;
+  }
+
+  vdf_version = _SplitVersion;
+
+  PLOG_VERBOSE << "appinfo version: " << vdf_version << " (November 2026, split into " << files.size ( ) << " files): "
+               << apps_index.size ( ) << " apps in " << buckets.size ( ) << " files";
+
+  return true;
+}
+
+// The single file (0x27 - 0x29): appinfo.vdf
+bool
+skValveDataFile::_LoadSingleFile (const std::wstring& file)
+{
+  apps_index.clear ( );
+
+  if (! _ReadFile (file, _data) || _data.size ( ) < sizeof (header_s))
+    return false;
+
+  {
     base =
       reinterpret_cast <
              header_s *> (_data.data ());
@@ -110,13 +283,24 @@ skValveDataFile::skValveDataFile (std::wstring source) : path (source)
     for ( appinfo_s* pIter = root;
                      pIter != nullptr && pIter->appid != _LastSteamApp;
                      pIter  = pIter->getNextApp ( ) )
-      apps_index.emplace (pIter->appid, pIter); // First occurrence wins, as with the previous linear search
+    {
+      app_entry_s entry { };
+
+      entry.blob = pIter->getRootSection (&entry.size);
+      entry.strs = (vdf_version >= 0x29) ? &strs : nullptr;
+
+      apps_index.emplace (pIter->appid, entry); // First occurrence wins, as with the previous linear search
+    }
   }
+
+  return ! apps_index.empty ( );
 }
 
 void
-app_section_s::parse (section_desc_s& desc)
+app_section_s::parse (section_desc_s& desc, const std::vector <char *>* strs)
 {
+  static char empty_name [] = "";
+
   std::vector <
     section_data_s
   > raw_sections;
@@ -139,10 +323,10 @@ app_section_s::parse (section_desc_s& desc)
       {
         // String Table Lookup (June 2024+)
         //
-        if (appinfo->vdf_version >= 0x29)
+        if (strs != nullptr)
         {
           name =
-            (char *)appinfo->table->strings;
+            strs->empty ( ) ? empty_name : (*strs) [0];
 
           const auto str_idx =
             *(uint32_t *)(cur + 1);
@@ -151,10 +335,10 @@ app_section_s::parse (section_desc_s& desc)
           PLOG_VERBOSE << "String Table Index:  " << str_idx << ", op=" << op;
 #endif
 
-          if ( str_idx < appinfo->table->num_strings )
+          if ( str_idx < strs->size ( ) )
           {
             name =
-              appinfo->strs [str_idx];
+              (*strs) [str_idx];
 #ifdef DEBUG
             PLOG_VERBOSE << "String=" << name;
 #endif
@@ -292,7 +476,7 @@ appinfo_s::getNextApp (void)
                               nullptr : pNext;
 }
 
-appinfo_s*
+bool
 skValveDataFile::getAppInfo ( uint32_t appid, app_list_t *apps )
 {
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
@@ -302,978 +486,967 @@ skValveDataFile::getAppInfo ( uint32_t appid, app_list_t *apps )
   // Skip call if it concerns someone whom does not have SKIF installed on Steam
   if ( appid == SKIF_STEAM_APPID &&
              (! SKIF_STEAM_OWNER) )
-    return nullptr;
+    return false;
 
-  if (root != nullptr)
+  // Jump straight to the app's data (not in the file(s): nothing to parse)
+  const auto indexed = apps_index.find (appid);
+
+  if (indexed == apps_index.end ( ))
+    return false;
+
+  const app_entry_s& entry = indexed->second;
+
+  app_record_steam_s* pAppRecord = nullptr;
+
+  for (auto& app : *apps)
   {
-    // Jump straight to the app (nullptr if it is not in the file)
-    const auto  indexed = apps_index.find (appid);
-    skValveDataFile::appinfo_s *pIter =
-      (indexed != apps_index.end ( )) ? indexed->second : nullptr;
-
-    while (pIter != nullptr && pIter->appid != _LastSteamApp)
+    if (app.second->id == appid && app.second->store == app_record_s::Store::Steam)
     {
-      if (pIter->appid == appid)
-      {
-        app_record_steam_s* pAppRecord = nullptr;
-
-        for (auto& app : *apps)
-        {
-          if (app.second->id == appid && app.second->store == app_record_s::Store::Steam)
-          {
-            pAppRecord = static_cast <app_record_steam_s*> (app.second.get ( )); // Steam-store entries are always app_record_steam_s
-            break;
-          }
-        }
-
-        // If we're dealing with an unrecognized app, process it into a dummy object
-        if (! pAppRecord)
-        {
-          static app_record_steam_s _non_steam (appid);
-          pAppRecord = &_non_steam;
-        }
-
-        // Skip already processed apps
-        else if (pAppRecord->processed)
-          break;
-
-        static DWORD dwSingleThread  = GetCurrentThreadId ();
-        assert      (dwSingleThread == GetCurrentThreadId ());
-
-        static appinfo_s::section_s      section;
-        appinfo_s::section_desc_s app_desc{};
-
-        section.finished_sections.clear ();
-
-        app_desc.blob =
-          pIter->getRootSection (&app_desc.size);
-
-        section.parse (app_desc);
-//#define _WRITE_APPID_INI
-#ifdef  _WRITE_APPID_INI
-        FILE* fTest =
-          fopen (SK_FormatString ("appid%d.ini", pAppRecord->id).c_str (), "w");
-#endif
-
-        bool populate_appinfo_extended =
-          pAppRecord->extended_config.vac.enabled == -1;
-        bool populate_common =
-          pAppRecord->common_config.appid == 0;
-        bool populate_cloud_saves =
-         //pAppRecord != nullptr &&
-          pAppRecord->cloud_saves.empty ();
-
-        bool populate_branches  =
-        //pAppRecord != nullptr &&
-          pAppRecord->branches.empty ();
-
-        bool populate_launch_configs =
-        //pAppRecord != nullptr      &&
-          pAppRecord->launch_configs.empty ();
-
-        bool get_library_asset_paths = true;
-
-        pAppRecord->install_dir =
-          SK_UseManifestToGetInstallDir (pAppRecord);
-
-        for (auto& finished_section : section.finished_sections)
-        {
-          if (finished_section.keys.empty ())
-            continue;
-
-          if (pAppRecord != nullptr)
-          {
-            if ( populate_appinfo_extended &&
-                 0 == finished_section.name.find ("appinfo.extended") )
-            {
-              auto *pVac =
-                &pAppRecord->extended_config.vac;
-
-              //auto *pDev =
-              //  &pAppRecord->extended_config.dev;
-
-              for (auto& key : finished_section.keys)
-              {
-                if (! _stricmp (key.first, "vacmodulefilename"))
-                {
-                  pVac->vacmodulefilename =
-                    (const char *)key.second.second;
-                }
-
-                if (! pVac->vacmodulefilename.empty ())
-                      pVac->enabled = true;
-                else
-                      pVac->enabled = false;
-              }
-
-              if (pVac->enabled == -1)
-                pVac->enabled = false;
-            }
-
-            else if (pAppRecord->extended_config.vac.enabled == -1)
-              pAppRecord->extended_config.vac.enabled = false;
-
-            auto _ParseOSArch =
-            [&](appinfo_s::section_s::_kv_pair& kv) ->
-            app_record_s::CPUType
-            {
-              app_record_s::CPUType cpu_type = app_record_s::CPUType::Common;
-              int                   bits = -1;
-
-              // This key is an integer sometimes and a string others, it's a PITA!
-              if (kv.second.first == appinfo_s::section_s::String)
-              {
-                bits =
-                  *(char *)kv.second.second;
-
-                if (bits == 0)
-                {
-                  cpu_type =
-                   app_record_s::CPUType::Any;
-                }
-
-                else
-                {
-                  bits =
-                    std::atoi ((char *)kv.second.second);
-                }
-              }
-
-              if (bits != 0)
-              {
-                // We have an int32 key, need to extract the value
-                if (bits == -1)
-                  bits = *(int32_t *)kv.second.second;
-
-                // else
-                // ... Otherwise we already got the value as a string
-
-                switch (bits)
-                {
-                  case 32:
-                    cpu_type =
-                      app_record_s::CPUType::x86;
-                    break;
-                  case 64:
-                    cpu_type =
-                      app_record_s::CPUType::x64;
-                    break;
-                  default:
-                    cpu_type =
-                      app_record_s::CPUType::Any;
-                    PLOG_ERROR << SK_FormatString ("Got unexpected (int32) CPU osarch=%lu", bits);
-                    break;
-                }
-              }
-
-              return cpu_type;
-            };
-
-            if ( populate_common &&
-                 0 ==
-                 finished_section.name.find ("appinfo.common") )
-            {
-              pAppRecord->common_config.appid = pAppRecord->id;
-
-              for (auto& key : finished_section.keys)
-              {
-                // OS Arch? More like CPU Arch...
-                //
-                // This key, under common_config, either:
-                //  - do not exist at all, see  23310: The Last Remnant           (what does this mean?)
-                //  -            is empty, see    480: Spacewar (or most games)   (what does this mean? x86?)
-                //  -      is set to "64", see 546560: Half-Life: Alyx
-                //
-                // This makes it utterly useless for anything reliable, lol
-                //
-                // See SteamDB's unique values search:
-                // - https://steamdb.info/search/?a=app_keynames&type=-1&keyname=369&operator=9&keyvalue=&display_value=on
-
-                if (! _stricmp (key.first, "osarch"))
-                {
-                  pAppRecord->common_config.cpu_type =
-                    _ParseOSArch (key);
-                }
-
-                else if (! _stricmp (key.first, "type"))
-                {
-                  if      (! _stricmp ((char *)key.second.second, "game"))
-                    pAppRecord->common_config.type =
-                      app_record_s::common_config_s::AppType::Game;
-                  else if (! _stricmp ((char *)key.second.second, "application"))
-                    pAppRecord->common_config.type =
-                      app_record_s::common_config_s::AppType::Application;
-                  else if (! _stricmp ((char *)key.second.second, "tool"))
-                    pAppRecord->common_config.type =
-                      app_record_s::common_config_s::AppType::Tool;
-                  else if (! _stricmp ((char *)key.second.second, "music"))
-                    pAppRecord->common_config.type =
-                      app_record_s::common_config_s::AppType::Music;
-                  else if (! _stricmp ((char *)key.second.second, "demo"))
-                    pAppRecord->common_config.type =
-                      app_record_s::common_config_s::AppType::Demo;
-                }
-
-                else if (! _stricmp (key.first, "icon"))
-                {
-                  pAppRecord->common_config.icon_hash = (char *)key.second.second;
-                }
-              }
-            }
-
-            if ( get_library_asset_paths &&
-                 finished_section.name._Equal ("appinfo.common.library_assets_full.library_capsule.image") )
-            {
-              bool found_english_asset = false;
-              for (auto& key : finished_section.keys)
-              {
-                if (! _stricmp (key.first, "english"))
-                {
-                  pAppRecord->common_config.boxart_hash = (const char*)key.second.second;
-                  found_english_asset = true;
-                  break;
-                }
-              }
-
-              if (! found_english_asset)
-              {
-                // Since language is not known, just use the first language found
-                for (auto& key : finished_section.keys)
-                {
-                  pAppRecord->common_config.boxart_hash = (const char*)key.second.second;
-                  break;
-                }
-              }
-              get_library_asset_paths = false;
-            }
-
-            if ( populate_launch_configs &&
-                 0 ==
-                 finished_section.name.find ("appinfo.config.launch.")
-               )
-            {
-              //PLOG_VERBOSE << "---------------------------";
-
-              int launch_idx_skif =
-                static_cast<int> (pAppRecord->launch_configs.size());
-              int launch_idx_steam = 0; // Steam's index of the launch option (shown in the launch option's menu)
-
-              std::sscanf ( finished_section.name.c_str (),
-                              "appinfo.config.launch.%d", &launch_idx_steam);
-
-              // The index used solely for parsing
-              int idx = launch_idx_steam;
-
-              // Each launch option is made up of two sections that both end up here, as both match "appinfo.config.launch.":
-              //   appinfo.config.launch.<N>         -- executable, arguments, workingdir, type, description
-              //   appinfo.config.launch.<N>.config  -- oslist, osarch, betakey, ownsdlc
-              // so both are keyed by Steam's index <N> to end up in the same launch config (the map is renumbered below)
-              auto& launch_cfg =
-                pAppRecord->launch_configs [launch_idx_steam];
-
-              launch_cfg.id       = launch_idx_skif;
-              launch_cfg.id_steam = launch_idx_steam;
-
-              // Holds Widechar strings (external)
-              std::unordered_map <std::string, std::wstring*>
-                wstring_map = {
-                  { "executable",  &launch_cfg.executable     },
-                  { "arguments",   &launch_cfg.launch_options },
-                  { "description", &launch_cfg.description    },
-                  { "workingdir",  &launch_cfg.working_dir    }
-                };
-
-              // Holds UTF8 strings (internal only)
-              std::unordered_map <std::string, std::string*>
-                 string_map = {
-                  { "ownsdlc",     &launch_cfg.requires_dlc   }
-                };
-
-              for (auto& key : finished_section.keys)
-              {
-                if (! _stricmp (key.first, "oslist"))
-                {
-                  if (StrStrIA ((const char *)key.second.second, "windows"))
-                  {
-                    app_record_s::addSupportFor (
-                      pAppRecord->launch_configs [idx].platforms,
-                                                app_record_s::Platform::Windows
-                      );
-                  }
-
-                  else
-                    pAppRecord->launch_configs [idx].platforms =
-                      app_record_s::Platform::Unknown;
-                }
-
-                else if (! _stricmp (key.first, "osarch"))
-                {
-                  // OS Arch? More like CPU Arch...
-                  pAppRecord->launch_configs [idx].cpu_type =
-                    _ParseOSArch (key);
-                }
-
-                else if (! _stricmp (key.first, "betakey"))
-                {
-                  // Populate required betas for this launch option
-                  std::istringstream betas((const char *)key.second.second);
-                  std::string beta;
-                  while (std::getline (betas, beta, ' '))
-                    pAppRecord->launch_configs [idx].branches.emplace (beta);
-                }
-
-                else if (! _stricmp (key.first, "type"))
-                {
-                  if (! _stricmp ((char *)key.second.second,      "default"))
-                    pAppRecord->launch_configs [idx].type =
-                      app_record_s::launch_config_s::Type::Default;
-
-                  else if (! _stricmp ((char *)key.second.second, "option1"))
-                    pAppRecord->launch_configs [idx].type =
-                      app_record_s::launch_config_s::Type::Option1;
-
-                  else if (! _stricmp ((char *)key.second.second, "option2"))
-                    pAppRecord->launch_configs [idx].type =
-                      app_record_s::launch_config_s::Type::Option2;
-
-                  else if (! _stricmp ((char *)key.second.second, "option3"))
-                    pAppRecord->launch_configs [idx].type =
-                      app_record_s::launch_config_s::Type::Option3;
-
-                  else if (! _stricmp ((char *)key.second.second, "none"))
-                    pAppRecord->launch_configs [idx].type =
-                      app_record_s::launch_config_s::Type::Unspecified;
-                }
-
-                else if (wstring_map.count (key.first) != 0)
-                {
-                  auto& string_dest =
-                    wstring_map [key.first];
-
-                  *string_dest =
-                    SK_UTF8ToWideChar ((const char *)key.second.second);
-                }
-
-                else if (string_map.count (key.first) != 0)
-                {
-                  auto& string_dest =
-                    string_map [key.first];
-
-                  *string_dest =
-                    std::string ((const char *)key.second.second);
-                }
-              }
-
-#if 0
-
-              PLOG_VERBOSE << "Steam Launch ID   : " <<       launch_idx_steam;
-              PLOG_VERBOSE << "SKIF  Launch ID   : " <<       launch_idx_skif;
-              PLOG_VERBOSE << "Executable        : " <<       launch_cfg.executable;
-              PLOG_VERBOSE << "Arguments         : " <<       launch_cfg.launch_options;
-              PLOG_VERBOSE << "Working Directory : " <<       launch_cfg.working_dir;
-              PLOG_VERBOSE << "Launch Type       : " << (int) launch_cfg.type;
-              PLOG_VERBOSE << "Description       : " <<       launch_cfg.description;
-              PLOG_VERBOSE << "Operating System  : " << (int) launch_cfg.platforms;
-              PLOG_VERBOSE << "CPU Architecture  : " << (int) launch_cfg.cpu_type;
-              PLOG_VERBOSE << "Beta branches     : " <<       launch_cfg.branches.size ( );
-              PLOG_VERBOSE << "Requires DLC      : " <<       launch_cfg.requires_dlc;
-
-#endif
-
-            }
-          }
-        }
-
-        // If the appinfo.vdf didn't contain library asset paths, default to standard path
-        if (get_library_asset_paths)
-        {
-          pAppRecord->common_config.boxart_hash = "library_600x900.jpg";
-        }
-
-        // At this point, since we used Steam's index as the position to stuff data into, the vector has
-        //   has objects all over -- some at 0, some at 1, others at 0-4, not 5, 6-9. Basically we cannot
-        //     be certain of anything, at all, what so bloody ever! So let's just recreate the std::map!
-
-        std::vector <app_record_s::launch_config_s> _cleaner;
-        _cleaner.reserve (pAppRecord->launch_configs.size ( ));
-
-        // Put away put away put away put away
-        for ( auto& keep : pAppRecord->launch_configs )
-          _cleaner.push_back (std::move (keep.second));
-
-        // Clean clean clean clean!
-        pAppRecord->launch_configs.clear ();
-
-        // Restore restore restore restore!
-        for ( auto& launch : _cleaner )
-        {
-          // Reset SKIF's internal identifer for the launch configs
-          launch.id =
-            static_cast<int> (pAppRecord->launch_configs.size());
-
-          // Add it back
-          pAppRecord->launch_configs.emplace (
-            static_cast<int> (pAppRecord->launch_configs.size()),
-            std::move (launch));
-        }
-        // std::map is now reliable again!
-
-        std::set    <std::wstring>          _used_executables;
-        std::set    <std::wstring>          _used_executables_arguments;
-        std::vector <app_record_s::launch_config_s> _launches;
-
-        // Now add in our custom launch configs!
-        for (auto& custom_cfg : pAppRecord->launch_configs_custom)
-        {
-          custom_cfg.second.id =
-            static_cast<int> (pAppRecord->launch_configs.size());
-
-          // Custom launch config, so Steam launch ID is nothing we use
-          custom_cfg.second.id_steam = -1;
-
-          const int custom_id = custom_cfg.second.id;
-
-          // The custom launches are cleared below, so they can be moved over
-          if (! pAppRecord->launch_configs.emplace (custom_id, std::move (custom_cfg.second)).second)
-            PLOG_ERROR << "Failed adding a custom launch config to the launch map. An element at that position already exists!";
-        }
-
-        // Clear out the custom launches once they've been populated
-        pAppRecord->launch_configs_custom.clear();
-
-        for ( auto& launch_cfg : pAppRecord->launch_configs )
-        {
-          auto& launch = launch_cfg.second;
-
-          // Summarize the branches in a comma-delimited string as well
-          if (! launch.branches.empty())
-          {
-            for (auto const& branch : launch.branches)
-              launch.branches_joined += branch + ", ";
-
-            // Remove trailing comma and space
-            launch.branches_joined.pop_back();
-            launch.branches_joined.pop_back();
-          }
-
-          // Filter launch configurations for other OSes
-          if ( (! app_record_s::supports (launch.platforms,
-                                   app_record_s::Platform::Windows) ))
-            continue;
-
-          // Filter launch configurations lacking an executable
-          if (launch.executable.empty())
-            continue;
-
-          // Filter launch configurations requiring a beta branch that the user do not have
-          if (! launch.branches.empty() && launch.branches.count (pAppRecord->steam.branch) == 0)
-            launch.valid = 0;
-
-          // File extension, so we can flag out non-executable ones (e.g. link2ea)
-          const wchar_t* pwszExtension =
-            PathFindExtension (launch.executable.c_str());
-
-          // If we cannot find an extension, or if it's not .exe, flag the launch config as invalid
-          if (pwszExtension == NULL || (pwszExtension + 1) == NULL || _wcsicmp (pwszExtension, L".exe") != 0)
-            launch.valid = 0;
-
-          // Clean valid executable paths
-          if (launch.valid)
-            launch.executable = std::filesystem::path(launch.executable).lexically_normal();
-
-
-          // Working dir = empty, ., / or \ all need fixups
-          if ( wcslen (launch.working_dir.c_str ()) < 2 )
-          {
-            if ( launch.working_dir [0] == L'/'  ||
-                 launch.working_dir [0] == L'\\' ||
-                 launch.working_dir [0] == L'.'  ||
-                 launch.working_dir [0] == L'\0' )
-            {
-              launch.working_dir.clear();
-            }
-          }
-
-          // Fix working directories
-          if (! launch.working_dir.empty())
-          {
-            launch.working_dir = std::wstring (pAppRecord->install_dir + LR"(\)" + launch.working_dir + L"\0\0");
-            launch.working_dir = std::filesystem::path(launch.working_dir).lexically_normal();
-          }
-
-          // Flag duplicates (after the working directory has been fixed up, as it is part of the comparison below)...
-          //   but not if we found them as not valid above (as that would filter out custom launch configs that matches beta launch configs...)
-          if (launch.isExecutableFileNameValid() && launch.valid)
-          {
-            // Use the executable to identify duplicates (affects Disable Special K menu)
-            if (! _used_executables.emplace (launch.getExecutableFileName()).second)
-              launch.duplicate_exe = true;
-
-            // Use a combination of the executable, arguments, and working directory to identify duplicates (affects Instant Play menu)
-            //   Launch options that only differ in their working directory, or in their environment variables, are different launches
-            if (! _used_executables_arguments.emplace (launch.getExecutableFileName() + launch.getLaunchOptions() + L"|" + launch.working_dir + SKIF_EnvVars::GetKey (launch.env)).second)
-              launch.duplicate_exe_args = true;
-          }
-
-          // Flag the launch config to be added back (launch_configs is cleared below)
-          _launches.push_back (std::move (launch));
-        }
-
-        pAppRecord->launch_configs.clear ();
-
-        for ( auto& launch : _launches )
-        {
-          // Reset SKIF's internal identifer for the launch configs
-          launch.id =
-            static_cast<int> (pAppRecord->launch_configs.size());
-
-#if 0
-
-          PLOG_VERBOSE << "SKIF  Launch ID   : " <<       launch.id;
-          PLOG_VERBOSE << "Steam Launch ID   : " <<       launch.id_steam;
-          PLOG_VERBOSE << "Executable        : " <<       launch.executable;
-          PLOG_VERBOSE << "Arguments         : " <<       launch.launch_options;
-          PLOG_VERBOSE << "Working Directory : " <<       launch.working_dir;
-          PLOG_VERBOSE << "Launch Type       : " << (int) launch.type;
-          PLOG_VERBOSE << "Description       : " <<       launch.description;
-          PLOG_VERBOSE << "Operating System  : " << (int) launch.platforms;
-          PLOG_VERBOSE << "CPU Architecture  : " << (int) launch.cpu_type;
-          PLOG_VERBOSE << "Beta branches     : " <<       launch.branches_joined;
-          PLOG_VERBOSE << "Requires DLC      : " <<       launch.requires_dlc;
-
-#endif
-
-          // Add it back
-          pAppRecord->launch_configs.emplace (
-            static_cast<int> (pAppRecord->launch_configs.size()),
-            std::move (launch));
-        }
-
-        // Naively move the first Default launch config type to the front
-        int firstValidFound = -1;
-
-        for (auto& launch : pAppRecord->launch_configs)
-        {
-          // Ignore invalid launch options, e.g. those requiring a beta branch the user is not on
-          //   (launch options for the beta branch the user *is* on may become the primary one)
-          if (! launch.second.valid)
-            continue;
-
-          if (launch.second.type == app_record_s::launch_config_s::Type::Default)
-          {
-            firstValidFound = launch.first;
-            break;
-          }
-        }
-
-        if (firstValidFound != -1)
-        {
-          app_record_s::launch_config_s copy             = pAppRecord->launch_configs[0];
-          pAppRecord->launch_configs[0]                  = pAppRecord->launch_configs[firstValidFound];
-          pAppRecord->launch_configs[firstValidFound]    = copy;
-
-          // Swap the internal identifers that SKIF uses (default becomes 0, not-default becomes not)
-          int copy_id                                    = pAppRecord->launch_configs[0].id;
-          pAppRecord->launch_configs[0].id               = 0;
-          pAppRecord->launch_configs[firstValidFound].id = copy_id;
-        }
-#if 0
-
-        for (auto& launch : pAppRecord->launch_configs)
-        {
-          PLOG_VERBOSE << "SKIF  Launch ID   : " <<       launch.second.id;
-          PLOG_VERBOSE << "Steam Launch ID   : " <<       launch.second.id_steam;
-          PLOG_VERBOSE << "Executable        : " <<       launch.second.executable;
-          PLOG_VERBOSE << "Arguments         : " <<       launch.second.launch_options;
-          PLOG_VERBOSE << "Working Directory : " <<       launch.second.working_dir;
-          PLOG_VERBOSE << "Launch Type       : " << (int) launch.second.type;
-          PLOG_VERBOSE << "Description       : " <<       launch.second.description;
-          PLOG_VERBOSE << "Operating System  : " << (int) launch.second.platforms;
-          PLOG_VERBOSE << "CPU Architecture  : " << (int) launch.second.cpu_type;
-          PLOG_VERBOSE << "Beta branches     : " <<       launch.second.branches_joined;
-          PLOG_VERBOSE << "Requires DLC      : " <<       launch.second.requires_dlc;
-        }
-
-#endif
-
-        std::map <std::string, std::wstring> roots = {
-          { "WinMyDocuments",        _path_cache.my_documents.path          },
-          { "WinAppDataLocal",       _path_cache.app_data_local.path        },
-          { "WinAppDataLocalLow",    _path_cache.app_data_local_low.path    },
-          { "WinAppDataRoaming",     _path_cache.app_data_roaming.path      },
-          { "WinSavedGames",         _path_cache.win_saved_games.path       },
-          { "App Install Directory", pAppRecord->install_dir                },
-          { "gameinstall",           pAppRecord->install_dir                },
-          { "SteamCloudDocuments",   L"<Steam Cloud Docs>"                  }
-        };
-
-        std::wstring account_id_str   = L"anonymous";
-
-        std::wstring cloud_path       =
-          SK_FormatStringW (      LR"(%ws\userdata\%ws\%d\)",
-              _path_cache.steam_install, account_id_str.c_str (),
-                                             appid );
-
-        roots ["SteamCloudDocuments"] =
-          cloud_path;
-
-        for (auto& finished_section : section.finished_sections)
-        {
-          if (finished_section.keys.empty ())
-            continue;
-
-          if (pAppRecord != nullptr)
-          {
-            if ( populate_cloud_saves &&
-                   0 ==
-                     finished_section.name.find ("appinfo.ufs.rootoverrides.") )
-            {
-              std::wstring ufs_root;
-              std::wstring use_instead;
-              std::wstring add_path;
-
-              std::unordered_map <std::string, std::wstring*>
-                string_map = {
-                  { "root",       &ufs_root    },
-                  { "useinstead", &use_instead },
-                  { "addpath",    &add_path    }
-                };
-
-              for ( auto& key : finished_section.keys )
-              {
-                if (! _stricmp (key.first, "os"))
-                {
-                  if (_stricmp ((char *)key.second.second, "windows"))
-                  {
-                    ufs_root.clear    ();
-                    add_path.clear    ();
-                    use_instead.clear ();
-                    break;
-                  }
-                }
-
-                else
-                {
-                  std::wstring* pStr = nullptr;
-
-                  auto it =
-                    string_map.find (key.first);
-
-                  if (it != string_map.cend ())
-                    pStr = it->second;
-
-                  if (pStr != nullptr)
-                     *pStr = SK_UTF8ToWideChar ((char *)key.second.second);
-
-                  if (pStr == &add_path)
-                    add_path += LR"(\)";
-                }
-              }
-
-              if (! ufs_root.empty ())
-              {
-                auto utf8_ufs_root =
-                  SK_WideCharToUTF8 (ufs_root);
-
-                if (! use_instead.empty ())
-                { // Some games have overrides that don't override anything
-                  if (! use_instead._Equal (ufs_root))
-                  {
-                    auto utf8_use_instead =
-                      SK_WideCharToUTF8 (use_instead);
-
-                    roots [utf8_ufs_root] = roots.count (utf8_use_instead) != 0 ?
-                                                  roots [utf8_use_instead]      :
-                                                              use_instead;
-                  }
-                }
-
-                if (! add_path.empty ())
-                {
-                  roots [utf8_ufs_root] += add_path;
-                }
-              }
-            }
-
-            if ( populate_branches &&
-                                 0 ==
-                   finished_section.name.find ("appinfo.depots.branches."))
-            {
-              std::string branch_name =
-                finished_section.name.substr (24);
-
-              auto *branch_ptr =
-                &pAppRecord->branches [branch_name];
-
-
-              static const
-                std::unordered_map <std::string, ptrdiff_t>
-                  int_map = {
-                    { "buildid",     offsetof (app_record_s::branch_record_s, build_id)     },
-                    { "pwdrequired", offsetof (app_record_s::branch_record_s, pwd_required) },
-                    { "timeupdated", offsetof (app_record_s::branch_record_s, time_updated) }
-                  };
-
-              static const
-                std::unordered_map <std::string, ptrdiff_t>
-                  str_map = {
-                    { "description", offsetof (app_record_s::branch_record_s, description) }
-                  };
-
-              int matches = 0;
-
-              for ( auto& key : finished_section.keys )
-              {
-                auto pInt =
-                  int_map.find (key.first);
-
-                if (pInt != int_map.cend ())
-                  *(uint32_t *)VOID_OFFSET (branch_ptr,pInt->second) =
-                    *(uint32_t *)key.second.second, ++matches;
-
-                else
-                {
-                  auto pStr =
-                    str_map.find (key.first);
-
-                  if (pStr != str_map.cend ()) {
-                     *(std::wstring *)VOID_OFFSET (branch_ptr,pStr->second) =
-                       SK_UTF8ToWideChar (
-                         (char *)key.second.second
-                       ), ++matches;
-                  }
-                }
-              }
-
-              if (matches > 0)
-                pAppRecord->branches       [branch_name].parent = pAppRecord;
-              else
-                pAppRecord->branches.erase (branch_name);
-            }
-          }
-        }
-
-        for ( auto& finished_section : section.finished_sections )
-        {
-          if (finished_section.keys.empty ())
-            continue;
-
-          if (pAppRecord != nullptr)
-          {
-            if ( populate_cloud_saves &&
-                                    0 ==
-                   finished_section.name.find ("appinfo.ufs") )
-
-            {
-              if (finished_section.name._Equal ("appinfo.ufs"))
-              {
-                for ( auto& ufs_key : finished_section.keys )
-                {
-                  if (! _stricmp (ufs_key.first, "hidecloudui"))
-                  {
-                    pAppRecord->cloud_enabled =
-                      (*(uint32_t *)ufs_key.second.second) == 0;
-                  }
-                }
-              }
-
-              else if (0 == finished_section.name.find ("appinfo.ufs.savefiles."))
-              {
-                int cloud_idx = 0;
-
-                std::sscanf (
-                  finished_section.name.c_str (),
-                    "appinfo.ufs.savefiles.%d",
-                      &cloud_idx
-                );
-
-                static const
-                  std::unordered_map <std::string, app_record_s::Platform>
-                    platform_map = {
-                      { "windows", app_record_s::Platform::Windows },
-                      { "linux",   app_record_s::Platform::Linux   },
-                      { "mac",     app_record_s::Platform::Mac     },
-                      { "all",     app_record_s::Platform::All     }
-                    };
-
-                if (finished_section.name.find ("platforms") != std::string::npos)
-                {
-                  for (auto& platform : finished_section.keys)
-                  {
-                    if (pAppRecord->cloud_saves.count (cloud_idx) != 0)
-                    {
-                      try
-                      {
-                        pAppRecord->cloud_saves [cloud_idx].platforms =
-                          platform_map.at ((const char *)platform.second.second);
-                      }
-                      catch (const std::out_of_range& e) { UNREFERENCED_PARAMETER (e); };
-                    }
-                  }
-                }
-
-                else
-                {
-                  for (auto& key : finished_section.keys)
-                  {
-                    if (! _stricmp (key.first, "root"))
-                    {
-                      pAppRecord->cloud_saves [cloud_idx].root =
-                        roots [(const char *)key.second.second];
-                    }
-
-                    else if (! _stricmp (key.first, "path"))
-                    {
-                      auto replaceSpecialValues = []
-                      (       std::wstring& str,
-                        const std::wstring& special,
-                        const std::wstring& substitute )
-                      {
-                        if (special.empty ())
-                          return;
-
-                        size_t start_pos = 0;
-
-                        while ((start_pos = str.find (special, start_pos)) != std::string::npos)
-                        {
-                          str.replace (
-                            start_pos, special.length (),
-                            substitute
-                          );
-                          start_pos += substitute.length ();
-                        }
-                      };
-
-                      auto& rkCloudSave =
-                        pAppRecord->cloud_saves [cloud_idx];
-
-                      rkCloudSave.path =
-                        SK_UTF8ToWideChar ((const char *)key.second.second);
-
-                      static unsigned long Steam3AccountID = 0UL;
-                      static uint64        Steam64BitID    = 0ULL;
-
-                      static auto
-                        CacheAccountIDs =
-                         [&](void)
-                          {
-                            WCHAR                    szData [255] = { };
-                            DWORD   dwSize = sizeof (szData);
-                            PVOID   pvData =         szData;
-                            CRegKey hKey ((HKEY)0);
-
-                            if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Valve\Steam\ActiveProcess\)", 0, KEY_READ, &hKey.m_hKey) == ERROR_SUCCESS)
-                            {
-                              if (RegGetValueW (hKey, NULL, L"ActiveUser", RRF_RT_REG_DWORD, NULL, pvData, &dwSize) == ERROR_SUCCESS)
-                                Steam3AccountID = *(DWORD*)pvData;
-                            }
-
-                            Steam64BitID = std::stoull (
-                              SK_UseManifestToGetAppOwner (pAppRecord));
-                          };
-
-                        SK_RunOnce (
-                          CacheAccountIDs ()
-                        );
-
-                      replaceSpecialValues ( rkCloudSave.path,
-                                             L"{64BitSteamID}",
-                               std::to_wstring (Steam64BitID) );
-
-                      replaceSpecialValues ( rkCloudSave.path,
-                                                          L"{Steam3AccountID}",
-                                            std::to_wstring (Steam3AccountID) );
-                    }
-                  }
-                }
-              }
-            }
-          }
-
-#ifdef _WRITE_APPID_INI
-          fprintf (fTest, "[%s]\n", finished_section.name.c_str ());
-
-          for ( auto& datum : finished_section.keys )
-          {
-            if (datum.second.first == appinfo_s::section_s::String)
-              fprintf (fTest, "%s=%s\n",   datum.first,  (char     *)datum.second.second);
-            else if (datum.second.first == appinfo_s::section_s::Int32)
-              fprintf (fTest, "%s=%lu\n",  datum.first, *(uint32_t *)datum.second.second);
-            else if (datum.second.first == appinfo_s::section_s::Int64)
-              fprintf (fTest, "%s=%llu\n", datum.first, *(uint64_t *)datum.second.second);
-          }
-          fprintf (fTest, "\n");
-#endif
-        }
-
-        if (pAppRecord != nullptr)
-        {
-          std::set <std::wstring> _used_paths;
-
-          for ( auto& cloud_save : pAppRecord->cloud_saves )
-          {
-            // This only needs to be done once per-game, per-cloud path
-            if (! cloud_save.second.evaluated_dir.empty ())
-              continue;
-
-            wchar_t     wszTestPath [MAX_PATH + 2] = { };
-            wnsprintf ( wszTestPath, MAX_PATH,
-                          L"%s\\%s", cloud_save.second.root.c_str (),
-                                     cloud_save.second.path.c_str () );
-
-            SK_FixSlashesW           (wszTestPath);
-            SK_StripTrailingSlashesW (wszTestPath);
-            SK_StripLeadingSlashesW  (wszTestPath);
-
-            cloud_save.second.evaluated_dir =
-              wszTestPath;
-
-            // Skip duplicate Auto-Cloud entries
-            if (! _used_paths.emplace (cloud_save.second.evaluated_dir).second)
-              continue;
-          }
-
-          // Steam requires we resolve executable_path here as well
-          for ( auto& launch_cfg : pAppRecord->launch_configs )
-          {
-            if (! pAppRecord->install_dir.empty())
-            {
-              launch_cfg.second.install_dir = pAppRecord->install_dir;
-
-              // EA games using link2ea:// protocol handlers to launch games does not have an executable,
-              //  so this ensures we do not end up testing the installation folder instead (since this has
-              //   bearing on whether a launch config is deemed valid or not as part of the blacklist check)
-              if (launch_cfg.second.isExecutableFileNameValid ( ))
-              {
-                launch_cfg.second.executable_path = launch_cfg.second.install_dir;
-                launch_cfg.second.executable_path.append (L"\\");
-                launch_cfg.second.executable_path.append (launch_cfg.second.getExecutableFileName ( ));
-              }
-            }
-
-            // Populate empty launch descriptions as well
-            if (launch_cfg.second.description.empty())
-            {
-              launch_cfg.second.description      = SK_UTF8ToWideChar (pAppRecord->names.normal);
-              launch_cfg.second.description_utf8 = pAppRecord->names.normal;
-            }
-          }
-        }
-
-#ifdef _WRITE_APPID_INI
-        fclose (fTest);
-#endif
-
-        if (pAppRecord != nullptr)
-          pAppRecord->processed = true;
-
-        return pIter;
-      }
-
-      pIter =
-        pIter->getNextApp ();
+      pAppRecord = static_cast <app_record_steam_s*> (app.second.get ( )); // Steam-store entries are always app_record_steam_s
+      break;
     }
   }
 
-  return nullptr;
+  // If we're dealing with an unrecognized app, process it into a dummy object
+  if (! pAppRecord)
+  {
+    static app_record_steam_s _non_steam (appid);
+    pAppRecord = &_non_steam;
+  }
+
+  // Skip already processed apps
+  else if (pAppRecord->processed)
+    return false;
+
+  static DWORD dwSingleThread  = GetCurrentThreadId ();
+  assert      (dwSingleThread == GetCurrentThreadId ());
+
+  static appinfo_s::section_s      section;
+  appinfo_s::section_desc_s app_desc{};
+
+  section.finished_sections.clear ();
+
+  app_desc.blob = entry.blob;
+  app_desc.size = entry.size;
+
+  section.parse (app_desc, entry.strs);
+//#define _WRITE_APPID_INI
+#ifdef  _WRITE_APPID_INI
+  FILE* fTest =
+    fopen (SK_FormatString ("appid%d.ini", pAppRecord->id).c_str (), "w");
+#endif
+
+  bool populate_appinfo_extended =
+    pAppRecord->extended_config.vac.enabled == -1;
+  bool populate_common =
+    pAppRecord->common_config.appid == 0;
+  bool populate_cloud_saves =
+   //pAppRecord != nullptr &&
+    pAppRecord->cloud_saves.empty ();
+
+  bool populate_branches  =
+  //pAppRecord != nullptr &&
+    pAppRecord->branches.empty ();
+
+  bool populate_launch_configs =
+  //pAppRecord != nullptr      &&
+    pAppRecord->launch_configs.empty ();
+
+  bool get_library_asset_paths = true;
+
+  pAppRecord->install_dir =
+    SK_UseManifestToGetInstallDir (pAppRecord);
+
+  for (auto& finished_section : section.finished_sections)
+  {
+    if (finished_section.keys.empty ())
+      continue;
+
+    if (pAppRecord != nullptr)
+    {
+      if ( populate_appinfo_extended &&
+           0 == finished_section.name.find ("appinfo.extended") )
+      {
+        auto *pVac =
+          &pAppRecord->extended_config.vac;
+
+        //auto *pDev =
+        //  &pAppRecord->extended_config.dev;
+
+        for (auto& key : finished_section.keys)
+        {
+          if (! _stricmp (key.first, "vacmodulefilename"))
+          {
+            pVac->vacmodulefilename =
+              (const char *)key.second.second;
+          }
+
+          if (! pVac->vacmodulefilename.empty ())
+                pVac->enabled = true;
+          else
+                pVac->enabled = false;
+        }
+
+        if (pVac->enabled == -1)
+          pVac->enabled = false;
+      }
+
+      else if (pAppRecord->extended_config.vac.enabled == -1)
+        pAppRecord->extended_config.vac.enabled = false;
+
+      auto _ParseOSArch =
+      [&](appinfo_s::section_s::_kv_pair& kv) ->
+      app_record_s::CPUType
+      {
+        app_record_s::CPUType cpu_type = app_record_s::CPUType::Common;
+        int                   bits = -1;
+
+        // This key is an integer sometimes and a string others, it's a PITA!
+        if (kv.second.first == appinfo_s::section_s::String)
+        {
+          bits =
+            *(char *)kv.second.second;
+
+          if (bits == 0)
+          {
+            cpu_type =
+             app_record_s::CPUType::Any;
+          }
+
+          else
+          {
+            bits =
+              std::atoi ((char *)kv.second.second);
+          }
+        }
+
+        if (bits != 0)
+        {
+          // We have an int32 key, need to extract the value
+          if (bits == -1)
+            bits = *(int32_t *)kv.second.second;
+
+          // else
+          // ... Otherwise we already got the value as a string
+
+          switch (bits)
+          {
+            case 32:
+              cpu_type =
+                app_record_s::CPUType::x86;
+              break;
+            case 64:
+              cpu_type =
+                app_record_s::CPUType::x64;
+              break;
+            default:
+              cpu_type =
+                app_record_s::CPUType::Any;
+              PLOG_ERROR << SK_FormatString ("Got unexpected (int32) CPU osarch=%lu", bits);
+              break;
+          }
+        }
+
+        return cpu_type;
+      };
+
+      if ( populate_common &&
+           0 ==
+           finished_section.name.find ("appinfo.common") )
+      {
+        pAppRecord->common_config.appid = pAppRecord->id;
+
+        for (auto& key : finished_section.keys)
+        {
+          // OS Arch? More like CPU Arch...
+          //
+          // This key, under common_config, either:
+          //  - do not exist at all, see  23310: The Last Remnant           (what does this mean?)
+          //  -            is empty, see    480: Spacewar (or most games)   (what does this mean? x86?)
+          //  -      is set to "64", see 546560: Half-Life: Alyx
+          //
+          // This makes it utterly useless for anything reliable, lol
+          //
+          // See SteamDB's unique values search:
+          // - https://steamdb.info/search/?a=app_keynames&type=-1&keyname=369&operator=9&keyvalue=&display_value=on
+
+          if (! _stricmp (key.first, "osarch"))
+          {
+            pAppRecord->common_config.cpu_type =
+              _ParseOSArch (key);
+          }
+
+          else if (! _stricmp (key.first, "type"))
+          {
+            if      (! _stricmp ((char *)key.second.second, "game"))
+              pAppRecord->common_config.type =
+                app_record_s::common_config_s::AppType::Game;
+            else if (! _stricmp ((char *)key.second.second, "application"))
+              pAppRecord->common_config.type =
+                app_record_s::common_config_s::AppType::Application;
+            else if (! _stricmp ((char *)key.second.second, "tool"))
+              pAppRecord->common_config.type =
+                app_record_s::common_config_s::AppType::Tool;
+            else if (! _stricmp ((char *)key.second.second, "music"))
+              pAppRecord->common_config.type =
+                app_record_s::common_config_s::AppType::Music;
+            else if (! _stricmp ((char *)key.second.second, "demo"))
+              pAppRecord->common_config.type =
+                app_record_s::common_config_s::AppType::Demo;
+          }
+
+          else if (! _stricmp (key.first, "icon"))
+          {
+            pAppRecord->common_config.icon_hash = (char *)key.second.second;
+          }
+        }
+      }
+
+      if ( get_library_asset_paths &&
+           finished_section.name._Equal ("appinfo.common.library_assets_full.library_capsule.image") )
+      {
+        bool found_english_asset = false;
+        for (auto& key : finished_section.keys)
+        {
+          if (! _stricmp (key.first, "english"))
+          {
+            pAppRecord->common_config.boxart_hash = (const char*)key.second.second;
+            found_english_asset = true;
+            break;
+          }
+        }
+
+        if (! found_english_asset)
+        {
+          // Since language is not known, just use the first language found
+          for (auto& key : finished_section.keys)
+          {
+            pAppRecord->common_config.boxart_hash = (const char*)key.second.second;
+            break;
+          }
+        }
+        get_library_asset_paths = false;
+      }
+
+      if ( populate_launch_configs &&
+           0 ==
+           finished_section.name.find ("appinfo.config.launch.")
+         )
+      {
+        //PLOG_VERBOSE << "---------------------------";
+
+        int launch_idx_skif =
+          static_cast<int> (pAppRecord->launch_configs.size());
+        int launch_idx_steam = 0; // Steam's index of the launch option (shown in the launch option's menu)
+
+        std::sscanf ( finished_section.name.c_str (),
+                        "appinfo.config.launch.%d", &launch_idx_steam);
+
+        // The index used solely for parsing
+        int idx = launch_idx_steam;
+
+        // Each launch option is made up of two sections that both end up here, as both match "appinfo.config.launch.":
+        //   appinfo.config.launch.<N>         -- executable, arguments, workingdir, type, description
+        //   appinfo.config.launch.<N>.config  -- oslist, osarch, betakey, ownsdlc
+        // so both are keyed by Steam's index <N> to end up in the same launch config (the map is renumbered below)
+        auto& launch_cfg =
+          pAppRecord->launch_configs [launch_idx_steam];
+
+        launch_cfg.id       = launch_idx_skif;
+        launch_cfg.id_steam = launch_idx_steam;
+
+        // Holds Widechar strings (external)
+        std::unordered_map <std::string, std::wstring*>
+          wstring_map = {
+            { "executable",  &launch_cfg.executable     },
+            { "arguments",   &launch_cfg.launch_options },
+            { "description", &launch_cfg.description    },
+            { "workingdir",  &launch_cfg.working_dir    }
+          };
+
+        // Holds UTF8 strings (internal only)
+        std::unordered_map <std::string, std::string*>
+           string_map = {
+            { "ownsdlc",     &launch_cfg.requires_dlc   }
+          };
+
+        for (auto& key : finished_section.keys)
+        {
+          if (! _stricmp (key.first, "oslist"))
+          {
+            if (StrStrIA ((const char *)key.second.second, "windows"))
+            {
+              app_record_s::addSupportFor (
+                pAppRecord->launch_configs [idx].platforms,
+                                          app_record_s::Platform::Windows
+                );
+            }
+
+            else
+              pAppRecord->launch_configs [idx].platforms =
+                app_record_s::Platform::Unknown;
+          }
+
+          else if (! _stricmp (key.first, "osarch"))
+          {
+            // OS Arch? More like CPU Arch...
+            pAppRecord->launch_configs [idx].cpu_type =
+              _ParseOSArch (key);
+          }
+
+          else if (! _stricmp (key.first, "betakey"))
+          {
+            // Populate required betas for this launch option
+            std::istringstream betas((const char *)key.second.second);
+            std::string beta;
+            while (std::getline (betas, beta, ' '))
+              pAppRecord->launch_configs [idx].branches.emplace (beta);
+          }
+
+          else if (! _stricmp (key.first, "type"))
+          {
+            if (! _stricmp ((char *)key.second.second,      "default"))
+              pAppRecord->launch_configs [idx].type =
+                app_record_s::launch_config_s::Type::Default;
+
+            else if (! _stricmp ((char *)key.second.second, "option1"))
+              pAppRecord->launch_configs [idx].type =
+                app_record_s::launch_config_s::Type::Option1;
+
+            else if (! _stricmp ((char *)key.second.second, "option2"))
+              pAppRecord->launch_configs [idx].type =
+                app_record_s::launch_config_s::Type::Option2;
+
+            else if (! _stricmp ((char *)key.second.second, "option3"))
+              pAppRecord->launch_configs [idx].type =
+                app_record_s::launch_config_s::Type::Option3;
+
+            else if (! _stricmp ((char *)key.second.second, "none"))
+              pAppRecord->launch_configs [idx].type =
+                app_record_s::launch_config_s::Type::Unspecified;
+          }
+
+          else if (wstring_map.count (key.first) != 0)
+          {
+            auto& string_dest =
+              wstring_map [key.first];
+
+            *string_dest =
+              SK_UTF8ToWideChar ((const char *)key.second.second);
+          }
+
+          else if (string_map.count (key.first) != 0)
+          {
+            auto& string_dest =
+              string_map [key.first];
+
+            *string_dest =
+              std::string ((const char *)key.second.second);
+          }
+        }
+
+#if 0
+
+        PLOG_VERBOSE << "Steam Launch ID   : " <<       launch_idx_steam;
+        PLOG_VERBOSE << "SKIF  Launch ID   : " <<       launch_idx_skif;
+        PLOG_VERBOSE << "Executable        : " <<       launch_cfg.executable;
+        PLOG_VERBOSE << "Arguments         : " <<       launch_cfg.launch_options;
+        PLOG_VERBOSE << "Working Directory : " <<       launch_cfg.working_dir;
+        PLOG_VERBOSE << "Launch Type       : " << (int) launch_cfg.type;
+        PLOG_VERBOSE << "Description       : " <<       launch_cfg.description;
+        PLOG_VERBOSE << "Operating System  : " << (int) launch_cfg.platforms;
+        PLOG_VERBOSE << "CPU Architecture  : " << (int) launch_cfg.cpu_type;
+        PLOG_VERBOSE << "Beta branches     : " <<       launch_cfg.branches.size ( );
+        PLOG_VERBOSE << "Requires DLC      : " <<       launch_cfg.requires_dlc;
+
+#endif
+
+      }
+    }
+  }
+
+  // If the appinfo.vdf didn't contain library asset paths, default to standard path
+  if (get_library_asset_paths)
+  {
+    pAppRecord->common_config.boxart_hash = "library_600x900.jpg";
+  }
+
+  // At this point, since we used Steam's index as the position to stuff data into, the vector has
+  //   has objects all over -- some at 0, some at 1, others at 0-4, not 5, 6-9. Basically we cannot
+  //     be certain of anything, at all, what so bloody ever! So let's just recreate the std::map!
+
+  std::vector <app_record_s::launch_config_s> _cleaner;
+  _cleaner.reserve (pAppRecord->launch_configs.size ( ));
+
+  // Put away put away put away put away
+  for ( auto& keep : pAppRecord->launch_configs )
+    _cleaner.push_back (std::move (keep.second));
+
+  // Clean clean clean clean!
+  pAppRecord->launch_configs.clear ();
+
+  // Restore restore restore restore!
+  for ( auto& launch : _cleaner )
+  {
+    // Reset SKIF's internal identifer for the launch configs
+    launch.id =
+      static_cast<int> (pAppRecord->launch_configs.size());
+
+    // Add it back
+    pAppRecord->launch_configs.emplace (
+      static_cast<int> (pAppRecord->launch_configs.size()),
+      std::move (launch));
+  }
+  // std::map is now reliable again!
+
+  std::set    <std::wstring>          _used_executables;
+  std::set    <std::wstring>          _used_executables_arguments;
+  std::vector <app_record_s::launch_config_s> _launches;
+
+  // Now add in our custom launch configs!
+  for (auto& custom_cfg : pAppRecord->launch_configs_custom)
+  {
+    custom_cfg.second.id =
+      static_cast<int> (pAppRecord->launch_configs.size());
+
+    // Custom launch config, so Steam launch ID is nothing we use
+    custom_cfg.second.id_steam = -1;
+
+    const int custom_id = custom_cfg.second.id;
+
+    // The custom launches are cleared below, so they can be moved over
+    if (! pAppRecord->launch_configs.emplace (custom_id, std::move (custom_cfg.second)).second)
+      PLOG_ERROR << "Failed adding a custom launch config to the launch map. An element at that position already exists!";
+  }
+
+  // Clear out the custom launches once they've been populated
+  pAppRecord->launch_configs_custom.clear();
+
+  for ( auto& launch_cfg : pAppRecord->launch_configs )
+  {
+    auto& launch = launch_cfg.second;
+
+    // Summarize the branches in a comma-delimited string as well
+    if (! launch.branches.empty())
+    {
+      for (auto const& branch : launch.branches)
+        launch.branches_joined += branch + ", ";
+
+      // Remove trailing comma and space
+      launch.branches_joined.pop_back();
+      launch.branches_joined.pop_back();
+    }
+
+    // Filter launch configurations for other OSes
+    if ( (! app_record_s::supports (launch.platforms,
+                             app_record_s::Platform::Windows) ))
+      continue;
+
+    // Filter launch configurations lacking an executable
+    if (launch.executable.empty())
+      continue;
+
+    // Filter launch configurations requiring a beta branch that the user do not have
+    if (! launch.branches.empty() && launch.branches.count (pAppRecord->steam.branch) == 0)
+      launch.valid = 0;
+
+    // File extension, so we can flag out non-executable ones (e.g. link2ea)
+    const wchar_t* pwszExtension =
+      PathFindExtension (launch.executable.c_str());
+
+    // If we cannot find an extension, or if it's not .exe, flag the launch config as invalid
+    if (pwszExtension == NULL || (pwszExtension + 1) == NULL || _wcsicmp (pwszExtension, L".exe") != 0)
+      launch.valid = 0;
+
+    // Clean valid executable paths
+    if (launch.valid)
+      launch.executable = std::filesystem::path(launch.executable).lexically_normal();
+
+
+    // Working dir = empty, ., / or \ all need fixups
+    if ( wcslen (launch.working_dir.c_str ()) < 2 )
+    {
+      if ( launch.working_dir [0] == L'/'  ||
+           launch.working_dir [0] == L'\\' ||
+           launch.working_dir [0] == L'.'  ||
+           launch.working_dir [0] == L'\0' )
+      {
+        launch.working_dir.clear();
+      }
+    }
+
+    // Fix working directories
+    if (! launch.working_dir.empty())
+    {
+      launch.working_dir = std::wstring (pAppRecord->install_dir + LR"(\)" + launch.working_dir + L"\0\0");
+      launch.working_dir = std::filesystem::path(launch.working_dir).lexically_normal();
+    }
+
+    // Flag duplicates (after the working directory has been fixed up, as it is part of the comparison below)...
+    //   but not if we found them as not valid above (as that would filter out custom launch configs that matches beta launch configs...)
+    if (launch.isExecutableFileNameValid() && launch.valid)
+    {
+      // Use the executable to identify duplicates (affects Disable Special K menu)
+      if (! _used_executables.emplace (launch.getExecutableFileName()).second)
+        launch.duplicate_exe = true;
+
+      // Use a combination of the executable, arguments, and working directory to identify duplicates (affects Instant Play menu)
+      //   Launch options that only differ in their working directory, or in their environment variables, are different launches
+      if (! _used_executables_arguments.emplace (launch.getExecutableFileName() + launch.getLaunchOptions() + L"|" + launch.working_dir + SKIF_EnvVars::GetKey (launch.env)).second)
+        launch.duplicate_exe_args = true;
+    }
+
+    // Flag the launch config to be added back (launch_configs is cleared below)
+    _launches.push_back (std::move (launch));
+  }
+
+  pAppRecord->launch_configs.clear ();
+
+  for ( auto& launch : _launches )
+  {
+    // Reset SKIF's internal identifer for the launch configs
+    launch.id =
+      static_cast<int> (pAppRecord->launch_configs.size());
+
+#if 0
+
+    PLOG_VERBOSE << "SKIF  Launch ID   : " <<       launch.id;
+    PLOG_VERBOSE << "Steam Launch ID   : " <<       launch.id_steam;
+    PLOG_VERBOSE << "Executable        : " <<       launch.executable;
+    PLOG_VERBOSE << "Arguments         : " <<       launch.launch_options;
+    PLOG_VERBOSE << "Working Directory : " <<       launch.working_dir;
+    PLOG_VERBOSE << "Launch Type       : " << (int) launch.type;
+    PLOG_VERBOSE << "Description       : " <<       launch.description;
+    PLOG_VERBOSE << "Operating System  : " << (int) launch.platforms;
+    PLOG_VERBOSE << "CPU Architecture  : " << (int) launch.cpu_type;
+    PLOG_VERBOSE << "Beta branches     : " <<       launch.branches_joined;
+    PLOG_VERBOSE << "Requires DLC      : " <<       launch.requires_dlc;
+
+#endif
+
+    // Add it back
+    pAppRecord->launch_configs.emplace (
+      static_cast<int> (pAppRecord->launch_configs.size()),
+      std::move (launch));
+  }
+
+  // Naively move the first Default launch config type to the front
+  int firstValidFound = -1;
+
+  for (auto& launch : pAppRecord->launch_configs)
+  {
+    // Ignore invalid launch options, e.g. those requiring a beta branch the user is not on
+    //   (launch options for the beta branch the user *is* on may become the primary one)
+    if (! launch.second.valid)
+      continue;
+
+    if (launch.second.type == app_record_s::launch_config_s::Type::Default)
+    {
+      firstValidFound = launch.first;
+      break;
+    }
+  }
+
+  if (firstValidFound != -1)
+  {
+    app_record_s::launch_config_s copy             = pAppRecord->launch_configs[0];
+    pAppRecord->launch_configs[0]                  = pAppRecord->launch_configs[firstValidFound];
+    pAppRecord->launch_configs[firstValidFound]    = copy;
+
+    // Swap the internal identifers that SKIF uses (default becomes 0, not-default becomes not)
+    int copy_id                                    = pAppRecord->launch_configs[0].id;
+    pAppRecord->launch_configs[0].id               = 0;
+    pAppRecord->launch_configs[firstValidFound].id = copy_id;
+  }
+#if 0
+
+  for (auto& launch : pAppRecord->launch_configs)
+  {
+    PLOG_VERBOSE << "SKIF  Launch ID   : " <<       launch.second.id;
+    PLOG_VERBOSE << "Steam Launch ID   : " <<       launch.second.id_steam;
+    PLOG_VERBOSE << "Executable        : " <<       launch.second.executable;
+    PLOG_VERBOSE << "Arguments         : " <<       launch.second.launch_options;
+    PLOG_VERBOSE << "Working Directory : " <<       launch.second.working_dir;
+    PLOG_VERBOSE << "Launch Type       : " << (int) launch.second.type;
+    PLOG_VERBOSE << "Description       : " <<       launch.second.description;
+    PLOG_VERBOSE << "Operating System  : " << (int) launch.second.platforms;
+    PLOG_VERBOSE << "CPU Architecture  : " << (int) launch.second.cpu_type;
+    PLOG_VERBOSE << "Beta branches     : " <<       launch.second.branches_joined;
+    PLOG_VERBOSE << "Requires DLC      : " <<       launch.second.requires_dlc;
+  }
+
+#endif
+
+  std::map <std::string, std::wstring> roots = {
+    { "WinMyDocuments",        _path_cache.my_documents.path          },
+    { "WinAppDataLocal",       _path_cache.app_data_local.path        },
+    { "WinAppDataLocalLow",    _path_cache.app_data_local_low.path    },
+    { "WinAppDataRoaming",     _path_cache.app_data_roaming.path      },
+    { "WinSavedGames",         _path_cache.win_saved_games.path       },
+    { "App Install Directory", pAppRecord->install_dir                },
+    { "gameinstall",           pAppRecord->install_dir                },
+    { "SteamCloudDocuments",   L"<Steam Cloud Docs>"                  }
+  };
+
+  std::wstring account_id_str   = L"anonymous";
+
+  std::wstring cloud_path       =
+    SK_FormatStringW (      LR"(%ws\userdata\%ws\%d\)",
+        _path_cache.steam_install, account_id_str.c_str (),
+                                       appid );
+
+  roots ["SteamCloudDocuments"] =
+    cloud_path;
+
+  for (auto& finished_section : section.finished_sections)
+  {
+    if (finished_section.keys.empty ())
+      continue;
+
+    if (pAppRecord != nullptr)
+    {
+      if ( populate_cloud_saves &&
+             0 ==
+               finished_section.name.find ("appinfo.ufs.rootoverrides.") )
+      {
+        std::wstring ufs_root;
+        std::wstring use_instead;
+        std::wstring add_path;
+
+        std::unordered_map <std::string, std::wstring*>
+          string_map = {
+            { "root",       &ufs_root    },
+            { "useinstead", &use_instead },
+            { "addpath",    &add_path    }
+          };
+
+        for ( auto& key : finished_section.keys )
+        {
+          if (! _stricmp (key.first, "os"))
+          {
+            if (_stricmp ((char *)key.second.second, "windows"))
+            {
+              ufs_root.clear    ();
+              add_path.clear    ();
+              use_instead.clear ();
+              break;
+            }
+          }
+
+          else
+          {
+            std::wstring* pStr = nullptr;
+
+            auto it =
+              string_map.find (key.first);
+
+            if (it != string_map.cend ())
+              pStr = it->second;
+
+            if (pStr != nullptr)
+               *pStr = SK_UTF8ToWideChar ((char *)key.second.second);
+
+            if (pStr == &add_path)
+              add_path += LR"(\)";
+          }
+        }
+
+        if (! ufs_root.empty ())
+        {
+          auto utf8_ufs_root =
+            SK_WideCharToUTF8 (ufs_root);
+
+          if (! use_instead.empty ())
+          { // Some games have overrides that don't override anything
+            if (! use_instead._Equal (ufs_root))
+            {
+              auto utf8_use_instead =
+                SK_WideCharToUTF8 (use_instead);
+
+              roots [utf8_ufs_root] = roots.count (utf8_use_instead) != 0 ?
+                                            roots [utf8_use_instead]      :
+                                                        use_instead;
+            }
+          }
+
+          if (! add_path.empty ())
+          {
+            roots [utf8_ufs_root] += add_path;
+          }
+        }
+      }
+
+      if ( populate_branches &&
+                           0 ==
+             finished_section.name.find ("appinfo.depots.branches."))
+      {
+        std::string branch_name =
+          finished_section.name.substr (24);
+
+        auto *branch_ptr =
+          &pAppRecord->branches [branch_name];
+
+
+        static const
+          std::unordered_map <std::string, ptrdiff_t>
+            int_map = {
+              { "buildid",     offsetof (app_record_s::branch_record_s, build_id)     },
+              { "pwdrequired", offsetof (app_record_s::branch_record_s, pwd_required) },
+              { "timeupdated", offsetof (app_record_s::branch_record_s, time_updated) }
+            };
+
+        static const
+          std::unordered_map <std::string, ptrdiff_t>
+            str_map = {
+              { "description", offsetof (app_record_s::branch_record_s, description) }
+            };
+
+        int matches = 0;
+
+        for ( auto& key : finished_section.keys )
+        {
+          auto pInt =
+            int_map.find (key.first);
+
+          if (pInt != int_map.cend ())
+            *(uint32_t *)VOID_OFFSET (branch_ptr,pInt->second) =
+              *(uint32_t *)key.second.second, ++matches;
+
+          else
+          {
+            auto pStr =
+              str_map.find (key.first);
+
+            if (pStr != str_map.cend ()) {
+               *(std::wstring *)VOID_OFFSET (branch_ptr,pStr->second) =
+                 SK_UTF8ToWideChar (
+                   (char *)key.second.second
+                 ), ++matches;
+            }
+          }
+        }
+
+        if (matches > 0)
+          pAppRecord->branches       [branch_name].parent = pAppRecord;
+        else
+          pAppRecord->branches.erase (branch_name);
+      }
+    }
+  }
+
+  for ( auto& finished_section : section.finished_sections )
+  {
+    if (finished_section.keys.empty ())
+      continue;
+
+    if (pAppRecord != nullptr)
+    {
+      if ( populate_cloud_saves &&
+                              0 ==
+             finished_section.name.find ("appinfo.ufs") )
+
+      {
+        if (finished_section.name._Equal ("appinfo.ufs"))
+        {
+          for ( auto& ufs_key : finished_section.keys )
+          {
+            if (! _stricmp (ufs_key.first, "hidecloudui"))
+            {
+              pAppRecord->cloud_enabled =
+                (*(uint32_t *)ufs_key.second.second) == 0;
+            }
+          }
+        }
+
+        else if (0 == finished_section.name.find ("appinfo.ufs.savefiles."))
+        {
+          int cloud_idx = 0;
+
+          std::sscanf (
+            finished_section.name.c_str (),
+              "appinfo.ufs.savefiles.%d",
+                &cloud_idx
+          );
+
+          static const
+            std::unordered_map <std::string, app_record_s::Platform>
+              platform_map = {
+                { "windows", app_record_s::Platform::Windows },
+                { "linux",   app_record_s::Platform::Linux   },
+                { "mac",     app_record_s::Platform::Mac     },
+                { "all",     app_record_s::Platform::All     }
+              };
+
+          if (finished_section.name.find ("platforms") != std::string::npos)
+          {
+            for (auto& platform : finished_section.keys)
+            {
+              if (pAppRecord->cloud_saves.count (cloud_idx) != 0)
+              {
+                try
+                {
+                  pAppRecord->cloud_saves [cloud_idx].platforms =
+                    platform_map.at ((const char *)platform.second.second);
+                }
+                catch (const std::out_of_range& e) { UNREFERENCED_PARAMETER (e); };
+              }
+            }
+          }
+
+          else
+          {
+            for (auto& key : finished_section.keys)
+            {
+              if (! _stricmp (key.first, "root"))
+              {
+                pAppRecord->cloud_saves [cloud_idx].root =
+                  roots [(const char *)key.second.second];
+              }
+
+              else if (! _stricmp (key.first, "path"))
+              {
+                auto replaceSpecialValues = []
+                (       std::wstring& str,
+                  const std::wstring& special,
+                  const std::wstring& substitute )
+                {
+                  if (special.empty ())
+                    return;
+
+                  size_t start_pos = 0;
+
+                  while ((start_pos = str.find (special, start_pos)) != std::string::npos)
+                  {
+                    str.replace (
+                      start_pos, special.length (),
+                      substitute
+                    );
+                    start_pos += substitute.length ();
+                  }
+                };
+
+                auto& rkCloudSave =
+                  pAppRecord->cloud_saves [cloud_idx];
+
+                rkCloudSave.path =
+                  SK_UTF8ToWideChar ((const char *)key.second.second);
+
+                static unsigned long Steam3AccountID = 0UL;
+                static uint64        Steam64BitID    = 0ULL;
+
+                static auto
+                  CacheAccountIDs =
+                   [&](void)
+                    {
+                      WCHAR                    szData [255] = { };
+                      DWORD   dwSize = sizeof (szData);
+                      PVOID   pvData =         szData;
+                      CRegKey hKey ((HKEY)0);
+
+                      if (RegOpenKeyExW (HKEY_CURRENT_USER, LR"(SOFTWARE\Valve\Steam\ActiveProcess\)", 0, KEY_READ, &hKey.m_hKey) == ERROR_SUCCESS)
+                      {
+                        if (RegGetValueW (hKey, NULL, L"ActiveUser", RRF_RT_REG_DWORD, NULL, pvData, &dwSize) == ERROR_SUCCESS)
+                          Steam3AccountID = *(DWORD*)pvData;
+                      }
+
+                      Steam64BitID = std::stoull (
+                        SK_UseManifestToGetAppOwner (pAppRecord));
+                    };
+
+                  SK_RunOnce (
+                    CacheAccountIDs ()
+                  );
+
+                replaceSpecialValues ( rkCloudSave.path,
+                                       L"{64BitSteamID}",
+                         std::to_wstring (Steam64BitID) );
+
+                replaceSpecialValues ( rkCloudSave.path,
+                                                    L"{Steam3AccountID}",
+                                      std::to_wstring (Steam3AccountID) );
+              }
+            }
+          }
+        }
+      }
+    }
+
+#ifdef _WRITE_APPID_INI
+    fprintf (fTest, "[%s]\n", finished_section.name.c_str ());
+
+    for ( auto& datum : finished_section.keys )
+    {
+      if (datum.second.first == appinfo_s::section_s::String)
+        fprintf (fTest, "%s=%s\n",   datum.first,  (char     *)datum.second.second);
+      else if (datum.second.first == appinfo_s::section_s::Int32)
+        fprintf (fTest, "%s=%lu\n",  datum.first, *(uint32_t *)datum.second.second);
+      else if (datum.second.first == appinfo_s::section_s::Int64)
+        fprintf (fTest, "%s=%llu\n", datum.first, *(uint64_t *)datum.second.second);
+    }
+    fprintf (fTest, "\n");
+#endif
+  }
+
+  if (pAppRecord != nullptr)
+  {
+    std::set <std::wstring> _used_paths;
+
+    for ( auto& cloud_save : pAppRecord->cloud_saves )
+    {
+      // This only needs to be done once per-game, per-cloud path
+      if (! cloud_save.second.evaluated_dir.empty ())
+        continue;
+
+      wchar_t     wszTestPath [MAX_PATH + 2] = { };
+      wnsprintf ( wszTestPath, MAX_PATH,
+                    L"%s\\%s", cloud_save.second.root.c_str (),
+                               cloud_save.second.path.c_str () );
+
+      SK_FixSlashesW           (wszTestPath);
+      SK_StripTrailingSlashesW (wszTestPath);
+      SK_StripLeadingSlashesW  (wszTestPath);
+
+      cloud_save.second.evaluated_dir =
+        wszTestPath;
+
+      // Skip duplicate Auto-Cloud entries
+      if (! _used_paths.emplace (cloud_save.second.evaluated_dir).second)
+        continue;
+    }
+
+    // Steam requires we resolve executable_path here as well
+    for ( auto& launch_cfg : pAppRecord->launch_configs )
+    {
+      if (! pAppRecord->install_dir.empty())
+      {
+        launch_cfg.second.install_dir = pAppRecord->install_dir;
+
+        // EA games using link2ea:// protocol handlers to launch games does not have an executable,
+        //  so this ensures we do not end up testing the installation folder instead (since this has
+        //   bearing on whether a launch config is deemed valid or not as part of the blacklist check)
+        if (launch_cfg.second.isExecutableFileNameValid ( ))
+        {
+          launch_cfg.second.executable_path = launch_cfg.second.install_dir;
+          launch_cfg.second.executable_path.append (L"\\");
+          launch_cfg.second.executable_path.append (launch_cfg.second.getExecutableFileName ( ));
+        }
+      }
+
+      // Populate empty launch descriptions as well
+      if (launch_cfg.second.description.empty())
+      {
+        launch_cfg.second.description      = SK_UTF8ToWideChar (pAppRecord->names.normal);
+        launch_cfg.second.description_utf8 = pAppRecord->names.normal;
+      }
+    }
+  }
+
+#ifdef _WRITE_APPID_INI
+  fclose (fTest);
+#endif
+
+  if (pAppRecord != nullptr)
+    pAppRecord->processed = true;
+
+  return true;
 }
