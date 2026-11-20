@@ -122,7 +122,7 @@ _UpdateSteamCoverURICandidates (void)
 
   lastSwap = games.GetSwapCount ( );
 
-  std::vector <uint32_t> ids;
+  std::vector <steam_cover_candidate_s> candidates;
 
   {
     std::scoped_lock app_lock (games.GetMutex ( ));
@@ -132,11 +132,11 @@ _UpdateSteamCoverURICandidates (void)
       const app_record_s* rec = app.second.get ( );
 
       if (rec != nullptr && rec->store == app_record_s::Store::Steam && rec->id != 0 && ! rec->IsSpecialK ( ))
-        ids.push_back (rec->id);
+        candidates.push_back ({ rec->id, rec->common_config.boxart_hash });
     }
   }
 
-  SKIF_Steam_SetCoverURICandidates (std::move (ids));
+  SKIF_Steam_SetCoverURICandidates (std::move (candidates));
 }
 
 // The cover pipeline of the cover worker and the thumbnail builds (worker threads): the store's cover (downloaded when

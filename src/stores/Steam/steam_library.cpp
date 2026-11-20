@@ -1951,58 +1951,98 @@ SKIF_Steam_IdentifyAssetPCGW (uint32_t app_id)
 //
 //   SKIF_Steam_GetCoverURI ( ) used to send one request per game (and one per region tried), each taking about a second,
 //     which held up every cover download behind it. Now a caller queues its game and waits; a batch worker sends one
-//       request for up to s_coverURIBatchMax queued games, and fills the rest of the batch with other games of the library
-//         that have no cover of SKIF's yet (SKIF_Steam_SetCoverURICandidates), so their lookups are done before they are
-//           asked for. Games the store does not return are retried in the next regions, in one batch per region once the
-//             first region is done for all games.
+//       request for up to s_coverURIBatchMax queued games, the asked-for ones first, and fills the rest of the batch with
+//         other games of the library that will need a download (no cover of SKIF's nor of the Steam client;
+//           SKIF_Steam_SetCoverURICandidates), so their lookups are done before they are asked for. Asked-for games the
+//             store does not return are retried in the next regions, in one batch per region once the first region is done.
 //
-//   Results are kept for the session (also "not found"), so a game is looked up at most once.
-//   If a batch gets no usable answer at all (e.g. the API refuses that many games), its games are looked up one at a time.
+//   Games looked up ahead are only tried in the first region: one not found there, or whose batch got no usable answer,
+//     is forgotten, and looked up in full if it is asked for later.
+//   Results are kept for the session (also "not found"), so a game is looked up at most once. A request that got no
+//     response (offline, a server error, rate limited) is not: its asked-for games fail and are looked up again when asked
+//       again, and no more games are looked up ahead until the library changes.
+//   If a batch gets an HTTP answer that isn't usable (e.g. the API refuses that many games), its asked-for games are
+//     looked up one at a time.
+
+extern std::atomic<bool> SKIF_Shutdown; // SKIF.cpp
 
 namespace
 {
   struct steam_cover_uri_s {
-    enum class State { Queued, InFlight, Resolved, NotFound };
+    enum class State { Queued, InFlight, Resolved, NotFound, Failed };
 
-    State        state  = State::Queued;
-    size_t       region = 0;     // Index into s_coverURIRegions of its next (or current) lookup
-    bool         solo   = false; // Looked up on its own (its batch got no usable answer)
-    std::string  format;         // asset_url_format: steam/apps/2483190/${FILENAME}?t=1779221600
-    std::string  capsule2x;      // library_capsule_2x: library_600x900_2x.jpg
-    std::string  capsule;        // library_capsule:    library_600x900.jpg
+    State        state     = State::Queued;
+    size_t       region    = 0;     // Index into s_coverURIRegions of its next (or current) lookup
+    bool         requested = false; // Asked for through SKIF_Steam_GetCoverURI ( ), not just looked up ahead
+    bool         solo      = false; // Looked up on its own (its batch got no usable answer)
+    std::string  format;            // asset_url_format: steam/apps/2483190/${FILENAME}?t=1779221600
+    std::string  capsule2x;         // library_capsule_2x: library_600x900_2x.jpg
+    std::string  capsule;           // library_capsule:    library_600x900.jpg
   };
 
   const std::initializer_list <const char*>
-                                           s_coverURIRegions    = { "US", "UK", "AU", "FR", "PL", "DE", "JP", "CN", "RU" };
-  constexpr size_t                         s_coverURIBatchMax   = 40;   // Keeps the query within INTERNET_MAX_PATH_LENGTH (SKIF_Util_GetWebResource)
-  constexpr size_t                         s_coverURIQueryMax   = 2000; // Characters of the query, as a safeguard
-  constexpr int                            s_coverURIWorkersMax = 2;    // So a slow batch (e.g. of a region retry) doesn't hold up the others
+                   s_coverURIRegions    = { "US", "UK", "AU", "FR", "PL", "DE", "JP", "CN", "RU" };
+  constexpr size_t s_coverURIBatchMax   = 40;   // Keeps the query within INTERNET_MAX_PATH_LENGTH (SKIF_Util_GetWebResource)
+  constexpr size_t s_coverURIQueryMax   = 2000; // Characters of the query, as a safeguard
+  constexpr int    s_coverURIWorkersMax = 2;    // So a slow batch (e.g. of a region retry) doesn't hold up the others
 
-  std::mutex                               s_coverURIMutex;
-  std::condition_variable                  s_coverURIResults;    // Signalled when lookups have finished
-  std::unordered_map <uint32_t,
-                      steam_cover_uri_s>   s_coverURIs;          // Every game queued or looked up this session
-  std::deque <uint32_t>                    s_coverURIQueue;      // Queued games, in the order they were asked for (retries at the end)
-  std::vector <uint32_t>                   s_coverURICandidates; // Games of the library to look up ahead (SKIF_Steam_SetCoverURICandidates)
-  size_t                                   s_coverURICandidate  = 0; // The next one of them to consider
-  int                                      s_coverURIWorkers    = 0; // Batch workers running
-  int                                      s_coverURIFirstInFlight = 0; // First-region batches being looked up (retries wait for them)
+  // The shared state of the lookups. Never destroyed: a detached batch worker may still be waiting on a request when the
+  //   process exits, and must not wake up to a destroyed mutex or map.
+  struct steam_cover_uris_s {
+    std::mutex                             mutex;
+    std::condition_variable                results;           // Signalled when lookups have finished
+    std::unordered_map <uint32_t,
+                        steam_cover_uri_s> entries;           // Every game queued or looked up this session
+    std::deque <uint32_t>                  queue;             // Queued games, in the order they were asked for (retries at the end)
+    std::vector <steam_cover_candidate_s>  candidates;        // Games of the library to look up ahead (SKIF_Steam_SetCoverURICandidates)
+    size_t                                 candidate     = 0; // The next one of them to consider
+    int                                    workers       = 0; // Batch workers running
+    int                                    firstInFlight = 0; // First-region batches being looked up (retries wait for them)
+  };
 
-  void _StartCoverURIWorker (void); // s_coverURIMutex held
+  steam_cover_uris_s&
+  _CoverURIs (void)
+  {
+    static steam_cover_uris_s* s = new steam_cover_uris_s; // Intentionally leaked (see above)
+    return *s;
+  }
 
-  // The batch worker: takes batches until nothing is queued and no candidate is left
+  // The Steam client's copy of a game's cover (PrepareCoverSource); with an unknown boxart hash, just its librarycache folder
+  std::wstring
+  _GetClientCoverPath (uint32_t app_id, const std::string& boxart_hash)
+  {
+    static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+
+    return std::wstring (_path_cache.steam_install) + LR"(/appcache/librarycache/)" +
+             std::to_wstring (app_id) + L"/" + SK_FormatStringW (L"%hs", boxart_hash.c_str ( ));
+  }
+
+  // Regular files only: with an unknown boxart hash, the client cover path is just a folder
+  bool
+  _IsRegularFile (const std::wstring& path)
+  {
+    DWORD dwAttributes = GetFileAttributesW (path.c_str ( ));
+    return (dwAttributes != INVALID_FILE_ATTRIBUTES && ! (dwAttributes & FILE_ATTRIBUTE_DIRECTORY));
+  }
+
+  void _StartCoverURIWorker (void); // The mutex held
+
+  // The batch worker: takes batches until nothing is queued and no candidate is left, or SKIF is shutting down
   void
   _CoverURIWorker (void)
   {
     SKIF_Util_SetThreadDescription (GetCurrentThread (), L"SKIF_SteamCoverURIWorker");
 
     static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+    static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
 
     const std::string pattern = "${FILENAME}";
 
-    std::unique_lock lock (s_coverURIMutex);
+    steam_cover_uris_s& st = _CoverURIs ( );
 
-    while (true)
+    std::unique_lock lock (st.mutex);
+
+    while (! SKIF_Shutdown.load ( ))
     {
       std::vector <uint32_t> batch;
       size_t                 region = 0;
@@ -2010,82 +2050,89 @@ namespace
       // Moves the queued games matching pred (in queue order) to the batch, up to max
       auto _TakeQueued = [&](auto pred, size_t max)
       {
-        for (auto it = s_coverURIQueue.begin ( ); it != s_coverURIQueue.end ( ) && batch.size ( ) < max; )
+        for (auto it = st.queue.begin ( ); it != st.queue.end ( ) && batch.size ( ) < max; )
         {
-          if (pred (s_coverURIs [*it]))
+          if (pred (st.entries [*it]))
           {
             batch.push_back (*it);
-            it = s_coverURIQueue.erase (it);
+            it = st.queue.erase (it);
           }
           else
             ++it;
         }
       };
 
-      // 1. A game whose batch got no usable answer: on its own, in its region
+      // 1. An asked-for game whose batch got no usable answer: on its own, in its region
       _TakeQueued ([](const steam_cover_uri_s& entry) { return entry.solo; }, 1);
 
       const bool solo = ! batch.empty ( );
 
       if (solo)
-        region = s_coverURIs [batch.front ( )].region;
+        region = st.entries [batch.front ( )].region;
 
-      // 2. The first region: the asked-for games, then the library's other games without a cover of SKIF's.
-      //   The files are checked without the lock.
+      // 2. The first region: the asked-for games, then the other queued ones, then the library's other games that will
+      //   need a download. The files are checked without the lock.
       else
       {
-        _TakeQueued ([](const steam_cover_uri_s& entry) { return entry.region == 0; }, s_coverURIBatchMax);
+        _TakeQueued ([](const steam_cover_uri_s& entry) { return entry.region == 0 && entry.requested; }, s_coverURIBatchMax);
+        _TakeQueued ([](const steam_cover_uri_s& entry) { return entry.region == 0;                    }, s_coverURIBatchMax);
 
-        while (batch.size ( ) < s_coverURIBatchMax && s_coverURICandidate < s_coverURICandidates.size ( ))
+        // Nothing is looked up ahead in low bandwidth mode
+        if (_registry.bLowBandwidthMode)
+          st.candidate = st.candidates.size ( );
+
+        while (batch.size ( ) < s_coverURIBatchMax && st.candidate < st.candidates.size ( ))
         {
-          std::vector <uint32_t> picked;
+          std::vector <steam_cover_candidate_s> picked;
 
-          while (picked.size ( ) < s_coverURIBatchMax - batch.size ( ) && s_coverURICandidate < s_coverURICandidates.size ( ))
+          while (picked.size ( ) < s_coverURIBatchMax - batch.size ( ) && st.candidate < st.candidates.size ( ))
           {
-            uint32_t id = s_coverURICandidates [s_coverURICandidate++];
+            const steam_cover_candidate_s& candidate = st.candidates [st.candidate++];
 
-            if (! s_coverURIs.contains (id))
-              picked.push_back (id);
+            if (! st.entries.contains (candidate.id))
+              picked.push_back (candidate);
           }
 
           lock.unlock ( );
 
-          std::erase_if (picked, [&](uint32_t id) -> bool
+          // Only those PrepareCoverSource ( ) would download a cover for: neither SKIF's copy nor the Steam client's exists.
+          //   (A client cover that is really 300x450 is only found out when it is loaded: that game is looked up when asked for.)
+          std::erase_if (picked, [&](const steam_cover_candidate_s& candidate) -> bool
           {
-            std::wstring path = SK_FormatStringW (LR"(%ws\Assets\Steam\%u\cover-original.jpg)", _path_cache.specialk_userdata, id);
-            return PathFileExistsW (path.c_str ( ));
+            return _IsRegularFile (SK_FormatStringW (LR"(%ws\Assets\Steam\%u\cover-original.jpg)", _path_cache.specialk_userdata, candidate.id)) ||
+                   _IsRegularFile (_GetClientCoverPath (candidate.id, candidate.boxart_hash));
           });
 
           lock.lock ( );
 
-          for (uint32_t id : picked)
+          for (const auto& candidate : picked)
           {
             // Asked for (and queued) meanwhile: it is taken with the queue
-            if (s_coverURIs.contains (id))
+            if (st.entries.contains (candidate.id))
               continue;
 
-            s_coverURIs [id] = { };
-            batch.push_back (id);
+            st.entries [candidate.id] = { };
+            batch.push_back (candidate.id);
           }
         }
       }
 
-      // 3. The retries in the other regions, once nothing is left to look up in the first one (queued, in flight or among
-      //   the candidates). Then each region is asked once for every game retried in it, rather than once per batch the
-      //     games came back from. The lowest region first, so a game goes through them in order.
-      if (batch.empty ( ) && ! s_coverURIQueue.empty ( ))
+      // 3. The retries in the other regions (asked-for games only), once nothing is left to look up in the first one
+      //   (queued, in flight or among the candidates). Then each region is asked once for every game retried in it,
+      //     rather than once per batch the games came back from. The lowest region first, so a game goes through them in order.
+      if (batch.empty ( ) && ! st.queue.empty ( ))
       {
         // First-region batches still in flight may add retries: wait for them (or for a new request), then pick again
-        if (s_coverURIFirstInFlight > 0)
+        if (st.firstInFlight > 0)
         {
-          s_coverURIResults.wait (lock);
+          st.results.wait (lock);
           continue;
         }
 
         region = s_coverURIRegions.size ( );
 
-        for (uint32_t id : s_coverURIQueue)
-          region = std::min (region, s_coverURIs [id].region);
+        for (uint32_t id : st.queue)
+          region = std::min (region, st.entries [id].region);
 
         _TakeQueued ([region](const steam_cover_uri_s& entry) { return entry.region == region; }, s_coverURIBatchMax);
       }
@@ -2094,10 +2141,10 @@ namespace
         break;
 
       if (region == 0)
-        s_coverURIFirstInFlight++;
+        st.firstInFlight++;
 
       for (uint32_t id : batch)
-        s_coverURIs [id].state = steam_cover_uri_s::State::InFlight;
+        st.entries [id].state = steam_cover_uri_s::State::InFlight;
 
       const char* country = *(s_coverURIRegions.begin ( ) + region);
 
@@ -2106,8 +2153,8 @@ namespace
       // Too long a query (more digits than expected): the last ones wait for the next batch
       while (batch.size ( ) > 1 && request.length ( ) - request.find (L'?') > s_coverURIQueryMax)
       {
-        s_coverURIs [batch.back ( )].state = steam_cover_uri_s::State::Queued;
-        s_coverURIQueue.push_front (batch.back ( ));
+        st.entries [batch.back ( )].state = steam_cover_uri_s::State::Queued;
+        st.queue.push_front (batch.back ( ));
         batch.pop_back ( );
 
         request = SKIF_SteamWebAPI_IStoreBrowseService_GetItems1 (batch, country);
@@ -2122,11 +2169,18 @@ namespace
 
       SKIF_Util_GetWebResource (request, L"", L"GET", L"", "", L"", &response, &dwStatus);
 
+      // No response at all (offline, a timeout), a server error or rate limited: nothing was learned about the games,
+      //   so neither the next region nor a request per game would do better
+      const bool failed = (dwStatus == 0 || dwStatus == 429 || dwStatus >= 500);
+
       // The items found, by app ID
       std::unordered_map <uint32_t, steam_cover_uri_s> found;
       bool answered = false; // The response was a list of items (even an empty one)
 
-      try
+      if (failed)
+        PLOG_WARNING << "Steam GetItems v1 request failed (" << country << ", " << batch.size ( ) << " game(s)); HTTP status: " << dwStatus;
+
+      else try
       {
         nlohmann::json jf = nlohmann::json::parse (response, nullptr, false);
 
@@ -2190,11 +2244,11 @@ namespace
 
       lock.lock ( );
 
-      size_t resolved = 0, retried = 0, missing = 0;
+      size_t resolved = 0, retried = 0, missing = 0, failures = 0, dropped = 0;
 
       for (uint32_t id : batch)
       {
-        steam_cover_uri_s& entry = s_coverURIs [id];
+        steam_cover_uri_s& entry = st.entries [id];
 
         if (auto it = found.find (id); it != found.end ( ))
         {
@@ -2205,12 +2259,26 @@ namespace
           resolved++;
         }
 
-        // No usable answer for a batch: look its games up one at a time, from the same region
+        // Only looked up ahead, and not found (or no usable answer): forgotten, so it is looked up in full if asked for
+        else if (! entry.requested)
+        {
+          st.entries.erase (id);
+          dropped++;
+        }
+
+        // No response: those waiting get nothing now, and the game is looked up again when asked again
+        else if (failed)
+        {
+          entry.state = steam_cover_uri_s::State::Failed;
+          failures++;
+        }
+
+        // An HTTP answer that isn't usable for a batch: look its games up one at a time, from the same region
         else if (! answered && batch.size ( ) > 1)
         {
           entry.solo  = true;
           entry.state = steam_cover_uri_s::State::Queued;
-          s_coverURIQueue.push_back (id);
+          st.queue.push_back (id);
           retried++;
         }
 
@@ -2219,7 +2287,7 @@ namespace
         {
           entry.region++;
           entry.state = steam_cover_uri_s::State::Queued;
-          s_coverURIQueue.push_back (id);
+          st.queue.push_back (id);
           retried++;
         }
 
@@ -2230,31 +2298,38 @@ namespace
         }
       }
 
-      PLOG_VERBOSE << "Steam GetItems v1 (" << country << "): " << resolved << " found, " << retried << " to retry, " << missing << " not found.";
+      // Offline (or the API is down): no more games are looked up ahead until the library changes
+      if (failed)
+        st.candidate = st.candidates.size ( );
+
+      PLOG_VERBOSE << "Steam GetItems v1 (" << country << "): " << resolved << " found, " << retried << " to retry, "
+                   << missing << " not found, " << failures << " failed, " << dropped << " looked up ahead dropped.";
 
       if (region == 0)
-        s_coverURIFirstInFlight--;
+        st.firstInFlight--;
 
-      s_coverURIResults.notify_all ( );
+      st.results.notify_all ( );
 
       // A retry to do while this worker is not done: another worker can take it meanwhile
-      if (! s_coverURIQueue.empty ( ))
+      if (! st.queue.empty ( ))
         _StartCoverURIWorker ( );
     }
 
-    s_coverURIWorkers--;
+    st.workers--;
   }
 
   void
   _StartCoverURIWorker (void)
   {
-    if (s_coverURIWorkers >= s_coverURIWorkersMax)
+    steam_cover_uris_s& st = _CoverURIs ( );
+
+    if (st.workers >= s_coverURIWorkersMax || SKIF_Shutdown.load ( ))
       return;
 
     try
     {
       std::thread (_CoverURIWorker).detach ( );
-      s_coverURIWorkers++;
+      st.workers++;
     }
     catch (const std::exception& e)
     {
@@ -2265,12 +2340,14 @@ namespace
 
 // Main thread: the Steam games of the library, in library order. Their cover URIs are looked up along with those asked for.
 void
-SKIF_Steam_SetCoverURICandidates (std::vector <uint32_t> app_ids)
+SKIF_Steam_SetCoverURICandidates (std::vector <steam_cover_candidate_s> candidates)
 {
-  std::scoped_lock lock (s_coverURIMutex);
+  steam_cover_uris_s& st = _CoverURIs ( );
 
-  s_coverURICandidates = std::move (app_ids);
-  s_coverURICandidate  = 0;
+  std::scoped_lock lock (st.mutex);
+
+  st.candidates = std::move (candidates);
+  st.candidate  = 0;
 }
 
 std::wstring
@@ -2279,28 +2356,42 @@ SKIF_Steam_GetCoverURI (uint32_t app_id, bool force_2x)
   const std::string SteamCDN = "https://shared.fastly.steamstatic.com/store_item_assets/";
   const std::string pattern  = "${FILENAME}";
 
-  std::unique_lock lock (s_coverURIMutex);
+  steam_cover_uris_s& st = _CoverURIs ( );
 
-  if (! s_coverURIs.contains (app_id))
+  std::unique_lock lock (st.mutex);
+
+  auto existing = st.entries.find (app_id);
+
+  // Not looked up yet, or its last request got no response: from the first region
+  if (existing == st.entries.end ( ) || existing->second.state == steam_cover_uri_s::State::Failed)
   {
-    s_coverURIs [app_id] = { };
-    s_coverURIQueue.push_back (app_id);
+    steam_cover_uri_s entry;
+    entry.requested = true;
+
+    st.entries [app_id] = std::move (entry);
+    st.queue.push_back (app_id);
 
     // A worker waiting for the first region to finish takes it
-    s_coverURIResults.notify_all ( );
+    st.results.notify_all ( );
   }
 
+  // Being looked up ahead: from now on it is taken first, and retried in the other regions too
+  else
+    existing->second.requested = true;
+
   // Not looked up yet (a candidate picked by a batch is already in flight)
-  if (s_coverURIs [app_id].state == steam_cover_uri_s::State::Queued)
+  if (st.entries [app_id].state == steam_cover_uri_s::State::Queued)
     _StartCoverURIWorker ( );
 
-  // At most 9 regions, each request with its own timeouts
+  // At most 9 regions, each request with its own timeouts. On a timeout the lookup goes on, and a later call gets its result.
   constexpr auto timeout = std::chrono::seconds (120);
 
-  bool done = s_coverURIResults.wait_for (lock, timeout, [app_id](void) -> bool
+  bool done = st.results.wait_for (lock, timeout, [&st, app_id](void) -> bool
   {
-    const auto state = s_coverURIs [app_id].state;
-    return (state == steam_cover_uri_s::State::Resolved || state == steam_cover_uri_s::State::NotFound);
+    const auto state = st.entries [app_id].state;
+    return (state == steam_cover_uri_s::State::Resolved ||
+            state == steam_cover_uri_s::State::NotFound ||
+            state == steam_cover_uri_s::State::Failed);
   });
 
   if (! done)
@@ -2309,7 +2400,7 @@ SKIF_Steam_GetCoverURI (uint32_t app_id, bool force_2x)
     return L"";
   }
 
-  const steam_cover_uri_s& entry = s_coverURIs [app_id];
+  const steam_cover_uri_s& entry = st.entries [app_id];
 
   if (entry.state != steam_cover_uri_s::State::Resolved)
     return L"";
@@ -2903,10 +2994,7 @@ app_record_steam_s::PrepareCoverSource (bool queryPCGW)
         std::filesystem::create_directories (load_str_2x, ec);
 
   load_str_2x += L"cover-original.jpg";
-  load_str     = _path_cache.steam_install;
-  load_str    += LR"(/appcache/librarycache/)" +
-    std::to_wstring (id)                +
-                            L"/" + SK_FormatStringW (L"%hs", common_config.boxart_hash.c_str ());
+  load_str     = _GetClientCoverPath (id, common_config.boxart_hash); // Also what the cover lookups ahead check
 
   // Decided on the main thread (SKIF_LibraryArtwork::StartCoverWorker), which also marks tex_cover.queriedPCGW
   if (queryPCGW)
