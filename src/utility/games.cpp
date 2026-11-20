@@ -1596,6 +1596,13 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
 
   for (auto& lc_file : lc_files)
   {
+    // Both are optional: lc_user.json is only there if the user made one, and lc.json until it has been downloaded
+    if (! PathFileExistsW (lc_file.second.c_str ( )))
+    {
+      PLOG_VERBOSE << "No custom launch configs at " << lc_file.second;
+      continue;
+    }
+
     std::ifstream file(lc_file.second);
     nlohmann::json jf = nlohmann::json::parse(file, nullptr, false);
     file.close();
