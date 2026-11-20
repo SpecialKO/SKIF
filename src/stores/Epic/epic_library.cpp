@@ -523,9 +523,17 @@ SKIF_EpicCollection::FindInstalledGames1 (app_list_t* apps) const
 
   bool ret = false;
 
-  for (const auto& entry : std::filesystem::directory_iterator (this->appdatapath))
+  // The error_code overloads, as the others throw (e.g. access denied, or the folder removed since it was detected)
+  std::error_code ec_iter;
+
+  for (auto it  = std::filesystem::directory_iterator (this->appdatapath, ec_iter);
+                  ! ec_iter && it != std::filesystem::directory_iterator ( );
+            it.increment (ec_iter))
   {
-    if (entry.is_directory()               == false    &&
+    const auto&     entry = *it;
+    std::error_code ec_dir;
+
+    if (entry.is_directory (ec_dir)        == false    &&
         entry.path().extension().wstring() == L".item" )
     {
       try

@@ -1264,7 +1264,16 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
     if (task.claimed.exchange (true))
       return false;
 
-    task.work ( );
+    // Caught, as an exception would otherwise end SKIF (or, from _Steal ( ), the library worker without the task done):
+    //   the library then lacks what the task would have added
+    try {
+      task.work ( );
+    }
+
+    catch (const std::exception& e)
+    {
+      PLOG_ERROR << "[Library Processing] " << task.name << " failed: " << e.what ( );
+    }
 
     task.done.store      (true);
     task.done.notify_all ( );

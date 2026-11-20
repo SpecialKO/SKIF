@@ -871,8 +871,16 @@ namespace SKIF_FileDetection
         if (! rule.literal.empty ( ) && path.find (rule.literal) == std::string::npos)
           continue;
 
-        if (! std::regex_search (path, rule.regex))
+        // std::regex can throw on a long path (error_complexity, error_stack): the rule then does not match it
+        try {
+          if (! std::regex_search (path, rule.regex))
+            continue;
+        }
+
+        catch (const std::regex_error&)
+        {
           continue;
+        }
 
         sectionStamp [rule.sectionIndex] = index;
 

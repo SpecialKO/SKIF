@@ -655,7 +655,23 @@ namespace
         svc.queue.pop_front ( );
       }
 
-      _Process (svc, key);
+      // Caught, as an exception would otherwise end SKIF: the folder keeps what it had, and is checked again when asked
+      try {
+        _Process (svc, key);
+      }
+
+      catch (const std::exception& e)
+      {
+        PLOG_ERROR << "File detection failed for " << key << ": " << e.what ( );
+
+        std::scoped_lock lock (svc.mutex);
+
+        if (auto it = svc.entries.find (key); it != svc.entries.end ( ))
+          it->second.queued = false;
+
+        svc.done.notify_all ( );
+      }
+
       _WakeMainThread ( );
 
       bool idle = false;

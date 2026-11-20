@@ -243,13 +243,27 @@ skValveDataFile::_LoadSingleFile (const std::wstring& file)
     root =
       &base->head;
 
+    // Where the apps end: the string table, else the end of the file
+    const BYTE* pApps    = reinterpret_cast <const BYTE*> (root);
+    const BYTE* pAppsEnd = _data.data ( ) + _data.size ( );
+
     // A string table was added in June of 2024 (0x29)
     if (vdf_version >= 0x29)
     {
-      uintptr_t strtable_pos
-            =   (uintptr_t)*(uint64_t *)root;
-      root  = (appinfo_s *)((uint64_t *)root + 1);
-      table = (str_tbl_s *)(&_data [strtable_pos]);
+      const uint64_t strtable_pos = *(uint64_t *)root;
+
+      // The string table (its count, at least) has to be in the file, after the header
+      if (strtable_pos <  2 * sizeof (DWORD) + sizeof (uint64_t) ||
+          strtable_pos >  _data.size ( ) - sizeof (DWORD))
+      {
+        PLOG_ERROR << "Malformed appinfo.vdf: its string table is outside of the file";
+        return false;
+      }
+
+      root     = (appinfo_s *)((uint64_t *)root + 1);
+      table    = (str_tbl_s *)(&_data [static_cast <size_t> (strtable_pos)]);
+      pApps    = reinterpret_cast <const BYTE*> (root);
+      pAppsEnd = _data.data ( ) + static_cast <size_t> (strtable_pos);
 
       // Valve is using 64-bit offsets, if this file is larger than
       //   4 GiB SKIF32 is fundamentally inoperable!
@@ -279,17 +293,34 @@ skValveDataFile::_LoadSingleFile (const std::wstring& file)
       }
     }
 
-    // Index the apps once; getAppInfo ( ) used to walk the file from the start on every call
-    for ( appinfo_s* pIter = root;
-                     pIter != nullptr && pIter->appid != _LastSteamApp;
-                     pIter  = pIter->getNextApp ( ) )
+    // Index the apps once; getAppInfo ( ) used to walk the file from the start on every call. Each app is checked to
+    //   be in the file, as the walk follows the size of each (a truncated or damaged file would otherwise be read past)
+    const size_t app_header_size = (vdf_version > 0x27) ? sizeof (appinfo_s) : sizeof (appinfo27_s);
+
+    for (const BYTE* pos = pApps; pos + sizeof (AppId_t) <= pAppsEnd; )
     {
+      appinfo_s* pIter = (appinfo_s *)pos;
+
+      if (pIter->appid == _LastSteamApp)
+        break;
+
+      // appid and size, then size bytes: at least the rest of the header, and within the apps
+      if (pos + offsetof (appinfo27_s, state) > pAppsEnd ||
+          pIter->size < app_header_size - offsetof (appinfo27_s, state) ||
+          pIter->size > static_cast <size_t> (pAppsEnd - pos) - offsetof (appinfo27_s, state))
+      {
+        PLOG_ERROR << "Malformed appinfo.vdf: app " << pIter->appid << " is not entirely in the file; " << apps_index.size ( ) << " apps were read";
+        break;
+      }
+
       app_entry_s entry { };
 
       entry.blob = pIter->getRootSection (&entry.size);
       entry.strs = (vdf_version >= 0x29) ? &strs : nullptr;
 
       apps_index.emplace (pIter->appid, entry); // First occurrence wins, as with the previous linear search
+
+      pos += offsetof (appinfo27_s, state) + pIter->size;
     }
   }
 
@@ -458,23 +489,6 @@ appinfo_s::getRootSection (size_t* pSize)
     (uint8_t*)&appid + vdf_header_size;
 }
 
-appinfo_s*
-appinfo_s::getNextApp (void)
-{
-  section_desc_s root_sec{};
-
-  root_sec.blob =
-    getRootSection (&root_sec.size);
-
-  auto *pNext =
-    (appinfo_s *)(
-      (uint8_t *)root_sec.blob +
-                 root_sec.size);
-
-  return
-    ( pNext->appid == _LastSteamApp ) ?
-                              nullptr : pNext;
-}
 
 bool
 skValveDataFile::getAppInfo ( uint32_t appid, app_list_t *apps )
@@ -1349,8 +1363,9 @@ skValveDataFile::getAppInfo ( uint32_t appid, app_list_t *apps )
                           Steam3AccountID = *(DWORD*)pvData;
                       }
 
-                      Steam64BitID = std::stoull (
-                        SK_UseManifestToGetAppOwner (pAppRecord));
+                      // Not std::stoull ( ), which throws on the empty string of a manifest without LastOwner: 0 then
+                      Steam64BitID = std::strtoull (
+                        SK_UseManifestToGetAppOwner (pAppRecord).c_str ( ), nullptr, 10);
                     };
 
                   SK_RunOnce (

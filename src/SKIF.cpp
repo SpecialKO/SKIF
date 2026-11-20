@@ -83,6 +83,7 @@
 #include <utility/launch_behaviors.h>
 #include <utility/env_vars.h>
 #include <utility/jumplist.h>
+#include <utility/crash_handler.h>
 #include <utility/updater.h>
 
 #include <utility/drvreset.h>
@@ -1959,6 +1960,12 @@ void SKIF_Initialize (LPWSTR lpCmdLine)
   // Engage logging!
   static plog::RollingFileAppender<plog::LogFormatterUtcTime> fileAppender(logPath.c_str(), 10000000, 1);
   plog::init (plog::debug, &fileAppender);
+
+  // From here on, a crash is logged with its cause, and a minidump is written next to the log
+  SKIF_CrashHandler_Install (SK_FormatStringW ((_Signal.Launcher || _Signal.LauncherURI)
+                                                 ? LR"(%ws\SKIF_launcher.dmp)"
+                                                 : LR"(%ws\SKIF.dmp)",
+                                               _path_cache.specialk_userdata));
 
   // Let us do a one-time check if a debugger is attached,
   //   and if so set up PLOG to push logs there as well

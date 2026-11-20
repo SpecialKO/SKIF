@@ -112,7 +112,6 @@ public:
     };
 
     void*      getRootSection (size_t* pSize = nullptr);
-    appinfo_s* getNextApp     (void);
   };
 
   // Parses the app's data into its record (or a dummy one, if not in apps). false: not in the file, or already processed

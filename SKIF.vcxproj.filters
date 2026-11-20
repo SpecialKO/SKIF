@@ -222,6 +222,9 @@
     <ClInclude Include="include\utility\file_detection.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
+    <ClInclude Include="include\utility\crash_handler.h">
+      <Filter>Header Files\Utility</Filter>
+    </ClInclude>
     <ClInclude Include="include\utility\games.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>
@@ -444,6 +447,9 @@
       <Filter>Source Files\Utility</Filter>
     </ClCompile>
     <ClCompile Include="src\utility\file_detection_rules.cpp">
+      <Filter>Source Files\Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utility\crash_handler.cpp">
       <Filter>Source Files\Utility</Filter>
     </ClCompile>
     <ClCompile Include="src\utility\games.cpp">

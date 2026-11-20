@@ -514,7 +514,7 @@ SKIF_RegistrySettings::SKIF_RegistrySettings (void)
       category.name     = SK_WideCharToUTF8 (wzCategory);
 
       if (bRememberCategoryState && i < mwzCategoriesState.size())
-        category.expanded = std::stoi (mwzCategoriesState[i]);
+        category.expanded = (std::wcstol (mwzCategoriesState[i].c_str ( ), nullptr, 10) != 0); // Not std::stoi ( ), which throws on an empty or edited value
 
       vecCategories.push_back (category);
     }
