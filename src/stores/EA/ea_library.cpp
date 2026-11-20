@@ -254,7 +254,11 @@ namespace
     {
       nlohmann::json saved = SKIF_Library_ReadCache (L"ea-uninstall.json");
 
-      if (saved.is_object ( ) && saved.value ("version", 0) == EA_UNINSTALL_CACHE_VERSION && saved.contains ("views") && saved ["views"].is_object ( ))
+      // Type checked, as value ( ) throws if a key has another type (a damaged cache file)
+      auto version = (saved.is_object ( )) ? saved.find ("version") : saved.end ( );
+
+      if (version != saved.end ( ) && version->is_number_integer ( ) && version->get <int> ( ) == EA_UNINSTALL_CACHE_VERSION &&
+          saved.contains ("views") && saved ["views"].is_object ( ))
         cache.views = std::move (saved ["views"]);
       else
         cache.views = nlohmann::json::object ( );

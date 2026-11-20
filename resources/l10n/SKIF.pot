@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-19 21:36+0100\n"
+"POT-Creation-Date: 2026-11-20 18:47+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -221,7 +221,7 @@ msgstr ""
 msgid "Update failed :("
 msgstr ""
 
-#: src/stores/itch/itch_library.cpp:737
+#: src/stores/itch/itch_library.cpp:744
 msgid ""
 "The itch app runs this game in its sandbox, as a separate Windows user,\n"
 "which may affect which saves are accessible from within the game.\n"
@@ -278,7 +278,7 @@ msgstr ""
 #: src/stores/SKIF/custom_library.cpp:383
 #: src/stores/SKIF/custom_library.cpp:490
 #: src/tabs/library/library_properties.cpp:217
-#: src/utility/env_vars.cpp:505
+#: src/utility/env_vars.cpp:506
 msgid "Name"
 msgstr ""
 
@@ -340,29 +340,29 @@ msgid "Select the executable and the working directory of the game."
 msgstr ""
 
 #: src/stores/Steam/app_record.cpp:805
-#: src/stores/Steam/steam_library.cpp:2480
+#: src/stores/Steam/steam_library.cpp:2491
 msgid "Conflicting configuration"
 msgstr ""
 
 #: src/stores/Steam/app_record.cpp:806
-#: src/stores/Steam/steam_library.cpp:2481
+#: src/stores/Steam/steam_library.cpp:2492
 msgid "Could not launch game due to conflicting launch options in Steam:"
 msgstr ""
 
 #: src/stores/Steam/app_record.cpp:810
-#: src/stores/Steam/steam_library.cpp:2485
+#: src/stores/Steam/steam_library.cpp:2496
 msgid "Please change the launch options in Steam before trying again."
 msgstr ""
 
-#: src/stores/Steam/steam_library.cpp:2574
+#: src/stores/Steam/steam_library.cpp:2585
 msgid "Details"
 msgstr ""
 
-#: src/stores/Steam/steam_library.cpp:2584
+#: src/stores/Steam/steam_library.cpp:2595
 msgid "A controller must be connected."
 msgstr ""
 
-#: src/stores/Steam/steam_library.cpp:2587
+#: src/stores/Steam/steam_library.cpp:2598
 msgid "Game properties"
 msgstr ""
 
@@ -3843,66 +3843,66 @@ msgstr ""
 msgid "SKIF sets this itself for Steam games. This value is used instead."
 msgstr ""
 
-#: src/utility/env_vars.cpp:439
+#: src/utility/env_vars.cpp:440
 msgid "Special K: leaves Steam Input as it is, without working around it."
 msgstr ""
 
-#: src/utility/env_vars.cpp:440
+#: src/utility/env_vars.cpp:441
 msgid "DXVK: shows an overlay (e.g. fps, frametimes, gpuload)."
 msgstr ""
 
-#: src/utility/env_vars.cpp:441
+#: src/utility/env_vars.cpp:442
 msgid "DXVK: limits the frame rate."
 msgstr ""
 
-#: src/utility/env_vars.cpp:442
+#: src/utility/env_vars.cpp:443
 msgid "DXVK: how much is logged (none, error, warn, info, debug)."
 msgstr ""
 
-#: src/utility/env_vars.cpp:443
+#: src/utility/env_vars.cpp:444
 msgid "Steam: disables the Steam overlay."
 msgstr ""
 
-#: src/utility/env_vars.cpp:476
+#: src/utility/env_vars.cpp:477
 msgid "(removes the variable)"
 msgstr ""
 
-#: src/utility/env_vars.cpp:476
+#: src/utility/env_vars.cpp:477
 msgid "(empty)"
 msgstr ""
 
-#: src/utility/env_vars.cpp:515
+#: src/utility/env_vars.cpp:516
 msgid "Removes the variable."
 msgstr ""
 
-#: src/utility/env_vars.cpp:529
+#: src/utility/env_vars.cpp:530
 msgid "Add variable"
 msgstr ""
 
-#: src/utility/env_vars.cpp:541
+#: src/utility/env_vars.cpp:542
 msgid "Adds a common variable."
 msgstr ""
 
-#: src/utility/env_vars.cpp:560
+#: src/utility/env_vars.cpp:561
 msgid "Already listed."
 msgstr ""
 
-#: src/utility/env_vars.cpp:568
+#: src/utility/env_vars.cpp:569
 msgid "Paste"
 msgstr ""
 
-#: src/utility/env_vars.cpp:589
+#: src/utility/env_vars.cpp:590
 msgid ""
 "Adds any variables in the clipboard: one NAME=value per line,\n"
 "or Special K's format on a single line (A=1|B=2).\n"
 "Variables that are already listed get the new value."
 msgstr ""
 
-#: src/utility/env_vars.cpp:598
+#: src/utility/env_vars.cpp:599
 msgid "Copy"
 msgstr ""
 
-#: src/utility/env_vars.cpp:601
+#: src/utility/env_vars.cpp:602
 msgid "Copies the variables to the clipboard, one NAME=value per line."
 msgstr ""
 

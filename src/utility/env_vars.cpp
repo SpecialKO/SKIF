@@ -352,7 +352,8 @@ namespace SKIF_EnvVars
     if (env.empty ( ))
       return L"";
 
-    return L"SKIF_Env=" + SK_UTF8ToWideChar (SKIF_Util_Base64UrlEncode (env.dump ( )));
+    // Invalid UTF-8 is replaced, as dump ( ) otherwise throws on it
+    return L"SKIF_Env=" + SK_UTF8ToWideChar (SKIF_Util_Base64UrlEncode (env.dump (-1, ' ', false, nlohmann::ordered_json::error_handler_t::replace)));
   }
 
   bool

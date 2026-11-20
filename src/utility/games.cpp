@@ -1090,7 +1090,8 @@ SKIF_Library_WriteCache (const wchar_t* name, const nlohmann::json& data)
       return;
     }
 
-    file << data.dump ( );
+    // Invalid UTF-8 is replaced, as dump ( ) otherwise throws on it
+    file << data.dump (-1, ' ', false, nlohmann::json::error_handler_t::replace);
   }
 
   if (! MoveFileExW (temp.c_str ( ), path.c_str ( ), MOVEFILE_REPLACE_EXISTING))
@@ -1619,16 +1620,34 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
       continue;
     }
 
-    try {
-      for (auto& app : list)
+    if (! jf.is_object ( ))
+    {
+      PLOG_ERROR << "Error occurred while trying to parse " << lc_file.second << ": not a JSON object";
+      continue;
+    }
+
+    for (auto& app : list)
+    {
+      auto& record     = *app.second;
+
+      // { "<store>": { "<key>": [ <launch config>, ... ] } }
+      auto store       = jf.find (record.store_utf8);
+
+      if (store == jf.end ( ) || ! store->is_object ( ))
+        continue;
+
+      std::string key  = record.GetPersistentKey ( );
+      auto game        = store->find (key);
+
+      if (game == store->end ( ) || ! game->is_array ( ))
+        continue;
+
+      auto& append_cfg = record.GetOnlineLaunchConfigs ( );
+
+      // Each entry on its own, so a malformed one (at ( ) throws if a key is missing or not a string) skips only itself
+      for (auto& launch_config : *game)
       {
-        auto& record     = *app.second;
-        auto& append_cfg = record.GetOnlineLaunchConfigs ( );
-
-        std::string key  = record.GetPersistentKey ( );
-
-        for (auto& launch_config : jf[record.store_utf8][key])
-        {
+        try {
           app_record_s::launch_config_s lc;
           lc.id                       = static_cast<int> (append_cfg.size());
           lc.valid                    = 1;
@@ -1654,11 +1673,12 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
 
           append_cfg.emplace (lc.id, lc);
         }
+
+        catch (const std::exception& e)
+        {
+          PLOG_ERROR << "Error occurred when trying to parse " << ((lc_file.first) ? "online-based" : "user-specified") << " launch config of " << record.store_utf8 << " " << key << ": " << e.what ();
+        }
       }
-    }
-    catch (const std::exception& e)
-    {
-      PLOG_ERROR << "Error occurred when trying to parse " << ((lc_file.first) ? "online-based" : "user-specified") << " launch configs: " << e.what ();
     }
   }
 
@@ -2284,10 +2304,26 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
   {
     std::scoped_lock jsonLock (self.m_jsonMetaDB_mutex);
 
+    // db.json may be valid JSON of another shape (e.g. a store that is not an object), on which operator [ ] throws
+    if (! self.m_jsonMetaDB.is_object ( ) && ! self.m_jsonMetaDB.is_null ( ))
+    {
+      PLOG_ERROR << "The persistent metadata is not a JSON object; starting over with an empty one...";
+      self.m_jsonMetaDB = nlohmann::json::object ( );
+    }
+
     for (auto& job : jobs)
     {
-      if (job.write)
+      if (! job.write)
+        continue;
+
+      try {
         self.m_jsonMetaDB [job.app->second->store_utf8][job.key] = std::move (job.meta);
+      }
+
+      catch (const std::exception& e)
+      {
+        PLOG_ERROR << "Error occurred when trying to update the JSON metadata for " << job.key << ": " << e.what ( );
+      }
     }
   }
 
@@ -2543,7 +2579,8 @@ SKIF_GamingCollection::MetaDB_WriteFile (void)
     std::ofstream out_file(m_metadataPath);
     if (out_file.is_open())
     {
-      out_file << std::setw(2) << m_jsonMetaDB << std::endl;
+      // Invalid UTF-8 is replaced, as dump ( ) otherwise throws on it
+      out_file << m_jsonMetaDB.dump (2, ' ', false, nlohmann::json::error_handler_t::replace) << std::endl;
       out_file.close();
 
       PLOG_INFO << "Successfully wrote persistent metadata (" << MetaDB_CountElements ( ) << " items) to JSON file.";

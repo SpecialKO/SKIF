@@ -228,12 +228,13 @@ SKIF_Epic_GetCatalog (const std::wstring& path)
   // Saved by an earlier run (Assets\Cache\epic-catalog.json)?
   nlohmann::json saved = SKIF_Library_ReadCache (L"epic-catalog.json");
 
-  if (saved.is_object ( )                                     &&
-      saved.value ("path",  std::string ( )) == SK_WideCharToUTF8 (path) &&
-      saved.value ("write", uint64_t (0))    == write          &&
-      saved.value ("size",  uint64_t (0))    == size)
-  {
-    try {
+  // value ( ) throws if a key has another type (a damaged cache file): the catalog itself is read then
+  try {
+    if (saved.is_object ( )                                     &&
+        saved.value ("path",  std::string ( )) == SK_WideCharToUTF8 (path) &&
+        saved.value ("write", uint64_t (0))    == write          &&
+        saved.value ("size",  uint64_t (0))    == size)
+    {
       auto items = std::make_shared <epic_catalog_t> ( );
 
       for (const auto& [id, item] : saved.at ("items").items ( ))
@@ -244,8 +245,8 @@ SKIF_Epic_GetCatalog (const std::wstring& path)
       cache = items;
       return cache;
     }
-    catch (const std::exception&) { } // Read the catalog itself below
   }
+  catch (const std::exception&) { } // Read the catalog itself below
 
   // Read the whole file at once (parsing from a stream reads it a character at a time)
   std::string   data;
@@ -362,28 +363,51 @@ SKIF_EpicCollection::FindInstalledGames2 (app_list_t* apps) const
       continue;
     }
 
+    // The file is Epic's, so its values are type checked: at ( ), value ( ) and get ( ) throw on an unexpected type,
+    //   which would end the library worker. A missing or mistyped value reads as empty (or false).
+    auto _String = [&](const char* key) -> std::string
+    {
+      auto it = jl.find (key);
+      return (it != jl.end ( ) && it->is_string ( )) ? it->get <std::string> ( ) : std::string ( );
+    };
+
     // Header line: {"version":1,"writtenAt":"...","entries":4}
     if (lineNo == 1 && jl.contains ("entries") && ! jl.contains ("installationId"))
     {
-      expectedEntries = jl.value ("entries", 0);
+      auto entries = jl.find ("entries");
+
+      if (entries->is_number_unsigned ( ))
+        expectedEntries = entries->get <size_t> ( );
+
       continue;
     }
 
     // Filter out incomplete installs
-    if (! jl.value ("complete", false))
+    auto complete = jl.find ("complete");
+
+    if (complete == jl.end ( ) || ! complete->is_boolean ( ) || ! complete->get <bool> ( ))
     {
       PLOG_DEBUG << "Line " << lineNo << ": 'complete' missing or false; skipping...";
       continue;
     }
 
-    std::string CatalogNamespace    = jl.at ("namespace"),
-                CatalogItemId       = jl.at ("itemId"),
-                AppName             = jl.at ("artifactId"); // artifactId == appName
+    std::string CatalogNamespace    = _String ("namespace"),
+                CatalogItemId       = _String ("itemId"),
+                AppName             = _String ("artifactId"), // artifactId == appName
+                InstallDir          = _String ("dir"),
+                InstallationId      = _String ("installationId"),
+                LaunchExecutable    = _String ("launchExecutable");
+
+    if (CatalogNamespace.empty ( ) || CatalogItemId.empty ( ) || AppName.empty ( ) || InstallDir.empty ( ) || InstallationId.empty ( ))
+    {
+      PLOG_DEBUG << "Line " << lineNo << ": a required value is missing or not a string; skipping...";
+      continue;
+    }
 
     std::wstring egsstore_manifest =
       SK_FormatStringW  (LR"(%ws\.egstore\%ws.manifest)",
-      SK_UTF8ToWideChar (jl.at ("dir")).c_str(),
-      SK_UTF8ToWideChar (jl.at ("installationId")).c_str()
+      SK_UTF8ToWideChar (InstallDir).c_str(),
+      SK_UTF8ToWideChar (InstallationId).c_str()
     );
     SKIF_Util_ReplaceAllW (egsstore_manifest, LR"(\\)", LR"(\)");
 
@@ -394,7 +418,7 @@ SKIF_EpicCollection::FindInstalledGames2 (app_list_t* apps) const
       continue;
     }
 
-    auto [it, inserted] = indexById.try_emplace (jl.at ("installationId"), lineNo);
+    auto [it, inserted] = indexById.try_emplace (InstallationId, lineNo);
 
     // Skip already processed installs
     if (! inserted)
@@ -414,7 +438,7 @@ SKIF_EpicCollection::FindInstalledGames2 (app_list_t* apps) const
     record.store                = app_record_s::Store::Epic;
     record.store_utf8           = "Epic";
     record._status.installed    = true;
-    record.install_dir          = SK_UTF8ToWideChar (jl.at ("dir"));
+    record.install_dir          = SK_UTF8ToWideChar (InstallDir);
     record.install_dir          = std::filesystem::path (record.install_dir).lexically_normal();
 
     auto item = (catalog_cache != nullptr) ? catalog_cache->find (CatalogItemId) : epic_catalog_t::const_iterator { };
@@ -422,7 +446,7 @@ SKIF_EpicCollection::FindInstalledGames2 (app_list_t* apps) const
     // Fallback (no catalog, or the game is missing from it)
     if (catalog_cache == nullptr || item == catalog_cache->end ( ))
     {
-      record.names.normal       = jl.value ("launchExecutable", std::string());
+      record.names.normal       = LaunchExecutable;
       SKIF_Util_ReplaceAll       (record.names.normal, ".exe", "");
     }
 
@@ -442,7 +466,7 @@ SKIF_EpicCollection::FindInstalledGames2 (app_list_t* apps) const
     app_record_s::launch_config_s lc;
     lc.id                       = 0;
     lc.valid                    = 1;
-    lc.executable               = SK_UTF8ToWideChar (jl.at("launchExecutable")); // record.install_dir + L"\\" +
+    lc.executable               = SK_UTF8ToWideChar (LaunchExecutable); // record.install_dir + L"\\" +
     lc.executable_path          = record.install_dir + LR"(\)" + lc.executable;
     lc.install_dir              = record.install_dir;
     std::replace(lc.executable_path.begin(), lc.executable_path.end(), '/', '\\'); // Replaces all / with \

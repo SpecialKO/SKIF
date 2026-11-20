@@ -253,22 +253,32 @@ namespace
 
     nlohmann::json json = SKIF_Library_ReadCache (MANIFEST_CACHE_FILE);
 
-    if (! json.is_object ( ) || json.value ("version", 0) != MANIFEST_CACHE_VERSION ||
-        ! json.contains ("manifests") || ! json ["manifests"].is_object ( ))
-      return;
+    // value ( ) throws if a key has another type (a damaged cache file): the manifests are then read again
+    try {
+      if (! json.is_object ( ) || json.value ("version", 0) != MANIFEST_CACHE_VERSION ||
+          ! json.contains ("manifests") || ! json ["manifests"].is_object ( ))
+        return;
 
-    for (const auto& [key, item] : json ["manifests"].items ( ))
+      for (const auto& [key, item] : json ["manifests"].items ( ))
+      {
+        if (! item.is_object ( ) || ! item.contains ("data") || ! item ["data"].is_string ( ))
+          continue;
+
+        manifest_cache_entry_s entry;
+        entry.size = item.value ("size", uint64_t (0));
+        entry.time = item.value ("time", uint64_t (0));
+        entry.data = item ["data"].get <std::string> ( );
+
+        if (! entry.data.empty ( ))
+          s_manifestCache.emplace (SK_UTF8ToWideChar (key), std::move (entry));
+      }
+    }
+
+    catch (const std::exception& e)
     {
-      if (! item.is_object ( ) || ! item.contains ("data") || ! item ["data"].is_string ( ))
-        continue;
-
-      manifest_cache_entry_s entry;
-      entry.size = item.value ("size", uint64_t (0));
-      entry.time = item.value ("time", uint64_t (0));
-      entry.data = item ["data"].get <std::string> ( );
-
-      if (! entry.data.empty ( ))
-        s_manifestCache.emplace (SK_UTF8ToWideChar (key), std::move (entry));
+      PLOG_WARNING << "Ignoring the damaged Steam manifest cache: " << e.what ( );
+      s_manifestCache.clear ( );
+      return;
     }
 
     PLOG_VERBOSE << "Steam manifest cache: loaded " << s_manifestCache.size ( ) << " manifests.";
@@ -984,18 +994,19 @@ SKIF_Steam_LoadSavedLocalConfig (localconfig_cache_s& cache, const std::wstring&
 {
   nlohmann::json saved = SKIF_Library_ReadCache (L"steam-localconfig.json");
 
-  if (! saved.is_object ( )                                     ||
-        saved.value ("path",  std::string ( )) != SK_WideCharToUTF8 (path) ||
-        saved.value ("write", uint64_t (0))    != write          ||
-        saved.value ("size",  uint64_t (0))    != size)
-    return false;
-
   localconfig_cache_s loaded;
   loaded.path  = path;
   loaded.write = write;
   loaded.size  = size;
 
+  // value ( ), at ( ) and get ( ) throw on a damaged cache file: localconfig.vdf is then parsed again
   try {
+    if (! saved.is_object ( )                                     ||
+          saved.value ("path",  std::string ( )) != SK_WideCharToUTF8 (path) ||
+          saved.value ("write", uint64_t (0))    != write          ||
+          saved.value ("size",  uint64_t (0))    != size)
+      return false;
+
     loaded.parsed = saved.at ("parsed").get <bool> ( );
 
     for (const auto& [id, options] : saved.at ("launch_options").items ( ))

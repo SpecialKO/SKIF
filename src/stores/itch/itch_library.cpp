@@ -488,8 +488,15 @@ SKIF_itch_ScanDatabase (const std::string& app, app_list_t *apps, std::set <std:
           if (! candidate.is_object ( ))
             continue;
 
-          std::string flavor = candidate.value ("flavor", "");
-          std::string path   = candidate.value ("path",   "");
+          // Type checked, as value ( ) throws if a key has another type
+          auto _String = [&](const char* key) -> std::string
+          {
+            auto it = candidate.find (key);
+            return (it != candidate.end ( ) && it->is_string ( )) ? it->get <std::string> ( ) : std::string ( );
+          };
+
+          std::string flavor = _String ("flavor");
+          std::string path   = _String ("path");
 
           // Native Windows executables only (not html, jar, love, msi, windows-script, ...)
           if (flavor != "windows" || path.empty ( ))

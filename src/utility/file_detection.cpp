@@ -438,53 +438,68 @@ namespace
 
     nlohmann::json json = SKIF_Library_ReadCache (CACHE_FILE);
 
-    if (! json.is_object ( ) || json.value ("version", 0) != CACHE_VERSION || ! json.contains ("folders") || ! json ["folders"].is_object ( ))
-      return;
+    // Read into these first, as value ( ) throws if a key has another type (a damaged cache file): nothing is used then
+    std::unordered_map <std::wstring, entry_s> entries;
+    uint64_t                                   rulesHash = 0;
 
-    svc.cacheRulesHash = _FromHex (json.value ("rules", std::string ( )));
+    try {
+      if (! json.is_object ( ) || json.value ("version", 0) != CACHE_VERSION || ! json.contains ("folders") || ! json ["folders"].is_object ( ))
+        return;
 
-    for (const auto& [key, item] : json ["folders"].items ( ))
-    {
-      if (! item.is_object ( ) || ! item.contains ("detections") || ! item ["detections"].is_array ( ))
-        continue;
+      rulesHash = _FromHex (json.value ("rules", std::string ( )));
 
-      auto result = std::make_shared <result_s> ( );
-      result->state     = result_s::State::Done;
-      result->stale     = true;
-      result->scanned   = item.value ("scanned",   int64_t (0));
-      result->entries   = item.value ("entries",   uint32_t (0));
-      result->truncated = item.value ("truncated", false);
-
-      for (const auto& d : item ["detections"])
+      for (const auto& [key, item] : json ["folders"].items ( ))
       {
-        if (! d.is_object ( ) || ! d.contains ("id") || ! d ["id"].is_string ( ))
+        if (! item.is_object ( ) || ! item.contains ("detections") || ! item ["detections"].is_array ( ))
           continue;
 
-        detection_s detection;
-        detection.id       = d ["id"].get <std::string> ( );
+        auto result = std::make_shared <result_s> ( );
+        result->state     = result_s::State::Done;
+        result->stale     = true;
+        result->scanned   = item.value ("scanned",   int64_t (0));
+        result->entries   = item.value ("entries",   uint32_t (0));
+        result->truncated = item.value ("truncated", false);
 
-        const size_t dot   = detection.id.find ('.');
+        for (const auto& d : item ["detections"])
+        {
+          if (! d.is_object ( ) || ! d.contains ("id") || ! d ["id"].is_string ( ))
+            continue;
 
-        if (dot == std::string::npos)
-          continue;
+          detection_s detection;
+          detection.id       = d ["id"].get <std::string> ( );
 
-        detection.name     = detection.id.substr (dot + 1);
-        detection.category = CategoryFromSection (std::string_view (detection.id).substr (0, dot));
-        detection.matches  = d.value ("matches", uint32_t (0));
-        detection.example  = d.value ("example", std::string ( ));
-        detection.deduced  = d.value ("deduced", false);
+          const size_t dot   = detection.id.find ('.');
 
-        result->detections.push_back (std::move (detection));
+          if (dot == std::string::npos)
+            continue;
+
+          detection.name     = detection.id.substr (dot + 1);
+          detection.category = CategoryFromSection (std::string_view (detection.id).substr (0, dot));
+          detection.matches  = d.value ("matches", uint32_t (0));
+          detection.example  = d.value ("example", std::string ( ));
+          detection.deduced  = d.value ("deduced", false);
+
+          result->detections.push_back (std::move (detection));
+        }
+
+        entry_s entry;
+        entry.folder    = SK_UTF8ToWideChar (item.value ("folder", key));
+        entry.result    = std::move (result);
+        entry.stamp     = _FromHex (item.value ("stamp", std::string ( )));
+        entry.rulesHash = rulesHash;
+
+        entries.emplace (_MakeKey (SK_UTF8ToWideChar (key)), std::move (entry));
       }
-
-      entry_s entry;
-      entry.folder    = SK_UTF8ToWideChar (item.value ("folder", key));
-      entry.result    = std::move (result);
-      entry.stamp     = _FromHex (item.value ("stamp", std::string ( )));
-      entry.rulesHash = svc.cacheRulesHash;
-
-      svc.entries.emplace (_MakeKey (SK_UTF8ToWideChar (key)), std::move (entry));
     }
+
+    catch (const std::exception& e)
+    {
+      PLOG_WARNING << "Ignoring the damaged file detection cache: " << e.what ( );
+      return;
+    }
+
+    svc.cacheRulesHash = rulesHash;
+    svc.entries.merge (entries); // Results already in svc.entries are kept
 
     PLOG_VERBOSE << "Loaded " << svc.entries.size ( ) << " cached file detection results";
   }

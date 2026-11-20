@@ -1561,7 +1561,7 @@ SKIF_Util_CreateProcessElevated (const std::wstring& path, const std::wstring& p
   // The request goes in an unnamed section of this process, which the elevated instance duplicates from it (so there
   //   is no limit to its size, and it is not readable by anyone else); only the path is on the command line, readable,
   //     so it is what the details of the UAC prompt show
-  const std::string payload = data.dump ( );
+  const std::string payload = data.dump (-1, ' ', false, nlohmann::json::error_handler_t::replace); // Does not throw on invalid UTF-8
 
   if (payload.size ( ) > 64 * 1024 * 1024)
     return ERROR_BUFFER_OVERFLOW;
