@@ -843,6 +843,8 @@ SK_ImGui_KeybindDialog (SK_KeybindMultiState* keybind)
 
     int  vKey = 256;
 
+    bool modifierKey = io.KeyCtrl || io.KeyShift || io.KeyAlt || io.KeySuper;
+
     for (ImGuiKey imKey = ImGuiKey_NamedKey_BEGIN; focused && imKey < ImGuiKey_NamedKey_END; imKey = (ImGuiKey)(imKey + 1))
     {
       // Modifier keys
@@ -852,11 +854,12 @@ SK_ImGui_KeybindDialog (SK_KeybindMultiState* keybind)
            imKey == ImGuiKey_LeftSuper || imKey == ImGuiKey_RightSuper )  // Windows
         continue;
 
-      // Reserved keys (not used for keybindings)
-      if ( imKey == ImGuiKey_Escape    || // Cancel operation
+      // Reserved keys on their own (the dialog's own actions below); with a modifier held they can be bound (e.g. Ctrl+Delete)
+      if (! modifierKey &&
+         ( imKey == ImGuiKey_Escape    || // Cancel operation
            imKey == ImGuiKey_Backspace || // Clear keybinding
            imKey == ImGuiKey_Delete    || // Reset to default
-           imKey == ImGuiKey_Enter     || imKey == ImGuiKey_KeypadEnter)  // Confirm
+           imKey == ImGuiKey_Enter     || imKey == ImGuiKey_KeypadEnter)) // Confirm
         continue;
 
       if (ImGui::IsKeyPressed (imKey, false))
@@ -871,7 +874,6 @@ SK_ImGui_KeybindDialog (SK_KeybindMultiState* keybind)
       }
     }
 
-    bool modifierKey = io.KeyCtrl || io.KeyShift || io.KeyAlt || io.KeySuper;
     bool bEscape = false, // Cancel operation
       bBackspace = false, // Clear keybinding
          bDelete = false, // Reset to default

@@ -143,8 +143,12 @@ DrawLibraryViewOnboardingPopup (void)
     return;
 
   // Not on the frames the tab is being left (the first launch switches to the About tab), and not over another popup
+  //   Not shown while the tab is left: when back, it waits again for any other popup to close first
   if (! SKIF_StartupFinished || SKIF_Tab_Selected != UITab_Library || SKIF_Tab_ChangeTo != UITab_None)
+  {
+    showing = false;
     return;
+  }
 
   if (! showing && SKIF_ImGui_IsAnyPopupOpen ( ))
     return;

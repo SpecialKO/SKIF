@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-20 20:03+0100\n"
+"POT-Creation-Date: 2026-11-20 21:08+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -249,10 +249,10 @@ msgstr ""
 #: src/stores/SKIF/custom_library.cpp:379
 #: src/stores/SKIF/custom_library.cpp:558
 #: src/tabs/library/library_launch.cpp:233
-#: src/tabs/library/library_popups.cpp:347
-#: src/tabs/library/library_popups.cpp:431
-#: src/tabs/library/library_popups.cpp:459
-#: src/tabs/library/library_popups.cpp:499
+#: src/tabs/library/library_popups.cpp:351
+#: src/tabs/library/library_popups.cpp:435
+#: src/tabs/library/library_popups.cpp:463
+#: src/tabs/library/library_popups.cpp:503
 #: src/tabs/local.cpp:1213
 #: src/tabs/local.cpp:1238
 #: src/tabs/monitor.cpp:1981
@@ -340,29 +340,29 @@ msgid "Select the executable and the working directory of the game."
 msgstr ""
 
 #: src/stores/Steam/app_record.cpp:805
-#: src/stores/Steam/steam_library.cpp:2491
+#: src/stores/Steam/steam_library.cpp:2582
 msgid "Conflicting configuration"
 msgstr ""
 
 #: src/stores/Steam/app_record.cpp:806
-#: src/stores/Steam/steam_library.cpp:2492
+#: src/stores/Steam/steam_library.cpp:2583
 msgid "Could not launch game due to conflicting launch options in Steam:"
 msgstr ""
 
 #: src/stores/Steam/app_record.cpp:810
-#: src/stores/Steam/steam_library.cpp:2496
+#: src/stores/Steam/steam_library.cpp:2587
 msgid "Please change the launch options in Steam before trying again."
 msgstr ""
 
-#: src/stores/Steam/steam_library.cpp:2585
+#: src/stores/Steam/steam_library.cpp:2676
 msgid "Details"
 msgstr ""
 
-#: src/stores/Steam/steam_library.cpp:2595
+#: src/stores/Steam/steam_library.cpp:2686
 msgid "A controller must be connected."
 msgstr ""
 
-#: src/stores/Steam/steam_library.cpp:2598
+#: src/stores/Steam/steam_library.cpp:2689
 msgid "Game properties"
 msgstr ""
 
@@ -783,8 +783,8 @@ msgid "Granted 'Performance Log Users' permission?"
 msgstr ""
 
 #: src/tabs/hardware.cpp:884
-#: src/tabs/library/library_popups.cpp:346
-#: src/tabs/library/library_popups.cpp:356
+#: src/tabs/library/library_popups.cpp:350
+#: src/tabs/library/library_popups.cpp:360
 #: src/tabs/monitor.cpp:1704
 #: src/tabs/monitor.cpp:1897
 #: src/utility/skif_imgui.cpp:1882
@@ -1190,12 +1190,12 @@ msgid "Currently enforced by touch input mode."
 msgstr ""
 
 #: src/tabs/library.cpp:411
-#: src/tabs/library/library_popups.cpp:181
+#: src/tabs/library/library_popups.cpp:185
 msgid "Cover view"
 msgstr ""
 
 #: src/tabs/library.cpp:414
-#: src/tabs/library/library_popups.cpp:186
+#: src/tabs/library/library_popups.cpp:190
 msgid "Grid view"
 msgstr ""
 
@@ -1784,82 +1784,82 @@ msgstr ""
 msgid "Hidden games"
 msgstr ""
 
-#: src/tabs/library/library_popups.cpp:159
+#: src/tabs/library/library_popups.cpp:163
 msgid "A large cover of the selected game beside the games list, with its details and launch options. Best for focusing on one game at a time."
 msgstr ""
 
-#: src/tabs/library/library_popups.cpp:161
+#: src/tabs/library/library_popups.cpp:165
 msgid "The covers of all your games as a grid beside the games list. Best for browsing a large library at a glance. The size of the covers, their titles and platform badges can be adjusted."
 msgstr ""
 
-#: src/tabs/library/library_popups.cpp:171
+#: src/tabs/library/library_popups.cpp:175
 msgid "Choose a library view"
 msgstr ""
 
-#: src/tabs/library/library_popups.cpp:176
+#: src/tabs/library/library_popups.cpp:180
 msgid "Your games can be shown in one of two views. Which one would you like to use?"
 msgstr ""
 
 #. TRANSLATORS: {0} is the icon of the Filter button above the games list of the library
-#: src/tabs/library/library_popups.cpp:192
+#: src/tabs/library/library_popups.cpp:196
 msgid "You can switch at any time through the {0} button above the games list."
 msgstr ""
 
-#: src/tabs/library/library_popups.cpp:276
+#: src/tabs/library/library_popups.cpp:280
 msgid "Remove category"
 msgstr ""
 
-#: src/tabs/library/library_popups.cpp:277
+#: src/tabs/library/library_popups.cpp:281
 msgid "Merge categories"
 msgstr ""
 
-#: src/tabs/library/library_popups.cpp:278
+#: src/tabs/library/library_popups.cpp:282
 msgid "Rename category"
 msgstr ""
 
 #. TRANSLATORS: {0} is the name of a category of the library
-#: src/tabs/library/library_popups.cpp:304
+#: src/tabs/library/library_popups.cpp:308
 msgid "Are you sure you want to remove the {0} category?"
 msgstr ""
 
 #. TRANSLATORS: {0} and {1} are the names of two categories of the library
-#: src/tabs/library/library_popups.cpp:310
+#: src/tabs/library/library_popups.cpp:314
 msgid "Are you sure you want to merge the {0} category with the {1} category?"
 msgstr ""
 
 #. TRANSLATORS: {0} is the current name of a category of the library, {1} the new one
-#: src/tabs/library/library_popups.cpp:316
+#: src/tabs/library/library_popups.cpp:320
 msgid "Are you sure you want to rename {0} to {1}?"
 msgstr ""
 
 #. TRANSLATORS: {0} is the name of a category of the library
-#: src/tabs/library/library_popups.cpp:322
+#: src/tabs/library/library_popups.cpp:326
 msgid "What do you want to rename the {0} category to?"
 msgstr ""
 
-#: src/tabs/library/library_popups.cpp:342
+#: src/tabs/library/library_popups.cpp:346
 msgid "This will affect all games that make use of the category."
 msgstr ""
 
 #. TRANSLATORS: {0} is the name of a game
 #. TRANSLATORS: {0} is the file name of a process
-#: src/tabs/library/library_popups.cpp:453
+#: src/tabs/library/library_popups.cpp:457
 #: src/tabs/monitor.cpp:1971
 msgid "Do you want to end {0}?"
 msgstr ""
 
-#: src/tabs/library/library_popups.cpp:454
+#: src/tabs/library/library_popups.cpp:458
 msgid "Any unsaved game data may be lost."
 msgstr ""
 
-#: src/tabs/library/library_popups.cpp:458
-#: src/tabs/library/library_popups.cpp:482
+#: src/tabs/library/library_popups.cpp:462
+#: src/tabs/library/library_popups.cpp:486
 #: src/tabs/monitor.cpp:1980
 #: src/tabs/monitor.cpp:1985
 msgid "End Process"
 msgstr ""
 
-#: src/tabs/library/library_popups.cpp:466
+#: src/tabs/library/library_popups.cpp:470
 #: src/tabs/monitor.cpp:1966
 msgid "Task Manager"
 msgstr ""
@@ -4242,17 +4242,17 @@ msgstr ""
 msgid "Please wait, this will only take a moment ..."
 msgstr ""
 
-#: src/utility/sk_utility.cpp:891
+#: src/utility/sk_utility.cpp:893
 msgid "Keybinding:"
 msgstr ""
 
 #. TRANSLATORS: RETURN, ESC, BACKSPACE and DELETE are keys of the keyboard (use the names printed on keyboards in your language)
-#: src/utility/sk_utility.cpp:897
+#: src/utility/sk_utility.cpp:899
 msgid "Press RETURN to confirm, ESC to cancel, BACKSPACE to clear, DELETE to reset."
 msgstr ""
 
 #. TRANSLATORS: RETURN, ESC and DELETE are keys of the keyboard (use the names printed on keyboards in your language)
-#: src/utility/sk_utility.cpp:900
+#: src/utility/sk_utility.cpp:902
 msgid "Press RETURN to confirm, ESC to cancel, DELETE to reset."
 msgstr ""
 
