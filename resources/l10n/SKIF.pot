@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-22 22:11+0100\n"
+"POT-Creation-Date: 2026-11-22 22:44+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -913,7 +913,7 @@ msgstr ""
 #: src/tabs/hardware.cpp:1263
 #: src/tabs/library/library_menus.cpp:1462
 #: src/tabs/library/library_menus.cpp:1783
-#: src/tabs/library/library_menus.cpp:2036
+#: src/tabs/library/library_menus.cpp:2038
 #: src/tabs/local.cpp:750
 msgid "Refresh"
 msgstr ""
@@ -1493,7 +1493,7 @@ msgstr ""
 #: src/tabs/library/library_list.cpp:128
 #: src/tabs/library/library_menus.cpp:796
 #: src/tabs/library/library_menus.cpp:915
-#: src/tabs/library/library_menus.cpp:2195
+#: src/tabs/library/library_menus.cpp:2197
 #: src/tabs/library/library_properties.cpp:928
 #: src/tabs/monitor.cpp:2085
 #: src/tabs/monitor.cpp:2093
@@ -1587,30 +1587,30 @@ msgstr ""
 
 #: src/tabs/library/library_menus.cpp:680
 #: src/tabs/library/library_menus.cpp:1399
-#: src/tabs/library/library_menus.cpp:2253
+#: src/tabs/library/library_menus.cpp:2255
 msgid "Favorite"
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:681
 #: src/tabs/library/library_menus.cpp:1400
-#: src/tabs/library/library_menus.cpp:2258
+#: src/tabs/library/library_menus.cpp:2260
 msgid "Unfavorite"
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:701
-#: src/tabs/library/library_menus.cpp:2100
+#: src/tabs/library/library_menus.cpp:2102
 #: src/tabs/library/library_properties.cpp:237
 msgid "Category"
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:710
-#: src/tabs/library/library_menus.cpp:2108
+#: src/tabs/library/library_menus.cpp:2110
 #: src/tabs/library/library_properties.cpp:237
 msgid "Favorited games are always shown under Favorites."
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:829
-#: src/tabs/library/library_menus.cpp:2212
+#: src/tabs/library/library_menus.cpp:2214
 #: src/tabs/library/library_properties.cpp:273
 msgid "New category..."
 msgstr ""
@@ -1790,35 +1790,35 @@ msgstr ""
 msgid "Hidden games"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:2091
+#: src/tabs/library/library_menus.cpp:2093
 msgid "{0} game selected"
 msgid_plural "{0} games selected"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/tabs/library/library_menus.cpp:2142
+#: src/tabs/library/library_menus.cpp:2144
 msgid "Click to remove the selected games from this category."
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:2144
+#: src/tabs/library/library_menus.cpp:2146
 msgid "Click to add the selected games to this category."
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:2164
+#: src/tabs/library/library_menus.cpp:2166
 msgid "Remove from category"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:2181
+#: src/tabs/library/library_menus.cpp:2183
 msgid "{0} selected game will be removed from the category it is in, and shown under Games again:"
 msgid_plural "{0} selected games will be removed from the categories they are in, and shown under Games again:"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/tabs/library/library_menus.cpp:2191
+#: src/tabs/library/library_menus.cpp:2193
 msgid "Favorited games stay under Favorites."
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:2272
+#: src/tabs/library/library_menus.cpp:2274
 msgid "Clear selection"
 msgstr ""
 

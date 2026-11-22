@@ -2033,6 +2033,8 @@ DrawEmptySpaceMenu (bool showClearBtn)
 
     ShowLibraryViewToggles ( );
 
+    ImGui::Separator      ( );
+
     if (SKIF_ImGui_MenuItemEx2 (L_("Refresh"), ICON_FA_ROTATE_RIGHT, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Info)))
       RepopulateGames = true;
 
