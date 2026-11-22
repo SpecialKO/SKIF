@@ -357,6 +357,184 @@ SKIF_Lib_AddCategory (const std::string& name)
   return true;
 }
 
+#pragma region MultiSelection
+
+PopupState MultiSelectMenu = PopupState_Closed; // library_ui.h
+
+// The games of the multi-selection (a few hundred at most: looked up linearly), and the game a Shift + click selects from
+static std::vector <app_key_s> s_multiSelection;
+static app_key_s               s_multiAnchor;
+
+bool
+SKIF_Lib_IsMultiSelectActive (void)
+{
+  return ! s_multiSelection.empty ( );
+}
+
+bool
+SKIF_Lib_IsMultiSelected (const app_key_s& game)
+{
+  return std::find (s_multiSelection.begin ( ), s_multiSelection.end ( ), game) != s_multiSelection.end ( );
+}
+
+void
+SKIF_Lib_ClearMultiSelection (void)
+{
+  s_multiSelection.clear ( );
+}
+
+bool
+SKIF_Lib_IsMultiSelectModifierDown (void)
+{
+  const ImGuiIO& io = ImGui::GetIO ( );
+
+  return (io.KeyCtrl || io.KeyShift);
+}
+
+std::vector <app_record_s*>
+SKIF_Lib_GetMultiSelectedApps (void)
+{
+  static SKIF_GamingCollection& _games = SKIF_GamingCollection::Get ( );
+
+  std::vector <app_record_s*> apps;
+
+  if (s_multiSelection.empty ( ))
+    return apps;
+
+  for (auto& app : _games.GetApps ( ))
+    if (app.second->id != 0 && ! app.second->filtered && SKIF_Lib_IsMultiSelected (app.second->GetKey ( ))) // Not those hidden by the filter
+      apps.push_back (app.second.get ( ));
+
+  return apps;
+}
+
+// Whether a game can be part of the multi-selection, and is shown (not filtered out, nor in a collapsed category)
+static bool
+SKIF_Lib_IsMultiSelectable (const app_record_s* rec)
+{
+  static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
+
+  if (rec == nullptr || rec->id == 0 || rec->filtered || rec->IsSpecialK ( ))
+    return false;
+
+  const std::string category = GetEffectiveCategory (rec);
+
+  auto it = std::find_if (_registry.vecCategories.begin ( ), _registry.vecCategories.end ( ),
+                          [&](const SKIF_RegistrySettings::category_s& cat) { return cat.name == category; });
+
+  return (it == _registry.vecCategories.end ( ) || it->expanded);
+}
+
+bool
+SKIF_Lib_HandleMultiSelectClick (app_record_s* rec)
+{
+  static SKIF_GamingCollection& _games    = SKIF_GamingCollection::Get ( );
+  static library_selection_s&   selection = GetLibraryTab ( ).selection;
+
+  const ImGuiIO&  io  = ImGui::GetIO ( );
+  const app_key_s key = rec->GetKey ( );
+
+  // A plain click, or one on Special K (never part of it): a regular selection
+  if (! SKIF_Lib_IsMultiSelectModifierDown ( ) || ! SKIF_Lib_IsMultiSelectable (rec))
+  {
+    s_multiSelection.clear ( );
+    s_multiAnchor = key;
+    return false;
+  }
+
+  // Shift (+ Ctrl: added to it): the games shown from the last clicked game to this one
+  if (io.KeyShift)
+  {
+    app_key_s anchor = s_multiAnchor;
+
+    if (anchor == app_key_s { })
+      anchor = selection.game;
+
+    if (! io.KeyCtrl)
+      s_multiSelection.clear ( );
+
+    int idxAnchor = -1, idxClicked = -1, idx = 0;
+    std::vector <app_key_s> shown;
+
+    for (auto& app : _games.GetApps ( ))
+    {
+      if (! SKIF_Lib_IsMultiSelectable (app.second.get ( )))
+        continue;
+
+      const app_key_s appKey = app.second->GetKey ( );
+
+      if (appKey == anchor) idxAnchor  = idx;
+      if (appKey == key)    idxClicked = idx;
+
+      shown.push_back (appKey);
+      idx++;
+    }
+
+    if (idxAnchor < 0)
+      idxAnchor = idxClicked;
+
+    if (idxClicked >= 0)
+    {
+      for (int i = std::min (idxAnchor, idxClicked); i <= std::max (idxAnchor, idxClicked); i++)
+        if (! SKIF_Lib_IsMultiSelected (shown [i]))
+          s_multiSelection.push_back (shown [i]);
+    }
+
+    // The anchor stays, so the range can be changed with another Shift + click
+    return false;
+  }
+
+  // Ctrl: toggles the game. The first time, the selected game becomes part of it as well
+  if (s_multiSelection.empty ( ) && selection.game != key)
+  {
+    for (auto& app : _games.GetApps ( ))
+    {
+      if (app.second->GetKey ( ) == selection.game)
+      {
+        if (SKIF_Lib_IsMultiSelectable (app.second.get ( )))
+          s_multiSelection.push_back (selection.game);
+        break;
+      }
+    }
+  }
+
+  s_multiAnchor = key;
+
+  auto it = std::find (s_multiSelection.begin ( ), s_multiSelection.end ( ), key);
+
+  if (it != s_multiSelection.end ( ))
+  {
+    s_multiSelection.erase (it);
+    return true; // Keep the selected game
+  }
+
+  s_multiSelection.push_back (key);
+  return false;
+}
+
+bool
+SKIF_Lib_HandleMultiSelectRightClick (app_record_s* rec)
+{
+  if (s_multiSelection.empty ( ))
+    return false;
+
+  if (SKIF_Lib_IsMultiSelected (rec->GetKey ( )) && SKIF_Lib_GetMultiSelectedApps ( ).size ( ) >= 2)
+  {
+    if (MultiSelectMenu == PopupState_Closed)
+      MultiSelectMenu = PopupState_Open;
+
+    return true;
+  }
+
+  // Another game: its own menu, as a plain click selects it
+  s_multiSelection.clear ( );
+  s_multiAnchor = rec->GetKey ( );
+
+  return false;
+}
+
+#pragma endregion
+
 // This is shared between the Icon menu and the Filter menu
 void
 ShowLargeIconToggle (void)
@@ -466,7 +644,11 @@ Trie labelsFiltered;
 static void
 SearchAppsList (void)
 {
-  if (bFilterActive || bCategoryMgnt)
+  // A category name is being typed: set each frame its field is active (the Category menus), so it is reset here
+  const bool categoryMgnt = bCategoryMgnt;
+  bCategoryMgnt = false;
+
+  if (bFilterActive || categoryMgnt)
     return;
 
   static auto
@@ -1686,6 +1868,23 @@ SKIF_UI_Tab_DrawLibrary (void)
   }
 
 #pragma endregion
+
+  // Context menu of the multi-selection (library/library_menus.cpp)
+  DrawMultiSelectMenu ( );
+
+  // Escape clears the multi-selection (unless it closes a popup, or text is being typed). ImGui closes a popup on Escape
+  //   before this runs, so whether one was open is what it was the frame before
+  static bool popupOpenBefore = false;
+
+  if (SKIF_Lib_IsMultiSelectActive ( )              &&
+      SKIF_Hotkey_MainWindowFocused ( )             &&
+    ! ImGui::GetIO ( ).WantTextInput                &&
+    ! popupOpenBefore                               &&
+    ! SKIF_ImGui_IsAnyPopupOpen ( )                 &&
+      ImGui::IsKeyPressed (ImGuiKey_Escape, false))
+    SKIF_Lib_ClearMultiSelection ( );
+
+  popupOpenBefore = SKIF_ImGui_IsAnyPopupOpen ( );
 
   // Context menu for a game's icon (library/library_menus.cpp)
   DrawIconMenu ( );

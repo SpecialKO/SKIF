@@ -219,6 +219,14 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
       ImGui::IsItemClicked   (ImGuiMouseButton_Left ) ||
       ImGui::IsItemClicked   (ImGuiMouseButton_Right);
 
+    // Multi-selection: Ctrl / Shift + click changes it (a Ctrl + click that removes the game keeps the selected game), and
+    //   a right click on one of its games opens its menu instead of the game menu (and keeps the selected game)
+    if (ImGui::IsItemClicked (ImGuiMouseButton_Left)  && SKIF_Lib_HandleMultiSelectClick      (selected_app))
+      ret = false;
+
+    if (ImGui::IsItemClicked (ImGuiMouseButton_Right) && SKIF_Lib_HandleMultiSelectRightClick (selected_app))
+      return false;
+
     // If the item is activated, but not visible, scroll to it
     if (ret)
     {
@@ -314,6 +322,9 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
     bool selected = (selection.game == rec->GetKey ( ));
     bool change   = false;
 
+    // While there is a multi-selection, only its games are highlighted
+    bool highlight = (SKIF_Lib_IsMultiSelectActive ( )) ? SKIF_Lib_IsMultiSelected (rec->GetKey ( )) : selected;
+
     //if (_registry._TouchDevice)
     //  ImGui::SetCursorPosY (ImGui::GetCursorPosY() + 15.0f);
 
@@ -363,14 +374,15 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
     // Game Title
     ImGui::PushStyleColor  (ImGuiCol_Text, _color);
     ImGui::PushStyleColor  (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
-    SKIF_ImGui_SelectableVAligned (rec->ImGuiLabelID.c_str(), rec->names.normal.c_str(), &selected, ImGuiSelectableFlags_None, ImVec2(maxWidth, _ICON_HEIGHT));
+    SKIF_ImGui_SelectableVAligned (rec->ImGuiLabelID.c_str(), rec->names.normal.c_str(), &highlight, ImGuiSelectableFlags_None, ImVec2(maxWidth, _ICON_HEIGHT));
     ImGui::PopStyleColor   (2);
 
     if (_registry.bFadeCovers)
       ImGui::PopStyleVar ( ); // -ImGuiStyleVar_Alpha
 
     // Handle double click on a game row
-    if ( ImGui::IsItemHovered ( ) && pApp != nullptr && pApp->id != SKIF_STEAM_APPID && ! pApp->_status.running && ! pApp->IsUpdateBlockingLaunch ( ) )
+    if ( ImGui::IsItemHovered ( ) && pApp != nullptr && pApp->id != SKIF_STEAM_APPID && ! pApp->_status.running && ! pApp->IsUpdateBlockingLaunch ( ) &&
+       ! SKIF_Lib_IsMultiSelectModifierDown ( ) ) // Ctrl / Shift + clicks change the multi-selection
     {
       if ( ImGui::IsMouseDoubleClicked (ImGuiMouseButton_Left) &&
            timeClicked != 0 && (item_clicked.game == pApp->GetKey ( )))

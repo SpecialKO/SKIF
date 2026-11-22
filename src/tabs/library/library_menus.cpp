@@ -2045,3 +2045,233 @@ DrawEmptySpaceMenu (bool showClearBtn)
 
 #pragma endregion
 }
+
+// Context menu of the multi-selection (Ctrl / Shift + click in the list or the grid): changes the category, or the
+//   favorite state, of all its games at once
+void
+DrawMultiSelectMenu (void)
+{
+  static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
+  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
+
+  if (MultiSelectMenu == PopupState_Open)
+  {
+    ImGui::OpenPopup ("###MultiSelectMenu");
+    MultiSelectMenu = PopupState_Closed;
+  }
+
+  if (! ImGui::BeginPopup ("###MultiSelectMenu", ImGuiWindowFlags_NoMove))
+    return;
+
+  std::vector <app_record_s*> apps = SKIF_Lib_GetMultiSelectedApps ( );
+
+  // Nothing left to act on (e.g. the library was refreshed)
+  if (apps.empty ( ))
+  {
+    ImGui::CloseCurrentPopup ( );
+    ImGui::EndPopup ( );
+    return;
+  }
+
+  // Saves the changes of all games (the metadata file written once), and re-sorts the library
+  auto _ApplyChanges = [&](void)
+  {
+    for (size_t i = 0; i < apps.size ( ); i++)
+      _games.MetaDB_UpdateApp (apps [i], (i == apps.size ( ) - 1));
+
+    SKIF_GamingCollection::SortApps (&_games.GetApps ( ));
+    sort_changed = true;
+  };
+
+  // Context menu should not have any navigation highlight (white border around items)
+  ImGui::PushStyleColor  (ImGuiCol_NavCursor, ImVec4(0,0,0,0));
+
+  const int count = static_cast <int> (apps.size ( ));
+
+  ImGui::TextDisabled ("%s", FP_("{0} game selected", "{0} games selected", count).c_str ( ));
+  ImGui::Separator    ( );
+
+  int favorites = 0;
+  for (auto app : apps)
+    if (app->IsFavorite ( ))
+      favorites++;
+
+  // Category
+  if (SKIF_ImGui_BeginMenuEx2 (L_("Category###MultiSelectCategory"), ICON_FA_OBJECT_GROUP, ImColor(200, 200, 200, 255)))
+  {
+    // Keep the menu open, to change several things in a row
+    ImGui::PushItemFlag (ImGuiItemFlags_AutoClosePopups, false);
+    ImGui::PushID       ("###MultiSelectCategories");
+
+    if (favorites > 0)
+    {
+      ImGui::TextDisabled ("%s", _("Favorited games are always shown under Favorites."));
+      ImGui::Separator    ( );
+    }
+
+    std::string newCategoryName;
+    bool        newCategory = false;
+    int         categorized = 0; // Games in any category of the user
+
+    for (auto app : apps)
+      if (! app->skif.category.empty ( ))
+        categorized++;
+
+    for (auto& category : _registry.vecCategories)
+    {
+      // Skip the default categories
+      if (category.name == "Favorites" || category.name == "Games")
+        continue;
+
+      int inCategory = 0;
+      for (auto app : apps)
+        if (app->skif.category == category.name)
+          inCategory++;
+
+      // Some of the games are in it: how many
+      std::string partial = (inCategory > 0 && inCategory < count) ? SKIF_Util_FormatStringRaw ("%i/%i", inCategory, count) : "";
+
+      // All of them in it: removes them from it; else adds them all to it
+      if (ImGui::MenuItem (category.name.c_str ( ), partial.c_str ( ), (inCategory == count)))
+      {
+        newCategoryName = (inCategory == count) ? "" : category.name;
+        newCategory     = true;
+      }
+
+      if (inCategory == count)
+        SKIF_ImGui_SetHoverTip (_("Click to remove the selected games from this category."));
+      else
+        SKIF_ImGui_SetHoverTip (_("Click to add the selected games to this category."));
+    }
+
+    // Applied after the loop, as it re-sorts the library
+    if (newCategory)
+    {
+      for (auto app : apps)
+        app->skif.category = newCategoryName;
+
+      _ApplyChanges ( );
+    }
+
+    if (_registry.vecCategories.size ( ) > 2) // Any other than the defaults: Favorites, Games ?
+      ImGui::Separator ( );
+
+    // The selected games may be in different categories, and each is taken out of its own: a submenu that says which
+    //   categories that is, and asks for a confirmation.
+    //   Disabled through both: the disable state greys it out, and enabled keeps it from opening (BeginMenuEx ( ) opens a
+    //     hovered menu unless its own enabled is false; the item flag alone does not stop that, as "Play with" relies on)
+    SKIF_ImGui_PushDisableState (categorized == 0);
+    const bool openRemove = SKIF_ImGui_BeginMenuEx2 (L_("Remove from category###MultiSelectRemoveCategory"), ICON_FA_XMARK,
+                                                     (categorized == 0) ? ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled) : ImVec4 (ImColor(200, 200, 200, 255)), // The icon greyed out as well
+                                                     (categorized >  0));
+    SKIF_ImGui_PopDisableState  (categorized == 0);
+
+    if (openRemove)
+    {
+      // The categories the selected games are in, and how many of them are in each
+      std::map <std::string, int> inCategories;
+      for (auto app : apps)
+        if (! app->skif.category.empty ( ))
+          inCategories [app->skif.category]++;
+
+      ImGui::PushStyleColor  (ImGuiCol_Text, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Warning));
+      ImGui::PushTextWrapPos (ImGui::GetCursorPosX ( ) + 300.0f * SKIF_ImGui_GlobalDPIScale);
+      ImGui::TextUnformatted (ICON_FA_TRIANGLE_EXCLAMATION);
+      ImGui::SameLine        ( );
+      ImGui::TextWrapped     ("%s", FP_("{0} selected game will be removed from the category it is in, and shown under Games again:",
+                                        "{0} selected games will be removed from the categories they are in, and shown under Games again:",
+                                        categorized).c_str ( ));
+      ImGui::PopTextWrapPos  ( );
+      ImGui::PopStyleColor   ( );
+
+      for (auto& category : inCategories)
+        ImGui::BulletText ("%s (%i)", category.first.c_str ( ), category.second);
+
+      if (favorites > 0)
+        ImGui::TextDisabled ("%s", _("Favorited games stay under Favorites."));
+
+      ImGui::Separator ( );
+
+      if (SKIF_ImGui_MenuItemEx2 (L_("Remove###MultiSelectRemoveCategoryConfirm"), ICON_FA_XMARK, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Failure)))
+      {
+        for (auto app : apps)
+          app->skif.category.clear ( );
+
+        _ApplyChanges ( );
+
+        ImGui::CloseCurrentPopup ( ); // This submenu: the Category menu stays open
+      }
+
+      ImGui::EndMenu ( );
+    }
+
+    ImGui::Separator ( );
+
+    static char charCategoryName [maxCategoryNameLen] = { };
+
+    if (ImGui::InputTextEx ("###MultiSelectAddNew", _("New category..."), charCategoryName, maxCategoryNameLen,
+                    ImVec2 (150.0f * SKIF_ImGui_GlobalDPIScale, 0.0f), ImGuiInputTextFlags_EnterReturnsTrue))
+    {
+      std::string szName = charCategoryName;
+      strncpy (charCategoryName, "\0", maxCategoryNameLen);
+
+      // As in the Category menu of a game: the default categories set the favorite state instead
+      if (! szName.empty ( ))
+      {
+        SKIF_Lib_AddCategory (szName);
+
+        for (auto app : apps)
+        {
+          if      (szName == "Favorites")
+            app->skif.pinned = 1;
+          else if (szName == "Games")
+          {
+            app->skif.pinned = 0;
+            app->skif.category.clear ( );
+          }
+          else
+            app->skif.category = szName;
+        }
+
+        _ApplyChanges ( );
+      }
+    }
+
+    // Keeps type-to-search from acting on the keys typed in the field
+    if (ImGui::IsItemActive ( ))
+      bCategoryMgnt = true;
+
+    ImGui::PopID       ( ); // ###MultiSelectCategories
+    ImGui::PopItemFlag ( ); // ImGuiItemFlags_AutoClosePopups
+
+    ImGui::EndMenu ( );
+  }
+
+  ImGui::Separator ( );
+
+  SKIF_ImGui_PushDisableState (favorites == count);
+  const bool doFavorite   = SKIF_ImGui_MenuItemEx2 (L_("Favorite###MultiSelectFavorite"),     ICON_FA_HEART,
+                                                     (favorites == count) ? ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled) : ImVec4 (ImColor(245, 66, 66, 255)));
+  SKIF_ImGui_PopDisableState  (favorites == count);
+
+  SKIF_ImGui_PushDisableState (favorites == 0);
+  const bool doUnfavorite = SKIF_ImGui_MenuItemEx2 (L_("Unfavorite###MultiSelectUnfavorite"), ICON_FA_HEART_CRACK,
+                                                     (favorites == 0)     ? ImGui::GetStyleColorVec4 (ImGuiCol_TextDisabled) : ImVec4 (ImColor(245, 66, 66, 255)));
+  SKIF_ImGui_PopDisableState  (favorites == 0);
+
+  if (doFavorite || doUnfavorite)
+  {
+    for (auto app : apps)
+      app->skif.pinned = (doFavorite) ? 1 : 0;
+
+    _ApplyChanges ( );
+  }
+
+  ImGui::Separator ( );
+
+  if (SKIF_ImGui_MenuItemEx2 (L_("Clear selection###MultiSelectClear"), ICON_FA_SQUARE_XMARK, ImGui::GetStyleColorVec4 (ImGuiCol_SKIF_Failure)))
+    SKIF_Lib_ClearMultiSelection ( );
+
+  ImGui::PopStyleColor ( );
+  ImGui::EndPopup      ( );
+}

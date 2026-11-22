@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-20 21:08+0100\n"
+"POT-Creation-Date: 2026-11-22 22:11+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1178,110 +1178,110 @@ msgstr ""
 msgid "Do you want to save changes to {0}?"
 msgstr ""
 
-#: src/tabs/library.cpp:373
+#: src/tabs/library.cpp:551
 #: src/tabs/settings.cpp:1526
 #: src/tabs/settings.cpp:1543
 msgid "Large icons"
 msgstr ""
 
-#: src/tabs/library.cpp:379
+#: src/tabs/library.cpp:557
 #: src/tabs/settings.cpp:1549
 msgid "Currently enforced by touch input mode."
 msgstr ""
 
-#: src/tabs/library.cpp:411
+#: src/tabs/library.cpp:589
 #: src/tabs/library/library_popups.cpp:185
 msgid "Cover view"
 msgstr ""
 
-#: src/tabs/library.cpp:414
+#: src/tabs/library.cpp:592
 #: src/tabs/library/library_popups.cpp:190
 msgid "Grid view"
 msgstr ""
 
-#: src/tabs/library.cpp:423
+#: src/tabs/library.cpp:601
 msgid "Show titles"
 msgstr ""
 
-#: src/tabs/library.cpp:427
+#: src/tabs/library.cpp:605
 msgid "Show platform"
 msgstr ""
 
 #. TRANSLATORS: {0} is the width of the covers in the library's grid view (in pixels at 100% scale)
-#: src/tabs/library.cpp:432
+#: src/tabs/library.cpp:610
 msgid "Cover size: {0}"
 msgstr ""
 
-#: src/tabs/library.cpp:445
+#: src/tabs/library.cpp:623
 msgid "Show icons"
 msgstr ""
 
-#: src/tabs/library.cpp:977
+#: src/tabs/library.cpp:1159
 msgid "Cover changed"
 msgstr ""
 
-#: src/tabs/library.cpp:979
+#: src/tabs/library.cpp:1161
 msgid "Could not change the cover"
 msgstr ""
 
-#: src/tabs/library.cpp:1628
+#: src/tabs/library.cpp:1810
 #: src/tabs/library/library_details.cpp:424
 msgid "Loading..."
 msgstr ""
 
-#: src/tabs/library.cpp:1642
+#: src/tabs/library.cpp:1824
 msgid "Cover"
 msgstr ""
 
-#: src/tabs/library.cpp:1655
+#: src/tabs/library.cpp:1837
 #: src/tabs/library/library_menus.cpp:1683
 #: src/tabs/library/library_menus.cpp:1841
 msgid "Open SteamGridDB"
 msgstr ""
 
-#: src/tabs/library.cpp:1823
+#: src/tabs/library.cpp:2022
 msgid "New 32-bit DLL Installed"
 msgstr ""
 
-#: src/tabs/library.cpp:1824
+#: src/tabs/library.cpp:2023
 msgid "New 64-bit DLL Installed"
 msgstr ""
 
-#: src/tabs/library.cpp:1955
-#: src/tabs/library.cpp:2063
+#: src/tabs/library.cpp:2154
+#: src/tabs/library.cpp:2262
 msgid "Missing Files"
 msgstr ""
 
-#: src/tabs/library.cpp:1956
-#: src/tabs/library.cpp:2064
+#: src/tabs/library.cpp:2155
+#: src/tabs/library.cpp:2263
 msgid "Unable to extract Special K DLL files from the provided {0} file."
 msgstr ""
 
-#: src/tabs/library.cpp:2102
+#: src/tabs/library.cpp:2301
 msgid "Unsupported Feature"
 msgstr ""
 
-#: src/tabs/library.cpp:2103
+#: src/tabs/library.cpp:2302
 msgid "SKIF cannot perform a drag-n-drop update because Special K {0} or newer is required."
 msgstr ""
 
-#: src/tabs/library.cpp:2114
+#: src/tabs/library.cpp:2313
 msgid "Nothing was changed"
 msgstr ""
 
-#: src/tabs/library.cpp:2115
+#: src/tabs/library.cpp:2314
 msgid "Drop the image on a game to change its cover: on its cover, its tile, or its row in the list."
 msgstr ""
 
-#: src/tabs/library.cpp:2132
+#: src/tabs/library.cpp:2331
 msgid "Unsupported file format"
 msgstr ""
 
-#: src/tabs/library.cpp:2134
+#: src/tabs/library.cpp:2333
 msgid "Add a game to the library:"
 msgstr ""
 
-#: src/tabs/library.cpp:2140
+#: src/tabs/library.cpp:2339
 msgid "Change the cover of a game (drop the image on it):"
 msgstr ""
 
@@ -1448,7 +1448,7 @@ msgid "Unknown"
 msgstr ""
 
 #: src/tabs/library/library_grid.cpp:169
-#: src/tabs/library/library_list.cpp:287
+#: src/tabs/library/library_list.cpp:295
 msgid "Loading games..."
 msgstr ""
 
@@ -1493,6 +1493,7 @@ msgstr ""
 #: src/tabs/library/library_list.cpp:128
 #: src/tabs/library/library_menus.cpp:796
 #: src/tabs/library/library_menus.cpp:915
+#: src/tabs/library/library_menus.cpp:2195
 #: src/tabs/library/library_properties.cpp:928
 #: src/tabs/monitor.cpp:2085
 #: src/tabs/monitor.cpp:2093
@@ -1586,25 +1587,30 @@ msgstr ""
 
 #: src/tabs/library/library_menus.cpp:680
 #: src/tabs/library/library_menus.cpp:1399
+#: src/tabs/library/library_menus.cpp:2253
 msgid "Favorite"
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:681
 #: src/tabs/library/library_menus.cpp:1400
+#: src/tabs/library/library_menus.cpp:2258
 msgid "Unfavorite"
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:701
+#: src/tabs/library/library_menus.cpp:2100
 #: src/tabs/library/library_properties.cpp:237
 msgid "Category"
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:710
+#: src/tabs/library/library_menus.cpp:2108
 #: src/tabs/library/library_properties.cpp:237
 msgid "Favorited games are always shown under Favorites."
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:829
+#: src/tabs/library/library_menus.cpp:2212
 #: src/tabs/library/library_properties.cpp:273
 msgid "New category..."
 msgstr ""
@@ -1782,6 +1788,38 @@ msgstr ""
 
 #: src/tabs/library/library_menus.cpp:2012
 msgid "Hidden games"
+msgstr ""
+
+#: src/tabs/library/library_menus.cpp:2091
+msgid "{0} game selected"
+msgid_plural "{0} games selected"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/tabs/library/library_menus.cpp:2142
+msgid "Click to remove the selected games from this category."
+msgstr ""
+
+#: src/tabs/library/library_menus.cpp:2144
+msgid "Click to add the selected games to this category."
+msgstr ""
+
+#: src/tabs/library/library_menus.cpp:2164
+msgid "Remove from category"
+msgstr ""
+
+#: src/tabs/library/library_menus.cpp:2181
+msgid "{0} selected game will be removed from the category it is in, and shown under Games again:"
+msgid_plural "{0} selected games will be removed from the categories they are in, and shown under Games again:"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/tabs/library/library_menus.cpp:2191
+msgid "Favorited games stay under Favorites."
+msgstr ""
+
+#: src/tabs/library/library_menus.cpp:2272
+msgid "Clear selection"
 msgstr ""
 
 #: src/tabs/library/library_popups.cpp:163

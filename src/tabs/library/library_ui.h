@@ -221,8 +221,25 @@ void DrawCoverDropHighlight  (ImDrawList* draw_list, ImVec2 min, ImVec2 max, flo
 void ScrollForCoverDrag      (void);                 // In a scrolling window of drop targets (the grid, the list), each frame: scrolls it
                                                      //   while an image is dragged near its top or bottom edge
 
+// library.cpp: multi-selection (Ctrl / Shift + click in the list or the grid), to change several games at once through
+//   their own context menu (DrawMultiSelectMenu): categories, favorites. Special K is never part of it.
+//   While it holds any game, only its games are highlighted (not the selected game, unless it is one of them).
+extern PopupState             MultiSelectMenu;
+bool   SKIF_Lib_IsMultiSelectActive      (void);                 // It holds any game
+bool   SKIF_Lib_IsMultiSelected          (const app_key_s& game);
+std::vector <app_record_s*>
+       SKIF_Lib_GetMultiSelectedApps     (void);                 // Its games still in the library and not filtered out, in library order
+void   SKIF_Lib_ClearMultiSelection      (void);
+bool   SKIF_Lib_HandleMultiSelectClick   (app_record_s* rec);    // On a left click of a game: Ctrl toggles it, Shift selects the range
+                                                                 //   from the last clicked game, a plain click clears it. True: the click
+                                                                 //   only removed the game, the selected game should not change
+bool   SKIF_Lib_HandleMultiSelectRightClick (app_record_s* rec); // On a right click of a game: true if it opened the multi-selection's
+                                                                 //   menu (the game is one of 2+ games), instead of the game menu;
+                                                                 //   a game outside of it clears it
+bool   SKIF_Lib_IsMultiSelectModifierDown (void);                // Ctrl or Shift: a click changes the multi-selection (no launch on double-click)
+
 // library/library_launch.cpp
-void LaunchGame              (app_record_s* pApp);
+void LaunchGame             (app_record_s* pApp);
 void DrawLaunchScanPopup     (void);                 // "Scanning game folder..." while a launch waits for the game's first scan (anti-cheat), then launches it
 bool SaveGameCover           (app_record_s* pApp, std::wstring_view path, bool notify = false); // Copies / downloads an image as the game's custom cover (background
                                                      //   thread); notify: a notification once it is saved (one is always shown if it fails)
@@ -245,6 +262,7 @@ void DrawSpecialKContextMenu (app_record_s* pApp);
 void DrawCoverMenu           (void);
 void DrawIconMenu            (void);
 void DrawEmptySpaceMenu      (bool showClearBtn);
+void DrawMultiSelectMenu     (void);                 // The context menu of the multi-selection (opened through MultiSelectMenu)
 
 // library/library_list.cpp
 void DrawGamesList           (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop3, ImVec2& fTop3ScreenPos);

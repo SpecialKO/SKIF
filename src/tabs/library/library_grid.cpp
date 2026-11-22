@@ -261,8 +261,20 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
     const bool isFocused  = (labelID == focusBeforeGrid) &&
                             (labelID == ImGui::GetFocusID ( ));
 
+    // Multi-selection: Ctrl / Shift + click changes it (a Ctrl + click that removes the game keeps the selected game), and
+    //   a right click on one of its games opens its menu instead of the game menu (and keeps the selected game)
+    bool multiHandled = false;
+
+    if (! SKIF_ImGui_IsAutoScrollActive ( ))
+    {
+      if      (ImGui::IsItemClicked (ImGuiMouseButton_Right) && SKIF_Lib_HandleMultiSelectRightClick (rec))
+        multiHandled = true;
+      else if (ImGui::IsItemClicked (ImGuiMouseButton_Left)  && SKIF_Lib_HandleMultiSelectClick      (rec))
+        multiHandled = true;
+    }
+
     // Selection: a click (either button), navigation, or activation (Enter / A)
-    if (! SKIF_ImGui_IsAutoScrollActive ( ) &&
+    if (! SKIF_ImGui_IsAutoScrollActive ( ) && ! multiHandled &&
          (pressed                                         || // Also when navigation moves onto it (SelectOnNav)
           ImGui::IsItemActivated (                      ) ||
           ImGui::IsItemClicked   (ImGuiMouseButton_Left ) ||
@@ -278,13 +290,13 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
                      ( ImGui::GetKeyData (ImGuiKey_Enter          )->DownDuration     >= _LONG_INTERVAL   &&
                        ImGui::GetKeyData (ImGuiKey_Enter          )->DownDurationPrev <= _LONG_INTERVAL ) );
 
-    if (! SKIF_ImGui_IsAutoScrollActive ( ) && GameMenu == PopupState_Closed && (ImGui::IsItemClicked (ImGuiMouseButton_Right) || longPress))
+    if (! SKIF_ImGui_IsAutoScrollActive ( ) && ! multiHandled && GameMenu == PopupState_Closed && (ImGui::IsItemClicked (ImGuiMouseButton_Right) || longPress))
       GameMenu = PopupState_Open;
 
     // Launch: double-click, or a short press of Enter / A, on the selected game (pApp: the menu and the launch act on it)
     const bool canLaunch = (selected && pApp == rec && ! isSK && ! rec->_status.running && ! rec->IsUpdateBlockingLaunch ( ));
 
-    if (hovered && ImGui::IsMouseClicked (ImGuiMouseButton_Left))
+    if (hovered && ImGui::IsMouseClicked (ImGuiMouseButton_Left) && ! SKIF_Lib_IsMultiSelectModifierDown ( )) // Ctrl / Shift: the multi-selection
     {
       if (canLaunch && tileClicked == key && timeClicked + 500 >= now)
       {
@@ -427,8 +439,10 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
       _DrawCover (srvLogo, ImVec2 (600.0f, 900.0f), minCover, maxCover, ImGui::GetStyle ( ).Alpha);
 
     // The selected game: an accent border around the cover (3 px away from it, 5 px wide), and a faint light line just
-    //   inside its edge (a "glow")
-    if (selected)
+    //   inside its edge (a "glow"). While there is a multi-selection, its games instead (only them)
+    const bool highlight = (SKIF_Lib_IsMultiSelectActive ( )) ? SKIF_Lib_IsMultiSelected (key) : selected;
+
+    if (highlight)
     {
       const float  gap    = std::max (3.0f, ImFloor (3.0f * dpi));
       const float  border = std::max (5.0f, ImFloor (5.0f * dpi));
