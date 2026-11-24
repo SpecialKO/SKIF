@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-22 22:44+0100\n"
+"POT-Creation-Date: 2026-11-24 17:43+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -255,10 +255,10 @@ msgstr ""
 #: src/tabs/library/library_popups.cpp:503
 #: src/tabs/local.cpp:1213
 #: src/tabs/local.cpp:1238
-#: src/tabs/monitor.cpp:1981
-#: src/tabs/monitor.cpp:1999
-#: src/tabs/monitor.cpp:2086
-#: src/tabs/monitor.cpp:2119
+#: src/tabs/monitor.cpp:1983
+#: src/tabs/monitor.cpp:2001
+#: src/tabs/monitor.cpp:2088
+#: src/tabs/monitor.cpp:2121
 #: src/utility/skif_imgui.cpp:1880
 #: src/utility/updater.cpp:1570
 #: src/utility/updater.cpp:1627
@@ -785,15 +785,15 @@ msgstr ""
 #: src/tabs/hardware.cpp:884
 #: src/tabs/library/library_popups.cpp:350
 #: src/tabs/library/library_popups.cpp:360
-#: src/tabs/monitor.cpp:1704
-#: src/tabs/monitor.cpp:1897
+#: src/tabs/monitor.cpp:1706
+#: src/tabs/monitor.cpp:1899
 #: src/utility/skif_imgui.cpp:1882
 msgid "Yes"
 msgstr ""
 
 #: src/tabs/hardware.cpp:886
-#: src/tabs/monitor.cpp:1704
-#: src/tabs/monitor.cpp:1897
+#: src/tabs/monitor.cpp:1706
+#: src/tabs/monitor.cpp:1899
 #: src/tabs/settings.cpp:1747
 #: src/utility/skif_imgui.cpp:1883
 msgid "No"
@@ -1375,7 +1375,7 @@ msgstr ""
 #: src/tabs/library/library_details.cpp:800
 #: src/tabs/library/library_menus.cpp:637
 #: src/tabs/library/library_menus.cpp:1331
-#: src/tabs/monitor.cpp:1621
+#: src/tabs/monitor.cpp:1623
 msgid "Browse"
 msgstr ""
 
@@ -1495,8 +1495,8 @@ msgstr ""
 #: src/tabs/library/library_menus.cpp:915
 #: src/tabs/library/library_menus.cpp:2197
 #: src/tabs/library/library_properties.cpp:928
-#: src/tabs/monitor.cpp:2085
-#: src/tabs/monitor.cpp:2093
+#: src/tabs/monitor.cpp:2087
+#: src/tabs/monitor.cpp:2095
 msgid "Remove"
 msgstr ""
 
@@ -1697,7 +1697,7 @@ msgstr ""
 
 #: src/tabs/library/library_menus.cpp:1461
 #: src/tabs/library/library_menus.cpp:1782
-#: src/tabs/monitor.cpp:1566
+#: src/tabs/monitor.cpp:1568
 #: src/tabs/settings.cpp:2614
 #: src/utility/ini_presets.cpp:302
 msgid "Reset"
@@ -1882,7 +1882,7 @@ msgstr ""
 #. TRANSLATORS: {0} is the name of a game
 #. TRANSLATORS: {0} is the file name of a process
 #: src/tabs/library/library_popups.cpp:457
-#: src/tabs/monitor.cpp:1971
+#: src/tabs/monitor.cpp:1973
 msgid "Do you want to end {0}?"
 msgstr ""
 
@@ -1892,13 +1892,13 @@ msgstr ""
 
 #: src/tabs/library/library_popups.cpp:462
 #: src/tabs/library/library_popups.cpp:486
-#: src/tabs/monitor.cpp:1980
-#: src/tabs/monitor.cpp:1985
+#: src/tabs/monitor.cpp:1982
+#: src/tabs/monitor.cpp:1987
 msgid "End Process"
 msgstr ""
 
 #: src/tabs/library/library_popups.cpp:470
-#: src/tabs/monitor.cpp:1966
+#: src/tabs/monitor.cpp:1968
 msgid "Task Manager"
 msgstr ""
 
@@ -2714,7 +2714,7 @@ msgid "Update speed:"
 msgstr ""
 
 #: src/tabs/monitor.cpp:818
-#: src/tabs/monitor.cpp:1781
+#: src/tabs/monitor.cpp:1783
 msgid "Real-time updates are paused."
 msgstr ""
 
@@ -2750,165 +2750,165 @@ msgstr ""
 msgid "Status:"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1549
+#: src/tabs/monitor.cpp:1551
 msgid "Actions:"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1554
+#: src/tabs/monitor.cpp:1556
 msgid "Whitelist"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1560
+#: src/tabs/monitor.cpp:1562
 msgid "Blacklist"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1578
+#: src/tabs/monitor.cpp:1580
 msgid "Remove the whitelist and blacklist patterns matching this process."
 msgstr ""
 
-#: src/tabs/monitor.cpp:1630
+#: src/tabs/monitor.cpp:1632
 msgid "End task"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1693
-#: src/tabs/monitor.cpp:1713
+#: src/tabs/monitor.cpp:1695
+#: src/tabs/monitor.cpp:1715
 msgid "Status"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1693
-#: src/tabs/monitor.cpp:1721
+#: src/tabs/monitor.cpp:1695
+#: src/tabs/monitor.cpp:1723
 msgid "PID"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1693
-#: src/tabs/monitor.cpp:1729
+#: src/tabs/monitor.cpp:1695
+#: src/tabs/monitor.cpp:1731
 msgid "Type"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1693
-#: src/tabs/monitor.cpp:1733
+#: src/tabs/monitor.cpp:1695
+#: src/tabs/monitor.cpp:1735
 msgid "Handles"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1693
-#: src/tabs/monitor.cpp:1737
+#: src/tabs/monitor.cpp:1695
+#: src/tabs/monitor.cpp:1739
 msgid "Arch"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1693
-#: src/tabs/monitor.cpp:1745
+#: src/tabs/monitor.cpp:1695
+#: src/tabs/monitor.cpp:1747
 msgid "Admin"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1693
-#: src/tabs/monitor.cpp:1753
+#: src/tabs/monitor.cpp:1695
+#: src/tabs/monitor.cpp:1755
 msgid "Process Name"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1715
+#: src/tabs/monitor.cpp:1717
 msgid "Injection status"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1723
+#: src/tabs/monitor.cpp:1725
 msgid "Process ID"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1738
+#: src/tabs/monitor.cpp:1740
 msgid "CPU architecture"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1746
+#: src/tabs/monitor.cpp:1748
 msgid "Elevated process"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1754
+#: src/tabs/monitor.cpp:1756
 msgid "Process name"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1779
+#: src/tabs/monitor.cpp:1781
 msgid "Error occurred when trying to locate type index for events!"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1783
+#: src/tabs/monitor.cpp:1785
 msgid "Special K is currently not injected in any process."
 msgstr ""
 
-#: src/tabs/monitor.cpp:1819
+#: src/tabs/monitor.cpp:1821
 msgid "Process is blacklisted"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1825
+#: src/tabs/monitor.cpp:1827
 msgid "Process is whitelisted"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1838
+#: src/tabs/monitor.cpp:1840
 msgctxt "injection status"
 msgid "Active"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1842
+#: src/tabs/monitor.cpp:1844
 msgctxt "injection status"
 msgid "Local"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1847
+#: src/tabs/monitor.cpp:1849
 msgctxt "injection status"
 msgid "Inert"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1850
-#: src/tabs/monitor.cpp:1859
+#: src/tabs/monitor.cpp:1852
+#: src/tabs/monitor.cpp:1861
 msgctxt "injection status"
 msgid "Stuck (end the process to eject Special K)"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1856
+#: src/tabs/monitor.cpp:1858
 msgctxt "injection status"
 msgid "Inert (potentially stuck)"
 msgstr ""
 
-#: src/tabs/monitor.cpp:1917
+#: src/tabs/monitor.cpp:1919
 msgid "Injection status cannot be determined due to a lack of permissions."
 msgstr ""
 
-#: src/tabs/monitor.cpp:1973
+#: src/tabs/monitor.cpp:1975
 msgid "If an open program is associated with this process, it will close and you will lose any unsaved data. If you end a system process, it might result in system instability. Are you sure you want to continue?"
 msgstr ""
 
-#: src/tabs/monitor.cpp:2016
+#: src/tabs/monitor.cpp:2018
 msgid "Reset Whitelist / Blacklist"
 msgstr ""
 
 #. TRANSLATORS: {0} is the file name of a process
-#: src/tabs/monitor.cpp:2043
+#: src/tabs/monitor.cpp:2045
 msgid "Patterns matching {0}:"
 msgstr ""
 
-#: src/tabs/monitor.cpp:2047
+#: src/tabs/monitor.cpp:2049
 msgid "Whitelist:"
 msgstr ""
 
-#: src/tabs/monitor.cpp:2048
+#: src/tabs/monitor.cpp:2050
 msgid "Blacklist:"
 msgstr ""
 
-#: src/tabs/monitor.cpp:2052
+#: src/tabs/monitor.cpp:2054
 msgid "No whitelist or blacklist patterns of yours match this process."
 msgstr ""
 
-#: src/tabs/monitor.cpp:2064
+#: src/tabs/monitor.cpp:2066
 msgid "The process is also whitelisted by the built-in pattern \"{0}\", which cannot be removed."
 msgstr ""
 
-#: src/tabs/monitor.cpp:2065
+#: src/tabs/monitor.cpp:2067
 msgid "The process is also blacklisted by the built-in pattern \"{0}\", which cannot be removed."
 msgstr ""
 
-#: src/tabs/monitor.cpp:2072
+#: src/tabs/monitor.cpp:2074
 msgid "Removing a pattern affects every application it matches, not just this one. Do you want to remove the patterns listed above?"
 msgstr ""
 
-#: src/tabs/monitor.cpp:2079
+#: src/tabs/monitor.cpp:2081
 msgid "The changes could not be saved!"
 msgstr ""
 
@@ -4042,14 +4042,14 @@ msgstr ""
 
 #. TRANSLATORS: {0} is the file name of a program (e.g. Game.exe)
 #: src/utility/injection.cpp:256
-#: src/utility/injection.cpp:2329
+#: src/utility/injection.cpp:2333
 msgid "{0} was added to the whitelist."
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
 #: src/utility/injection.cpp:258
 #: src/utility/injection.cpp:263
-#: src/utility/injection.cpp:2331
+#: src/utility/injection.cpp:2335
 msgid "Special K is ready to be injected into your game!"
 msgstr ""
 
@@ -4068,7 +4068,7 @@ msgstr ""
 
 #. TRANSLATORS: {0} is the keybinding of Special K's control panel (e.g. Ctrl+Shift+Backspace; set in Special K)
 #: src/utility/injection.cpp:289
-#: src/utility/injection.cpp:2252
+#: src/utility/injection.cpp:2256
 msgid "Press {0} while in-game."
 msgstr ""
 
@@ -4183,7 +4183,7 @@ msgid "Injection service is running."
 msgstr ""
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/utility/injection.cpp:2254
+#: src/utility/injection.cpp:2258
 msgid "Special K is already injected into your game!"
 msgstr ""
 

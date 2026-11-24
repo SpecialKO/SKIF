@@ -1544,7 +1544,9 @@ SKIF_UI_Tab_DrawMonitor (void)
     {
       if (! proc.tooltip.empty())
       {
-        std::filesystem::path p = proc.tooltip;
+        // tooltip is UTF-8; std::filesystem would convert it through the ANSI code page and throw
+        const std::string&       path_utf8 = proc.tooltip;
+        std::filesystem::path    p         = SK_UTF8ToWideChar (path_utf8);
 
         if (ImGui::BeginMenu    (LI_(ICON_FA_TOOLBOX, "Actions:")))
         {
@@ -1552,23 +1554,23 @@ SKIF_UI_Tab_DrawMonitor (void)
           if (proc.policy == DontCare)
           {
             if (ImGui::Selectable (LI_(ICON_FA_CHECK, "Whitelist")))
-              _inject.WhitelistPath (p.string());
+              _inject.WhitelistPath (path_utf8);
           }
 
           if (proc.policy != Blacklist)
           {
             if (ImGui::Selectable (LI_(ICON_FA_BAN, "Blacklist")))
-              _inject.BlacklistPath (p.string());
+              _inject.BlacklistPath (path_utf8);
           }
 
           if (proc.policy != DontCare)
           {
             if (ImGui::Selectable (LI_(ICON_FA_ROTATE_LEFT, "Reset")))
             {
-              const std::string path = p.string ();
+              const std::string& path = path_utf8;
 
               static_reset                  = user_list_reset_s { };
-              static_reset.filename         = p.filename ().string ();
+              static_reset.filename         = SK_WideCharToUTF8 (p.filename ().wstring ());
               static_reset.whitelist        = _inject.GetUserListMatches  (path.c_str (), true);
               static_reset.blacklist        = _inject.GetUserListMatches  (path.c_str (), false);
               static_reset.builtInWhitelist = _inject.GetBuiltInListMatch (path.c_str (), true);
@@ -1619,10 +1621,10 @@ SKIF_UI_Tab_DrawMonitor (void)
         */
 
         if (ImGui::Selectable (LI_(ICON_FA_FOLDER_OPEN, "Browse")))
-          SKIF_Util_FileExplorer_SelectFile (SK_UTF8ToWideChar (p.string()).c_str());
+          SKIF_Util_FileExplorer_SelectFile (p.c_str());
 
         SKIF_ImGui_SetMouseCursorHand ();
-        SKIF_ImGui_SetHoverText       (p.parent_path().string().c_str());
+        SKIF_ImGui_SetHoverText       (SK_WideCharToUTF8 (p.parent_path().wstring()).c_str());
 
         ImGui::Separator ( );
       }

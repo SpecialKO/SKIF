@@ -52,7 +52,7 @@ IniWindow::UpdateWindowTitle (void)
   std::string filenameExt = "";
 
   if (! path_utf8.empty())
-    filenameExt = std::filesystem::path(path_utf8).filename().string();
+    filenameExt = SK_WideCharToUTF8 (std::filesystem::path (SK_UTF8ToWideChar (path_utf8)).filename().wstring());
 
   path_filename = filenameExt;
   // In the language at the time (the title is updated when the file changes)

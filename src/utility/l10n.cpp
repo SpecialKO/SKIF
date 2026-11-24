@@ -1136,7 +1136,7 @@ SKIF_L10n::Initialize (const std::wstring& languages_folder, const std::string& 
   {
     for (auto& file : std::filesystem::directory_iterator (languages_folder, ec))
     {
-      if (! file.is_regular_file (ec) || SKIF_L10n_ToLower (file.path ( ).extension ( ).string ( )) != ".po")
+      if (! file.is_regular_file (ec) || _wcsicmp (file.path ( ).extension ( ).c_str ( ), L".po") != 0)
         continue;
 
       std::string data;

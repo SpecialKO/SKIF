@@ -1819,33 +1819,37 @@ bool SKIF_InjectionContext::AddUserListPath (std::string fullPath, bool whitelis
 
   if (! ret)
   {
-    // name of parent folder
-    std::filesystem::path exePath = std::filesystem::path(fullPath);
+    // fullPath is UTF-8, but std::filesystem converts narrow strings using the ANSI
+    //   code page and throws on bytes it cannot map, so go through UTF-16 instead
+    std::filesystem::path exePath = std::filesystem::path (SK_UTF8ToWideChar (fullPath));
     std::string pattern;
+
+    auto _FilenameUTF8 = [](const std::filesystem::path& path) {
+      return SK_WideCharToUTF8 (path.filename ( ).wstring ( ));
+    };
 
     // Does a parent folder exist?
     if (exePath.has_parent_path() && exePath.parent_path().has_filename())
     {
       // Does another parent folder one level up exist? If so, add it to the pattern
       if (exePath.parent_path().has_parent_path() && exePath.parent_path().parent_path().has_filename())
-        pattern = exePath.parent_path().parent_path().filename().string() + R"(\)";
+        pattern = _FilenameUTF8 (exePath.parent_path().parent_path()) + R"(\)";
 
       // Add the name of the parent folder to the pattern
-      //pattern += SK_WideCharToUTF8 (exePath.parent_path().filename().wstring());
-      pattern += exePath.parent_path().filename().string();
+      pattern += _FilenameUTF8 (exePath.parent_path());
 
       // If this is an Unreal Engine 4 game, add the executable as well
       if ( pattern == R"(Binaries\Win64)" || // Unreal Engine 3-4
            pattern == R"(Binaries\Win32)" || // Unreal Engine 3-4
            pattern == R"(bin\x64)" ||        // CD Project Red
            pattern == R"(bin\x86)" )         // CD Project Red
-        pattern += R"(\)" + exePath.filename().string();
+        pattern += R"(\)" + _FilenameUTF8 (exePath);
     }
 
     else
     {
       // Add the executable to the pattern if all else fails
-      pattern = std::filesystem::path(fullPath).filename().string();
+      pattern = _FilenameUTF8 (exePath);
     }
 
     // Escape regular expression characters (uses a variant of nlohmann::json's replace_substring call)
