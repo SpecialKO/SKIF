@@ -1894,7 +1894,7 @@ app_record_ubisoft_s::PrepareCoverSource (bool queryPCGW)
     size_t      dash    = title.rfind (" - ");
     std::string edition = (dash != std::string::npos) ? title.substr (dash + 3) : "";
 
-    if (! edition.empty ( ) && StrStrIA (edition.c_str ( ), "Edition") != nullptr &&
+    if (! edition.empty ( ) && SKIF_Util_StrStrI (edition.c_str ( ), "Edition") != nullptr &&
         SKIF_Ubisoft_Simplify (productName).find (SKIF_Ubisoft_Simplify (edition)) == std::string::npos &&
         _Try (productName + " - " + edition))
       return coverPath;

@@ -788,7 +788,7 @@ skValveDataFile::getAppInfo ( uint32_t appid, app_list_t *apps )
         {
           if (! _stricmp (key.first, "oslist"))
           {
-            if (StrStrIA ((const char *)key.second.second, "windows"))
+            if (SKIF_Util_StrStrI ((const char *)key.second.second, "windows"))
             {
               app_record_s::addSupportFor (
                 pAppRecord->launch_configs [idx].platforms,

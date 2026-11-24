@@ -1797,7 +1797,7 @@ SKIF_UI_Tab_DrawMonitor (void)
     std::string pretty_str       = ICON_FA_WINDOWS,
                 pretty_str_hover = "Windows";
 
-    if (StrStrIA(proc.tooltip.c_str(), "SteamApps") != NULL)
+    if (SKIF_Util_StrStrI (proc.tooltip.c_str(), "SteamApps") != NULL)
     {
       pretty_str       = ICON_FA_STEAM;
       pretty_str_hover = "Steam";

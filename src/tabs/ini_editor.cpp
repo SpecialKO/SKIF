@@ -32,9 +32,9 @@ IniWindow::ApplyFilter (void)
     trie._show = default;
 
     if (! default)
-      trie._show = (StrStrIA (trie.section, charFilter) != NULL) ||
-                   (StrStrIA (trie.key,     charFilter) != NULL) ||
-                   (StrStrIA (trie.value.c_str ( ), charFilter) != NULL);
+      trie._show = (SKIF_Util_StrStrI (trie.section, charFilter) != NULL) ||
+                   (SKIF_Util_StrStrI (trie.key,     charFilter) != NULL) ||
+                   (SKIF_Util_StrStrI (trie.value.c_str ( ), charFilter) != NULL);
   }
 }
 

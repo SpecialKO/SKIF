@@ -87,6 +87,9 @@ const char *
 __cdecl         SKIF_Util_FormatStringRaw             (char    const* const _Format, ...);
 std:: string    SKIF_Util_ToLower                     (std:: string_view input);
 std::wstring    SKIF_Util_ToLowerW                    (std::wstring_view input);
+// Case-insensitive (ASCII only) and byte-wise, so safe for UTF-8, unlike StrStrIA / lstrcmpiA which use the ANSI code page
+const char*     SKIF_Util_StrStrI                     (const char* haystack, const char* needle); // StrStrIA replacement; nullptr if not found
+bool            SKIF_Util_StrEqualsI                  (std::string_view a, std::string_view b);
 std:: string    SKIF_Util_ToUpper                     (std:: string_view input);
 std::wstring    SKIF_Util_ToUpperW                    (std::wstring_view input);
 void            SKIF_Util_CleanString                 (std:: string&     input);

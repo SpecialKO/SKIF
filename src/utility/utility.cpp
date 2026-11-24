@@ -264,6 +264,54 @@ std::wstring SKIF_Util_ToLowerW               (std::wstring_view input) { return
 std::string  SKIF_Util_ToUpper                (std:: string_view input) { return SKIF_UtilInt_ToUpper (input); }
 std::wstring SKIF_Util_ToUpperW               (std::wstring_view input) { return SKIF_UtilInt_ToUpper (input); }
 
+// Only A-Z are folded: UTF-8 multi-byte sequences consist of bytes >= 0x80 that are compared as-is,
+//   so a match can never start or end in the middle of a character
+static inline unsigned char
+SKIF_UtilInt_FoldASCII (unsigned char c)
+{
+  return (c >= 'A' && c <= 'Z') ? static_cast <unsigned char> (c + ('a' - 'A')) : c;
+}
+
+const char*
+SKIF_Util_StrStrI (const char* haystack, const char* needle)
+{
+  if (haystack == nullptr || needle == nullptr)
+    return nullptr;
+
+  if (*needle == '\0')
+    return haystack;
+
+  for (; *haystack != '\0'; ++haystack)
+  {
+    const unsigned char* h = reinterpret_cast <const unsigned char*> (haystack);
+    const unsigned char* n = reinterpret_cast <const unsigned char*> (needle);
+
+    while (*n != '\0' && SKIF_UtilInt_FoldASCII (*h) == SKIF_UtilInt_FoldASCII (*n))
+      ++h, ++n;
+
+    if (*n == '\0')
+      return haystack;
+
+    if (*h == '\0') // The rest of the haystack is shorter than the needle
+      break;
+  }
+
+  return nullptr;
+}
+
+bool
+SKIF_Util_StrEqualsI (std::string_view a, std::string_view b)
+{
+  if (a.size ( ) != b.size ( ))
+    return false;
+
+  for (size_t i = 0; i < a.size ( ); ++i)
+    if (SKIF_UtilInt_FoldASCII (static_cast <unsigned char> (a [i])) != SKIF_UtilInt_FoldASCII (static_cast <unsigned char> (b [i])))
+      return false;
+
+  return true;
+}
+
 void SKIF_Util_CleanString                    (std:: string&     input) { SKIF_UtilInt_CleanString            (input); }
 void SKIF_Util_CleanStringW                   (std::wstring&     input) { SKIF_UtilInt_CleanString            (input); }
 void SKIF_Util_StripNulls                     (std:: string&     input) { SKIF_UtilInt_StripNulls             (input); }

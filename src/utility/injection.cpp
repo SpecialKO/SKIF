@@ -1642,14 +1642,14 @@ const char* SKIF_InjectionContext::GetBuiltInListMatch (const char* szExecutable
   if (whitelist_)
   {
     for (const char* pattern : builtInWhitelist)
-      if (StrStrIA (szExecutable, pattern) != NULL)
+      if (SKIF_Util_StrStrI (szExecutable, pattern) != NULL)
         return pattern;
   }
 
   else
   {
     for (const char* pattern : builtInBlacklist)
-      if (StrStrIA (szExecutable, pattern) != NULL)
+      if (SKIF_Util_StrStrI (szExecutable, pattern) != NULL)
         return pattern;
   }
 

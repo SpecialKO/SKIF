@@ -1101,8 +1101,8 @@ SKIF_UI_Tab_DrawLibrary (void)
       }
 
       // Apply the current filter
-      app.second->filtered = (charFilter[0] != '\0' && (StrStrIA (app.first.c_str(), charFilter) == NULL &&                // Name
-                                                       StrStrIA (app.second->skif.category.c_str(), charFilter) == NULL)); // Category
+      app.second->filtered = (charFilter[0] != '\0' && (SKIF_Util_StrStrI (app.first.c_str(), charFilter) == NULL &&                // Name
+                                                       SKIF_Util_StrStrI (app.second->skif.category.c_str(), charFilter) == NULL)); // Category
     }
 
     // The keyboard hint search of the games shown
@@ -1596,8 +1596,8 @@ SKIF_UI_Tab_DrawLibrary (void)
       if (app.second->id == 0)
         continue;
 
-      app.second->filtered = (charFilter[0] != '\0' && (StrStrIA (app.first.c_str(), charFilter) == NULL &&                // Name
-                                                       StrStrIA (app.second->skif.category.c_str(), charFilter) == NULL)); // Category
+      app.second->filtered = (charFilter[0] != '\0' && (SKIF_Util_StrStrI (app.first.c_str(), charFilter) == NULL &&                // Name
+                                                       SKIF_Util_StrStrI (app.second->skif.category.c_str(), charFilter) == NULL)); // Category
 
       if (app.second->filtered)
         continue;

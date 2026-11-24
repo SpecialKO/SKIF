@@ -95,7 +95,7 @@ SKIF_VDF_ciSearch (const std::string value, const std::unordered_map <std::strin
 {
   for (auto& child : *map)
   {
-    if (lstrcmpiA (child.first.c_str(), value.c_str()) == 0)
+    if (SKIF_Util_StrEqualsI (child.first, value))
       return child.second;
   }
 
