@@ -122,7 +122,8 @@ _UpdateSteamCoverURICandidates (void)
 
   lastSwap = games.GetSwapCount ( );
 
-  std::vector <steam_cover_candidate_s> candidates;
+  std::vector <steam_cover_candidate_s>          candidates;
+  std::vector <std::shared_ptr <app_record_s>> records; // Kept alive for the cover miss check below
 
   {
     std::scoped_lock app_lock (games.GetMutex ( ));
@@ -132,9 +133,17 @@ _UpdateSteamCoverURICandidates (void)
       const app_record_s* rec = app.second.get ( );
 
       if (rec != nullptr && rec->store == app_record_s::Store::Steam && rec->id != 0 && ! rec->IsSpecialK ( ))
+      {
         candidates.push_back ({ rec->id, rec->common_config.boxart_hash });
+        records.push_back    (app.second);
+      }
     }
   }
+
+  // Not the games the store had no cover of recently (db.json, MetaDB_SetCoverMiss): checked outside the library lock
+  for (size_t i = candidates.size ( ); i-- > 0; )
+    if (games.MetaDB_IsCoverMiss (records [i].get ( ), "store", true))
+      candidates.erase (candidates.begin ( ) + i);
 
   SKIF_Steam_SetCoverURICandidates (std::move (candidates));
 }
@@ -154,9 +163,13 @@ _LoadCover (app_record_s* pApp, bool queryPCGW, library_texture_s& out, const li
     std::wstring assetDir  = pApp->GetAssetDirectory ( );
     std::wstring igdbCover = assetDir + L"cover-igdb.jpg";
 
+    static SKIF_GamingCollection& _games = SKIF_GamingCollection::Get ( );
+
     if (! PathFileExistsW (igdbCover.c_str ( )) &&
-        ! (pApp->WantsPCGWCover ( ) && PathFileExistsW ((assetDir + L"cover-pcgw.png").c_str ( ))))
-      pApp->DownloadIGDBCover (igdbCover);
+        ! (pApp->WantsPCGWCover ( ) && PathFileExistsW ((assetDir + L"cover-pcgw.png").c_str ( ))) &&
+        ! _games.MetaDB_IsCoverMiss (pApp, "igdb") &&
+          pApp->DownloadIGDBCover (igdbCover) == SKIF_CoverResult::NotFound)
+      _games.MetaDB_SetCoverMiss (pApp, "igdb");
   }
 
   return LoadLibraryTextureEx ( LibraryTexture::Cover,

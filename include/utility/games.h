@@ -156,6 +156,16 @@ struct SKIF_GamingCollection {
   bool   MetaDB_SetCategoryName (std::string szOld, std::string szNew);
   std::recursive_mutex& GetMetaDBMutex (void) { return m_jsonMetaDB_mutex; } // Recursive; hold across multi-step metadata changes
 
+        // Cover sources that had no cover of a game (db.json "CoverMisses": { "<source>": <UNIX time> }), so they are not
+        //   asked again until COVER_MISS_RETRY has passed. Only for definite answers (HTTP 404, no such game), never for a
+        //     failed request (no response, rate limited, a server error). Any thread. Sources: "store" (the store's own
+        //       covers: Steam, Epic, Microsoft Store), "igdb" (IGDB, by store ID or name), "pcgw" (PCGamingWiki).
+  static constexpr long long COVER_MISS_RETRY = 7 * 24 * 60 * 60; // A week, in seconds
+  bool   MetaDB_IsCoverMiss       (const app_record_s* pApp, const char* source, bool quiet = false); // A miss of the source, recorded within COVER_MISS_RETRY (logged unless quiet)
+  void   MetaDB_SetCoverMiss      (const app_record_s* pApp, const char* source); // Records a miss of the source (now), and writes db.json
+  bool   MetaDB_HasCoverMisses    (const app_record_s* pApp);                     // Any source with a miss within COVER_MISS_RETRY
+  bool   MetaDB_ClearCoverMisses  (const app_record_s* pApp);                     // Forgets the misses (cover refresh); true if there were any
+
   // Processes started by instant launches (up to 15 at once), monitored for their running state
   std::array <SKIF_Util_CreateProcess_s, 15>& GetInstantPlayProcesses (void) { return m_iPlayCache; }
 

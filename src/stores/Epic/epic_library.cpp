@@ -5,7 +5,6 @@
 #include <filesystem>
 #include <mutex>
 #include <unordered_map>
-#include <unordered_set>
 
 #include <comdef.h>
 #include <process.h>
@@ -15,11 +14,6 @@
 #include <utility/games.h>
 #include <SKIF.h>
 #include <utility/utility.h>
-
-// Epic covers that could not be found this session (the store has no offer for the game, e.g. as it is no longer on sale,
-//   or the image is gone), so they are not looked up again on every selection. Retried on the next launch of SKIF.
-static std::mutex                      epicCoverMissesMutex;
-static std::unordered_set <std::string> epicCoverMisses; // epic.name_app
 
 // No response, rate limited, or a server error: worth trying again later
 static bool
@@ -910,15 +904,10 @@ app_record_epic_s::PrepareCoverSource (bool queryPCGW)
   load_str =
     SK_FormatStringW (LR"(%ws\Assets\Epic\%ws\cover-original.jpg)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(epic.name_app).c_str());
 
-  if ( ! PathFileExistsW (load_str.   c_str ()) )
+  // Epic covers that could not be found (the store has no offer for the game, e.g. as it is no longer on sale, or the
+  //   image is gone) are recorded in db.json, so they are not looked up again on every selection (MetaDB_SetCoverMiss)
+  if ( ! PathFileExistsW (load_str.   c_str ()) && ! SKIF_GamingCollection::Get ( ).MetaDB_IsCoverMiss (this, "store") )
   {
-    {
-      std::scoped_lock lock (epicCoverMissesMutex);
-
-      if (epicCoverMisses.count (epic.name_app) != 0)
-        return load_str;
-    }
-
     SKIF_EpicCollection::AssetResult result;
 
     if (! epic.gamebox_tall.empty())
@@ -935,12 +924,9 @@ app_record_epic_s::PrepareCoverSource (bool queryPCGW)
     else
       result = _epic.IdentifyAssetNew (epic);
 
-    // Temporary failures are retried on the next selection; a missing cover only on the next launch of SKIF
+    // Temporary failures are retried on the next selection; a missing cover once COVER_MISS_RETRY has passed
     if (result == SKIF_EpicCollection::AssetResult::NotFound)
-    {
-      std::scoped_lock lock (epicCoverMissesMutex);
-      epicCoverMisses.insert (epic.name_app);
-    }
+      SKIF_GamingCollection::Get ( ).MetaDB_SetCoverMiss (this, "store");
   }
 
   return load_str;

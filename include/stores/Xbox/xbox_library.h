@@ -4,7 +4,7 @@
 #include <vector>
 
 void         SKIF_Xbox_GetInstalledAppIDs       (app_list_t *apps);
-void         SKIF_Xbox_IdentifyAssetNew         (std::string PackageName, std::string StoreID);
+SKIF_CoverResult SKIF_Xbox_IdentifyAssetNew     (std::string PackageName, std::string StoreID); // Worker threads: the Microsoft Store's poster as the cover
 bool         SKIF_Xbox_hasInstalledGamesChanged (void);
 std::wstring SKIF_Xbox_GetCustomLaunchCommandW  (int appId, std::string_view packageFamilyName, std::string_view customCommand);
 
@@ -76,5 +76,5 @@ struct app_record_xbox_s : app_record_store_s <app_record_xbox_s, app_record_s::
   std::wstring PrepareCoverSource      (bool queryPCGW) override;
   bool         DeleteStoreCoverFiles   (const std::wstring& assetDir) override;
   bool         WantsIGDBCover          (void) const override;
-  bool         DownloadIGDBCover       (const std::wstring& targetPath) override;
+  SKIF_CoverResult DownloadIGDBCover   (const std::wstring& targetPath) override;
 };

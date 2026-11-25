@@ -1050,7 +1050,7 @@ app_record_s::GetPreferredIGDBCover (void) const
 }
 
 // Cover worker thread: by the cleaned name (without (TM), (R) and (C) signs), exact matches only
-bool
+SKIF_CoverResult
 app_record_s::DownloadIGDBCover (const std::wstring& targetPath)
 {
   const std::string& title = (! names.clean.empty ( )) ? names.clean : names.original;

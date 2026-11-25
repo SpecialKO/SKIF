@@ -69,32 +69,32 @@ namespace
     return object[key].get <std::string> ( );
   }
 
-  // Remembers a lookup that found no (usable) cover, so it is not repeated this session; always false
-  bool
+  // Remembers a lookup that found no (usable) cover, so it is not repeated this session; always NotFound
+  SKIF_CoverResult
   SKIF_CoverProxy_RememberMiss (cover_proxy_s& proxy, const std::wstring& path)
   {
     std::scoped_lock lock (proxy.missesMutex);
     proxy.misses.insert (path);
-    return false;
+    return SKIF_CoverResult::NotFound;
   }
 
   // Looks up path on a proxy (e.g. steam/220 or search/Celeste) and parses its response into json.
-  //   True for a 200 response with a cover object. A 404 / 400 or an unexpected response is remembered as a miss;
-  //   any other failure pauses lookups to that proxy for FAILURE_PAUSE.
-  bool
+  //   Found for a 200 response with a cover object. A 404 / 400 or an unexpected response is remembered as a miss
+  //   (NotFound); any other failure pauses lookups to that proxy for FAILURE_PAUSE (Failed).
+  SKIF_CoverResult
   SKIF_CoverProxy_Lookup (cover_proxy_s& proxy, const std::wstring& path, nlohmann::json& json)
   {
     {
       std::scoped_lock lock (proxy.missesMutex);
 
       if (proxy.misses.count (path) != 0)
-        return false;
+        return SKIF_CoverResult::NotFound;
     }
 
     DWORD dwFailure = proxy.dwLastFailure.load ( );
 
     if (dwFailure != 0 && SKIF_Util_timeGetTime ( ) - dwFailure < FAILURE_PAUSE)
-      return false;
+      return SKIF_CoverResult::Failed;
 
     std::wstring url = std::wstring (proxy.base) + path;
     std::string  response;
@@ -113,7 +113,7 @@ namespace
       // Anything else is temporary (no response, 429 rate limited, 5xx): pause lookups, then try again
       PLOG_WARNING << proxy.name << " cover lookup failed (HTTP status " << dwStatus << ") for " << path << "; retrying in " << (FAILURE_PAUSE / 1000) << " seconds at the earliest.";
       proxy.dwLastFailure.store (SKIF_Util_timeGetTime ( ));
-      return false;
+      return SKIF_CoverResult::Failed;
     }
 
     proxy.dwLastFailure.store (0);
@@ -126,7 +126,25 @@ namespace
       return SKIF_CoverProxy_RememberMiss (proxy, path);
     }
 
-    return true;
+    return SKIF_CoverResult::Found;
+  }
+
+  // Downloads a cover image that a proxy named. A 404 is remembered as a miss of the lookup (path) that named it.
+  SKIF_CoverResult
+  SKIF_CoverProxy_DownloadImage (cover_proxy_s& proxy, const std::wstring& path, const std::wstring& imageUrl, const std::wstring& targetPath)
+  {
+    std::error_code ec;
+    std::filesystem::create_directories (std::filesystem::path (targetPath).parent_path ( ), ec);
+
+    DWORD dwStatus = 0;
+
+    if (SKIF_Util_GetWebResource (imageUrl, targetPath, L"GET", L"", "", L"", nullptr, &dwStatus))
+      return SKIF_CoverResult::Found;
+
+    PLOG_WARNING << "Failed to download the " << proxy.name << " cover " << imageUrl << " (HTTP status " << dwStatus << ")";
+
+    return (dwStatus == 404) ? SKIF_CoverProxy_RememberMiss (proxy, path)
+                             : SKIF_CoverResult::Failed;
   }
 
   // The proxy's name for an IGDB external game source (any other source is sent by number)
@@ -226,18 +244,18 @@ namespace
   }
   // [igdb-names-end]
 
-  // Looks up path on the IGDB proxy and downloads the cover it names; true if a cover was downloaded.
+  // Looks up path on the IGDB proxy and downloads the cover it names.
   //   searchedName: the name looked up (name searches only); a fuzzy match of the same name written differently
   //   (The Settlers 2 - History Edition / The Settlers II: History Edition) is accepted as an exact one.
-  bool
+  SKIF_CoverResult
   SKIF_IGDB_QueryAndDownload (const std::wstring& path, const std::wstring& targetPath, bool allowFuzzy, const std::string& searchedName = "")
   {
     static SKIF_RegistrySettings& _registry = SKIF_RegistrySettings::GetInstance ( );
 
     nlohmann::json json;
 
-    if (! SKIF_CoverProxy_Lookup (igdb, path, json))
-      return false;
+    if (SKIF_CoverResult lookup = SKIF_CoverProxy_Lookup (igdb, path, json); lookup != SKIF_CoverResult::Found)
+      return lookup;
 
     // id: by store ID. exact: a name search with the same name. base: a name search that matched once a trailing
     //   edition part was removed (the main game's cover). fuzzy: IGDB's top search result, which can be another game.
@@ -270,54 +288,48 @@ namespace
     std::wstring size     = (_registry.bLowBandwidthMode) ? L"t_cover_big_2x" : L"t_1080p";
     std::wstring imageUrl = std::wstring (IGDB_IMAGE_BASE) + size + L"/" + SK_UTF8ToWideChar (image_id) + L".jpg";
 
-    std::error_code ec;
-    std::filesystem::create_directories (std::filesystem::path (targetPath).parent_path ( ), ec);
+    SKIF_CoverResult result = SKIF_CoverProxy_DownloadImage (igdb, path, imageUrl, targetPath);
 
-    if (! SKIF_Util_GetWebResource (imageUrl, targetPath))
-    {
-      PLOG_WARNING << "Failed to download the IGDB cover " << imageUrl;
-      return false;
-    }
+    if (result == SKIF_CoverResult::Found)
+      PLOG_INFO << "Downloaded the IGDB cover of " << SK_UTF8ToWideChar (name) << " (" << match.c_str ( ) << " match) to " << targetPath;
 
-    PLOG_INFO << "Downloaded the IGDB cover of " << SK_UTF8ToWideChar (name) << " (" << match.c_str ( ) << " match) to " << targetPath;
-
-    return true;
+    return result;
   }
 }
 
-bool
+SKIF_CoverResult
 SKIF_IGDB_DownloadCover (SKIF_IGDB_Source source, const std::string& uid, const std::wstring& targetPath)
 {
   if (uid.empty ( ) || targetPath.empty ( ))
-    return false;
+    return SKIF_CoverResult::NotFound;
 
   return SKIF_IGDB_QueryAndDownload (SKIF_IGDB_GetStorePath (source) + L"/" + SKIF_IGDB_UrlEncode (uid), targetPath, false);
 }
 
-bool
+SKIF_CoverResult
 SKIF_IGDB_DownloadCoverByName (const std::string& name, const std::wstring& targetPath, bool allowFuzzy)
 {
   if (name.empty ( ) || targetPath.empty ( ))
-    return false;
+    return SKIF_CoverResult::NotFound;
 
   // "." and ".." are path segments of their own, so a name of only dots would not reach the search
   if (std::all_of (name.begin ( ), name.end ( ), [](char ch) { return ch == '.'; }))
-    return false;
+    return SKIF_CoverResult::NotFound;
 
   return SKIF_IGDB_QueryAndDownload (L"search/" + SKIF_IGDB_UrlEncode (name), targetPath, allowFuzzy, name);
 }
 
-bool
+SKIF_CoverResult
 SKIF_PCGW_DownloadCover (SKIF_PCGW_Store store, uint32_t id, const std::wstring& targetPath)
 {
   if (id == 0 || targetPath.empty ( ))
-    return false;
+    return SKIF_CoverResult::NotFound;
 
   std::wstring   path = ((store == SKIF_PCGW_Store::GOG) ? L"gog/" : L"steam/") + std::to_wstring (id);
   nlohmann::json json;
 
-  if (! SKIF_CoverProxy_Lookup (pcgw, path, json))
-    return false;
+  if (SKIF_CoverResult lookup = SKIF_CoverProxy_Lookup (pcgw, path, json); lookup != SKIF_CoverResult::Found)
+    return lookup;
 
   std::string name = SKIF_CoverProxy_GetString (json["game"],  "name");
   std::string url  = SKIF_CoverProxy_GetString (json["cover"], "url");
@@ -330,18 +342,22 @@ SKIF_PCGW_DownloadCover (SKIF_PCGW_Store store, uint32_t id, const std::wstring&
 
   std::wstring imageUrl = SK_UTF8ToWideChar (url);
 
-  std::error_code ec;
-  std::filesystem::create_directories (std::filesystem::path (targetPath).parent_path ( ), ec);
-
   PLOG_DEBUG << "Downloading the PCGW cover " << imageUrl;
 
-  if (! SKIF_Util_GetWebResource (imageUrl, targetPath))
+  SKIF_CoverResult result = SKIF_CoverProxy_DownloadImage (pcgw, path, imageUrl, targetPath);
+
+  if (result == SKIF_CoverResult::Found)
+    PLOG_INFO << "Downloaded the PCGW cover of " << SK_UTF8ToWideChar (name) << " to " << targetPath;
+
+  return result;
+}
+
+void
+SKIF_CoverProxies_ForgetMisses (void)
+{
+  for (cover_proxy_s* proxy : { &igdb, &pcgw })
   {
-    PLOG_WARNING << "Failed to download the PCGW cover " << imageUrl;
-    return false;
+    std::scoped_lock lock (proxy->missesMutex);
+    proxy->misses.clear ( );
   }
-
-  PLOG_INFO << "Downloaded the PCGW cover of " << SK_UTF8ToWideChar (name) << " to " << targetPath;
-
-  return true;
 }

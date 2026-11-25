@@ -1422,13 +1422,19 @@ DrawCoverMenuChangeReset (app_record_s* pApp, bool isCustom, bool isManaged)
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_LibraryArtwork&   _art        = SKIF_LibraryArtwork  ::Get ( );
 
+  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
+
   static bool&                update       = GetLibraryTab ( ).update;
 
   // Preparations
 
+  // A cover source that had no cover of the game recently (db.json, MetaDB_SetCoverMiss): Refresh asks them again
+  bool hasCoverMisses = (! isCustom && _games.MetaDB_HasCoverMisses (pApp));
+
   bool resetVisible = (pApp->HasStoreCover ( )   || // Not for Special K or custom games, unless they have custom / managed covers
                        isCustom ||
-                       isManaged);
+                       isManaged ||
+                       hasCoverMisses);
 
   if (SKIF_ImGui_MenuItemEx2 (L_("Change"), ICON_FA_FILE_IMAGE, (_registry._StyleLightMode) ? ImColor(0, 0, 0) : ImColor(255, 255, 255)))
   {
@@ -1478,7 +1484,7 @@ DrawCoverMenuChangeReset (app_record_s* pApp, bool isCustom, bool isManaged)
       iconColor = (_registry._StyleLightMode) ? ImColor (0, 0, 0) : ImColor (255, 255, 255);
     }
 
-    bool enabled = (isCustom || isManaged);
+    bool enabled = (isCustom || isManaged || hasCoverMisses);
     bool doReset = SKIF_ImGui_MenuItemEx2 (TL_(textPtr), iconPtr, iconColor, 0, nullptr, enabled);
 
     if (! enabled)
@@ -1489,6 +1495,16 @@ DrawCoverMenuChangeReset (app_record_s* pApp, bool isCustom, bool isManaged)
 
     if (doReset)
     {
+      // The sources that had no cover are asked again (also the IGDB / PCGamingWiki lookups that missed this session)
+      if (hasCoverMisses && _games.MetaDB_ClearCoverMisses (pApp))
+      {
+        SKIF_CoverProxies_ForgetMisses ( );
+
+        update    = true;
+        _art.ForgetCover ( );
+        _art.InvalidateThumbnail (pApp);
+      }
+
       std::wstring targetPath = L"";
 
       targetPath = pApp->GetAssetDirectory ( );

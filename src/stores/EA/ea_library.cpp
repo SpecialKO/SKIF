@@ -1192,16 +1192,23 @@ app_record_ea_s::PrepareCoverSource (bool queryPCGW)
 
   std::wstring coverPath = GetStoreAssetDirectory ( ) + L"cover-original.jpg";
 
-  if (PathFileExistsW (coverPath.c_str ( )) || ! FindCustomArtwork (LibraryTexture::Cover).empty ( ))
+  static SKIF_GamingCollection& _games = SKIF_GamingCollection::Get ( );
+
+  // A miss (IGDB has no cover by any of the names) is recorded in db.json, so it is not looked up again for a while
+  if (PathFileExistsW (coverPath.c_str ( )) || ! FindCustomArtwork (LibraryTexture::Cover).empty ( ) || _games.MetaDB_IsCoverMiss (this, "igdb"))
     return coverPath;
 
   // The cleaned title (without (TM), (R) and (C) signs, which EA titles often have), then the name shown in SKIF
   //   if the user renamed the game
   const std::string& title = (! names.clean.empty ( )) ? names.clean : names.original;
 
-  if (! SKIF_IGDB_DownloadCoverByName (title, coverPath) &&
-        ! names.normal.empty ( ) && names.normal != title)
-    SKIF_IGDB_DownloadCoverByName (names.normal, coverPath);
+  SKIF_CoverResult result = SKIF_IGDB_DownloadCoverByName (title, coverPath);
+
+  if (result != SKIF_CoverResult::Found && ! names.normal.empty ( ) && names.normal != title)
+    result = SKIF_CoverResult_Combine (result, SKIF_IGDB_DownloadCoverByName (names.normal, coverPath));
+
+  if (result == SKIF_CoverResult::NotFound)
+    _games.MetaDB_SetCoverMiss (this, "igdb");
 
   return coverPath;
 }

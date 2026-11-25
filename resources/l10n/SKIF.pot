@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-24 17:43+0100\n"
+"POT-Creation-Date: 2026-11-25 23:19+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -143,9 +143,9 @@ msgid "Click to start the service"
 msgstr ""
 
 #: src/SKIF.cpp:3874
-#: src/stores/SKIF/custom_library.cpp:309
-#: src/stores/SKIF/custom_library.cpp:378
-#: src/stores/SKIF/custom_library.cpp:516
+#: src/stores/SKIF/custom_library.cpp:310
+#: src/stores/SKIF/custom_library.cpp:379
+#: src/stores/SKIF/custom_library.cpp:517
 msgid "Add Game"
 msgstr ""
 
@@ -228,26 +228,26 @@ msgid ""
 "Instant Play launches are not affected as they skip the sandbox."
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:376
-#: src/stores/SKIF/custom_library.cpp:391
-#: src/stores/SKIF/custom_library.cpp:714
+#: src/stores/SKIF/custom_library.cpp:377
+#: src/stores/SKIF/custom_library.cpp:392
 #: src/stores/SKIF/custom_library.cpp:722
+#: src/stores/SKIF/custom_library.cpp:730
 #: src/tabs/library/library_properties.cpp:1678
 #: src/tabs/library/library_properties.cpp:1693
 msgid "Browse..."
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:377
-#: src/stores/SKIF/custom_library.cpp:437
-#: src/stores/SKIF/custom_library.cpp:715
-#: src/stores/SKIF/custom_library.cpp:753
+#: src/stores/SKIF/custom_library.cpp:378
+#: src/stores/SKIF/custom_library.cpp:438
+#: src/stores/SKIF/custom_library.cpp:723
+#: src/stores/SKIF/custom_library.cpp:761
 #: src/tabs/library/library_properties.cpp:1734
 #: src/tabs/library/library_properties.cpp:1750
 msgid "Change..."
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:379
-#: src/stores/SKIF/custom_library.cpp:558
+#: src/stores/SKIF/custom_library.cpp:380
+#: src/stores/SKIF/custom_library.cpp:559
 #: src/tabs/library/library_launch.cpp:233
 #: src/tabs/library/library_popups.cpp:351
 #: src/tabs/library/library_popups.cpp:435
@@ -265,104 +265,104 @@ msgstr ""
 msgid "Cancel"
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:382
-#: src/stores/SKIF/custom_library.cpp:426
+#: src/stores/SKIF/custom_library.cpp:383
+#: src/stores/SKIF/custom_library.cpp:427
 msgid "Path"
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:382
-#: src/stores/SKIF/custom_library.cpp:472
+#: src/stores/SKIF/custom_library.cpp:383
+#: src/stores/SKIF/custom_library.cpp:473
 msgid "Working Directory"
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:383
-#: src/stores/SKIF/custom_library.cpp:490
+#: src/stores/SKIF/custom_library.cpp:384
+#: src/stores/SKIF/custom_library.cpp:491
 #: src/tabs/library/library_properties.cpp:217
 #: src/utility/env_vars.cpp:506
 msgid "Name"
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:383
-#: src/stores/SKIF/custom_library.cpp:497
+#: src/stores/SKIF/custom_library.cpp:384
+#: src/stores/SKIF/custom_library.cpp:498
 msgid "Launch Options"
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:395
+#: src/stores/SKIF/custom_library.cpp:396
 msgid "Executables"
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:431
-#: src/stores/SKIF/custom_library.cpp:733
+#: src/stores/SKIF/custom_library.cpp:432
+#: src/stores/SKIF/custom_library.cpp:741
 msgid "Incompatible type! Please select another file."
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:477
+#: src/stores/SKIF/custom_library.cpp:478
 msgid "Incompatible folder! Please select another folder."
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:494
-#: src/stores/SKIF/custom_library.cpp:764
+#: src/stores/SKIF/custom_library.cpp:495
+#: src/stores/SKIF/custom_library.cpp:772
 #: src/tabs/library/library_properties.cpp:1779
 msgid "Leave empty if unsure"
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:598
+#: src/stores/SKIF/custom_library.cpp:599
 msgid "Remove Game?"
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:598
+#: src/stores/SKIF/custom_library.cpp:599
 msgid "Are you sure you want to remove the game from the library?"
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:598
+#: src/stores/SKIF/custom_library.cpp:599
 msgid "No changes will be made to the game files."
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:718
+#: src/stores/SKIF/custom_library.cpp:726
 #: src/tabs/library/library_properties.cpp:1676
 #: src/tabs/library/library_properties.cpp:1835
 msgid "Executable"
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:749
+#: src/stores/SKIF/custom_library.cpp:757
 #: src/tabs/library/library_properties.cpp:1732
 #: src/tabs/library/library_properties.cpp:1838
 msgid "Working directory"
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:762
+#: src/stores/SKIF/custom_library.cpp:770
 #: src/tabs/library/library_properties.cpp:2178
 msgid "Launch options"
 msgstr ""
 
-#: src/stores/SKIF/custom_library.cpp:779
+#: src/stores/SKIF/custom_library.cpp:787
 msgid "Select the executable and the working directory of the game."
 msgstr ""
 
 #: src/stores/Steam/app_record.cpp:805
-#: src/stores/Steam/steam_library.cpp:2582
+#: src/stores/Steam/steam_library.cpp:2612
 msgid "Conflicting configuration"
 msgstr ""
 
 #: src/stores/Steam/app_record.cpp:806
-#: src/stores/Steam/steam_library.cpp:2583
+#: src/stores/Steam/steam_library.cpp:2613
 msgid "Could not launch game due to conflicting launch options in Steam:"
 msgstr ""
 
 #: src/stores/Steam/app_record.cpp:810
-#: src/stores/Steam/steam_library.cpp:2587
+#: src/stores/Steam/steam_library.cpp:2617
 msgid "Please change the launch options in Steam before trying again."
 msgstr ""
 
-#: src/stores/Steam/steam_library.cpp:2676
+#: src/stores/Steam/steam_library.cpp:2706
 msgid "Details"
 msgstr ""
 
-#: src/stores/Steam/steam_library.cpp:2686
+#: src/stores/Steam/steam_library.cpp:2716
 msgid "A controller must be connected."
 msgstr ""
 
-#: src/stores/Steam/steam_library.cpp:2689
+#: src/stores/Steam/steam_library.cpp:2719
 msgid "Game properties"
 msgstr ""
 
@@ -373,12 +373,12 @@ msgid ""
 "Instant Play may run it before all of its files are in place."
 msgstr ""
 
-#: src/stores/Xbox/xbox_library.cpp:1010
-#: src/stores/Xbox/xbox_library.cpp:1028
+#: src/stores/Xbox/xbox_library.cpp:1039
+#: src/stores/Xbox/xbox_library.cpp:1057
 msgid "Open Terminal"
 msgstr ""
 
-#: src/stores/Xbox/xbox_library.cpp:1075
+#: src/stores/Xbox/xbox_library.cpp:1104
 msgid "This invokes a terminal in the context of the desktop package."
 msgstr ""
 
@@ -911,9 +911,9 @@ msgid "Support depends on the GPU and display configuration. Unusual driver or d
 msgstr ""
 
 #: src/tabs/hardware.cpp:1263
-#: src/tabs/library/library_menus.cpp:1462
-#: src/tabs/library/library_menus.cpp:1783
-#: src/tabs/library/library_menus.cpp:2038
+#: src/tabs/library/library_menus.cpp:1468
+#: src/tabs/library/library_menus.cpp:1799
+#: src/tabs/library/library_menus.cpp:2054
 #: src/tabs/local.cpp:750
 msgid "Refresh"
 msgstr ""
@@ -1234,8 +1234,8 @@ msgid "Cover"
 msgstr ""
 
 #: src/tabs/library.cpp:1837
-#: src/tabs/library/library_menus.cpp:1683
-#: src/tabs/library/library_menus.cpp:1841
+#: src/tabs/library/library_menus.cpp:1699
+#: src/tabs/library/library_menus.cpp:1857
 msgid "Open SteamGridDB"
 msgstr ""
 
@@ -1493,7 +1493,7 @@ msgstr ""
 #: src/tabs/library/library_list.cpp:128
 #: src/tabs/library/library_menus.cpp:796
 #: src/tabs/library/library_menus.cpp:915
-#: src/tabs/library/library_menus.cpp:2197
+#: src/tabs/library/library_menus.cpp:2213
 #: src/tabs/library/library_properties.cpp:928
 #: src/tabs/monitor.cpp:2087
 #: src/tabs/monitor.cpp:2095
@@ -1587,30 +1587,30 @@ msgstr ""
 
 #: src/tabs/library/library_menus.cpp:680
 #: src/tabs/library/library_menus.cpp:1399
-#: src/tabs/library/library_menus.cpp:2255
+#: src/tabs/library/library_menus.cpp:2271
 msgid "Favorite"
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:681
 #: src/tabs/library/library_menus.cpp:1400
-#: src/tabs/library/library_menus.cpp:2260
+#: src/tabs/library/library_menus.cpp:2276
 msgid "Unfavorite"
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:701
-#: src/tabs/library/library_menus.cpp:2102
+#: src/tabs/library/library_menus.cpp:2118
 #: src/tabs/library/library_properties.cpp:237
 msgid "Category"
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:710
-#: src/tabs/library/library_menus.cpp:2110
+#: src/tabs/library/library_menus.cpp:2126
 #: src/tabs/library/library_properties.cpp:237
 msgid "Favorited games are always shown under Favorites."
 msgstr ""
 
 #: src/tabs/library/library_menus.cpp:829
-#: src/tabs/library/library_menus.cpp:2214
+#: src/tabs/library/library_menus.cpp:2230
 #: src/tabs/library/library_properties.cpp:273
 msgid "New category..."
 msgstr ""
@@ -1681,144 +1681,144 @@ msgstr ""
 msgid "Profile folders"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1433
-#: src/tabs/library/library_menus.cpp:1729
+#: src/tabs/library/library_menus.cpp:1439
+#: src/tabs/library/library_menus.cpp:1745
 msgid "Change"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1437
+#: src/tabs/library/library_menus.cpp:1443
 msgid "Images"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1460
+#: src/tabs/library/library_menus.cpp:1466
 #: src/tabs/library/library_properties.cpp:710
 msgid "Clear"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1461
-#: src/tabs/library/library_menus.cpp:1782
+#: src/tabs/library/library_menus.cpp:1467
+#: src/tabs/library/library_menus.cpp:1798
 #: src/tabs/monitor.cpp:1568
 #: src/tabs/settings.cpp:2614
 #: src/utility/ini_presets.cpp:302
 msgid "Reset"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1485
-#: src/tabs/library/library_menus.cpp:1806
+#: src/tabs/library/library_menus.cpp:1491
+#: src/tabs/library/library_menus.cpp:1822
 msgid "Managed by the platform client."
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1539
+#: src/tabs/library/library_menus.cpp:1555
 msgid "Restore previous cover"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1552
+#: src/tabs/library/library_menus.cpp:1568
 msgid "Brings back the cover this one replaced. Restoring again brings this one back."
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1593
+#: src/tabs/library/library_menus.cpp:1609
 msgid "Scaling"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1601
+#: src/tabs/library/library_menus.cpp:1617
 msgctxt "cover scaling"
 msgid "Default"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1614
+#: src/tabs/library/library_menus.cpp:1630
 msgid "Scales the cover to a maximum height of 600px"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1616
+#: src/tabs/library/library_menus.cpp:1632
 msgctxt "cover scaling"
 msgid "Fill"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1629
+#: src/tabs/library/library_menus.cpp:1645
 msgctxt "cover scaling"
 msgid "Fit"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1642
+#: src/tabs/library/library_menus.cpp:1658
 msgctxt "cover scaling"
 msgid "None"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1733
+#: src/tabs/library/library_menus.cpp:1749
 msgid "Icons"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1882
+#: src/tabs/library/library_menus.cpp:1898
 msgid "Clear filter"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1888
+#: src/tabs/library/library_menus.cpp:1904
 msgid "Add game"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1895
+#: src/tabs/library/library_menus.cpp:1911
 msgid "Sort by"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1901
+#: src/tabs/library/library_menus.cpp:1917
 msgid "Alphabetical"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1913
+#: src/tabs/library/library_menus.cpp:1929
 msgid "Most played"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1925
+#: src/tabs/library/library_menus.cpp:1941
 msgid "Sort by the number of launches of the game through this app."
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1927
+#: src/tabs/library/library_menus.cpp:1943
 msgid "Last played"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:1948
+#: src/tabs/library/library_menus.cpp:1964
 msgid "Platforms"
 msgstr ""
 
 #. TRANSLATORS: Games added by the user (shown among the platforms: Steam, GOG, ...)
-#: src/tabs/library/library_menus.cpp:2006
+#: src/tabs/library/library_menus.cpp:2022
 msgctxt "platform"
 msgid "Custom"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:2012
+#: src/tabs/library/library_menus.cpp:2028
 msgid "Hidden games"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:2093
+#: src/tabs/library/library_menus.cpp:2109
 msgid "{0} game selected"
 msgid_plural "{0} games selected"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/tabs/library/library_menus.cpp:2144
+#: src/tabs/library/library_menus.cpp:2160
 msgid "Click to remove the selected games from this category."
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:2146
+#: src/tabs/library/library_menus.cpp:2162
 msgid "Click to add the selected games to this category."
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:2166
+#: src/tabs/library/library_menus.cpp:2182
 msgid "Remove from category"
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:2183
+#: src/tabs/library/library_menus.cpp:2199
 msgid "{0} selected game will be removed from the category it is in, and shown under Games again:"
 msgid_plural "{0} selected games will be removed from the categories they are in, and shown under Games again:"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/tabs/library/library_menus.cpp:2193
+#: src/tabs/library/library_menus.cpp:2209
 msgid "Favorited games stay under Favorites."
 msgstr ""
 
-#: src/tabs/library/library_menus.cpp:2274
+#: src/tabs/library/library_menus.cpp:2290
 msgid "Clear selection"
 msgstr ""
 

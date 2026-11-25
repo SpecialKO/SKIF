@@ -1843,9 +1843,12 @@ app_record_ubisoft_s::PrepareCoverSource (bool queryPCGW)
 {
   UNREFERENCED_PARAMETER (queryPCGW);
 
+  static SKIF_GamingCollection& _games = SKIF_GamingCollection::Get ( );
+
   std::wstring coverPath = GetStoreAssetDirectory ( ) + L"cover-original.jpg";
 
-  if (PathFileExistsW (coverPath.c_str ( )) || ! FindCustomArtwork (LibraryTexture::Cover).empty ( ))
+  // A miss (IGDB has no cover by any of the names) is recorded in db.json, so it is not looked up again for a while
+  if (PathFileExistsW (coverPath.c_str ( )) || ! FindCustomArtwork (LibraryTexture::Cover).empty ( ) || _games.MetaDB_IsCoverMiss (this, "igdb"))
     return coverPath;
 
   // The names to look up, in this order (each name once):
@@ -1859,6 +1862,7 @@ app_record_ubisoft_s::PrepareCoverSource (bool queryPCGW)
   const std::string& title = (! names.clean.empty ( )) ? names.clean : names.original;
 
   std::vector <std::string> tried;
+  SKIF_CoverResult          result = SKIF_CoverResult::NotFound; // Of all the names tried
 
   auto _Try = [&](const std::string& name) -> bool
   {
@@ -1871,7 +1875,18 @@ app_record_ubisoft_s::PrepareCoverSource (bool queryPCGW)
 
     tried.push_back (name);
 
-    return SKIF_IGDB_DownloadCoverByName (name, coverPath);
+    result = SKIF_CoverResult_Combine (result, SKIF_IGDB_DownloadCoverByName (name, coverPath));
+
+    return (result == SKIF_CoverResult::Found);
+  };
+
+  // None of the names found a cover, and none of the lookups failed: a miss
+  auto _Done = [&](void) -> std::wstring
+  {
+    if (result == SKIF_CoverResult::NotFound)
+      _games.MetaDB_SetCoverMiss (this, "igdb");
+
+    return coverPath;
   };
 
   if (_Try (title) || _Try (names.normal))
@@ -1905,7 +1920,7 @@ app_record_ubisoft_s::PrepareCoverSource (bool queryPCGW)
 
   _Try (ubisoft.display_name);
 
-  return coverPath;
+  return _Done ( );
 }
 
 #pragma endregion

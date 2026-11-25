@@ -285,7 +285,7 @@ DWORD                        SKIF_Steam_GetActiveProcess         (void);
 std::wstring                 SKIF_Steam_GetAppStateString        (HKEY* hKey, const wchar_t *wszStateKey);
 wchar_t                      SKIF_Steam_GetAppStateDWORD         (HKEY* hKey, const wchar_t *wszStateKey, DWORD *pdwStateVal);
 bool                         SKIF_Steam_UpdateAppState           (app_record_s *pApp);
-void                         SKIF_Steam_IdentifyAssetPCGW        (uint32_t app_id);
+SKIF_CoverResult             SKIF_Steam_IdentifyAssetPCGW        (uint32_t app_id); // Found also when the cover exists or is not wanted (low-res covers): only NotFound is a miss
 std::wstring                 SKIF_Steam_GetCoverURI              (uint32_t app_id, bool force_2x); // Worker threads: blocks until the store API has been asked (in batches); not found: the usual CDN path of the 2x cover (force_2x), else empty
 struct steam_cover_candidate_s { uint32_t id = 0; std::string boxart_hash; }; // A game to look the cover up for ahead; boxart_hash locates the Steam client's cover
 void                         SKIF_Steam_SetCoverURICandidates    (std::vector <steam_cover_candidate_s> candidates); // Main thread: the library's Steam games, looked up ahead along with those asked for
@@ -354,7 +354,7 @@ struct app_record_steam_s : app_record_store_s <app_record_steam_s, app_record_s
   std::wstring PrepareCoverSource      (bool queryPCGW) override;
   bool         WantsPCGWCover          (void) const override;
   bool         WantsIGDBCover          (void) const override;
-  bool         DownloadIGDBCover       (const std::wstring& targetPath) override;
+  SKIF_CoverResult DownloadIGDBCover   (const std::wstring& targetPath) override;
   std::wstring GetIconSource           (void) const override;
   bool         PrepareIconSource       (void) override;
   bool         DeleteStoreCoverFiles   (const std::wstring& assetDir) override;

@@ -7,7 +7,7 @@ void SKIF_GOG_GetInstalledAppIDs       (app_list_t *apps);
 void SKIF_GOG_UpdateGalaxyUserID       (void);
 bool SKIF_GOG_hasInstalledGamesChanged (void);
 bool SKIF_GOG_hasGalaxySettingsChanged (void);
-void SKIF_GOG_IdentifyAssetPCGW        (uint32_t app_id);
+SKIF_CoverResult SKIF_GOG_IdentifyAssetPCGW (uint32_t app_id); // Found also when the cover exists or is not wanted (low-res covers): only NotFound is a miss
 
 // Library record for a GOG game
 struct app_record_gog_s : app_record_store_s <app_record_gog_s, app_record_s::Store::GOG>
@@ -34,7 +34,7 @@ struct app_record_gog_s : app_record_store_s <app_record_gog_s, app_record_s::St
   std::wstring PrepareCoverSource      (bool queryPCGW) override;
   bool         WantsPCGWCover          (void) const override;
   bool         WantsIGDBCover          (void) const override;
-  bool         DownloadIGDBCover       (const std::wstring& targetPath) override;
+  SKIF_CoverResult DownloadIGDBCover   (const std::wstring& targetPath) override;
   std::wstring GetIconSource           (void) const override { return install_dir + L"\\goggame-" + std::to_wstring(id) + L".ico"; }
   bool         DeleteStoreCoverFiles   (const std::wstring& assetDir) override;
   bool         CoverNeedsClientSignIn  (void) const override;

@@ -1920,7 +1920,7 @@ SKIF_Steam_UpdateAppState (app_record_s *pApp)
   return true;
 }
 
-void
+SKIF_CoverResult
 SKIF_Steam_IdentifyAssetPCGW (uint32_t app_id)
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
@@ -1943,8 +1943,10 @@ SKIF_Steam_IdentifyAssetPCGW (uint32_t app_id)
 
     // If PCGW cover has not been downloaded
     if (! PathFileExistsW (targetPath.c_str()))
-      SKIF_PCGW_DownloadCover (SKIF_PCGW_Store::Steam, app_id, targetPath);
+      return SKIF_PCGW_DownloadCover (SKIF_PCGW_Store::Steam, app_id, targetPath);
   }
+
+  return SKIF_CoverResult::Found;
 }
 
 // Cover URIs of Steam games, looked up through the Steam store API (IStoreBrowseService/GetItems) in batches.
@@ -2435,6 +2437,21 @@ SKIF_Steam_GetCoverURI (uint32_t app_id, bool force_2x)
   PLOG_VERBOSE << "asset: " << url;
 
   return SK_UTF8ToWideChar (url);
+}
+
+// Downloads the cover at url (from SKIF_Steam_GetCoverURI) to path. A 404 (the store API's asset, or the guessed CDN
+//   path of a game the store API has none of) is recorded in db.json, so the store's cover is not asked for again for a
+//     while (see MetaDB_SetCoverMiss); a game without one would otherwise be looked up on every cover load.
+static void
+_DownloadSteamCover (const app_record_s* pApp, const std::wstring& url, const std::wstring& path)
+{
+  PLOG_DEBUG << "Downloading cover asset: " << url;
+
+  DWORD status = 0;
+  SKIF_Util_GetWebResource (url, path, L"GET", L"", "", L"", nullptr, &status);
+
+  if (status == 404)
+    SKIF_GamingCollection::Get ( ).MetaDB_SetCoverMiss (pApp, "store");
 }
 
 std::wstring
@@ -2990,6 +3007,7 @@ app_record_steam_s::PrepareCoverSource (bool queryPCGW)
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
 
   // Special K: no store cover
   if (IsSpecialK ( ))
@@ -3010,8 +3028,8 @@ app_record_steam_s::PrepareCoverSource (bool queryPCGW)
   load_str     = _GetClientCoverPath (id, common_config.boxart_hash); // Also what the cover lookups ahead check
 
   // Decided on the main thread (SKIF_LibraryArtwork::StartCoverWorker), which also marks tex_cover.queriedPCGW
-  if (queryPCGW)
-    SKIF_Steam_IdentifyAssetPCGW (id);
+  if (queryPCGW && ! _games.MetaDB_IsCoverMiss (this, "pcgw") && SKIF_Steam_IdentifyAssetPCGW (id) == SKIF_CoverResult::NotFound)
+    _games.MetaDB_SetCoverMiss (this, "pcgw");
 
   // Regular files only: with an unknown boxart hash, load_str is just the app's librarycache folder
   auto _IsFile = [](const std::wstring& path) -> bool
@@ -3024,6 +3042,12 @@ app_record_steam_s::PrepareCoverSource (bool queryPCGW)
   bool hasSKIFCover   = _IsFile (load_str_2x); // SKIF's downloaded 600x900_2x copy
   bool useLowRes      = (_registry._UseLowResCovers && ! _registry._UseLowResCoversHiDPIBypass);
 
+  // Whether to ask the Steam store / CDN for the cover: not in low bandwidth mode, nor when neither had one recently (db.json)
+  auto _CanDownload = [&](void) -> bool
+  {
+    return (! _registry.bLowBandwidthMode && ! _games.MetaDB_IsCoverMiss (this, "store"));
+  };
+
   // Steam typically uses one of two different CDNs:
   // * CloudFlare : https://cdn.cloudflare.steamstatic.com/steam/apps/2673660/library_600x900_2x.jpg
   // * Akamai     :        https://steamcdn-a.akamaihd.net/steam/apps/2673660/library_600x900_2x.jpg
@@ -3033,16 +3057,13 @@ app_record_steam_s::PrepareCoverSource (bool queryPCGW)
   // Neither the Steam client nor SKIF has a copy: download one (also with low-res covers, as anything beats a missing cover)
   if (! hasClientCover && ! hasSKIFCover)
   {
-    // ... but only if low bandwidth mode is disabled
-    if (! _registry.bLowBandwidthMode)
+    // ... but only if low bandwidth mode is disabled (and neither had one recently)
+    if (_CanDownload ( ))
     {
       std::wstring url = SKIF_Steam_GetCoverURI (id, true);
 
       if (! url.empty ( ))
-      {
-        PLOG_DEBUG << "Downloading cover asset: " << url;
-        SKIF_Util_GetWebResource (url, load_str_2x);
-      }
+        _DownloadSteamCover (this, url, load_str_2x);
 
       if (! _IsFile (load_str_2x))
         PLOG_WARNING << "Could not find a cover asset for app ID " << id;
@@ -3067,8 +3088,8 @@ app_record_steam_s::PrepareCoverSource (bool queryPCGW)
     {
       DirectX::TexMetadata meta = { };
 
-      // Load the metadata from 600x900, but only if low bandwidth mode is not enabled
-      if ( ! _registry.bLowBandwidthMode &&
+      // Load the metadata from 600x900, but only if low bandwidth mode is not enabled (and the store had a cover recently)
+      if ( _CanDownload ( ) &&
             SUCCEEDED (
             DirectX::GetMetadataFromWICFile (
               load_str.c_str (),
@@ -3088,9 +3109,7 @@ app_record_steam_s::PrepareCoverSource (bool queryPCGW)
           // Not found (e.g. no longer on the store): keep the Steam client's cover
           if (! url.empty ( ))
           {
-            PLOG_DEBUG << "Downloading cover asset: " << url;
-
-            SKIF_Util_GetWebResource (url, load_str_2x);
+            _DownloadSteamCover (this, url, load_str_2x);
 
             if (_IsFile (load_str_2x))
               load_str_final = load_str_2x;
@@ -3103,25 +3122,20 @@ app_record_steam_s::PrepareCoverSource (bool queryPCGW)
     else {
       WIN32_FILE_ATTRIBUTE_DATA faX1{}, faX2{};
 
-      // ... but only if low bandwidth mode is disabled
-      if (! _registry.bLowBandwidthMode &&
-          GetFileAttributesEx (load_str   .c_str (), GetFileExInfoStandard, &faX1) &&
+      // ... but only if low bandwidth mode is disabled (and the store had a cover recently: SKIF's copy is kept otherwise)
+      if (GetFileAttributesEx (load_str   .c_str (), GetFileExInfoStandard, &faX1) &&
           GetFileAttributesEx (load_str_2x.c_str (), GetFileExInfoStandard, &faX2))
       {
         // If 600x900 has been edited after 600_900_x2,
         //   download new copy of the 600_900_x2 cover
-        if (CompareFileTime (&faX1.ftLastWriteTime, &faX2.ftLastWriteTime) == 1)
+        if (CompareFileTime (&faX1.ftLastWriteTime, &faX2.ftLastWriteTime) == 1 && _CanDownload ( ))
         {
           DeleteFile (load_str_2x.c_str ());
 
           std::wstring url = SKIF_Steam_GetCoverURI (id, true);
 
           if (! url.empty ( ))
-          {
-            PLOG_DEBUG << "Downloading cover asset: " << url;
-
-            SKIF_Util_GetWebResource (url, load_str_2x);
-          }
+            _DownloadSteamCover (this, url, load_str_2x);
         }
       }
 
@@ -3196,11 +3210,13 @@ app_record_steam_s::WantsIGDBCover (void) const
 }
 
 // Cover worker thread: by Steam app ID, else by name
-bool
+SKIF_CoverResult
 app_record_steam_s::DownloadIGDBCover (const std::wstring& targetPath)
 {
-  return (SKIF_IGDB_DownloadCover (SKIF_IGDB_Source::Steam, std::to_string (id), targetPath) ||
-          app_record_s::DownloadIGDBCover (targetPath));
+  SKIF_CoverResult result = SKIF_IGDB_DownloadCover (SKIF_IGDB_Source::Steam, std::to_string (id), targetPath);
+
+  return (result == SKIF_CoverResult::Found) ? result
+                                             : SKIF_CoverResult_Combine (result, app_record_s::DownloadIGDBCover (targetPath));
 }
 
 #pragma endregion

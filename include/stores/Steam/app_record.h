@@ -36,6 +36,7 @@
 
 #include <utility/utility.h>
 #include <utility/env_vars.h>
+#include <utility/igdb.h>
 
 //#include "steam/steam_api.h"
 #include <utility/vfs.h>
@@ -566,7 +567,7 @@ struct app_record_s {
   virtual std::wstring PrepareCoverSource      (bool queryPCGW) { UNREFERENCED_PARAMETER (queryPCGW); return L""; } // Cover worker thread: fetch / download the store cover; returns the source hint. queryPCGW: also look up a PCGamingWiki cover
   virtual bool         WantsPCGWCover          (void) const { return false; }                  // PCGamingWiki covers are enabled for this store (Settings: Steam, GOG)
   virtual bool         WantsIGDBCover          (void) const { return false; }                  // IGDB covers are preferred over the store's own cover (Settings: Epic, GOG, Steam, Xbox); a PCGamingWiki cover still comes first
-  virtual bool         DownloadIGDBCover       (const std::wstring& targetPath);               // app_record.cpp, cover worker thread: look the game up on IGDB. Base: by name; stores with an IGDB source try their store ID first
+  virtual SKIF_CoverResult DownloadIGDBCover   (const std::wstring& targetPath);               // app_record.cpp, cover worker thread: look the game up on IGDB. Base: by name; stores with an IGDB source try their store ID first
   std::wstring         GetPreferredIGDBCover   (void) const;                                   // app_record.cpp: <GetAssetDirectory ( )>cover-igdb.jpg when IGDB covers are preferred and there is no custom or PCGamingWiki cover; else empty
   virtual std::wstring GetIconSource           (void) const { return L"icon"; }                // Icon source hint (Steam: library cache icon; GOG: goggame-<id>.ico)
   virtual bool         PrepareIconSource       (void)       { return true; }                   // Main thread, before loading the icon (Steam: icon hash from appinfo.vdf). false: not possible yet, the icon is requested again later

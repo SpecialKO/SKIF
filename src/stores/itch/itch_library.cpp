@@ -816,10 +816,15 @@ app_record_itch_s::PrepareCoverSource (bool queryPCGW)
 
   std::wstring coverPath = GetStoreAssetDirectory ( ) + L"cover-original.jpg";
 
-  if (PathFileExistsW (coverPath.c_str ( )) || itch.game_id == 0 || ! FindCustomArtwork (LibraryTexture::Cover).empty ( ))
+  static SKIF_GamingCollection& _games = SKIF_GamingCollection::Get ( );
+
+  // A miss (IGDB has no cover of the itch game) is recorded in db.json, so it is not looked up again for a while
+  if (PathFileExistsW (coverPath.c_str ( )) || itch.game_id == 0 || ! FindCustomArtwork (LibraryTexture::Cover).empty ( ) ||
+      _games.MetaDB_IsCoverMiss (this, "igdb"))
     return coverPath;
 
-  SKIF_IGDB_DownloadCover (SKIF_IGDB_Source::itch, std::to_string (itch.game_id), coverPath);
+  if (SKIF_IGDB_DownloadCover (SKIF_IGDB_Source::itch, std::to_string (itch.game_id), coverPath) == SKIF_CoverResult::NotFound)
+    _games.MetaDB_SetCoverMiss (this, "igdb");
 
   return coverPath;
 }

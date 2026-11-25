@@ -611,7 +611,7 @@ SKIF_Xbox_GetInstalledAppIDs (app_list_t *apps)
   SKIF_Xbox_SaveNames ( );
 }
 
-void
+SKIF_CoverResult
 SKIF_Xbox_IdentifyAssetNew (std::string PackageName, std::string StoreID)
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
@@ -624,6 +624,14 @@ SKIF_Xbox_IdentifyAssetNew (std::string PackageName, std::string StoreID)
   if (! std::filesystem::exists (            targetAssetPath, ec))
         std::filesystem::create_directories (targetAssetPath, ec);
 
+  // No answer (or a temporary error): worth trying again later. Any other error is the store's answer (e.g. a 404).
+  auto _IsTemporary = [](DWORD dwStatus) -> bool
+  {
+    return (dwStatus == 0 || dwStatus == 408 || dwStatus == 429 || dwStatus >= 500);
+  };
+
+  DWORD dwStoreStatus = 200; // A leftover store.json (kept when logging verbosely) counts as the store's answer
+
   // Download JSON for the cover
   if (! PathFileExists ((targetAssetPath + L"store.json").c_str()))
   {
@@ -632,8 +640,16 @@ SKIF_Xbox_IdentifyAssetNew (std::string PackageName, std::string StoreID)
 
     PLOG_DEBUG << "Downloading platform JSON: " << query;
 
-    SKIF_Util_GetWebResource (query, targetAssetPath + L"store.json", L"POST", L"Content-Type: application/json; charset=utf-8", body);
+    SKIF_Util_GetWebResource (query, targetAssetPath + L"store.json", L"POST", L"Content-Type: application/json; charset=utf-8", body, L"", nullptr, &dwStoreStatus);
   }
+
+  if (dwStoreStatus != 200)
+  {
+    PLOG_WARNING << "The Microsoft Store lookup failed (HTTP status " << dwStoreStatus << ") for " << PackageName;
+    return _IsTemporary (dwStoreStatus) ? SKIF_CoverResult::Failed : SKIF_CoverResult::NotFound;
+  }
+
+  SKIF_CoverResult result = SKIF_CoverResult::NotFound; // No poster (e.g. a product the store no longer lists)
 
   try
   {
@@ -644,6 +660,7 @@ SKIF_Xbox_IdentifyAssetNew (std::string PackageName, std::string StoreID)
     if (jf.is_discarded ( ))
     {
       PLOG_ERROR << "Could not read platform JSON!";
+      result = SKIF_CoverResult::Failed;
     }
 
     else
@@ -660,7 +677,13 @@ SKIF_Xbox_IdentifyAssetNew (std::string PackageName, std::string StoreID)
 
           PLOG_DEBUG << "Downloading cover asset: " << assetUrl;
 
-          SKIF_Util_GetWebResource (SK_UTF8ToWideChar (assetUrl), targetAssetPath + L"cover-original.png", L"GET", L"", "");
+          DWORD dwStatus = 0;
+
+          if (SKIF_Util_GetWebResource (SK_UTF8ToWideChar (assetUrl), targetAssetPath + L"cover-original.png", L"GET", L"", "", L"", nullptr, &dwStatus))
+            result = SKIF_CoverResult::Found;
+
+          else
+            result = _IsTemporary (dwStatus) ? SKIF_CoverResult::Failed : SKIF_CoverResult::NotFound;
         }
       }
     }
@@ -668,11 +691,17 @@ SKIF_Xbox_IdentifyAssetNew (std::string PackageName, std::string StoreID)
   catch (const std::exception& e)
   {
     PLOG_ERROR << "Error parsing Xbox store JSON! " << e.what ();
+
+    // A product without the expected properties (e.g. no longer listed): the store's answer
+    if (result != SKIF_CoverResult::Found)
+      result = SKIF_CoverResult::NotFound;
   }
 
   // Delete the JSON file when we are done
   if (_registry.iLogging < 5)
     DeleteFile ((targetAssetPath + L"store.json").c_str());
+
+  return result;
 }
 
 bool
@@ -1178,14 +1207,17 @@ app_record_xbox_s::PrepareCoverSource (bool queryPCGW)
   UNREFERENCED_PARAMETER (queryPCGW);
 
   static SKIF_CommonPathsCache& _path_cache = SKIF_CommonPathsCache::GetInstance ( );
+  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
 
   std::wstring load_str;
 
   load_str =
     SK_FormatStringW (LR"(%ws\Assets\Xbox\%ws\cover-original.png)", _path_cache.specialk_userdata, SK_UTF8ToWideChar(xbox.package_name).c_str());
 
-  if ( ! PathFileExistsW (load_str.   c_str ()) )
-    SKIF_Xbox_IdentifyAssetNew (xbox.package_name, xbox.store_id);
+  // A miss (no poster in the Microsoft Store) is recorded in db.json, so it is not looked up again for a while
+  if ( ! PathFileExistsW (load_str.   c_str ()) && ! _games.MetaDB_IsCoverMiss (this, "store") &&
+         SKIF_Xbox_IdentifyAssetNew (xbox.package_name, xbox.store_id) == SKIF_CoverResult::NotFound)
+    _games.MetaDB_SetCoverMiss (this, "store");
 
   return load_str;
 }
@@ -1213,11 +1245,14 @@ app_record_xbox_s::WantsIGDBCover (void) const
 }
 
 // Cover worker thread: by Microsoft Store ID (e.g. 9NBLGGH4R315), else by name
-bool
+SKIF_CoverResult
 app_record_xbox_s::DownloadIGDBCover (const std::wstring& targetPath)
 {
-  return ((! xbox.store_id.empty ( ) && SKIF_IGDB_DownloadCover (SKIF_IGDB_Source::Microsoft, xbox.store_id, targetPath)) ||
-          app_record_s::DownloadIGDBCover (targetPath));
+  SKIF_CoverResult result = (! xbox.store_id.empty ( )) ? SKIF_IGDB_DownloadCover (SKIF_IGDB_Source::Microsoft, xbox.store_id, targetPath)
+                                                        : SKIF_CoverResult::NotFound;
+
+  return (result == SKIF_CoverResult::Found) ? result
+                                             : SKIF_CoverResult_Combine (result, app_record_s::DownloadIGDBCover (targetPath));
 }
 
 #pragma endregion

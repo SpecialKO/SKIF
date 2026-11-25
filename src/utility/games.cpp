@@ -2326,7 +2326,14 @@ SKIF_GamingCollection::LibraryWorkerThread (void* var)
         continue;
 
       try {
-        self.m_jsonMetaDB [job.app->second->store_utf8][job.key] = std::move (job.meta);
+        auto& entry = self.m_jsonMetaDB [job.app->second->store_utf8][job.key];
+
+        // The cover misses as they are now: the job's copy is rebuilt from the record without them, and a cover worker
+        //   may have recorded one since the copy was taken (MetaDB_SetCoverMiss)
+        if (entry.is_object ( ) && entry.contains ("CoverMisses") && job.meta.is_object ( ))
+          job.meta ["CoverMisses"] = entry ["CoverMisses"];
+
+        entry = std::move (job.meta);
       }
 
       catch (const std::exception& e)
@@ -2990,6 +2997,9 @@ SKIF_GamingCollection::MetaDB_UpdateApp (app_record_s* pApp, bool bWriteToDisk)
     try {
       auto& key = m_jsonMetaDB[pApp->store_utf8][item];
 
+      // Kept as they are: the cover misses (MetaDB_SetCoverMiss) are not part of the record
+      nlohmann::json coverMisses = (key.is_object ( ) && key.contains ("CoverMisses")) ? key ["CoverMisses"] : nlohmann::json ( );
+
       // Update the values in the Json object
       // The auto-stop behavior is no longer stored here (see SKIF_LaunchBehaviors), so an old "AutoStop" is dropped
       key = {
@@ -3008,6 +3018,9 @@ SKIF_GamingCollection::MetaDB_UpdateApp (app_record_s* pApp, bool bWriteToDisk)
 
       if (! pApp->skif.default_launch.empty ( ))
         key ["DefaultLaunch"] = SKIF_Library_LaunchRefToJson (pApp->skif.default_launch);
+
+      if (coverMisses.is_object ( ))
+        key ["CoverMisses"] = std::move (coverMisses);
 
       return ! bWriteToDisk || MetaDB_WriteFile ( );
     }
@@ -3050,6 +3063,140 @@ SKIF_GamingCollection::MetaDB_SetCategoryName (std::string szOld, std::string sz
     PLOG_ERROR << "Could not write metadata to JSON file as the metadata had been discarded.";
 
   return false;
+}
+
+// The game's "CoverMisses" object in db.json, or nullptr if it has none (under m_jsonMetaDB_mutex)
+static nlohmann::json*
+_FindCoverMisses (nlohmann::json& db, const app_record_s* pApp)
+{
+  if (pApp == nullptr || db.is_discarded ( ) || ! db.is_object ( ))
+    return nullptr;
+
+  auto store = db.find (pApp->store_utf8);
+
+  if (store == db.end ( ) || ! store->is_object ( ))
+    return nullptr;
+
+  auto entry = store->find (pApp->GetPersistentKey ( ));
+
+  if (entry == store->end ( ) || ! entry->is_object ( ))
+    return nullptr;
+
+  auto misses = entry->find ("CoverMisses");
+
+  if (misses == entry->end ( ) || ! misses->is_object ( ))
+    return nullptr;
+
+  return &(*misses);
+}
+
+// Whether a miss recorded at the given UNIX time is still recent enough to not ask the source again
+static bool
+_IsRecentCoverMiss (const nlohmann::json& value)
+{
+  if (! value.is_number_integer ( ))
+    return false;
+
+  const long long age = static_cast <long long> (_time64 (nullptr)) - value.get <long long> ( );
+
+  // A time in the future (the clock was changed) counts as recent, but only for as long as a miss would
+  return (age < SKIF_GamingCollection::COVER_MISS_RETRY && age > -SKIF_GamingCollection::COVER_MISS_RETRY);
+}
+
+bool
+SKIF_GamingCollection::MetaDB_IsCoverMiss (const app_record_s* pApp, const char* source, bool quiet)
+{
+  std::scoped_lock jsonLock (m_jsonMetaDB_mutex);
+
+  nlohmann::json* misses = _FindCoverMisses (m_jsonMetaDB, pApp);
+
+  if (misses == nullptr)
+    return false;
+
+  auto miss = misses->find (source);
+
+  if (miss == misses->end ( ) || ! _IsRecentCoverMiss (*miss))
+    return false;
+
+  if (! quiet)
+    PLOG_VERBOSE << "Not looking up the " << source << " cover of " << pApp->store_utf8 << " game " << pApp->GetPersistentKey ( )
+               << ": none was found within the last " << (COVER_MISS_RETRY / (24 * 60 * 60)) << " days.";
+
+  return true;
+}
+
+void
+SKIF_GamingCollection::MetaDB_SetCoverMiss (const app_record_s* pApp, const char* source)
+{
+  if (pApp == nullptr)
+    return;
+
+  std::scoped_lock jsonLock (m_jsonMetaDB_mutex);
+
+  if (m_jsonMetaDB.is_discarded ( ) || (! m_jsonMetaDB.is_object ( ) && ! m_jsonMetaDB.is_null ( )))
+    return;
+
+  try {
+    auto& entry = m_jsonMetaDB [pApp->store_utf8][pApp->GetPersistentKey ( )];
+
+    if (! entry.is_object ( ))
+      entry = nlohmann::json::object ( );
+
+    auto& misses = entry ["CoverMisses"];
+
+    if (! misses.is_object ( ))
+      misses = nlohmann::json::object ( );
+
+    misses [source] = static_cast <long long> (_time64 (nullptr));
+  }
+  catch (const std::exception& e)
+  {
+    PLOG_ERROR << "Error occurred when trying to record a cover miss for " << pApp->GetPersistentKey ( ) << ": " << e.what ( );
+    return;
+  }
+
+  PLOG_INFO << "No " << source << " cover of " << pApp->store_utf8 << " game " << pApp->GetPersistentKey ( )
+            << " was found; not looking it up again for " << (COVER_MISS_RETRY / (24 * 60 * 60)) << " days.";
+
+  MetaDB_WriteFile ( );
+}
+
+bool
+SKIF_GamingCollection::MetaDB_HasCoverMisses (const app_record_s* pApp)
+{
+  std::scoped_lock jsonLock (m_jsonMetaDB_mutex);
+
+  nlohmann::json* misses = _FindCoverMisses (m_jsonMetaDB, pApp);
+
+  if (misses != nullptr)
+    for (auto& miss : *misses)
+      if (_IsRecentCoverMiss (miss))
+        return true;
+
+  return false;
+}
+
+bool
+SKIF_GamingCollection::MetaDB_ClearCoverMisses (const app_record_s* pApp)
+{
+  std::scoped_lock jsonLock (m_jsonMetaDB_mutex);
+
+  nlohmann::json* misses = _FindCoverMisses (m_jsonMetaDB, pApp);
+
+  if (misses == nullptr || misses->empty ( ))
+    return false;
+
+  bool recent = false;
+
+  for (auto& miss : *misses)
+    recent = (recent || _IsRecentCoverMiss (miss));
+
+  // The game's entry without them
+  m_jsonMetaDB [pApp->store_utf8][pApp->GetPersistentKey ( )].erase ("CoverMisses");
+
+  MetaDB_WriteFile ( );
+
+  return recent;
 }
 
 #pragma endregion

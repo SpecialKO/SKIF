@@ -251,7 +251,7 @@ SKIF_GOG_hasGalaxySettingsChanged (void)
   return signal;
 }
 
-void
+SKIF_CoverResult
 SKIF_GOG_IdentifyAssetPCGW (uint32_t app_id)
 {
   static SKIF_RegistrySettings& _registry   = SKIF_RegistrySettings::GetInstance ( );
@@ -274,8 +274,10 @@ SKIF_GOG_IdentifyAssetPCGW (uint32_t app_id)
 
     // If PCGW cover has not been downloaded
     if (! PathFileExistsW (targetPath.c_str()))
-      SKIF_PCGW_DownloadCover (SKIF_PCGW_Store::GOG, app_id, targetPath);
+      return SKIF_PCGW_DownloadCover (SKIF_PCGW_Store::GOG, app_id, targetPath);
   }
+
+  return SKIF_CoverResult::Found;
 }
 
 
@@ -436,9 +438,11 @@ app_record_gog_s::PrepareCoverSource (bool queryPCGW)
 
   load_str = L"*_glx_vertical_cover.webp"; // Fallback
 
+  static SKIF_GamingCollection& _games = SKIF_GamingCollection::Get ( );
+
   // Decided on the main thread (SKIF_LibraryArtwork::StartCoverWorker), which also marks tex_cover.queriedPCGW
-  if (queryPCGW)
-    SKIF_GOG_IdentifyAssetPCGW (id);
+  if (queryPCGW && ! _games.MetaDB_IsCoverMiss (this, "pcgw") && SKIF_GOG_IdentifyAssetPCGW (id) == SKIF_CoverResult::NotFound)
+    _games.MetaDB_SetCoverMiss (this, "pcgw");
 
   return load_str;
 }
@@ -481,11 +485,13 @@ app_record_gog_s::WantsIGDBCover (void) const
 }
 
 // Cover worker thread: by GOG product ID, else by name
-bool
+SKIF_CoverResult
 app_record_gog_s::DownloadIGDBCover (const std::wstring& targetPath)
 {
-  return (SKIF_IGDB_DownloadCover (SKIF_IGDB_Source::GOG, std::to_string (id), targetPath) ||
-          app_record_s::DownloadIGDBCover (targetPath));
+  SKIF_CoverResult result = SKIF_IGDB_DownloadCover (SKIF_IGDB_Source::GOG, std::to_string (id), targetPath);
+
+  return (result == SKIF_CoverResult::Found) ? result
+                                             : SKIF_CoverResult_Combine (result, app_record_s::DownloadIGDBCover (targetPath));
 }
 
 #pragma endregion
