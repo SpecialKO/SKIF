@@ -1533,7 +1533,11 @@ SKIF_LibraryArtwork::RequestThumbnail (app_record_s* pApp)
   if      (thumb.iWorker == SKIF_Thumbnail_None    && m_activeThumbLoads  < maxLoads)
     StartThumbnailWorker (pApp, false);
 
-  else if (thumb.iWorker == SKIF_Thumbnail_NoCache && m_activeThumbBuilds < maxBuilds)
+  // A build of a Steam game waits for the appinfo.vdf reader, which arrives with the full library (SwapInPopulatedGames):
+  //   until then the early library has no boxart hash, so the Steam client's cover is not found and the build falls
+  //     back to the store API, which has no cover for some games (it then only retries after 65 seconds)
+  else if (thumb.iWorker == SKIF_Thumbnail_NoCache && m_activeThumbBuilds < maxBuilds &&
+         ! (pApp->HasPendingStoreDetails ( ) && appinfo == nullptr))
     StartThumbnailWorker (pApp, true);
 }
 
