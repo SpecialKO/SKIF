@@ -286,7 +286,7 @@ std::wstring                 SKIF_Steam_GetAppStateString        (HKEY* hKey, co
 wchar_t                      SKIF_Steam_GetAppStateDWORD         (HKEY* hKey, const wchar_t *wszStateKey, DWORD *pdwStateVal);
 bool                         SKIF_Steam_UpdateAppState           (app_record_s *pApp);
 void                         SKIF_Steam_IdentifyAssetPCGW        (uint32_t app_id);
-std::wstring                 SKIF_Steam_GetCoverURI              (uint32_t app_id, bool force_2x); // Worker threads: blocks until the store API has been asked (in batches); empty if not found
+std::wstring                 SKIF_Steam_GetCoverURI              (uint32_t app_id, bool force_2x); // Worker threads: blocks until the store API has been asked (in batches); not found: the usual CDN path of the 2x cover (force_2x), else empty
 struct steam_cover_candidate_s { uint32_t id = 0; std::string boxart_hash; }; // A game to look the cover up for ahead; boxart_hash locates the Steam client's cover
 void                         SKIF_Steam_SetCoverURICandidates    (std::vector <steam_cover_candidate_s> candidates); // Main thread: the library's Steam games, looked up ahead along with those asked for
 std::wstring                 SKIF_SteamWebAPI_AppDetails         (uint32_t app_id);

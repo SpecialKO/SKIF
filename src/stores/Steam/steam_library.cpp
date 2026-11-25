@@ -2402,6 +2402,19 @@ SKIF_Steam_GetCoverURI (uint32_t app_id, bool force_2x)
 
   const steam_cover_uri_s& entry = st.entries [app_id];
 
+  // Not found in any region: the store API leaves out some games that the CDN still has a cover of (e.g. Grand Theft
+  //   Auto, 12170), so try the CDN's usual path of the 2x cover. A game without one gets a 404, which writes no file.
+  if (entry.state == steam_cover_uri_s::State::NotFound && force_2x)
+  {
+    lock.unlock ( );
+
+    std::string url = SteamCDN + "steam/apps/" + std::to_string (app_id) + "/library_600x900_2x.jpg";
+
+    PLOG_VERBOSE << "Not found through the Steam store API; trying the usual CDN path: " << url;
+
+    return SK_UTF8ToWideChar (url);
+  }
+
   if (entry.state != steam_cover_uri_s::State::Resolved)
     return L"";
 
@@ -3031,7 +3044,7 @@ app_record_steam_s::PrepareCoverSource (bool queryPCGW)
         SKIF_Util_GetWebResource (url, load_str_2x);
       }
 
-      else
+      if (! _IsFile (load_str_2x))
         PLOG_WARNING << "Could not find a cover asset for app ID " << id;
     }
 
