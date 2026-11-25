@@ -2592,20 +2592,50 @@ SKIF_GamingCollection::MetaDB_WriteFile (void)
 
   if (! m_jsonMetaDB.is_discarded())
   {
-    std::ofstream out_file(m_metadataPath);
-    if (out_file.is_open())
-    {
+    // Written to a temporary file that then replaces db.json, so a crash or a kill mid-write cannot leave a truncated
+    //   db.json behind (which the next launch would move aside as db.json.bak, losing the user's categories etc.)
+    const std::wstring tmp = m_metadataPath + L".tmp";
+
+    std::string content;
+
+    try {
       // Invalid UTF-8 is replaced, as dump ( ) otherwise throws on it
-      out_file << m_jsonMetaDB.dump (2, ' ', false, nlohmann::json::error_handler_t::replace) << std::endl;
-      out_file.close();
-
-      PLOG_INFO << "Successfully wrote persistent metadata (" << MetaDB_CountElements ( ) << " items) to JSON file.";
-
-      return true;
+      content = m_jsonMetaDB.dump (2, ' ', false, nlohmann::json::error_handler_t::replace);
     }
-    else {
-      PLOG_ERROR << "Could not open JSON file for writing: " << m_metadataPath;
+    catch (const std::exception& e)
+    {
+      PLOG_ERROR << "Could not serialize persistent metadata: " << e.what ( );
+      return false;
     }
+
+    std::ofstream out_file (tmp, std::ios::binary | std::ios::trunc);
+
+    if (! out_file.is_open ( ))
+    {
+      PLOG_ERROR << "Could not open JSON file for writing: " << tmp;
+      return false;
+    }
+
+    out_file << content << '\n';
+    out_file.close ( );
+
+    if (out_file.fail ( ))
+    {
+      PLOG_ERROR << "Could not write JSON file: " << tmp;
+      DeleteFileW (tmp.c_str ( ));
+      return false;
+    }
+
+    if (! MoveFileExW (tmp.c_str ( ), m_metadataPath.c_str ( ), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+    {
+      PLOG_ERROR << "Could not replace " << m_metadataPath << ": " << SKIF_Util_GetErrorAsWStr ( );
+      DeleteFileW (tmp.c_str ( ));
+      return false;
+    }
+
+    PLOG_INFO << "Successfully wrote persistent metadata (" << MetaDB_CountElements ( ) << " items) to JSON file.";
+
+    return true;
   }
 
   else
