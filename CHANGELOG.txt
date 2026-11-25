@@ -1,0 +1,135 @@
+﻿2.0.0
+=====
+ + Library: Added support for the EA app, itch.io, Ubisoft Connect and
+     version 2 of the Epic Games Launcher.
+ + Library: Added a grid view of covers, with a size slider, platform logos
+     and drag and drop of new covers. Also available in Horizon mode.
+ + Added support for animated covers (APNG and WebP), and WebP covers in
+     general.
+ + Covers can now be downloaded from IGDB for all platforms.
+ + SKIF no longer keeps asking for covers a source does not have; it checks
+     again after a week, or when Refresh is used in the cover menu.
+ + Dropping a new cover on a game can now be undone.
+ + Steam: Added support for the Steam client beta.
+ + Steam: Fixed some games missing their cover.
+ + Library: Select multiple games to change their category or favorite state
+     at once.
+ + Library: Pinned games are now favorites.
+ + Library: Added filter history; F3 is a synonym for Ctrl+F. Added
+     "Clear Filter" to the right-click menu.
+ + Game details now show the technology a game uses, based on its files.
+    * Special K is disabled by default for games with anti-cheat, and a
+        warning is shown next to the launch button.
+ + Reworked launch options, the launch bar and the Properties window.
+ + Added environment variables and a working directory to launch options,
+     including for custom games. Improved support for elevated launches.
+ + Added an INI Editor for Special K's config files, with presets.
+ + Added a Local Install Manager to install, reinstall and remove local copies
+     of Special K.
+ + Reordered the tabs.
+ + Settings: Added in-game keybindings and improved gamepad button rebinding.
+ + Added a service toggle in the bottom left corner.
+ + The Start Service hotkey now also whitelists the game in the foreground,
+     and restarts the service if Special K was already loaded in it.
+ + Added an option to ignore the blacklist.
+ + Jump list: Recently launched games are moved to the top, and fixed Xbox
+     games missing from it.
+ + Added translations: German, Pirate English and en-x-cat.
+ + SKIF and the library start considerably faster.
+ + Sharper game icons and covers, and better support for high-DPI and
+     multi-monitor setups.
+ + SKIF remembers a maximized window. Double-click the title bar to
+     maximize/restore it.
+ + SKIF now uses the system proxy settings.
+ + Fixed several crashes, and a crash while saving no longer risks losing
+     your categories, favorites and renamed games.
+ + Fixed HDR detection on multi-monitor setups.
+ + Fixed garbled text in some cases.
+ + Use SKIF_SteamAppIDtxt=0 to remove steam_appid.txt.
+ + Disabled UnX as it is no longer compatible.
+
+1.3.20
+======
+ + Added a working directory option, also for custom games.
+ + Steam covers are now downloaded in higher resolution.
+ + Fixed PCGamingWiki covers not refreshing properly.
+ + Added a handle counter to the Monitor tab.
+ + Added some Developer -> Steam Web API quick links.
+ + MPO support no longer requires stretched displays.
+ + Fixed the maximized window state not being restored.
+ + Removed the Discourse links.
+
+1.3.19
+======
+ + Fixed the gamepad binding dialog reacting to the button press that opened
+     it.
+
+1.3.18
+======
+ + Added support for modern Steam assets.
+ + Added Vulkan layer management to the Hardware tab.
+ + Special K can now identify more games from platforms like Epic.
+ + Added toast notifications.
+ + "Switch to Game" no longer passes the button press on to the game.
+ + SKIF's window is centered on the first launch, and fixed its size being
+     wrong.
+ + Potential fix for an empty tiny window after auto-updates.
+ + Improved support for multiple Windows users.
+ + Context menus now use dark mode.
+ + Fixed settings changes sometimes not being picked up.
+
+1.3.17
+======
+ + Version bump only.
+
+1.3.16
+======
+ + Added a Switch to Game context-menu item for running games, useful for
+     resuming games using only a gamepad.
+
+1.3.15
+======
+ + SKIF no longer reacts to gamepad input while its window is covered up.
+
+1.3.13
+======
+ + SKIF no longer processes gamepad input while controller support is
+     disabled.
+
+1.3.12
+======
+ + Fixed rare issues when the library refreshes.
+
+1.3.11
+======
+ + Fixed rare issues when the library refreshes.
+ + Changes inside a game's subfolders are now noticed.
+
+1.3.10
+======
+ + Game status no longer flickers during a library refresh.
+ + The game list stays up to date while games are running and SKIF is in
+     the background.
+
+1.3.9
+=====
+ + Fixed a periodic hitch on the Library tab.
+ + Fixed the library sometimes not refreshing properly.
+ + The missing cover text mentions that files and URLs can be dropped.
+
+1.3.8
+=====
+ + SKIF no longer reacts to gamepad input while it is not the active app.
+
+1.3.7
+=====
+ + Disabled the mod installer for Tales of Vesperia DE.
+ + Increased the Xbox failed launch timeout.
+
+1.3.6
+=====
+ + Moved the hardware-related options out of the Settings tab and into a new
+     Hardware tab.
+ + Added short tab names.
+ + Added an option to enable MPOs to the right-click context menu.
+ + Settings: Cleaned up the sections.
