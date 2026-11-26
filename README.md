@@ -24,7 +24,7 @@ New versions are distributed through the packaged Special K installer available 
 - Disable/blacklist Special K for games or processes
 - Detect injected games or processes as well as common conflicts that may cause issues
 - Shows active multiplane overlay (MPO) support of the system, and manage Vulkan layers
-- Available in English, German, Pirate English, and en-x-cat
+- Available in English and German
 - *and various other features..*
 
 ## Platforms

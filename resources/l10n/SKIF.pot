@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-25 23:19+0100\n"
+"POT-Creation-Date: 2026-11-26 01:38+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3344,11 +3344,11 @@ msgstr ""
 msgid "VRAM cache for animated covers:"
 msgstr ""
 
-#. TRANSLATORS: {0} is an amount of video memory in megabytes
-#: src/tabs/settings.cpp:1377
+#: src/tabs/settings.cpp:1376
 msgid "Off"
 msgstr ""
 
+#. TRANSLATORS: {0} is an amount of video memory in megabytes
 #: src/tabs/settings.cpp:1378
 msgid "Up to {0} MB"
 msgstr ""

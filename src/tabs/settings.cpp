@@ -1373,8 +1373,8 @@ SKIF_UI_Tab_DrawSettings (void)
       if (animationsOff)
         SKIF_ImGui_PushDisableState ( );
 
-      // TRANSLATORS: {0} is an amount of video memory in megabytes
       const std::string memoryFormat = (_registry.iLibraryGridAnimMemory <= 0) ? SKIF_L10n_PrintfFormat (_("Off"), "")
+                                                                               // TRANSLATORS: {0} is an amount of video memory in megabytes
                                                                                : SKIF_L10n_PrintfFormat (_("Up to {0} MB"), "%d");
 
       if (SKIF_ImGui_SliderInt (L_("Video memory"), &_registry.iLibraryGridAnimMemory, 0, 1024, memoryFormat.c_str ( )))

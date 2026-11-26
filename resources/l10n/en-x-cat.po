@@ -12,8 +12,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-10-31 11:28+0100\n"
-"PO-Revision-Date: 2026-10-31 11:39+0100\n"
+"POT-Creation-Date: 2026-11-26 01:38+0100\n"
+"PO-Revision-Date: 2026-11-26 01:33+0100\n"
 "Last-Translator: Kaldaien\n"
 "Language-Team: Cat English\n"
 "Language: en@cat\n"
@@ -24,27 +24,33 @@ msgstr ""
 "X-Language-Name: Cat English\n"
 "X-Generator: Poedit 3.10\n"
 
-#: src/SKIF.cpp:1249 src/SKIF.cpp:1403 src/tabs/settings.cpp:44
+#: src/SKIF.cpp:1508
+#: src/SKIF.cpp:1676
+#: src/tabs/settings.cpp:42
 msgid "Start Service"
 msgstr "Meow Meow"
 
-#: src/SKIF.cpp:1250 src/SKIF.cpp:1422
+#: src/SKIF.cpp:1509
+#: src/SKIF.cpp:1695
 msgid "Start Service (manual stop)"
 msgstr "Meow Meow (meow meow)"
 
-#: src/SKIF.cpp:1251 src/SKIF.cpp:1440
+#: src/SKIF.cpp:1510
+#: src/SKIF.cpp:1713
 msgid "Stop Service"
 msgstr "Meow Meow"
 
-#: src/SKIF.cpp:1253 src/tabs/settings.cpp:796
+#: src/SKIF.cpp:1512
+#: src/tabs/settings.cpp:794
 msgid "Check for updates"
 msgstr "Meow meow meow"
 
-#: src/SKIF.cpp:1258 src/SKIF.cpp:1506
+#: src/SKIF.cpp:1517
+#: src/SKIF.cpp:1779
 msgid "Exit"
 msgstr "Meow"
 
-#: src/SKIF.cpp:1401
+#: src/SKIF.cpp:1674
 msgid ""
 "Starts the injection service and\n"
 "stops it after injection."
@@ -52,7 +58,7 @@ msgstr ""
 "Meow meow meow meow meow\n"
 "meow meow meow meow."
 
-#: src/SKIF.cpp:1420
+#: src/SKIF.cpp:1693
 msgid ""
 "Starts the injection service but\n"
 "does not stop it after injection."
@@ -60,20 +66,20 @@ msgstr ""
 "Meow meow meow meow meow\n"
 "meow meow meow meow meow meow."
 
-#: src/SKIF.cpp:1439
+#: src/SKIF.cpp:1712
 msgid "Stops the injection service"
 msgstr "Meow meow meow meow"
 
-#: src/SKIF.cpp:1471
+#: src/SKIF.cpp:1744
 msgid "Checks for any available updates"
 msgstr "Meow meow meow meow meow"
 
-#: src/SKIF.cpp:1472
+#: src/SKIF.cpp:1745
 msgid "Check for Updates"
 msgstr "Meow meow Meow"
 
 #. TRANSLATORS: Controlled Folder Access is a feature of Windows (use the name Windows uses in your language)
-#: src/SKIF.cpp:2115
+#: src/SKIF.cpp:2406
 msgid ""
 "Controlled Folder Access is enabled in Windows and may prevent Special K and "
 "even some games from working properly. It is recommended to either disable "
@@ -94,89 +100,152 @@ msgstr ""
 "Meow meow meow meow meow meow meow meow meow meow meow meow meow meow meow "
 "meow."
 
-#: src/SKIF.cpp:2121
+#: src/SKIF.cpp:2412
 msgid "Warning about Controlled Folder Access"
 msgstr "Meow meow Meow Meow Meow"
 
-#: src/SKIF.cpp:3286
+#: src/SKIF.cpp:3590
 msgctxt "tab"
 msgid "Library"
 msgstr "Meow"
 
-#: src/SKIF.cpp:3287
-msgctxt "tab"
-msgid "Monitor"
-msgstr "Meow"
-
-#: src/SKIF.cpp:3288
+#: src/SKIF.cpp:3591
 msgctxt "tab"
 msgid "Hardware"
 msgstr "Meow"
 
-#: src/SKIF.cpp:3289
+#: src/SKIF.cpp:3592
+msgctxt "tab"
+msgid "Monitor"
+msgstr "Meow"
+
+#: src/SKIF.cpp:3593
 msgctxt "tab"
 msgid "Settings"
 msgstr "Meow"
 
-#: src/SKIF.cpp:3290
+#: src/SKIF.cpp:3594
 msgctxt "tab"
 msgid "About"
 msgstr "Meow"
 
-#: src/SKIF.cpp:3505 src/stores/SKIF/custom_library.cpp:311
-#: src/stores/SKIF/custom_library.cpp:380
-#: src/stores/SKIF/custom_library.cpp:518
+#: src/SKIF.cpp:3850
+#: src/utility/injection.cpp:959
+msgid "Starting..."
+msgstr "Meow..."
+
+#: src/SKIF.cpp:3851
+#: src/utility/injection.cpp:958
+msgid "Stopping..."
+msgstr "Meow..."
+
+#: src/SKIF.cpp:3852
+#: src/utility/injection.cpp:884
+#: src/utility/injection.cpp:1386
+msgid "Waiting for game..."
+msgstr "Meow meow meow..."
+
+#: src/SKIF.cpp:3853
+#: src/utility/injection.cpp:896
+#: src/utility/injection.cpp:1387
+msgid "Running"
+msgstr "Meow"
+
+#: src/SKIF.cpp:3854
+#: src/utility/injection.cpp:899
+msgid "Stopped"
+msgstr "Meow"
+
+#: src/SKIF.cpp:3856
+#: src/utility/injection.cpp:1401
+msgid "Click to stop the service"
+msgstr "Meow meow meow meow meow"
+
+#: src/SKIF.cpp:3857
+#: src/utility/injection.cpp:1402
+msgid "Click to start the service"
+msgstr "Meow meow meow meow meow"
+
+#: src/SKIF.cpp:3874
+#: src/stores/SKIF/custom_library.cpp:310
+#: src/stores/SKIF/custom_library.cpp:379
+#: src/stores/SKIF/custom_library.cpp:517
 msgid "Add Game"
 msgstr "Meow Meow"
 
-#: src/SKIF.cpp:3518
+#: src/SKIF.cpp:3887
 msgid "Local Manager"
 msgstr "Meow Meow"
 
-#: src/SKIF.cpp:3662
+#: src/SKIF.cpp:4033
+#: src/SKIF.cpp:4163
 msgid "Toggle horizontal mode"
 msgstr "Meow meow meow"
 
-#: src/SKIF.cpp:3670
+#: src/SKIF.cpp:4041
+#: src/SKIF.cpp:4171
 msgid "Toggle mini mode"
 msgstr "Meow meow meow"
 
-#: src/SKIF.cpp:3704
+#: src/SKIF.cpp:4083
 msgid "This app will close to the notification area."
 msgstr "Meow meow meow meow meow meow meow meow."
 
-#: src/SKIF.cpp:3706 src/utility/injection.cpp:992
+#: src/SKIF.cpp:4085
+#: src/utility/injection.cpp:1007
 msgid "Service continues running after this app is closed."
 msgstr "Meow meow meow meow meow meow meow meow."
 
-#: src/SKIF.cpp:5365
+#: src/SKIF.cpp:4150
+msgid "Restore"
+msgstr "Meow"
+
+#: src/SKIF.cpp:4154
+msgid "Maximize"
+msgstr "Meow"
+
+#: src/SKIF.cpp:4158
+msgid "Minimize"
+msgstr "Meow"
+
+#: src/SKIF.cpp:4176
+#: src/tabs/ini_editor.cpp:534
+#: src/tabs/library/library_properties.cpp:2249
+#: src/tabs/library/library_properties.cpp:2336
+#: src/tabs/local.cpp:855
+#: src/utility/updater.cpp:1405
+#: src/utility/updater.cpp:1411
+msgid "Close"
+msgstr "Meow"
+
+#: src/SKIF.cpp:5823
 msgid "Blink and you'll miss it ;)"
 msgstr "Meow meow meow meow meow ;)"
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/SKIF.cpp:5367
+#: src/SKIF.cpp:5825
 msgid "An update is being installed..."
 msgstr "Meow meow meow meow meow..."
 
-#: src/SKIF.cpp:5393
+#: src/SKIF.cpp:5851
 msgid "Open the app to continue."
 msgstr "Meow meow meow meow meow."
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/SKIF.cpp:5395
+#: src/SKIF.cpp:5853
 msgid "An update to Special K is available!"
 msgstr "Meow meow meow Meow Meow meow meow!"
 
-#: src/SKIF.cpp:5407
+#: src/SKIF.cpp:5865
 msgid "The update will be retried later."
 msgstr "Meow meow meow meow meow meow."
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/SKIF.cpp:5409
+#: src/SKIF.cpp:5867
 msgid "Update failed :("
 msgstr "Meow meow :("
 
-#: src/stores/itch/itch_library.cpp:658
+#: src/stores/itch/itch_library.cpp:744
 msgid ""
 "The itch app runs this game in its sandbox, as a separate Windows user,\n"
 "which may affect which saves are accessible from within the game.\n"
@@ -186,137 +255,145 @@ msgstr ""
 "meow meow meow meow meow meow meow meow meow meow meow.\n"
 "Meow Meow meow meow meow meow meow meow meow meow meow."
 
-#: src/stores/SKIF/custom_library.cpp:378
-#: src/stores/SKIF/custom_library.cpp:393
-#: src/stores/SKIF/custom_library.cpp:716
-#: src/stores/SKIF/custom_library.cpp:724
-#: src/tabs/library/library_properties.cpp:1481
-#: src/tabs/library/library_properties.cpp:1496
+#: src/stores/SKIF/custom_library.cpp:377
+#: src/stores/SKIF/custom_library.cpp:392
+#: src/stores/SKIF/custom_library.cpp:722
+#: src/stores/SKIF/custom_library.cpp:730
+#: src/tabs/library/library_properties.cpp:1678
+#: src/tabs/library/library_properties.cpp:1693
 msgid "Browse..."
 msgstr "Meow..."
 
-#: src/stores/SKIF/custom_library.cpp:379
-#: src/stores/SKIF/custom_library.cpp:439
-#: src/stores/SKIF/custom_library.cpp:717
-#: src/stores/SKIF/custom_library.cpp:755
-#: src/tabs/library/library_properties.cpp:1537
-#: src/tabs/library/library_properties.cpp:1553
+#: src/stores/SKIF/custom_library.cpp:378
+#: src/stores/SKIF/custom_library.cpp:438
+#: src/stores/SKIF/custom_library.cpp:723
+#: src/stores/SKIF/custom_library.cpp:761
+#: src/tabs/library/library_properties.cpp:1734
+#: src/tabs/library/library_properties.cpp:1750
 msgid "Change..."
 msgstr "Meow..."
 
-#: src/stores/SKIF/custom_library.cpp:381
-#: src/stores/SKIF/custom_library.cpp:560
-#: src/tabs/library/library_popups.cpp:154
-#: src/tabs/library/library_popups.cpp:238
-#: src/tabs/library/library_popups.cpp:268
-#: src/tabs/library/library_popups.cpp:317
-#: src/tabs/library/library_properties.cpp:1973
-#: src/tabs/library/library_properties.cpp:2055 src/tabs/local.cpp:1188
-#: src/tabs/local.cpp:1213 src/tabs/monitor.cpp:1985 src/tabs/monitor.cpp:2003
-#: src/tabs/monitor.cpp:2090 src/tabs/monitor.cpp:2123
-#: src/utility/skif_imgui.cpp:1787 src/utility/updater.cpp:1570
+#: src/stores/SKIF/custom_library.cpp:380
+#: src/stores/SKIF/custom_library.cpp:559
+#: src/tabs/library/library_launch.cpp:233
+#: src/tabs/library/library_popups.cpp:351
+#: src/tabs/library/library_popups.cpp:435
+#: src/tabs/library/library_popups.cpp:463
+#: src/tabs/library/library_popups.cpp:503
+#: src/tabs/local.cpp:1213
+#: src/tabs/local.cpp:1238
+#: src/tabs/monitor.cpp:1983
+#: src/tabs/monitor.cpp:2001
+#: src/tabs/monitor.cpp:2088
+#: src/tabs/monitor.cpp:2121
+#: src/utility/skif_imgui.cpp:1880
+#: src/utility/updater.cpp:1570
 #: src/utility/updater.cpp:1627
 msgid "Cancel"
 msgstr "Meow"
 
-#: src/stores/SKIF/custom_library.cpp:384
-#: src/stores/SKIF/custom_library.cpp:428
+#: src/stores/SKIF/custom_library.cpp:383
+#: src/stores/SKIF/custom_library.cpp:427
 msgid "Path"
 msgstr "Meow"
 
-#: src/stores/SKIF/custom_library.cpp:384
-#: src/stores/SKIF/custom_library.cpp:474
+#: src/stores/SKIF/custom_library.cpp:383
+#: src/stores/SKIF/custom_library.cpp:473
 msgid "Working Directory"
 msgstr "Meow Meow"
 
-#: src/stores/SKIF/custom_library.cpp:385
-#: src/stores/SKIF/custom_library.cpp:492
-#: src/tabs/library/library_properties.cpp:219
+#: src/stores/SKIF/custom_library.cpp:384
+#: src/stores/SKIF/custom_library.cpp:491
+#: src/tabs/library/library_properties.cpp:217
+#: src/utility/env_vars.cpp:506
 msgid "Name"
 msgstr "Meow"
 
-#: src/stores/SKIF/custom_library.cpp:385
-#: src/stores/SKIF/custom_library.cpp:499
+#: src/stores/SKIF/custom_library.cpp:384
+#: src/stores/SKIF/custom_library.cpp:498
 msgid "Launch Options"
 msgstr "Meow Meow"
 
-#: src/stores/SKIF/custom_library.cpp:397
+#: src/stores/SKIF/custom_library.cpp:396
 msgid "Executables"
 msgstr "Meow"
 
-#: src/stores/SKIF/custom_library.cpp:433
-#: src/stores/SKIF/custom_library.cpp:735
+#: src/stores/SKIF/custom_library.cpp:432
+#: src/stores/SKIF/custom_library.cpp:741
 msgid "Incompatible type! Please select another file."
 msgstr "Meow meow! Meow meow meow meow."
 
-#: src/stores/SKIF/custom_library.cpp:479
+#: src/stores/SKIF/custom_library.cpp:478
 msgid "Incompatible folder! Please select another folder."
 msgstr "Meow meow! Meow meow meow meow."
 
-#: src/stores/SKIF/custom_library.cpp:496
-#: src/stores/SKIF/custom_library.cpp:766
-#: src/tabs/library/library_properties.cpp:1582
+#: src/stores/SKIF/custom_library.cpp:495
+#: src/stores/SKIF/custom_library.cpp:772
+#: src/tabs/library/library_properties.cpp:1779
 msgid "Leave empty if unsure"
 msgstr "Meow meow meow meow"
 
-#: src/stores/SKIF/custom_library.cpp:600
+#: src/stores/SKIF/custom_library.cpp:599
 msgid "Remove Game?"
 msgstr "Meow Meow?"
 
-#: src/stores/SKIF/custom_library.cpp:600
+#: src/stores/SKIF/custom_library.cpp:599
 msgid "Are you sure you want to remove the game from the library?"
 msgstr "Meow meow meow meow meow meow meow meow meow meow meow meow?"
 
-#: src/stores/SKIF/custom_library.cpp:600
+#: src/stores/SKIF/custom_library.cpp:599
 msgid "No changes will be made to the game files."
 msgstr "Meow meow meow meow meow meow meow meow meow."
 
-#: src/stores/SKIF/custom_library.cpp:720
-#: src/tabs/library/library_properties.cpp:1479
-#: src/tabs/library/library_properties.cpp:1644
+#: src/stores/SKIF/custom_library.cpp:726
+#: src/tabs/library/library_properties.cpp:1676
+#: src/tabs/library/library_properties.cpp:1835
 msgid "Executable"
 msgstr "Meow"
 
-#: src/stores/SKIF/custom_library.cpp:751
-#: src/tabs/library/library_properties.cpp:1535
-#: src/tabs/library/library_properties.cpp:1647
+#: src/stores/SKIF/custom_library.cpp:757
+#: src/tabs/library/library_properties.cpp:1732
+#: src/tabs/library/library_properties.cpp:1838
 msgid "Working directory"
 msgstr "Meow meow"
 
-#: src/stores/SKIF/custom_library.cpp:764
-#: src/tabs/library/library_properties.cpp:1913
+#: src/stores/SKIF/custom_library.cpp:770
+#: src/tabs/library/library_properties.cpp:2178
 msgid "Launch options"
 msgstr "Meow meow"
 
-#: src/stores/SKIF/custom_library.cpp:781
+#: src/stores/SKIF/custom_library.cpp:787
 msgid "Select the executable and the working directory of the game."
 msgstr "Meow meow meow meow meow meow meow meow meow meow."
 
-#: src/stores/Steam/app_record.cpp:671 src/stores/Steam/steam_library.cpp:1888
+#: src/stores/Steam/app_record.cpp:805
+#: src/stores/Steam/steam_library.cpp:2612
 msgid "Conflicting configuration"
 msgstr "Meow meow"
 
-#: src/stores/Steam/app_record.cpp:672 src/stores/Steam/steam_library.cpp:1889
+#: src/stores/Steam/app_record.cpp:806
+#: src/stores/Steam/steam_library.cpp:2613
 msgid "Could not launch game due to conflicting launch options in Steam:"
 msgstr "Meow meow meow meow meow meow meow meow meow meow Meow:"
 
-#: src/stores/Steam/app_record.cpp:676 src/stores/Steam/steam_library.cpp:1893
+#: src/stores/Steam/app_record.cpp:810
+#: src/stores/Steam/steam_library.cpp:2617
 msgid "Please change the launch options in Steam before trying again."
 msgstr "Meow meow meow meow meow meow Meow meow meow meow."
 
-#: src/stores/Steam/steam_library.cpp:1982
+#: src/stores/Steam/steam_library.cpp:2706
 msgid "Details"
 msgstr "Meow"
 
-#: src/stores/Steam/steam_library.cpp:1992
+#: src/stores/Steam/steam_library.cpp:2716
 msgid "A controller must be connected."
 msgstr "Meow meow meow meow meow."
 
-#: src/stores/Steam/steam_library.cpp:1995
+#: src/stores/Steam/steam_library.cpp:2719
 msgid "Game properties"
 msgstr "Meow meow"
 
-#: src/stores/Ubisoft/ubisoft_library.cpp:1701
+#: src/stores/Ubisoft/ubisoft_library.cpp:1766
 msgid ""
 "Ubisoft Connect is still installing this game.\n"
 "It can be played already if Ubisoft Connect allows it (a progressive "
@@ -327,11 +404,12 @@ msgstr ""
 "Meow meow meow meow meow meow Meow Meow meow meow (meow meow meow), meow\n"
 "Meow Meow meow meow meow meow meow meow meow meow meow meow meow."
 
-#: src/stores/Xbox/xbox_library.cpp:928 src/stores/Xbox/xbox_library.cpp:946
+#: src/stores/Xbox/xbox_library.cpp:1039
+#: src/stores/Xbox/xbox_library.cpp:1057
 msgid "Open Terminal"
 msgstr "Meow Meow"
 
-#: src/stores/Xbox/xbox_library.cpp:993
+#: src/stores/Xbox/xbox_library.cpp:1104
 msgid "This invokes a terminal in the context of the desktop package."
 msgstr "Meow meow meow meow meow meow meow meow meow meow meow."
 
@@ -474,7 +552,8 @@ msgstr ""
 msgid "Online resources:"
 msgstr "Meow meow:"
 
-#: src/tabs/about.cpp:347 src/tabs/library/library_menus.cpp:1323
+#: src/tabs/about.cpp:347
+#: src/tabs/library/library_menus.cpp:1350
 msgid "Wiki"
 msgstr "Meow"
 
@@ -486,7 +565,8 @@ msgstr "Meow Meow"
 msgid "Licenses"
 msgstr "Meow"
 
-#: src/tabs/about.cpp:448 src/tabs/monitor.cpp:919
+#: src/tabs/about.cpp:448
+#: src/tabs/monitor.cpp:919
 msgid "Components:"
 msgstr "Meow:"
 
@@ -498,11 +578,13 @@ msgstr "Meow (Meow)"
 msgid "View release notes..."
 msgstr "Meow meow meow..."
 
-#: src/tabs/common_ui.cpp:99 src/utility/updater.cpp:1564
+#: src/tabs/common_ui.cpp:99
+#: src/utility/updater.cpp:1564
 msgid "Rollback"
 msgstr "Meow"
 
-#: src/tabs/common_ui.cpp:100 src/utility/updater.cpp:1563
+#: src/tabs/common_ui.cpp:100
+#: src/utility/updater.cpp:1563
 msgid "Update"
 msgstr "Meow"
 
@@ -557,7 +639,8 @@ msgstr ""
 "Meow meow meow meow meow meow meow."
 
 #. TRANSLATORS: 'Use Microsoft Detours API hooking' is an option of RTSS (in English)
-#: src/tabs/common_ui.cpp:248 src/utility/games.cpp:417
+#: src/tabs/common_ui.cpp:248
+#: src/utility/games.cpp:421
 msgid ""
 "RivaTuner Statistics Server (RTSS) occasionally conflicts with Special K.\n"
 "Try closing it down if Special K does not behave as expected, or enable\n"
@@ -818,7 +901,8 @@ msgstr ""
 "Meow meow 'Meow: Meow', 'Meow: Meow Meow',\n"
 "'Meow: Meow meow Meow Meow', meow 'Meow: Meow meow Meow Meow'."
 
-#: src/tabs/hardware.cpp:857 src/tabs/hardware.cpp:1361
+#: src/tabs/hardware.cpp:857
+#: src/tabs/hardware.cpp:1365
 msgid "Requirement:"
 msgstr "Meow:"
 
@@ -827,15 +911,20 @@ msgstr "Meow:"
 msgid "Granted 'Performance Log Users' permission?"
 msgstr "Meow 'Meow Meow Meow' meow?"
 
-#: src/tabs/hardware.cpp:884 src/tabs/library/library_popups.cpp:153
-#: src/tabs/library/library_popups.cpp:163 src/tabs/monitor.cpp:1704
-#: src/tabs/monitor.cpp:1897 src/utility/skif_imgui.cpp:1789
+#: src/tabs/hardware.cpp:884
+#: src/tabs/library/library_popups.cpp:350
+#: src/tabs/library/library_popups.cpp:360
+#: src/tabs/monitor.cpp:1706
+#: src/tabs/monitor.cpp:1899
+#: src/utility/skif_imgui.cpp:1882
 msgid "Yes"
 msgstr "Meow"
 
-#: src/tabs/hardware.cpp:886 src/tabs/monitor.cpp:1704
-#: src/tabs/monitor.cpp:1897 src/tabs/settings.cpp:1617
-#: src/utility/skif_imgui.cpp:1790
+#: src/tabs/hardware.cpp:886
+#: src/tabs/monitor.cpp:1706
+#: src/tabs/monitor.cpp:1899
+#: src/tabs/settings.cpp:1747
+#: src/utility/skif_imgui.cpp:1883
 msgid "No"
 msgstr "Meow"
 
@@ -871,11 +960,11 @@ msgstr "Meow meow meow meow meow meow meow meow meow meow meow."
 msgid "Undesirable latency:"
 msgstr "Meow meow:"
 
-#: src/tabs/hardware.cpp:1036
+#: src/tabs/hardware.cpp:1029
 msgid "Multi-Plane Overlay (MPO) Support"
 msgstr "Meow-Meow Meow (Meow) Meow"
 
-#: src/tabs/hardware.cpp:1039
+#: src/tabs/hardware.cpp:1043
 msgid ""
 "MPOs are additional dedicated hardware scanout planes enabling the GPU to "
 "partially take over composition from the DWM. This allows games to bypass "
@@ -886,35 +975,36 @@ msgstr ""
 "meow meow Meow. Meow meow meow meow meow meow Meow meow meow meow meow meow "
 "meow meow, meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/hardware.cpp:1061
+#: src/tabs/hardware.cpp:1065
 msgid "Support among connected displays:"
 msgstr "Meow meow meow meow:"
 
-#: src/tabs/hardware.cpp:1068
+#: src/tabs/hardware.cpp:1072
 msgid "Display"
 msgstr "Meow"
 
-#: src/tabs/hardware.cpp:1069
+#: src/tabs/hardware.cpp:1073
 msgid "Planes"
 msgstr "Meow"
 
-#: src/tabs/hardware.cpp:1070
+#: src/tabs/hardware.cpp:1074
 msgid "Stretch"
 msgstr "Meow"
 
-#: src/tabs/hardware.cpp:1071
+#: src/tabs/hardware.cpp:1075
 msgid "Capabilities"
 msgstr "Meow"
 
-#: src/tabs/hardware.cpp:1072
+#: src/tabs/hardware.cpp:1076
 msgid "No support"
 msgstr "Meow meow"
 
-#: src/tabs/hardware.cpp:1138
+#: src/tabs/hardware.cpp:1142
 msgid "Disabled through the registry! Click to reset."
 msgstr "Meow meow meow meow! Meow meow meow."
 
-#: src/tabs/hardware.cpp:1143 src/tabs/hardware.cpp:1272
+#: src/tabs/hardware.cpp:1147
+#: src/tabs/hardware.cpp:1276
 msgid ""
 "Restart the display drivers and desktop window manager (DWM) to apply the "
 "changes.\n"
@@ -931,36 +1021,37 @@ msgstr ""
 "\n"
 "Meow meow meow meow meow meow meow meow meow Meow meow?"
 
-#: src/tabs/hardware.cpp:1148 src/tabs/hardware.cpp:1277
+#: src/tabs/hardware.cpp:1152
+#: src/tabs/hardware.cpp:1281
 msgid "Restart the display drivers and desktop window manager (DWM)?"
 msgstr "Meow meow meow meow meow meow meow meow (Meow)?"
 
-#: src/tabs/hardware.cpp:1173
+#: src/tabs/hardware.cpp:1177
 msgid ""
 "A restart of the display drivers is required for the changes to be applied."
 msgstr "Meow meow meow meow meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/hardware.cpp:1178
+#: src/tabs/hardware.cpp:1182
 msgid "Reporting MPO capabilities requires Windows 10 or newer."
 msgstr "Meow Meow meow meow Meow 10 meow meow."
 
-#: src/tabs/hardware.cpp:1198
+#: src/tabs/hardware.cpp:1202
 msgid "Minimum requirement:"
 msgstr "Meow meow:"
 
-#: src/tabs/hardware.cpp:1205
+#: src/tabs/hardware.cpp:1209
 msgid "AMD: Radeon RX Vega + Adrenalin Edition 22.5.2 drivers"
 msgstr "Meow: Meow Meow Meow + Meow Meow 22.5.2 meow"
 
-#: src/tabs/hardware.cpp:1215
+#: src/tabs/hardware.cpp:1219
 msgid "Intel: HD Graphics 510-515 (Core 6th gen)"
 msgstr "Meow: Meow Meow 510-515 (Meow meow meow)"
 
-#: src/tabs/hardware.cpp:1224
+#: src/tabs/hardware.cpp:1228
 msgid "Nvidia: GTX 16/RTX 20 series (Turing) + R460 drivers"
 msgstr "Meow: Meow 16/Meow 20 meow (Meow) + R460 meow"
 
-#: src/tabs/hardware.cpp:1231
+#: src/tabs/hardware.cpp:1235
 msgid ""
 "Support depends on the GPU and display configuration. Unusual driver or "
 "display configurations might disable MPO support, such as by using 10 bpc in "
@@ -970,33 +1061,35 @@ msgstr ""
 "Meow meow, meow meow meow meow 10 meow meow Meow meow meow meow Meow meow "
 "(Meow/Meow/meow meow)."
 
-#: src/tabs/hardware.cpp:1259 src/tabs/library/library_menus.cpp:1459
-#: src/tabs/library/library_menus.cpp:1714
-#: src/tabs/library/library_menus.cpp:1968 src/tabs/local.cpp:750
+#: src/tabs/hardware.cpp:1263
+#: src/tabs/library/library_menus.cpp:1468
+#: src/tabs/library/library_menus.cpp:1799
+#: src/tabs/library/library_menus.cpp:2054
+#: src/tabs/local.cpp:750
 msgid "Refresh"
 msgstr "Meow"
 
-#: src/tabs/hardware.cpp:1266
+#: src/tabs/hardware.cpp:1270
 msgid "Enable MPOs"
 msgstr "Meow Meow"
 
-#: src/tabs/hardware.cpp:1267
+#: src/tabs/hardware.cpp:1271
 msgid "Disable MPOs"
 msgstr "Meow Meow"
 
-#: src/tabs/hardware.cpp:1305
+#: src/tabs/hardware.cpp:1309
 msgid "Restart display driver"
 msgstr "Meow meow meow"
 
-#: src/tabs/hardware.cpp:1311
+#: src/tabs/hardware.cpp:1315
 msgid "Restart DWM"
 msgstr "Meow Meow"
 
-#: src/tabs/hardware.cpp:1331
+#: src/tabs/hardware.cpp:1335
 msgid "Extended CPU Hardware Reporting"
 msgstr "Meow Meow Meow Meow"
 
-#: src/tabs/hardware.cpp:1343
+#: src/tabs/hardware.cpp:1347
 msgid ""
 "Special K can make use of an optional kernel driver to provide additional "
 "metrics in the CPU widget."
@@ -1004,80 +1097,81 @@ msgstr ""
 "Meow Meow meow meow meow meow meow meow meow meow meow meow meow meow meow "
 "meow Meow meow."
 
-#: src/tabs/hardware.cpp:1353
+#: src/tabs/hardware.cpp:1357
 msgid ""
 "Extends the CPU widget with thermals, energy, and precise clock rate on "
 "modern hardware."
 msgstr ""
 "Meow meow Meow meow meow meow, meow, meow meow meow meow meow meow meow."
 
-#: src/tabs/hardware.cpp:1368
+#: src/tabs/hardware.cpp:1372
 msgid "Kernel Driver:"
 msgstr "Meow Meow:"
 
-#: src/tabs/hardware.cpp:1378
+#: src/tabs/hardware.cpp:1382
 msgid "Please Wait..."
 msgstr "Meow Meow..."
 
-#: src/tabs/hardware.cpp:1379 src/tabs/library/library_details.cpp:466
+#: src/tabs/hardware.cpp:1383
+#: src/tabs/library/library_details.cpp:395
 msgid "Pending..."
 msgstr "Meow..."
 
-#: src/tabs/hardware.cpp:1385
+#: src/tabs/hardware.cpp:1389
 msgid "Uninstall Driver"
 msgstr "Meow Meow"
 
-#: src/tabs/hardware.cpp:1386
+#: src/tabs/hardware.cpp:1390
 msgid "Installed"
 msgstr "Meow"
 
-#: src/tabs/hardware.cpp:1393
+#: src/tabs/hardware.cpp:1397
 msgid "Unavailable"
 msgstr "Meow"
 
-#: src/tabs/hardware.cpp:1394
+#: src/tabs/hardware.cpp:1398
 msgid "Unsupported"
 msgstr "Meow"
 
-#: src/tabs/hardware.cpp:1399
+#: src/tabs/hardware.cpp:1403
 msgid "Conflict With:"
 msgstr "Meow Meow:"
 
-#: src/tabs/hardware.cpp:1407
+#: src/tabs/hardware.cpp:1411
 msgid "Migrate Driver"
 msgstr "Meow Meow"
 
-#: src/tabs/hardware.cpp:1408
+#: src/tabs/hardware.cpp:1412
 msgid "Obsolete driver installed"
 msgstr "Meow meow meow"
 
-#: src/tabs/hardware.cpp:1414
+#: src/tabs/hardware.cpp:1418
 msgid "Install Driver"
 msgstr "Meow Meow"
 
-#: src/tabs/hardware.cpp:1415
+#: src/tabs/hardware.cpp:1419
 msgid "Not Installed"
 msgstr "Meow Meow"
 
-#: src/tabs/hardware.cpp:1434
+#: src/tabs/hardware.cpp:1438
 msgid "Administrative privileges are required on the system to enable this."
 msgstr "Meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/hardware.cpp:1463
+#: src/tabs/hardware.cpp:1467
 msgid ""
 "Option is unavailable as another application have already installed a copy "
 "of the driver."
 msgstr "Meow meow meow meow meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/hardware.cpp:1474
+#: src/tabs/hardware.cpp:1478
 msgid "An older version of the driver is installed."
 msgstr "Meow meow meow meow meow meow meow meow."
 
-#: src/tabs/hardware.cpp:1489
+#: src/tabs/hardware.cpp:1493
 msgid "Vulkan Layer Management"
 msgstr "Meow Meow Meow"
 
-#: src/tabs/hardware.cpp:1500
+#: src/tabs/hardware.cpp:1504
 msgid ""
 "The Vulkan API includes support for defining third-party layers that can be "
 "implicitly or explicitly loaded by applications. These third-party layers "
@@ -1092,29 +1186,31 @@ msgstr ""
 "meow meow meow meow. Meow meow meow meow meow meow meow meow meow meow/meow "
 "meow meow meow!"
 
-#: src/tabs/hardware.cpp:1510 src/tabs/hardware.cpp:1519
+#: src/tabs/hardware.cpp:1514
+#: src/tabs/hardware.cpp:1523
 msgid "Implicit layers are automatically enabled in any running games/apps."
 msgstr "Meow meow meow meow meow meow meow meow meow/meow."
 
-#: src/tabs/hardware.cpp:1516 src/tabs/hardware.cpp:1520
+#: src/tabs/hardware.cpp:1520
+#: src/tabs/hardware.cpp:1524
 msgid "Explicit layers are only enabled if the game/app requires it."
 msgstr "Meow meow meow meow meow meow meow meow/meow meow meow."
 
-#: src/tabs/hardware.cpp:1519
+#: src/tabs/hardware.cpp:1523
 msgid "Implicit Vulkan Layers"
 msgstr "Meow Meow Meow"
 
-#: src/tabs/hardware.cpp:1520
+#: src/tabs/hardware.cpp:1524
 msgid "Explicit Vulkan Layers"
 msgstr "Meow Meow Meow"
 
-#: src/tabs/hardware.cpp:1561
+#: src/tabs/hardware.cpp:1565
 msgid ""
 "This layer has known compatibility issues with Special K and may cause "
 "issues."
 msgstr "Meow meow meow meow meow meow meow Meow Meow meow meow meow meow."
 
-#: src/tabs/hardware.cpp:1580
+#: src/tabs/hardware.cpp:1584
 msgid "No layer of this kind was found."
 msgstr "Meow meow meow meow meow meow meow."
 
@@ -1127,7 +1223,8 @@ msgstr "Meow"
 msgid "{0} - Editor"
 msgstr "{0} - Meow"
 
-#: src/tabs/ini_editor.cpp:90 src/tabs/library/library_properties.cpp:2084
+#: src/tabs/ini_editor.cpp:90
+#: src/tabs/library/library_properties.cpp:2367
 msgid "Save Changes?"
 msgstr "Meow Meow?"
 
@@ -1135,22 +1232,26 @@ msgstr "Meow Meow?"
 msgid "New Custom Preset"
 msgstr "Meow Meow"
 
-#: src/tabs/ini_editor.cpp:166 src/tabs/ini_editor.cpp:196
+#: src/tabs/ini_editor.cpp:166
+#: src/tabs/ini_editor.cpp:196
 #: src/tabs/ini_editor.cpp:343
 msgid "Configuration Files"
 msgstr "Meow Meow"
 
-#: src/tabs/ini_editor.cpp:166 src/tabs/ini_editor.cpp:196
+#: src/tabs/ini_editor.cpp:166
+#: src/tabs/ini_editor.cpp:196
 #: src/tabs/ini_editor.cpp:343
 msgid "All files"
 msgstr "Meow meow"
 
-#: src/tabs/ini_editor.cpp:179 src/tabs/ini_editor.cpp:206
+#: src/tabs/ini_editor.cpp:179
+#: src/tabs/ini_editor.cpp:206
 #: src/tabs/ini_editor.cpp:350
 msgid "Unknown error attempting to retrieve file path!"
 msgstr "Meow meow meow meow meow meow meow!"
 
-#: src/tabs/ini_editor.cpp:179 src/tabs/ini_editor.cpp:206
+#: src/tabs/ini_editor.cpp:179
+#: src/tabs/ini_editor.cpp:206
 #: src/tabs/ini_editor.cpp:350
 msgid "Error"
 msgstr "Meow"
@@ -1164,11 +1265,13 @@ msgstr "Meow Meow"
 msgid "File was reloaded."
 msgstr "Meow meow meow."
 
-#: src/tabs/ini_editor.cpp:507 src/tabs/local.cpp:825
+#: src/tabs/ini_editor.cpp:507
+#: src/tabs/local.cpp:850
 msgid "File"
 msgstr "Meow"
 
-#: src/tabs/ini_editor.cpp:510 src/tabs/local.cpp:827
+#: src/tabs/ini_editor.cpp:510
+#: src/tabs/local.cpp:852
 msgid "New"
 msgstr "Meow"
 
@@ -1180,8 +1283,8 @@ msgstr "Meow Meow"
 msgid "Open"
 msgstr "Meow"
 
-#: src/tabs/ini_editor.cpp:519 src/tabs/library/library_properties.cpp:1972
-#: src/tabs/library/library_properties.cpp:2044 src/utility/skif_imgui.cpp:1792
+#: src/tabs/ini_editor.cpp:519
+#: src/utility/skif_imgui.cpp:1885
 msgid "Save"
 msgstr "Meow"
 
@@ -1193,18 +1296,15 @@ msgstr "Meow Meow"
 msgid "Save as Custom Preset..."
 msgstr "Meow Meow..."
 
-#: src/tabs/ini_editor.cpp:534 src/tabs/local.cpp:830
-#: src/utility/updater.cpp:1405 src/utility/updater.cpp:1411
-msgid "Close"
-msgstr "Meow"
-
 #. TRANSLATORS: The Escape key of the keyboard
-#: src/tabs/ini_editor.cpp:534 src/tabs/local.cpp:832
+#: src/tabs/ini_editor.cpp:534
+#: src/tabs/local.cpp:857
 msgctxt "key"
 msgid "Escape"
 msgstr "Meow"
 
-#: src/tabs/ini_editor.cpp:540 src/utility/ini_presets.cpp:237
+#: src/tabs/ini_editor.cpp:540
+#: src/utility/ini_presets.cpp:237
 msgid "Edit"
 msgstr "Meow"
 
@@ -1232,7 +1332,8 @@ msgstr "Meow Meow"
 msgid "Tools"
 msgstr "Meow"
 
-#: src/tabs/ini_editor.cpp:599 src/tabs/library/library_menus.cpp:61
+#: src/tabs/ini_editor.cpp:599
+#: src/tabs/library/library_menus.cpp:72
 msgid "External Editor"
 msgstr "Meow Meow"
 
@@ -1245,44 +1346,95 @@ msgid "View unused settings"
 msgstr "Meow meow meow"
 
 #. TRANSLATORS: {0} is the name of a file (or of a game)
-#: src/tabs/ini_editor.cpp:944 src/tabs/library/library_properties.cpp:2086
+#: src/tabs/ini_editor.cpp:944
+#: src/tabs/library/library_properties.cpp:2369
 msgid "Do you want to save changes to {0}?"
 msgstr "Meow meow meow meow meow meow meow {0}?"
 
-#: src/tabs/library.cpp:255 src/tabs/settings.cpp:1388
-#: src/tabs/settings.cpp:1405
+#: src/tabs/library.cpp:551
+#: src/tabs/settings.cpp:1526
+#: src/tabs/settings.cpp:1543
 msgid "Large icons"
 msgstr "Meow meow"
 
-#: src/tabs/library.cpp:261 src/tabs/settings.cpp:1411
+#: src/tabs/library.cpp:557
+#: src/tabs/settings.cpp:1549
 msgid "Currently enforced by touch input mode."
 msgstr "Meow meow meow meow meow meow."
 
-#: src/tabs/library.cpp:1462 src/tabs/library/library_details.cpp:495
+#: src/tabs/library.cpp:589
+#: src/tabs/library/library_popups.cpp:185
+msgid "Cover view"
+msgstr "Meow meow"
+
+#: src/tabs/library.cpp:592
+#: src/tabs/library/library_popups.cpp:190
+msgid "Grid view"
+msgstr "Meow meow"
+
+#: src/tabs/library.cpp:601
+msgid "Show titles"
+msgstr "Meow meow"
+
+#: src/tabs/library.cpp:605
+msgid "Show platform"
+msgstr "Meow meow"
+
+#. TRANSLATORS: {0} is the width of the covers in the library's grid view (in pixels at 100% scale)
+#: src/tabs/library.cpp:610
+msgid "Cover size: {0}"
+msgstr "Meow meow: {0}"
+
+#: src/tabs/library.cpp:623
+msgid "Show icons"
+msgstr "Meow meow"
+
+#: src/tabs/library.cpp:1159
+msgid "Cover changed"
+msgstr "Meow meow"
+
+#: src/tabs/library.cpp:1161
+msgid "Could not change the cover"
+msgstr "Meow meow meow meow meow"
+
+#: src/tabs/library.cpp:1810
+#: src/tabs/library/library_details.cpp:424
 msgid "Loading..."
 msgstr "Meow..."
 
-#: src/tabs/library.cpp:1620
+#: src/tabs/library.cpp:1824
+msgid "Cover"
+msgstr "Meow"
+
+#: src/tabs/library.cpp:1837
+#: src/tabs/library/library_menus.cpp:1699
+#: src/tabs/library/library_menus.cpp:1857
+msgid "Open SteamGridDB"
+msgstr "Meow Meow"
+
+#: src/tabs/library.cpp:2022
 msgid "New 32-bit DLL Installed"
 msgstr "Meow 32-meow Meow Meow"
 
-#: src/tabs/library.cpp:1621
+#: src/tabs/library.cpp:2023
 msgid "New 64-bit DLL Installed"
 msgstr "Meow 64-meow Meow Meow"
 
-#: src/tabs/library.cpp:1740 src/tabs/library.cpp:1848
+#: src/tabs/library.cpp:2154
+#: src/tabs/library.cpp:2262
 msgid "Missing Files"
 msgstr "Meow Meow"
 
-#: src/tabs/library.cpp:1741 src/tabs/library.cpp:1849
+#: src/tabs/library.cpp:2155
+#: src/tabs/library.cpp:2263
 msgid "Unable to extract Special K DLL files from the provided {0} file."
 msgstr "Meow meow meow Meow Meow Meow meow meow meow meow {0} meow."
 
-#: src/tabs/library.cpp:1887
+#: src/tabs/library.cpp:2301
 msgid "Unsupported Feature"
 msgstr "Meow Meow"
 
-#: src/tabs/library.cpp:1888
+#: src/tabs/library.cpp:2302
 msgid ""
 "SKIF cannot perform a drag-n-drop update because Special K {0} or newer is "
 "required."
@@ -1290,21 +1442,29 @@ msgstr ""
 "Meow meow meow meow meow-meow-meow meow meow Meow Meow {0} meow meow meow "
 "meow."
 
-#: src/tabs/library.cpp:1903
+#: src/tabs/library.cpp:2313
+msgid "Nothing was changed"
+msgstr "Meow meow meow"
+
+#: src/tabs/library.cpp:2314
+msgid ""
+"Drop the image on a game to change its cover: on its cover, its tile, or its "
+"row in the list."
+msgstr ""
+"Meow meow meow meow meow meow meow meow meow meow: meow meow meow, meow "
+"meow, meow meow meow meow meow meow."
+
+#: src/tabs/library.cpp:2331
 msgid "Unsupported file format"
 msgstr "Meow meow meow"
 
-#: src/tabs/library.cpp:1905
+#: src/tabs/library.cpp:2333
 msgid "Add a game to the library:"
 msgstr "Meow meow meow meow meow meow:"
 
-#: src/tabs/library.cpp:1911
-msgid "Update the cover for the current selected game:"
-msgstr "Meow meow meow meow meow meow meow meow:"
-
-#: src/tabs/library.cpp:1922
-msgid "Note that the app has no support for animated images."
-msgstr "Meow meow meow meow meow meow meow meow meow meow."
+#: src/tabs/library.cpp:2339
+msgid "Change the cover of a game (drop the image on it):"
+msgstr "Meow meow meow meow meow meow (meow meow meow meow meow):"
 
 #: src/tabs/library/library_cover.cpp:166
 msgid ""
@@ -1326,36 +1486,24 @@ msgstr ""
 "Meow meow meow meow Meow Meow meow\n"
 "meow meow meow meow meow meow :)"
 
-#: src/tabs/library/library_cover.cpp:428
+#: src/tabs/library/library_cover.cpp:468
 msgid "Special Kudos to our Patrons:"
 msgstr "Meow Meow meow meow Meow:"
 
-#: src/tabs/library/library_details.cpp:113
-msgid "Profile folder:"
-msgstr "Meow meow:"
-
 #: src/tabs/library/library_details.cpp:114
-msgid "Config file:"
-msgstr "Meow meow:"
-
-#: src/tabs/library/library_details.cpp:115
 msgid "Platform:"
 msgstr "Meow:"
 
-#: src/tabs/library/library_details.cpp:202
+#: src/tabs/library/library_details.cpp:201
 msgid "Update to v {0}"
 msgstr "Meow meow meow {0}"
 
-#: src/tabs/library/library_details.cpp:208
+#: src/tabs/library/library_details.cpp:207
 msgid "Uninstall"
 msgstr "Meow"
 
-#. TRANSLATORS: Not available
-#: src/tabs/library/library_details.cpp:298
-msgid "N/A"
-msgstr "Meow/Meow"
-
-#: src/tabs/library/library_details.cpp:393 src/tabs/local.cpp:1021
+#: src/tabs/library/library_details.cpp:322
+#: src/tabs/local.cpp:1046
 msgid ""
 "The local DLL file is outdated.\n"
 "Click to update it to v {0}."
@@ -1363,138 +1511,120 @@ msgstr ""
 "Meow meow Meow meow meow meow.\n"
 "Meow meow meow meow meow meow {0}."
 
-#: src/tabs/library/library_details.cpp:436
-#: src/tabs/library/library_menus.cpp:1211
+#: src/tabs/library/library_details.cpp:365
+#: src/tabs/library/library_menus.cpp:1222
+#: src/tabs/library/library_properties.cpp:1873
 msgid "Play"
 msgstr "Meow"
 
-#: src/tabs/library/library_details.cpp:444
+#: src/tabs/library/library_details.cpp:373
 msgid "Install Mod"
 msgstr "Meow Meow"
 
-#: src/tabs/library/library_details.cpp:453
+#: src/tabs/library/library_details.cpp:382
 msgid "Installing..."
 msgstr "Meow..."
 
-#: src/tabs/library/library_details.cpp:459
+#: src/tabs/library/library_details.cpp:388
 msgid "Downloading..."
 msgstr "Meow..."
 
-#: src/tabs/library/library_details.cpp:496
+#: src/tabs/library/library_details.cpp:425
 msgid "Running..."
 msgstr "Meow..."
 
-#: src/tabs/library/library_details.cpp:497
+#: src/tabs/library/library_details.cpp:426
 msgid "Updating..."
 msgstr "Meow..."
 
-#: src/tabs/library/library_details.cpp:677
+#: src/tabs/library/library_details.cpp:606
 msgid "Please finish the ongoing mod installation first."
 msgstr "Meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_details.cpp:695
+#: src/tabs/library/library_details.cpp:639
 msgid "Warning: VAC protected game; injection is not recommended!"
 msgstr "Meow: Meow meow meow; meow meow meow meow!"
 
-#. TRANSLATORS: A launch option in the "Disable Special K" menu; {0} is its name
-#: src/tabs/library/library_details.cpp:775
-msgid "for {0}"
-msgstr "meow {0}"
+#. TRANSLATORS: {0} is the anti-cheat detected in the game's files (e.g. EasyAntiCheat)
+#: src/tabs/library/library_details.cpp:657
+msgid ""
+"Anti-cheat detected ({0}): Special K is disabled by default for this game.\n"
+"It can be enabled in Properties > Launch options."
+msgstr ""
+"Meow-meow meow ({0}): Meow Meow meow meow meow meow meow meow meow.\n"
+"Meow meow meow meow meow Meow > Meow meow."
 
-#: src/tabs/library/library_details.cpp:783
-#: src/tabs/library/library_details.cpp:832
-#: src/tabs/library/library_details.cpp:878
-#: src/tabs/library/library_properties.cpp:1008
-msgid "Disable Special K"
-msgstr "Meow Meow Meow"
+#: src/tabs/library/library_details.cpp:659
+msgid "Warning: Anti-cheat detected ({0}); injection is not recommended!"
+msgstr "Meow: Meow-meow meow ({0}); meow meow meow meow!"
 
-#: src/tabs/library/library_details.cpp:798
-#: src/tabs/library/library_properties.cpp:1013
-msgid "Special K is disabled through a blacklist pattern in the Settings tab."
-msgstr "Meow Meow meow meow meow meow meow meow meow meow Meow meow."
+#: src/tabs/library/library_details.cpp:790
+#: src/tabs/library/library_menus.cpp:668
+msgid "Properties"
+msgstr "Meow"
 
-#: src/tabs/library/library_details.cpp:809
-#: src/tabs/library/library_properties.cpp:990 src/utility/injection.cpp:1068
+#: src/tabs/library/library_details.cpp:800
+#: src/tabs/library/library_menus.cpp:637
+#: src/tabs/library/library_menus.cpp:1331
+#: src/tabs/monitor.cpp:1623
+msgid "Browse"
+msgstr "Meow"
+
+#: src/tabs/library/library_details.cpp:825
+#: src/tabs/library/library_menus.cpp:672
+msgid "Configuration"
+msgstr "Meow"
+
+#: src/tabs/library/library_details.cpp:859
+#: src/tabs/library/library_properties.cpp:1269
+#: src/utility/injection.cpp:1083
 msgid "Special K is unavailable due to missing files."
 msgstr "Meow Meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_details.cpp:811 src/utility/injection.cpp:1070
+#: src/tabs/library/library_details.cpp:861
+#: src/utility/injection.cpp:1085
 msgid "Please reinstall Special K using the latest available installer."
 msgstr "Meow meow Meow Meow meow meow meow meow meow."
 
-#. TRANSLATORS: Where the configuration of Special K is kept (one folder for all games)
-#: src/tabs/library/library_details.cpp:1422 src/utility/injection.cpp:840
-msgid "Centralized"
-msgstr "Meow"
+#: src/tabs/library/library_details.cpp:890
+msgid "The injection service will be used (Ignore Blacklist)."
+msgstr "Meow meow meow meow meow meow (Meow Meow)."
 
-#: src/tabs/library/library_details.cpp:1424
-msgid "Localized"
-msgstr "Meow"
+#: src/tabs/library/library_details.cpp:894
+msgid "Special K will be used as the blacklist is being ignored."
+msgstr "Meow Meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_details.cpp:1426
-msgid "Unknown"
-msgstr "Meow"
+#: src/tabs/library/library_details.cpp:896
+#: src/tabs/library/library_properties.cpp:1292
+msgid "Special K is disabled through a blacklist pattern in the Settings tab."
+msgstr "Meow Meow meow meow meow meow meow meow meow meow Meow meow."
 
-#: src/tabs/library/library_launch.cpp:45
-msgid "Missing executable"
-msgstr "Meow meow"
+#: src/tabs/library/library_details.cpp:898
+msgid ""
+"Special K is disabled by default as the game uses anti-cheat.\n"
+"Click to enable it in Properties."
+msgstr ""
+"Meow Meow meow meow meow meow meow meow meow meow meow-meow.\n"
+"Meow meow meow meow meow Meow."
 
-#: src/tabs/library/library_launch.cpp:45
-msgid "Could not launch game due to missing executable:"
-msgstr "Meow meow meow meow meow meow meow meow:"
+#: src/tabs/library/library_details.cpp:901
+msgid "Special K is disabled for the default launch option."
+msgstr "Meow Meow meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_list.cpp:131
-msgid "Loading games..."
-msgstr "Meow meow..."
+#: src/tabs/library/library_details.cpp:913
+msgid ""
+"The injection service is started elevated for the default launch option.\n"
+"Click to change it in Properties."
+msgstr ""
+"Meow meow meow meow meow meow meow meow meow meow meow.\n"
+"Meow meow meow meow meow Meow."
 
-#: src/tabs/library/library_list.cpp:227 src/tabs/library/library_menus.cpp:702
-msgctxt "category"
-msgid "Favorites"
-msgstr "Meow"
+#: src/tabs/library/library_details.cpp:929
+#: src/tabs/library/library_menus.cpp:176
+msgid "Starts the game directly (Instant play)."
+msgstr "Meow meow meow meow (Meow meow)."
 
-#. TRANSLATORS: The default category of the library
-#: src/tabs/library/library_list.cpp:228
-#: src/tabs/library/library_properties.cpp:243
-#: src/tabs/library/library_properties.cpp:245
-msgctxt "category"
-msgid "Games"
-msgstr "Meow"
-
-#: src/tabs/library/library_list.cpp:257 src/tabs/library/library_menus.cpp:791
-msgid "Rename"
-msgstr "Meow"
-
-#: src/tabs/library/library_list.cpp:265 src/tabs/library/library_menus.cpp:798
-#: src/tabs/library/library_menus.cpp:917
-#: src/tabs/library/library_properties.cpp:651 src/tabs/monitor.cpp:2089
-#: src/tabs/monitor.cpp:2097
-msgid "Remove"
-msgstr "Meow"
-
-#: src/tabs/library/library_list.cpp:277
-msgid "Expand all"
-msgstr "Meow meow"
-
-#: src/tabs/library/library_list.cpp:285
-msgid "Collapse all"
-msgstr "Meow meow"
-
-#: src/tabs/library/library_list.cpp:293
-msgid "Remember collapsible state"
-msgstr "Meow meow meow"
-
-#: src/tabs/library/library_menus.cpp:56 src/tabs/settings.cpp:1973
-#: src/utility/skif_imgui.cpp:2005
-msgid "Troubleshooting:"
-msgstr "Meow:"
-
-#: src/tabs/library/library_menus.cpp:167
-#: src/tabs/library/library_menus.cpp:224
-msgid "Instant play"
-msgstr "Meow meow"
-
-#: src/tabs/library/library_menus.cpp:194
-#: src/tabs/library/library_menus.cpp:322
+#: src/tabs/library/library_details.cpp:931
 msgid ""
 "Skips the regular platform launch process for the game,\n"
 "including steps such as cloud saves synchronization."
@@ -1502,417 +1632,526 @@ msgstr ""
 "Meow meow meow meow meow meow meow meow meow,\n"
 "meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_menus.cpp:206
-#: src/tabs/library/library_menus.cpp:332
-#: src/tabs/library/library_menus.cpp:1229
-msgid "without Special K"
-msgstr "meow Meow Meow"
+#: src/tabs/library/library_details.cpp:1495
+msgid "Centralized"
+msgstr "Meow"
 
-#: src/tabs/library/library_menus.cpp:315
-msgid "Special K has been disabled for this launch configuration."
-msgstr "Meow Meow meow meow meow meow meow meow meow."
+#: src/tabs/library/library_details.cpp:1497
+msgid "Localized"
+msgstr "Meow"
 
-#: src/tabs/library/library_menus.cpp:408
+#: src/tabs/library/library_details.cpp:1499
+msgid "Unknown"
+msgstr "Meow"
+
+#: src/tabs/library/library_grid.cpp:169
+#: src/tabs/library/library_list.cpp:295
+msgid "Loading games..."
+msgstr "Meow meow..."
+
+#: src/tabs/library/library_launch.cpp:65
+msgid "Missing executable"
+msgstr "Meow meow"
+
+#: src/tabs/library/library_launch.cpp:65
+msgid "Could not launch game due to missing executable:"
+msgstr "Meow meow meow meow meow meow meow meow:"
+
+#: src/tabs/library/library_launch.cpp:218
+msgid "Scanning game folder..."
+msgstr "Meow meow meow..."
+
+#: src/tabs/library/library_launch.cpp:228
+msgid "Checking the game for anti-cheat before it is launched."
+msgstr "Meow meow meow meow meow-meow meow meow meow meow."
+
+#: src/tabs/library/library_launch.cpp:229
+msgid "Scanning the game's files"
+msgstr "Meow meow meow meow"
+
+#: src/tabs/library/library_list.cpp:90
+msgctxt "category"
+msgid "Favorites"
+msgstr "Meow"
+
+#. TRANSLATORS: The default category of the library
+#: src/tabs/library/library_list.cpp:91
+#: src/tabs/library/library_properties.cpp:245
+#: src/tabs/library/library_properties.cpp:247
+msgctxt "category"
+msgid "Games"
+msgstr "Meow"
+
+#: src/tabs/library/library_list.cpp:120
+#: src/tabs/library/library_menus.cpp:789
+msgid "Rename"
+msgstr "Meow"
+
+#: src/tabs/library/library_list.cpp:128
+#: src/tabs/library/library_menus.cpp:796
+#: src/tabs/library/library_menus.cpp:915
+#: src/tabs/library/library_menus.cpp:2213
+#: src/tabs/library/library_properties.cpp:928
+#: src/tabs/monitor.cpp:2087
+#: src/tabs/monitor.cpp:2095
+msgid "Remove"
+msgstr "Meow"
+
+#: src/tabs/library/library_list.cpp:140
+msgid "Expand all"
+msgstr "Meow meow"
+
+#: src/tabs/library/library_list.cpp:148
+msgid "Collapse all"
+msgstr "Meow meow"
+
+#: src/tabs/library/library_list.cpp:156
+msgid "Remember collapsible state"
+msgstr "Meow meow meow"
+
+#: src/tabs/library/library_menus.cpp:177
+msgid "Starts the game through {0}."
+msgstr "Meow meow meow meow {0}."
+
+#: src/tabs/library/library_menus.cpp:180
+msgid "Launch option: {0}"
+msgstr "Meow meow: {0}"
+
+#: src/tabs/library/library_menus.cpp:251
+msgid "Play with"
+msgstr "Meow meow"
+
+#: src/tabs/library/library_menus.cpp:254
+msgid ""
+"Starts a specific launch option: through the platform client, or directly "
+"(Instant play)."
+msgstr "Meow meow meow meow meow: meow meow meow meow, meow meow (Meow meow)."
+
+#: src/tabs/library/library_menus.cpp:263
 msgid "This option is not available due to a local injection being used."
 msgstr "Meow meow meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_menus.cpp:474
-#: src/tabs/library/library_menus.cpp:500
-msgid "Switch to game"
-msgstr "Meow meow meow"
+#: src/tabs/library/library_menus.cpp:303
+#: src/tabs/library/library_menus.cpp:368
+msgid "Special K has been disabled for this launch configuration."
+msgstr "Meow Meow meow meow meow meow meow meow meow."
+
+#: src/tabs/library/library_menus.cpp:305
+msgid "Starts the primary launch option through the platform client."
+msgstr "Meow meow meow meow meow meow meow meow meow."
+
+#: src/tabs/library/library_menus.cpp:380
+#: src/tabs/library/library_menus.cpp:1254
+msgid "without Special K"
+msgstr "meow Meow Meow"
+
+#: src/tabs/library/library_menus.cpp:387
+msgid "Skips Special K for this launch."
+msgstr "Meow Meow Meow meow meow meow."
 
 #: src/tabs/library/library_menus.cpp:486
 #: src/tabs/library/library_menus.cpp:512
+msgid "Switch to game"
+msgstr "Meow meow meow"
+
+#: src/tabs/library/library_menus.cpp:498
+#: src/tabs/library/library_menus.cpp:524
 msgid "Terminate game"
 msgstr "Meow meow"
 
-#: src/tabs/library/library_menus.cpp:526
-#: src/tabs/library/library_menus.cpp:1304 src/tabs/monitor.cpp:1621
-msgid "Browse"
-msgstr "Meow"
-
-#: src/tabs/library/library_menus.cpp:528
+#: src/tabs/library/library_menus.cpp:571
 msgid "Game folder"
 msgstr "Meow meow"
 
-#: src/tabs/library/library_menus.cpp:535
+#: src/tabs/library/library_menus.cpp:578
 msgid "Profile folder"
 msgstr "Meow meow"
 
-#: src/tabs/library/library_menus.cpp:551
+#: src/tabs/library/library_menus.cpp:594
 msgid "Screenshots"
 msgstr "Meow"
 
-#: src/tabs/library/library_menus.cpp:563
-msgid "Configuration"
-msgstr "Meow"
-
-#: src/tabs/library/library_menus.cpp:600
+#: src/tabs/library/library_menus.cpp:607
 msgid "Save/config folders"
 msgstr "Meow/meow meow"
 
-#: src/tabs/library/library_menus.cpp:654
+#. TRANSLATORS: {0} is the name of a store client, e.g. Steam
+#: src/tabs/library/library_menus.cpp:652
+msgid "Favorited in {0}. Changing it here only affects Special K."
+msgstr "Meow meow {0}. Meow meow meow meow meow Meow Meow."
+
+#: src/tabs/library/library_menus.cpp:664
 msgid "Manage"
 msgstr "Meow"
 
-#: src/tabs/library/library_menus.cpp:658
-msgid "Properties"
-msgstr "Meow"
-
-#: src/tabs/library/library_menus.cpp:663
-msgid "Favorite (pinned; max 5)"
-msgstr "Meow (meow; meow 5)"
-
-#: src/tabs/library/library_menus.cpp:675
-#: src/tabs/library/library_menus.cpp:1372
+#: src/tabs/library/library_menus.cpp:680
+#: src/tabs/library/library_menus.cpp:1399
+#: src/tabs/library/library_menus.cpp:2271
 msgid "Favorite"
 msgstr "Meow"
 
-#: src/tabs/library/library_menus.cpp:676
-#: src/tabs/library/library_menus.cpp:1373
+#: src/tabs/library/library_menus.cpp:681
+#: src/tabs/library/library_menus.cpp:1400
+#: src/tabs/library/library_menus.cpp:2276
 msgid "Unfavorite"
 msgstr "Meow"
 
-#: src/tabs/library/library_menus.cpp:695
-#: src/tabs/library/library_properties.cpp:235
+#: src/tabs/library/library_menus.cpp:701
+#: src/tabs/library/library_menus.cpp:2118
+#: src/tabs/library/library_properties.cpp:237
 msgid "Category"
 msgstr "Meow"
 
-#: src/tabs/library/library_menus.cpp:831
-#: src/tabs/library/library_properties.cpp:271
+#: src/tabs/library/library_menus.cpp:710
+#: src/tabs/library/library_menus.cpp:2126
+#: src/tabs/library/library_properties.cpp:237
+msgid "Favorited games are always shown under Favorites."
+msgstr "Meow meow meow meow meow meow Meow."
+
+#: src/tabs/library/library_menus.cpp:829
+#: src/tabs/library/library_menus.cpp:2230
+#: src/tabs/library/library_properties.cpp:273
 msgid "New category..."
 msgstr "Meow meow..."
 
-#: src/tabs/library/library_menus.cpp:874
-#: src/tabs/library/library_menus.cpp:882
+#: src/tabs/library/library_menus.cpp:872
+#: src/tabs/library/library_menus.cpp:880
 msgid "Create desktop shortcut"
 msgstr "Meow meow meow"
 
-#: src/tabs/library/library_menus.cpp:883
+#: src/tabs/library/library_menus.cpp:881
 msgid "A desktop shortcut has been created."
 msgstr "Meow meow meow meow meow meow."
 
-#: src/tabs/library/library_menus.cpp:884
+#: src/tabs/library/library_menus.cpp:882
 msgid "Failed to create a desktop shortcut!"
 msgstr "Meow meow meow meow meow meow!"
 
-#: src/tabs/library/library_menus.cpp:901
+#: src/tabs/library/library_menus.cpp:899
 msgid "Hide"
 msgstr "Meow"
 
-#: src/tabs/library/library_menus.cpp:902
+#: src/tabs/library/library_menus.cpp:900
 msgid "Unhide"
 msgstr "Meow"
 
-#: src/tabs/library/library_menus.cpp:936
+#: src/tabs/library/library_menus.cpp:934
 msgid "Developer"
 msgstr "Meow"
 
-#: src/tabs/library/library_menus.cpp:1175
+#: src/tabs/library/library_menus.cpp:1172
+msgid "Asset folder"
+msgstr "Meow meow"
+
+#: src/tabs/library/library_menus.cpp:1190
 msgid "Copy ID"
 msgstr "Meow Meow"
 
-#: src/tabs/library/library_menus.cpp:1220
+#: src/tabs/library/library_menus.cpp:1239
 msgid "Starts the injection service as well."
 msgstr "Meow meow meow meow meow meow."
 
-#: src/tabs/library/library_menus.cpp:1238
+#: src/tabs/library/library_menus.cpp:1265
 msgid "Stops the injection service as well."
 msgstr "Meow meow meow meow meow meow."
 
-#: src/tabs/library/library_menus.cpp:1262
+#: src/tabs/library/library_menus.cpp:1289
 msgid "Websites"
 msgstr "Meow"
 
-#: src/tabs/library/library_menus.cpp:1290
+#: src/tabs/library/library_menus.cpp:1317
 msgid "Start service"
 msgstr "Meow meow"
 
-#: src/tabs/library/library_menus.cpp:1293
+#: src/tabs/library/library_menus.cpp:1320
 msgid "Start service (manual stop)"
 msgstr "Meow meow (meow meow)"
 
-#: src/tabs/library/library_menus.cpp:1298
+#: src/tabs/library/library_menus.cpp:1325
 msgid "Stop service"
 msgstr "Meow meow"
 
-#: src/tabs/library/library_menus.cpp:1306 src/tabs/monitor.cpp:886
+#: src/tabs/library/library_menus.cpp:1333
+#: src/tabs/monitor.cpp:886
 msgid "Install folder"
 msgstr "Meow meow"
 
-#: src/tabs/library/library_menus.cpp:1312
+#: src/tabs/library/library_menus.cpp:1339
 msgid "Profile folders"
 msgstr "Meow meow"
 
-#: src/tabs/library/library_menus.cpp:1430
-#: src/tabs/library/library_menus.cpp:1660
+#: src/tabs/library/library_menus.cpp:1439
+#: src/tabs/library/library_menus.cpp:1745
 msgid "Change"
 msgstr "Meow"
 
-#: src/tabs/library/library_menus.cpp:1434
+#: src/tabs/library/library_menus.cpp:1443
 msgid "Images"
 msgstr "Meow"
 
-#: src/tabs/library/library_menus.cpp:1457
-#: src/tabs/library/library_properties.cpp:805
+#: src/tabs/library/library_menus.cpp:1466
+#: src/tabs/library/library_properties.cpp:710
 msgid "Clear"
 msgstr "Meow"
 
-#: src/tabs/library/library_menus.cpp:1458
-#: src/tabs/library/library_menus.cpp:1713 src/tabs/monitor.cpp:1566
-#: src/tabs/settings.cpp:2468 src/utility/ini_presets.cpp:302
+#: src/tabs/library/library_menus.cpp:1467
+#: src/tabs/library/library_menus.cpp:1798
+#: src/tabs/monitor.cpp:1568
+#: src/tabs/settings.cpp:2614
+#: src/utility/ini_presets.cpp:302
 msgid "Reset"
 msgstr "Meow"
 
-#: src/tabs/library/library_menus.cpp:1482
-#: src/tabs/library/library_menus.cpp:1737
+#: src/tabs/library/library_menus.cpp:1491
+#: src/tabs/library/library_menus.cpp:1822
 msgid "Managed by the platform client."
 msgstr "Meow meow meow meow meow."
 
-#: src/tabs/library/library_menus.cpp:1524
+#: src/tabs/library/library_menus.cpp:1555
+msgid "Restore previous cover"
+msgstr "Meow meow meow"
+
+#: src/tabs/library/library_menus.cpp:1568
+msgid ""
+"Brings back the cover this one replaced. Restoring again brings this one "
+"back."
+msgstr "Meow meow meow meow meow meow meow. Meow meow meow meow meow meow."
+
+#: src/tabs/library/library_menus.cpp:1609
 msgid "Scaling"
 msgstr "Meow"
 
-#: src/tabs/library/library_menus.cpp:1532
+#: src/tabs/library/library_menus.cpp:1617
 msgctxt "cover scaling"
 msgid "Default"
 msgstr "Meow"
 
-#: src/tabs/library/library_menus.cpp:1545
+#: src/tabs/library/library_menus.cpp:1630
 msgid "Scales the cover to a maximum height of 600px"
 msgstr "Meow meow meow meow meow meow meow meow 600px"
 
-#: src/tabs/library/library_menus.cpp:1547
+#: src/tabs/library/library_menus.cpp:1632
 msgctxt "cover scaling"
 msgid "Fill"
 msgstr "Meow"
 
-#: src/tabs/library/library_menus.cpp:1560
+#: src/tabs/library/library_menus.cpp:1645
 msgctxt "cover scaling"
 msgid "Fit"
 msgstr "Meow"
 
-#: src/tabs/library/library_menus.cpp:1573
+#: src/tabs/library/library_menus.cpp:1658
 msgctxt "cover scaling"
 msgid "None"
 msgstr "Meow"
 
-#: src/tabs/library/library_menus.cpp:1614
-#: src/tabs/library/library_menus.cpp:1772
-msgid "Open SteamGridDB"
-msgstr "Meow Meow"
-
-#: src/tabs/library/library_menus.cpp:1664
+#: src/tabs/library/library_menus.cpp:1749
 msgid "Icons"
 msgstr "Meow"
 
-#: src/tabs/library/library_menus.cpp:1813
+#: src/tabs/library/library_menus.cpp:1898
 msgid "Clear filter"
 msgstr "Meow meow"
 
-#: src/tabs/library/library_menus.cpp:1819
+#: src/tabs/library/library_menus.cpp:1904
 msgid "Add game"
 msgstr "Meow meow"
 
-#: src/tabs/library/library_menus.cpp:1826
+#: src/tabs/library/library_menus.cpp:1911
 msgid "Sort by"
 msgstr "Meow meow"
 
-#: src/tabs/library/library_menus.cpp:1832
+#: src/tabs/library/library_menus.cpp:1917
 msgid "Alphabetical"
 msgstr "Meow"
 
-#: src/tabs/library/library_menus.cpp:1844
+#: src/tabs/library/library_menus.cpp:1929
 msgid "Most played"
 msgstr "Meow meow"
 
-#: src/tabs/library/library_menus.cpp:1856
+#: src/tabs/library/library_menus.cpp:1941
 msgid "Sort by the number of launches of the game through this app."
 msgstr "Meow meow meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_menus.cpp:1858
+#: src/tabs/library/library_menus.cpp:1943
 msgid "Last played"
 msgstr "Meow meow"
 
-#: src/tabs/library/library_menus.cpp:1877
+#: src/tabs/library/library_menus.cpp:1964
 msgid "Platforms"
 msgstr "Meow"
 
 #. TRANSLATORS: Games added by the user (shown among the platforms: Steam, GOG, ...)
-#: src/tabs/library/library_menus.cpp:1936
+#: src/tabs/library/library_menus.cpp:2022
 msgctxt "platform"
 msgid "Custom"
 msgstr "Meow"
 
-#: src/tabs/library/library_menus.cpp:1942
+#: src/tabs/library/library_menus.cpp:2028
 msgid "Hidden games"
 msgstr "Meow meow"
 
-#: src/tabs/library/library_popups.cpp:83
+#: src/tabs/library/library_menus.cpp:2109
+msgid "{0} game selected"
+msgid_plural "{0} games selected"
+msgstr[0] "{0} meow meow"
+msgstr[1] "{0} meow meow"
+
+#: src/tabs/library/library_menus.cpp:2160
+msgid "Click to remove the selected games from this category."
+msgstr "Meow meow meow meow meow meow meow meow meow."
+
+#: src/tabs/library/library_menus.cpp:2162
+msgid "Click to add the selected games to this category."
+msgstr "Meow meow meow meow meow meow meow meow meow."
+
+#: src/tabs/library/library_menus.cpp:2182
+msgid "Remove from category"
+msgstr "Meow meow meow"
+
+#: src/tabs/library/library_menus.cpp:2199
+msgid ""
+"{0} selected game will be removed from the category it is in, and shown "
+"under Games again:"
+msgid_plural ""
+"{0} selected games will be removed from the categories they are in, and "
+"shown under Games again:"
+msgstr[0] ""
+"{0} meow meow meow meow meow meow meow meow meow meow meow, meow meow meow "
+"Meow meow:"
+msgstr[1] ""
+"{0} meow meow meow meow meow meow meow meow meow meow meow, meow meow meow "
+"Meow meow:"
+
+#: src/tabs/library/library_menus.cpp:2209
+msgid "Favorited games stay under Favorites."
+msgstr "Meow meow meow meow Meow."
+
+#: src/tabs/library/library_menus.cpp:2290
+msgid "Clear selection"
+msgstr "Meow meow"
+
+#: src/tabs/library/library_popups.cpp:163
+msgid ""
+"A large cover of the selected game beside the games list, with its details "
+"and launch options. Best for focusing on one game at a time."
+msgstr ""
+"Meow meow meow meow meow meow meow meow meow meow meow, meow meow meow meow "
+"meow meow. Meow meow meow meow meow meow meow meow meow."
+
+#: src/tabs/library/library_popups.cpp:165
+msgid ""
+"The covers of all your games as a grid beside the games list. Best for "
+"browsing a large library at a glance. The size of the covers, their titles "
+"and platform badges can be adjusted."
+msgstr ""
+"Meow meow meow meow meow meow meow meow meow meow meow meow meow. Meow meow "
+"meow meow meow meow meow meow meow. Meow meow meow meow meow, meow meow meow "
+"meow meow meow meow meow."
+
+#: src/tabs/library/library_popups.cpp:175
+msgid "Choose a library view"
+msgstr "Meow meow meow meow"
+
+#: src/tabs/library/library_popups.cpp:180
+msgid ""
+"Your games can be shown in one of two views. Which one would you like to use?"
+msgstr ""
+"Meow meow meow meow meow meow meow meow meow meow. Meow meow meow meow meow "
+"meow meow?"
+
+#. TRANSLATORS: {0} is the icon of the Filter button above the games list of the library
+#: src/tabs/library/library_popups.cpp:196
+msgid "You can switch at any time through the {0} button above the games list."
+msgstr "Meow meow meow meow meow meow meow meow {0} meow meow meow meow meow."
+
+#: src/tabs/library/library_popups.cpp:280
 msgid "Remove category"
 msgstr "Meow meow"
 
-#: src/tabs/library/library_popups.cpp:84
+#: src/tabs/library/library_popups.cpp:281
 msgid "Merge categories"
 msgstr "Meow meow"
 
-#: src/tabs/library/library_popups.cpp:85
+#: src/tabs/library/library_popups.cpp:282
 msgid "Rename category"
 msgstr "Meow meow"
 
 #. TRANSLATORS: {0} is the name of a category of the library
-#: src/tabs/library/library_popups.cpp:111
+#: src/tabs/library/library_popups.cpp:308
 msgid "Are you sure you want to remove the {0} category?"
 msgstr "Meow meow meow meow meow meow meow meow {0} meow?"
 
 #. TRANSLATORS: {0} and {1} are the names of two categories of the library
-#: src/tabs/library/library_popups.cpp:117
+#: src/tabs/library/library_popups.cpp:314
 msgid "Are you sure you want to merge the {0} category with the {1} category?"
 msgstr "Meow meow meow meow meow meow meow meow {0} meow meow meow {1} meow?"
 
 #. TRANSLATORS: {0} is the current name of a category of the library, {1} the new one
-#: src/tabs/library/library_popups.cpp:123
+#: src/tabs/library/library_popups.cpp:320
 msgid "Are you sure you want to rename {0} to {1}?"
 msgstr "Meow meow meow meow meow meow meow {0} meow {1}?"
 
 #. TRANSLATORS: {0} is the name of a category of the library
-#: src/tabs/library/library_popups.cpp:129
+#: src/tabs/library/library_popups.cpp:326
 msgid "What do you want to rename the {0} category to?"
 msgstr "Meow meow meow meow meow meow meow {0} meow meow?"
 
-#: src/tabs/library/library_popups.cpp:149
+#: src/tabs/library/library_popups.cpp:346
 msgid "This will affect all games that make use of the category."
 msgstr "Meow meow meow meow meow meow meow meow meow meow meow."
 
 #. TRANSLATORS: {0} is the name of a game
 #. TRANSLATORS: {0} is the file name of a process
-#: src/tabs/library/library_popups.cpp:262 src/tabs/monitor.cpp:1975
+#: src/tabs/library/library_popups.cpp:457
+#: src/tabs/monitor.cpp:1973
 msgid "Do you want to end {0}?"
 msgstr "Meow meow meow meow meow {0}?"
 
-#: src/tabs/library/library_popups.cpp:263
+#: src/tabs/library/library_popups.cpp:458
 msgid "Any unsaved game data may be lost."
 msgstr "Meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_popups.cpp:267
-#: src/tabs/library/library_popups.cpp:301 src/tabs/monitor.cpp:1984
-#: src/tabs/monitor.cpp:1989
+#: src/tabs/library/library_popups.cpp:462
+#: src/tabs/library/library_popups.cpp:486
+#: src/tabs/monitor.cpp:1982
+#: src/tabs/monitor.cpp:1987
 msgid "End Process"
 msgstr "Meow Meow"
 
-#: src/tabs/library/library_popups.cpp:280 src/tabs/monitor.cpp:1970
+#: src/tabs/library/library_popups.cpp:470
+#: src/tabs/monitor.cpp:1968
 msgid "Task Manager"
 msgstr "Meow Meow"
 
-#: src/tabs/library/library_properties.cpp:184
-#: src/tabs/library/library_properties.cpp:408
-#: src/tabs/library/library_properties.cpp:413
-#: src/tabs/library/library_properties.cpp:414
-#: src/tabs/library/library_properties.cpp:1460
-#: src/tabs/library/library_properties.cpp:1598
-#: src/tabs/library/library_properties.cpp:1599 src/tabs/settings.cpp:852
-#: src/tabs/settings.cpp:853 src/tabs/settings.cpp:1307
-#: src/tabs/settings.cpp:1308 src/tabs/settings.cpp:1329
-#: src/tabs/settings.cpp:1330
-msgid "Always"
-msgstr "Meow"
-
-#: src/tabs/library/library_properties.cpp:184
-#: src/tabs/library/library_properties.cpp:408
-#: src/tabs/library/library_properties.cpp:410
-#: src/tabs/library/library_properties.cpp:411
-#: src/tabs/library/library_properties.cpp:484
-#: src/tabs/library/library_properties.cpp:1460
-#: src/tabs/library/library_properties.cpp:1596
-#: src/tabs/library/library_properties.cpp:1597 src/tabs/settings.cpp:729
-#: src/tabs/settings.cpp:850 src/tabs/settings.cpp:1305
-#: src/tabs/settings.cpp:1327
-msgid "Never"
-msgstr "Meow"
-
-#: src/tabs/library/library_properties.cpp:184
-msgid "Default"
-msgstr "Meow"
-
-#: src/tabs/library/library_properties.cpp:219
+#: src/tabs/library/library_properties.cpp:217
 msgid "Leave empty to use the name of the game."
 msgstr "Meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:225 src/tabs/settings.cpp:875
+#: src/tabs/library/library_properties.cpp:223
+#: src/tabs/settings.cpp:876
 msgid "Library"
 msgstr "Meow"
 
-#: src/tabs/library/library_properties.cpp:226
+#: src/tabs/library/library_properties.cpp:224
 msgid "Favorited"
 msgstr "Meow"
 
-#: src/tabs/library/library_properties.cpp:229
-#: src/tabs/library/library_properties.cpp:230
+#: src/tabs/library/library_properties.cpp:231
+#: src/tabs/library/library_properties.cpp:232
 msgid "Hidden"
 msgstr "Meow"
 
-#: src/tabs/library/library_properties.cpp:235
-msgid "Favorited games are always shown under Favorites."
-msgstr "Meow meow meow meow meow meow Meow."
-
 #. TRANSLATORS: {0} is the name of a category that does not exist yet
-#: src/tabs/library/library_properties.cpp:263
+#: src/tabs/library/library_properties.cpp:265
 msgid "{0} (new)"
 msgstr "{0} (meow)"
 
-#: src/tabs/library/library_properties.cpp:404
-#: src/tabs/library/library_properties.cpp:1587
-#: src/tabs/library/library_properties.cpp:1656
-msgid "Instant Play"
-msgstr "Meow Meow"
-
-#: src/tabs/library/library_properties.cpp:404
-msgid ""
-"Used by the launch options of the game that the platform client can start "
-"itself.\n"
-"Other launch options always use Instant Play."
-msgstr ""
-"Meow meow meow meow meow meow meow meow meow meow meow meow meow meow meow.\n"
-"Meow meow meow meow meow Meow Meow."
-
-#. TRANSLATORS: {0} is what the default is: "Always" or "Never"
-#: src/tabs/library/library_properties.cpp:408
-msgid "Default ({0})"
-msgstr "Meow ({0})"
-
-#: src/tabs/library/library_properties.cpp:409
-msgid "The game will use the default behavior configured in the Settings tab."
-msgstr "Meow meow meow meow meow meow meow meow meow meow Meow meow."
-
-#: src/tabs/library/library_properties.cpp:412
-msgid ""
-"The game will never use instant play except\n"
-"when launched through the right click menu."
-msgstr ""
-"Meow meow meow meow meow meow meow meow\n"
-"meow meow meow meow meow meow meow."
-
-#: src/tabs/library/library_properties.cpp:415
-msgid ""
-"The game will always use instant play except\n"
-"when launched through the right click menu."
-msgstr ""
-"Meow meow meow meow meow meow meow meow\n"
-"meow meow meow meow meow meow meow."
-
-#: src/tabs/library/library_properties.cpp:418 src/tabs/settings.cpp:1073
-msgid ""
-"Warning: This skips the regular platform launch process for the game,\n"
-"including steps like the cloud saves synchronization that usually occurs."
-msgstr ""
-"Meow: Meow meow meow meow meow meow meow meow meow meow,\n"
-"meow meow meow meow meow meow meow meow meow meow."
-
-#: src/tabs/library/library_properties.cpp:423
+#: src/tabs/library/library_properties.cpp:411
 msgid "Auto-stop"
 msgstr "Meow-meow"
 
-#: src/tabs/library/library_properties.cpp:423
+#: src/tabs/library/library_properties.cpp:411
 msgid ""
 "This determines how long the service will remain running when launching the "
 "game.\n"
@@ -1921,45 +2160,46 @@ msgstr ""
 "Meow meow meow meow meow meow meow meow meow meow meow meow meow.\n"
 "Meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:427
+#: src/tabs/library/library_properties.cpp:415
+#: src/tabs/library/library_properties.cpp:521
 msgid "Not available for this game."
 msgstr "Meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:468
+#: src/tabs/library/library_properties.cpp:461
 msgid "Default (Inject, parent folder)"
 msgstr "Meow (Meow, meow meow)"
 
-#: src/tabs/library/library_properties.cpp:469
+#: src/tabs/library/library_properties.cpp:462
 msgid "Default (Exit, parent folder)"
 msgstr "Meow (Meow, meow meow)"
 
-#: src/tabs/library/library_properties.cpp:470
+#: src/tabs/library/library_properties.cpp:463
 msgid "Default (Never, parent folder)"
 msgstr "Meow (Meow, meow meow)"
 
-#: src/tabs/library/library_properties.cpp:471
+#: src/tabs/library/library_properties.cpp:464
 msgid "Default (Inject)"
 msgstr "Meow (Meow)"
 
-#: src/tabs/library/library_properties.cpp:471
+#: src/tabs/library/library_properties.cpp:464
 msgid "Default (Exit)"
 msgstr "Meow (Meow)"
 
-#: src/tabs/library/library_properties.cpp:474
+#: src/tabs/library/library_properties.cpp:467
 msgid "The service will use the behavior set for a parent folder of the game."
 msgstr "Meow meow meow meow meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:475
+#: src/tabs/library/library_properties.cpp:468
 msgid ""
 "The service will use the default behavior configured in the Settings tab."
 msgstr "Meow meow meow meow meow meow meow meow meow meow Meow meow."
 
-#: src/tabs/library/library_properties.cpp:476
-#: src/tabs/library/library_properties.cpp:477
+#: src/tabs/library/library_properties.cpp:469
+#: src/tabs/library/library_properties.cpp:470
 msgid "On inject"
 msgstr "Meow meow"
 
-#: src/tabs/library/library_properties.cpp:478
+#: src/tabs/library/library_properties.cpp:471
 msgid ""
 "The service will be stopped when Special K\n"
 "successfully injects into a game."
@@ -1967,12 +2207,12 @@ msgstr ""
 "Meow meow meow meow meow meow Meow Meow\n"
 "meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:479
-#: src/tabs/library/library_properties.cpp:480
+#: src/tabs/library/library_properties.cpp:472
+#: src/tabs/library/library_properties.cpp:473
 msgid "On exit"
 msgstr "Meow meow"
 
-#: src/tabs/library/library_properties.cpp:481
+#: src/tabs/library/library_properties.cpp:474
 msgid ""
 "The service will be stopped when Special K\n"
 "detects that the game is being closed."
@@ -1980,7 +2220,17 @@ msgstr ""
 "Meow meow meow meow meow meow Meow Meow\n"
 "meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:488
+#: src/tabs/library/library_properties.cpp:477
+#: src/tabs/settings.cpp:727
+#: src/tabs/settings.cpp:851
+#: src/tabs/settings.cpp:1307
+#: src/tabs/settings.cpp:1353
+#: src/tabs/settings.cpp:1354
+#: src/tabs/settings.cpp:1457
+msgid "Never"
+msgstr "Meow"
+
+#: src/tabs/library/library_properties.cpp:481
 msgid ""
 "Warning: The service will remain even\n"
 "after the game has been closed."
@@ -1988,85 +2238,136 @@ msgstr ""
 "Meow: Meow meow meow meow meow\n"
 "meow meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:557
+#: src/tabs/library/library_properties.cpp:520
+#: src/tabs/library/library_properties.cpp:531
+#: src/tabs/library/library_properties.cpp:536
+#: src/tabs/library/library_properties.cpp:541
+#: src/tabs/library/library_properties.cpp:549
+msgid "Detected"
+msgstr "Meow"
+
+#: src/tabs/library/library_properties.cpp:532
+msgid "Scanning the game's files..."
+msgstr "Meow meow meow meow..."
+
+#: src/tabs/library/library_properties.cpp:537
+msgid "The game's folder could not be read."
+msgstr "Meow meow meow meow meow meow meow."
+
+#: src/tabs/library/library_properties.cpp:542
+msgid "The detection rules could not be downloaded."
+msgstr "Meow meow meow meow meow meow meow."
+
+#: src/tabs/library/library_properties.cpp:550
+msgid "Nothing was detected."
+msgstr "Meow meow meow."
+
+#: src/tabs/library/library_properties.cpp:574
+msgid "Deduced from the kinds of files the game has"
+msgstr "Meow meow meow meow meow meow meow meow meow"
+
+#. TRANSLATORS: {0} is a number of files and folders
+#: src/tabs/library/library_properties.cpp:586
+msgid "Only the first {0} files and folders were checked."
+msgstr "Meow meow meow {0} meow meow meow meow meow."
+
+#: src/tabs/library/library_properties.cpp:598
+msgid "Scan again"
+msgstr "Meow meow"
+
+#: src/tabs/library/library_properties.cpp:601
+msgid "Checks the game's files again, for instance after it was updated."
+msgstr "Meow meow meow meow meow, meow meow meow meow meow meow."
+
+#: src/tabs/library/library_properties.cpp:632
+#: src/tabs/library/library_properties.cpp:897
+msgid "This game has no launch options."
+msgstr "Meow meow meow meow meow meow."
+
+#: src/tabs/library/library_properties.cpp:650
+#: src/tabs/library/library_properties.cpp:675
+#: src/tabs/library/library_properties.cpp:1035
+#: src/tabs/library/library_properties.cpp:1101
+msgid "<no description>"
+msgstr "<meow meow>"
+
+#. TRANSLATORS: {0} is the name of the platform's own launch option, which Play uses when no other is picked
+#: src/tabs/library/library_properties.cpp:679
+msgid "{0} (primary)"
+msgstr "{0} (meow)"
+
+#: src/tabs/library/library_properties.cpp:696
+msgid ""
+"This launch option is identical to another one, so it can't be the default "
+"until it is changed."
+msgstr ""
+"Meow meow meow meow meow meow meow meow, meow meow meow meow meow meow meow "
+"meow meow meow."
+
+#. TRANSLATORS: {0} is the name of a launch option
+#: src/tabs/library/library_properties.cpp:708
+msgid ""
+"The default launch option ({0}) is not available, so the primary one is used."
+msgstr ""
+"Meow meow meow meow ({0}) meow meow meow, meow meow meow meow meow meow."
+
+#: src/tabs/library/library_properties.cpp:775
 msgid "This launch option has no executable that can be started directly."
 msgstr "Meow meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:560
+#: src/tabs/library/library_properties.cpp:778
 msgid ""
 "The executable of this launch option is outside of the game's install folder."
 msgstr "Meow meow meow meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:620
-msgid "This game has no launch options."
-msgstr "Meow meow meow meow meow meow."
-
-#: src/tabs/library/library_properties.cpp:633
+#: src/tabs/library/library_properties.cpp:910
 msgid "Add"
 msgstr "Meow"
 
-#: src/tabs/library/library_properties.cpp:636
+#: src/tabs/library/library_properties.cpp:913
 msgid "Adds a new launch option of your own (lc_user.json)."
 msgstr "Meow meow meow meow meow meow meow meow (lc_user.json)."
 
-#: src/tabs/library/library_properties.cpp:643
+#: src/tabs/library/library_properties.cpp:920
 msgid "Duplicate"
 msgstr "Meow"
 
-#: src/tabs/library/library_properties.cpp:646
+#: src/tabs/library/library_properties.cpp:923
 msgid "Creates an editable copy of the selected launch option."
 msgstr "Meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:654
+#: src/tabs/library/library_properties.cpp:931
 msgid "Removes the selected launch option."
 msgstr "Meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:654
+#: src/tabs/library/library_properties.cpp:931
 msgid "Launch options of the platform and Special K can't be removed."
 msgstr "Meow meow meow meow meow meow Meow Meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:664
-msgid "Clear default"
-msgstr "Meow meow"
-
-#: src/tabs/library/library_properties.cpp:664
-msgid "Set as default"
-msgstr "Meow meow meow"
-
-#: src/tabs/library/library_properties.cpp:669
-msgid "SKIF goes back to using the primary launch option of the game."
-msgstr "Meow meow meow meow meow meow meow meow meow meow meow meow."
-
-#: src/tabs/library/library_properties.cpp:670
-msgid ""
-"SKIF uses this launch option when the game is launched through the Play "
-"button."
-msgstr "Meow meow meow meow meow meow meow meow meow meow meow meow Meow meow."
-
-#: src/tabs/library/library_properties.cpp:682
+#: src/tabs/library/library_properties.cpp:949
 msgid "Moves the launch option up among your own."
 msgstr "Meow meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:690
+#: src/tabs/library/library_properties.cpp:957
 msgid "Moves the launch option down among your own."
 msgstr "Meow meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:698
-#: src/tabs/library/library_properties.cpp:712
+#: src/tabs/library/library_properties.cpp:965
+#: src/tabs/library/library_properties.cpp:979
 msgid "Import..."
 msgstr "Meow..."
 
-#: src/tabs/library/library_properties.cpp:698
-#: src/tabs/library/library_properties.cpp:720
+#: src/tabs/library/library_properties.cpp:965
+#: src/tabs/library/library_properties.cpp:987
 msgid "Export..."
 msgstr "Meow..."
 
-#: src/tabs/library/library_properties.cpp:698
-#: src/tabs/library/library_properties.cpp:729
+#: src/tabs/library/library_properties.cpp:965
+#: src/tabs/library/library_properties.cpp:996
 msgid "Export All..."
 msgstr "Meow Meow..."
 
-#: src/tabs/library/library_properties.cpp:715
+#: src/tabs/library/library_properties.cpp:982
 msgid ""
 "Adds launch options from the clipboard to your own,\n"
 "as copied by Export / Export All."
@@ -2074,39 +2375,23 @@ msgstr ""
 "Meow meow meow meow meow meow meow meow meow,\n"
 "meow meow meow Meow / Meow Meow."
 
-#: src/tabs/library/library_properties.cpp:723
+#: src/tabs/library/library_properties.cpp:990
 msgid "Copies the selected launch option to the clipboard."
 msgstr "Meow meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:724
+#: src/tabs/library/library_properties.cpp:991
 msgid "Only your own launch options can be exported."
 msgstr "Meow meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:732
+#: src/tabs/library/library_properties.cpp:999
 msgid "Copies all of your own launch options to the clipboard."
 msgstr "Meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:768
-#: src/tabs/library/library_properties.cpp:846
-msgid "<no description>"
-msgstr "<meow meow>"
+#: src/tabs/library/library_properties.cpp:1044
+msgid "Used by the Play button (General > Play)."
+msgstr "Meow meow meow Meow meow (Meow > Meow)."
 
-#: src/tabs/library/library_properties.cpp:777
-msgid "The default launch option."
-msgstr "Meow meow meow meow."
-
-#: src/tabs/library/library_properties.cpp:777
-msgid "The default launch option (the primary one, as no other is set)."
-msgstr "Meow meow meow meow (meow meow meow, meow meow meow meow meow)."
-
-#. TRANSLATORS: {0} is the name of a launch option
-#: src/tabs/library/library_properties.cpp:803
-msgid ""
-"The default launch option ({0}) is not available, so the primary one is used."
-msgstr ""
-"Meow meow meow meow ({0}) meow meow meow, meow meow meow meow meow meow."
-
-#: src/tabs/library/library_properties.cpp:827
+#: src/tabs/library/library_properties.cpp:1082
 msgid ""
 "lc_user.json could not be read, so your own launch options can't be changed "
 "here. Fix or remove the file to edit them."
@@ -2114,35 +2399,39 @@ msgstr ""
 "lc_user.json meow meow meow meow, meow meow meow meow meow meow meow meow "
 "meow. Meow meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:844
+#: src/tabs/library/library_properties.cpp:1099
 msgid "More than one launch option is called \"{0}\"."
 msgstr "Meow meow meow meow meow meow meow \"{0}\"."
 
-#: src/tabs/library/library_properties.cpp:849
+#: src/tabs/library/library_properties.cpp:1104
 msgid "Every launch option of your own needs a description."
 msgstr "Meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:852
+#: src/tabs/library/library_properties.cpp:1107
 msgid "\"{0}\" has no executable."
 msgstr "\"{0}\" meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:855
+#: src/tabs/library/library_properties.cpp:1110
 msgid ""
 "The executable of \"{0}\" must be inside the install folder of the game."
 msgstr "Meow meow meow \"{0}\" meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:858
+#: src/tabs/library/library_properties.cpp:1113
 msgid "The executable of \"{0}\" was not found."
 msgstr "Meow meow meow \"{0}\" meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:861
+#: src/tabs/library/library_properties.cpp:1116
 msgid ""
 "The working directory of \"{0}\" must be inside the install folder of the "
 "game."
 msgstr ""
 "Meow meow meow meow \"{0}\" meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:891
+#: src/tabs/library/library_properties.cpp:1120
+msgid "The environment variables of \"{0}\" need to be fixed."
+msgstr "Meow meow meow meow \"{0}\" meow meow meow meow."
+
+#: src/tabs/library/library_properties.cpp:1150
 msgid ""
 "Your launch options could not be saved to lc_user.json. See the log for "
 "details."
@@ -2150,141 +2439,145 @@ msgstr ""
 "Meow meow meow meow meow meow meow meow lc_user.json. Meow meow meow meow "
 "meow."
 
-#: src/tabs/library/library_properties.cpp:984
+#: src/tabs/library/library_properties.cpp:1263
 msgid "Special K"
 msgstr "Meow Meow"
 
-#: src/tabs/library/library_properties.cpp:984
+#: src/tabs/library/library_properties.cpp:1263
 msgid "Applies to the executable, so to every launch option that starts it."
 msgstr "Meow meow meow meow, meow meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:999
-msgid "Save first to change these for this executable."
+#: src/tabs/library/library_properties.cpp:1278
+msgid "Apply first to change these for this executable."
 msgstr "Meow meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:1025
+#: src/tabs/library/library_properties.cpp:1287
+msgid "Disable Special K"
+msgstr "Meow Meow Meow"
+
+#: src/tabs/library/library_properties.cpp:1295
+msgid ""
+"Special K is disabled by default as the game uses anti-cheat (see "
+"Technology).\n"
+"Uncheck this to use Special K with the game anyway."
+msgstr ""
+"Meow Meow meow meow meow meow meow meow meow meow meow-meow (meow Meow).\n"
+"Meow meow meow meow Meow Meow meow meow meow meow."
+
+#: src/tabs/library/library_properties.cpp:1306
+msgid "Ignore blacklist"
+msgstr "Meow meow"
+
+#: src/tabs/library/library_properties.cpp:1309
+msgid ""
+"Starts the injection service even if Special K is disabled for this "
+"executable,\n"
+"here or through a blacklist pattern in the Settings tab.\n"
+"\n"
+"Special K remains disabled for the executable itself. This is meant for "
+"launchers:\n"
+"the game started by the launcher gets Special K.\n"
+"\n"
+"This also applies when SKIF is used as a launcher, e.g. SKIF %COMMAND%."
+msgstr ""
+"Meow meow meow meow meow meow Meow Meow meow meow meow meow meow,\n"
+"meow meow meow meow meow meow meow meow Meow meow.\n"
+"\n"
+"Meow Meow meow meow meow meow meow meow. Meow meow meow meow meow:\n"
+"meow meow meow meow meow meow meow Meow Meow.\n"
+"\n"
+"Meow meow meow meow Meow meow meow meow meow meow, meow Meow %COMMAND%."
+
+#: src/tabs/library/library_properties.cpp:1324
 msgid "Elevated service"
 msgstr "Meow meow"
 
-#: src/tabs/library/library_properties.cpp:1030
+#: src/tabs/library/library_properties.cpp:1329
 msgid "Special K is disabled for this executable, so the service is not used."
 msgstr "Meow Meow meow meow meow meow meow, meow meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:1187
+#: src/tabs/library/library_properties.cpp:1489
 msgid "New launch option"
 msgstr "Meow meow meow"
 
-#: src/tabs/library/library_properties.cpp:1240
+#: src/tabs/library/library_properties.cpp:1539
 msgid "Launch option"
 msgstr "Meow meow"
 
 #. TRANSLATORS: {0} is the name of the launch option that was copied
-#: src/tabs/library/library_properties.cpp:1244
-msgid "{0} (Instant Play)"
-msgstr "{0} (Meow Meow)"
-
-#. TRANSLATORS: {0} is the name of the launch option that was copied
-#: src/tabs/library/library_properties.cpp:1246
+#: src/tabs/library/library_properties.cpp:1542
 msgid "{0} (copy)"
 msgstr "{0} (meow)"
 
-#. TRANSLATORS: {0} is the name of the copy, {1} the name of the launch option it is a copy of
-#: src/tabs/library/library_properties.cpp:1319
-msgid "\"{0}\" is already a copy of \"{1}\" with Instant Play."
-msgstr "\"{0}\" meow meow meow meow meow \"{1}\" meow Meow Meow."
-
-#: src/tabs/library/library_properties.cpp:1340
-msgid ""
-"Created an editable copy of \"{0}\" with Instant Play. The original launch "
-"option stays unchanged."
-msgstr ""
-"Meow meow meow meow meow \"{0}\" meow Meow Meow. Meow meow meow meow meow "
-"meow."
-
-#: src/tabs/library/library_properties.cpp:1343
-msgid "The copy is now the default launch option."
-msgstr "Meow meow meow meow meow meow meow meow."
-
-#: src/tabs/library/library_properties.cpp:1346
-msgid ""
-"The launch options set in the platform client were added to its arguments."
-msgstr "Meow meow meow meow meow meow meow meow meow meow meow meow meow."
-
-#. TRANSLATORS: %command% is the placeholder of Steam's launch options, keep it as it is; {0} is what came before it
-#: src/tabs/library/library_properties.cpp:1350
-msgid "The part before %command% ({0}) could not be copied."
-msgstr "Meow meow meow %command% ({0}) meow meow meow meow."
-
-#: src/tabs/library/library_properties.cpp:1371
+#: src/tabs/library/library_properties.cpp:1573
 msgid "The launch options could not be exported."
 msgstr "Meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:1378
+#: src/tabs/library/library_properties.cpp:1580
 msgid "Copied \"{0}\" to the clipboard."
 msgstr "Meow \"{0}\" meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:1379
+#: src/tabs/library/library_properties.cpp:1581
 msgid "Copied {0} launch option to the clipboard."
 msgid_plural "Copied {0} launch options to the clipboard."
 msgstr[0] "Meow {0} meow meow meow meow meow."
 msgstr[1] "Meow {0} meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:1391
+#: src/tabs/library/library_properties.cpp:1593
 msgid "The clipboard does not contain any launch options."
 msgstr "Meow meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:1402
+#: src/tabs/library/library_properties.cpp:1604
 msgid "Imported launch option"
 msgstr "Meow meow meow"
 
-#: src/tabs/library/library_properties.cpp:1413
-msgid "Imported \"{0}\" from the clipboard. Save to keep it."
+#: src/tabs/library/library_properties.cpp:1615
+msgid "Imported \"{0}\" from the clipboard. Apply to keep it."
 msgstr "Meow \"{0}\" meow meow meow. Meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:1414
-msgid "Imported {0} launch option from the clipboard. Save to keep it."
+#: src/tabs/library/library_properties.cpp:1616
+msgid "Imported {0} launch option from the clipboard. Apply to keep it."
 msgid_plural ""
-"Imported {0} launch options from the clipboard. Save to keep them."
+"Imported {0} launch options from the clipboard. Apply to keep them."
 msgstr[0] "Meow {0} meow meow meow meow meow. Meow meow meow meow."
 msgstr[1] "Meow {0} meow meow meow meow meow. Meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:1465
-msgid "Always (required)"
-msgstr "Meow (meow)"
-
-#: src/tabs/library/library_properties.cpp:1466
+#. TRANSLATORS: {0} is the name of the other launch option
+#: src/tabs/library/library_properties.cpp:1667
 msgid ""
-"The platform client can't start this launch option itself, so it always uses "
-"Instant Play."
+"Identical to \"{0}\" (same executable, arguments, working directory and "
+"environment variables). It is hidden from the menus and can't be the default "
+"launch option until it is changed."
 msgstr ""
-"Meow meow meow meow meow meow meow meow meow, meow meow meow meow Meow Meow."
+"Meow meow \"{0}\" (meow meow, meow, meow meow meow meow meow). Meow meow "
+"meow meow meow meow meow meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:1475
-#: src/tabs/library/library_properties.cpp:1641
+#: src/tabs/library/library_properties.cpp:1672
+#: src/tabs/library/library_properties.cpp:1832
 msgid "Description"
 msgstr "Meow"
 
-#: src/tabs/library/library_properties.cpp:1476
+#: src/tabs/library/library_properties.cpp:1673
 msgid "Shown in the menus"
 msgstr "Meow meow meow meow"
 
-#: src/tabs/library/library_properties.cpp:1479
+#: src/tabs/library/library_properties.cpp:1676
 msgid "Relative to the install folder of the game."
 msgstr "Meow meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:1489
+#: src/tabs/library/library_properties.cpp:1686
 msgid "Select an executable"
 msgstr "Meow meow meow"
 
-#: src/tabs/library/library_properties.cpp:1508
+#: src/tabs/library/library_properties.cpp:1705
 msgid "Please select an executable (.exe or .bat), or a shortcut to one."
 msgstr "Meow meow meow meow (.meow meow .meow), meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:1511
+#: src/tabs/library/library_properties.cpp:1708
 msgid "The executable must be inside the install folder of the game."
 msgstr "Meow meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:1535
+#: src/tabs/library/library_properties.cpp:1732
 msgid ""
 "Relative to the install folder of the game.\n"
 "Leave it as the executable's folder if unsure."
@@ -2292,87 +2585,166 @@ msgstr ""
 "Meow meow meow meow meow meow meow meow.\n"
 "Meow meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:1544
+#: src/tabs/library/library_properties.cpp:1741
 msgid "(install folder)"
 msgstr "(meow meow)"
 
-#: src/tabs/library/library_properties.cpp:1546
-#: src/tabs/library/library_properties.cpp:1648
+#: src/tabs/library/library_properties.cpp:1743
+#: src/tabs/library/library_properties.cpp:1839
 msgid "(executable folder)"
 msgstr "(meow meow)"
 
-#: src/tabs/library/library_properties.cpp:1568
+#: src/tabs/library/library_properties.cpp:1765
 msgid "The working directory must be inside the install folder of the game."
 msgstr "Meow meow meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:1576
+#: src/tabs/library/library_properties.cpp:1773
 msgid "Use the folder of the executable."
 msgstr "Meow meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:1581
-#: src/tabs/library/library_properties.cpp:1650
+#: src/tabs/library/library_properties.cpp:1778
+#: src/tabs/library/library_properties.cpp:1841
 msgid "Arguments"
 msgstr "Meow"
 
-#. TRANSLATORS: {0} is what the game's setting is: "Always" or "Never"
-#: src/tabs/library/library_properties.cpp:1595
-#: src/tabs/library/library_properties.cpp:1667
-msgid "Game setting ({0})"
-msgstr "Meow meow ({0})"
+#: src/tabs/library/library_properties.cpp:1782
+#: src/tabs/library/library_properties.cpp:1852
+msgid "Environment"
+msgstr "Meow"
 
-#: src/tabs/library/library_properties.cpp:1616
+#: src/tabs/library/library_properties.cpp:1782
+msgid ""
+"Environment variables set when SKIF starts this launch option.\n"
+"A variable with an empty value is removed instead.\n"
+"\n"
+"They are not set when the game is started any other way.\n"
+"For mods and overlays, Special K's EnvironmentVars (INI editor) applies "
+"however the game is started."
+msgstr ""
+"Meow meow meow meow Meow meow meow meow meow.\n"
+"Meow meow meow meow meow meow meow meow meow.\n"
+"\n"
+"Meow meow meow meow meow meow meow meow meow meow meow meow.\n"
+"Meow meow meow meow, Meow Meow Meow (Meow meow) meow meow meow meow meow "
+"meow."
+
+#: src/tabs/library/library_properties.cpp:1807
 msgid "Starts:"
 msgstr "Meow:"
 
 #. TRANSLATORS: {0} is the platform (e.g. Steam), {1} its launch options for the game
-#: src/tabs/library/library_properties.cpp:1626
+#: src/tabs/library/library_properties.cpp:1817
 msgid "The launch options set in {0} ({1}) are not used by this launch option."
 msgstr "Meow meow meow meow meow {0} ({1}) meow meow meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:1638
+#: src/tabs/library/library_properties.cpp:1829
 msgid "Provided by Special K (lc.json). Duplicate it to make changes."
 msgstr "Meow meow Meow Meow (lc.json). Meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:1639
+#: src/tabs/library/library_properties.cpp:1830
 msgid "Provided by the platform. Duplicate it to make changes."
 msgstr "Meow meow meow meow. Meow meow meow meow meow."
 
-#. TRANSLATORS: {0} is "Always" or "Never"
-#: src/tabs/library/library_properties.cpp:1665
-msgid "{0} (set by Special K)"
-msgstr "{0} (meow meow Meow Meow)"
+#: src/tabs/library/library_properties.cpp:1852
+msgid "Environment variables set when SKIF starts this launch option."
+msgstr "Meow meow meow meow Meow meow meow meow meow."
 
-#: src/tabs/library/library_properties.cpp:1674
-msgid "Use Instant Play"
-msgstr "Meow Meow Meow"
-
-#: src/tabs/library/library_properties.cpp:1679
-msgid ""
-"Creates an editable copy of this launch option among your own,\n"
-"set to always use Instant Play. The original stays unchanged."
-msgstr ""
-"Meow meow meow meow meow meow meow meow meow meow meow,\n"
-"meow meow meow meow Meow Meow. Meow meow meow meow."
-
-#: src/tabs/library/library_properties.cpp:1689
+#: src/tabs/library/library_properties.cpp:1861
 msgid "Client options"
 msgstr "Meow meow"
 
-#: src/tabs/library/library_properties.cpp:1689
+#: src/tabs/library/library_properties.cpp:1861
 msgid "Set in the platform client. SKIF does not change these."
 msgstr "Meow meow meow meow meow. Meow meow meow meow meow."
 
+#: src/tabs/library/library_properties.cpp:1873
+msgid ""
+"The launch option the Play button uses.\n"
+"Any launch option can also be started through Play with in the right click "
+"menu."
+msgstr ""
+"Meow meow meow meow Meow meow meow.\n"
+"Meow meow meow meow meow meow meow meow Meow meow meow meow meow meow meow."
+
+#. TRANSLATORS: How the game is started; {0} is the platform (e.g. Steam)
+#: src/tabs/library/library_properties.cpp:1881
+msgid "Through {0}"
+msgstr "Meow {0}"
+
+#: src/tabs/library/library_properties.cpp:1882
+msgid "Directly (Instant Play)"
+msgstr "Meow (Meow Meow)"
+
+#: src/tabs/library/library_properties.cpp:1884
+msgid "Start"
+msgstr "Meow"
+
+#: src/tabs/library/library_properties.cpp:1884
+msgid ""
+"How the Play button starts the launch option: through the platform client, "
+"or directly.\n"
+"Only the primary launch option can be started through the platform client."
+msgstr ""
+"Meow meow Meow meow meow meow meow meow: meow meow meow meow, meow meow.\n"
+"Meow meow meow meow meow meow meow meow meow meow meow meow."
+
+#. TRANSLATORS: How the game is started, when the platform client can't start the launch option
+#: src/tabs/library/library_properties.cpp:1891
+msgid "Directly (Instant Play, required)"
+msgstr "Meow (Meow Meow, meow)"
+
+#: src/tabs/library/library_properties.cpp:1892
+msgid ""
+"The platform client can't start this launch option itself, so it always uses "
+"Instant Play."
+msgstr ""
+"Meow meow meow meow meow meow meow meow meow, meow meow meow meow Meow Meow."
+
+#: src/tabs/library/library_properties.cpp:1896
+msgid "Default ({0})"
+msgstr "Meow ({0})"
+
+#: src/tabs/library/library_properties.cpp:1901
+msgid "The game will use the default behavior configured in the Settings tab."
+msgstr "Meow meow meow meow meow meow meow meow meow meow Meow meow."
+
+#: src/tabs/library/library_properties.cpp:1904
+msgid "The game is started through the platform client, as usual."
+msgstr "Meow meow meow meow meow meow meow meow, meow meow."
+
+#: src/tabs/library/library_properties.cpp:1907
+msgid "The game is started directly, without the platform client."
+msgstr "Meow meow meow meow meow, meow meow meow meow."
+
+#: src/tabs/library/library_properties.cpp:1910
+#: src/tabs/settings.cpp:1074
+msgid ""
+"Warning: This skips the regular platform launch process for the game,\n"
+"including steps like the cloud saves synchronization that usually occurs."
+msgstr ""
+"Meow: Meow meow meow meow meow meow meow meow meow meow,\n"
+"meow meow meow meow meow meow meow meow meow meow."
+
 #. TRANSLATORS: Title of the Properties window; {0} is the name of the game
-#: src/tabs/library/library_properties.cpp:1827
+#: src/tabs/library/library_properties.cpp:2086
 msgid "{0} - Properties"
 msgstr "{0} - Meow"
 
-#: src/tabs/library/library_properties.cpp:1990
-#: src/tabs/library/library_properties.cpp:2039
+#: src/tabs/library/library_properties.cpp:2180
+msgid "Technology"
+msgstr "Meow"
+
+#: src/tabs/library/library_properties.cpp:2248
+#: src/tabs/library/library_properties.cpp:2328
+msgid "Apply"
+msgstr "Meow"
+
+#: src/tabs/library/library_properties.cpp:2266
+#: src/tabs/library/library_properties.cpp:2319
 msgid "Could not save"
 msgstr "Meow meow meow"
 
-#: src/tabs/library/library_properties.cpp:2009
+#: src/tabs/library/library_properties.cpp:2285
 msgid "Some of the changes could not be saved."
 msgstr "Meow meow meow meow meow meow meow meow."
 
@@ -2456,45 +2828,45 @@ msgstr "Meow Meow"
 msgid "Delete Selected"
 msgstr "Meow Meow"
 
-#: src/tabs/local.cpp:838
+#: src/tabs/local.cpp:863
 msgid "Selection"
 msgstr "Meow"
 
-#: src/tabs/local.cpp:854
+#: src/tabs/local.cpp:879
 msgid "No local installs found."
 msgstr "Meow meow meow meow."
 
-#: src/tabs/local.cpp:859
+#: src/tabs/local.cpp:884
 msgid "To perform a local install of Special K:"
 msgstr "Meow meow meow meow meow meow Meow Meow:"
 
 #. TRANSLATORS: The text in [brackets] is highlighted (keep the brackets); {0} is a floppy disk icon. "File -> Install Wrapper DLL" is a menu of Special K itself (in-game), which is in English.
-#: src/tabs/local.cpp:870
+#: src/tabs/local.cpp:895
 msgid "While in-game, use [{0} File -> Install Wrapper DLL]."
 msgstr "Meow meow-meow, meow [{0} File -> Install Wrapper DLL]."
 
 #. TRANSLATORS: The text in [brackets] is highlighted (keep the brackets); Ctrl and Shift are keys of the keyboard
-#: src/tabs/local.cpp:881
+#: src/tabs/local.cpp:906
 msgid ""
 "During launch, hold down [Ctrl + Shift] to access the compatibility options."
 msgstr "Meow meow, meow meow [Ctrl + Shift] meow meow meow meow meow."
 
-#: src/tabs/local.cpp:893
+#: src/tabs/local.cpp:918
 msgctxt "column"
 msgid "Path"
 msgstr "Meow"
 
-#: src/tabs/local.cpp:894
+#: src/tabs/local.cpp:919
 msgctxt "column"
 msgid "Version"
 msgstr "Meow"
 
-#: src/tabs/local.cpp:896
+#: src/tabs/local.cpp:921
 msgctxt "column"
 msgid "Status"
 msgstr "Meow"
 
-#: src/tabs/local.cpp:1035
+#: src/tabs/local.cpp:1060
 msgid ""
 "The local DLL file could not be found.\n"
 "Click to reinstall it as v {0}."
@@ -2502,74 +2874,75 @@ msgstr ""
 "Meow meow Meow meow meow meow meow meow.\n"
 "Meow meow meow meow meow meow {0}."
 
-#: src/tabs/local.cpp:1050
+#: src/tabs/local.cpp:1075
 msgid "Folder no longer exists"
 msgstr "Meow meow meow meow"
 
-#: src/tabs/local.cpp:1059
+#: src/tabs/local.cpp:1084
 msgid "Local DLL file no longer exists"
 msgstr "Meow Meow meow meow meow meow"
 
-#: src/tabs/local.cpp:1068
+#: src/tabs/local.cpp:1093
 msgid "Outdated (latest: {0})"
 msgstr "Meow (meow: {0})"
 
-#: src/tabs/local.cpp:1129 src/tabs/local.cpp:1244
+#: src/tabs/local.cpp:1154
+#: src/tabs/local.cpp:1269
 msgid "Select the bitness to install"
 msgstr "Meow meow meow meow meow"
 
 #. TRANSLATORS: {0} is a floppy disk icon. "File -> Install Wrapper DLL" is a menu of Special K itself (in-game), which is in English.
-#: src/tabs/local.cpp:1131
+#: src/tabs/local.cpp:1156
 msgid "Or while in-game, use {0} File -> Install Wrapper DLL."
 msgstr "Meow meow meow-meow, meow {0} Meow -> Meow Meow Meow."
 
-#: src/tabs/local.cpp:1158
+#: src/tabs/local.cpp:1183
 msgid "Already Up-to-Date"
 msgstr "Meow Meow-meow-Meow"
 
-#: src/tabs/local.cpp:1159
+#: src/tabs/local.cpp:1184
 msgid "Special K is already installed in this folder and is fully up-to-date."
 msgstr "Meow Meow meow meow meow meow meow meow meow meow meow meow-meow-meow."
 
-#: src/tabs/local.cpp:1170
+#: src/tabs/local.cpp:1195
 msgid "Install Special K"
 msgstr "Meow Meow Meow"
 
-#: src/tabs/local.cpp:1172
+#: src/tabs/local.cpp:1197
 msgid "Which DLL filename should Special K be installed as?"
 msgstr "Meow Meow meow meow Meow Meow meow meow meow?"
 
-#: src/tabs/local.cpp:1176
+#: src/tabs/local.cpp:1201
 msgid "64-bit executable"
 msgstr "64-meow meow"
 
-#: src/tabs/local.cpp:1178
+#: src/tabs/local.cpp:1203
 msgid "32-bit executable"
 msgstr "32-meow meow"
 
-#: src/tabs/local.cpp:1180
+#: src/tabs/local.cpp:1205
 msgid "Could not detect the bitness of the executable; you will be asked next."
 msgstr "Meow meow meow meow meow meow meow meow; meow meow meow meow meow."
 
-#: src/tabs/local.cpp:1183
+#: src/tabs/local.cpp:1208
 msgid ""
 "Special K is already installed in this folder; only that file can be updated."
 msgstr ""
 "Meow Meow meow meow meow meow meow meow; meow meow meow meow meow meow."
 
-#: src/tabs/local.cpp:1206
+#: src/tabs/local.cpp:1231
 msgid "Special K is already installed as this file and will be updated."
 msgstr "Meow Meow meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/local.cpp:1207
+#: src/tabs/local.cpp:1232
 msgid "A different file with this name already exists in the folder."
 msgstr "Meow meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/local.cpp:1208
+#: src/tabs/local.cpp:1233
 msgid "Special K is already installed in this folder under another name."
 msgstr "Meow Meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/local.cpp:1245
+#: src/tabs/local.cpp:1270
 msgid ""
 "Could not detect the bitness of the executable.\n"
 "Should 64-bit or 32-bit be used?"
@@ -2577,23 +2950,23 @@ msgstr ""
 "Meow meow meow meow meow meow meow meow.\n"
 "Meow 64-meow meow 32-meow meow meow?"
 
-#: src/tabs/local.cpp:1290
+#: src/tabs/local.cpp:1315
 msgid "Update Installs?"
 msgstr "Meow Meow?"
 
-#: src/tabs/local.cpp:1291
+#: src/tabs/local.cpp:1316
 msgid "Delete Installs?"
 msgstr "Meow Meow?"
 
-#: src/tabs/local.cpp:1292
+#: src/tabs/local.cpp:1317
 msgid "Are you sure you want to update all selected installs?"
 msgstr "Meow meow meow meow meow meow meow meow meow meow?"
 
-#: src/tabs/local.cpp:1293
+#: src/tabs/local.cpp:1318
 msgid "Are you sure you want to delete all selected installs?"
 msgstr "Meow meow meow meow meow meow meow meow meow meow?"
 
-#: src/tabs/local.cpp:1294
+#: src/tabs/local.cpp:1319
 msgid "Some leftover files may still be present in the game folder."
 msgstr "Meow meow meow meow meow meow meow meow meow meow meow."
 
@@ -2644,11 +3017,13 @@ msgctxt "update speed"
 msgid "High"
 msgstr "Meow"
 
-#: src/tabs/monitor.cpp:759 src/tabs/monitor.cpp:767
+#: src/tabs/monitor.cpp:759
+#: src/tabs/monitor.cpp:767
 msgid "Update speed:"
 msgstr "Meow meow:"
 
-#: src/tabs/monitor.cpp:818 src/tabs/monitor.cpp:1781
+#: src/tabs/monitor.cpp:818
+#: src/tabs/monitor.cpp:1783
 msgid "Real-time updates are paused."
 msgstr "Meow-meow meow meow meow."
 
@@ -2672,11 +3047,13 @@ msgstr "Meow meow"
 msgid "Force stop"
 msgstr "Meow meow"
 
-#: src/tabs/monitor.cpp:874 src/utility/injection.cpp:1048
+#: src/tabs/monitor.cpp:874
+#: src/utility/injection.cpp:1063
 msgid "Stop automatically"
 msgstr "Meow meow"
 
-#: src/tabs/monitor.cpp:880 src/utility/injection.cpp:1054
+#: src/tabs/monitor.cpp:880
+#: src/utility/injection.cpp:1069
 msgid ""
 "This controls whether the configured auto-stop behavior (see Settings tab) "
 "should be used when the service is manually started.\n"
@@ -2692,120 +3069,128 @@ msgstr ""
 msgid "Status:"
 msgstr "Meow:"
 
-#: src/tabs/monitor.cpp:1549
+#: src/tabs/monitor.cpp:1551
 msgid "Actions:"
 msgstr "Meow:"
 
-#: src/tabs/monitor.cpp:1554
+#: src/tabs/monitor.cpp:1556
 msgid "Whitelist"
 msgstr "Meow"
 
-#: src/tabs/monitor.cpp:1560
+#: src/tabs/monitor.cpp:1562
 msgid "Blacklist"
 msgstr "Meow"
 
-#: src/tabs/monitor.cpp:1578
+#: src/tabs/monitor.cpp:1580
 msgid "Remove the whitelist and blacklist patterns matching this process."
 msgstr "Meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/monitor.cpp:1630
+#: src/tabs/monitor.cpp:1632
 msgid "End task"
 msgstr "Meow meow"
 
-#: src/tabs/monitor.cpp:1693 src/tabs/monitor.cpp:1713
+#: src/tabs/monitor.cpp:1695
+#: src/tabs/monitor.cpp:1715
 msgid "Status"
 msgstr "Meow"
 
-#: src/tabs/monitor.cpp:1693 src/tabs/monitor.cpp:1721
+#: src/tabs/monitor.cpp:1695
+#: src/tabs/monitor.cpp:1723
 msgid "PID"
 msgstr "Meow"
 
-#: src/tabs/monitor.cpp:1693 src/tabs/monitor.cpp:1729
+#: src/tabs/monitor.cpp:1695
+#: src/tabs/monitor.cpp:1731
 msgid "Type"
 msgstr "Meow"
 
-#: src/tabs/monitor.cpp:1693 src/tabs/monitor.cpp:1733
+#: src/tabs/monitor.cpp:1695
+#: src/tabs/monitor.cpp:1735
 msgid "Handles"
 msgstr "Meow"
 
-#: src/tabs/monitor.cpp:1693 src/tabs/monitor.cpp:1737
+#: src/tabs/monitor.cpp:1695
+#: src/tabs/monitor.cpp:1739
 msgid "Arch"
 msgstr "Meow"
 
-#: src/tabs/monitor.cpp:1693 src/tabs/monitor.cpp:1745
+#: src/tabs/monitor.cpp:1695
+#: src/tabs/monitor.cpp:1747
 msgid "Admin"
 msgstr "Meow"
 
-#: src/tabs/monitor.cpp:1693 src/tabs/monitor.cpp:1753
+#: src/tabs/monitor.cpp:1695
+#: src/tabs/monitor.cpp:1755
 msgid "Process Name"
 msgstr "Meow Meow"
 
-#: src/tabs/monitor.cpp:1715
+#: src/tabs/monitor.cpp:1717
 msgid "Injection status"
 msgstr "Meow meow"
 
-#: src/tabs/monitor.cpp:1723
+#: src/tabs/monitor.cpp:1725
 msgid "Process ID"
 msgstr "Meow Meow"
 
-#: src/tabs/monitor.cpp:1738
+#: src/tabs/monitor.cpp:1740
 msgid "CPU architecture"
 msgstr "Meow meow"
 
-#: src/tabs/monitor.cpp:1746
+#: src/tabs/monitor.cpp:1748
 msgid "Elevated process"
 msgstr "Meow meow"
 
-#: src/tabs/monitor.cpp:1754
+#: src/tabs/monitor.cpp:1756
 msgid "Process name"
 msgstr "Meow meow"
 
-#: src/tabs/monitor.cpp:1779
+#: src/tabs/monitor.cpp:1781
 msgid "Error occurred when trying to locate type index for events!"
 msgstr "Meow meow meow meow meow meow meow meow meow meow!"
 
-#: src/tabs/monitor.cpp:1783
+#: src/tabs/monitor.cpp:1785
 msgid "Special K is currently not injected in any process."
 msgstr "Meow Meow meow meow meow meow meow meow meow."
 
-#: src/tabs/monitor.cpp:1819
+#: src/tabs/monitor.cpp:1821
 msgid "Process is blacklisted"
 msgstr "Meow meow meow"
 
-#: src/tabs/monitor.cpp:1825
+#: src/tabs/monitor.cpp:1827
 msgid "Process is whitelisted"
 msgstr "Meow meow meow"
 
-#: src/tabs/monitor.cpp:1838
+#: src/tabs/monitor.cpp:1840
 msgctxt "injection status"
 msgid "Active"
 msgstr "Meow"
 
-#: src/tabs/monitor.cpp:1842
+#: src/tabs/monitor.cpp:1844
 msgctxt "injection status"
 msgid "Local"
 msgstr "Meow"
 
-#: src/tabs/monitor.cpp:1847
+#: src/tabs/monitor.cpp:1849
 msgctxt "injection status"
 msgid "Inert"
 msgstr "Meow"
 
-#: src/tabs/monitor.cpp:1850 src/tabs/monitor.cpp:1859
+#: src/tabs/monitor.cpp:1852
+#: src/tabs/monitor.cpp:1861
 msgctxt "injection status"
 msgid "Stuck (end the process to eject Special K)"
 msgstr "Meow (meow meow meow meow meow Meow Meow)"
 
-#: src/tabs/monitor.cpp:1856
+#: src/tabs/monitor.cpp:1858
 msgctxt "injection status"
 msgid "Inert (potentially stuck)"
 msgstr "Meow (meow meow)"
 
-#: src/tabs/monitor.cpp:1917
+#: src/tabs/monitor.cpp:1919
 msgid "Injection status cannot be determined due to a lack of permissions."
 msgstr "Meow meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/monitor.cpp:1977
+#: src/tabs/monitor.cpp:1975
 msgid ""
 "If an open program is associated with this process, it will close and you "
 "will lose any unsaved data. If you end a system process, it might result in "
@@ -2815,28 +3200,28 @@ msgstr ""
 "meow meow meow meow. Meow meow meow meow meow meow, meow meow meow meow meow "
 "meow. Meow meow meow meow meow meow meow?"
 
-#: src/tabs/monitor.cpp:2020
+#: src/tabs/monitor.cpp:2018
 msgid "Reset Whitelist / Blacklist"
 msgstr "Meow Meow / Meow"
 
 #. TRANSLATORS: {0} is the file name of a process
-#: src/tabs/monitor.cpp:2047
+#: src/tabs/monitor.cpp:2045
 msgid "Patterns matching {0}:"
 msgstr "Meow meow {0}:"
 
-#: src/tabs/monitor.cpp:2051
+#: src/tabs/monitor.cpp:2049
 msgid "Whitelist:"
 msgstr "Meow:"
 
-#: src/tabs/monitor.cpp:2052
+#: src/tabs/monitor.cpp:2050
 msgid "Blacklist:"
 msgstr "Meow:"
 
-#: src/tabs/monitor.cpp:2056
+#: src/tabs/monitor.cpp:2054
 msgid "No whitelist or blacklist patterns of yours match this process."
 msgstr "Meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/monitor.cpp:2068
+#: src/tabs/monitor.cpp:2066
 msgid ""
 "The process is also whitelisted by the built-in pattern \"{0}\", which "
 "cannot be removed."
@@ -2844,7 +3229,7 @@ msgstr ""
 "Meow meow meow meow meow meow meow meow-meow meow \"{0}\", meow meow meow "
 "meow."
 
-#: src/tabs/monitor.cpp:2069
+#: src/tabs/monitor.cpp:2067
 msgid ""
 "The process is also blacklisted by the built-in pattern \"{0}\", which "
 "cannot be removed."
@@ -2852,7 +3237,7 @@ msgstr ""
 "Meow meow meow meow meow meow meow meow-meow meow \"{0}\", meow meow meow "
 "meow."
 
-#: src/tabs/monitor.cpp:2076
+#: src/tabs/monitor.cpp:2074
 msgid ""
 "Removing a pattern affects every application it matches, not just this one. "
 "Do you want to remove the patterns listed above?"
@@ -2860,28 +3245,28 @@ msgstr ""
 "Meow meow meow meow meow meow meow meow, meow meow meow meow. Meow meow meow "
 "meow meow meow meow meow meow?"
 
-#: src/tabs/monitor.cpp:2083
+#: src/tabs/monitor.cpp:2081
 msgid "The changes could not be saved!"
 msgstr "Meow meow meow meow meow meow!"
 
-#: src/tabs/settings.cpp:44
+#: src/tabs/settings.cpp:42
 msgid "Toggle Display HDR"
 msgstr "Meow Meow Meow"
 
-#: src/tabs/settings.cpp:172
+#: src/tabs/settings.cpp:170
 msgid "Press a button on the gamepad to assign it."
 msgstr "Meow meow meow meow meow meow meow meow meow."
 
 #. TRANSLATORS: ESC is a key of the keyboard (use the name printed on keyboards in your language)
-#: src/tabs/settings.cpp:175
+#: src/tabs/settings.cpp:173
 msgid "Press ESC to cancel."
 msgstr "Meow Meow meow meow."
 
-#: src/tabs/settings.cpp:269
+#: src/tabs/settings.cpp:267
 msgid "Low bandwidth mode"
 msgstr "Meow meow meow"
 
-#: src/tabs/settings.cpp:275
+#: src/tabs/settings.cpp:273
 msgid ""
 "For new games/covers, low resolution images will be preferred over high-"
 "resolution ones.\n"
@@ -2893,32 +3278,32 @@ msgstr ""
 "Meow meow meow meow meow meow meow. Meow meow meow meow meow meow meow.\n"
 "Meow meow meow meow meow meow meow meow meow meow Meow Meow."
 
-#: src/tabs/settings.cpp:279
+#: src/tabs/settings.cpp:277
 msgid "Minimize when launching a game"
 msgstr "Meow meow meow meow meow"
 
-#: src/tabs/settings.cpp:282
+#: src/tabs/settings.cpp:280
 msgid "Restore after closing a game"
 msgstr "Meow meow meow meow meow"
 
-#: src/tabs/settings.cpp:287
+#: src/tabs/settings.cpp:285
 msgid "Requires Special K injected to work as intended."
 msgstr "Meow Meow Meow meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:295
+#: src/tabs/settings.cpp:293
 msgid "Close to the notification area"
 msgstr "Meow meow meow meow meow"
 
-#: src/tabs/settings.cpp:304
+#: src/tabs/settings.cpp:302
 msgid "Requires 'Allow multiple instances of this app' to be disabled."
 msgstr "Meow 'Meow meow meow meow meow meow' meow meow meow."
 
-#: src/tabs/settings.cpp:310
+#: src/tabs/settings.cpp:308
 msgid "Controller support"
 msgstr "Meow meow"
 
 #. TRANSLATORS: {0} and {1} are the Xbox and PlayStation logos
-#: src/tabs/settings.cpp:329
+#: src/tabs/settings.cpp:327
 msgid ""
 "Allows the UI to be controlled using {0} or {1} controllers, and adds "
 "special features while SKIF is running."
@@ -2926,131 +3311,139 @@ msgstr ""
 "Meow meow Meow meow meow meow meow {0} meow {1} meow, meow meow meow meow "
 "meow Meow meow meow."
 
-#: src/tabs/settings.cpp:337
+#: src/tabs/settings.cpp:335
 msgid "Config"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:391
+#: src/tabs/settings.cpp:389
 msgid "General Controller Settings"
 msgstr "Meow Meow Meow"
 
 #. TRANSLATORS: {0} are the Xbox and PlayStation logos; the label is followed by "+ <button>", the button to press with them
-#: src/tabs/settings.cpp:396
+#: src/tabs/settings.cpp:394
 msgid "Activate Screen Saver Using {0}"
 msgstr "Meow Meow Meow Meow {0}"
 
 #. TRANSLATORS: {0} is the logo of one or more controllers (Xbox, PlayStation)
-#: src/tabs/settings.cpp:420 src/tabs/settings.cpp:515
+#: src/tabs/settings.cpp:418
+#: src/tabs/settings.cpp:513
 msgid "The controller binding is configurable by clicking the text after {0}"
 msgstr "Meow meow meow meow meow meow meow meow meow meow {0}"
 
-#: src/tabs/settings.cpp:437 src/tabs/settings.cpp:448
+#: src/tabs/settings.cpp:435
+#: src/tabs/settings.cpp:446
 msgctxt "gamepad button"
 msgid "A / Cross"
 msgstr "Meow / Meow"
 
-#: src/tabs/settings.cpp:439 src/tabs/settings.cpp:534
+#: src/tabs/settings.cpp:437
+#: src/tabs/settings.cpp:532
 msgctxt "gamepad button"
 msgid "Up"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:440 src/tabs/settings.cpp:535
+#: src/tabs/settings.cpp:438
+#: src/tabs/settings.cpp:533
 msgctxt "gamepad button"
 msgid "Down"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:441 src/tabs/settings.cpp:536
+#: src/tabs/settings.cpp:439
+#: src/tabs/settings.cpp:534
 msgctxt "gamepad button"
 msgid "Left"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:442 src/tabs/settings.cpp:537
+#: src/tabs/settings.cpp:440
+#: src/tabs/settings.cpp:535
 msgctxt "gamepad button"
 msgid "Right"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:444 src/tabs/settings.cpp:539
+#: src/tabs/settings.cpp:442
+#: src/tabs/settings.cpp:537
 msgctxt "gamepad button"
 msgid "Start"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:445
+#: src/tabs/settings.cpp:443
 msgctxt "gamepad button"
 msgid "Back / Select"
 msgstr "Meow / Meow"
 
-#: src/tabs/settings.cpp:447
+#: src/tabs/settings.cpp:445
 msgctxt "gamepad button"
 msgid "Y / Triangle"
 msgstr "Meow / Meow"
 
-#: src/tabs/settings.cpp:449
+#: src/tabs/settings.cpp:447
 msgctxt "gamepad button"
 msgid "X / Square"
 msgstr "Meow / Meow"
 
-#: src/tabs/settings.cpp:450
+#: src/tabs/settings.cpp:448
 msgctxt "gamepad button"
 msgid "B / Circle"
 msgstr "Meow / Meow"
 
-#: src/tabs/settings.cpp:470
+#: src/tabs/settings.cpp:468
 msgid "Gamepad Input Deactivates Screen Saver"
 msgstr "Meow Meow Meow Meow Meow"
 
 #. TRANSLATORS: {0} is the Xbox logo (the Xbox button)
-#: src/tabs/settings.cpp:480
+#: src/tabs/settings.cpp:478
 msgid "Pressing {0} on Xbox controllers always deactivates."
 msgstr "Meow {0} meow Meow meow meow meow."
 
-#: src/tabs/settings.cpp:485
+#: src/tabs/settings.cpp:483
 msgid "PlayStation Power Management"
 msgstr "Meow Meow Meow"
 
 #. TRANSLATORS: {0} is the PlayStation logo; the label is followed by "+ <button>", the button to press with it
-#: src/tabs/settings.cpp:491
+#: src/tabs/settings.cpp:489
 msgid "Power Off Controllers Using {0}"
 msgstr "Meow Meow Meow Meow {0}"
 
-#: src/tabs/settings.cpp:532 src/tabs/settings.cpp:542
+#: src/tabs/settings.cpp:530
+#: src/tabs/settings.cpp:540
 msgctxt "gamepad button"
 msgid "Triangle"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:540
+#: src/tabs/settings.cpp:538
 msgctxt "gamepad button"
 msgid "Select"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:543
+#: src/tabs/settings.cpp:541
 msgctxt "gamepad button"
 msgid "Cross"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:544
+#: src/tabs/settings.cpp:542
 msgctxt "gamepad button"
 msgid "Square"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:545
+#: src/tabs/settings.cpp:543
 msgctxt "gamepad button"
 msgid "Circle"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:568
+#: src/tabs/settings.cpp:566
 msgid "Never Power Off"
 msgstr "Meow Meow Meow"
 
 #. TRANSLATORS: {0} is a number of minutes
-#: src/tabs/settings.cpp:570
+#: src/tabs/settings.cpp:568
 msgid "Power Off After {0} Minutes"
 msgstr "Meow Meow Meow {0} Meow"
 
-#: src/tabs/settings.cpp:572
+#: src/tabs/settings.cpp:570
 msgid "Idle Behavior"
 msgstr "Meow Meow"
 
-#: src/tabs/settings.cpp:584
+#: src/tabs/settings.cpp:582
 msgid ""
 "This only applies when this app is running and no game is actively using "
 "Special K."
@@ -3058,25 +3451,25 @@ msgstr ""
 "Meow meow meow meow meow meow meow meow meow meow meow meow meow meow Meow "
 "Meow."
 
-#: src/tabs/settings.cpp:590
+#: src/tabs/settings.cpp:588
 msgid "Third-Party Setup\tXInput Assignment: "
 msgstr "Meow-Meow Meow\tMeow Meow: "
 
 #. TRANSLATORS: {0} is the Steam logo (as in "Steam Input")
-#: src/tabs/settings.cpp:618
+#: src/tabs/settings.cpp:616
 msgid "Disable {0} Input (will restart Steam)"
 msgstr "Meow {0} Meow (meow meow Meow)"
 
-#: src/tabs/settings.cpp:646
+#: src/tabs/settings.cpp:644
 msgid "Restarting Steam..."
 msgstr "Meow Meow..."
 
 #. TRANSLATORS: {0} is the Steam logo (as in "Steam Input")
-#: src/tabs/settings.cpp:655
+#: src/tabs/settings.cpp:653
 msgid "Install {0} Input Kill Switch"
 msgstr "Meow {0} Meow Meow Meow"
 
-#: src/tabs/settings.cpp:661
+#: src/tabs/settings.cpp:659
 msgid ""
 "Allows Steam Input to be Fully Disabled or Enabled.\n"
 "\n"
@@ -3088,7 +3481,7 @@ msgstr ""
 " * Meow Meow meow meow meow meow meow meow meow meow meow meow-meow.\n"
 " * Meow meow meow meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:688
+#: src/tabs/settings.cpp:686
 msgid ""
 "This determines how long the service will remain running when launching a "
 "game.\n"
@@ -3097,89 +3490,108 @@ msgstr ""
 "Meow meow meow meow meow meow meow meow meow meow meow meow meow.\n"
 "Meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:693
+#: src/tabs/settings.cpp:691
 msgid "Auto-stop behavior when launching a game:"
 msgstr "Meow-meow meow meow meow meow meow:"
 
-#: src/tabs/settings.cpp:701
+#: src/tabs/settings.cpp:699
 msgid "Stop on injection"
 msgstr "Meow meow meow"
 
-#: src/tabs/settings.cpp:704
+#: src/tabs/settings.cpp:702
 msgid ""
 "The service will be stopped when Special K successfully injects into a game."
 msgstr "Meow meow meow meow meow meow Meow Meow meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:706 src/tabs/settings.cpp:707
+#: src/tabs/settings.cpp:704
+#: src/tabs/settings.cpp:705
 msgid "Stop on game exit"
 msgstr "Meow meow meow meow"
 
-#: src/tabs/settings.cpp:710
+#: src/tabs/settings.cpp:708
 msgid ""
 "The service will be stopped when Special K detects that the game is being "
 "closed."
 msgstr ""
 "Meow meow meow meow meow meow Meow Meow meow meow meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:717
+#: src/tabs/settings.cpp:715
 msgid "This setting has no effect if low bandwidth mode is enabled."
 msgstr "Meow meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:721
+#: src/tabs/settings.cpp:719
 msgid "Check for updates:"
 msgstr "Meow meow meow:"
 
-#: src/tabs/settings.cpp:731 src/tabs/settings.cpp:732
+#: src/tabs/settings.cpp:729
+#: src/tabs/settings.cpp:730
 msgid "Weekly"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:734 src/tabs/settings.cpp:735
+#: src/tabs/settings.cpp:732
+#: src/tabs/settings.cpp:733
 msgid "On each launch"
 msgstr "Meow meow meow"
 
-#: src/tabs/settings.cpp:826
+#: src/tabs/settings.cpp:824
 msgid "Roll back to the previous version"
 msgstr "Meow meow meow meow meow meow"
 
-#: src/tabs/settings.cpp:844
+#: src/tabs/settings.cpp:834
+msgid "Automatically install new updates"
+msgstr "Meow meow meow meow"
+
+#: src/tabs/settings.cpp:845
 msgid ""
 "This provides contextual notifications in Windows when the service starts or "
 "stops."
 msgstr "Meow meow meow meow meow Meow meow meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:848
+#: src/tabs/settings.cpp:849
 msgid "Show injection service desktop notifications:"
 msgstr "Meow meow meow meow meow:"
 
-#: src/tabs/settings.cpp:855 src/tabs/settings.cpp:856
+#: src/tabs/settings.cpp:853
+#: src/tabs/settings.cpp:854
+#: src/tabs/settings.cpp:1309
+#: src/tabs/settings.cpp:1310
+#: src/tabs/settings.cpp:1350
+#: src/tabs/settings.cpp:1351
+#: src/tabs/settings.cpp:1459
+#: src/tabs/settings.cpp:1460
+msgid "Always"
+msgstr "Meow"
+
+#: src/tabs/settings.cpp:856
+#: src/tabs/settings.cpp:857
 msgid "When unfocused"
 msgstr "Meow meow"
 
-#: src/tabs/settings.cpp:894
+#: src/tabs/settings.cpp:895
 msgid "Ignore articles when sorting"
 msgstr "Meow meow meow meow"
 
-#: src/tabs/settings.cpp:902
+#: src/tabs/settings.cpp:903
 msgid "Ignore articles like 'THE', 'A', and 'AN' when sorting games."
 msgstr "Meow meow meow 'Meow', 'Meow', meow 'Meow' meow meow meow."
 
-#: src/tabs/settings.cpp:904
+#: src/tabs/settings.cpp:905
 msgid "Remember the last selected game"
 msgstr "Meow meow meow meow meow"
 
-#: src/tabs/settings.cpp:907
+#: src/tabs/settings.cpp:908
 msgid "Remember category collapsible state"
 msgstr "Meow meow meow meow"
 
-#: src/tabs/settings.cpp:914
+#: src/tabs/settings.cpp:915
 msgid "Prefer covers from PCGamingWiki for these platforms:"
 msgstr "Meow meow meow Meow meow meow meow:"
 
-#: src/tabs/settings.cpp:942
+#: src/tabs/settings.cpp:943
 msgid "Prefer covers from IGDB for these platforms:"
 msgstr "Meow meow meow Meow meow meow meow:"
 
-#: src/tabs/settings.cpp:946
+#: src/tabs/settings.cpp:947
 msgid ""
 "Games are looked up on IGDB by their store ID where possible, otherwise by "
 "their exact name.\n"
@@ -3196,23 +3608,31 @@ msgstr ""
 "meow\n"
 "meow meow meow meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:997
+#: src/tabs/settings.cpp:998
 msgid "Include games from these platforms:"
 msgstr "Meow meow meow meow meow:"
 
-#: src/tabs/settings.cpp:1060
+#: src/tabs/settings.cpp:1061
 msgid "Custom"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:1078
-msgid "Prefer Instant Play for these platforms:"
-msgstr "Meow Meow Meow meow meow meow:"
+#: src/tabs/settings.cpp:1079
+msgid "Start games directly (Instant Play) for these platforms:"
+msgstr "Meow meow meow (Meow Meow) meow meow meow:"
 
-#: src/tabs/settings.cpp:1144
+#: src/tabs/settings.cpp:1080
+msgid ""
+"The default for the games of these platforms; each game can change it in "
+"Properties (General > Play)."
+msgstr ""
+"Meow meow meow meow meow meow meow meow; meow meow meow meow meow meow Meow "
+"(Meow > Meow)."
+
+#: src/tabs/settings.cpp:1146
 msgid "Appearance"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:1201
+#: src/tabs/settings.cpp:1203
 msgid ""
 "Translations are contributed by the community. Text that has not been "
 "translated yet is shown in English."
@@ -3220,103 +3640,200 @@ msgstr ""
 "Meow meow meow meow meow meow. Meow meow meow meow meow meow meow meow meow "
 "meow Meow."
 
-#: src/tabs/settings.cpp:1205
+#: src/tabs/settings.cpp:1207
 msgid "Language:"
 msgstr "Meow:"
 
 #. TRANSLATORS: {0} is the name of the language that Windows uses (or English, if there is no translation for it)
-#: src/tabs/settings.cpp:1210
+#: src/tabs/settings.cpp:1212
 msgid "Same as Windows ({0})"
 msgstr "Meow meow Meow ({0})"
 
-#: src/tabs/settings.cpp:1264
+#: src/tabs/settings.cpp:1266
 msgid "Dynamic"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:1265
+#: src/tabs/settings.cpp:1267
 msgid "SKIF Dark"
 msgstr "Meow Meow"
 
-#: src/tabs/settings.cpp:1266
+#: src/tabs/settings.cpp:1268
 msgid "SKIF Light"
 msgstr "Meow Meow"
 
-#: src/tabs/settings.cpp:1267
+#: src/tabs/settings.cpp:1269
 msgid "ImGui Classic"
 msgstr "Meow Meow"
 
-#: src/tabs/settings.cpp:1268
+#: src/tabs/settings.cpp:1270
 msgid "ImGui Dark"
 msgstr "Meow Meow"
 
-#: src/tabs/settings.cpp:1276
+#: src/tabs/settings.cpp:1278
 msgid "Color theme:"
 msgstr "Meow meow:"
 
-#: src/tabs/settings.cpp:1299
+#: src/tabs/settings.cpp:1301
 msgid "Useful if you find bright white covers an annoyance."
 msgstr "Meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:1303
+#: src/tabs/settings.cpp:1305
 msgid "Dim game covers by 25%:"
 msgstr "Meow meow meow meow 25%:"
 
-#: src/tabs/settings.cpp:1310 src/tabs/settings.cpp:1311
+#: src/tabs/settings.cpp:1312
+#: src/tabs/settings.cpp:1313
 msgid "Based on mouse cursor"
 msgstr "Meow meow meow meow"
 
-#: src/tabs/settings.cpp:1318
+#: src/tabs/settings.cpp:1321
+msgid ""
+"Determines when animated covers (APNG, GIF, WebP) will play:\n"
+"- Automatic: lets SKIF decide when to animate covers.\n"
+"- Always: as many visible covers as possible will play.\n"
+"- When hovered: only the hovered cover will play.\n"
+"- Never: only the first still frame will be shown."
+msgstr ""
+"Meow meow meow meow (Meow, Meow, Meow) meow meow:\n"
+"- Meow: meow Meow meow meow meow meow meow.\n"
+"- Meow: meow meow meow meow meow meow meow meow.\n"
+"- Meow meow: meow meow meow meow meow meow.\n"
+"- Meow: meow meow meow meow meow meow meow meow."
+
+#: src/tabs/settings.cpp:1329
+msgid "Play animated covers:"
+msgstr "Meow meow meow:"
+
+#: src/tabs/settings.cpp:1336
+msgid ""
+"The UI keeps rendering frames while an animated cover is in view.\n"
+"This uses more GPU than playing them only when hovered."
+msgstr ""
+"Meow Meow meow meow meow meow meow meow meow meow meow meow.\n"
+"Meow meow meow Meow meow meow meow meow meow meow."
+
+#: src/tabs/settings.cpp:1345
+msgid "Automatic"
+msgstr "Meow"
+
+#: src/tabs/settings.cpp:1347
+#: src/tabs/settings.cpp:1348
+msgid "When hovered"
+msgstr "Meow meow"
+
+#: src/tabs/settings.cpp:1362
+msgid ""
+"The amount of video memory to use for caching animated covers in the grid "
+"view.\n"
+"Off: only one will be loaded at a time."
+msgstr ""
+"Meow meow meow meow meow meow meow meow meow meow meow meow meow meow meow.\n"
+"Meow: meow meow meow meow meow meow meow meow."
+
+#: src/tabs/settings.cpp:1367
+msgid "VRAM cache for animated covers:"
+msgstr "Meow meow meow meow meow:"
+
+#: src/tabs/settings.cpp:1376
+msgid "Off"
+msgstr "Meow"
+
+#. TRANSLATORS: {0} is an amount of video memory in megabytes
+#: src/tabs/settings.cpp:1378
+msgid "Up to {0} MB"
+msgstr "Meow meow {0} Meow"
+
+#: src/tabs/settings.cpp:1380
+msgid "Video memory"
+msgstr "Meow meow"
+
+#: src/tabs/settings.cpp:1397
+msgid "Off: only one cover will animate at a time."
+msgstr "Meow: meow meow meow meow meow meow meow meow."
+
+#: src/tabs/settings.cpp:1398
+msgid "Insufficient VRAM: some animated covers will only play when hovered."
+msgstr "Meow Meow: meow meow meow meow meow meow meow meow."
+
+#. TRANSLATORS: Each {n} is an amount of video memory in megabytes
+#: src/tabs/settings.cpp:1417
+msgid ""
+"SKIF's video memory in use: {0} MB\n"
+"Animated covers of the grid view: {1} MB\n"
+"The full-size animated cover: {2} MB\n"
+"Covers: {3} MB\n"
+"Thumbnails: {4} MB\n"
+"Icons: {5} MB\n"
+"Other (the window, fonts, the graphics driver): {6} MB"
+msgstr ""
+"Meow meow meow meow meow: {0} Meow\n"
+"Meow meow meow meow meow meow: {1} Meow\n"
+"Meow meow-meow meow meow: {2} Meow\n"
+"Meow: {3} Meow\n"
+"Meow: {4} Meow\n"
+"Meow: {5} Meow\n"
+"Meow (meow meow, meow, meow meow meow): {6} Meow"
+
+#. TRANSLATORS: {0} is a number of animated covers, {1} and {2} are amounts of video memory in megabytes
+#: src/tabs/settings.cpp:1433
+msgid "In use: {1} MB for {0} animated cover (out of {2} MB in total)."
+msgid_plural "In use: {1} MB for {0} animated covers (out of {2} MB in total)."
+msgstr[0] ""
+"Meow meow: {1} Meow meow {0} meow meow (meow meow {2} Meow meow meow)."
+msgstr[1] ""
+"Meow meow: {1} Meow meow {0} meow meow (meow meow {2} Meow meow meow)."
+
+#. TRANSLATORS: {0} is a number of animated covers, {1} is an amount of video memory in megabytes
+#: src/tabs/settings.cpp:1436
+msgid "In use: {1} MB for {0} animated cover."
+msgid_plural "In use: {1} MB for {0} animated covers."
+msgstr[0] "Meow meow: {1} Meow meow {0} meow meow."
+msgstr[1] "Meow meow: {1} Meow meow {0} meow meow."
+
+#: src/tabs/settings.cpp:1448
 msgid "Every time the UI renders a frame, Shelly the Ghost moves a little bit."
 msgstr ""
 "Meow meow meow Meow meow meow meow, Meow meow Meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:1322
+#: src/tabs/settings.cpp:1452
 msgid "Show Shelly the Ghost:"
 msgstr "Meow Meow meow Meow:"
 
-#: src/tabs/settings.cpp:1325
-msgid ""
-"A critical rendering optimization will not function properly when Shelly is "
-"visibly moving.\n"
-"It is therefor recommended to leave Shelly hidden in favor of a reduced GPU "
-"usage."
-msgstr ""
-"Meow meow meow meow meow meow meow meow meow Meow meow meow meow.\n"
-"Meow meow meow meow meow meow Meow meow meow meow meow meow meow Meow meow."
-
-#: src/tabs/settings.cpp:1332 src/tabs/settings.cpp:1333
+#: src/tabs/settings.cpp:1462
+#: src/tabs/settings.cpp:1463
 msgid "While service is running"
 msgstr "Meow meow meow meow"
 
-#: src/tabs/settings.cpp:1340
+#: src/tabs/settings.cpp:1478
 msgid "Move the mouse over each option to get more information."
 msgstr "Meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:1344
+#: src/tabs/settings.cpp:1482
 msgid "UI elements:"
 msgstr "Meow meow:"
 
-#: src/tabs/settings.cpp:1349
+#: src/tabs/settings.cpp:1487
 msgid "Borders"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:1358
+#: src/tabs/settings.cpp:1496
 msgid "Use borders around UI elements."
 msgstr "Meow meow meow Meow meow."
 
-#: src/tabs/settings.cpp:1360
+#: src/tabs/settings.cpp:1498
 msgid "Tooltips"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:1369 src/utility/skif_imgui.cpp:633
+#: src/tabs/settings.cpp:1507
+#: src/utility/skif_imgui.cpp:681
 msgid "Info: "
 msgstr "Meow: "
 
-#: src/tabs/settings.cpp:1371
+#: src/tabs/settings.cpp:1509
 msgid "This is instead where additional information will be displayed."
 msgstr "Meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:1372
+#: src/tabs/settings.cpp:1510
 msgid ""
 "If tooltips are disabled the status bar will be used for additional "
 "information.\n"
@@ -3325,111 +3842,117 @@ msgstr ""
 "Meow meow meow meow meow meow meow meow meow meow meow meow meow.\n"
 "Meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:1375
+#: src/tabs/settings.cpp:1513
 msgid "Status bar"
 msgstr "Meow meow"
 
-#: src/tabs/settings.cpp:1383
+#: src/tabs/settings.cpp:1521
 msgid ""
 "Disabling the status bar as well as tooltips will hide all additional "
 "information or tips."
 msgstr ""
 "Meow meow meow meow meow meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:1389 src/tabs/settings.cpp:1415
+#: src/tabs/settings.cpp:1527
+#: src/tabs/settings.cpp:1553
 msgid "Fade covers"
 msgstr "Meow meow"
 
-#: src/tabs/settings.cpp:1390 src/tabs/settings.cpp:1426
+#: src/tabs/settings.cpp:1528
+#: src/tabs/settings.cpp:1564
 msgid "Win11 corners"
 msgstr "Meow meow"
 
-#: src/tabs/settings.cpp:1413
+#: src/tabs/settings.cpp:1551
 msgid "Use larger game icons in the library tab."
 msgstr "Meow meow meow meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:1422
+#: src/tabs/settings.cpp:1560
 msgid "Fade between game covers when switching games."
 msgstr "Meow meow meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:1434
+#: src/tabs/settings.cpp:1572
 msgid "Use rounded window corners."
 msgstr "Meow meow meow meow."
 
-#: src/tabs/settings.cpp:1440 src/tabs/settings.cpp:1449
+#: src/tabs/settings.cpp:1578
+#: src/tabs/settings.cpp:1587
 msgid "Touch input"
 msgstr "Meow meow"
 
-#: src/tabs/settings.cpp:1441 src/tabs/settings.cpp:1460
+#: src/tabs/settings.cpp:1579
+#: src/tabs/settings.cpp:1598
 msgid "HiDPI scaling"
 msgstr "Meow meow"
 
-#: src/tabs/settings.cpp:1458
+#: src/tabs/settings.cpp:1596
 msgid "Make the UI easier to use on touch input capable devices automatically."
 msgstr "Meow meow Meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:1467
+#: src/tabs/settings.cpp:1605
 msgid ""
 "Disabling HiDPI scaling will make the application appear smaller on HiDPI "
 "displays."
 msgstr "Meow Meow meow meow meow meow meow meow meow meow Meow meow."
 
-#: src/tabs/settings.cpp:1484
+#: src/tabs/settings.cpp:1622
 msgid "Context based information and tips will not appear!"
 msgstr "Meow meow meow meow meow meow meow meow!"
 
-#: src/tabs/settings.cpp:1487
+#: src/tabs/settings.cpp:1625
 msgid ""
 "Restore context based information and tips by enabling tooltips or the "
 "status bar."
 msgstr "Meow meow meow meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:1503
+#: src/tabs/settings.cpp:1633
 msgid "Move the mouse over each option to get more information"
 msgstr "Meow meow meow meow meow meow meow meow meow meow"
 
-#: src/tabs/settings.cpp:1506
+#: src/tabs/settings.cpp:1636
 msgid "UI mode:"
 msgstr "Meow meow:"
 
-#: src/tabs/settings.cpp:1512
+#: src/tabs/settings.cpp:1642
 msgid "VRR Compatibility"
 msgstr "Meow Meow"
 
-#: src/tabs/settings.cpp:1517
+#: src/tabs/settings.cpp:1647
 msgid "Avoids signal loss and flickering on VRR displays."
 msgstr "Meow meow meow meow meow meow Meow meow."
 
-#: src/tabs/settings.cpp:1518 src/tabs/settings.cpp:1520
+#: src/tabs/settings.cpp:1648
+#: src/tabs/settings.cpp:1650
 msgid "Normal"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:1525
+#: src/tabs/settings.cpp:1655
 msgid "Improves UI response on low fixed-refresh rate displays."
 msgstr "Meow Meow meow meow meow meow-meow meow meow."
 
-#: src/tabs/settings.cpp:1526 src/tabs/settings.cpp:1527
+#: src/tabs/settings.cpp:1656
+#: src/tabs/settings.cpp:1657
 msgid "Safe Mode"
 msgstr "Meow Meow"
 
-#: src/tabs/settings.cpp:1532
+#: src/tabs/settings.cpp:1662
 msgid ""
 "Compatibility mode for users experiencing issues with the other two modes."
 msgstr "Meow meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:1538
+#: src/tabs/settings.cpp:1668
 msgid "Increases the color depth of the app."
 msgstr "Meow meow meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:1542
+#: src/tabs/settings.cpp:1672
 msgid "Color depth:"
 msgstr "Meow meow:"
 
-#: src/tabs/settings.cpp:1589
+#: src/tabs/settings.cpp:1719
 msgid "Linear font alpha blending"
 msgstr "Meow meow meow meow"
 
-#: src/tabs/settings.cpp:1592
+#: src/tabs/settings.cpp:1722
 msgid ""
 "Disables the correction that makes text blend\n"
 "like they do in 8 bpc and 10 bpc modes."
@@ -3437,93 +3960,85 @@ msgstr ""
 "Meow meow meow meow meow meow meow\n"
 "meow meow meow meow 8 meow meow 10 meow meow."
 
-#: src/tabs/settings.cpp:1602
+#: src/tabs/settings.cpp:1732
 msgid "Makes the app pop more on HDR displays."
 msgstr "Meow meow meow meow meow meow Meow meow."
 
-#: src/tabs/settings.cpp:1606
+#: src/tabs/settings.cpp:1736
 msgid "High dynamic range (HDR):"
 msgstr "Meow meow meow (Meow):"
 
-#: src/tabs/settings.cpp:1612
+#: src/tabs/settings.cpp:1742
 msgid "HDR support is disabled while the UI is in Safe Mode."
 msgstr "Meow meow meow meow meow meow Meow meow meow Meow Meow."
 
 #. TRANSLATORS: {0} is the brightness in nits (cd/m2)
-#: src/tabs/settings.cpp:1646
+#: src/tabs/settings.cpp:1776
 msgid "{0} nits"
 msgstr "{0} meow"
 
-#: src/tabs/settings.cpp:1648
+#: src/tabs/settings.cpp:1778
 msgid "HDR brightness"
 msgstr "Meow meow"
 
-#: src/tabs/settings.cpp:1664
+#: src/tabs/settings.cpp:1794
 msgid "Your display(s) supports HDR, but does not use it."
 msgstr "Meow meow(meow) meow Meow, meow meow meow meow meow."
 
 #. TRANSLATORS: {0} is the keyboard shortcut (Ctrl + Windows logo + Shift + H), {1} is a mouse cursor icon
-#: src/tabs/settings.cpp:1679
+#: src/tabs/settings.cpp:1809
 msgid "Use {0} to toggle HDR where the {1} is."
 msgstr "Meow {0} meow meow Meow meow meow {1} meow."
 
-#: src/tabs/settings.cpp:1715
+#: src/tabs/settings.cpp:1847
 msgid "Keybindings"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:1758
-msgid "Keybindings (In-Game)"
-msgstr "Meow (Meow-Meow)"
+#: src/tabs/settings.cpp:1960
+msgid "View miscellaneous keybinds"
+msgstr "Meow meow meow"
 
-#: src/tabs/settings.cpp:1819
-msgid "Launch a game with Special K at least once to populate this section."
-msgstr "Meow meow meow meow Meow Meow meow meow meow meow meow meow meow."
-
-#: src/tabs/settings.cpp:1830
+#: src/tabs/settings.cpp:1979
 msgid "Advanced"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:1849
-msgid "Automatically install new updates"
-msgstr "Meow meow meow meow"
-
 #. TRANSLATORS: {0} is a mouse cursor icon
-#: src/tabs/settings.cpp:1853
+#: src/tabs/settings.cpp:1999
 msgid "Open this app on the same monitor as the {0}"
 msgstr "Meow meow meow meow meow meow meow meow meow {0}"
 
-#: src/tabs/settings.cpp:1856
+#: src/tabs/settings.cpp:2002
 msgid "Open this app in the mini service mode view"
 msgstr "Meow meow meow meow meow meow meow meow meow"
 
-#: src/tabs/settings.cpp:1875
+#: src/tabs/settings.cpp:2021
 msgid "Do not stop the injection service on exit"
 msgstr "Meow meow meow meow meow meow meow meow"
 
-#: src/tabs/settings.cpp:1879
+#: src/tabs/settings.cpp:2025
 msgid ""
 "This allows the injection service to remain running even after this app has "
 "been closed."
 msgstr ""
 "Meow meow meow meow meow meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:1881
+#: src/tabs/settings.cpp:2027
 msgid "Use hardware acceleration"
 msgstr "Meow meow meow"
 
-#: src/tabs/settings.cpp:1893
+#: src/tabs/settings.cpp:2039
 msgid "The app will be less responsive if disabled on hybrid CPUs."
 msgstr "Meow meow meow meow meow meow meow meow meow meow Meow."
 
-#: src/tabs/settings.cpp:1898
+#: src/tabs/settings.cpp:2044
 msgid "The app may be less responsive if disabled."
 msgstr "Meow meow meow meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:1901
+#: src/tabs/settings.cpp:2047
 msgid "Use system proxy settings"
 msgstr "Meow meow meow meow"
 
-#: src/tabs/settings.cpp:1904
+#: src/tabs/settings.cpp:2050
 msgid ""
 "Downloads go through the proxy configured in Windows.\n"
 "Automatic proxy detection and setup scripts are not used.\n"
@@ -3533,83 +4048,87 @@ msgstr ""
 "Meow meow meow meow meow meow meow meow meow.\n"
 "Meow meow, meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:1915
+#: src/tabs/settings.cpp:2061
 msgid "Allow multiple instances of this app"
 msgstr "Meow meow meow meow meow meow"
 
-#: src/tabs/settings.cpp:1950
+#: src/tabs/settings.cpp:2096
 msgid "Requires 'Close to the notification area' to be disabled."
 msgstr "Meow 'Meow meow meow meow meow' meow meow meow."
 
-#: src/tabs/settings.cpp:1977
+#: src/tabs/settings.cpp:2119
+msgid "Troubleshooting:"
+msgstr "Meow:"
+
+#: src/tabs/settings.cpp:2123
 msgctxt "log level"
 msgid "None"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:1978
+#: src/tabs/settings.cpp:2124
 msgctxt "log level"
 msgid "Fatal"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:1979
+#: src/tabs/settings.cpp:2125
 msgctxt "log level"
 msgid "Error"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:1980
+#: src/tabs/settings.cpp:2126
 msgctxt "log level"
 msgid "Warning"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:1981
+#: src/tabs/settings.cpp:2127
 msgctxt "log level"
 msgid "Info"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:1982
+#: src/tabs/settings.cpp:2128
 msgctxt "log level"
 msgid "Debug"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:1983
+#: src/tabs/settings.cpp:2129
 msgctxt "log level"
 msgid "Verbose"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:1986
+#: src/tabs/settings.cpp:2132
 msgid "Log level"
 msgstr "Meow meow"
 
-#: src/tabs/settings.cpp:2015
+#: src/tabs/settings.cpp:2161
 msgid "Enable excessive development logging"
 msgstr "Meow meow meow meow"
 
-#: src/tabs/settings.cpp:2025
+#: src/tabs/settings.cpp:2171
 msgid ""
 "Only intended for SKIF developers as this enables excessive logging (e.g. "
 "window messages)."
 msgstr "Meow meow meow Meow meow meow meow meow meow meow (meow meow meow)."
 
-#: src/tabs/settings.cpp:2029
+#: src/tabs/settings.cpp:2175
 msgctxt "diagnostics"
 msgid "None"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:2030
+#: src/tabs/settings.cpp:2176
 msgctxt "diagnostics"
 msgid "Normal"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:2031
+#: src/tabs/settings.cpp:2177
 msgctxt "diagnostics"
 msgid "Enhanced"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:2034
+#: src/tabs/settings.cpp:2180
 msgid "Diagnostics"
 msgstr "Meow"
 
-#: src/tabs/settings.cpp:2058
+#: src/tabs/settings.cpp:2204
 msgid ""
 "Help improve Special K by allowing anonymized diagnostics to be sent.\n"
 "The data is used to identify issues, highlight common use cases, and\n"
@@ -3619,21 +4138,22 @@ msgstr ""
 "Meow meow meow meow meow meow meow, meow meow meow meow, meow\n"
 "meow meow meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:2070
+#: src/tabs/settings.cpp:2216
 msgid "Developer mode"
 msgstr "Meow meow"
 
-#: src/tabs/settings.cpp:2079
+#: src/tabs/settings.cpp:2225
 msgid ""
 "Exposes additional information and context menu items that may be of "
 "interest for developers."
 msgstr "Meow meow meow meow meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:2081 src/tabs/settings.cpp:2083
+#: src/tabs/settings.cpp:2227
+#: src/tabs/settings.cpp:2229
 msgid "Efficiency mode"
 msgstr "Meow meow"
 
-#: src/tabs/settings.cpp:2086
+#: src/tabs/settings.cpp:2232
 msgid ""
 "Engage efficiency mode for this app when idle.\n"
 "Not recommended for Windows 10 and earlier."
@@ -3641,7 +4161,7 @@ msgstr ""
 "Meow meow meow meow meow meow meow meow.\n"
 "Meow meow meow Meow 10 meow meow."
 
-#: src/tabs/settings.cpp:2091
+#: src/tabs/settings.cpp:2237
 msgid ""
 "Nvidia users: Use the below button to prevent GeForce Experience from "
 "mistaking this app for a game."
@@ -3649,11 +4169,11 @@ msgstr ""
 "Meow meow: Meow meow meow meow meow meow Meow Meow meow meow meow meow meow "
 "meow meow."
 
-#: src/tabs/settings.cpp:2101
+#: src/tabs/settings.cpp:2247
 msgid "Disable GFE notifications"
 msgstr "Meow Meow meow"
 
-#: src/tabs/settings.cpp:2151
+#: src/tabs/settings.cpp:2297
 msgid ""
 "This only needs to be used if GeForce Experience notifications\n"
 "appear on the screen whenever this app is being used."
@@ -3661,24 +4181,24 @@ msgstr ""
 "Meow meow meow meow meow meow meow Meow Meow meow\n"
 "meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:2170
+#: src/tabs/settings.cpp:2316
 msgid "Whitelist / Blacklist"
 msgstr "Meow / Meow"
 
 #. TRANSLATORS: {0} is a double quote character
-#: src/tabs/settings.cpp:2210
+#: src/tabs/settings.cpp:2356
 msgid "Please remove all double quotes {0} from the list."
 msgstr "Meow meow meow meow meow {0} meow meow meow."
 
 #. TRANSLATORS: {0} is two backslashes, {1} is one backslash
-#: src/tabs/settings.cpp:2225
+#: src/tabs/settings.cpp:2371
 msgid ""
 "Folders must be separated using two backslashes {0} instead of one {1} "
 "backslash."
 msgstr "Meow meow meow meow meow meow meow {0} meow meow meow {1} meow."
 
 #. TRANSLATORS: {0} is the maximum number of lines (512), {1} is the pipe character
-#: src/tabs/settings.cpp:2243
+#: src/tabs/settings.cpp:2389
 msgid ""
 "The list can only include {0} lines, though multiple can be combined using a "
 "pipe {1} character."
@@ -3686,7 +4206,7 @@ msgstr ""
 "Meow meow meow meow meow {0} meow, meow meow meow meow meow meow meow meow "
 "{1} meow."
 
-#: src/tabs/settings.cpp:2247
+#: src/tabs/settings.cpp:2393
 msgid ""
 "(e.g. \"NieRAutomataPC|Epic Games\" will match any application\n"
 "installed under a NieRAutomataPC or Epic Games folder.)"
@@ -3694,7 +4214,7 @@ msgstr ""
 "(meow \"Meow|Meow Meow\" meow meow meow meow\n"
 "meow meow meow Meow meow Meow Meow meow.)"
 
-#: src/tabs/settings.cpp:2256
+#: src/tabs/settings.cpp:2402
 msgid ""
 "The following lists manage Special K in processes as patterns are matched "
 "against the full path of the injected process."
@@ -3702,11 +4222,11 @@ msgstr ""
 "Meow meow meow meow Meow Meow meow meow meow meow meow meow meow meow meow "
 "meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:2264
+#: src/tabs/settings.cpp:2410
 msgid "Easiest is to use the name of the executable or folder of the game."
 msgstr "Meow meow meow meow meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:2268
+#: src/tabs/settings.cpp:2414
 msgid ""
 "e.g. a pattern like \"Assassin's Creed Valhalla\" will match an application "
 "at\n"
@@ -3715,14 +4235,14 @@ msgstr ""
 "meow meow meow meow \"Meow Meow Meow\" meow meow meow meow meow\n"
 "Meow:\\Meow\\Meow\\meow\\Meow Meow Meow\\ACValhalla.exe"
 
-#: src/tabs/settings.cpp:2274
+#: src/tabs/settings.cpp:2420
 msgid ""
 "Typing the name of a shared parent folder will match all applications below "
 "that folder."
 msgstr ""
 "Meow meow meow meow meow meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:2278
+#: src/tabs/settings.cpp:2424
 msgid ""
 "e.g. a pattern like \"Epic Games\" will match any\n"
 "application installed under the Epic Games folder."
@@ -3730,13 +4250,13 @@ msgstr ""
 "meow meow meow meow \"Meow Meow\" meow meow meow\n"
 "meow meow meow meow Meow Meow meow."
 
-#: src/tabs/settings.cpp:2287
+#: src/tabs/settings.cpp:2433
 msgid ""
 "Note that these lists do not prevent Special K from being injected into "
 "processes."
 msgstr "Meow meow meow meow meow meow meow Meow Meow meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:2293
+#: src/tabs/settings.cpp:2439
 msgid ""
 "These lists control whether Special K should be enabled (the whitelist) to "
 "hook APIs etc,\n"
@@ -3746,7 +4266,7 @@ msgstr ""
 "meow,\n"
 "meow meow meow/meow/meow (meow meow) meow meow meow meow."
 
-#: src/tabs/settings.cpp:2300
+#: src/tabs/settings.cpp:2446
 msgid ""
 "The injection service injects Special K into any process that deals\n"
 "with system input or some sort of window or kb/mouse input activity.\n"
@@ -3760,11 +4280,11 @@ msgstr ""
 "Meow meow meow meow Meow Meow meow meow meow (meow meow),\n"
 "meow meow meow/meow (meow meow) meow meow meow meow."
 
-#: src/tabs/settings.cpp:2319
+#: src/tabs/settings.cpp:2465
 msgid "Whitelist Patterns:"
 msgstr "Meow Meow:"
 
-#: src/tabs/settings.cpp:2333
+#: src/tabs/settings.cpp:2479
 msgid ""
 "These are the patterns used internally to enable Special K for these "
 "specific platforms.\n"
@@ -3774,39 +4294,178 @@ msgstr ""
 "Meow meow meow meow meow meow meow meow Meow Meow meow meow meow meow.\n"
 "Meow meow meow meow meow meow meow meow meow meow meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:2412
+#: src/tabs/settings.cpp:2558
 msgid "Blacklist Patterns:"
 msgstr "Meow Meow:"
 
-#: src/tabs/settings.cpp:2414
+#: src/tabs/settings.cpp:2560
 msgid ""
 "(Does not prevent injection! Use this to exclude stuff from being "
 "whitelisted)"
 msgstr "(Meow meow meow meow! Meow meow meow meow meow meow meow meow)"
 
-#: src/tabs/settings.cpp:2443
+#: src/tabs/settings.cpp:2589
 msgid "Save Changes"
 msgstr "Meow Meow"
 
-#: src/tabs/settings.cpp:2494
+#: src/tabs/settings.cpp:2640
 msgid ""
 "The whitelist could not be saved! Please remove any non-Latin characters and "
 "try again."
 msgstr ""
 "Meow meow meow meow meow meow! Meow meow meow meow-Meow meow meow meow meow."
 
-#: src/tabs/settings.cpp:2500
+#: src/tabs/settings.cpp:2646
 msgid ""
 "The blacklist could not be saved! Please remove any non-Latin characters and "
 "try again."
 msgstr ""
 "Meow meow meow meow meow meow! Meow meow meow meow-Meow meow meow meow meow."
 
-#: src/utility/games.cpp:414
+#: src/utility/env_vars.cpp:93
+msgid "Special K ignores variables without a name."
+msgstr "Meow Meow meow meow meow meow meow."
+
+#: src/utility/env_vars.cpp:94
+msgid "A name is required."
+msgstr "Meow meow meow meow."
+
+#: src/utility/env_vars.cpp:97
+msgid "The name can't contain an equals sign (=)."
+msgstr "Meow meow meow meow meow meow meow (=)."
+
+#: src/utility/env_vars.cpp:100
+msgid "Line breaks are not supported."
+msgstr "Meow meow meow meow meow."
+
+#: src/utility/env_vars.cpp:105
+msgid "{0} is also set above. The last one is used."
+msgstr "{0} meow meow meow meow. Meow meow meow meow meow."
+
+#: src/utility/env_vars.cpp:106
+msgid "{0} is already set above."
+msgstr "{0} meow meow meow meow."
+
+#: src/utility/env_vars.cpp:112
+msgid ""
+"Special K removes spaces at the start and end of the name and the value."
+msgstr ""
+"Meow Meow meow meow meow meow meow meow meow meow meow meow meow meow meow."
+
+#: src/utility/env_vars.cpp:118
+msgid "The name starts or ends with a space."
+msgstr "Meow meow meow meow meow meow meow meow."
+
+#: src/utility/env_vars.cpp:126
+msgid "SKIF sets this itself for Steam games. This value is used instead."
+msgstr "Meow meow meow meow meow Meow meow. Meow meow meow meow meow."
+
+#: src/utility/env_vars.cpp:440
+msgid "Special K: leaves Steam Input as it is, without working around it."
+msgstr "Meow Meow: meow Meow Meow meow meow meow, meow meow meow meow."
+
+#: src/utility/env_vars.cpp:441
+msgid "DXVK: shows an overlay (e.g. fps, frametimes, gpuload)."
+msgstr "Meow: meow meow meow (meow meow, meow, meow)."
+
+#: src/utility/env_vars.cpp:442
+msgid "DXVK: limits the frame rate."
+msgstr "Meow: meow meow meow meow."
+
+#: src/utility/env_vars.cpp:443
+msgid "DXVK: how much is logged (none, error, warn, info, debug)."
+msgstr "Meow: meow meow meow meow (meow, meow, meow, meow, meow)."
+
+#: src/utility/env_vars.cpp:444
+msgid "Steam: disables the Steam overlay."
+msgstr "Meow: meow meow Meow meow."
+
+#: src/utility/env_vars.cpp:477
+msgid "(removes the variable)"
+msgstr "(meow meow meow)"
+
+#: src/utility/env_vars.cpp:477
+msgid "(empty)"
+msgstr "(meow)"
+
+#: src/utility/env_vars.cpp:516
+msgid "Removes the variable."
+msgstr "Meow meow meow."
+
+#: src/utility/env_vars.cpp:530
+msgid "Add variable"
+msgstr "Meow meow"
+
+#: src/utility/env_vars.cpp:542
+msgid "Adds a common variable."
+msgstr "Meow meow meow meow."
+
+#: src/utility/env_vars.cpp:561
+msgid "Already listed."
+msgstr "Meow meow."
+
+#: src/utility/env_vars.cpp:569
+msgid "Paste"
+msgstr "Meow"
+
+#: src/utility/env_vars.cpp:590
+msgid ""
+"Adds any variables in the clipboard: one NAME=value per line,\n"
+"or Special K's format on a single line (A=1|B=2).\n"
+"Variables that are already listed get the new value."
+msgstr ""
+"Meow meow meow meow meow meow: meow NAME=value meow meow,\n"
+"meow Meow Meow meow meow meow meow meow (A=1|B=2).\n"
+"Meow meow meow meow meow meow meow meow meow."
+
+#: src/utility/env_vars.cpp:599
+msgid "Copy"
+msgstr "Meow"
+
+#: src/utility/env_vars.cpp:602
+msgid "Copies the variables to the clipboard, one NAME=value per line."
+msgstr "Meow meow meow meow meow meow, meow NAME=value meow meow."
+
+#. TRANSLATORS: The game engine detected from a game's files (e.g. Unity)
+#: src/utility/file_detection.cpp:46
+msgid "Engine"
+msgstr "Meow"
+
+#: src/utility/file_detection.cpp:47
+msgid "Evidence"
+msgstr "Meow"
+
+#. TRANSLATORS: Software that wraps a game (e.g. Electron)
+#: src/utility/file_detection.cpp:49
+msgid "Container"
+msgstr "Meow"
+
+#: src/utility/file_detection.cpp:50
+msgid "Emulator"
+msgstr "Meow"
+
+#: src/utility/file_detection.cpp:51
+msgid "Anti-cheat"
+msgstr "Meow-meow"
+
+#. TRANSLATORS: Libraries and SDKs detected from a game's files (e.g. FMOD, NVIDIA DLSS)
+#: src/utility/file_detection.cpp:53
+msgid "SDKs"
+msgstr "Meow"
+
+#: src/utility/file_detection.cpp:54
+msgid "Launcher"
+msgstr "Meow"
+
+#: src/utility/file_detection.cpp:58
+msgid "Other"
+msgstr "Meow"
+
+#: src/utility/games.cpp:418
 msgid "One-time warning about RTSS.exe"
 msgstr "Meow-meow meow meow RTSS.exe"
 
-#: src/utility/games.cpp:423
+#: src/utility/games.cpp:427
 msgid "This warning will not appear again."
 msgstr "Meow meow meow meow meow meow."
 
@@ -3822,11 +4481,11 @@ msgstr "Meow Meow"
 msgid "Custom Preset..."
 msgstr "Meow Meow..."
 
-#: src/utility/ini_presets.cpp:294
+#: src/utility/ini_presets.cpp:292
 msgid "Apply Compatibility Config"
 msgstr "Meow Meow Meow"
 
-#: src/utility/ini_presets.cpp:299
+#: src/utility/ini_presets.cpp:297
 msgid ""
 "Known as the \"sledgehammer\" config within the community as it disables\n"
 "various features of Special K in an attempt to improve compatibility."
@@ -3834,118 +4493,143 @@ msgstr ""
 "Meow meow meow \"meow\" meow meow meow meow meow meow meow\n"
 "meow meow meow Meow Meow meow meow meow meow meow meow."
 
-#: src/utility/ini_reader.cpp:638
+#: src/utility/ini_reader.cpp:474
+msgid ""
+"Special K does not remove braces around the variables, so {A=1} sets \"{A\" "
+"to \"1}\"."
+msgstr ""
+"Meow Meow meow meow meow meow meow meow meow, meow {A=1} meow \"{A\" to "
+"\"1}\"."
+
+#: src/utility/ini_reader.cpp:476
+msgid "Remove the braces"
+msgstr "Meow meow meow"
+
+#. TRANSLATORS: {0} is a list of the ignored parts of the value
+#: src/utility/ini_reader.cpp:493
+msgid "Special K ignores parts without a name or an equals sign (=): {0}"
+msgstr "Meow Meow meow meow meow meow meow meow meow meow meow (=): {0}"
+
+#: src/utility/ini_reader.cpp:500
+msgid ""
+"The value as it is written to the file: NAME=value, separated by |.\n"
+"Use || for a | in a name or value."
+msgstr ""
+"Meow meow meow meow meow meow meow meow meow: NAME=value, meow meow |.\n"
+"Meow || meow meow | meow meow meow meow meow."
+
+#: src/utility/ini_reader.cpp:504
+msgid ""
+"Set by Special K once it is loaded into the game, however the game is "
+"started. This is in time for mods and overlays such as ReShade, but usually "
+"too late for the game itself. For the game, add the variables to a launch "
+"option of your own instead (Properties > Launch)."
+msgstr ""
+"Meow meow Meow Meow meow meow meow meow meow meow meow, meow meow meow meow "
+"meow. Meow meow meow meow meow meow meow meow meow meow Meow, meow meow meow "
+"meow meow meow meow meow. Meow meow meow, meow meow meow meow meow meow meow "
+"meow meow meow meow (Meow > Meow)."
+
+#: src/utility/ini_reader.cpp:790
 msgid "INI Reader"
 msgstr "Meow Meow"
 
-#: src/utility/ini_reader.cpp:638
+#: src/utility/ini_reader.cpp:790
 msgid "Could not parse the INI file:"
 msgstr "Meow meow meow meow Meow meow:"
 
-#: src/utility/injection.cpp:238
-msgid "Please launch a game to continue."
-msgstr "Meow meow meow meow meow meow."
+#. TRANSLATORS: {0} is the file name of a program (e.g. Game.exe)
+#: src/utility/injection.cpp:256
+#: src/utility/injection.cpp:2333
+msgid "{0} was added to the whitelist."
+msgstr "{0} meow meow meow meow meow."
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/utility/injection.cpp:240
+#: src/utility/injection.cpp:258
+#: src/utility/injection.cpp:263
+#: src/utility/injection.cpp:2335
 msgid "Special K is ready to be injected into your game!"
 msgstr "Meow Meow meow meow meow meow meow meow meow meow!"
 
-#: src/utility/injection.cpp:243
+#: src/utility/injection.cpp:261
+msgid "Please launch a game to continue."
+msgstr "Meow meow meow meow meow meow."
+
+#: src/utility/injection.cpp:266
 msgid "The injection service was started."
 msgstr "Meow meow meow meow meow."
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/utility/injection.cpp:245
+#: src/utility/injection.cpp:268
 msgid "Special K is now being injected into games!"
 msgstr "Meow Meow meow meow meow meow meow meow!"
 
-#. TRANSLATORS: Ctrl, Shift and Backspace are keys of the keyboard (use the names printed on keyboards in your language)
-#: src/utility/injection.cpp:259
-msgid "Press Ctrl + Shift + Backspace while in-game."
-msgstr "Meow Meow + Meow + Meow meow meow-meow."
+#. TRANSLATORS: {0} is the keybinding of Special K's control panel (e.g. Ctrl+Shift+Backspace; set in Special K)
+#: src/utility/injection.cpp:289
+#: src/utility/injection.cpp:2256
+msgid "Press {0} while in-game."
+msgstr "Meow {0} meow meow-meow."
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/utility/injection.cpp:261
+#: src/utility/injection.cpp:291
 msgid "Special K has been injected into your game!"
 msgstr "Meow Meow meow meow meow meow meow meow!"
 
-#: src/utility/injection.cpp:264
+#: src/utility/injection.cpp:294
 msgid "The injection service was stopped."
 msgstr "Meow meow meow meow meow."
 
 #. TRANSLATORS: Title of a notification (at most 63 characters)
-#: src/utility/injection.cpp:266
+#: src/utility/injection.cpp:296
 msgid "Special K will no longer be injected into games."
 msgstr "Meow Meow meow meow meow meow meow meow meow."
 
-#: src/utility/injection.cpp:813
-msgid "Config folder:"
-msgstr "Meow meow:"
+#: src/utility/injection.cpp:859
+msgid "Service:"
+msgstr "Meow:"
 
-#: src/utility/injection.cpp:814
-msgid "32-bit service:"
-msgstr "32-meow meow:"
+#: src/utility/injection.cpp:888
+msgid "Inconsistent status!"
+msgstr "Meow meow!"
 
-#: src/utility/injection.cpp:816
-msgid "64-bit service:"
-msgstr "64-meow meow:"
+#: src/utility/injection.cpp:918
+msgid "32-bit missing!"
+msgstr "32-meow meow!"
 
-#: src/utility/injection.cpp:853 src/utility/injection.cpp:861
-#: src/utility/injection.cpp:1375
-msgid "Waiting for game..."
-msgstr "Meow meow meow..."
+#: src/utility/injection.cpp:921
+msgid "64-bit missing!"
+msgstr "64-meow meow!"
 
-#: src/utility/injection.cpp:855 src/utility/injection.cpp:863
-#: src/utility/injection.cpp:1376
-msgid "Running"
-msgstr "Meow"
-
-#: src/utility/injection.cpp:857 src/utility/injection.cpp:865
-msgid "Stopped"
-msgstr "Meow"
-
-#: src/utility/injection.cpp:890 src/utility/injection.cpp:895
-msgid "Missing"
-msgstr "Meow"
-
-#: src/utility/injection.cpp:943
-msgid "Stopping..."
-msgstr "Meow..."
-
-#: src/utility/injection.cpp:944
-msgid "Starting..."
-msgstr "Meow..."
-
-#: src/utility/injection.cpp:945 src/utility/injection.cpp:946
+#: src/utility/injection.cpp:960
+#: src/utility/injection.cpp:961
 msgid "Service"
 msgstr "Meow"
 
-#: src/utility/injection.cpp:1059
+#: src/utility/injection.cpp:1074
 msgid "Auto-stop is currently unavailable."
 msgstr "Meow-meow meow meow meow."
 
-#: src/utility/injection.cpp:1060
+#: src/utility/injection.cpp:1075
 msgid "The feature requires Special K v21.08.12 or newer."
 msgstr "Meow meow meow Meow Meow v21.08.12 meow meow."
 
-#: src/utility/injection.cpp:1151
+#: src/utility/injection.cpp:1166
 msgid "Start with Windows"
 msgstr "Meow meow Meow"
 
-#: src/utility/injection.cpp:1159
+#: src/utility/injection.cpp:1174
 msgid "Start minimized in the notification area"
 msgstr "Meow meow meow meow meow meow"
 
-#: src/utility/injection.cpp:1160
+#: src/utility/injection.cpp:1175
 msgid "Start minimized"
 msgstr "Meow meow"
 
-#: src/utility/injection.cpp:1163
+#: src/utility/injection.cpp:1178
 msgid "Start the injection service as well"
 msgstr "Meow meow meow meow meow meow"
 
-#: src/utility/injection.cpp:1209
+#: src/utility/injection.cpp:1224
 msgid ""
 "The current autostart method needs to be disabled to migrate over to this "
 "method.\n"
@@ -3955,19 +4639,19 @@ msgstr ""
 "Meow meow meow meow meow meow meow meow meow meow meow meow meow meow.\n"
 "Meow meow meow meow meow meow meow Meow, meow meow meow meow Meow meow."
 
-#: src/utility/injection.cpp:1226
+#: src/utility/injection.cpp:1237
 msgid "Start Injection Service At Logon (obsolete)"
 msgstr "Meow Meow Meow Meow Meow (meow)"
 
-#: src/utility/injection.cpp:1243
+#: src/utility/injection.cpp:1254
 msgid "This method is obsolete, and can only be disabled."
 msgstr "Meow meow meow meow, meow meow meow meow meow."
 
-#: src/utility/injection.cpp:1255
+#: src/utility/injection.cpp:1266
 msgid "Start the injection service with Windows"
 msgstr "Meow meow meow meow meow Meow"
 
-#: src/utility/injection.cpp:1259
+#: src/utility/injection.cpp:1270
 msgid ""
 "This will start the injection service hidden in the background with "
 "Windows.\n"
@@ -3982,15 +4666,15 @@ msgstr ""
 "\n"
 "Meow meow meow meow meow meow meow?"
 
-#: src/utility/injection.cpp:1264
+#: src/utility/injection.cpp:1275
 msgid "Confirm autostart"
 msgstr "Meow meow"
 
-#: src/utility/injection.cpp:1302
+#: src/utility/injection.cpp:1313
 msgid "Note that this frontend app will not start with Windows."
 msgstr "Meow meow meow meow meow meow meow meow meow Meow."
 
-#: src/utility/injection.cpp:1310
+#: src/utility/injection.cpp:1321
 msgid ""
 "The regular autostart method needs to be disabled to migrate over to this "
 "method.\n"
@@ -4000,7 +4684,7 @@ msgstr ""
 "Meow meow meow meow meow meow meow meow meow meow meow meow meow meow.\n"
 "Meow meow meow meow meow meow meow meow Meow, meow meow meow meow meow meow."
 
-#: src/utility/injection.cpp:1313
+#: src/utility/injection.cpp:1324
 msgid ""
 "The old legacy method needs to be disabled to migrate over to this new "
 "method.\n"
@@ -4009,113 +4693,122 @@ msgstr ""
 "Meow meow meow meow meow meow meow meow meow meow meow meow meow meow meow.\n"
 "Meow meow meow meow meow meow meow meow meow meow meow."
 
-#: src/utility/injection.cpp:1353
+#: src/utility/injection.cpp:1364
 msgid "Injection service is running."
 msgstr "Meow meow meow meow."
 
-#: src/utility/injection.cpp:1386
-msgid "Click to stop the service"
-msgstr "Meow meow meow meow meow"
+#. TRANSLATORS: Title of a notification (at most 63 characters)
+#: src/utility/injection.cpp:2258
+msgid "Special K is already injected into your game!"
+msgstr "Meow Meow meow meow meow meow meow meow!"
 
-#: src/utility/injection.cpp:1387
-msgid "Click to start the service"
-msgstr "Meow meow meow meow meow"
+#. TRANSLATORS: Name of the category of the jump list that lists recently launched games (the same as Windows uses)
+#: src/utility/jumplist.cpp:286
+msgid "Recent"
+msgstr "Meow"
 
-#: src/utility/skif_imgui.cpp:476 src/utility/skif_imgui.cpp:480
-#: src/utility/skif_imgui.cpp:1798
+#: src/utility/skif_imgui.cpp:481
+#: src/utility/skif_imgui.cpp:485
+#: src/utility/skif_imgui.cpp:1891
 msgid "OK"
 msgstr "Meow"
 
-#: src/utility/skif_imgui.cpp:1786
+#: src/utility/skif_imgui.cpp:1879
 msgid "None"
 msgstr "Meow"
 
-#: src/utility/skif_imgui.cpp:1793
+#: src/utility/skif_imgui.cpp:1886
 msgid "Don't Save"
 msgstr "Meow Meow"
 
-#: src/utility/skif_imgui.cpp:1852
+#: src/utility/skif_imgui.cpp:1945
 msgid "Are you sure you want to continue?"
 msgstr "Meow meow meow meow meow meow meow?"
 
-#: src/utility/skif_imgui.cpp:1868
+#: src/utility/skif_imgui.cpp:1961
 msgid "Do you want to save the changes made?"
 msgstr "Meow meow meow meow meow meow meow meow?"
 
-#: src/utility/skif_imgui.cpp:1869
+#: src/utility/skif_imgui.cpp:1962
 msgid "Your changes will be lost if you don't save them."
 msgstr "Meow meow meow meow meow meow meow meow meow meow."
 
-#: src/utility/skif_imgui.cpp:1897
+#: src/utility/skif_imgui.cpp:1990
 msgid "Should 64-bit or 32-bit be used?"
 msgstr "Meow 64-meow meow 32-meow meow meow?"
 
-#: src/utility/skif_imgui.cpp:1898
+#: src/utility/skif_imgui.cpp:1991
 msgid "Processes can only load DLL files of the same bitness."
 msgstr "Meow meow meow meow Meow meow meow meow meow meow."
 
-#: src/utility/skif_imgui.cpp:2010
+#: src/utility/skif_imgui.cpp:2097
 msgid "Force start service"
 msgstr "Meow meow meow"
 
-#: src/utility/skif_imgui.cpp:2017
+#: src/utility/skif_imgui.cpp:2104
 msgid "Elevated"
 msgstr "Meow"
 
-#: src/utility/skif_imgui.cpp:2022
+#: src/utility/skif_imgui.cpp:2109
 msgid "Force stop service"
 msgstr "Meow meow meow"
 
 #. TRANSLATORS: An April Fools' Day joke (a fake activation of Special K, with technobabble), shown on April 1st
-#: src/utility/skif_imgui.cpp:3147
+#: src/utility/skif_imgui.cpp:3372
 msgid "Special K Activation"
 msgstr "Meow Meow Meow"
 
-#: src/utility/skif_imgui.cpp:3155
+#: src/utility/skif_imgui.cpp:3380
 msgid "Special K  //  Nominal Flow Activation"
 msgstr "Meow Meow  //  Meow Meow Meow"
 
-#: src/utility/skif_imgui.cpp:3159
+#: src/utility/skif_imgui.cpp:3384
 msgid "Client fingerprint:"
 msgstr "Meow meow:"
 
-#: src/utility/skif_imgui.cpp:3198
+#: src/utility/skif_imgui.cpp:3423
 msgid "This title is missing its nominal constant (0x00000000)."
 msgstr "Meow meow meow meow meow meow meow (0x00000000)."
 
-#: src/utility/skif_imgui.cpp:3203
+#: src/utility/skif_imgui.cpp:3428
 msgid "Contacting activation server  sk-activation.local ..."
 msgstr "Meow meow meow  sk-activation.local ..."
 
-#: src/utility/skif_imgui.cpp:3208
+#: src/utility/skif_imgui.cpp:3433
 msgid "Transforming constant against client fingerprint ..."
 msgstr "Meow meow meow meow meow ..."
 
-#: src/utility/skif_imgui.cpp:3213
+#: src/utility/skif_imgui.cpp:3438
 msgid "Nominal flow restored."
 msgstr "Meow meow meow."
 
-#: src/utility/skif_imgui.cpp:3229
+#: src/utility/skif_imgui.cpp:3454
 msgid "Just kidding -- Special K needs no such thing. Happy April Fools' Day!"
 msgstr "Meow meow -- Meow Meow meow meow meow meow. Meow Meow Meow' Meow!"
 
-#: src/utility/skif_imgui.cpp:3232 src/utility/skif_imgui.cpp:3234
+#: src/utility/skif_imgui.cpp:3457
+#: src/utility/skif_imgui.cpp:3459
 msgid "Phew, OK"
 msgstr "Meow, Meow"
 
-#: src/utility/skif_imgui.cpp:3241
+#: src/utility/skif_imgui.cpp:3466
 msgid "Please wait, this will only take a moment ..."
 msgstr "Meow meow, meow meow meow meow meow meow ..."
 
-#: src/utility/sk_utility.cpp:899
+#: src/utility/sk_utility.cpp:893
 msgid "Keybinding:"
 msgstr "Meow:"
 
 #. TRANSLATORS: RETURN, ESC, BACKSPACE and DELETE are keys of the keyboard (use the names printed on keyboards in your language)
-#: src/utility/sk_utility.cpp:904
+#: src/utility/sk_utility.cpp:899
 msgid ""
 "Press RETURN to confirm, ESC to cancel, BACKSPACE to clear, DELETE to reset."
 msgstr "Meow Meow meow meow, Meow meow meow, Meow meow meow, Meow meow meow."
+
+#. TRANSLATORS: RETURN, ESC and DELETE are keys of the keyboard (use the names printed on keyboards in your language)
+#: src/utility/sk_utility.cpp:902
+msgid "Press RETURN to confirm, ESC to cancel, DELETE to reset."
+msgstr "Meow Meow meow meow, Meow meow meow, Meow meow meow."
 
 #: src/utility/updater.cpp:685
 msgid "This is the version currently installed!"
@@ -4125,8 +4818,10 @@ msgstr "Meow meow meow meow meow meow!"
 msgid "Update available!"
 msgstr "Meow meow!"
 
-#: src/utility/updater.cpp:695 src/utility/updater.cpp:714
-#: src/utility/updater.cpp:752 src/utility/updater.cpp:913
+#: src/utility/updater.cpp:695
+#: src/utility/updater.cpp:714
+#: src/utility/updater.cpp:752
+#: src/utility/updater.cpp:913
 msgid "No listed changes."
 msgstr "Meow meow meow."
 
@@ -4213,10 +4908,156 @@ msgstr "Meow meow {0}:"
 msgid "Download"
 msgstr "Meow"
 
-#: src/utility/updater.cpp:1569 src/utility/updater.cpp:1610
+#: src/utility/updater.cpp:1569
+#: src/utility/updater.cpp:1610
 msgid "Ignore"
 msgstr "Meow"
 
 #: src/utility/updater.cpp:1618
 msgid "SKIF will not prompt about this version again."
 msgstr "Meow meow meow meow meow meow meow meow."
+
+#~ msgid "Update the cover for the current selected game:"
+#~ msgstr "Meow meow meow meow meow meow meow meow:"
+
+#~ msgid "Note that the app has no support for animated images."
+#~ msgstr "Meow meow meow meow meow meow meow meow meow meow."
+
+#~ msgid "Profile folder:"
+#~ msgstr "Meow meow:"
+
+#~ msgid "Config file:"
+#~ msgstr "Meow meow:"
+
+#. TRANSLATORS: Not available
+#~ msgid "N/A"
+#~ msgstr "Meow/Meow"
+
+#. TRANSLATORS: A launch option in the "Disable Special K" menu; {0} is its name
+#~ msgid "for {0}"
+#~ msgstr "meow {0}"
+
+#~ msgid "Instant play"
+#~ msgstr "Meow meow"
+
+#~ msgid "Favorite (pinned; max 5)"
+#~ msgstr "Meow (meow; meow 5)"
+
+#~ msgid "Default"
+#~ msgstr "Meow"
+
+#~ msgid "Instant Play"
+#~ msgstr "Meow Meow"
+
+#~ msgid ""
+#~ "Used by the launch options of the game that the platform client can start "
+#~ "itself.\n"
+#~ "Other launch options always use Instant Play."
+#~ msgstr ""
+#~ "Meow meow meow meow meow meow meow meow meow meow meow meow meow meow meow.\n"
+#~ "Meow meow meow meow meow Meow Meow."
+
+#~ msgid ""
+#~ "The game will never use instant play except\n"
+#~ "when launched through the right click menu."
+#~ msgstr ""
+#~ "Meow meow meow meow meow meow meow meow\n"
+#~ "meow meow meow meow meow meow meow."
+
+#~ msgid ""
+#~ "The game will always use instant play except\n"
+#~ "when launched through the right click menu."
+#~ msgstr ""
+#~ "Meow meow meow meow meow meow meow meow\n"
+#~ "meow meow meow meow meow meow meow."
+
+#~ msgid "Clear default"
+#~ msgstr "Meow meow"
+
+#~ msgid "Set as default"
+#~ msgstr "Meow meow meow"
+
+#~ msgid "SKIF goes back to using the primary launch option of the game."
+#~ msgstr "Meow meow meow meow meow meow meow meow meow meow meow meow."
+
+#~ msgid ""
+#~ "SKIF uses this launch option when the game is launched through the Play "
+#~ "button."
+#~ msgstr "Meow meow meow meow meow meow meow meow meow meow meow meow Meow meow."
+
+#~ msgid "The default launch option."
+#~ msgstr "Meow meow meow meow."
+
+#~ msgid "The default launch option (the primary one, as no other is set)."
+#~ msgstr "Meow meow meow meow (meow meow meow, meow meow meow meow meow)."
+
+#. TRANSLATORS: {0} is the name of the copy, {1} the name of the launch option it is a copy of
+#~ msgid "\"{0}\" is already a copy of \"{1}\" with Instant Play."
+#~ msgstr "\"{0}\" meow meow meow meow meow \"{1}\" meow Meow Meow."
+
+#~ msgid ""
+#~ "Created an editable copy of \"{0}\" with Instant Play. The original launch "
+#~ "option stays unchanged."
+#~ msgstr ""
+#~ "Meow meow meow meow meow \"{0}\" meow Meow Meow. Meow meow meow meow meow "
+#~ "meow."
+
+#~ msgid ""
+#~ "The launch options set in the platform client were added to its arguments."
+#~ msgstr "Meow meow meow meow meow meow meow meow meow meow meow meow meow."
+
+#. TRANSLATORS: %command% is the placeholder of Steam's launch options, keep it as it is; {0} is what came before it
+#~ msgid "The part before %command% ({0}) could not be copied."
+#~ msgstr "Meow meow meow %command% ({0}) meow meow meow meow."
+
+#~ msgid "Always (required)"
+#~ msgstr "Meow (meow)"
+
+#. TRANSLATORS: {0} is what the game's setting is: "Always" or "Never"
+#~ msgid "Game setting ({0})"
+#~ msgstr "Meow meow ({0})"
+
+#. TRANSLATORS: {0} is "Always" or "Never"
+#~ msgid "{0} (set by Special K)"
+#~ msgstr "{0} (meow meow Meow Meow)"
+
+#~ msgid "Use Instant Play"
+#~ msgstr "Meow Meow Meow"
+
+#~ msgid ""
+#~ "Creates an editable copy of this launch option among your own,\n"
+#~ "set to always use Instant Play. The original stays unchanged."
+#~ msgstr ""
+#~ "Meow meow meow meow meow meow meow meow meow meow meow,\n"
+#~ "meow meow meow meow Meow Meow. Meow meow meow meow."
+
+#~ msgid ""
+#~ "A critical rendering optimization will not function properly when Shelly is "
+#~ "visibly moving.\n"
+#~ "It is therefor recommended to leave Shelly hidden in favor of a reduced GPU "
+#~ "usage."
+#~ msgstr ""
+#~ "Meow meow meow meow meow meow meow meow meow Meow meow meow meow.\n"
+#~ "Meow meow meow meow meow meow Meow meow meow meow meow meow meow Meow meow."
+
+#~ msgid "Keybindings (In-Game)"
+#~ msgstr "Meow (Meow-Meow)"
+
+#~ msgid "Launch a game with Special K at least once to populate this section."
+#~ msgstr "Meow meow meow meow Meow Meow meow meow meow meow meow meow meow."
+
+#. TRANSLATORS: Ctrl, Shift and Backspace are keys of the keyboard (use the names printed on keyboards in your language)
+#~ msgid "Press Ctrl + Shift + Backspace while in-game."
+#~ msgstr "Meow Meow + Meow + Meow meow meow-meow."
+
+#~ msgid "Config folder:"
+#~ msgstr "Meow meow:"
+
+#~ msgid "32-bit service:"
+#~ msgstr "32-meow meow:"
+
+#~ msgid "64-bit service:"
+#~ msgstr "64-meow meow:"
+
+#~ msgid "Missing"
+#~ msgstr "Meow"

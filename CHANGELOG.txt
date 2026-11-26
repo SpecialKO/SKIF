@@ -34,7 +34,7 @@
  + Added an option to ignore the blacklist.
  + Jump list: Recently launched games are moved to the top, and fixed Xbox
      games missing from it.
- + Added translations: German, Pirate English and en-x-cat.
+ + Added a German translation.
  + SKIF and the library start considerably faster.
  + Sharper game icons and covers, and better support for high-DPI and
      multi-monitor setups.
