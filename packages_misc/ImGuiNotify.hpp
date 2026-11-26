@@ -57,9 +57,15 @@ extern float SKIF_ImGui_GlobalDPIScale;
 
 
 /**
-	* @brief The viewport of the current window, or the main viewport when the toast is created outside of a window.
+	* @brief The viewport of the current window, or the app's window when the toast is created outside of a window.
 	*
-	* @return HWND The HWND of the current/main viewport.
+	*   Outside of a frame (e.g. from a window message, handled while the message queue is pumped) there is no current
+	*   window. The main viewport is not the app's window in SKIF (it is ImGui's hidden host viewport, the app's window
+	*   being a viewport of its own), so a toast of the main viewport would never be rendered (RenderNotifications is
+	*   called for the app's window) and, before RenderNotifications also expired those of other windows, never removed
+	*   either: the main loop kept rendering for it for good.
+	*
+	* @return HWND The HWND of the current viewport, or of the app's window.
 	*/
 static HWND getDefaultHWND()
 {
@@ -67,6 +73,11 @@ static HWND getDefaultHWND()
 
 	if (g != nullptr && g->CurrentWindow != nullptr && g->CurrentWindow->Viewport != nullptr)
 		return (HWND)g->CurrentWindow->Viewport->PlatformHandleRaw;
+
+	extern HWND SKIF_ImGui_hWnd;
+
+	if (SKIF_ImGui_hWnd != NULL)
+		return SKIF_ImGui_hWnd;
 
 	return (HWND)ImGui::GetMainViewport()->PlatformHandleRaw;
 }
@@ -599,16 +610,17 @@ namespace ImGui
 		{
 			ImGuiToast* currentToast = &notifications[i];
 
+			// Remove toast if expired: whichever viewport it is of, as one no viewport renders would otherwise stay for good
+			//   (and with it, the main loop rendering for it, see SKIF.cpp). The index stays: the next toast moved into it.
+			if (currentToast->getPhase() == ImGuiToastPhase::Expired)
+			{
+				RemoveNotification(i--);
+				continue;
+			}
+
       // Only process toasts intended for the current viewport
       if (currentToast->getHWND() != hwnd)
         continue;
-
-			// Remove toast if expired
-			if (currentToast->getPhase() == ImGuiToastPhase::Expired)
-			{
-				RemoveNotification(i);
-				continue;
-			}
 
 			#if NOTIFY_RENDER_LIMIT > 0
 				if (i > NOTIFY_RENDER_LIMIT)
