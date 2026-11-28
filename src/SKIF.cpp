@@ -882,7 +882,7 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
     // Length of the substring to remove
     posSKIF_SteamAppID_end -= posSKIF_SteamAppID_start;
 
-    steamAppId = cmdLineLower.substr(posSKIF_SteamAppID_start + argSKIF_SteamAppID.length ( ), posSKIF_SteamAppID_end);
+    steamAppId = cmdLineLower.substr(posSKIF_SteamAppID_start + argSKIF_SteamAppID.length ( ), posSKIF_SteamAppID_end - argSKIF_SteamAppID.length ( ));
 
     // Remove substring from the original variables
     cmdLine     .erase (posSKIF_SteamAppID_start, posSKIF_SteamAppID_end);
@@ -999,8 +999,20 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
 
     // Per-executable and per-folder launch behaviors (registry, and the legacy SpecialK.deny / SpecialK.admin files),
     //   and the blacklists; see SKIF_InjectionContext::ResolveServiceFor
+    //     The Steam client sets the SteamAppId environment variable for what it launches (SKIF %COMMAND%)
+    std::wstring gameSteamAppId = steamAppId;
+
+    if (gameSteamAppId.empty ( ))
+    {
+      wchar_t wszSteamAppId [32] = { };
+      const DWORD len = GetEnvironmentVariableW (L"SteamAppId", wszSteamAppId, ARRAYSIZE (wszSteamAppId));
+
+      if (len > 0 && len < ARRAYSIZE (wszSteamAppId))
+        gameSteamAppId = wszSteamAppId;
+    }
+
     const SKIF_InjectionContext::ServiceDecision decision =
-      _inject.ResolveServiceFor (path);
+      _inject.ResolveServiceFor (path, gameSteamAppId);
 
     // The launch behaviors can have the service used anyway (e.g. for a blocked launcher, so the game it starts
     //   gets Special K). Special K stays disabled for the executable itself, so it is then not whitelisted either.
@@ -1019,7 +1031,7 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
 
     _Signal._AutoStopBehavior = decision.autoStopBehavior;
 
-    // The registry can request the removal as well (an explicit SKIF_SteamAppIDtxt=0 always removes it)
+    // The registry, or a game known to require it, can request the removal as well (an explicit SKIF_SteamAppIDtxt=0 always removes it)
     if (decision.removeSteamAppIDtxt)
       _Signal._RemoveSteamAppIDtxt = TRUE;
 
@@ -1033,7 +1045,9 @@ SKIF_Startup_LaunchGamePreparation (LPWSTR lpCmdLine)
       if (PathFileExists (steamAppIdTxt.c_str()))
       {
         PLOG_INFO << "Found steam_appid.txt in the working directory; attempting to delete.";
-        DeleteFile (steamAppIdTxt.c_str());
+
+        if (! DeleteFile (steamAppIdTxt.c_str()))
+          PLOG_ERROR << "Failed to delete steam_appid.txt: " << SKIF_Util_GetErrorAsWStr ( );
       }
     }
   }

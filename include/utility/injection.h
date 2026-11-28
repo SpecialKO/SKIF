@@ -131,12 +131,13 @@ struct SKIF_InjectionContext {
     bool  useService          = true;                // false if blacklisted (and not ignored)
     bool  elevated            = false;               // The service should be elevated
     int   autoStopBehavior    = 0;                   // 0 = use global default, 1 = stop on injection, 2 = stop on game exit, 3 = never stop
-    bool  removeSteamAppIDtxt = false;               // The launch behaviors remove steam_appid.txt
+    bool  removeSteamAppIDtxt = false;               // The launch behaviors remove steam_appid.txt (or the game is known to require it)
 
     bool  isBlacklisted (void) const { return isLocalBlacklisted || isGlobalBlacklisted; }
   };
 
-  ServiceDecision ResolveServiceFor       (const std::wstring& path);
+  // steamAppID is the Steam App ID of the game being launched, if it is known
+  ServiceDecision ResolveServiceFor       (const std::wstring& path, const std::wstring& steamAppID = L"");
 
   // Special K's state in a process
   bool    IsActiveInProcess       (DWORD dwProcessId); // Special K is injected and active (SKX_GetInjectedPIDs, which includes 32-bit processes)

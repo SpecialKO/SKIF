@@ -1907,8 +1907,35 @@ bool SKIF_InjectionContext::BlacklistPattern (std::string pattern)
 
 // Start Service hotkey
 
+// Games that crash on launch if there is a steam_appid.txt file in their folder, which the Steam client
+//   creates when %COMMAND% is used in the launch options (SpecialKO/SpecialK#321)
+static bool
+SKIF_IsSteamAppIDtxtIncompatible (const std::wstring& path, const std::wstring& steamAppID)
+{
+  struct game_s {
+    const wchar_t* steamAppID;
+    const wchar_t* executable;
+  };
+
+  static constexpr game_s games [] = {
+    { L"3375780", L"sora_1st.exe" } // Trails in the Sky 1st Chapter
+  };
+
+  // The executable is only used if the Steam App ID is unknown
+  const bool knownID = (! steamAppID.empty ( ) && steamAppID != L"0");
+
+  for (const auto& game : games)
+  {
+    if (knownID ? (steamAppID == game.steamAppID)
+                : (_wcsicmp (PathFindFileNameW (path.c_str ( )), game.executable) == 0))
+      return true;
+  }
+
+  return false;
+}
+
 SKIF_InjectionContext::ServiceDecision
-SKIF_InjectionContext::ResolveServiceFor (const std::wstring& path)
+SKIF_InjectionContext::ResolveServiceFor (const std::wstring& path, const std::wstring& steamAppID)
 {
   using Service       = SKIF_LaunchBehaviors::Service;
   using SteamAppIDtxt = SKIF_LaunchBehaviors::SteamAppIDtxt;
@@ -1944,6 +1971,14 @@ SKIF_InjectionContext::ResolveServiceFor (const std::wstring& path)
 
     if (PathFileExistsW (elevationFile.c_str()))
       behaviors.elevation = Elevation::Elevated;
+  }
+
+  // Nothing set for the executable: remove steam_appid.txt for games that are known to crash because of it
+  if (behaviors.steamAppIDtxt == SteamAppIDtxt::Inherit &&
+      SKIF_IsSteamAppIDtxtIncompatible (path, steamAppID))
+  {
+    PLOG_INFO << "The game is known to crash if steam_appid.txt is present, so launcher mode removes the file by default.";
+    behaviors.steamAppIDtxt = SteamAppIDtxt::Remove;
   }
 
   PLOG_INFO << "Launch behaviors: auto-stop "  << static_cast <int> (behaviors.autoStop)
