@@ -258,6 +258,8 @@ DrawGamesGrid (DWORD current_time, ImVec2 size, bool showClearBtn)
 
     const ImGuiID labelID = ImGui::GetID (rec->ImGuiLabelID.c_str());
     const bool hovered    = ImGui::IsItemHovered ( );
+
+    SKIF_Lib_TrackMouseHover (key);
     const bool isFocused  = (labelID == focusBeforeGrid) &&
                             (labelID == ImGui::GetFocusID ( ));
 

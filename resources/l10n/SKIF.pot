@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SKIF\n"
 "Report-Msgid-Bugs-To: https://github.com/SpecialKO/SKIF/issues\n"
-"POT-Creation-Date: 2026-11-26 01:38+0100\n"
+"POT-Creation-Date: 2026-11-28 19:19+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -248,7 +248,7 @@ msgstr ""
 
 #: src/stores/SKIF/custom_library.cpp:380
 #: src/stores/SKIF/custom_library.cpp:559
-#: src/tabs/library/library_launch.cpp:233
+#: src/tabs/library/library_launch.cpp:294
 #: src/tabs/library/library_popups.cpp:351
 #: src/tabs/library/library_popups.cpp:435
 #: src/tabs/library/library_popups.cpp:463
@@ -1239,49 +1239,49 @@ msgstr ""
 msgid "Open SteamGridDB"
 msgstr ""
 
-#: src/tabs/library.cpp:2022
+#: src/tabs/library.cpp:2025
 msgid "New 32-bit DLL Installed"
 msgstr ""
 
-#: src/tabs/library.cpp:2023
+#: src/tabs/library.cpp:2026
 msgid "New 64-bit DLL Installed"
 msgstr ""
 
-#: src/tabs/library.cpp:2154
-#: src/tabs/library.cpp:2262
+#: src/tabs/library.cpp:2157
+#: src/tabs/library.cpp:2265
 msgid "Missing Files"
 msgstr ""
 
-#: src/tabs/library.cpp:2155
-#: src/tabs/library.cpp:2263
+#: src/tabs/library.cpp:2158
+#: src/tabs/library.cpp:2266
 msgid "Unable to extract Special K DLL files from the provided {0} file."
 msgstr ""
 
-#: src/tabs/library.cpp:2301
+#: src/tabs/library.cpp:2304
 msgid "Unsupported Feature"
 msgstr ""
 
-#: src/tabs/library.cpp:2302
+#: src/tabs/library.cpp:2305
 msgid "SKIF cannot perform a drag-n-drop update because Special K {0} or newer is required."
 msgstr ""
 
-#: src/tabs/library.cpp:2313
+#: src/tabs/library.cpp:2316
 msgid "Nothing was changed"
 msgstr ""
 
-#: src/tabs/library.cpp:2314
+#: src/tabs/library.cpp:2317
 msgid "Drop the image on a game to change its cover: on its cover, its tile, or its row in the list."
 msgstr ""
 
-#: src/tabs/library.cpp:2331
+#: src/tabs/library.cpp:2334
 msgid "Unsupported file format"
 msgstr ""
 
-#: src/tabs/library.cpp:2333
+#: src/tabs/library.cpp:2336
 msgid "Add a game to the library:"
 msgstr ""
 
-#: src/tabs/library.cpp:2339
+#: src/tabs/library.cpp:2342
 msgid "Change the cover of a game (drop the image on it):"
 msgstr ""
 
@@ -1452,23 +1452,23 @@ msgstr ""
 msgid "Loading games..."
 msgstr ""
 
-#: src/tabs/library/library_launch.cpp:65
+#: src/tabs/library/library_launch.cpp:114
 msgid "Missing executable"
 msgstr ""
 
-#: src/tabs/library/library_launch.cpp:65
+#: src/tabs/library/library_launch.cpp:114
 msgid "Could not launch game due to missing executable:"
 msgstr ""
 
-#: src/tabs/library/library_launch.cpp:218
+#: src/tabs/library/library_launch.cpp:279
 msgid "Scanning game folder..."
 msgstr ""
 
-#: src/tabs/library/library_launch.cpp:228
+#: src/tabs/library/library_launch.cpp:289
 msgid "Checking the game for anti-cheat before it is launched."
 msgstr ""
 
-#: src/tabs/library/library_launch.cpp:229
+#: src/tabs/library/library_launch.cpp:290
 msgid "Scanning the game's files"
 msgstr ""
 

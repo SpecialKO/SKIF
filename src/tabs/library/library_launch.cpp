@@ -47,6 +47,55 @@ static bool             s_launchAfterScan = false; // LaunchGame ( ) is called b
 // Gives up waiting after this long (ms): the game is then launched as if no anti-cheat was found
 static constexpr DWORD  LAUNCH_SCAN_TIMEOUT = 30000;
 
+// The game whose row (list) or tile (grid) the mouse is over, and the frame it was last seen there
+static app_key_s        s_mouseHoveredGame  = { };
+static int              s_mouseHoveredFrame = -1;
+
+// A launch updates the game's Uses / Used values, which moves it in the library when sorted by them. While the mouse is
+//   over the launched game, the re-sort waits until it no longer is: another game would otherwise take its place under
+//     the mouse right away (e.g. between the clicks of a double-click). Launches by keyboard / gamepad re-sort at once.
+static app_key_s        s_sortDeferredFor   = { };
+static bool             s_sortDeferred      = false;
+
+void
+SKIF_Lib_TrackMouseHover (const app_key_s& game)
+{
+  ImGuiContext& g = *GImGui;
+
+  // While navigating by keyboard / gamepad, IsItemHovered ( ) reports the focused item instead of the mouse
+  if (g.NavHighlightItemUnderNav && g.NavCursorVisible)
+    return;
+
+  if (ImGui::IsItemHovered (ImGuiHoveredFlags_NoNavOverride))
+  {
+    s_mouseHoveredGame  = game;
+    s_mouseHoveredFrame = ImGui::GetFrameCount ( );
+  }
+}
+
+static bool
+SKIF_Lib_IsMouseHovering (const app_key_s& game)
+{
+  // The list and grid are drawn before the launch logic runs, but allow the previous frame as well for launches that
+  //   happen earlier in the frame (e.g. DrawLaunchScanPopup ( ))
+  return (s_mouseHoveredFrame >= ImGui::GetFrameCount ( ) - 1 && s_mouseHoveredGame == game);
+}
+
+void
+SKIF_Lib_UpdateDeferredSort (void)
+{
+  static SKIF_GamingCollection& _games      = SKIF_GamingCollection::Get ( );
+
+  if (! s_sortDeferred || SKIF_Lib_IsMouseHovering (s_sortDeferredFor))
+    return;
+
+  s_sortDeferred    = false;
+  s_sortDeferredFor = { };
+
+  SKIF_GamingCollection::SortApps (&_games.GetApps());
+  sort_changed = true;
+}
+
 void
 LaunchGame (app_record_s* pApp)
 {
@@ -179,9 +228,21 @@ LaunchGame (app_record_s* pApp)
     // Update the db.json file with the new Uses/Used values
     SKIF_GamingCollection::Get ( ).MetaDB_UpdateApp (pApp, true);
 
-    // Ensure the sort order is updated as well
-    SKIF_GamingCollection::SortApps (&_games.GetApps());
-    sort_changed = true;
+    // Ensure the sort order is updated as well; not while the mouse is over the game (see SKIF_Lib_UpdateDeferredSort ( ))
+    if (SKIF_Lib_IsMouseHovering (pApp->GetKey ( )))
+    {
+      s_sortDeferred    = true;
+      s_sortDeferredFor = pApp->GetKey ( );
+    }
+
+    else
+    {
+      s_sortDeferred    = false;
+      s_sortDeferredFor = { };
+
+      SKIF_GamingCollection::SortApps (&_games.GetApps());
+      sort_changed = true;
+    }
   }
 }
 

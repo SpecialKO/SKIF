@@ -241,6 +241,9 @@ bool   SKIF_Lib_IsMultiSelectModifierDown (void);                // Ctrl or Shif
 // library/library_launch.cpp
 void LaunchGame             (app_record_s* pApp);
 void DrawLaunchScanPopup     (void);                 // "Scanning game folder..." while a launch waits for the game's first scan (anti-cheat), then launches it
+void SKIF_Lib_TrackMouseHover    (const app_key_s& game); // Right after a game's row (list) or tile (grid): notes if the mouse is over it
+void SKIF_Lib_UpdateDeferredSort (void);              // Each frame, after the list / grid: re-sorts after a launch once the mouse has left the
+                                                      //   launched game (LaunchGame ( ) waits with it while the mouse is over it)
 bool SaveGameCover           (app_record_s* pApp, std::wstring_view path, bool notify = false); // Copies / downloads an image as the game's custom cover (background
                                                      //   thread); notify: a notification once it is saved (one is always shown if it fails)
 std::wstring SKIF_Lib_FindPreviousCover    (app_record_s* pApp);          // The previous custom cover (the one replaced or reset last), or empty

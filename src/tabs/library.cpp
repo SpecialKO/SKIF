@@ -1906,6 +1906,9 @@ SKIF_UI_Tab_DrawLibrary (void)
     launchWithoutSK   = false;
   }
 
+  // A re-sort after a launch waits while the mouse is over the launched game
+  SKIF_Lib_UpdateDeferredSort ( );
+
 #pragma endregion
 
 #pragma region SKIF_LibCoverWorker

@@ -433,6 +433,9 @@ DrawGamesList (DWORD current_time, ImVec2 fTop1, bool showClearBtn, ImVec2& fTop
     ImGui::PopID           ();
     ImGui::EndGroup        ();
 
+    // The whole row (icon + title)
+    SKIF_Lib_TrackMouseHover (rec->GetKey ( ));
+
     // Images dropped on the row change the game's cover, and it is highlighted while one is dragged over it
     if (RegisterCoverDropTarget (ImGui::GetItemRectMin ( ), ImGui::GetItemRectMax ( ), rec->GetKey ( )))
       DrawCoverDropHighlight (ImGui::GetWindowDrawList ( ), ImGui::GetItemRectMin ( ), ImGui::GetItemRectMax ( ), ImGui::GetStyle ( ).FrameRounding);
